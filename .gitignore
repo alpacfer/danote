@@ -38,3 +38,7 @@ pnpm-debug.log*
 dist/
 build/
 coverage/
+
+# Local SQLite files
+*.sqlite
+*.sqlite3

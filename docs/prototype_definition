@@ -1,0 +1,209 @@
+## prototype goal (v0)
+
+The first prototype is a **local-first language note-taking app** that lets the user type Danish notes in a large text field and classifies finalized words as:
+
+* **known**
+* **variation**
+* **new**
+
+The purpose of the prototype is to prove the core value of the app:
+
+> while taking language notes, the user can immediately see whether a word is already known, is a form of a known word, or is new.
+
+## what the prototype must do
+
+### core user flow
+
+The user should be able to:
+
+1. open the app
+2. type or paste Danish text into a large input field
+3. get a detected-words result list with statuses
+4. see `known / variation / new` for finalized words
+5. add a `new` word to the local wordbank
+6. re-run analysis and see the updated result
+7. restart the app and keep the saved words
+
+### required classification behavior
+
+For each finalized token, the app must classify using this logic:
+
+1. **exact form exists in DB** → `known`
+2. **exact form does not exist, but lemma/base form exists in DB** → `variation`
+3. **neither exact form nor lemma exists in DB** → `new`
+
+### required example behavior (canonical examples)
+
+Assume the local DB contains lexeme `bog`.
+
+* `bog` → **known**
+* `bogen` → **variation** (same base word / lemma)
+* `kat` (not in DB) → **new**
+
+These examples are mandatory acceptance references for the first prototype.
+
+## what the prototype must not do (out of scope)
+
+The following are explicitly out of scope for checkpoint 0 and the first prototype:
+
+### language intelligence features out of scope
+
+* typo detection (`typo_likely`, spell suggestions)
+* phrase / expression detection
+* grammar correction
+* translation generation
+* LLM-assisted semantic interpretation
+* ambiguity classification beyond `known / variation / new`
+
+### UI features out of scope
+
+* inline highlighting inside the text editor
+* rich-text editor behavior
+* floating suggestion popups while typing
+* phrase side panels
+* settings screen (except minimal internal defaults)
+
+### product/platform features out of scope
+
+* cloud sync
+* user accounts / login
+* multi-device sync
+* collaboration
+* analytics dashboard
+
+## user experience contract for the prototype
+
+The prototype is a **note-taking tool first**.
+
+### UX principles for v0
+
+* typing must feel smooth (no visible blocking)
+* the app should not interrupt the user while typing
+* results should appear in a separate panel (not inline in the editor)
+* feedback should be clear and minimal
+* the app should behave predictably, not “smart-looking” but unstable
+
+### status clarity requirement
+
+The UI must make the meaning of the three statuses clear:
+
+* `known` = exact word found in the local wordbank
+* `variation` = base word exists, typed form is a variation
+* `new` = not found
+
+## language and data assumptions for v0
+
+### language scope
+
+* primary language: **Danish**
+* input may contain punctuation and whitespace
+* mixed-language input may occur, but no special handling is required in v0
+
+### data model assumption (conceptual only)
+
+The prototype is lexeme-centered conceptually:
+
+* the app stores a **base word / lexeme** (e.g., `bog`)
+* the app can compare typed forms against the base word through lemmatization
+
+This checkpoint does not define the final schema, but it requires the prototype behavior to support exact match vs variation.
+
+## token and analysis behavior (v0 contract)
+
+### finalized token rule
+
+The app classifies **finalized words** only.
+
+A token is considered finalized when one of these happens:
+
+* the user types a space
+* the user types punctuation
+* the user pauses long enough for analysis (debounce behavior; exact timing is not fixed in checkpoint 0)
+
+### in-progress token behavior (behavioral expectation)
+
+The currently typed token should not be aggressively classified on every character.
+
+This is a UX requirement to avoid flicker and unstable results.
+
+Checkpoint 0 does not force a specific implementation, but it requires the result to feel calm while typing.
+
+## architecture assumptions for the prototype
+
+Checkpoint 0 fixes the product behavior and accepts the following architecture assumptions (already discussed):
+
+* **browser frontend** (web UI)
+* **local Python backend** on `localhost`
+* **local SQLite database** for wordbank persistence
+* **local Danish NLP (DaCy + Lemmy path)** for lemma-based variation detection
+* **no LLM in the typing loop**
+
+These are assumptions for implementation planning and do not change the product contract.
+
+## minimal UI contract (v0)
+
+The first prototype UI must contain at least:
+
+1. **A large note input field**
+
+   * where the user types lesson notes
+
+2. **A detected words panel**
+
+   * showing analyzed tokens and their statuses
+
+3. **A status legend**
+
+   * clarifying `known / variation / new`
+
+4. **A way to add a new word to the local DB**
+
+   * from the detected words list
+
+The prototype does not need polished visual design beyond clarity and stability.
+
+## success criteria for checkpoint 0
+
+Checkpoint 0 is complete when all of the following are true:
+
+### scope clarity
+
+* the prototype scope is written down and agreed
+* out-of-scope features are explicitly listed
+* the prototype goal is narrow and testable
+
+### behavior clarity
+
+* `known / variation / new` are defined unambiguously
+* finalized token behavior is defined at a product level
+* canonical examples (`bog`, `bogen`, `kat`) are documented
+
+### implementation alignment
+
+* frontend and backend can work from the same contract
+* no checkpoint after this should need to redefine the prototype goal
+
+## acceptance examples (must remain true during implementation)
+
+These examples should be used in backend tests, frontend demos, and manual smoke tests.
+
+### example set A — exact and variation
+
+Given local DB contains lexeme: `bog`
+
+* Input token: `bog` → `known`
+* Input token: `bogen` → `variation`
+* Input token: `bogen,` → `variation` (punctuation should not break classification)
+
+### example set B — unknown word
+
+Given local DB does not contain lexeme: `kat`
+
+* Input token: `kat` → `new`
+
+### example set C — user add flow (behavioral target)
+
+Given `kat` is classified as `new`
+
+* User adds `kat` to local DB
+* Re-analysis of `kat` should return `known`

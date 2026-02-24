@@ -1,0 +1,23 @@
+[
+  {
+    "id": "impact_exact_known",
+    "category": "classification_impact",
+    "db_seed_lexemes": ["bog"],
+    "surface": "bog",
+    "expected_status": "known"
+  },
+  {
+    "id": "impact_variation_definite",
+    "category": "classification_impact",
+    "db_seed_lexemes": ["bog"],
+    "surface": "bogen",
+    "expected_status": "variation"
+  },
+  {
+    "id": "impact_new_unknown",
+    "category": "classification_impact",
+    "db_seed_lexemes": ["bog"],
+    "surface": "kat",
+    "expected_status": "new"
+  }
+]

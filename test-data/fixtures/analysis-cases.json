@@ -1,0 +1,44 @@
+[
+  {
+    "id": "short_note",
+    "note_file": "short_note.txt",
+    "expected_file": "short_note.json",
+    "description": "Canonical short sentence"
+  },
+  {
+    "id": "medium_note",
+    "note_file": "medium_note.txt",
+    "expected_file": "medium_note.json",
+    "description": "Medium sentence with repetition and punctuation"
+  },
+  {
+    "id": "repeated_words",
+    "note_file": "repeated_words.txt",
+    "expected_file": "repeated_words.json",
+    "description": "Repeated known variation token"
+  },
+  {
+    "id": "punctuation_heavy",
+    "note_file": "punctuation_heavy.txt",
+    "expected_file": "punctuation_heavy.json",
+    "description": "Punctuation-heavy text"
+  },
+  {
+    "id": "newline_heavy",
+    "note_file": "newline_heavy.txt",
+    "expected_file": "newline_heavy.json",
+    "description": "Newline-heavy lesson notes"
+  },
+  {
+    "id": "mixed_casing",
+    "note_file": "mixed_casing.txt",
+    "expected_file": "mixed_casing.json",
+    "description": "Mixed casing behavior"
+  },
+  {
+    "id": "messy_input",
+    "note_file": "messy_input.txt",
+    "expected_file": "messy_input.json",
+    "description": "Messy real-note input"
+  }
+]

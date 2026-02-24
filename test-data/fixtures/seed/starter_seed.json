@@ -1,0 +1,20 @@
+{
+  "description": "Starter lexeme seed fixture used for regression tests",
+  "lexemes": [
+    {
+      "lemma": "bog",
+      "source": "manual",
+      "surface_forms": ["bog"]
+    },
+    {
+      "lemma": "kan",
+      "source": "manual",
+      "surface_forms": ["kan"]
+    },
+    {
+      "lemma": "lide",
+      "source": "manual",
+      "surface_forms": ["lide"]
+    }
+  ]
+}

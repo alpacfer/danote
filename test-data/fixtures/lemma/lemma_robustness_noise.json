@@ -1,0 +1,26 @@
+[
+  {
+    "id": "noise_whitespace",
+    "category": "robustness",
+    "text": "  kan   lide  ",
+    "expected_behavior": "No crash, stable token extraction"
+  },
+  {
+    "id": "noise_punctuation_only",
+    "category": "robustness",
+    "text": "!!! ... ???",
+    "expected_behavior": "No tokens returned"
+  },
+  {
+    "id": "noise_mixed_language",
+    "category": "robustness",
+    "text": "Jeg kan lide the book",
+    "expected_behavior": "Danish tokens processed, foreign words safely handled"
+  },
+  {
+    "id": "noise_typo",
+    "category": "robustness",
+    "text": "bogn",
+    "expected_behavior": "Usually classified as new"
+  }
+]

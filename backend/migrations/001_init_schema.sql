@@ -1,0 +1,21 @@
+CREATE TABLE IF NOT EXISTS lexemes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  lemma TEXT NOT NULL COLLATE NOCASE,
+  source TEXT NOT NULL DEFAULT 'manual',
+  created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+  updated_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+  UNIQUE (lemma)
+);
+
+CREATE TABLE IF NOT EXISTS surface_forms (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  lexeme_id INTEGER NOT NULL,
+  form TEXT NOT NULL COLLATE NOCASE,
+  source TEXT NOT NULL DEFAULT 'observed',
+  created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+  FOREIGN KEY (lexeme_id) REFERENCES lexemes(id) ON DELETE CASCADE,
+  UNIQUE (lexeme_id, form)
+);
+
+CREATE INDEX IF NOT EXISTS idx_surface_forms_form ON surface_forms(form);
+CREATE INDEX IF NOT EXISTS idx_surface_forms_lexeme_id ON surface_forms(lexeme_id);

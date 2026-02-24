@@ -1,0 +1,40 @@
+{
+  "tokens": [
+    {
+      "surface_token": "bogen",
+      "normalized_token": "bogen",
+      "lemma_candidate": "bog",
+      "classification": "variation",
+      "match_source": "lemma",
+      "matched_lemma": "bog",
+      "matched_surface_form": null
+    },
+    {
+      "surface_token": "bogen",
+      "normalized_token": "bogen",
+      "lemma_candidate": "bog",
+      "classification": "variation",
+      "match_source": "lemma",
+      "matched_lemma": "bog",
+      "matched_surface_form": null
+    },
+    {
+      "surface_token": "bogen",
+      "normalized_token": "bogen",
+      "lemma_candidate": "bog",
+      "classification": "variation",
+      "match_source": "lemma",
+      "matched_lemma": "bog",
+      "matched_surface_form": null
+    },
+    {
+      "surface_token": "bogen",
+      "normalized_token": "bogen",
+      "lemma_candidate": "bog",
+      "classification": "variation",
+      "match_source": "lemma",
+      "matched_lemma": "bog",
+      "matched_surface_form": null
+    }
+  ]
+}

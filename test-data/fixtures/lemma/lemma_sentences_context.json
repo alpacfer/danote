@@ -1,0 +1,26 @@
+[
+  {
+    "id": "context_aux_participle",
+    "category": "sentence_context",
+    "sentence": "Jeg har spist i dag.",
+    "target_token": "spist",
+    "expected_lemma": "spise",
+    "notes": "Participle in auxiliary context"
+  },
+  {
+    "id": "context_motion_participle",
+    "category": "sentence_context",
+    "sentence": "Han er gået hjem.",
+    "target_token": "gået",
+    "expected_lemma": "gå",
+    "notes": "Motion verb participle"
+  },
+  {
+    "id": "context_adverb",
+    "category": "sentence_context",
+    "sentence": "Han synger godt.",
+    "target_token": "godt",
+    "expected_lemma": "god",
+    "notes": "Adverbial usage"
+  }
+]

@@ -1,0 +1,58 @@
+[
+  {
+    "id": "noun_regular_definite",
+    "category": "noun_regular",
+    "surface": "bogen",
+    "expected_lemma": "bog",
+    "notes": "Canonical noun definiteness"
+  },
+  {
+    "id": "noun_irregular_plural",
+    "category": "noun_irregular",
+    "surface": "mænd",
+    "expected_lemma": "mand",
+    "notes": "Irregular plural with vowel change"
+  },
+  {
+    "id": "verb_irregular_past",
+    "category": "verb_irregular",
+    "surface": "gik",
+    "expected_lemma": "gå",
+    "notes": "Irregular past tense"
+  },
+  {
+    "id": "verb_modal",
+    "category": "verb_modal",
+    "surface": "kan",
+    "expected_lemma": "kunne",
+    "notes": "Modal verb normalization"
+  },
+  {
+    "id": "adjective_degree",
+    "category": "adjective_degree",
+    "surface": "bedre",
+    "expected_lemma": "god",
+    "notes": "Comparative adjective"
+  },
+  {
+    "id": "compound_noun",
+    "category": "compound",
+    "surface": "sommerhuset",
+    "expected_lemma": "sommerhus",
+    "notes": "Compound noun with definiteness"
+  },
+  {
+    "id": "diacritic_form",
+    "category": "diacritics",
+    "surface": "bøgerne",
+    "expected_lemma": "bog",
+    "notes": "Danish diacritic and plural"
+  },
+  {
+    "id": "punctuation_attached",
+    "category": "robustness_punctuation",
+    "surface": "bogen,",
+    "expected_lemma": "bog",
+    "notes": "Comma-attached token"
+  }
+]

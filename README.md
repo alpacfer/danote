@@ -10,17 +10,108 @@ Language-learning note-taking web app (Danish-first) with a browser frontend and
 - `scripts/`: development helper scripts
 - `test-data/`: seed fixtures and sample sentences
 
-## Run Instructions (Placeholder)
+## Run Instructions
 
-Implementation scaffolding is not initialized yet.
+One-command startup (recommended):
 
-Planned local workflow:
+```bash
+cd /home/alejandro/Documents/github/danote/danote
+./scripts/run-project.sh
+```
+
+This starts backend and frontend together, checks backend health, and stops both on `Ctrl+C`.
+
+Local workflow:
 
 1. Start backend service.
 2. Start frontend dev server.
 3. Open the app in a browser and connect to local backend.
 
-Concrete commands will be added once frontend and backend stacks are scaffolded.
+Backend:
+
+```bash
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements-dev.txt
+uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+```
+
+If `python3-venv` / `python3-pip` are missing on Linux, bootstrap with `uv` first:
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+~/.local/bin/uv venv --clear backend/.venv
+~/.local/bin/uv pip install --python backend/.venv/bin/python -r backend/requirements-dev.txt
+```
+
+Frontend:
+
+```bash
+cd frontend
+npm install
+# optional if backend is not on default http://127.0.0.1:8000
+# export VITE_BACKEND_URL=http://127.0.0.1:8000
+npm run dev -- --host 127.0.0.1 --port 4173
+```
+
+Connectivity check:
+
+- Frontend calls `GET /api/health` on startup.
+- Backend returns readiness payload with `status: ok|degraded`.
+
+Database init and seed:
+
+- Backend startup auto-creates/migrates SQLite schema.
+- Run idempotent seed loader:
+
+```bash
+cd backend
+./.venv/bin/python scripts/seed_db.py
+```
+
+NLP compatibility check:
+
+```bash
+cd backend
+./.venv/bin/python -m spacy validate
+```
+
+## Regression Baseline (Checkpoint 18)
+
+Fixture pack:
+
+- Notes and seed fixtures: `test-data/fixtures/`
+- Golden analyze outputs: `test-data/fixtures/expected/analyze/`
+
+Refresh golden outputs:
+
+```bash
+cd /home/alejandro/Documents/github/danote/danote
+PYTHONPATH=backend backend/.venv/bin/python scripts/generate_fixture_goldens.py
+```
+
+Run fixture regression tests:
+
+```bash
+cd backend
+PYTHONPATH=. .venv/bin/pytest tests/test_regression_fixtures.py -q
+```
+
+Run scripted e2e reliability flow:
+
+```bash
+cd /home/alejandro/Documents/github/danote/danote
+./scripts/e2e-regression.sh
+```
+
+Manual demo and release docs:
+
+- `docs/manual-demo-script.md`
+- `docs/release-checklist-prototype-v0.md`
+- `docs/lemma-benchmark-baseline.md`
+- `docs/lemma-benchmark-report-v0.md`
 
 ## Reproducibility
 

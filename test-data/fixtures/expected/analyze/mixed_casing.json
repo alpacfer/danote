@@ -1,0 +1,58 @@
+{
+  "tokens": [
+    {
+      "surface_token": "JEG",
+      "normalized_token": "jeg",
+      "lemma_candidate": "jeg",
+      "classification": "new",
+      "match_source": "none",
+      "matched_lemma": null,
+      "matched_surface_form": null
+    },
+    {
+      "surface_token": "kan",
+      "normalized_token": "kan",
+      "lemma_candidate": "kan",
+      "classification": "known",
+      "match_source": "exact",
+      "matched_lemma": "kan",
+      "matched_surface_form": "kan"
+    },
+    {
+      "surface_token": "LIDE",
+      "normalized_token": "lide",
+      "lemma_candidate": "lide",
+      "classification": "known",
+      "match_source": "exact",
+      "matched_lemma": "lide",
+      "matched_surface_form": "lide"
+    },
+    {
+      "surface_token": "Bogen",
+      "normalized_token": "bogen",
+      "lemma_candidate": "bog",
+      "classification": "variation",
+      "match_source": "lemma",
+      "matched_lemma": "bog",
+      "matched_surface_form": null
+    },
+    {
+      "surface_token": "og",
+      "normalized_token": "og",
+      "lemma_candidate": "og",
+      "classification": "new",
+      "match_source": "none",
+      "matched_lemma": null,
+      "matched_surface_form": null
+    },
+    {
+      "surface_token": "BOG",
+      "normalized_token": "bog",
+      "lemma_candidate": "bog",
+      "classification": "known",
+      "match_source": "exact",
+      "matched_lemma": "bog",
+      "matched_surface_form": "bog"
+    }
+  ]
+}
