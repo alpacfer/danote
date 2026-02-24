@@ -33,15 +33,15 @@ def test_analysis_cases_reference_existing_files() -> None:
 
 
 def test_lemma_mvb_fixture_sizes_and_basic_schema() -> None:
-    token_cases = _load_json(FIXTURES_DIR / "lemma" / "lemma_tokens_by_category.json")
-    context_cases = _load_json(FIXTURES_DIR / "lemma" / "lemma_sentences_context.json")
-    class_cases = _load_json(FIXTURES_DIR / "lemma" / "classification_impact_variation.json")
-    robust_cases = _load_json(FIXTURES_DIR / "lemma" / "lemma_robustness_noise.json")
+    token_cases = _load_json(FIXTURES_DIR / "lemma" / "lemma_tokens_by_category.extended.json")
+    context_cases = _load_json(FIXTURES_DIR / "lemma" / "lemma_sentences_context.extended.json")
+    class_cases = _load_json(FIXTURES_DIR / "lemma" / "classification_impact_variation.extended.json")
+    robust_cases = _load_json(FIXTURES_DIR / "lemma" / "lemma_robustness_noise.extended.json")
 
-    assert len(token_cases) == 60
-    assert len(context_cases) == 20
-    assert len(class_cases) == 30
-    assert len(robust_cases) == 10
+    assert len(token_cases) == 379
+    assert len(context_cases) == 102
+    assert len(class_cases) == 391
+    assert len(robust_cases) == 75
 
     assert all({"id", "category", "surface", "expected_lemma"}.issubset(case) for case in token_cases)
     assert all(

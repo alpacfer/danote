@@ -1,0 +1,1095 @@
+[
+  {
+    "id": "robust_001",
+    "category": "punctuation_attached",
+    "mode": "single_token",
+    "db_seed_lexemes": [
+      "bog"
+    ],
+    "input_token": "bogen,",
+    "expected_status": "variation",
+    "expected_lemma": "bog"
+  },
+  {
+    "id": "robust_002",
+    "category": "punctuation_attached",
+    "mode": "single_token",
+    "db_seed_lexemes": [
+      "hus"
+    ],
+    "input_token": "(huset)",
+    "expected_status": "variation",
+    "expected_lemma": "hus"
+  },
+  {
+    "id": "robust_003",
+    "category": "punctuation_attached",
+    "mode": "single_token",
+    "db_seed_lexemes": [
+      "god"
+    ],
+    "input_token": "\"godt\"",
+    "expected_status": "variation",
+    "expected_lemma": "god"
+  },
+  {
+    "id": "robust_004",
+    "category": "punctuation_attached",
+    "mode": "single_token",
+    "db_seed_lexemes": [
+      "barn"
+    ],
+    "input_token": "børnene.",
+    "expected_status": "variation",
+    "expected_lemma": "barn"
+  },
+  {
+    "id": "robust_005",
+    "category": "punctuation_attached",
+    "mode": "single_token",
+    "db_seed_lexemes": [
+      "gå"
+    ],
+    "input_token": "gik!",
+    "expected_status": "variation",
+    "expected_lemma": "gå"
+  },
+  {
+    "id": "robust_006",
+    "category": "punctuation_attached",
+    "mode": "single_token",
+    "db_seed_lexemes": [
+      "spise"
+    ],
+    "input_token": "spiste?",
+    "expected_status": "variation",
+    "expected_lemma": "spise"
+  },
+  {
+    "id": "robust_007",
+    "category": "punctuation_attached",
+    "mode": "single_token",
+    "db_seed_lexemes": [
+      "skrive"
+    ],
+    "input_token": "skrevet;",
+    "expected_status": "variation",
+    "expected_lemma": "skrive"
+  },
+  {
+    "id": "robust_008",
+    "category": "punctuation_attached",
+    "mode": "single_token",
+    "db_seed_lexemes": [
+      "stor"
+    ],
+    "input_token": "større:",
+    "expected_status": "variation",
+    "expected_lemma": "stor"
+  },
+  {
+    "id": "robust_009",
+    "category": "punctuation_attached",
+    "mode": "single_token",
+    "db_seed_lexemes": [
+      "computer"
+    ],
+    "input_token": "[computeren]",
+    "expected_status": "variation",
+    "expected_lemma": "computer"
+  },
+  {
+    "id": "robust_010",
+    "category": "punctuation_attached",
+    "mode": "single_token",
+    "db_seed_lexemes": [
+      "træ"
+    ],
+    "input_token": "træerne...",
+    "expected_status": "variation",
+    "expected_lemma": "træ"
+  },
+  {
+    "id": "robust_011",
+    "category": "punctuation_attached",
+    "mode": "single_token",
+    "db_seed_lexemes": [
+      "bog"
+    ],
+    "input_token": "«bogen»",
+    "expected_status": "variation",
+    "expected_lemma": "bog"
+  },
+  {
+    "id": "robust_012",
+    "category": "punctuation_attached",
+    "mode": "single_token",
+    "db_seed_lexemes": [
+      "hus"
+    ],
+    "input_token": "“huset”",
+    "expected_status": "variation",
+    "expected_lemma": "hus"
+  },
+  {
+    "id": "robust_013",
+    "category": "punctuation_attached",
+    "mode": "single_token",
+    "db_seed_lexemes": [
+      "god"
+    ],
+    "input_token": "'gode'",
+    "expected_status": "variation",
+    "expected_lemma": "god"
+  },
+  {
+    "id": "robust_014",
+    "category": "punctuation_attached",
+    "mode": "single_token",
+    "db_seed_lexemes": [
+      "robot"
+    ],
+    "input_token": "robotterne)",
+    "expected_status": "variation",
+    "expected_lemma": "robot"
+  },
+  {
+    "id": "robust_015",
+    "category": "punctuation_attached",
+    "mode": "single_token",
+    "db_seed_lexemes": [
+      "øvelse"
+    ],
+    "input_token": "øvelserne,",
+    "expected_status": "variation",
+    "expected_lemma": "øvelse"
+  },
+  {
+    "id": "robust_016",
+    "category": "unicode_punctuation",
+    "mode": "single_token",
+    "db_seed_lexemes": [
+      "bog"
+    ],
+    "input_token": "bogen—",
+    "expected_status": "variation",
+    "expected_lemma": "bog"
+  },
+  {
+    "id": "robust_017",
+    "category": "unicode_punctuation",
+    "mode": "single_token",
+    "db_seed_lexemes": [
+      "hus"
+    ],
+    "input_token": "—huset",
+    "expected_status": "variation",
+    "expected_lemma": "hus"
+  },
+  {
+    "id": "robust_018",
+    "category": "unicode_punctuation",
+    "mode": "single_token",
+    "db_seed_lexemes": [
+      "gå"
+    ],
+    "input_token": "gik…",
+    "expected_status": "variation",
+    "expected_lemma": "gå"
+  },
+  {
+    "id": "robust_019",
+    "category": "unicode_punctuation",
+    "mode": "single_token",
+    "db_seed_lexemes": [
+      "god"
+    ],
+    "input_token": "godt…",
+    "expected_status": "variation",
+    "expected_lemma": "god"
+  },
+  {
+    "id": "robust_020",
+    "category": "unicode_punctuation",
+    "mode": "single_token",
+    "db_seed_lexemes": [
+      "sensor"
+    ],
+    "input_token": "sensoren,",
+    "expected_status": "variation",
+    "expected_lemma": "sensor"
+  },
+  {
+    "id": "robust_021",
+    "category": "unicode_punctuation",
+    "mode": "single_token",
+    "db_seed_lexemes": [
+      "server"
+    ],
+    "input_token": "serveren;",
+    "expected_status": "variation",
+    "expected_lemma": "server"
+  },
+  {
+    "id": "robust_022",
+    "category": "casing",
+    "mode": "single_token",
+    "db_seed_lexemes": [
+      "bog"
+    ],
+    "input_token": "Bog",
+    "expected_status": "known",
+    "expected_lemma": "bog"
+  },
+  {
+    "id": "robust_023",
+    "category": "casing",
+    "mode": "single_token",
+    "db_seed_lexemes": [
+      "bog"
+    ],
+    "input_token": "BOGEN",
+    "expected_status": "variation",
+    "expected_lemma": "bog"
+  },
+  {
+    "id": "robust_024",
+    "category": "casing",
+    "mode": "single_token",
+    "db_seed_lexemes": [
+      "hus"
+    ],
+    "input_token": "HUSET",
+    "expected_status": "variation",
+    "expected_lemma": "hus"
+  },
+  {
+    "id": "robust_025",
+    "category": "casing",
+    "mode": "single_token",
+    "db_seed_lexemes": [
+      "god"
+    ],
+    "input_token": "GODT",
+    "expected_status": "variation",
+    "expected_lemma": "god"
+  },
+  {
+    "id": "robust_026",
+    "category": "casing",
+    "mode": "single_token",
+    "db_seed_lexemes": [
+      "gå"
+    ],
+    "input_token": "GIK",
+    "expected_status": "variation",
+    "expected_lemma": "gå"
+  },
+  {
+    "id": "robust_027",
+    "category": "casing",
+    "mode": "single_token",
+    "db_seed_lexemes": [
+      "være"
+    ],
+    "input_token": "ER",
+    "expected_status": "variation",
+    "expected_lemma": "være"
+  },
+  {
+    "id": "robust_028",
+    "category": "casing",
+    "mode": "single_token",
+    "db_seed_lexemes": [
+      "robot"
+    ],
+    "input_token": "Robotter",
+    "expected_status": "variation",
+    "expected_lemma": "robot"
+  },
+  {
+    "id": "robust_029",
+    "category": "casing",
+    "mode": "single_token",
+    "db_seed_lexemes": [
+      "øvelse"
+    ],
+    "input_token": "ØVELSERNE",
+    "expected_status": "variation",
+    "expected_lemma": "øvelse"
+  },
+  {
+    "id": "robust_030",
+    "category": "casing",
+    "mode": "single_token",
+    "db_seed_lexemes": [
+      "træ"
+    ],
+    "input_token": "Træet",
+    "expected_status": "variation",
+    "expected_lemma": "træ"
+  },
+  {
+    "id": "robust_031",
+    "category": "casing",
+    "mode": "single_token",
+    "db_seed_lexemes": [
+      "skole"
+    ],
+    "input_token": "Skolerne",
+    "expected_status": "variation",
+    "expected_lemma": "skole"
+  },
+  {
+    "id": "robust_032",
+    "category": "typo_guard",
+    "mode": "single_token",
+    "db_seed_lexemes": [
+      "bog"
+    ],
+    "input_token": "bogn",
+    "expected_status": "new",
+    "expected_lemma": ""
+  },
+  {
+    "id": "robust_033",
+    "category": "typo_guard",
+    "mode": "single_token",
+    "db_seed_lexemes": [
+      "spise"
+    ],
+    "input_token": "spisr",
+    "expected_status": "new",
+    "expected_lemma": ""
+  },
+  {
+    "id": "robust_034",
+    "category": "typo_guard",
+    "mode": "single_token",
+    "db_seed_lexemes": [
+      "hus"
+    ],
+    "input_token": "huus",
+    "expected_status": "new",
+    "expected_lemma": ""
+  },
+  {
+    "id": "robust_035",
+    "category": "typo_guard",
+    "mode": "single_token",
+    "db_seed_lexemes": [
+      "god"
+    ],
+    "input_token": "goot",
+    "expected_status": "new",
+    "expected_lemma": ""
+  },
+  {
+    "id": "robust_036",
+    "category": "typo_guard",
+    "mode": "single_token",
+    "db_seed_lexemes": [
+      "gå"
+    ],
+    "input_token": "gåk",
+    "expected_status": "new",
+    "expected_lemma": ""
+  },
+  {
+    "id": "robust_037",
+    "category": "typo_guard",
+    "mode": "single_token",
+    "db_seed_lexemes": [
+      "arbejde"
+    ],
+    "input_token": "arbejdee",
+    "expected_status": "new",
+    "expected_lemma": ""
+  },
+  {
+    "id": "robust_038",
+    "category": "typo_guard",
+    "mode": "single_token",
+    "db_seed_lexemes": [
+      "server"
+    ],
+    "input_token": "servr",
+    "expected_status": "new",
+    "expected_lemma": ""
+  },
+  {
+    "id": "robust_039",
+    "category": "typo_guard",
+    "mode": "single_token",
+    "db_seed_lexemes": [
+      "robot"
+    ],
+    "input_token": "robt",
+    "expected_status": "new",
+    "expected_lemma": ""
+  },
+  {
+    "id": "robust_040",
+    "category": "typo_guard",
+    "mode": "single_token",
+    "db_seed_lexemes": [
+      "sensor"
+    ],
+    "input_token": "snsor",
+    "expected_status": "new",
+    "expected_lemma": ""
+  },
+  {
+    "id": "robust_041",
+    "category": "typo_guard",
+    "mode": "single_token",
+    "db_seed_lexemes": [
+      "øvelse"
+    ],
+    "input_token": "øvelsne",
+    "expected_status": "new",
+    "expected_lemma": ""
+  },
+  {
+    "id": "robust_042",
+    "category": "typo_guard",
+    "mode": "single_token",
+    "db_seed_lexemes": [
+      "træ"
+    ],
+    "input_token": "trærne",
+    "expected_status": "new",
+    "expected_lemma": ""
+  },
+  {
+    "id": "robust_043",
+    "category": "typo_guard",
+    "mode": "single_token",
+    "db_seed_lexemes": [
+      "være"
+    ],
+    "input_token": "vaer",
+    "expected_status": "new",
+    "expected_lemma": ""
+  },
+  {
+    "id": "robust_044",
+    "category": "whitespace_newline",
+    "mode": "note_text",
+    "db_seed_lexemes": [
+      "bog"
+    ],
+    "input_text": "bog   bogen",
+    "expected_sequence": [
+      {
+        "normalized_token": "bog",
+        "expected_status": "known"
+      },
+      {
+        "normalized_token": "bogen",
+        "expected_status": "variation"
+      }
+    ]
+  },
+  {
+    "id": "robust_045",
+    "category": "whitespace_newline",
+    "mode": "note_text",
+    "db_seed_lexemes": [
+      "hus"
+    ],
+    "input_text": "hus\nhuset",
+    "expected_sequence": [
+      {
+        "normalized_token": "hus",
+        "expected_status": "known"
+      },
+      {
+        "normalized_token": "huset",
+        "expected_status": "variation"
+      }
+    ]
+  },
+  {
+    "id": "robust_046",
+    "category": "whitespace_newline",
+    "mode": "note_text",
+    "db_seed_lexemes": [
+      "god"
+    ],
+    "input_text": "godt\tgode",
+    "expected_sequence": [
+      {
+        "normalized_token": "godt",
+        "expected_status": "variation"
+      },
+      {
+        "normalized_token": "gode",
+        "expected_status": "variation"
+      }
+    ]
+  },
+  {
+    "id": "robust_047",
+    "category": "whitespace_newline",
+    "mode": "note_text",
+    "db_seed_lexemes": [
+      "gå"
+    ],
+    "input_text": "gik\n\ngået",
+    "expected_sequence": [
+      {
+        "normalized_token": "gik",
+        "expected_status": "variation"
+      },
+      {
+        "normalized_token": "gået",
+        "expected_status": "variation"
+      }
+    ]
+  },
+  {
+    "id": "robust_048",
+    "category": "whitespace_newline",
+    "mode": "note_text",
+    "db_seed_lexemes": [
+      "skole"
+    ],
+    "input_text": " skolen  \n  skolerne ",
+    "expected_sequence": [
+      {
+        "normalized_token": "skolen",
+        "expected_status": "variation"
+      },
+      {
+        "normalized_token": "skolerne",
+        "expected_status": "variation"
+      }
+    ]
+  },
+  {
+    "id": "robust_049",
+    "category": "list_formatting",
+    "mode": "note_text",
+    "db_seed_lexemes": [
+      "bog",
+      "hus",
+      "barn"
+    ],
+    "input_text": "bog, huset, børnene",
+    "expected_sequence": [
+      {
+        "normalized_token": "bog",
+        "expected_status": "known"
+      },
+      {
+        "normalized_token": "huset",
+        "expected_status": "variation"
+      },
+      {
+        "normalized_token": "børnene",
+        "expected_status": "variation"
+      }
+    ]
+  },
+  {
+    "id": "robust_050",
+    "category": "list_formatting",
+    "mode": "note_text",
+    "db_seed_lexemes": [
+      "bog",
+      "god",
+      "gå"
+    ],
+    "input_text": "1) bogen 2) godt 3) gik",
+    "expected_sequence": [
+      {
+        "normalized_token": "bogen",
+        "expected_status": "variation"
+      },
+      {
+        "normalized_token": "godt",
+        "expected_status": "variation"
+      },
+      {
+        "normalized_token": "gik",
+        "expected_status": "variation"
+      }
+    ]
+  },
+  {
+    "id": "robust_051",
+    "category": "list_formatting",
+    "mode": "note_text",
+    "db_seed_lexemes": [
+      "computer",
+      "robot"
+    ],
+    "input_text": "- computeren\n- robotter",
+    "expected_sequence": [
+      {
+        "normalized_token": "computeren",
+        "expected_status": "variation"
+      },
+      {
+        "normalized_token": "robotter",
+        "expected_status": "variation"
+      }
+    ]
+  },
+  {
+    "id": "robust_052",
+    "category": "list_formatting",
+    "mode": "note_text",
+    "db_seed_lexemes": [
+      "øvelse",
+      "spørgsmål"
+    ],
+    "input_text": "øvelserne: spørgsmålene",
+    "expected_sequence": [
+      {
+        "normalized_token": "øvelserne",
+        "expected_status": "variation"
+      },
+      {
+        "normalized_token": "spørgsmålene",
+        "expected_status": "variation"
+      }
+    ]
+  },
+  {
+    "id": "robust_053",
+    "category": "list_formatting",
+    "mode": "note_text",
+    "db_seed_lexemes": [
+      "arbejde",
+      "skrive"
+    ],
+    "input_text": "arbejder / skriver",
+    "expected_sequence": [
+      {
+        "normalized_token": "arbejder",
+        "expected_status": "variation"
+      },
+      {
+        "normalized_token": "skriver",
+        "expected_status": "variation"
+      }
+    ]
+  },
+  {
+    "id": "robust_054",
+    "category": "mixed_language",
+    "mode": "note_text",
+    "db_seed_lexemes": [
+      "bog"
+    ],
+    "input_text": "Jeg kan lide bogen and the house",
+    "expected_sequence": [
+      {
+        "normalized_token": "jeg",
+        "expected_status": "new"
+      },
+      {
+        "normalized_token": "kan",
+        "expected_status": "new"
+      },
+      {
+        "normalized_token": "lide",
+        "expected_status": "new"
+      },
+      {
+        "normalized_token": "bogen",
+        "expected_status": "variation"
+      },
+      {
+        "normalized_token": "and",
+        "expected_status": "new"
+      },
+      {
+        "normalized_token": "the",
+        "expected_status": "new"
+      },
+      {
+        "normalized_token": "house",
+        "expected_status": "new"
+      }
+    ]
+  },
+  {
+    "id": "robust_055",
+    "category": "mixed_language",
+    "mode": "note_text",
+    "db_seed_lexemes": [
+      "computer",
+      "bruge"
+    ],
+    "input_text": "bruger computeren for testing",
+    "expected_sequence": [
+      {
+        "normalized_token": "bruger",
+        "expected_status": "variation"
+      },
+      {
+        "normalized_token": "computeren",
+        "expected_status": "variation"
+      },
+      {
+        "normalized_token": "for",
+        "expected_status": "new"
+      },
+      {
+        "normalized_token": "testing",
+        "expected_status": "new"
+      }
+    ]
+  },
+  {
+    "id": "robust_056",
+    "category": "mixed_language",
+    "mode": "note_text",
+    "db_seed_lexemes": [
+      "gå"
+    ],
+    "input_text": "gik home early",
+    "expected_sequence": [
+      {
+        "normalized_token": "gik",
+        "expected_status": "variation"
+      },
+      {
+        "normalized_token": "home",
+        "expected_status": "new"
+      },
+      {
+        "normalized_token": "early",
+        "expected_status": "new"
+      }
+    ]
+  },
+  {
+    "id": "robust_057",
+    "category": "mixed_language",
+    "mode": "note_text",
+    "db_seed_lexemes": [
+      "sensor"
+    ],
+    "input_text": "sensoren -> sensor data",
+    "expected_sequence": [
+      {
+        "normalized_token": "sensoren",
+        "expected_status": "variation"
+      },
+      {
+        "normalized_token": "sensor",
+        "expected_status": "known"
+      },
+      {
+        "normalized_token": "data",
+        "expected_status": "new"
+      }
+    ]
+  },
+  {
+    "id": "robust_058",
+    "category": "emoji_noise",
+    "mode": "note_text",
+    "db_seed_lexemes": [
+      "bog",
+      "god"
+    ],
+    "input_text": "bogen 🙂 godt ✅",
+    "expected_sequence": [
+      {
+        "normalized_token": "bogen",
+        "expected_status": "variation"
+      },
+      {
+        "normalized_token": "godt",
+        "expected_status": "variation"
+      }
+    ]
+  },
+  {
+    "id": "robust_059",
+    "category": "emoji_noise",
+    "mode": "note_text",
+    "db_seed_lexemes": [
+      "hus"
+    ],
+    "input_text": "🏠 huset",
+    "expected_sequence": [
+      {
+        "normalized_token": "huset",
+        "expected_status": "variation"
+      }
+    ]
+  },
+  {
+    "id": "robust_060",
+    "category": "emoji_noise",
+    "mode": "note_text",
+    "db_seed_lexemes": [
+      "gå"
+    ],
+    "input_text": "gik🚶",
+    "expected_sequence": [
+      {
+        "normalized_token": "gik",
+        "expected_status": "variation"
+      }
+    ]
+  },
+  {
+    "id": "robust_061",
+    "category": "empty_malformed",
+    "mode": "note_text",
+    "db_seed_lexemes": [],
+    "input_text": "",
+    "expected_sequence": []
+  },
+  {
+    "id": "robust_062",
+    "category": "empty_malformed",
+    "mode": "note_text",
+    "db_seed_lexemes": [],
+    "input_text": "   \n\t  ",
+    "expected_sequence": []
+  },
+  {
+    "id": "robust_063",
+    "category": "empty_malformed",
+    "mode": "note_text",
+    "db_seed_lexemes": [],
+    "input_text": "!!! ??? ...",
+    "expected_sequence": []
+  },
+  {
+    "id": "robust_064",
+    "category": "empty_malformed",
+    "mode": "note_text",
+    "db_seed_lexemes": [],
+    "input_text": "🙂 ✅",
+    "expected_sequence": []
+  },
+  {
+    "id": "robust_065",
+    "category": "empty_malformed",
+    "mode": "note_text",
+    "db_seed_lexemes": [],
+    "input_text": "---",
+    "expected_sequence": []
+  },
+  {
+    "id": "robust_066",
+    "category": "typo_guard_sequence",
+    "mode": "note_text",
+    "db_seed_lexemes": [
+      "bog",
+      "spise"
+    ],
+    "input_text": "bogen bogn spisr spiser",
+    "expected_sequence": [
+      {
+        "normalized_token": "bogen",
+        "expected_status": "variation"
+      },
+      {
+        "normalized_token": "bogn",
+        "expected_status": "new"
+      },
+      {
+        "normalized_token": "spisr",
+        "expected_status": "new"
+      },
+      {
+        "normalized_token": "spiser",
+        "expected_status": "variation"
+      }
+    ]
+  },
+  {
+    "id": "robust_067",
+    "category": "punctuation_heavy_note",
+    "mode": "note_text",
+    "db_seed_lexemes": [
+      "bog",
+      "hus",
+      "barn"
+    ],
+    "input_text": "(bogen), [huset]; \"børnene\"!",
+    "expected_sequence": [
+      {
+        "normalized_token": "bogen",
+        "expected_status": "variation"
+      },
+      {
+        "normalized_token": "huset",
+        "expected_status": "variation"
+      },
+      {
+        "normalized_token": "børnene",
+        "expected_status": "variation"
+      }
+    ]
+  },
+  {
+    "id": "robust_068",
+    "category": "punctuation_heavy_note",
+    "mode": "note_text",
+    "db_seed_lexemes": [
+      "god",
+      "stor",
+      "gå"
+    ],
+    "input_text": "godt... større?! gik!!!",
+    "expected_sequence": [
+      {
+        "normalized_token": "godt",
+        "expected_status": "variation"
+      },
+      {
+        "normalized_token": "større",
+        "expected_status": "variation"
+      },
+      {
+        "normalized_token": "gik",
+        "expected_status": "variation"
+      }
+    ]
+  },
+  {
+    "id": "robust_069",
+    "category": "tabs_semicolons",
+    "mode": "note_text",
+    "db_seed_lexemes": [
+      "arbejde",
+      "lære",
+      "skrive"
+    ],
+    "input_text": "arbejder;\tlærte;\tskrev",
+    "expected_sequence": [
+      {
+        "normalized_token": "arbejder",
+        "expected_status": "variation"
+      },
+      {
+        "normalized_token": "lærte",
+        "expected_status": "variation"
+      },
+      {
+        "normalized_token": "skrev",
+        "expected_status": "variation"
+      }
+    ]
+  },
+  {
+    "id": "robust_070",
+    "category": "markdownish",
+    "mode": "note_text",
+    "db_seed_lexemes": [
+      "bog",
+      "hus"
+    ],
+    "input_text": "**bogen** and _huset_",
+    "expected_sequence": [
+      {
+        "normalized_token": "bogen",
+        "expected_status": "variation"
+      },
+      {
+        "normalized_token": "and",
+        "expected_status": "new"
+      },
+      {
+        "normalized_token": "huset",
+        "expected_status": "variation"
+      }
+    ]
+  },
+  {
+    "id": "robust_071",
+    "category": "separator_tokens",
+    "mode": "note_text",
+    "db_seed_lexemes": [
+      "gå",
+      "se"
+    ],
+    "input_text": "gik/så",
+    "expected_sequence": [
+      {
+        "normalized_token": "gik",
+        "expected_status": "variation"
+      },
+      {
+        "normalized_token": "så",
+        "expected_status": "variation"
+      }
+    ]
+  },
+  {
+    "id": "robust_072",
+    "category": "numeric_context",
+    "mode": "note_text",
+    "db_seed_lexemes": [
+      "bog",
+      "side"
+    ],
+    "input_text": "2 bøger på 3 sider",
+    "expected_sequence": [
+      {
+        "normalized_token": "2",
+        "expected_status": "new"
+      },
+      {
+        "normalized_token": "bøger",
+        "expected_status": "variation"
+      },
+      {
+        "normalized_token": "på",
+        "expected_status": "new"
+      },
+      {
+        "normalized_token": "3",
+        "expected_status": "new"
+      },
+      {
+        "normalized_token": "sider",
+        "expected_status": "new"
+      }
+    ]
+  },
+  {
+    "id": "robust_073",
+    "category": "trim_whitespace",
+    "mode": "single_token",
+    "db_seed_lexemes": [
+      "bog"
+    ],
+    "input_token": " bogen ",
+    "expected_status": "variation",
+    "expected_lemma": "bog"
+  },
+  {
+    "id": "robust_074",
+    "category": "trim_whitespace",
+    "mode": "single_token",
+    "db_seed_lexemes": [
+      "hus"
+    ],
+    "input_token": "\thuset\t",
+    "expected_status": "variation",
+    "expected_lemma": "hus"
+  },
+  {
+    "id": "robust_075",
+    "category": "trim_whitespace",
+    "mode": "single_token",
+    "db_seed_lexemes": [
+      "god"
+    ],
+    "input_token": "\nGodt\n",
+    "expected_status": "variation",
+    "expected_lemma": "god"
+  }
+]

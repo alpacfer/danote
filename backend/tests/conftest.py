@@ -9,6 +9,9 @@ class StubNLPAdapter:
     def tokenize(self, text: str) -> list[NLPToken]:
         return []
 
+    def lemma_candidates_for_token(self, token: str) -> list[str]:
+        return []
+
     def lemma_for_token(self, token: str) -> str | None:
         return None
 

@@ -17,6 +17,9 @@ class NLPAdapter(Protocol):
     def tokenize(self, text: str) -> list[NLPToken]:
         ...
 
+    def lemma_candidates_for_token(self, token: str) -> list[str]:
+        ...
+
     def lemma_for_token(self, token: str) -> str | None:
         ...
 

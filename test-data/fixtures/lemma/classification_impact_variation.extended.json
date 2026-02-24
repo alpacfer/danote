@@ -1,0 +1,3526 @@
+[
+  {
+    "id": "class_001",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "bog"
+    ],
+    "surface": "bog",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_002",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "hus"
+    ],
+    "surface": "hus",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_003",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "bil"
+    ],
+    "surface": "bil",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_004",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "stol"
+    ],
+    "surface": "stol",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_005",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "skole"
+    ],
+    "surface": "skole",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_006",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "by"
+    ],
+    "surface": "by",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_007",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "dag"
+    ],
+    "surface": "dag",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_008",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "uge"
+    ],
+    "surface": "uge",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_009",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "ven"
+    ],
+    "surface": "ven",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_010",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "kat"
+    ],
+    "surface": "kat",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_011",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "hund"
+    ],
+    "surface": "hund",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_012",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "pige"
+    ],
+    "surface": "pige",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_013",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "dreng"
+    ],
+    "surface": "dreng",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_014",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "park"
+    ],
+    "surface": "park",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_015",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "time"
+    ],
+    "surface": "time",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_016",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "opgave"
+    ],
+    "surface": "opgave",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_017",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "sætning"
+    ],
+    "surface": "sætning",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_018",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "bogstav"
+    ],
+    "surface": "bogstav",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_019",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "mand"
+    ],
+    "surface": "mand",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_020",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "barn"
+    ],
+    "surface": "barn",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_021",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "fod"
+    ],
+    "surface": "fod",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_022",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "tand"
+    ],
+    "surface": "tand",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_023",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "gås"
+    ],
+    "surface": "gås",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_024",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "nat"
+    ],
+    "surface": "nat",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_025",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "hånd"
+    ],
+    "surface": "hånd",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_026",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "god"
+    ],
+    "surface": "god",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_027",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "stor"
+    ],
+    "surface": "stor",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_028",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "smuk"
+    ],
+    "surface": "smuk",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_029",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "lang"
+    ],
+    "surface": "lang",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_030",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "kort"
+    ],
+    "surface": "kort",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_031",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "ny"
+    ],
+    "surface": "ny",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_032",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "gammel"
+    ],
+    "surface": "gammel",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_033",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "svær"
+    ],
+    "surface": "svær",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_034",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "hurtig"
+    ],
+    "surface": "hurtig",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_035",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "vigtig"
+    ],
+    "surface": "vigtig",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_036",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "spise"
+    ],
+    "surface": "spise",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_037",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "arbejde"
+    ],
+    "surface": "arbejde",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_038",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "snakke"
+    ],
+    "surface": "snakke",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_039",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "lære"
+    ],
+    "surface": "lære",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_040",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "bo"
+    ],
+    "surface": "bo",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_041",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "købe"
+    ],
+    "surface": "købe",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_042",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "vente"
+    ],
+    "surface": "vente",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_043",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "rejse"
+    ],
+    "surface": "rejse",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_044",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "åbne"
+    ],
+    "surface": "åbne",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_045",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "lukke"
+    ],
+    "surface": "lukke",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_046",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "prøve"
+    ],
+    "surface": "prøve",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_047",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "bruge"
+    ],
+    "surface": "bruge",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_048",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "starte"
+    ],
+    "surface": "starte",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_049",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "stoppe"
+    ],
+    "surface": "stoppe",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_050",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "være"
+    ],
+    "surface": "være",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_051",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "have"
+    ],
+    "surface": "have",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_052",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "gå"
+    ],
+    "surface": "gå",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_053",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "komme"
+    ],
+    "surface": "komme",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_054",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "se"
+    ],
+    "surface": "se",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_055",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "skrive"
+    ],
+    "surface": "skrive",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_056",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "tage"
+    ],
+    "surface": "tage",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_057",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "få"
+    ],
+    "surface": "få",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_058",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "give"
+    ],
+    "surface": "give",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_059",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "blive"
+    ],
+    "surface": "blive",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_060",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "kunne"
+    ],
+    "surface": "kunne",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_061",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "skulle"
+    ],
+    "surface": "skulle",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_062",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "ville"
+    ],
+    "surface": "ville",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_063",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "måtte"
+    ],
+    "surface": "måtte",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_064",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "computer"
+    ],
+    "surface": "computer",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_065",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "robot"
+    ],
+    "surface": "robot",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_066",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "sensor"
+    ],
+    "surface": "sensor",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_067",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "model"
+    ],
+    "surface": "model",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_068",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "motor"
+    ],
+    "surface": "motor",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_069",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "server"
+    ],
+    "surface": "server",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_070",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "arbejdsplads"
+    ],
+    "surface": "arbejdsplads",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_071",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "sommerhus"
+    ],
+    "surface": "sommerhus",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_072",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "sprogskole"
+    ],
+    "surface": "sprogskole",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_073",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "skolebog"
+    ],
+    "surface": "skolebog",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_074",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "klasseværelse"
+    ],
+    "surface": "klasseværelse",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_075",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "datasæt"
+    ],
+    "surface": "datasæt",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_076",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "ordliste"
+    ],
+    "surface": "ordliste",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_077",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "træ"
+    ],
+    "surface": "træ",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_078",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "øvelse"
+    ],
+    "surface": "øvelse",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_079",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "løsning"
+    ],
+    "surface": "løsning",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_080",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "spørgsmål"
+    ],
+    "surface": "spørgsmål",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_081",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "år"
+    ],
+    "surface": "år",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_082",
+    "category": "exact_known",
+    "db_seed_lexemes": [
+      "mål"
+    ],
+    "surface": "mål",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_083",
+    "category": "variation_noun_regular",
+    "db_seed_lexemes": [
+      "bog"
+    ],
+    "surface": "bogen",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_084",
+    "category": "variation_noun_regular",
+    "db_seed_lexemes": [
+      "bog"
+    ],
+    "surface": "bøger",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_085",
+    "category": "variation_noun_regular",
+    "db_seed_lexemes": [
+      "bog"
+    ],
+    "surface": "bøgerne",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_086",
+    "category": "variation_noun_regular",
+    "db_seed_lexemes": [
+      "hus"
+    ],
+    "surface": "huset",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_087",
+    "category": "variation_noun_regular",
+    "db_seed_lexemes": [
+      "hus"
+    ],
+    "surface": "huse",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_088",
+    "category": "variation_noun_regular",
+    "db_seed_lexemes": [
+      "hus"
+    ],
+    "surface": "husene",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_089",
+    "category": "variation_noun_regular",
+    "db_seed_lexemes": [
+      "bil"
+    ],
+    "surface": "bilen",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_090",
+    "category": "variation_noun_regular",
+    "db_seed_lexemes": [
+      "bil"
+    ],
+    "surface": "biler",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_091",
+    "category": "variation_noun_regular",
+    "db_seed_lexemes": [
+      "bil"
+    ],
+    "surface": "bilerne",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_092",
+    "category": "variation_noun_regular",
+    "db_seed_lexemes": [
+      "stol"
+    ],
+    "surface": "stolen",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_093",
+    "category": "variation_noun_regular",
+    "db_seed_lexemes": [
+      "stol"
+    ],
+    "surface": "stole",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_094",
+    "category": "variation_noun_regular",
+    "db_seed_lexemes": [
+      "stol"
+    ],
+    "surface": "stolene",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_095",
+    "category": "variation_noun_regular",
+    "db_seed_lexemes": [
+      "skole"
+    ],
+    "surface": "skolen",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_096",
+    "category": "variation_noun_regular",
+    "db_seed_lexemes": [
+      "skole"
+    ],
+    "surface": "skoler",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_097",
+    "category": "variation_noun_regular",
+    "db_seed_lexemes": [
+      "skole"
+    ],
+    "surface": "skolerne",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_098",
+    "category": "variation_noun_regular",
+    "db_seed_lexemes": [
+      "by"
+    ],
+    "surface": "byen",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_099",
+    "category": "variation_noun_regular",
+    "db_seed_lexemes": [
+      "by"
+    ],
+    "surface": "byer",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_100",
+    "category": "variation_noun_regular",
+    "db_seed_lexemes": [
+      "by"
+    ],
+    "surface": "byerne",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_101",
+    "category": "variation_noun_regular",
+    "db_seed_lexemes": [
+      "dag"
+    ],
+    "surface": "dagen",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_102",
+    "category": "variation_noun_regular",
+    "db_seed_lexemes": [
+      "dag"
+    ],
+    "surface": "dage",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_103",
+    "category": "variation_noun_regular",
+    "db_seed_lexemes": [
+      "dag"
+    ],
+    "surface": "dagene",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_104",
+    "category": "variation_noun_regular",
+    "db_seed_lexemes": [
+      "uge"
+    ],
+    "surface": "ugen",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_105",
+    "category": "variation_noun_regular",
+    "db_seed_lexemes": [
+      "uge"
+    ],
+    "surface": "uger",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_106",
+    "category": "variation_noun_regular",
+    "db_seed_lexemes": [
+      "uge"
+    ],
+    "surface": "ugerne",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_107",
+    "category": "variation_noun_regular",
+    "db_seed_lexemes": [
+      "ven"
+    ],
+    "surface": "vennen",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_108",
+    "category": "variation_noun_regular",
+    "db_seed_lexemes": [
+      "ven"
+    ],
+    "surface": "venner",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_109",
+    "category": "variation_noun_regular",
+    "db_seed_lexemes": [
+      "ven"
+    ],
+    "surface": "vennerne",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_110",
+    "category": "variation_noun_regular",
+    "db_seed_lexemes": [
+      "kat"
+    ],
+    "surface": "katten",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_111",
+    "category": "variation_noun_regular",
+    "db_seed_lexemes": [
+      "kat"
+    ],
+    "surface": "katte",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_112",
+    "category": "variation_noun_regular",
+    "db_seed_lexemes": [
+      "kat"
+    ],
+    "surface": "kattene",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_113",
+    "category": "variation_noun_regular",
+    "db_seed_lexemes": [
+      "hund"
+    ],
+    "surface": "hunden",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_114",
+    "category": "variation_noun_regular",
+    "db_seed_lexemes": [
+      "hund"
+    ],
+    "surface": "hunde",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_115",
+    "category": "variation_noun_regular",
+    "db_seed_lexemes": [
+      "hund"
+    ],
+    "surface": "hundene",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_116",
+    "category": "variation_noun_regular",
+    "db_seed_lexemes": [
+      "pige"
+    ],
+    "surface": "pigen",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_117",
+    "category": "variation_noun_regular",
+    "db_seed_lexemes": [
+      "pige"
+    ],
+    "surface": "piger",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_118",
+    "category": "variation_noun_regular",
+    "db_seed_lexemes": [
+      "pige"
+    ],
+    "surface": "pigerne",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_119",
+    "category": "variation_noun_regular",
+    "db_seed_lexemes": [
+      "dreng"
+    ],
+    "surface": "drengen",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_120",
+    "category": "variation_noun_regular",
+    "db_seed_lexemes": [
+      "dreng"
+    ],
+    "surface": "drenge",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_121",
+    "category": "variation_noun_regular",
+    "db_seed_lexemes": [
+      "dreng"
+    ],
+    "surface": "drengene",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_122",
+    "category": "variation_noun_regular",
+    "db_seed_lexemes": [
+      "park"
+    ],
+    "surface": "parken",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_123",
+    "category": "variation_noun_regular",
+    "db_seed_lexemes": [
+      "park"
+    ],
+    "surface": "parker",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_124",
+    "category": "variation_noun_regular",
+    "db_seed_lexemes": [
+      "park"
+    ],
+    "surface": "parkerne",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_125",
+    "category": "variation_noun_regular",
+    "db_seed_lexemes": [
+      "time"
+    ],
+    "surface": "timen",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_126",
+    "category": "variation_noun_regular",
+    "db_seed_lexemes": [
+      "time"
+    ],
+    "surface": "timer",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_127",
+    "category": "variation_noun_regular",
+    "db_seed_lexemes": [
+      "time"
+    ],
+    "surface": "timerne",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_128",
+    "category": "variation_noun_regular",
+    "db_seed_lexemes": [
+      "opgave"
+    ],
+    "surface": "opgaven",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_129",
+    "category": "variation_noun_regular",
+    "db_seed_lexemes": [
+      "opgave"
+    ],
+    "surface": "opgaver",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_130",
+    "category": "variation_noun_regular",
+    "db_seed_lexemes": [
+      "opgave"
+    ],
+    "surface": "opgaverne",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_131",
+    "category": "variation_noun_regular",
+    "db_seed_lexemes": [
+      "sætning"
+    ],
+    "surface": "sætningen",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_132",
+    "category": "variation_noun_regular",
+    "db_seed_lexemes": [
+      "sætning"
+    ],
+    "surface": "sætninger",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_133",
+    "category": "variation_noun_regular",
+    "db_seed_lexemes": [
+      "sætning"
+    ],
+    "surface": "sætningerne",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_134",
+    "category": "variation_noun_regular",
+    "db_seed_lexemes": [
+      "bogstav"
+    ],
+    "surface": "bogstavet",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_135",
+    "category": "variation_noun_regular",
+    "db_seed_lexemes": [
+      "bogstav"
+    ],
+    "surface": "bogstaver",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_136",
+    "category": "variation_noun_regular",
+    "db_seed_lexemes": [
+      "bogstav"
+    ],
+    "surface": "bogstaverne",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_137",
+    "category": "variation_noun_irregular",
+    "db_seed_lexemes": [
+      "mand"
+    ],
+    "surface": "manden",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_138",
+    "category": "variation_noun_irregular",
+    "db_seed_lexemes": [
+      "mand"
+    ],
+    "surface": "mænd",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_139",
+    "category": "variation_noun_irregular",
+    "db_seed_lexemes": [
+      "mand"
+    ],
+    "surface": "mændene",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_140",
+    "category": "variation_noun_irregular",
+    "db_seed_lexemes": [
+      "barn"
+    ],
+    "surface": "barnet",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_141",
+    "category": "variation_noun_irregular",
+    "db_seed_lexemes": [
+      "barn"
+    ],
+    "surface": "børn",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_142",
+    "category": "variation_noun_irregular",
+    "db_seed_lexemes": [
+      "barn"
+    ],
+    "surface": "børnene",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_143",
+    "category": "variation_noun_irregular",
+    "db_seed_lexemes": [
+      "fod"
+    ],
+    "surface": "foden",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_144",
+    "category": "variation_noun_irregular",
+    "db_seed_lexemes": [
+      "fod"
+    ],
+    "surface": "fødder",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_145",
+    "category": "variation_noun_irregular",
+    "db_seed_lexemes": [
+      "fod"
+    ],
+    "surface": "fødderne",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_146",
+    "category": "variation_noun_irregular",
+    "db_seed_lexemes": [
+      "tand"
+    ],
+    "surface": "tanden",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_147",
+    "category": "variation_noun_irregular",
+    "db_seed_lexemes": [
+      "tand"
+    ],
+    "surface": "tænder",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_148",
+    "category": "variation_noun_irregular",
+    "db_seed_lexemes": [
+      "tand"
+    ],
+    "surface": "tænderne",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_149",
+    "category": "variation_noun_irregular",
+    "db_seed_lexemes": [
+      "gås"
+    ],
+    "surface": "gåsen",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_150",
+    "category": "variation_noun_irregular",
+    "db_seed_lexemes": [
+      "gås"
+    ],
+    "surface": "gæs",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_151",
+    "category": "variation_noun_irregular",
+    "db_seed_lexemes": [
+      "gås"
+    ],
+    "surface": "gæssene",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_152",
+    "category": "variation_noun_irregular",
+    "db_seed_lexemes": [
+      "nat"
+    ],
+    "surface": "natten",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_153",
+    "category": "variation_noun_irregular",
+    "db_seed_lexemes": [
+      "nat"
+    ],
+    "surface": "nætter",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_154",
+    "category": "variation_noun_irregular",
+    "db_seed_lexemes": [
+      "nat"
+    ],
+    "surface": "nætterne",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_155",
+    "category": "variation_noun_irregular",
+    "db_seed_lexemes": [
+      "hånd"
+    ],
+    "surface": "hånden",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_156",
+    "category": "variation_noun_irregular",
+    "db_seed_lexemes": [
+      "hånd"
+    ],
+    "surface": "hænder",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_157",
+    "category": "variation_noun_irregular",
+    "db_seed_lexemes": [
+      "hånd"
+    ],
+    "surface": "hænderne",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_158",
+    "category": "variation_noun_genitive",
+    "db_seed_lexemes": [
+      "bog"
+    ],
+    "surface": "bogens",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_159",
+    "category": "variation_noun_genitive",
+    "db_seed_lexemes": [
+      "hus"
+    ],
+    "surface": "husets",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_160",
+    "category": "variation_noun_genitive",
+    "db_seed_lexemes": [
+      "bil"
+    ],
+    "surface": "bilens",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_161",
+    "category": "variation_noun_genitive",
+    "db_seed_lexemes": [
+      "stol"
+    ],
+    "surface": "stolens",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_162",
+    "category": "variation_noun_genitive",
+    "db_seed_lexemes": [
+      "skole"
+    ],
+    "surface": "skolens",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_163",
+    "category": "variation_noun_genitive",
+    "db_seed_lexemes": [
+      "by"
+    ],
+    "surface": "byens",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_164",
+    "category": "variation_noun_genitive",
+    "db_seed_lexemes": [
+      "dag"
+    ],
+    "surface": "dagens",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_165",
+    "category": "variation_noun_genitive",
+    "db_seed_lexemes": [
+      "uge"
+    ],
+    "surface": "ugens",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_166",
+    "category": "variation_noun_genitive",
+    "db_seed_lexemes": [
+      "ven"
+    ],
+    "surface": "vennens",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_167",
+    "category": "variation_noun_genitive",
+    "db_seed_lexemes": [
+      "kat"
+    ],
+    "surface": "kattens",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_168",
+    "category": "variation_noun_genitive",
+    "db_seed_lexemes": [
+      "hund"
+    ],
+    "surface": "hundens",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_169",
+    "category": "variation_noun_genitive",
+    "db_seed_lexemes": [
+      "pige"
+    ],
+    "surface": "pigens",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_170",
+    "category": "variation_noun_genitive",
+    "db_seed_lexemes": [
+      "dreng"
+    ],
+    "surface": "drengens",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_171",
+    "category": "variation_noun_genitive",
+    "db_seed_lexemes": [
+      "park"
+    ],
+    "surface": "parkens",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_172",
+    "category": "variation_noun_genitive",
+    "db_seed_lexemes": [
+      "time"
+    ],
+    "surface": "timens",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_173",
+    "category": "variation_noun_genitive",
+    "db_seed_lexemes": [
+      "opgave"
+    ],
+    "surface": "opgavens",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_174",
+    "category": "variation_noun_genitive",
+    "db_seed_lexemes": [
+      "sætning"
+    ],
+    "surface": "sætningens",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_175",
+    "category": "variation_noun_genitive",
+    "db_seed_lexemes": [
+      "bogstav"
+    ],
+    "surface": "bogstavets",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_176",
+    "category": "variation_noun_genitive",
+    "db_seed_lexemes": [
+      "barn"
+    ],
+    "surface": "barnets",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_177",
+    "category": "variation_noun_genitive",
+    "db_seed_lexemes": [
+      "barn"
+    ],
+    "surface": "børnenes",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_178",
+    "category": "variation_noun_genitive",
+    "db_seed_lexemes": [
+      "mand"
+    ],
+    "surface": "mandens",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_179",
+    "category": "variation_noun_genitive",
+    "db_seed_lexemes": [
+      "mand"
+    ],
+    "surface": "mændenes",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_180",
+    "category": "variation_noun_genitive",
+    "db_seed_lexemes": [
+      "hånd"
+    ],
+    "surface": "håndens",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_181",
+    "category": "variation_noun_genitive",
+    "db_seed_lexemes": [
+      "hånd"
+    ],
+    "surface": "hændernes",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_182",
+    "category": "variation_noun_compound",
+    "db_seed_lexemes": [
+      "arbejdsplads"
+    ],
+    "surface": "arbejdspladsen",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_183",
+    "category": "variation_noun_compound",
+    "db_seed_lexemes": [
+      "arbejdsplads"
+    ],
+    "surface": "arbejdspladser",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_184",
+    "category": "variation_noun_compound",
+    "db_seed_lexemes": [
+      "sommerhus"
+    ],
+    "surface": "sommerhuset",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_185",
+    "category": "variation_noun_compound",
+    "db_seed_lexemes": [
+      "sommerhus"
+    ],
+    "surface": "sommerhuse",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_186",
+    "category": "variation_noun_compound",
+    "db_seed_lexemes": [
+      "sprogskole"
+    ],
+    "surface": "sprogskolen",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_187",
+    "category": "variation_noun_compound",
+    "db_seed_lexemes": [
+      "sprogskole"
+    ],
+    "surface": "sprogskoler",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_188",
+    "category": "variation_noun_compound",
+    "db_seed_lexemes": [
+      "skolebog"
+    ],
+    "surface": "skolebogen",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_189",
+    "category": "variation_noun_compound",
+    "db_seed_lexemes": [
+      "skolebog"
+    ],
+    "surface": "skolebøger",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_190",
+    "category": "variation_noun_compound",
+    "db_seed_lexemes": [
+      "skolebog"
+    ],
+    "surface": "skolebøgerne",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_191",
+    "category": "variation_noun_compound",
+    "db_seed_lexemes": [
+      "cykelhjelm"
+    ],
+    "surface": "cykelhjelmen",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_192",
+    "category": "variation_noun_compound",
+    "db_seed_lexemes": [
+      "computerprogram"
+    ],
+    "surface": "computerprogrammet",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_193",
+    "category": "variation_noun_compound",
+    "db_seed_lexemes": [
+      "testsystem"
+    ],
+    "surface": "testsystemet",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_194",
+    "category": "variation_noun_compound",
+    "db_seed_lexemes": [
+      "laboratorietest"
+    ],
+    "surface": "laboratorietesten",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_195",
+    "category": "variation_noun_compound",
+    "db_seed_lexemes": [
+      "morgenmad"
+    ],
+    "surface": "morgenmaden",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_196",
+    "category": "variation_noun_compound",
+    "db_seed_lexemes": [
+      "eftermiddag"
+    ],
+    "surface": "eftermiddagen",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_197",
+    "category": "variation_noun_compound",
+    "db_seed_lexemes": [
+      "weekend"
+    ],
+    "surface": "weekenden",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_198",
+    "category": "variation_noun_compound",
+    "db_seed_lexemes": [
+      "klasseværelse"
+    ],
+    "surface": "klasseværelset",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_199",
+    "category": "variation_noun_compound",
+    "db_seed_lexemes": [
+      "skrivebord"
+    ],
+    "surface": "skrivebordet",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_200",
+    "category": "variation_noun_compound",
+    "db_seed_lexemes": [
+      "vindueskarm"
+    ],
+    "surface": "vindueskarmen",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_201",
+    "category": "variation_noun_compound",
+    "db_seed_lexemes": [
+      "fjernbetjening"
+    ],
+    "surface": "fjernbetjeningen",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_202",
+    "category": "variation_noun_compound",
+    "db_seed_lexemes": [
+      "datasæt"
+    ],
+    "surface": "datasættet",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_203",
+    "category": "variation_noun_compound",
+    "db_seed_lexemes": [
+      "brugergrænseflade"
+    ],
+    "surface": "brugergrænsefladen",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_204",
+    "category": "variation_noun_compound",
+    "db_seed_lexemes": [
+      "ordliste"
+    ],
+    "surface": "ordlisten",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_205",
+    "category": "variation_noun_compound",
+    "db_seed_lexemes": [
+      "læsebog"
+    ],
+    "surface": "læsebogen",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_206",
+    "category": "variation_adjective_basic",
+    "db_seed_lexemes": [
+      "god"
+    ],
+    "surface": "godt",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_207",
+    "category": "variation_adjective_basic",
+    "db_seed_lexemes": [
+      "god"
+    ],
+    "surface": "gode",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_208",
+    "category": "variation_adjective_basic",
+    "db_seed_lexemes": [
+      "stor"
+    ],
+    "surface": "stort",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_209",
+    "category": "variation_adjective_basic",
+    "db_seed_lexemes": [
+      "stor"
+    ],
+    "surface": "store",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_210",
+    "category": "variation_adjective_basic",
+    "db_seed_lexemes": [
+      "smuk"
+    ],
+    "surface": "smukt",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_211",
+    "category": "variation_adjective_basic",
+    "db_seed_lexemes": [
+      "smuk"
+    ],
+    "surface": "smukke",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_212",
+    "category": "variation_adjective_basic",
+    "db_seed_lexemes": [
+      "lang"
+    ],
+    "surface": "langt",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_213",
+    "category": "variation_adjective_basic",
+    "db_seed_lexemes": [
+      "lang"
+    ],
+    "surface": "lange",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_214",
+    "category": "variation_adjective_basic",
+    "db_seed_lexemes": [
+      "kort"
+    ],
+    "surface": "korte",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_215",
+    "category": "variation_adjective_basic",
+    "db_seed_lexemes": [
+      "ny"
+    ],
+    "surface": "nyt",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_216",
+    "category": "variation_adjective_basic",
+    "db_seed_lexemes": [
+      "ny"
+    ],
+    "surface": "nye",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_217",
+    "category": "variation_adjective_basic",
+    "db_seed_lexemes": [
+      "gammel"
+    ],
+    "surface": "gammelt",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_218",
+    "category": "variation_adjective_basic",
+    "db_seed_lexemes": [
+      "gammel"
+    ],
+    "surface": "gamle",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_219",
+    "category": "variation_adjective_basic",
+    "db_seed_lexemes": [
+      "svær"
+    ],
+    "surface": "svært",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_220",
+    "category": "variation_adjective_basic",
+    "db_seed_lexemes": [
+      "svær"
+    ],
+    "surface": "svære",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_221",
+    "category": "variation_adjective_basic",
+    "db_seed_lexemes": [
+      "hurtig"
+    ],
+    "surface": "hurtigt",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_222",
+    "category": "variation_adjective_basic",
+    "db_seed_lexemes": [
+      "hurtig"
+    ],
+    "surface": "hurtige",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_223",
+    "category": "variation_adjective_basic",
+    "db_seed_lexemes": [
+      "vigtig"
+    ],
+    "surface": "vigtigt",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_224",
+    "category": "variation_adjective_basic",
+    "db_seed_lexemes": [
+      "vigtig"
+    ],
+    "surface": "vigtige",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_225",
+    "category": "variation_adjective_comparison",
+    "db_seed_lexemes": [
+      "god"
+    ],
+    "surface": "bedre",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_226",
+    "category": "variation_adjective_comparison",
+    "db_seed_lexemes": [
+      "god"
+    ],
+    "surface": "bedst",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_227",
+    "category": "variation_adjective_comparison",
+    "db_seed_lexemes": [
+      "stor"
+    ],
+    "surface": "større",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_228",
+    "category": "variation_adjective_comparison",
+    "db_seed_lexemes": [
+      "stor"
+    ],
+    "surface": "størst",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_229",
+    "category": "variation_adjective_comparison",
+    "db_seed_lexemes": [
+      "lang"
+    ],
+    "surface": "længere",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_230",
+    "category": "variation_adjective_comparison",
+    "db_seed_lexemes": [
+      "lang"
+    ],
+    "surface": "længst",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_231",
+    "category": "variation_adjective_comparison",
+    "db_seed_lexemes": [
+      "kort"
+    ],
+    "surface": "kortere",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_232",
+    "category": "variation_adjective_comparison",
+    "db_seed_lexemes": [
+      "kort"
+    ],
+    "surface": "kortest",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_233",
+    "category": "variation_adjective_comparison",
+    "db_seed_lexemes": [
+      "ny"
+    ],
+    "surface": "nyere",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_234",
+    "category": "variation_adjective_comparison",
+    "db_seed_lexemes": [
+      "ny"
+    ],
+    "surface": "nyest",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_235",
+    "category": "variation_adjective_comparison",
+    "db_seed_lexemes": [
+      "gammel"
+    ],
+    "surface": "ældre",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_236",
+    "category": "variation_adjective_comparison",
+    "db_seed_lexemes": [
+      "gammel"
+    ],
+    "surface": "ældst",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_237",
+    "category": "variation_adjective_comparison",
+    "db_seed_lexemes": [
+      "svær"
+    ],
+    "surface": "sværere",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_238",
+    "category": "variation_adjective_comparison",
+    "db_seed_lexemes": [
+      "svær"
+    ],
+    "surface": "sværest",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_239",
+    "category": "variation_adjective_comparison",
+    "db_seed_lexemes": [
+      "smuk"
+    ],
+    "surface": "smukkere",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_240",
+    "category": "variation_adjective_comparison",
+    "db_seed_lexemes": [
+      "smuk"
+    ],
+    "surface": "smukkest",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_241",
+    "category": "variation_adjective_comparison",
+    "db_seed_lexemes": [
+      "hurtig"
+    ],
+    "surface": "hurtigere",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_242",
+    "category": "variation_adjective_comparison",
+    "db_seed_lexemes": [
+      "hurtig"
+    ],
+    "surface": "hurtigst",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_243",
+    "category": "variation_adjective_comparison",
+    "db_seed_lexemes": [
+      "vigtig"
+    ],
+    "surface": "vigtigere",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_244",
+    "category": "variation_adjective_comparison",
+    "db_seed_lexemes": [
+      "vigtig"
+    ],
+    "surface": "vigtigst",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_245",
+    "category": "variation_verb_regular",
+    "db_seed_lexemes": [
+      "spise"
+    ],
+    "surface": "spiser",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_246",
+    "category": "variation_verb_regular",
+    "db_seed_lexemes": [
+      "spise"
+    ],
+    "surface": "spiste",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_247",
+    "category": "variation_verb_regular",
+    "db_seed_lexemes": [
+      "spise"
+    ],
+    "surface": "spist",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_248",
+    "category": "variation_verb_regular",
+    "db_seed_lexemes": [
+      "arbejde"
+    ],
+    "surface": "arbejder",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_249",
+    "category": "variation_verb_regular",
+    "db_seed_lexemes": [
+      "arbejde"
+    ],
+    "surface": "arbejdede",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_250",
+    "category": "variation_verb_regular",
+    "db_seed_lexemes": [
+      "arbejde"
+    ],
+    "surface": "arbejdet",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_251",
+    "category": "variation_verb_regular",
+    "db_seed_lexemes": [
+      "snakke"
+    ],
+    "surface": "snakker",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_252",
+    "category": "variation_verb_regular",
+    "db_seed_lexemes": [
+      "snakke"
+    ],
+    "surface": "snakkede",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_253",
+    "category": "variation_verb_regular",
+    "db_seed_lexemes": [
+      "snakke"
+    ],
+    "surface": "snakket",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_254",
+    "category": "variation_verb_regular",
+    "db_seed_lexemes": [
+      "lære"
+    ],
+    "surface": "lærer",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_255",
+    "category": "variation_verb_regular",
+    "db_seed_lexemes": [
+      "lære"
+    ],
+    "surface": "lærte",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_256",
+    "category": "variation_verb_regular",
+    "db_seed_lexemes": [
+      "lære"
+    ],
+    "surface": "lært",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_257",
+    "category": "variation_verb_regular",
+    "db_seed_lexemes": [
+      "bo"
+    ],
+    "surface": "bor",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_258",
+    "category": "variation_verb_regular",
+    "db_seed_lexemes": [
+      "bo"
+    ],
+    "surface": "boede",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_259",
+    "category": "variation_verb_regular",
+    "db_seed_lexemes": [
+      "bo"
+    ],
+    "surface": "boet",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_260",
+    "category": "variation_verb_regular",
+    "db_seed_lexemes": [
+      "købe"
+    ],
+    "surface": "køber",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_261",
+    "category": "variation_verb_regular",
+    "db_seed_lexemes": [
+      "købe"
+    ],
+    "surface": "købte",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_262",
+    "category": "variation_verb_regular",
+    "db_seed_lexemes": [
+      "købe"
+    ],
+    "surface": "købt",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_263",
+    "category": "variation_verb_regular",
+    "db_seed_lexemes": [
+      "vente"
+    ],
+    "surface": "venter",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_264",
+    "category": "variation_verb_regular",
+    "db_seed_lexemes": [
+      "vente"
+    ],
+    "surface": "ventede",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_265",
+    "category": "variation_verb_regular",
+    "db_seed_lexemes": [
+      "vente"
+    ],
+    "surface": "ventet",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_266",
+    "category": "variation_verb_regular",
+    "db_seed_lexemes": [
+      "rejse"
+    ],
+    "surface": "rejser",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_267",
+    "category": "variation_verb_regular",
+    "db_seed_lexemes": [
+      "rejse"
+    ],
+    "surface": "rejste",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_268",
+    "category": "variation_verb_regular",
+    "db_seed_lexemes": [
+      "rejse"
+    ],
+    "surface": "rejst",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_269",
+    "category": "variation_verb_regular",
+    "db_seed_lexemes": [
+      "åbne"
+    ],
+    "surface": "åbner",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_270",
+    "category": "variation_verb_regular",
+    "db_seed_lexemes": [
+      "åbne"
+    ],
+    "surface": "åbnede",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_271",
+    "category": "variation_verb_regular",
+    "db_seed_lexemes": [
+      "åbne"
+    ],
+    "surface": "åbnet",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_272",
+    "category": "variation_verb_regular",
+    "db_seed_lexemes": [
+      "lukke"
+    ],
+    "surface": "lukker",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_273",
+    "category": "variation_verb_regular",
+    "db_seed_lexemes": [
+      "lukke"
+    ],
+    "surface": "lukkede",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_274",
+    "category": "variation_verb_regular",
+    "db_seed_lexemes": [
+      "lukke"
+    ],
+    "surface": "lukket",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_275",
+    "category": "variation_verb_regular",
+    "db_seed_lexemes": [
+      "prøve"
+    ],
+    "surface": "prøver",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_276",
+    "category": "variation_verb_regular",
+    "db_seed_lexemes": [
+      "prøve"
+    ],
+    "surface": "prøvede",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_277",
+    "category": "variation_verb_regular",
+    "db_seed_lexemes": [
+      "prøve"
+    ],
+    "surface": "prøvet",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_278",
+    "category": "variation_verb_regular",
+    "db_seed_lexemes": [
+      "bruge"
+    ],
+    "surface": "bruger",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_279",
+    "category": "variation_verb_regular",
+    "db_seed_lexemes": [
+      "bruge"
+    ],
+    "surface": "brugte",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_280",
+    "category": "variation_verb_regular",
+    "db_seed_lexemes": [
+      "bruge"
+    ],
+    "surface": "brugt",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_281",
+    "category": "variation_verb_regular",
+    "db_seed_lexemes": [
+      "starte"
+    ],
+    "surface": "starter",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_282",
+    "category": "variation_verb_regular",
+    "db_seed_lexemes": [
+      "starte"
+    ],
+    "surface": "startede",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_283",
+    "category": "variation_verb_regular",
+    "db_seed_lexemes": [
+      "starte"
+    ],
+    "surface": "startet",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_284",
+    "category": "variation_verb_regular",
+    "db_seed_lexemes": [
+      "stoppe"
+    ],
+    "surface": "stopper",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_285",
+    "category": "variation_verb_regular",
+    "db_seed_lexemes": [
+      "stoppe"
+    ],
+    "surface": "stoppede",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_286",
+    "category": "variation_verb_regular",
+    "db_seed_lexemes": [
+      "stoppe"
+    ],
+    "surface": "stoppet",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_287",
+    "category": "variation_verb_irregular_modal",
+    "db_seed_lexemes": [
+      "være"
+    ],
+    "surface": "er",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_288",
+    "category": "variation_verb_irregular_modal",
+    "db_seed_lexemes": [
+      "være"
+    ],
+    "surface": "var",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_289",
+    "category": "variation_verb_irregular_modal",
+    "db_seed_lexemes": [
+      "være"
+    ],
+    "surface": "været",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_290",
+    "category": "variation_verb_irregular_modal",
+    "db_seed_lexemes": [
+      "have"
+    ],
+    "surface": "har",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_291",
+    "category": "variation_verb_irregular_modal",
+    "db_seed_lexemes": [
+      "have"
+    ],
+    "surface": "havde",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_292",
+    "category": "variation_verb_irregular_modal",
+    "db_seed_lexemes": [
+      "have"
+    ],
+    "surface": "haft",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_293",
+    "category": "variation_verb_irregular_modal",
+    "db_seed_lexemes": [
+      "gå"
+    ],
+    "surface": "går",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_294",
+    "category": "variation_verb_irregular_modal",
+    "db_seed_lexemes": [
+      "gå"
+    ],
+    "surface": "gik",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_295",
+    "category": "variation_verb_irregular_modal",
+    "db_seed_lexemes": [
+      "gå"
+    ],
+    "surface": "gået",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_296",
+    "category": "variation_verb_irregular_modal",
+    "db_seed_lexemes": [
+      "komme"
+    ],
+    "surface": "kommer",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_297",
+    "category": "variation_verb_irregular_modal",
+    "db_seed_lexemes": [
+      "komme"
+    ],
+    "surface": "kom",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_298",
+    "category": "variation_verb_irregular_modal",
+    "db_seed_lexemes": [
+      "komme"
+    ],
+    "surface": "kommet",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_299",
+    "category": "variation_verb_irregular_modal",
+    "db_seed_lexemes": [
+      "se"
+    ],
+    "surface": "ser",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_300",
+    "category": "variation_verb_irregular_modal",
+    "db_seed_lexemes": [
+      "se"
+    ],
+    "surface": "så",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_301",
+    "category": "variation_verb_irregular_modal",
+    "db_seed_lexemes": [
+      "se"
+    ],
+    "surface": "set",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_302",
+    "category": "variation_verb_irregular_modal",
+    "db_seed_lexemes": [
+      "skrive"
+    ],
+    "surface": "skriver",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_303",
+    "category": "variation_verb_irregular_modal",
+    "db_seed_lexemes": [
+      "skrive"
+    ],
+    "surface": "skrev",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_304",
+    "category": "variation_verb_irregular_modal",
+    "db_seed_lexemes": [
+      "skrive"
+    ],
+    "surface": "skrevet",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_305",
+    "category": "variation_verb_irregular_modal",
+    "db_seed_lexemes": [
+      "tage"
+    ],
+    "surface": "tager",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_306",
+    "category": "variation_verb_irregular_modal",
+    "db_seed_lexemes": [
+      "tage"
+    ],
+    "surface": "tog",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_307",
+    "category": "variation_verb_irregular_modal",
+    "db_seed_lexemes": [
+      "tage"
+    ],
+    "surface": "taget",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_308",
+    "category": "variation_verb_irregular_modal",
+    "db_seed_lexemes": [
+      "få"
+    ],
+    "surface": "får",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_309",
+    "category": "variation_verb_irregular_modal",
+    "db_seed_lexemes": [
+      "få"
+    ],
+    "surface": "fik",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_310",
+    "category": "variation_verb_irregular_modal",
+    "db_seed_lexemes": [
+      "få"
+    ],
+    "surface": "fået",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_311",
+    "category": "variation_verb_irregular_modal",
+    "db_seed_lexemes": [
+      "give"
+    ],
+    "surface": "giver",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_312",
+    "category": "variation_verb_irregular_modal",
+    "db_seed_lexemes": [
+      "give"
+    ],
+    "surface": "gav",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_313",
+    "category": "variation_verb_irregular_modal",
+    "db_seed_lexemes": [
+      "give"
+    ],
+    "surface": "givet",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_314",
+    "category": "variation_verb_irregular_modal",
+    "db_seed_lexemes": [
+      "blive"
+    ],
+    "surface": "bliver",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_315",
+    "category": "variation_verb_irregular_modal",
+    "db_seed_lexemes": [
+      "blive"
+    ],
+    "surface": "blev",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_316",
+    "category": "variation_verb_irregular_modal",
+    "db_seed_lexemes": [
+      "blive"
+    ],
+    "surface": "blevet",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_317",
+    "category": "variation_verb_irregular_modal",
+    "db_seed_lexemes": [
+      "kunne"
+    ],
+    "surface": "kan",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_318",
+    "category": "variation_verb_irregular_modal",
+    "db_seed_lexemes": [
+      "skulle"
+    ],
+    "surface": "skal",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_319",
+    "category": "variation_verb_irregular_modal",
+    "db_seed_lexemes": [
+      "ville"
+    ],
+    "surface": "vil",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_320",
+    "category": "variation_verb_irregular_modal",
+    "db_seed_lexemes": [
+      "måtte"
+    ],
+    "surface": "må",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_321",
+    "category": "variation_borrowed_technical",
+    "db_seed_lexemes": [
+      "computer"
+    ],
+    "surface": "computeren",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_322",
+    "category": "variation_borrowed_technical",
+    "db_seed_lexemes": [
+      "computer"
+    ],
+    "surface": "computere",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_323",
+    "category": "variation_borrowed_technical",
+    "db_seed_lexemes": [
+      "computer"
+    ],
+    "surface": "computerne",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_324",
+    "category": "variation_borrowed_technical",
+    "db_seed_lexemes": [
+      "robot"
+    ],
+    "surface": "roboten",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_325",
+    "category": "variation_borrowed_technical",
+    "db_seed_lexemes": [
+      "robot"
+    ],
+    "surface": "robotter",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_326",
+    "category": "variation_borrowed_technical",
+    "db_seed_lexemes": [
+      "robot"
+    ],
+    "surface": "robotterne",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_327",
+    "category": "variation_borrowed_technical",
+    "db_seed_lexemes": [
+      "sensor"
+    ],
+    "surface": "sensoren",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_328",
+    "category": "variation_borrowed_technical",
+    "db_seed_lexemes": [
+      "sensor"
+    ],
+    "surface": "sensorer",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_329",
+    "category": "variation_borrowed_technical",
+    "db_seed_lexemes": [
+      "sensor"
+    ],
+    "surface": "sensorerne",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_330",
+    "category": "variation_borrowed_technical",
+    "db_seed_lexemes": [
+      "model"
+    ],
+    "surface": "modellen",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_331",
+    "category": "variation_borrowed_technical",
+    "db_seed_lexemes": [
+      "model"
+    ],
+    "surface": "modeller",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_332",
+    "category": "variation_borrowed_technical",
+    "db_seed_lexemes": [
+      "model"
+    ],
+    "surface": "modellerne",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_333",
+    "category": "variation_borrowed_technical",
+    "db_seed_lexemes": [
+      "motor"
+    ],
+    "surface": "motoren",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_334",
+    "category": "variation_borrowed_technical",
+    "db_seed_lexemes": [
+      "motor"
+    ],
+    "surface": "motorer",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_335",
+    "category": "variation_borrowed_technical",
+    "db_seed_lexemes": [
+      "motor"
+    ],
+    "surface": "motorerne",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_336",
+    "category": "variation_borrowed_technical",
+    "db_seed_lexemes": [
+      "server"
+    ],
+    "surface": "serveren",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_337",
+    "category": "variation_borrowed_technical",
+    "db_seed_lexemes": [
+      "server"
+    ],
+    "surface": "servere",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_338",
+    "category": "variation_borrowed_technical",
+    "db_seed_lexemes": [
+      "server"
+    ],
+    "surface": "serverne",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_339",
+    "category": "variation_diacritics",
+    "db_seed_lexemes": [
+      "træ"
+    ],
+    "surface": "træet",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_340",
+    "category": "variation_diacritics",
+    "db_seed_lexemes": [
+      "træ"
+    ],
+    "surface": "træer",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_341",
+    "category": "variation_diacritics",
+    "db_seed_lexemes": [
+      "træ"
+    ],
+    "surface": "træerne",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_342",
+    "category": "variation_diacritics",
+    "db_seed_lexemes": [
+      "øvelse"
+    ],
+    "surface": "øvelsen",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_343",
+    "category": "variation_diacritics",
+    "db_seed_lexemes": [
+      "øvelse"
+    ],
+    "surface": "øvelser",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_344",
+    "category": "variation_diacritics",
+    "db_seed_lexemes": [
+      "øvelse"
+    ],
+    "surface": "øvelserne",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_345",
+    "category": "variation_diacritics",
+    "db_seed_lexemes": [
+      "løsning"
+    ],
+    "surface": "løsningen",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_346",
+    "category": "variation_diacritics",
+    "db_seed_lexemes": [
+      "løsning"
+    ],
+    "surface": "løsninger",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_347",
+    "category": "variation_diacritics",
+    "db_seed_lexemes": [
+      "løsning"
+    ],
+    "surface": "løsningerne",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_348",
+    "category": "variation_diacritics",
+    "db_seed_lexemes": [
+      "spørgsmål"
+    ],
+    "surface": "spørgsmålet",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_349",
+    "category": "variation_diacritics",
+    "db_seed_lexemes": [
+      "spørgsmål"
+    ],
+    "surface": "spørgsmålene",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_350",
+    "category": "variation_diacritics",
+    "db_seed_lexemes": [
+      "år"
+    ],
+    "surface": "året",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_351",
+    "category": "variation_diacritics",
+    "db_seed_lexemes": [
+      "år"
+    ],
+    "surface": "årene",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_352",
+    "category": "variation_diacritics",
+    "db_seed_lexemes": [
+      "mål"
+    ],
+    "surface": "målet",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_353",
+    "category": "variation_diacritics",
+    "db_seed_lexemes": [
+      "mål"
+    ],
+    "surface": "målene",
+    "expected_status": "variation"
+  },
+  {
+    "id": "class_354",
+    "category": "new_guard_semantic",
+    "db_seed_lexemes": [
+      "bog"
+    ],
+    "surface": "kat",
+    "expected_status": "new"
+  },
+  {
+    "id": "class_355",
+    "category": "new_guard_semantic",
+    "db_seed_lexemes": [
+      "hus"
+    ],
+    "surface": "bil",
+    "expected_status": "new"
+  },
+  {
+    "id": "class_356",
+    "category": "new_guard_semantic",
+    "db_seed_lexemes": [
+      "god"
+    ],
+    "surface": "grim",
+    "expected_status": "new"
+  },
+  {
+    "id": "class_357",
+    "category": "new_guard_semantic",
+    "db_seed_lexemes": [
+      "gå"
+    ],
+    "surface": "løbe",
+    "expected_status": "new"
+  },
+  {
+    "id": "class_358",
+    "category": "new_guard_semantic",
+    "db_seed_lexemes": [
+      "kunne"
+    ],
+    "surface": "skulle",
+    "expected_status": "new"
+  },
+  {
+    "id": "class_359",
+    "category": "new_guard_semantic",
+    "db_seed_lexemes": [
+      "spise"
+    ],
+    "surface": "drikke",
+    "expected_status": "new"
+  },
+  {
+    "id": "class_360",
+    "category": "new_guard_semantic",
+    "db_seed_lexemes": [
+      "computer"
+    ],
+    "surface": "sensor",
+    "expected_status": "new"
+  },
+  {
+    "id": "class_361",
+    "category": "new_guard_semantic",
+    "db_seed_lexemes": [
+      "arbejdsplads"
+    ],
+    "surface": "sommerhus",
+    "expected_status": "new"
+  },
+  {
+    "id": "class_362",
+    "category": "new_guard_semantic",
+    "db_seed_lexemes": [
+      "barn"
+    ],
+    "surface": "voksen",
+    "expected_status": "new"
+  },
+  {
+    "id": "class_363",
+    "category": "new_guard_semantic",
+    "db_seed_lexemes": [
+      "stor"
+    ],
+    "surface": "lille",
+    "expected_status": "new"
+  },
+  {
+    "id": "class_364",
+    "category": "new_guard_semantic",
+    "db_seed_lexemes": [
+      "ny"
+    ],
+    "surface": "gammel",
+    "expected_status": "new"
+  },
+  {
+    "id": "class_365",
+    "category": "new_guard_semantic",
+    "db_seed_lexemes": [
+      "skrive"
+    ],
+    "surface": "læse",
+    "expected_status": "new"
+  },
+  {
+    "id": "class_366",
+    "category": "new_guard_semantic",
+    "db_seed_lexemes": [
+      "lære"
+    ],
+    "surface": "glemme",
+    "expected_status": "new"
+  },
+  {
+    "id": "class_367",
+    "category": "new_guard_semantic",
+    "db_seed_lexemes": [
+      "åbne"
+    ],
+    "surface": "lukke",
+    "expected_status": "new"
+  },
+  {
+    "id": "class_368",
+    "category": "new_guard_semantic",
+    "db_seed_lexemes": [
+      "hurtig"
+    ],
+    "surface": "langsom",
+    "expected_status": "new"
+  },
+  {
+    "id": "class_369",
+    "category": "new_guard_semantic",
+    "db_seed_lexemes": [
+      "server"
+    ],
+    "surface": "robot",
+    "expected_status": "new"
+  },
+  {
+    "id": "class_370",
+    "category": "new_guard_semantic",
+    "db_seed_lexemes": [
+      "øvelse"
+    ],
+    "surface": "pause",
+    "expected_status": "new"
+  },
+  {
+    "id": "class_371",
+    "category": "new_guard_semantic",
+    "db_seed_lexemes": [
+      "spørgsmål"
+    ],
+    "surface": "svar",
+    "expected_status": "new"
+  },
+  {
+    "id": "class_372",
+    "category": "new_guard_semantic",
+    "db_seed_lexemes": [
+      "mål"
+    ],
+    "surface": "problem",
+    "expected_status": "new"
+  },
+  {
+    "id": "class_373",
+    "category": "new_guard_semantic",
+    "db_seed_lexemes": [
+      "træ"
+    ],
+    "surface": "blomst",
+    "expected_status": "new"
+  },
+  {
+    "id": "class_374",
+    "category": "new_guard_near_shape",
+    "db_seed_lexemes": [
+      "bog"
+    ],
+    "surface": "bogn",
+    "expected_status": "new"
+  },
+  {
+    "id": "class_375",
+    "category": "new_guard_near_shape",
+    "db_seed_lexemes": [
+      "bog"
+    ],
+    "surface": "boge",
+    "expected_status": "new"
+  },
+  {
+    "id": "class_376",
+    "category": "new_guard_near_shape",
+    "db_seed_lexemes": [
+      "hus"
+    ],
+    "surface": "huss",
+    "expected_status": "new"
+  },
+  {
+    "id": "class_377",
+    "category": "new_guard_near_shape",
+    "db_seed_lexemes": [
+      "hus"
+    ],
+    "surface": "husee",
+    "expected_status": "new"
+  },
+  {
+    "id": "class_378",
+    "category": "new_guard_near_shape",
+    "db_seed_lexemes": [
+      "god"
+    ],
+    "surface": "godtt",
+    "expected_status": "new"
+  },
+  {
+    "id": "class_379",
+    "category": "new_guard_near_shape",
+    "db_seed_lexemes": [
+      "spise"
+    ],
+    "surface": "spisr",
+    "expected_status": "new"
+  },
+  {
+    "id": "class_380",
+    "category": "new_guard_near_shape",
+    "db_seed_lexemes": [
+      "arbejde"
+    ],
+    "surface": "arbejdee",
+    "expected_status": "new"
+  },
+  {
+    "id": "class_381",
+    "category": "new_guard_near_shape",
+    "db_seed_lexemes": [
+      "gå"
+    ],
+    "surface": "gåk",
+    "expected_status": "new"
+  },
+  {
+    "id": "class_382",
+    "category": "new_guard_near_shape",
+    "db_seed_lexemes": [
+      "være"
+    ],
+    "surface": "værre",
+    "expected_status": "new"
+  },
+  {
+    "id": "class_383",
+    "category": "new_guard_near_shape",
+    "db_seed_lexemes": [
+      "kunne"
+    ],
+    "surface": "kunnee",
+    "expected_status": "new"
+  },
+  {
+    "id": "class_384",
+    "category": "new_guard_near_shape",
+    "db_seed_lexemes": [
+      "server"
+    ],
+    "surface": "servr",
+    "expected_status": "new"
+  },
+  {
+    "id": "class_385",
+    "category": "new_guard_near_shape",
+    "db_seed_lexemes": [
+      "robot"
+    ],
+    "surface": "robt",
+    "expected_status": "new"
+  },
+  {
+    "id": "class_386",
+    "category": "new_guard_near_shape",
+    "db_seed_lexemes": [
+      "sensor"
+    ],
+    "surface": "sensorr",
+    "expected_status": "new"
+  },
+  {
+    "id": "class_387",
+    "category": "priority_exact_over_lemma",
+    "db_seed_lexemes": [
+      "god",
+      "godt"
+    ],
+    "surface": "godt",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_388",
+    "category": "priority_exact_over_lemma",
+    "db_seed_lexemes": [
+      "stor",
+      "større"
+    ],
+    "surface": "større",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_389",
+    "category": "priority_exact_over_lemma",
+    "db_seed_lexemes": [
+      "gå",
+      "gik"
+    ],
+    "surface": "gik",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_390",
+    "category": "priority_exact_over_lemma",
+    "db_seed_lexemes": [
+      "bog",
+      "bogen"
+    ],
+    "surface": "bogen",
+    "expected_status": "known"
+  },
+  {
+    "id": "class_391",
+    "category": "priority_exact_over_lemma",
+    "db_seed_lexemes": [
+      "hus",
+      "huset"
+    ],
+    "surface": "huset",
+    "expected_status": "known"
+  }
+]

@@ -1,0 +1,2276 @@
+[
+  {
+    "id": "token_001",
+    "category": "noun_regular",
+    "surface": "bog",
+    "expected_lemma": "bog"
+  },
+  {
+    "id": "token_002",
+    "category": "noun_regular",
+    "surface": "bogen",
+    "expected_lemma": "bog"
+  },
+  {
+    "id": "token_003",
+    "category": "noun_regular",
+    "surface": "bøger",
+    "expected_lemma": "bog"
+  },
+  {
+    "id": "token_004",
+    "category": "noun_regular",
+    "surface": "bøgerne",
+    "expected_lemma": "bog"
+  },
+  {
+    "id": "token_005",
+    "category": "noun_regular",
+    "surface": "hus",
+    "expected_lemma": "hus"
+  },
+  {
+    "id": "token_006",
+    "category": "noun_regular",
+    "surface": "huset",
+    "expected_lemma": "hus"
+  },
+  {
+    "id": "token_007",
+    "category": "noun_regular",
+    "surface": "huse",
+    "expected_lemma": "hus"
+  },
+  {
+    "id": "token_008",
+    "category": "noun_regular",
+    "surface": "husene",
+    "expected_lemma": "hus"
+  },
+  {
+    "id": "token_009",
+    "category": "noun_regular",
+    "surface": "bil",
+    "expected_lemma": "bil"
+  },
+  {
+    "id": "token_010",
+    "category": "noun_regular",
+    "surface": "bilen",
+    "expected_lemma": "bil"
+  },
+  {
+    "id": "token_011",
+    "category": "noun_regular",
+    "surface": "biler",
+    "expected_lemma": "bil"
+  },
+  {
+    "id": "token_012",
+    "category": "noun_regular",
+    "surface": "bilerne",
+    "expected_lemma": "bil"
+  },
+  {
+    "id": "token_013",
+    "category": "noun_regular",
+    "surface": "stol",
+    "expected_lemma": "stol"
+  },
+  {
+    "id": "token_014",
+    "category": "noun_regular",
+    "surface": "stolen",
+    "expected_lemma": "stol"
+  },
+  {
+    "id": "token_015",
+    "category": "noun_regular",
+    "surface": "stole",
+    "expected_lemma": "stol"
+  },
+  {
+    "id": "token_016",
+    "category": "noun_regular",
+    "surface": "stolene",
+    "expected_lemma": "stol"
+  },
+  {
+    "id": "token_017",
+    "category": "noun_regular",
+    "surface": "skole",
+    "expected_lemma": "skole"
+  },
+  {
+    "id": "token_018",
+    "category": "noun_regular",
+    "surface": "skolen",
+    "expected_lemma": "skole"
+  },
+  {
+    "id": "token_019",
+    "category": "noun_regular",
+    "surface": "skoler",
+    "expected_lemma": "skole"
+  },
+  {
+    "id": "token_020",
+    "category": "noun_regular",
+    "surface": "skolerne",
+    "expected_lemma": "skole"
+  },
+  {
+    "id": "token_021",
+    "category": "noun_regular",
+    "surface": "by",
+    "expected_lemma": "by"
+  },
+  {
+    "id": "token_022",
+    "category": "noun_regular",
+    "surface": "byen",
+    "expected_lemma": "by"
+  },
+  {
+    "id": "token_023",
+    "category": "noun_regular",
+    "surface": "byer",
+    "expected_lemma": "by"
+  },
+  {
+    "id": "token_024",
+    "category": "noun_regular",
+    "surface": "byerne",
+    "expected_lemma": "by"
+  },
+  {
+    "id": "token_025",
+    "category": "noun_regular",
+    "surface": "dag",
+    "expected_lemma": "dag"
+  },
+  {
+    "id": "token_026",
+    "category": "noun_regular",
+    "surface": "dagen",
+    "expected_lemma": "dag"
+  },
+  {
+    "id": "token_027",
+    "category": "noun_regular",
+    "surface": "dage",
+    "expected_lemma": "dag"
+  },
+  {
+    "id": "token_028",
+    "category": "noun_regular",
+    "surface": "dagene",
+    "expected_lemma": "dag"
+  },
+  {
+    "id": "token_029",
+    "category": "noun_regular",
+    "surface": "uge",
+    "expected_lemma": "uge"
+  },
+  {
+    "id": "token_030",
+    "category": "noun_regular",
+    "surface": "ugen",
+    "expected_lemma": "uge"
+  },
+  {
+    "id": "token_031",
+    "category": "noun_regular",
+    "surface": "uger",
+    "expected_lemma": "uge"
+  },
+  {
+    "id": "token_032",
+    "category": "noun_regular",
+    "surface": "ugerne",
+    "expected_lemma": "uge"
+  },
+  {
+    "id": "token_033",
+    "category": "noun_regular",
+    "surface": "ven",
+    "expected_lemma": "ven"
+  },
+  {
+    "id": "token_034",
+    "category": "noun_regular",
+    "surface": "vennen",
+    "expected_lemma": "ven"
+  },
+  {
+    "id": "token_035",
+    "category": "noun_regular",
+    "surface": "venner",
+    "expected_lemma": "ven"
+  },
+  {
+    "id": "token_036",
+    "category": "noun_regular",
+    "surface": "vennerne",
+    "expected_lemma": "ven"
+  },
+  {
+    "id": "token_037",
+    "category": "noun_regular",
+    "surface": "kat",
+    "expected_lemma": "kat"
+  },
+  {
+    "id": "token_038",
+    "category": "noun_regular",
+    "surface": "katten",
+    "expected_lemma": "kat"
+  },
+  {
+    "id": "token_039",
+    "category": "noun_regular",
+    "surface": "katte",
+    "expected_lemma": "kat"
+  },
+  {
+    "id": "token_040",
+    "category": "noun_regular",
+    "surface": "kattene",
+    "expected_lemma": "kat"
+  },
+  {
+    "id": "token_041",
+    "category": "noun_regular",
+    "surface": "hund",
+    "expected_lemma": "hund"
+  },
+  {
+    "id": "token_042",
+    "category": "noun_regular",
+    "surface": "hunden",
+    "expected_lemma": "hund"
+  },
+  {
+    "id": "token_043",
+    "category": "noun_regular",
+    "surface": "hunde",
+    "expected_lemma": "hund"
+  },
+  {
+    "id": "token_044",
+    "category": "noun_regular",
+    "surface": "hundene",
+    "expected_lemma": "hund"
+  },
+  {
+    "id": "token_045",
+    "category": "noun_regular",
+    "surface": "pige",
+    "expected_lemma": "pige"
+  },
+  {
+    "id": "token_046",
+    "category": "noun_regular",
+    "surface": "pigen",
+    "expected_lemma": "pige"
+  },
+  {
+    "id": "token_047",
+    "category": "noun_regular",
+    "surface": "piger",
+    "expected_lemma": "pige"
+  },
+  {
+    "id": "token_048",
+    "category": "noun_regular",
+    "surface": "pigerne",
+    "expected_lemma": "pige"
+  },
+  {
+    "id": "token_049",
+    "category": "noun_regular",
+    "surface": "dreng",
+    "expected_lemma": "dreng"
+  },
+  {
+    "id": "token_050",
+    "category": "noun_regular",
+    "surface": "drengen",
+    "expected_lemma": "dreng"
+  },
+  {
+    "id": "token_051",
+    "category": "noun_regular",
+    "surface": "drenge",
+    "expected_lemma": "dreng"
+  },
+  {
+    "id": "token_052",
+    "category": "noun_regular",
+    "surface": "drengene",
+    "expected_lemma": "dreng"
+  },
+  {
+    "id": "token_053",
+    "category": "noun_regular",
+    "surface": "park",
+    "expected_lemma": "park"
+  },
+  {
+    "id": "token_054",
+    "category": "noun_regular",
+    "surface": "parken",
+    "expected_lemma": "park"
+  },
+  {
+    "id": "token_055",
+    "category": "noun_regular",
+    "surface": "parker",
+    "expected_lemma": "park"
+  },
+  {
+    "id": "token_056",
+    "category": "noun_regular",
+    "surface": "parkerne",
+    "expected_lemma": "park"
+  },
+  {
+    "id": "token_057",
+    "category": "noun_regular",
+    "surface": "time",
+    "expected_lemma": "time"
+  },
+  {
+    "id": "token_058",
+    "category": "noun_regular",
+    "surface": "timen",
+    "expected_lemma": "time"
+  },
+  {
+    "id": "token_059",
+    "category": "noun_regular",
+    "surface": "timer",
+    "expected_lemma": "time"
+  },
+  {
+    "id": "token_060",
+    "category": "noun_regular",
+    "surface": "timerne",
+    "expected_lemma": "time"
+  },
+  {
+    "id": "token_061",
+    "category": "noun_regular",
+    "surface": "opgave",
+    "expected_lemma": "opgave"
+  },
+  {
+    "id": "token_062",
+    "category": "noun_regular",
+    "surface": "opgaven",
+    "expected_lemma": "opgave"
+  },
+  {
+    "id": "token_063",
+    "category": "noun_regular",
+    "surface": "opgaver",
+    "expected_lemma": "opgave"
+  },
+  {
+    "id": "token_064",
+    "category": "noun_regular",
+    "surface": "opgaverne",
+    "expected_lemma": "opgave"
+  },
+  {
+    "id": "token_065",
+    "category": "noun_regular",
+    "surface": "sætning",
+    "expected_lemma": "sætning"
+  },
+  {
+    "id": "token_066",
+    "category": "noun_regular",
+    "surface": "sætningen",
+    "expected_lemma": "sætning"
+  },
+  {
+    "id": "token_067",
+    "category": "noun_regular",
+    "surface": "sætninger",
+    "expected_lemma": "sætning"
+  },
+  {
+    "id": "token_068",
+    "category": "noun_regular",
+    "surface": "sætningerne",
+    "expected_lemma": "sætning"
+  },
+  {
+    "id": "token_069",
+    "category": "noun_regular",
+    "surface": "bogstav",
+    "expected_lemma": "bogstav"
+  },
+  {
+    "id": "token_070",
+    "category": "noun_regular",
+    "surface": "bogstavet",
+    "expected_lemma": "bogstav"
+  },
+  {
+    "id": "token_071",
+    "category": "noun_regular",
+    "surface": "bogstaver",
+    "expected_lemma": "bogstav"
+  },
+  {
+    "id": "token_072",
+    "category": "noun_regular",
+    "surface": "bogstaverne",
+    "expected_lemma": "bogstav"
+  },
+  {
+    "id": "token_073",
+    "category": "noun_irregular",
+    "surface": "mand",
+    "expected_lemma": "mand"
+  },
+  {
+    "id": "token_074",
+    "category": "noun_irregular",
+    "surface": "manden",
+    "expected_lemma": "mand"
+  },
+  {
+    "id": "token_075",
+    "category": "noun_irregular",
+    "surface": "mænd",
+    "expected_lemma": "mand"
+  },
+  {
+    "id": "token_076",
+    "category": "noun_irregular",
+    "surface": "mændene",
+    "expected_lemma": "mand"
+  },
+  {
+    "id": "token_077",
+    "category": "noun_irregular",
+    "surface": "barn",
+    "expected_lemma": "barn"
+  },
+  {
+    "id": "token_078",
+    "category": "noun_irregular",
+    "surface": "barnet",
+    "expected_lemma": "barn"
+  },
+  {
+    "id": "token_079",
+    "category": "noun_irregular",
+    "surface": "børn",
+    "expected_lemma": "barn"
+  },
+  {
+    "id": "token_080",
+    "category": "noun_irregular",
+    "surface": "børnene",
+    "expected_lemma": "barn"
+  },
+  {
+    "id": "token_081",
+    "category": "noun_irregular",
+    "surface": "fod",
+    "expected_lemma": "fod"
+  },
+  {
+    "id": "token_082",
+    "category": "noun_irregular",
+    "surface": "foden",
+    "expected_lemma": "fod"
+  },
+  {
+    "id": "token_083",
+    "category": "noun_irregular",
+    "surface": "fødder",
+    "expected_lemma": "fod"
+  },
+  {
+    "id": "token_084",
+    "category": "noun_irregular",
+    "surface": "fødderne",
+    "expected_lemma": "fod"
+  },
+  {
+    "id": "token_085",
+    "category": "noun_irregular",
+    "surface": "tand",
+    "expected_lemma": "tand"
+  },
+  {
+    "id": "token_086",
+    "category": "noun_irregular",
+    "surface": "tanden",
+    "expected_lemma": "tand"
+  },
+  {
+    "id": "token_087",
+    "category": "noun_irregular",
+    "surface": "tænder",
+    "expected_lemma": "tand"
+  },
+  {
+    "id": "token_088",
+    "category": "noun_irregular",
+    "surface": "tænderne",
+    "expected_lemma": "tand"
+  },
+  {
+    "id": "token_089",
+    "category": "noun_irregular",
+    "surface": "gås",
+    "expected_lemma": "gås"
+  },
+  {
+    "id": "token_090",
+    "category": "noun_irregular",
+    "surface": "gåsen",
+    "expected_lemma": "gås"
+  },
+  {
+    "id": "token_091",
+    "category": "noun_irregular",
+    "surface": "gæs",
+    "expected_lemma": "gås"
+  },
+  {
+    "id": "token_092",
+    "category": "noun_irregular",
+    "surface": "gæssene",
+    "expected_lemma": "gås"
+  },
+  {
+    "id": "token_093",
+    "category": "noun_irregular",
+    "surface": "nat",
+    "expected_lemma": "nat"
+  },
+  {
+    "id": "token_094",
+    "category": "noun_irregular",
+    "surface": "natten",
+    "expected_lemma": "nat"
+  },
+  {
+    "id": "token_095",
+    "category": "noun_irregular",
+    "surface": "nætter",
+    "expected_lemma": "nat"
+  },
+  {
+    "id": "token_096",
+    "category": "noun_irregular",
+    "surface": "nætterne",
+    "expected_lemma": "nat"
+  },
+  {
+    "id": "token_097",
+    "category": "noun_irregular",
+    "surface": "hånd",
+    "expected_lemma": "hånd"
+  },
+  {
+    "id": "token_098",
+    "category": "noun_irregular",
+    "surface": "hånden",
+    "expected_lemma": "hånd"
+  },
+  {
+    "id": "token_099",
+    "category": "noun_irregular",
+    "surface": "hænder",
+    "expected_lemma": "hånd"
+  },
+  {
+    "id": "token_100",
+    "category": "noun_irregular",
+    "surface": "hænderne",
+    "expected_lemma": "hånd"
+  },
+  {
+    "id": "token_101",
+    "category": "noun_genitive",
+    "surface": "bogens",
+    "expected_lemma": "bog"
+  },
+  {
+    "id": "token_102",
+    "category": "noun_genitive",
+    "surface": "husets",
+    "expected_lemma": "hus"
+  },
+  {
+    "id": "token_103",
+    "category": "noun_genitive",
+    "surface": "bilens",
+    "expected_lemma": "bil"
+  },
+  {
+    "id": "token_104",
+    "category": "noun_genitive",
+    "surface": "stolens",
+    "expected_lemma": "stol"
+  },
+  {
+    "id": "token_105",
+    "category": "noun_genitive",
+    "surface": "skolens",
+    "expected_lemma": "skole"
+  },
+  {
+    "id": "token_106",
+    "category": "noun_genitive",
+    "surface": "byens",
+    "expected_lemma": "by"
+  },
+  {
+    "id": "token_107",
+    "category": "noun_genitive",
+    "surface": "dagens",
+    "expected_lemma": "dag"
+  },
+  {
+    "id": "token_108",
+    "category": "noun_genitive",
+    "surface": "ugens",
+    "expected_lemma": "uge"
+  },
+  {
+    "id": "token_109",
+    "category": "noun_genitive",
+    "surface": "vennens",
+    "expected_lemma": "ven"
+  },
+  {
+    "id": "token_110",
+    "category": "noun_genitive",
+    "surface": "kattens",
+    "expected_lemma": "kat"
+  },
+  {
+    "id": "token_111",
+    "category": "noun_genitive",
+    "surface": "hundens",
+    "expected_lemma": "hund"
+  },
+  {
+    "id": "token_112",
+    "category": "noun_genitive",
+    "surface": "pigens",
+    "expected_lemma": "pige"
+  },
+  {
+    "id": "token_113",
+    "category": "noun_genitive",
+    "surface": "drengens",
+    "expected_lemma": "dreng"
+  },
+  {
+    "id": "token_114",
+    "category": "noun_genitive",
+    "surface": "parkens",
+    "expected_lemma": "park"
+  },
+  {
+    "id": "token_115",
+    "category": "noun_genitive",
+    "surface": "timens",
+    "expected_lemma": "time"
+  },
+  {
+    "id": "token_116",
+    "category": "noun_genitive",
+    "surface": "opgavens",
+    "expected_lemma": "opgave"
+  },
+  {
+    "id": "token_117",
+    "category": "noun_genitive",
+    "surface": "sætningens",
+    "expected_lemma": "sætning"
+  },
+  {
+    "id": "token_118",
+    "category": "noun_genitive",
+    "surface": "bogstavets",
+    "expected_lemma": "bogstav"
+  },
+  {
+    "id": "token_119",
+    "category": "noun_genitive",
+    "surface": "barnets",
+    "expected_lemma": "barn"
+  },
+  {
+    "id": "token_120",
+    "category": "noun_genitive",
+    "surface": "børnenes",
+    "expected_lemma": "barn"
+  },
+  {
+    "id": "token_121",
+    "category": "noun_genitive",
+    "surface": "mandens",
+    "expected_lemma": "mand"
+  },
+  {
+    "id": "token_122",
+    "category": "noun_genitive",
+    "surface": "mændenes",
+    "expected_lemma": "mand"
+  },
+  {
+    "id": "token_123",
+    "category": "noun_genitive",
+    "surface": "håndens",
+    "expected_lemma": "hånd"
+  },
+  {
+    "id": "token_124",
+    "category": "noun_genitive",
+    "surface": "hændernes",
+    "expected_lemma": "hånd"
+  },
+  {
+    "id": "token_125",
+    "category": "noun_compound",
+    "surface": "arbejdspladsen",
+    "expected_lemma": "arbejdsplads"
+  },
+  {
+    "id": "token_126",
+    "category": "noun_compound",
+    "surface": "arbejdspladser",
+    "expected_lemma": "arbejdsplads"
+  },
+  {
+    "id": "token_127",
+    "category": "noun_compound",
+    "surface": "sommerhuset",
+    "expected_lemma": "sommerhus"
+  },
+  {
+    "id": "token_128",
+    "category": "noun_compound",
+    "surface": "sommerhuse",
+    "expected_lemma": "sommerhus"
+  },
+  {
+    "id": "token_129",
+    "category": "noun_compound",
+    "surface": "sprogskolen",
+    "expected_lemma": "sprogskole"
+  },
+  {
+    "id": "token_130",
+    "category": "noun_compound",
+    "surface": "sprogskoler",
+    "expected_lemma": "sprogskole"
+  },
+  {
+    "id": "token_131",
+    "category": "noun_compound",
+    "surface": "skolebogen",
+    "expected_lemma": "skolebog"
+  },
+  {
+    "id": "token_132",
+    "category": "noun_compound",
+    "surface": "skolebøger",
+    "expected_lemma": "skolebog"
+  },
+  {
+    "id": "token_133",
+    "category": "noun_compound",
+    "surface": "skolebøgerne",
+    "expected_lemma": "skolebog"
+  },
+  {
+    "id": "token_134",
+    "category": "noun_compound",
+    "surface": "cykelhjelmen",
+    "expected_lemma": "cykelhjelm"
+  },
+  {
+    "id": "token_135",
+    "category": "noun_compound",
+    "surface": "computerprogrammet",
+    "expected_lemma": "computerprogram"
+  },
+  {
+    "id": "token_136",
+    "category": "noun_compound",
+    "surface": "testsystemet",
+    "expected_lemma": "testsystem"
+  },
+  {
+    "id": "token_137",
+    "category": "noun_compound",
+    "surface": "laboratorietesten",
+    "expected_lemma": "laboratorietest"
+  },
+  {
+    "id": "token_138",
+    "category": "noun_compound",
+    "surface": "morgenmaden",
+    "expected_lemma": "morgenmad"
+  },
+  {
+    "id": "token_139",
+    "category": "noun_compound",
+    "surface": "eftermiddagen",
+    "expected_lemma": "eftermiddag"
+  },
+  {
+    "id": "token_140",
+    "category": "noun_compound",
+    "surface": "weekenden",
+    "expected_lemma": "weekend"
+  },
+  {
+    "id": "token_141",
+    "category": "noun_compound",
+    "surface": "klasseværelset",
+    "expected_lemma": "klasseværelse"
+  },
+  {
+    "id": "token_142",
+    "category": "noun_compound",
+    "surface": "skrivebordet",
+    "expected_lemma": "skrivebord"
+  },
+  {
+    "id": "token_143",
+    "category": "noun_compound",
+    "surface": "vindueskarmen",
+    "expected_lemma": "vindueskarm"
+  },
+  {
+    "id": "token_144",
+    "category": "noun_compound",
+    "surface": "fjernbetjeningen",
+    "expected_lemma": "fjernbetjening"
+  },
+  {
+    "id": "token_145",
+    "category": "noun_compound",
+    "surface": "datasættet",
+    "expected_lemma": "datasæt"
+  },
+  {
+    "id": "token_146",
+    "category": "noun_compound",
+    "surface": "datasæt",
+    "expected_lemma": "datasæt"
+  },
+  {
+    "id": "token_147",
+    "category": "noun_compound",
+    "surface": "brugergrænsefladen",
+    "expected_lemma": "brugergrænseflade"
+  },
+  {
+    "id": "token_148",
+    "category": "noun_compound",
+    "surface": "ordlisten",
+    "expected_lemma": "ordliste"
+  },
+  {
+    "id": "token_149",
+    "category": "noun_compound",
+    "surface": "læsebogen",
+    "expected_lemma": "læsebog"
+  },
+  {
+    "id": "token_150",
+    "category": "adjective_basic",
+    "surface": "god",
+    "expected_lemma": "god"
+  },
+  {
+    "id": "token_151",
+    "category": "adjective_basic",
+    "surface": "godt",
+    "expected_lemma": "god"
+  },
+  {
+    "id": "token_152",
+    "category": "adjective_basic",
+    "surface": "gode",
+    "expected_lemma": "god"
+  },
+  {
+    "id": "token_153",
+    "category": "adjective_basic",
+    "surface": "stor",
+    "expected_lemma": "stor"
+  },
+  {
+    "id": "token_154",
+    "category": "adjective_basic",
+    "surface": "stort",
+    "expected_lemma": "stor"
+  },
+  {
+    "id": "token_155",
+    "category": "adjective_basic",
+    "surface": "store",
+    "expected_lemma": "stor"
+  },
+  {
+    "id": "token_156",
+    "category": "adjective_basic",
+    "surface": "smuk",
+    "expected_lemma": "smuk"
+  },
+  {
+    "id": "token_157",
+    "category": "adjective_basic",
+    "surface": "smukt",
+    "expected_lemma": "smuk"
+  },
+  {
+    "id": "token_158",
+    "category": "adjective_basic",
+    "surface": "smukke",
+    "expected_lemma": "smuk"
+  },
+  {
+    "id": "token_159",
+    "category": "adjective_basic",
+    "surface": "lang",
+    "expected_lemma": "lang"
+  },
+  {
+    "id": "token_160",
+    "category": "adjective_basic",
+    "surface": "langt",
+    "expected_lemma": "lang"
+  },
+  {
+    "id": "token_161",
+    "category": "adjective_basic",
+    "surface": "lange",
+    "expected_lemma": "lang"
+  },
+  {
+    "id": "token_162",
+    "category": "adjective_basic",
+    "surface": "kort",
+    "expected_lemma": "kort"
+  },
+  {
+    "id": "token_163",
+    "category": "adjective_basic",
+    "surface": "korte",
+    "expected_lemma": "kort"
+  },
+  {
+    "id": "token_164",
+    "category": "adjective_basic",
+    "surface": "ny",
+    "expected_lemma": "ny"
+  },
+  {
+    "id": "token_165",
+    "category": "adjective_basic",
+    "surface": "nyt",
+    "expected_lemma": "ny"
+  },
+  {
+    "id": "token_166",
+    "category": "adjective_basic",
+    "surface": "nye",
+    "expected_lemma": "ny"
+  },
+  {
+    "id": "token_167",
+    "category": "adjective_basic",
+    "surface": "gammel",
+    "expected_lemma": "gammel"
+  },
+  {
+    "id": "token_168",
+    "category": "adjective_basic",
+    "surface": "gammelt",
+    "expected_lemma": "gammel"
+  },
+  {
+    "id": "token_169",
+    "category": "adjective_basic",
+    "surface": "gamle",
+    "expected_lemma": "gammel"
+  },
+  {
+    "id": "token_170",
+    "category": "adjective_basic",
+    "surface": "svær",
+    "expected_lemma": "svær"
+  },
+  {
+    "id": "token_171",
+    "category": "adjective_basic",
+    "surface": "svært",
+    "expected_lemma": "svær"
+  },
+  {
+    "id": "token_172",
+    "category": "adjective_basic",
+    "surface": "svære",
+    "expected_lemma": "svær"
+  },
+  {
+    "id": "token_173",
+    "category": "adjective_basic",
+    "surface": "hurtig",
+    "expected_lemma": "hurtig"
+  },
+  {
+    "id": "token_174",
+    "category": "adjective_basic",
+    "surface": "hurtigt",
+    "expected_lemma": "hurtig"
+  },
+  {
+    "id": "token_175",
+    "category": "adjective_basic",
+    "surface": "hurtige",
+    "expected_lemma": "hurtig"
+  },
+  {
+    "id": "token_176",
+    "category": "adjective_basic",
+    "surface": "vigtig",
+    "expected_lemma": "vigtig"
+  },
+  {
+    "id": "token_177",
+    "category": "adjective_basic",
+    "surface": "vigtigt",
+    "expected_lemma": "vigtig"
+  },
+  {
+    "id": "token_178",
+    "category": "adjective_basic",
+    "surface": "vigtige",
+    "expected_lemma": "vigtig"
+  },
+  {
+    "id": "token_179",
+    "category": "adjective_comparison",
+    "surface": "bedre",
+    "expected_lemma": "god"
+  },
+  {
+    "id": "token_180",
+    "category": "adjective_comparison",
+    "surface": "bedst",
+    "expected_lemma": "god"
+  },
+  {
+    "id": "token_181",
+    "category": "adjective_comparison",
+    "surface": "større",
+    "expected_lemma": "stor"
+  },
+  {
+    "id": "token_182",
+    "category": "adjective_comparison",
+    "surface": "størst",
+    "expected_lemma": "stor"
+  },
+  {
+    "id": "token_183",
+    "category": "adjective_comparison",
+    "surface": "længere",
+    "expected_lemma": "lang"
+  },
+  {
+    "id": "token_184",
+    "category": "adjective_comparison",
+    "surface": "længst",
+    "expected_lemma": "lang"
+  },
+  {
+    "id": "token_185",
+    "category": "adjective_comparison",
+    "surface": "kortere",
+    "expected_lemma": "kort"
+  },
+  {
+    "id": "token_186",
+    "category": "adjective_comparison",
+    "surface": "kortest",
+    "expected_lemma": "kort"
+  },
+  {
+    "id": "token_187",
+    "category": "adjective_comparison",
+    "surface": "nyere",
+    "expected_lemma": "ny"
+  },
+  {
+    "id": "token_188",
+    "category": "adjective_comparison",
+    "surface": "nyest",
+    "expected_lemma": "ny"
+  },
+  {
+    "id": "token_189",
+    "category": "adjective_comparison",
+    "surface": "ældre",
+    "expected_lemma": "gammel"
+  },
+  {
+    "id": "token_190",
+    "category": "adjective_comparison",
+    "surface": "ældst",
+    "expected_lemma": "gammel"
+  },
+  {
+    "id": "token_191",
+    "category": "adjective_comparison",
+    "surface": "sværere",
+    "expected_lemma": "svær"
+  },
+  {
+    "id": "token_192",
+    "category": "adjective_comparison",
+    "surface": "sværest",
+    "expected_lemma": "svær"
+  },
+  {
+    "id": "token_193",
+    "category": "adjective_comparison",
+    "surface": "smukkere",
+    "expected_lemma": "smuk"
+  },
+  {
+    "id": "token_194",
+    "category": "adjective_comparison",
+    "surface": "smukkest",
+    "expected_lemma": "smuk"
+  },
+  {
+    "id": "token_195",
+    "category": "adjective_comparison",
+    "surface": "hurtigere",
+    "expected_lemma": "hurtig"
+  },
+  {
+    "id": "token_196",
+    "category": "adjective_comparison",
+    "surface": "hurtigst",
+    "expected_lemma": "hurtig"
+  },
+  {
+    "id": "token_197",
+    "category": "adjective_comparison",
+    "surface": "vigtigere",
+    "expected_lemma": "vigtig"
+  },
+  {
+    "id": "token_198",
+    "category": "adjective_comparison",
+    "surface": "vigtigst",
+    "expected_lemma": "vigtig"
+  },
+  {
+    "id": "token_199",
+    "category": "verb_regular",
+    "surface": "spise",
+    "expected_lemma": "spise"
+  },
+  {
+    "id": "token_200",
+    "category": "verb_regular",
+    "surface": "spiser",
+    "expected_lemma": "spise"
+  },
+  {
+    "id": "token_201",
+    "category": "verb_regular",
+    "surface": "spiste",
+    "expected_lemma": "spise"
+  },
+  {
+    "id": "token_202",
+    "category": "verb_regular",
+    "surface": "spist",
+    "expected_lemma": "spise"
+  },
+  {
+    "id": "token_203",
+    "category": "verb_regular",
+    "surface": "arbejde",
+    "expected_lemma": "arbejde"
+  },
+  {
+    "id": "token_204",
+    "category": "verb_regular",
+    "surface": "arbejder",
+    "expected_lemma": "arbejde"
+  },
+  {
+    "id": "token_205",
+    "category": "verb_regular",
+    "surface": "arbejdede",
+    "expected_lemma": "arbejde"
+  },
+  {
+    "id": "token_206",
+    "category": "verb_regular",
+    "surface": "arbejdet",
+    "expected_lemma": "arbejde"
+  },
+  {
+    "id": "token_207",
+    "category": "verb_regular",
+    "surface": "snakke",
+    "expected_lemma": "snakke"
+  },
+  {
+    "id": "token_208",
+    "category": "verb_regular",
+    "surface": "snakker",
+    "expected_lemma": "snakke"
+  },
+  {
+    "id": "token_209",
+    "category": "verb_regular",
+    "surface": "snakkede",
+    "expected_lemma": "snakke"
+  },
+  {
+    "id": "token_210",
+    "category": "verb_regular",
+    "surface": "snakket",
+    "expected_lemma": "snakke"
+  },
+  {
+    "id": "token_211",
+    "category": "verb_regular",
+    "surface": "lære",
+    "expected_lemma": "lære"
+  },
+  {
+    "id": "token_212",
+    "category": "verb_regular",
+    "surface": "lærer",
+    "expected_lemma": "lære"
+  },
+  {
+    "id": "token_213",
+    "category": "verb_regular",
+    "surface": "lærte",
+    "expected_lemma": "lære"
+  },
+  {
+    "id": "token_214",
+    "category": "verb_regular",
+    "surface": "lært",
+    "expected_lemma": "lære"
+  },
+  {
+    "id": "token_215",
+    "category": "verb_regular",
+    "surface": "bo",
+    "expected_lemma": "bo"
+  },
+  {
+    "id": "token_216",
+    "category": "verb_regular",
+    "surface": "bor",
+    "expected_lemma": "bo"
+  },
+  {
+    "id": "token_217",
+    "category": "verb_regular",
+    "surface": "boede",
+    "expected_lemma": "bo"
+  },
+  {
+    "id": "token_218",
+    "category": "verb_regular",
+    "surface": "boet",
+    "expected_lemma": "bo"
+  },
+  {
+    "id": "token_219",
+    "category": "verb_regular",
+    "surface": "købe",
+    "expected_lemma": "købe"
+  },
+  {
+    "id": "token_220",
+    "category": "verb_regular",
+    "surface": "køber",
+    "expected_lemma": "købe"
+  },
+  {
+    "id": "token_221",
+    "category": "verb_regular",
+    "surface": "købte",
+    "expected_lemma": "købe"
+  },
+  {
+    "id": "token_222",
+    "category": "verb_regular",
+    "surface": "købt",
+    "expected_lemma": "købe"
+  },
+  {
+    "id": "token_223",
+    "category": "verb_regular",
+    "surface": "vente",
+    "expected_lemma": "vente"
+  },
+  {
+    "id": "token_224",
+    "category": "verb_regular",
+    "surface": "venter",
+    "expected_lemma": "vente"
+  },
+  {
+    "id": "token_225",
+    "category": "verb_regular",
+    "surface": "ventede",
+    "expected_lemma": "vente"
+  },
+  {
+    "id": "token_226",
+    "category": "verb_regular",
+    "surface": "ventet",
+    "expected_lemma": "vente"
+  },
+  {
+    "id": "token_227",
+    "category": "verb_regular",
+    "surface": "rejse",
+    "expected_lemma": "rejse"
+  },
+  {
+    "id": "token_228",
+    "category": "verb_regular",
+    "surface": "rejser",
+    "expected_lemma": "rejse"
+  },
+  {
+    "id": "token_229",
+    "category": "verb_regular",
+    "surface": "rejste",
+    "expected_lemma": "rejse"
+  },
+  {
+    "id": "token_230",
+    "category": "verb_regular",
+    "surface": "rejst",
+    "expected_lemma": "rejse"
+  },
+  {
+    "id": "token_231",
+    "category": "verb_regular",
+    "surface": "åbne",
+    "expected_lemma": "åbne"
+  },
+  {
+    "id": "token_232",
+    "category": "verb_regular",
+    "surface": "åbner",
+    "expected_lemma": "åbne"
+  },
+  {
+    "id": "token_233",
+    "category": "verb_regular",
+    "surface": "åbnede",
+    "expected_lemma": "åbne"
+  },
+  {
+    "id": "token_234",
+    "category": "verb_regular",
+    "surface": "åbnet",
+    "expected_lemma": "åbne"
+  },
+  {
+    "id": "token_235",
+    "category": "verb_regular",
+    "surface": "lukke",
+    "expected_lemma": "lukke"
+  },
+  {
+    "id": "token_236",
+    "category": "verb_regular",
+    "surface": "lukker",
+    "expected_lemma": "lukke"
+  },
+  {
+    "id": "token_237",
+    "category": "verb_regular",
+    "surface": "lukkede",
+    "expected_lemma": "lukke"
+  },
+  {
+    "id": "token_238",
+    "category": "verb_regular",
+    "surface": "lukket",
+    "expected_lemma": "lukke"
+  },
+  {
+    "id": "token_239",
+    "category": "verb_regular",
+    "surface": "prøve",
+    "expected_lemma": "prøve"
+  },
+  {
+    "id": "token_240",
+    "category": "verb_regular",
+    "surface": "prøver",
+    "expected_lemma": "prøve"
+  },
+  {
+    "id": "token_241",
+    "category": "verb_regular",
+    "surface": "prøvede",
+    "expected_lemma": "prøve"
+  },
+  {
+    "id": "token_242",
+    "category": "verb_regular",
+    "surface": "prøvet",
+    "expected_lemma": "prøve"
+  },
+  {
+    "id": "token_243",
+    "category": "verb_regular",
+    "surface": "bruge",
+    "expected_lemma": "bruge"
+  },
+  {
+    "id": "token_244",
+    "category": "verb_regular",
+    "surface": "bruger",
+    "expected_lemma": "bruge"
+  },
+  {
+    "id": "token_245",
+    "category": "verb_regular",
+    "surface": "brugte",
+    "expected_lemma": "bruge"
+  },
+  {
+    "id": "token_246",
+    "category": "verb_regular",
+    "surface": "brugt",
+    "expected_lemma": "bruge"
+  },
+  {
+    "id": "token_247",
+    "category": "verb_regular",
+    "surface": "starte",
+    "expected_lemma": "starte"
+  },
+  {
+    "id": "token_248",
+    "category": "verb_regular",
+    "surface": "starter",
+    "expected_lemma": "starte"
+  },
+  {
+    "id": "token_249",
+    "category": "verb_regular",
+    "surface": "startede",
+    "expected_lemma": "starte"
+  },
+  {
+    "id": "token_250",
+    "category": "verb_regular",
+    "surface": "startet",
+    "expected_lemma": "starte"
+  },
+  {
+    "id": "token_251",
+    "category": "verb_regular",
+    "surface": "stoppe",
+    "expected_lemma": "stoppe"
+  },
+  {
+    "id": "token_252",
+    "category": "verb_regular",
+    "surface": "stopper",
+    "expected_lemma": "stoppe"
+  },
+  {
+    "id": "token_253",
+    "category": "verb_regular",
+    "surface": "stoppede",
+    "expected_lemma": "stoppe"
+  },
+  {
+    "id": "token_254",
+    "category": "verb_regular",
+    "surface": "stoppet",
+    "expected_lemma": "stoppe"
+  },
+  {
+    "id": "token_255",
+    "category": "verb_irregular_modal",
+    "surface": "være",
+    "expected_lemma": "være"
+  },
+  {
+    "id": "token_256",
+    "category": "verb_irregular_modal",
+    "surface": "er",
+    "expected_lemma": "være"
+  },
+  {
+    "id": "token_257",
+    "category": "verb_irregular_modal",
+    "surface": "var",
+    "expected_lemma": "være"
+  },
+  {
+    "id": "token_258",
+    "category": "verb_irregular_modal",
+    "surface": "været",
+    "expected_lemma": "være"
+  },
+  {
+    "id": "token_259",
+    "category": "verb_irregular_modal",
+    "surface": "have",
+    "expected_lemma": "have"
+  },
+  {
+    "id": "token_260",
+    "category": "verb_irregular_modal",
+    "surface": "har",
+    "expected_lemma": "have"
+  },
+  {
+    "id": "token_261",
+    "category": "verb_irregular_modal",
+    "surface": "havde",
+    "expected_lemma": "have"
+  },
+  {
+    "id": "token_262",
+    "category": "verb_irregular_modal",
+    "surface": "haft",
+    "expected_lemma": "have"
+  },
+  {
+    "id": "token_263",
+    "category": "verb_irregular_modal",
+    "surface": "gå",
+    "expected_lemma": "gå"
+  },
+  {
+    "id": "token_264",
+    "category": "verb_irregular_modal",
+    "surface": "går",
+    "expected_lemma": "gå"
+  },
+  {
+    "id": "token_265",
+    "category": "verb_irregular_modal",
+    "surface": "gik",
+    "expected_lemma": "gå"
+  },
+  {
+    "id": "token_266",
+    "category": "verb_irregular_modal",
+    "surface": "gået",
+    "expected_lemma": "gå"
+  },
+  {
+    "id": "token_267",
+    "category": "verb_irregular_modal",
+    "surface": "komme",
+    "expected_lemma": "komme"
+  },
+  {
+    "id": "token_268",
+    "category": "verb_irregular_modal",
+    "surface": "kommer",
+    "expected_lemma": "komme"
+  },
+  {
+    "id": "token_269",
+    "category": "verb_irregular_modal",
+    "surface": "kom",
+    "expected_lemma": "komme"
+  },
+  {
+    "id": "token_270",
+    "category": "verb_irregular_modal",
+    "surface": "kommet",
+    "expected_lemma": "komme"
+  },
+  {
+    "id": "token_271",
+    "category": "verb_irregular_modal",
+    "surface": "se",
+    "expected_lemma": "se"
+  },
+  {
+    "id": "token_272",
+    "category": "verb_irregular_modal",
+    "surface": "ser",
+    "expected_lemma": "se"
+  },
+  {
+    "id": "token_273",
+    "category": "verb_irregular_modal",
+    "surface": "så",
+    "expected_lemma": "se"
+  },
+  {
+    "id": "token_274",
+    "category": "verb_irregular_modal",
+    "surface": "set",
+    "expected_lemma": "se"
+  },
+  {
+    "id": "token_275",
+    "category": "verb_irregular_modal",
+    "surface": "skrive",
+    "expected_lemma": "skrive"
+  },
+  {
+    "id": "token_276",
+    "category": "verb_irregular_modal",
+    "surface": "skriver",
+    "expected_lemma": "skrive"
+  },
+  {
+    "id": "token_277",
+    "category": "verb_irregular_modal",
+    "surface": "skrev",
+    "expected_lemma": "skrive"
+  },
+  {
+    "id": "token_278",
+    "category": "verb_irregular_modal",
+    "surface": "skrevet",
+    "expected_lemma": "skrive"
+  },
+  {
+    "id": "token_279",
+    "category": "verb_irregular_modal",
+    "surface": "tage",
+    "expected_lemma": "tage"
+  },
+  {
+    "id": "token_280",
+    "category": "verb_irregular_modal",
+    "surface": "tager",
+    "expected_lemma": "tage"
+  },
+  {
+    "id": "token_281",
+    "category": "verb_irregular_modal",
+    "surface": "tog",
+    "expected_lemma": "tage"
+  },
+  {
+    "id": "token_282",
+    "category": "verb_irregular_modal",
+    "surface": "taget",
+    "expected_lemma": "tage"
+  },
+  {
+    "id": "token_283",
+    "category": "verb_irregular_modal",
+    "surface": "få",
+    "expected_lemma": "få"
+  },
+  {
+    "id": "token_284",
+    "category": "verb_irregular_modal",
+    "surface": "får",
+    "expected_lemma": "få"
+  },
+  {
+    "id": "token_285",
+    "category": "verb_irregular_modal",
+    "surface": "fik",
+    "expected_lemma": "få"
+  },
+  {
+    "id": "token_286",
+    "category": "verb_irregular_modal",
+    "surface": "fået",
+    "expected_lemma": "få"
+  },
+  {
+    "id": "token_287",
+    "category": "verb_irregular_modal",
+    "surface": "give",
+    "expected_lemma": "give"
+  },
+  {
+    "id": "token_288",
+    "category": "verb_irregular_modal",
+    "surface": "giver",
+    "expected_lemma": "give"
+  },
+  {
+    "id": "token_289",
+    "category": "verb_irregular_modal",
+    "surface": "gav",
+    "expected_lemma": "give"
+  },
+  {
+    "id": "token_290",
+    "category": "verb_irregular_modal",
+    "surface": "givet",
+    "expected_lemma": "give"
+  },
+  {
+    "id": "token_291",
+    "category": "verb_irregular_modal",
+    "surface": "blive",
+    "expected_lemma": "blive"
+  },
+  {
+    "id": "token_292",
+    "category": "verb_irregular_modal",
+    "surface": "bliver",
+    "expected_lemma": "blive"
+  },
+  {
+    "id": "token_293",
+    "category": "verb_irregular_modal",
+    "surface": "blev",
+    "expected_lemma": "blive"
+  },
+  {
+    "id": "token_294",
+    "category": "verb_irregular_modal",
+    "surface": "blevet",
+    "expected_lemma": "blive"
+  },
+  {
+    "id": "token_295",
+    "category": "verb_irregular_modal",
+    "surface": "kunne",
+    "expected_lemma": "kunne"
+  },
+  {
+    "id": "token_296",
+    "category": "verb_irregular_modal",
+    "surface": "kan",
+    "expected_lemma": "kunne"
+  },
+  {
+    "id": "token_297",
+    "category": "verb_irregular_modal",
+    "surface": "skulle",
+    "expected_lemma": "skulle"
+  },
+  {
+    "id": "token_298",
+    "category": "verb_irregular_modal",
+    "surface": "skal",
+    "expected_lemma": "skulle"
+  },
+  {
+    "id": "token_299",
+    "category": "verb_irregular_modal",
+    "surface": "ville",
+    "expected_lemma": "ville"
+  },
+  {
+    "id": "token_300",
+    "category": "verb_irregular_modal",
+    "surface": "vil",
+    "expected_lemma": "ville"
+  },
+  {
+    "id": "token_301",
+    "category": "verb_irregular_modal",
+    "surface": "måtte",
+    "expected_lemma": "måtte"
+  },
+  {
+    "id": "token_302",
+    "category": "verb_irregular_modal",
+    "surface": "må",
+    "expected_lemma": "måtte"
+  },
+  {
+    "id": "token_303",
+    "category": "adverb_particle",
+    "surface": "ikke",
+    "expected_lemma": "ikke"
+  },
+  {
+    "id": "token_304",
+    "category": "adverb_particle",
+    "surface": "meget",
+    "expected_lemma": "meget"
+  },
+  {
+    "id": "token_305",
+    "category": "adverb_particle",
+    "surface": "også",
+    "expected_lemma": "også"
+  },
+  {
+    "id": "token_306",
+    "category": "adverb_particle",
+    "surface": "altid",
+    "expected_lemma": "altid"
+  },
+  {
+    "id": "token_307",
+    "category": "adverb_particle",
+    "surface": "aldrig",
+    "expected_lemma": "aldrig"
+  },
+  {
+    "id": "token_308",
+    "category": "adverb_particle",
+    "surface": "ofte",
+    "expected_lemma": "ofte"
+  },
+  {
+    "id": "token_309",
+    "category": "adverb_particle",
+    "surface": "her",
+    "expected_lemma": "her"
+  },
+  {
+    "id": "token_310",
+    "category": "adverb_particle",
+    "surface": "der",
+    "expected_lemma": "der"
+  },
+  {
+    "id": "token_311",
+    "category": "adverb_particle",
+    "surface": "nu",
+    "expected_lemma": "nu"
+  },
+  {
+    "id": "token_312",
+    "category": "adverb_particle",
+    "surface": "snart",
+    "expected_lemma": "snart"
+  },
+  {
+    "id": "token_313",
+    "category": "adverb_particle",
+    "surface": "måske",
+    "expected_lemma": "måske"
+  },
+  {
+    "id": "token_314",
+    "category": "adverb_particle",
+    "surface": "gerne",
+    "expected_lemma": "gerne"
+  },
+  {
+    "id": "token_315",
+    "category": "adverb_particle",
+    "surface": "allerede",
+    "expected_lemma": "allerede"
+  },
+  {
+    "id": "token_316",
+    "category": "adverb_particle",
+    "surface": "sammen",
+    "expected_lemma": "sammen"
+  },
+  {
+    "id": "token_317",
+    "category": "adverb_particle",
+    "surface": "hjemme",
+    "expected_lemma": "hjemme"
+  },
+  {
+    "id": "token_318",
+    "category": "adverb_particle",
+    "surface": "ude",
+    "expected_lemma": "ude"
+  },
+  {
+    "id": "token_319",
+    "category": "adverb_particle",
+    "surface": "indenfor",
+    "expected_lemma": "indenfor"
+  },
+  {
+    "id": "token_320",
+    "category": "adverb_particle",
+    "surface": "udenfor",
+    "expected_lemma": "udenfor"
+  },
+  {
+    "id": "token_321",
+    "category": "adverb_particle",
+    "surface": "næsten",
+    "expected_lemma": "næsten"
+  },
+  {
+    "id": "token_322",
+    "category": "adverb_particle",
+    "surface": "helt",
+    "expected_lemma": "helt"
+  },
+  {
+    "id": "token_323",
+    "category": "borrowed_technical",
+    "surface": "computer",
+    "expected_lemma": "computer"
+  },
+  {
+    "id": "token_324",
+    "category": "borrowed_technical",
+    "surface": "computeren",
+    "expected_lemma": "computer"
+  },
+  {
+    "id": "token_325",
+    "category": "borrowed_technical",
+    "surface": "computere",
+    "expected_lemma": "computer"
+  },
+  {
+    "id": "token_326",
+    "category": "borrowed_technical",
+    "surface": "computerne",
+    "expected_lemma": "computer"
+  },
+  {
+    "id": "token_327",
+    "category": "borrowed_technical",
+    "surface": "robot",
+    "expected_lemma": "robot"
+  },
+  {
+    "id": "token_328",
+    "category": "borrowed_technical",
+    "surface": "roboten",
+    "expected_lemma": "robot"
+  },
+  {
+    "id": "token_329",
+    "category": "borrowed_technical",
+    "surface": "robotter",
+    "expected_lemma": "robot"
+  },
+  {
+    "id": "token_330",
+    "category": "borrowed_technical",
+    "surface": "robotterne",
+    "expected_lemma": "robot"
+  },
+  {
+    "id": "token_331",
+    "category": "borrowed_technical",
+    "surface": "sensor",
+    "expected_lemma": "sensor"
+  },
+  {
+    "id": "token_332",
+    "category": "borrowed_technical",
+    "surface": "sensoren",
+    "expected_lemma": "sensor"
+  },
+  {
+    "id": "token_333",
+    "category": "borrowed_technical",
+    "surface": "sensorer",
+    "expected_lemma": "sensor"
+  },
+  {
+    "id": "token_334",
+    "category": "borrowed_technical",
+    "surface": "sensorerne",
+    "expected_lemma": "sensor"
+  },
+  {
+    "id": "token_335",
+    "category": "borrowed_technical",
+    "surface": "model",
+    "expected_lemma": "model"
+  },
+  {
+    "id": "token_336",
+    "category": "borrowed_technical",
+    "surface": "modellen",
+    "expected_lemma": "model"
+  },
+  {
+    "id": "token_337",
+    "category": "borrowed_technical",
+    "surface": "modeller",
+    "expected_lemma": "model"
+  },
+  {
+    "id": "token_338",
+    "category": "borrowed_technical",
+    "surface": "modellerne",
+    "expected_lemma": "model"
+  },
+  {
+    "id": "token_339",
+    "category": "borrowed_technical",
+    "surface": "motor",
+    "expected_lemma": "motor"
+  },
+  {
+    "id": "token_340",
+    "category": "borrowed_technical",
+    "surface": "motoren",
+    "expected_lemma": "motor"
+  },
+  {
+    "id": "token_341",
+    "category": "borrowed_technical",
+    "surface": "motorer",
+    "expected_lemma": "motor"
+  },
+  {
+    "id": "token_342",
+    "category": "borrowed_technical",
+    "surface": "motorerne",
+    "expected_lemma": "motor"
+  },
+  {
+    "id": "token_343",
+    "category": "borrowed_technical",
+    "surface": "server",
+    "expected_lemma": "server"
+  },
+  {
+    "id": "token_344",
+    "category": "borrowed_technical",
+    "surface": "serveren",
+    "expected_lemma": "server"
+  },
+  {
+    "id": "token_345",
+    "category": "borrowed_technical",
+    "surface": "servere",
+    "expected_lemma": "server"
+  },
+  {
+    "id": "token_346",
+    "category": "borrowed_technical",
+    "surface": "serverne",
+    "expected_lemma": "server"
+  },
+  {
+    "id": "token_347",
+    "category": "diacritics_focus",
+    "surface": "træ",
+    "expected_lemma": "træ"
+  },
+  {
+    "id": "token_348",
+    "category": "diacritics_focus",
+    "surface": "træet",
+    "expected_lemma": "træ"
+  },
+  {
+    "id": "token_349",
+    "category": "diacritics_focus",
+    "surface": "træer",
+    "expected_lemma": "træ"
+  },
+  {
+    "id": "token_350",
+    "category": "diacritics_focus",
+    "surface": "træerne",
+    "expected_lemma": "træ"
+  },
+  {
+    "id": "token_351",
+    "category": "diacritics_focus",
+    "surface": "øvelse",
+    "expected_lemma": "øvelse"
+  },
+  {
+    "id": "token_352",
+    "category": "diacritics_focus",
+    "surface": "øvelsen",
+    "expected_lemma": "øvelse"
+  },
+  {
+    "id": "token_353",
+    "category": "diacritics_focus",
+    "surface": "øvelser",
+    "expected_lemma": "øvelse"
+  },
+  {
+    "id": "token_354",
+    "category": "diacritics_focus",
+    "surface": "øvelserne",
+    "expected_lemma": "øvelse"
+  },
+  {
+    "id": "token_355",
+    "category": "diacritics_focus",
+    "surface": "løsning",
+    "expected_lemma": "løsning"
+  },
+  {
+    "id": "token_356",
+    "category": "diacritics_focus",
+    "surface": "løsningen",
+    "expected_lemma": "løsning"
+  },
+  {
+    "id": "token_357",
+    "category": "diacritics_focus",
+    "surface": "løsninger",
+    "expected_lemma": "løsning"
+  },
+  {
+    "id": "token_358",
+    "category": "diacritics_focus",
+    "surface": "løsningerne",
+    "expected_lemma": "løsning"
+  },
+  {
+    "id": "token_359",
+    "category": "diacritics_focus",
+    "surface": "spørgsmål",
+    "expected_lemma": "spørgsmål"
+  },
+  {
+    "id": "token_360",
+    "category": "diacritics_focus",
+    "surface": "spørgsmålet",
+    "expected_lemma": "spørgsmål"
+  },
+  {
+    "id": "token_361",
+    "category": "diacritics_focus",
+    "surface": "spørgsmålene",
+    "expected_lemma": "spørgsmål"
+  },
+  {
+    "id": "token_362",
+    "category": "diacritics_focus",
+    "surface": "år",
+    "expected_lemma": "år"
+  },
+  {
+    "id": "token_363",
+    "category": "diacritics_focus",
+    "surface": "året",
+    "expected_lemma": "år"
+  },
+  {
+    "id": "token_364",
+    "category": "diacritics_focus",
+    "surface": "årene",
+    "expected_lemma": "år"
+  },
+  {
+    "id": "token_365",
+    "category": "diacritics_focus",
+    "surface": "mål",
+    "expected_lemma": "mål"
+  },
+  {
+    "id": "token_366",
+    "category": "diacritics_focus",
+    "surface": "målet",
+    "expected_lemma": "mål"
+  },
+  {
+    "id": "token_367",
+    "category": "diacritics_focus",
+    "surface": "målene",
+    "expected_lemma": "mål"
+  },
+  {
+    "id": "token_368",
+    "category": "proper_noun",
+    "surface": "København",
+    "expected_lemma": "København"
+  },
+  {
+    "id": "token_369",
+    "category": "proper_noun",
+    "surface": "Aarhus",
+    "expected_lemma": "Aarhus"
+  },
+  {
+    "id": "token_370",
+    "category": "proper_noun",
+    "surface": "Odense",
+    "expected_lemma": "Odense"
+  },
+  {
+    "id": "token_371",
+    "category": "proper_noun",
+    "surface": "Danmark",
+    "expected_lemma": "Danmark"
+  },
+  {
+    "id": "token_372",
+    "category": "proper_noun",
+    "surface": "Spanien",
+    "expected_lemma": "Spanien"
+  },
+  {
+    "id": "token_373",
+    "category": "proper_noun",
+    "surface": "Valencia",
+    "expected_lemma": "Valencia"
+  },
+  {
+    "id": "token_374",
+    "category": "proper_noun",
+    "surface": "Europa",
+    "expected_lemma": "Europa"
+  },
+  {
+    "id": "token_375",
+    "category": "proper_noun",
+    "surface": "Alejandro",
+    "expected_lemma": "Alejandro"
+  },
+  {
+    "id": "token_376",
+    "category": "proper_noun",
+    "surface": "Maria",
+    "expected_lemma": "Maria"
+  },
+  {
+    "id": "token_377",
+    "category": "proper_noun",
+    "surface": "FOSS",
+    "expected_lemma": "FOSS"
+  },
+  {
+    "id": "token_378",
+    "category": "proper_noun",
+    "surface": "LabVIEW",
+    "expected_lemma": "LabVIEW"
+  },
+  {
+    "id": "token_379",
+    "category": "proper_noun",
+    "surface": "DTU",
+    "expected_lemma": "DTU"
+  }
+]

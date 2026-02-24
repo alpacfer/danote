@@ -6,6 +6,10 @@ from typing import Literal
 
 from app.db.migrations import get_connection
 from app.nlp.adapter import NLPAdapter
+from app.nlp.lemma_candidate_ranker import (
+    normalize_candidate,
+    pick_best_candidate_in_lexicon,
+)
 
 
 Classification = Literal["known", "variation", "new"]
@@ -25,6 +29,9 @@ class TokenClassification:
 
 class _NullNLPAdapter:
     def tokenize(self, text: str):
+        return []
+
+    def lemma_candidates_for_token(self, token: str) -> list[str]:
         return []
 
     def lemma_for_token(self, token: str) -> str | None:
@@ -100,8 +107,8 @@ class LemmaAwareClassifier:
                     matched_surface_form=normalized,
                 )
 
-            lemma_candidate = normalize_token(self.nlp_adapter.lemma_for_token(normalized) or "")
-            if not lemma_candidate:
+            lemma_candidates = self._lemma_candidates_for_token(normalized)
+            if not lemma_candidates:
                 return TokenClassification(
                     surface_token=token,
                     normalized_token=normalized,
@@ -110,17 +117,27 @@ class LemmaAwareClassifier:
                     match_source="none",
                 )
 
-            lemma_row = conn.execute(
-                """
+            placeholders = ", ".join("?" for _ in lemma_candidates)
+            lemma_rows = conn.execute(
+                f"""
                 SELECT lemma
                 FROM lexemes
-                WHERE lemma = ?
-                LIMIT 1
+                WHERE lemma IN ({placeholders})
                 """,
-                (lemma_candidate,),
-            ).fetchone()
+                tuple(lemma_candidates),
+            ).fetchall()
 
-        if lemma_row is None:
+        lexeme_set = {normalize_candidate(row["lemma"]) for row in lemma_rows}
+        matched_lemma = pick_best_candidate_in_lexicon(
+            surface=normalized,
+            tag=None,
+            primary_tag_candidates=lemma_candidates,
+            fallback_candidates=[],
+            lexeme_set=lexeme_set,
+        )
+        lemma_candidate = lemma_candidates[0]
+
+        if matched_lemma is None:
             return TokenClassification(
                 surface_token=token,
                 normalized_token=normalized,
@@ -135,9 +152,28 @@ class LemmaAwareClassifier:
             lemma_candidate=lemma_candidate,
             classification="variation",
             match_source="lemma",
-            matched_lemma=lemma_row["lemma"],
+            matched_lemma=matched_lemma,
             matched_surface_form=None,
         )
+
+    def _lemma_candidates_for_token(self, normalized_token: str) -> list[str]:
+        raw_candidates = self.nlp_adapter.lemma_candidates_for_token(normalized_token)
+        candidates: list[str] = []
+        seen: set[str] = set()
+        for raw_candidate in raw_candidates:
+            candidate = normalize_token(raw_candidate)
+            if not candidate or candidate in seen:
+                continue
+            seen.add(candidate)
+            candidates.append(candidate)
+
+        if candidates:
+            return candidates
+
+        fallback = normalize_token(self.nlp_adapter.lemma_for_token(normalized_token) or "")
+        if not fallback:
+            return []
+        return [fallback]
 
 
 # Backward-compatible alias for prior checkpoints.

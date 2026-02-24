@@ -100,3 +100,14 @@ def test_empty_and_newline_heavy_input_safe(analysis_client: TestClient) -> None
         response = analysis_client.post("/api/analyze", json={"text": text})
         assert response.status_code == 200
         assert response.json() == {"tokens": []}
+
+
+def test_symbol_only_tokens_are_filtered_but_numbers_remain(analysis_client: TestClient) -> None:
+    response = analysis_client.post(
+        "/api/analyze",
+        json={"text": "🙂 2 > kan ✅"},
+    )
+
+    assert response.status_code == 200
+    normalized = [item["normalized_token"] for item in response.json()["tokens"]]
+    assert normalized == ["2", "kan"]

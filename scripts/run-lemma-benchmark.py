@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import argparse
 import json
 import re
+import sys
 import tempfile
 from collections import defaultdict
 from dataclasses import dataclass
@@ -11,12 +13,21 @@ from pathlib import Path
 from app.core.config import Settings
 from app.db.migrations import apply_migrations, get_connection
 from app.nlp.danish import load_danish_nlp_adapter
+from app.nlp.token_filter import is_wordlike_token
 from app.services.token_classifier import LemmaAwareClassifier, normalize_token
 
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 FIXTURES_DIR = ROOT_DIR / "test-data" / "fixtures" / "lemma"
+TOKEN_FIXTURE = "lemma_tokens_by_category.extended.json"
+CONTEXT_FIXTURE = "lemma_sentences_context.extended.json"
+CLASSIFICATION_FIXTURE = "classification_impact_variation.extended.json"
+ROBUSTNESS_FIXTURE = "lemma_robustness_noise.extended.json"
 EDGE_PUNCT_PATTERN = re.compile(r"^[^\wæøåÆØÅ]+|[^\wæøåÆØÅ]+$", flags=re.UNICODE)
+DEFAULT_MIN_LEMMA_ACCURACY = 95.0
+DEFAULT_MIN_CLASSIFICATION_ACCURACY = 98.0
+DEFAULT_MIN_ROBUSTNESS_ACCURACY = 95.0
+DEFAULT_MAX_FALSE_VARIATION_RATE = 0.0
 
 
 @dataclass(frozen=True)
@@ -70,11 +81,18 @@ def _seed_lemmas(db_path: Path, lemmas: list[str]) -> None:
             )
 
 
-def run() -> None:
-    token_cases = _load_json(FIXTURES_DIR / "lemma_tokens_by_category.json")
-    context_cases = _load_json(FIXTURES_DIR / "lemma_sentences_context.json")
-    classification_cases = _load_json(FIXTURES_DIR / "classification_impact_variation.json")
-    robustness_cases = _load_json(FIXTURES_DIR / "lemma_robustness_noise.json")
+def run(
+    *,
+    enforce_targets: bool = False,
+    min_lemma_accuracy: float = DEFAULT_MIN_LEMMA_ACCURACY,
+    min_classification_accuracy: float = DEFAULT_MIN_CLASSIFICATION_ACCURACY,
+    min_robustness_accuracy: float = DEFAULT_MIN_ROBUSTNESS_ACCURACY,
+    max_false_variation_rate: float = DEFAULT_MAX_FALSE_VARIATION_RATE,
+) -> int:
+    token_cases = _load_json(FIXTURES_DIR / TOKEN_FIXTURE)
+    context_cases = _load_json(FIXTURES_DIR / CONTEXT_FIXTURE)
+    classification_cases = _load_json(FIXTURES_DIR / CLASSIFICATION_FIXTURE)
+    robustness_cases = _load_json(FIXTURES_DIR / ROBUSTNESS_FIXTURE)
 
     with tempfile.TemporaryDirectory(prefix="danote-lemma-benchmark-") as tmp_dir:
         db_path = Path(tmp_dir) / "benchmark.sqlite3"
@@ -175,6 +193,8 @@ def run() -> None:
                 predicted_sequence: list[tuple[str, str]] = []
                 for token in adapter.tokenize(case["input_text"]):
                     if not token.text.strip() or token.is_punctuation:
+                        continue
+                    if not is_wordlike_token(token.text):
                         continue
                     status_result = classifier.classify(token.text)
                     predicted_sequence.append((status_result.normalized_token, status_result.classification))
@@ -277,6 +297,76 @@ def run() -> None:
                     f"expected={result.expected} predicted={result.predicted}"
                 )
 
+        if not enforce_targets:
+            return 0
+
+        threshold_failures: list[str] = []
+        if lemma_accuracy < min_lemma_accuracy:
+            threshold_failures.append(
+                f"lemma accuracy {lemma_accuracy:.1f}% < {min_lemma_accuracy:.1f}%"
+            )
+        if class_accuracy < min_classification_accuracy:
+            threshold_failures.append(
+                f"classification accuracy {class_accuracy:.1f}% < {min_classification_accuracy:.1f}%"
+            )
+        if robust_accuracy < min_robustness_accuracy:
+            threshold_failures.append(
+                f"robustness accuracy {robust_accuracy:.1f}% < {min_robustness_accuracy:.1f}%"
+            )
+        if false_variation_rate > max_false_variation_rate:
+            threshold_failures.append(
+                f"false variation rate {false_variation_rate:.1f}% > {max_false_variation_rate:.1f}%"
+            )
+
+        print("")
+        print("Target checks:")
+        if not threshold_failures:
+            print("- passed")
+            return 0
+
+        for failure in threshold_failures:
+            print(f"- failed: {failure}")
+        return 1
+
+
+def _parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Run the Danote lemma benchmark.")
+    parser.add_argument(
+        "--enforce-targets",
+        action="store_true",
+        help="Exit non-zero when accuracy thresholds are not met.",
+    )
+    parser.add_argument(
+        "--min-lemma-accuracy",
+        type=float,
+        default=DEFAULT_MIN_LEMMA_ACCURACY,
+    )
+    parser.add_argument(
+        "--min-classification-accuracy",
+        type=float,
+        default=DEFAULT_MIN_CLASSIFICATION_ACCURACY,
+    )
+    parser.add_argument(
+        "--min-robustness-accuracy",
+        type=float,
+        default=DEFAULT_MIN_ROBUSTNESS_ACCURACY,
+    )
+    parser.add_argument(
+        "--max-false-variation-rate",
+        type=float,
+        default=DEFAULT_MAX_FALSE_VARIATION_RATE,
+    )
+    return parser.parse_args()
+
 
 if __name__ == "__main__":
-    run()
+    args = _parse_args()
+    sys.exit(
+        run(
+            enforce_targets=args.enforce_targets,
+            min_lemma_accuracy=args.min_lemma_accuracy,
+            min_classification_accuracy=args.min_classification_accuracy,
+            min_robustness_accuracy=args.min_robustness_accuracy,
+            max_false_variation_rate=args.max_false_variation_rate,
+        )
+    )

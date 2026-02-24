@@ -40,6 +40,10 @@ class SimpleAdapter:
         cleaned = token.strip().lower()
         return cleaned or None
 
+    def lemma_candidates_for_token(self, token: str) -> list[str]:
+        lemma = self.lemma_for_token(token)
+        return [lemma] if lemma else []
+
     def metadata(self) -> dict[str, str]:
         return {"adapter": "SimpleAdapter"}
 

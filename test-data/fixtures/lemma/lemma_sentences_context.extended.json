@@ -1,0 +1,716 @@
+[
+  {
+    "id": "context_001",
+    "category": "participle_aux",
+    "sentence": "Jeg har spist morgenmad.",
+    "target_token": "spist",
+    "expected_lemma": "spise"
+  },
+  {
+    "id": "context_002",
+    "category": "participle_aux",
+    "sentence": "Han er gået hjem.",
+    "target_token": "gået",
+    "expected_lemma": "gå"
+  },
+  {
+    "id": "context_003",
+    "category": "participle_aux",
+    "sentence": "Vi har arbejdet hele dagen.",
+    "target_token": "arbejdet",
+    "expected_lemma": "arbejde"
+  },
+  {
+    "id": "context_004",
+    "category": "participle_aux",
+    "sentence": "De havde snakket sammen.",
+    "target_token": "snakket",
+    "expected_lemma": "snakke"
+  },
+  {
+    "id": "context_005",
+    "category": "participle_aux",
+    "sentence": "Jeg har skrevet brevet.",
+    "target_token": "skrevet",
+    "expected_lemma": "skrive"
+  },
+  {
+    "id": "context_006",
+    "category": "participle_aux",
+    "sentence": "Hun er kommet sent.",
+    "target_token": "kommet",
+    "expected_lemma": "komme"
+  },
+  {
+    "id": "context_007",
+    "category": "participle_aux",
+    "sentence": "Vi har lært meget.",
+    "target_token": "lært",
+    "expected_lemma": "lære"
+  },
+  {
+    "id": "context_008",
+    "category": "participle_aux",
+    "sentence": "Han har haft travlt.",
+    "target_token": "haft",
+    "expected_lemma": "have"
+  },
+  {
+    "id": "context_009",
+    "category": "participle_aux",
+    "sentence": "Jeg har købt en bog.",
+    "target_token": "købt",
+    "expected_lemma": "købe"
+  },
+  {
+    "id": "context_010",
+    "category": "participle_aux",
+    "sentence": "De har ventet længe.",
+    "target_token": "ventet",
+    "expected_lemma": "vente"
+  },
+  {
+    "id": "context_011",
+    "category": "participle_aux",
+    "sentence": "Hun har åbnet døren.",
+    "target_token": "åbnet",
+    "expected_lemma": "åbne"
+  },
+  {
+    "id": "context_012",
+    "category": "participle_aux",
+    "sentence": "Vi har lukket vinduet.",
+    "target_token": "lukket",
+    "expected_lemma": "lukke"
+  },
+  {
+    "id": "context_013",
+    "category": "participle_aux",
+    "sentence": "Jeg har prøvet øvelsen.",
+    "target_token": "prøvet",
+    "expected_lemma": "prøve"
+  },
+  {
+    "id": "context_014",
+    "category": "participle_aux",
+    "sentence": "Han har brugt computeren.",
+    "target_token": "brugt",
+    "expected_lemma": "bruge"
+  },
+  {
+    "id": "context_015",
+    "category": "participle_aux",
+    "sentence": "De har startet testen.",
+    "target_token": "startet",
+    "expected_lemma": "starte"
+  },
+  {
+    "id": "context_016",
+    "category": "participle_aux",
+    "sentence": "Vi har stoppet programmet.",
+    "target_token": "stoppet",
+    "expected_lemma": "stoppe"
+  },
+  {
+    "id": "context_017",
+    "category": "participle_aux",
+    "sentence": "Hun er blevet hjemme.",
+    "target_token": "blevet",
+    "expected_lemma": "blive"
+  },
+  {
+    "id": "context_018",
+    "category": "participle_aux",
+    "sentence": "Jeg har fået svar.",
+    "target_token": "fået",
+    "expected_lemma": "få"
+  },
+  {
+    "id": "context_019",
+    "category": "participle_aux",
+    "sentence": "Han har taget bussen.",
+    "target_token": "taget",
+    "expected_lemma": "tage"
+  },
+  {
+    "id": "context_020",
+    "category": "participle_aux",
+    "sentence": "Vi har givet besked.",
+    "target_token": "givet",
+    "expected_lemma": "give"
+  },
+  {
+    "id": "context_021",
+    "category": "adjective_adverb",
+    "sentence": "Det er godt.",
+    "target_token": "godt",
+    "expected_lemma": "god"
+  },
+  {
+    "id": "context_022",
+    "category": "adjective_adverb",
+    "sentence": "Han synger godt.",
+    "target_token": "godt",
+    "expected_lemma": "god"
+  },
+  {
+    "id": "context_023",
+    "category": "adjective_adverb",
+    "sentence": "Bilen er større nu.",
+    "target_token": "større",
+    "expected_lemma": "stor"
+  },
+  {
+    "id": "context_024",
+    "category": "adjective_adverb",
+    "sentence": "Det er bedst at vente.",
+    "target_token": "bedst",
+    "expected_lemma": "god"
+  },
+  {
+    "id": "context_025",
+    "category": "adjective_adverb",
+    "sentence": "Huset er smukt.",
+    "target_token": "smukt",
+    "expected_lemma": "smuk"
+  },
+  {
+    "id": "context_026",
+    "category": "adjective_adverb",
+    "sentence": "De er gode venner.",
+    "target_token": "gode",
+    "expected_lemma": "god"
+  },
+  {
+    "id": "context_027",
+    "category": "adjective_adverb",
+    "sentence": "Det er nyt for mig.",
+    "target_token": "nyt",
+    "expected_lemma": "ny"
+  },
+  {
+    "id": "context_028",
+    "category": "adjective_adverb",
+    "sentence": "Vi købte nye stole.",
+    "target_token": "nye",
+    "expected_lemma": "ny"
+  },
+  {
+    "id": "context_029",
+    "category": "adjective_adverb",
+    "sentence": "Tasken er tungere nu.",
+    "target_token": "tungere",
+    "expected_lemma": "tung"
+  },
+  {
+    "id": "context_030",
+    "category": "adjective_adverb",
+    "sentence": "Det er tungest i starten.",
+    "target_token": "tungest",
+    "expected_lemma": "tung"
+  },
+  {
+    "id": "context_031",
+    "category": "adjective_adverb",
+    "sentence": "Rummet er lyst.",
+    "target_token": "lyst",
+    "expected_lemma": "lys"
+  },
+  {
+    "id": "context_032",
+    "category": "adjective_adverb",
+    "sentence": "Skærmen er lysere i dag.",
+    "target_token": "lysere",
+    "expected_lemma": "lys"
+  },
+  {
+    "id": "context_033",
+    "category": "adjective_adverb",
+    "sentence": "Opgaven er svær.",
+    "target_token": "svær",
+    "expected_lemma": "svær"
+  },
+  {
+    "id": "context_034",
+    "category": "adjective_adverb",
+    "sentence": "Opgaven er sværere i dag.",
+    "target_token": "sværere",
+    "expected_lemma": "svær"
+  },
+  {
+    "id": "context_035",
+    "category": "adjective_adverb",
+    "sentence": "Han løber hurtigt.",
+    "target_token": "hurtigt",
+    "expected_lemma": "hurtig"
+  },
+  {
+    "id": "context_036",
+    "category": "adjective_adverb",
+    "sentence": "Netværket er hurtigere nu.",
+    "target_token": "hurtigere",
+    "expected_lemma": "hurtig"
+  },
+  {
+    "id": "context_037",
+    "category": "adjective_adverb",
+    "sentence": "Det er vigtigt.",
+    "target_token": "vigtigt",
+    "expected_lemma": "vigtig"
+  },
+  {
+    "id": "context_038",
+    "category": "adjective_adverb",
+    "sentence": "Det vigtigste er at øve.",
+    "target_token": "vigtigste",
+    "expected_lemma": "vigtig"
+  },
+  {
+    "id": "context_039",
+    "category": "lesson_style",
+    "sentence": "Jeg kan godt lide bogen.",
+    "target_token": "bogen",
+    "expected_lemma": "bog"
+  },
+  {
+    "id": "context_040",
+    "category": "lesson_style",
+    "sentence": "Vi så børnene i parken.",
+    "target_token": "børnene",
+    "expected_lemma": "barn"
+  },
+  {
+    "id": "context_041",
+    "category": "lesson_style",
+    "sentence": "Han bor i huset.",
+    "target_token": "huset",
+    "expected_lemma": "hus"
+  },
+  {
+    "id": "context_042",
+    "category": "lesson_style",
+    "sentence": "Katten sidder på stolen.",
+    "target_token": "stolen",
+    "expected_lemma": "stol"
+  },
+  {
+    "id": "context_043",
+    "category": "lesson_style",
+    "sentence": "Jeg lærte dansk på skolen.",
+    "target_token": "lærte",
+    "expected_lemma": "lære"
+  },
+  {
+    "id": "context_044",
+    "category": "lesson_style",
+    "sentence": "De gik hjem efter timen.",
+    "target_token": "gik",
+    "expected_lemma": "gå"
+  },
+  {
+    "id": "context_045",
+    "category": "lesson_style",
+    "sentence": "Hun skrev sætningen på tavlen.",
+    "target_token": "skrev",
+    "expected_lemma": "skrive"
+  },
+  {
+    "id": "context_046",
+    "category": "lesson_style",
+    "sentence": "Vi åbner vinduet i pausen.",
+    "target_token": "åbner",
+    "expected_lemma": "åbne"
+  },
+  {
+    "id": "context_047",
+    "category": "lesson_style",
+    "sentence": "Han køber bøger i byen.",
+    "target_token": "bøger",
+    "expected_lemma": "bog"
+  },
+  {
+    "id": "context_048",
+    "category": "lesson_style",
+    "sentence": "De arbejder med opgaven i dag.",
+    "target_token": "arbejder",
+    "expected_lemma": "arbejde"
+  },
+  {
+    "id": "context_049",
+    "category": "lesson_style",
+    "sentence": "Jeg bruger computeren i timen.",
+    "target_token": "computeren",
+    "expected_lemma": "computer"
+  },
+  {
+    "id": "context_050",
+    "category": "lesson_style",
+    "sentence": "Hun tager bussen til skolen.",
+    "target_token": "tager",
+    "expected_lemma": "tage"
+  },
+  {
+    "id": "context_051",
+    "category": "lesson_style",
+    "sentence": "Vi får en ny opgave i morgen.",
+    "target_token": "får",
+    "expected_lemma": "få"
+  },
+  {
+    "id": "context_052",
+    "category": "lesson_style",
+    "sentence": "Han giver læreren svaret.",
+    "target_token": "giver",
+    "expected_lemma": "give"
+  },
+  {
+    "id": "context_053",
+    "category": "lesson_style",
+    "sentence": "De snakker dansk sammen.",
+    "target_token": "snakker",
+    "expected_lemma": "snakke"
+  },
+  {
+    "id": "context_054",
+    "category": "lesson_style",
+    "sentence": "Jeg rejste til Danmark sidste år.",
+    "target_token": "rejste",
+    "expected_lemma": "rejse"
+  },
+  {
+    "id": "context_055",
+    "category": "lesson_style",
+    "sentence": "Vi prøvede øvelsen igen.",
+    "target_token": "prøvede",
+    "expected_lemma": "prøve"
+  },
+  {
+    "id": "context_056",
+    "category": "lesson_style",
+    "sentence": "Hun lukkede døren langsomt.",
+    "target_token": "lukkede",
+    "expected_lemma": "lukke"
+  },
+  {
+    "id": "context_057",
+    "category": "lesson_style",
+    "sentence": "Jeg boede i Aarhus før.",
+    "target_token": "boede",
+    "expected_lemma": "bo"
+  },
+  {
+    "id": "context_058",
+    "category": "lesson_style",
+    "sentence": "De ventede ved stationen.",
+    "target_token": "ventede",
+    "expected_lemma": "vente"
+  },
+  {
+    "id": "context_059",
+    "category": "noun_irregular_context",
+    "sentence": "Manden læser avisen.",
+    "target_token": "Manden",
+    "expected_lemma": "mand"
+  },
+  {
+    "id": "context_060",
+    "category": "noun_irregular_context",
+    "sentence": "Jeg talte med mændene i går.",
+    "target_token": "mændene",
+    "expected_lemma": "mand"
+  },
+  {
+    "id": "context_061",
+    "category": "noun_irregular_context",
+    "sentence": "Barnet leger i haven.",
+    "target_token": "Barnet",
+    "expected_lemma": "barn"
+  },
+  {
+    "id": "context_062",
+    "category": "noun_irregular_context",
+    "sentence": "Børnene spiller fodbold.",
+    "target_token": "Børnene",
+    "expected_lemma": "barn"
+  },
+  {
+    "id": "context_063",
+    "category": "noun_irregular_context",
+    "sentence": "Hånden gør ondt.",
+    "target_token": "Hånden",
+    "expected_lemma": "hånd"
+  },
+  {
+    "id": "context_064",
+    "category": "noun_irregular_context",
+    "sentence": "Hun vasker hænderne nu.",
+    "target_token": "hænderne",
+    "expected_lemma": "hånd"
+  },
+  {
+    "id": "context_065",
+    "category": "noun_irregular_context",
+    "sentence": "Gåsen står ved søen.",
+    "target_token": "Gåsen",
+    "expected_lemma": "gås"
+  },
+  {
+    "id": "context_066",
+    "category": "noun_irregular_context",
+    "sentence": "Gæssene larmer meget.",
+    "target_token": "Gæssene",
+    "expected_lemma": "gås"
+  },
+  {
+    "id": "context_067",
+    "category": "noun_irregular_context",
+    "sentence": "Tanden er løs.",
+    "target_token": "Tanden",
+    "expected_lemma": "tand"
+  },
+  {
+    "id": "context_068",
+    "category": "noun_irregular_context",
+    "sentence": "Tænderne er hvide.",
+    "target_token": "Tænderne",
+    "expected_lemma": "tand"
+  },
+  {
+    "id": "context_069",
+    "category": "noun_irregular_context",
+    "sentence": "Foden er kold.",
+    "target_token": "Foden",
+    "expected_lemma": "fod"
+  },
+  {
+    "id": "context_070",
+    "category": "noun_irregular_context",
+    "sentence": "Fødderne er trætte.",
+    "target_token": "Fødderne",
+    "expected_lemma": "fod"
+  },
+  {
+    "id": "context_071",
+    "category": "modal_aux_context",
+    "sentence": "Jeg kan komme i morgen.",
+    "target_token": "kan",
+    "expected_lemma": "kunne"
+  },
+  {
+    "id": "context_072",
+    "category": "modal_aux_context",
+    "sentence": "Vi kunne ikke vente længere.",
+    "target_token": "kunne",
+    "expected_lemma": "kunne"
+  },
+  {
+    "id": "context_073",
+    "category": "modal_aux_context",
+    "sentence": "Du skal læse bogen.",
+    "target_token": "skal",
+    "expected_lemma": "skulle"
+  },
+  {
+    "id": "context_074",
+    "category": "modal_aux_context",
+    "sentence": "De skulle arbejde sent.",
+    "target_token": "skulle",
+    "expected_lemma": "skulle"
+  },
+  {
+    "id": "context_075",
+    "category": "modal_aux_context",
+    "sentence": "Jeg vil gerne lære dansk.",
+    "target_token": "vil",
+    "expected_lemma": "ville"
+  },
+  {
+    "id": "context_076",
+    "category": "modal_aux_context",
+    "sentence": "Hun ville købe en bil.",
+    "target_token": "ville",
+    "expected_lemma": "ville"
+  },
+  {
+    "id": "context_077",
+    "category": "modal_aux_context",
+    "sentence": "Vi må gå nu.",
+    "target_token": "må",
+    "expected_lemma": "måtte"
+  },
+  {
+    "id": "context_078",
+    "category": "modal_aux_context",
+    "sentence": "Han måtte blive hjemme.",
+    "target_token": "måtte",
+    "expected_lemma": "måtte"
+  },
+  {
+    "id": "context_079",
+    "category": "modal_aux_context",
+    "sentence": "Det er svært at være tålmodig.",
+    "target_token": "være",
+    "expected_lemma": "være"
+  },
+  {
+    "id": "context_080",
+    "category": "modal_aux_context",
+    "sentence": "Jeg havde tid i går.",
+    "target_token": "havde",
+    "expected_lemma": "have"
+  },
+  {
+    "id": "context_081",
+    "category": "modal_aux_context",
+    "sentence": "Hun har en ny computer.",
+    "target_token": "har",
+    "expected_lemma": "have"
+  },
+  {
+    "id": "context_082",
+    "category": "modal_aux_context",
+    "sentence": "De er klar nu.",
+    "target_token": "er",
+    "expected_lemma": "være"
+  },
+  {
+    "id": "context_083",
+    "category": "compound_diacritics_context",
+    "sentence": "Arbejdspladsen er tæt på byen.",
+    "target_token": "Arbejdspladsen",
+    "expected_lemma": "arbejdsplads"
+  },
+  {
+    "id": "context_084",
+    "category": "compound_diacritics_context",
+    "sentence": "Sommerhuset ligger ved kysten.",
+    "target_token": "Sommerhuset",
+    "expected_lemma": "sommerhus"
+  },
+  {
+    "id": "context_085",
+    "category": "compound_diacritics_context",
+    "sentence": "Sprogskolen åbner klokken otte.",
+    "target_token": "Sprogskolen",
+    "expected_lemma": "sprogskole"
+  },
+  {
+    "id": "context_086",
+    "category": "compound_diacritics_context",
+    "sentence": "Skolebøgerne ligger på bordet.",
+    "target_token": "Skolebøgerne",
+    "expected_lemma": "skolebog"
+  },
+  {
+    "id": "context_087",
+    "category": "compound_diacritics_context",
+    "sentence": "Klasseværelset er tomt.",
+    "target_token": "Klasseværelset",
+    "expected_lemma": "klasseværelse"
+  },
+  {
+    "id": "context_088",
+    "category": "compound_diacritics_context",
+    "sentence": "Brugergrænsefladen føles hurtigere nu.",
+    "target_token": "Brugergrænsefladen",
+    "expected_lemma": "brugergrænseflade"
+  },
+  {
+    "id": "context_089",
+    "category": "compound_diacritics_context",
+    "sentence": "Datasættet blev gemt lokalt.",
+    "target_token": "Datasættet",
+    "expected_lemma": "datasæt"
+  },
+  {
+    "id": "context_090",
+    "category": "compound_diacritics_context",
+    "sentence": "Ordlisten er allerede opdateret.",
+    "target_token": "Ordlisten",
+    "expected_lemma": "ordliste"
+  },
+  {
+    "id": "context_091",
+    "category": "compound_diacritics_context",
+    "sentence": "Øvelserne er svære i dag.",
+    "target_token": "Øvelserne",
+    "expected_lemma": "øvelse"
+  },
+  {
+    "id": "context_092",
+    "category": "compound_diacritics_context",
+    "sentence": "Spørgsmålet er vigtigt.",
+    "target_token": "Spørgsmålet",
+    "expected_lemma": "spørgsmål"
+  },
+  {
+    "id": "context_093",
+    "category": "compound_diacritics_context",
+    "sentence": "Løsningerne blev sammenlignet.",
+    "target_token": "Løsningerne",
+    "expected_lemma": "løsning"
+  },
+  {
+    "id": "context_094",
+    "category": "compound_diacritics_context",
+    "sentence": "Årene gik hurtigt.",
+    "target_token": "Årene",
+    "expected_lemma": "år"
+  },
+  {
+    "id": "context_095",
+    "category": "practical_technical_context",
+    "sentence": "Jeg skriver i LabVIEW hver dag.",
+    "target_token": "LabVIEW",
+    "expected_lemma": "LabVIEW"
+  },
+  {
+    "id": "context_096",
+    "category": "practical_technical_context",
+    "sentence": "FOSS tester sensorer og robotter.",
+    "target_token": "robotter",
+    "expected_lemma": "robot"
+  },
+  {
+    "id": "context_097",
+    "category": "practical_technical_context",
+    "sentence": "DTU ligger i Danmark.",
+    "target_token": "Danmark",
+    "expected_lemma": "Danmark"
+  },
+  {
+    "id": "context_098",
+    "category": "practical_technical_context",
+    "sentence": "Alejandro bor i København nu.",
+    "target_token": "København",
+    "expected_lemma": "København"
+  },
+  {
+    "id": "context_099",
+    "category": "practical_technical_context",
+    "sentence": "Maria bruger computeren til øvelsen.",
+    "target_token": "øvelsen",
+    "expected_lemma": "øvelse"
+  },
+  {
+    "id": "context_100",
+    "category": "practical_technical_context",
+    "sentence": "Serveren startede langsomt i morges.",
+    "target_token": "Serveren",
+    "expected_lemma": "server"
+  },
+  {
+    "id": "context_101",
+    "category": "practical_technical_context",
+    "sentence": "Modellen blev trænet lokalt.",
+    "target_token": "Modellen",
+    "expected_lemma": "model"
+  },
+  {
+    "id": "context_102",
+    "category": "practical_technical_context",
+    "sentence": "Sensorerne sender data hurtigt.",
+    "target_token": "Sensorerne",
+    "expected_lemma": "sensor"
+  }
+]

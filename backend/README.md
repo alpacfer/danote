@@ -58,6 +58,12 @@ cd backend
 ./.venv/bin/python -m spacy validate
 ```
 
+Runtime note:
+
+- On backend startup, the adapter validates loaded model metadata against runtime spaCy and logs
+  `nlp_model_spacy_version_mismatch` when incompatible (includes model name + version spec + runtime version).
+- If incompatibility is reported, align runtime/model versions before relying on benchmark-quality lemma behavior.
+
 ## Environment Setup
 
 ```bash

@@ -10,12 +10,12 @@ This directory stores regression fixtures and lemma benchmark inputs for prototy
 - `expected/analyze/*.json`: golden API outputs for `POST /api/analyze`.
 - `lemma/*.json`: lemma-strength datasets grouped by category and test style.
 
-## MVB Lemma Benchmark Set
+## Extended Lemma Benchmark Set (Default)
 
-- `lemma_tokens_by_category.json`: 60 isolated-token lemma cases.
-- `lemma_sentences_context.json`: 20 sentence-context lemma cases.
-- `classification_impact_variation.json`: 30 product classification-impact cases.
-- `lemma_robustness_noise.json`: 10 robustness/noise cases.
+- `lemma_tokens_by_category.extended.json`: 379 isolated-token lemma cases.
+- `lemma_sentences_context.extended.json`: 102 sentence-context lemma cases.
+- `classification_impact_variation.extended.json`: 391 product classification-impact cases.
+- `lemma_robustness_noise.extended.json`: 75 robustness/noise cases.
 
 ## Refresh Golden Outputs
 

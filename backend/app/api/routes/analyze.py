@@ -7,6 +7,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 from fastapi import APIRouter, HTTPException, Request
 
+from app.nlp.token_filter import is_wordlike_token
 from app.services.token_classifier import LemmaAwareClassifier
 
 router = APIRouter()
@@ -60,6 +61,8 @@ def analyze_note(payload: AnalyzeRequest, request: Request) -> AnalyzeResponse:
             if not surface.strip():
                 continue
             if nlp_token.is_punctuation:
+                continue
+            if not is_wordlike_token(surface):
                 continue
 
             result = classifier.classify(surface)
