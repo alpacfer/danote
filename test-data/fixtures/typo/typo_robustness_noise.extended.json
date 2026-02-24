@@ -1,0 +1,46 @@
+[
+  {
+    "id": "typo_rob_001",
+    "category": "punctuation_attached",
+    "mode": "single_token",
+    "db_seed_lexemes": ["spise"],
+    "input_token": "spisr,",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "spiser"
+  },
+  {
+    "id": "typo_rob_002",
+    "category": "unicode_punctuation",
+    "mode": "single_token",
+    "db_seed_lexemes": ["svær"],
+    "input_token": "svaer…",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "svær"
+  },
+  {
+    "id": "typo_rob_003",
+    "category": "apostrophe_variant",
+    "mode": "single_token",
+    "db_seed_lexemes": ["O'Connor"],
+    "input_token": "O’Connor",
+    "expected_status": "new",
+    "expected_top_candidate": ""
+  },
+  {
+    "id": "typo_rob_004",
+    "category": "note_sequence",
+    "mode": "note_text",
+    "db_seed_lexemes": ["bog", "spise", "klasse"],
+    "input_text": "Jeg spisr nu. Bogen er ny. PLC virker.",
+    "expected_sequence": [
+      {"normalized_token": "jeg", "expected_status": "new"},
+      {"normalized_token": "spisr", "expected_status": "typo_likely"},
+      {"normalized_token": "nu", "expected_status": "new"},
+      {"normalized_token": "bogen", "expected_status": "variation"},
+      {"normalized_token": "er", "expected_status": "new"},
+      {"normalized_token": "ny", "expected_status": "new"},
+      {"normalized_token": "plc", "expected_status": "new"},
+      {"normalized_token": "virker", "expected_status": "new"}
+    ]
+  }
+]

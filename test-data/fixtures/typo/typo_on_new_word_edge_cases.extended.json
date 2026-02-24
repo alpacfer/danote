@@ -1,0 +1,42 @@
+[
+  {
+    "id": "typo_edge_001",
+    "category": "brand_like",
+    "db_seed_lexemes": ["købe", "produkt"],
+    "surface": "MilkoScna",
+    "expected_status": "uncertain",
+    "expected_top_candidates": []
+  },
+  {
+    "id": "typo_edge_002",
+    "category": "technical_compound",
+    "db_seed_lexemes": ["måle", "sensor"],
+    "surface": "kalibreringsarm",
+    "expected_status": "new",
+    "expected_top_candidates": []
+  },
+  {
+    "id": "typo_edge_003",
+    "category": "mixed_language",
+    "db_seed_lexemes": ["klasse", "opgave"],
+    "surface": "debugflow",
+    "expected_status": "new",
+    "expected_top_candidates": []
+  },
+  {
+    "id": "typo_edge_004",
+    "category": "diacritic_ambiguity",
+    "db_seed_lexemes": ["svær", "sværm"],
+    "surface": "svaerm",
+    "expected_status": "uncertain",
+    "expected_top_candidates": ["sværm", "svær"]
+  },
+  {
+    "id": "typo_edge_005",
+    "category": "obvious_typo_control",
+    "db_seed_lexemes": ["skrive"],
+    "surface": "skrivr",
+    "expected_status": "typo_likely",
+    "expected_top_candidates": ["skriver", "skrive"]
+  }
+]

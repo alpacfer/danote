@@ -1,0 +1,92 @@
+[
+  {
+    "id": "typo_tok_001",
+    "category": "single_edit",
+    "error_type": "deletion",
+    "db_seed_lexemes": ["spise"],
+    "input_token": "spisr",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "spiser"
+  },
+  {
+    "id": "typo_tok_002",
+    "category": "single_edit",
+    "error_type": "insertion",
+    "db_seed_lexemes": ["skole"],
+    "input_token": "skolle",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "skole"
+  },
+  {
+    "id": "typo_tok_003",
+    "category": "single_edit",
+    "error_type": "substitution",
+    "db_seed_lexemes": ["hjem"],
+    "input_token": "hjam",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "hjem"
+  },
+  {
+    "id": "typo_tok_004",
+    "category": "single_edit",
+    "error_type": "transposition",
+    "db_seed_lexemes": ["klasse"],
+    "input_token": "klases",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "klasse"
+  },
+  {
+    "id": "typo_tok_005",
+    "category": "danish_diacritic",
+    "error_type": "diacritic_omission",
+    "db_seed_lexemes": ["svær"],
+    "input_token": "svaer",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "svær"
+  },
+  {
+    "id": "typo_tok_006",
+    "category": "danish_diacritic",
+    "error_type": "aa_aa_ring",
+    "db_seed_lexemes": ["måned"],
+    "input_token": "maaned",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "måned"
+  },
+  {
+    "id": "typo_tok_007",
+    "category": "compound",
+    "error_type": "compound_split",
+    "db_seed_lexemes": ["hovedstol"],
+    "input_token": "hovedstool",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "hovedstol"
+  },
+  {
+    "id": "typo_tok_008",
+    "category": "guard",
+    "error_type": "acronym_like",
+    "db_seed_lexemes": ["sensor"],
+    "input_token": "PLC",
+    "expected_status": "new",
+    "expected_top_candidate": ""
+  },
+  {
+    "id": "typo_tok_009",
+    "category": "guard",
+    "error_type": "mixed_digits",
+    "db_seed_lexemes": ["sensor"],
+    "input_token": "usb6525",
+    "expected_status": "new",
+    "expected_top_candidate": ""
+  },
+  {
+    "id": "typo_tok_010",
+    "category": "new_word_vs_typo",
+    "error_type": "domain_term",
+    "db_seed_lexemes": ["bog", "skrive"],
+    "input_token": "kalibreringsarm",
+    "expected_status": "new",
+    "expected_top_candidate": ""
+  }
+]

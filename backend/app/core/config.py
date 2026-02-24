@@ -19,6 +19,8 @@ class Settings:
     db_path: Path
     nlp_model: str
     cors_origins: tuple[str, ...] = DEFAULT_CORS_ORIGINS
+    typo_enabled: bool = True
+    typo_dictionary_path: Path | None = None
 
 
 
@@ -38,4 +40,8 @@ def load_settings() -> Settings:
         db_path=db_path,
         nlp_model=os.getenv("DANOTE_NLP_MODEL", "da_dacy_small_tft-0.0.0"),
         cors_origins=parsed_cors_origins or DEFAULT_CORS_ORIGINS,
+        typo_enabled=os.getenv("DANOTE_TYPO_ENABLED", "1").lower() not in {"0", "false", "no"},
+        typo_dictionary_path=Path(os.getenv("DANOTE_TYPO_DICTIONARY_PATH"))
+        if os.getenv("DANOTE_TYPO_DICTIONARY_PATH")
+        else None,
     )

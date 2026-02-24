@@ -1,0 +1,56 @@
+[
+  {
+    "id": "typo_ctx_001",
+    "category": "verb_context",
+    "sentence": "Jeg spisr frokost i kantinen.",
+    "target_token": "spisr",
+    "db_seed_lexemes": ["spise", "frokost"],
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "spiser"
+  },
+  {
+    "id": "typo_ctx_002",
+    "category": "verb_context",
+    "sentence": "Hun skrivr noterne hurtigt.",
+    "target_token": "skrivr",
+    "db_seed_lexemes": ["skrive", "note"],
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "skriver"
+  },
+  {
+    "id": "typo_ctx_003",
+    "category": "proper_noun_bias",
+    "sentence": "Vi mødte MilkoScna efter timen.",
+    "target_token": "MilkoScna",
+    "db_seed_lexemes": ["møde", "time"],
+    "expected_status": "uncertain",
+    "expected_top_candidate": ""
+  },
+  {
+    "id": "typo_ctx_004",
+    "category": "diacritic_context",
+    "sentence": "Det var en svaer opgave i dag.",
+    "target_token": "svaer",
+    "db_seed_lexemes": ["svær", "opgave", "dag"],
+    "expected_status": "uncertain",
+    "expected_top_candidate": "svær"
+  },
+  {
+    "id": "typo_ctx_005",
+    "category": "new_term_context",
+    "sentence": "Kalibreringsarm skal justeres senere.",
+    "target_token": "Kalibreringsarm",
+    "db_seed_lexemes": ["justere", "senere"],
+    "expected_status": "new",
+    "expected_top_candidate": ""
+  },
+  {
+    "id": "typo_ctx_006",
+    "category": "lemma_precedence_guard",
+    "sentence": "Han læste bogen i går.",
+    "target_token": "bogen",
+    "db_seed_lexemes": ["bog", "læse"],
+    "expected_status": "variation",
+    "expected_top_candidate": ""
+  }
+]

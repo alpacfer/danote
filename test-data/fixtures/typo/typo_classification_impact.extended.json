@@ -1,0 +1,66 @@
+[
+  {
+    "id": "typo_cls_001",
+    "category": "precedence_exact_known",
+    "db_seed_lexemes": ["bog"],
+    "surface": "bog",
+    "expected_status": "known",
+    "expected_reason_tags": ["exact_match"]
+  },
+  {
+    "id": "typo_cls_002",
+    "category": "precedence_lemma_variation",
+    "db_seed_lexemes": ["bog"],
+    "surface": "bogen",
+    "expected_status": "variation",
+    "expected_reason_tags": ["lemma_match"]
+  },
+  {
+    "id": "typo_cls_003",
+    "category": "high_confidence_typo",
+    "db_seed_lexemes": ["spise", "dag"],
+    "surface": "spisr",
+    "expected_status": "typo_likely",
+    "expected_reason_tags": ["candidate_high_confidence", "clear_margin"]
+  },
+  {
+    "id": "typo_cls_004",
+    "category": "ambiguous_candidate",
+    "db_seed_lexemes": ["svær", "sværm"],
+    "surface": "svaer",
+    "expected_status": "uncertain",
+    "expected_reason_tags": ["candidate_medium_confidence", "small_margin"]
+  },
+  {
+    "id": "typo_cls_005",
+    "category": "new_domain_word",
+    "db_seed_lexemes": ["bog", "læse"],
+    "surface": "kalibreringsarm",
+    "expected_status": "new",
+    "expected_reason_tags": ["weak_candidate_evidence"]
+  },
+  {
+    "id": "typo_cls_006",
+    "category": "proper_noun_bias",
+    "db_seed_lexemes": ["møde", "klasse"],
+    "surface": "MilkoScna",
+    "expected_status": "uncertain",
+    "expected_reason_tags": ["proper_noun_bias", "candidate_medium_confidence"]
+  },
+  {
+    "id": "typo_cls_007",
+    "category": "gating_skip_acronym",
+    "db_seed_lexemes": ["sensor"],
+    "surface": "PLC",
+    "expected_status": "new",
+    "expected_reason_tags": ["gating_skip_acronym"]
+  },
+  {
+    "id": "typo_cls_008",
+    "category": "gating_skip_digit_mix",
+    "db_seed_lexemes": ["usb"],
+    "surface": "usb6525",
+    "expected_status": "new",
+    "expected_reason_tags": ["gating_skip_digit_ratio"]
+  }
+]

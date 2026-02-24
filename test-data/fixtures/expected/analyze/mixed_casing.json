@@ -7,7 +7,16 @@
       "classification": "new",
       "match_source": "none",
       "matched_lemma": null,
-      "matched_surface_form": null
+      "matched_surface_form": null,
+      "suggestions": [],
+      "confidence": 0.0,
+      "reason_tags": [
+        "gating_skip_acronym"
+      ],
+      "status": "new",
+      "surface": "JEG",
+      "normalized": "jeg",
+      "lemma": "jeg"
     },
     {
       "surface_token": "kan",
@@ -16,7 +25,16 @@
       "classification": "known",
       "match_source": "exact",
       "matched_lemma": "kan",
-      "matched_surface_form": "kan"
+      "matched_surface_form": "kan",
+      "suggestions": [],
+      "confidence": 0.0,
+      "reason_tags": [
+        "exact_match"
+      ],
+      "status": "known",
+      "surface": "kan",
+      "normalized": "kan",
+      "lemma": "kan"
     },
     {
       "surface_token": "LIDE",
@@ -25,7 +43,16 @@
       "classification": "known",
       "match_source": "exact",
       "matched_lemma": "lide",
-      "matched_surface_form": "lide"
+      "matched_surface_form": "lide",
+      "suggestions": [],
+      "confidence": 0.0,
+      "reason_tags": [
+        "exact_match"
+      ],
+      "status": "known",
+      "surface": "LIDE",
+      "normalized": "lide",
+      "lemma": "lide"
     },
     {
       "surface_token": "Bogen",
@@ -34,7 +61,16 @@
       "classification": "variation",
       "match_source": "lemma",
       "matched_lemma": "bog",
-      "matched_surface_form": null
+      "matched_surface_form": null,
+      "suggestions": [],
+      "confidence": 0.0,
+      "reason_tags": [
+        "lemma_match"
+      ],
+      "status": "variation",
+      "surface": "Bogen",
+      "normalized": "bogen",
+      "lemma": "bog"
     },
     {
       "surface_token": "og",
@@ -43,7 +79,16 @@
       "classification": "new",
       "match_source": "none",
       "matched_lemma": null,
-      "matched_surface_form": null
+      "matched_surface_form": null,
+      "suggestions": [],
+      "confidence": 0.0,
+      "reason_tags": [
+        "gating_skip_short"
+      ],
+      "status": "new",
+      "surface": "og",
+      "normalized": "og",
+      "lemma": "og"
     },
     {
       "surface_token": "BOG",
@@ -52,7 +97,16 @@
       "classification": "known",
       "match_source": "exact",
       "matched_lemma": "bog",
-      "matched_surface_form": "bog"
+      "matched_surface_form": "bog",
+      "suggestions": [],
+      "confidence": 0.0,
+      "reason_tags": [
+        "exact_match"
+      ],
+      "status": "known",
+      "surface": "BOG",
+      "normalized": "bog",
+      "lemma": "bog"
     }
   ]
 }

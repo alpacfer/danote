@@ -22,10 +22,19 @@ class AnalyzedToken(BaseModel):
     surface_token: str
     normalized_token: str
     lemma_candidate: str | None
-    classification: Literal["known", "variation", "new"]
+    classification: Literal["known", "variation", "typo_likely", "uncertain", "new"]
     match_source: Literal["exact", "lemma", "none"]
     matched_lemma: str | None
     matched_surface_form: str | None
+    suggestions: list[dict[str, object]] = Field(default_factory=list)
+    confidence: float = 0.0
+    reason_tags: list[str] = Field(default_factory=list)
+
+    # v1-friendly aliases
+    status: Literal["known", "variation", "typo_likely", "uncertain", "new"]
+    surface: str
+    normalized: str
+    lemma: str | None
 
 
 class AnalyzeResponse(BaseModel):
@@ -52,7 +61,11 @@ def analyze_note(payload: AnalyzeRequest, request: Request) -> AnalyzeResponse:
             status_code=503,
             detail="NLP unavailable. Check backend logs and NLP model installation.",
         )
-    classifier = LemmaAwareClassifier(settings.db_path, nlp_adapter=nlp_adapter)
+    classifier = LemmaAwareClassifier(
+        settings.db_path,
+        nlp_adapter=nlp_adapter,
+        typo_engine=getattr(request.app.state, "typo_engine", None),
+    )
 
     tokens: list[AnalyzedToken] = []
     try:
@@ -77,6 +90,20 @@ def analyze_note(payload: AnalyzeRequest, request: Request) -> AnalyzeResponse:
                     match_source=result.match_source,
                     matched_lemma=result.matched_lemma,
                     matched_surface_form=result.matched_surface_form,
+                    suggestions=[
+                        {
+                            "value": suggestion.value,
+                            "score": suggestion.score,
+                            "source_flags": list(suggestion.source_flags),
+                        }
+                        for suggestion in result.suggestions
+                    ],
+                    confidence=result.confidence,
+                    reason_tags=list(result.reason_tags),
+                    status=result.classification,
+                    surface=result.surface_token,
+                    normalized=result.normalized_token,
+                    lemma=result.matched_lemma or result.lemma_candidate,
                 )
             )
     except sqlite3.OperationalError as exc:

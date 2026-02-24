@@ -4,6 +4,7 @@ from pathlib import Path
 
 from app.services import token_classifier
 from app.services.token_classifier import LemmaAwareClassifier, normalize_token
+from app.services.typo.typo_engine import TypoResult, TypoSuggestion
 
 
 class _StubNLPAdapter:
@@ -67,6 +68,27 @@ class _DummyConn:
         if self._result is None:
             return []
         return [self._result]
+
+
+class _StubTypoEngine:
+    def classify_unknown(self, *, token: str, sentence_start: bool = False) -> TypoResult:
+        if token == "spisr":
+            return TypoResult(
+                status="typo_likely",
+                normalized="spisr",
+                suggestions=(TypoSuggestion(value="spiser", score=0.9, source_flags=("from_symspell",)),),
+                confidence=0.9,
+                reason_tags=("candidate_high_confidence",),
+                latency_ms=1.2,
+            )
+        return TypoResult(
+            status="new",
+            normalized=token,
+            suggestions=(),
+            confidence=0.0,
+            reason_tags=("weak_candidate_evidence",),
+            latency_ms=0.8,
+        )
 
 
 def test_normalize_token_trims_collapses_whitespace_and_lowercases() -> None:
@@ -142,3 +164,22 @@ def test_unknown_returns_new(monkeypatch) -> None:
     assert result.match_source == "none"
     assert result.normalized_token == "kat"
     assert result.matched_lemma is None
+
+
+def test_unknown_can_fallback_to_typo_engine(monkeypatch) -> None:
+    responses = {
+        ("surface", "spisr"): None,
+        ("lexeme", "spisr"): None,
+        ("lexeme_many", ("spisr",)): [],
+    }
+    monkeypatch.setattr(token_classifier, "get_connection", lambda _db_path: _DummyConn(responses))
+    classifier = LemmaAwareClassifier(
+        Path("/tmp/does-not-matter.sqlite3"),
+        nlp_adapter=_StubNLPAdapter({"spisr": "spisr"}),
+        typo_engine=_StubTypoEngine(),
+    )
+    result = classifier.classify("spisr")
+    assert result.classification == "typo_likely"
+    assert result.match_source == "none"
+    assert result.suggestions
+    assert result.suggestions[0].value == "spiser"

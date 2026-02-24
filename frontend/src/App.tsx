@@ -41,17 +41,29 @@ import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
 
 type ConnectionStatus = "loading" | "connected" | "degraded" | "offline"
-type TokenClassification = "known" | "variation" | "new"
+type TokenClassification = "known" | "variation" | "typo_likely" | "uncertain" | "new"
 type AppSection = "playground" | "wordbank" | "developer"
+type TokenAction = "replace" | "add_as_new" | "ignore" | "dismiss"
 
 type AnalyzedToken = {
   surface_token: string
   normalized_token: string
   lemma_candidate: string | null
   classification: TokenClassification
+  status: TokenClassification
   match_source: "exact" | "lemma" | "none"
   matched_lemma: string | null
   matched_surface_form: string | null
+  suggestions: Array<{
+    value: string
+    score: number
+    source_flags: string[]
+  }>
+  confidence: number
+  reason_tags: string[]
+  surface: string
+  normalized: string
+  lemma: string | null
 }
 
 type AddWordResponse = {
@@ -79,6 +91,14 @@ type LemmaDetailsResponse = {
 type ResetDatabaseResponse = {
   status: "reset"
   message: string
+}
+
+type TokenFeedbackPayload = {
+  raw_token: string
+  predicted_status: string
+  suggestions_shown: string[]
+  user_action: TokenAction
+  chosen_value?: string
 }
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? "http://127.0.0.1:8000"
@@ -119,7 +139,22 @@ function finalizedAnalysisText(text: string): string {
 }
 
 function addLoadingKey(token: AnalyzedToken): string {
-  return token.normalized_token || token.surface_token
+  return `${token.normalized_token || token.surface_token}:${token.classification}`
+}
+
+function escapeRegex(input: string): string {
+  return input.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+}
+
+function replaceFirstTokenOccurrence(text: string, source: string, replacement: string): string {
+  if (!source) {
+    return text
+  }
+  const pattern = new RegExp(`\\b${escapeRegex(source)}\\b`, "u")
+  if (pattern.test(text)) {
+    return text.replace(pattern, replacement)
+  }
+  return text.replace(source, replacement)
 }
 
 type AppSidebarProps = {
@@ -277,6 +312,8 @@ function App() {
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [analysisRefreshTick, setAnalysisRefreshTick] = useState(0)
   const [addingTokens, setAddingTokens] = useState<Record<string, boolean>>({})
+  const [ignoringTokens, setIgnoringTokens] = useState<Record<string, boolean>>({})
+  const [replacingTokens, setReplacingTokens] = useState<Record<string, boolean>>({})
   const [wordbankRefreshTick, setWordbankRefreshTick] = useState(0)
 
   const [lemmas, setLemmas] = useState<WordbankLemma[]>([])
@@ -499,6 +536,8 @@ function App() {
   const statusVariantMap: Record<TokenClassification, "secondary" | "outline" | "destructive"> = {
     known: "secondary",
     variation: "outline",
+    typo_likely: "destructive",
+    uncertain: "outline",
     new: "destructive",
   }
   const sourceVariantMap: Record<AnalyzedToken["match_source"], "secondary" | "outline" | "destructive"> = {
@@ -536,6 +575,13 @@ function App() {
 
       const payload = (await response.json()) as AddWordResponse
       toast.success(payload.message)
+      void postTokenFeedback({
+        raw_token: token.surface_token,
+        predicted_status: token.classification,
+        suggestions_shown: (token.suggestions ?? []).map((item) => item.value),
+        user_action: "add_as_new",
+        chosen_value: payload.stored_lemma,
+      })
       setAnalysisRefreshTick((current) => current + 1)
       setWordbankRefreshTick((current) => current + 1)
     } catch (error) {
@@ -544,6 +590,85 @@ function App() {
       void error
     } finally {
       setAddingTokens((current) => {
+        const next = { ...current }
+        delete next[loadingKey]
+        return next
+      })
+    }
+  }
+
+  async function postTokenFeedback(payload: TokenFeedbackPayload) {
+    try {
+      await fetch(`${BACKEND_URL}/api/tokens/feedback`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      })
+    } catch {
+      // Feedback logging is best-effort in v1.
+    }
+  }
+
+  async function ignoreToken(token: AnalyzedToken) {
+    const loadingKey = addLoadingKey(token)
+    setIgnoringTokens((current) => ({ ...current, [loadingKey]: true }))
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/tokens/ignore`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ token: token.normalized_token || token.surface_token, scope: "global" }),
+      })
+      if (!response.ok) {
+        const message = await extractErrorMessage(
+          response,
+          `Ignore token request failed with status ${response.status}`,
+        )
+        throw new Error(message)
+      }
+      void postTokenFeedback({
+        raw_token: token.surface_token,
+        predicted_status: token.classification,
+        suggestions_shown: (token.suggestions ?? []).map((item) => item.value),
+        user_action: "ignore",
+      })
+      toast.success(`Ignoring "${token.surface_token}" for typo checks.`)
+      setAnalysisRefreshTick((current) => current + 1)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not ignore token."
+      toast.error(message)
+      void error
+    } finally {
+      setIgnoringTokens((current) => {
+        const next = { ...current }
+        delete next[loadingKey]
+        return next
+      })
+    }
+  }
+
+  async function replaceTokenWithSuggestion(token: AnalyzedToken) {
+    const topSuggestion = token.suggestions?.[0]?.value
+    if (!topSuggestion) {
+      return
+    }
+    const loadingKey = addLoadingKey(token)
+    setReplacingTokens((current) => ({ ...current, [loadingKey]: true }))
+    try {
+      setNoteText((current) => replaceFirstTokenOccurrence(current, token.surface_token, topSuggestion))
+      void postTokenFeedback({
+        raw_token: token.surface_token,
+        predicted_status: token.classification,
+        suggestions_shown: (token.suggestions ?? []).map((item) => item.value),
+        user_action: "replace",
+        chosen_value: topSuggestion,
+      })
+      toast.success(`Replaced "${token.surface_token}" with "${topSuggestion}".`)
+    } finally {
+      setReplacingTokens((current) => {
         const next = { ...current }
         delete next[loadingKey]
         return next
@@ -765,7 +890,7 @@ function App() {
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            {token.classification === "new" ? (
+                            {token.classification === "new" && (
                               <Button
                                 type="button"
                                 variant="outline"
@@ -777,7 +902,73 @@ function App() {
                               >
                                 {addingTokens[loadingKey] ? "Adding..." : "Add"}
                               </Button>
-                            ) : (
+                            )}
+                            {token.classification === "typo_likely" && (
+                              <div className="flex flex-wrap gap-1">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="xs"
+                                  disabled={Boolean(replacingTokens[loadingKey]) || !token.suggestions?.[0]}
+                                  onClick={() => {
+                                    void replaceTokenWithSuggestion(token)
+                                  }}
+                                >
+                                  {replacingTokens[loadingKey] ? "Replacing..." : "Replace"}
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="xs"
+                                  disabled={Boolean(addingTokens[loadingKey])}
+                                  onClick={() => {
+                                    void addTokenToWordbank(token)
+                                  }}
+                                >
+                                  {addingTokens[loadingKey] ? "Adding..." : "Add"}
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="xs"
+                                  disabled={Boolean(ignoringTokens[loadingKey])}
+                                  onClick={() => {
+                                    void ignoreToken(token)
+                                  }}
+                                >
+                                  {ignoringTokens[loadingKey] ? "Ignoring..." : "Ignore"}
+                                </Button>
+                              </div>
+                            )}
+                            {token.classification === "uncertain" && (
+                              <div className="flex flex-wrap gap-1">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="xs"
+                                  disabled={Boolean(addingTokens[loadingKey])}
+                                  onClick={() => {
+                                    void addTokenToWordbank(token)
+                                  }}
+                                >
+                                  {addingTokens[loadingKey] ? "Adding..." : "Add"}
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="xs"
+                                  disabled={Boolean(ignoringTokens[loadingKey])}
+                                  onClick={() => {
+                                    void ignoreToken(token)
+                                  }}
+                                >
+                                  {ignoringTokens[loadingKey] ? "Ignoring..." : "Ignore"}
+                                </Button>
+                              </div>
+                            )}
+                            {token.classification !== "new" &&
+                              token.classification !== "typo_likely" &&
+                              token.classification !== "uncertain" && (
                               <span className="text-muted-foreground text-xs">-</span>
                             )}
                           </TableCell>

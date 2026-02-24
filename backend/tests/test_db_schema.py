@@ -35,7 +35,14 @@ def test_db_init_creates_expected_tables(tmp_path) -> None:
             ).fetchall()
         }
 
-    assert {"schema_migrations", "lexemes", "surface_forms"}.issubset(table_names)
+    assert {
+        "schema_migrations",
+        "lexemes",
+        "surface_forms",
+        "token_events",
+        "typo_feedback",
+        "ignored_tokens",
+    }.issubset(table_names)
 
 
 def test_backend_startup_recreates_db_after_delete(tmp_path, stub_nlp_adapter_factory) -> None:
@@ -96,4 +103,14 @@ def test_uniqueness_constraints_reject_duplicates(tmp_path) -> None:
             conn.execute(
                 "INSERT INTO surface_forms (lexeme_id, form, source) VALUES (?, ?, ?)",
                 (lexeme_id, "bogen", "manual"),
+            )
+
+        conn.execute(
+            "INSERT INTO ignored_tokens (token, scope) VALUES (?, ?)",
+            ("plc", "global"),
+        )
+        with pytest.raises(sqlite3.IntegrityError):
+            conn.execute(
+                "INSERT INTO ignored_tokens (token, scope) VALUES (?, ?)",
+                ("plc", "global"),
             )

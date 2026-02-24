@@ -17,6 +17,14 @@ This directory stores regression fixtures and lemma benchmark inputs for prototy
 - `classification_impact_variation.extended.json`: 391 product classification-impact cases.
 - `lemma_robustness_noise.extended.json`: 75 robustness/noise cases.
 
+## Typo Benchmark Set (Scaffold v1)
+
+- `typo/typo_tokens_by_error_type.extended.json`: isolated-token typo cases by error family.
+- `typo/typo_sentences_context.extended.json`: sentence-context typo cases.
+- `typo/typo_classification_impact.extended.json`: status-decision impact cases (`typo_likely` / `uncertain` / `new` plus precedence guards).
+- `typo/typo_robustness_noise.extended.json`: punctuation/noise/gating cases.
+- `typo/typo_on_new_word_edge_cases.extended.json`: edge cases where true new words can resemble typos.
+
 ## Refresh Golden Outputs
 
 Run:

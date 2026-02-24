@@ -22,10 +22,21 @@ type AnalyzeToken = {
   surface_token: string
   normalized_token: string
   lemma_candidate: string | null
-  classification: "known" | "variation" | "new"
+  classification: "known" | "variation" | "typo_likely" | "uncertain" | "new"
   match_source: "exact" | "lemma" | "none"
   matched_lemma: string | null
   matched_surface_form: string | null
+  status?: "known" | "variation" | "typo_likely" | "uncertain" | "new"
+  suggestions?: Array<{
+    value: string
+    score: number
+    source_flags: string[]
+  }>
+  confidence?: number
+  reason_tags?: string[]
+  surface?: string
+  normalized?: string
+  lemma?: string | null
 }
 
 function responseOf(payload: unknown): Response {
@@ -141,6 +152,14 @@ function mockFetchImplementation(options?: {
         throw new Error("reset database request failed")
       }
       return responseOf(resetDbResponse)
+    }
+
+    if (url.endsWith("/api/tokens/feedback")) {
+      return responseOf({ status: "recorded" })
+    }
+
+    if (url.endsWith("/api/tokens/ignore")) {
+      return responseOf({ status: "ignored" })
     }
 
     return { ok: false, status: 404 } as Response
@@ -513,6 +532,82 @@ describe("App shell", () => {
     })
 
     expect(screen.getAllByRole("button", { name: /^add$/i })).toHaveLength(1)
+  })
+
+  it("shows typo actions and replace updates note text", async () => {
+    vi.useFakeTimers()
+
+    mockFetchImplementation({
+      analyzeTokens: [
+        {
+          surface_token: "spisr",
+          normalized_token: "spisr",
+          lemma_candidate: "spiser",
+          classification: "typo_likely",
+          status: "typo_likely",
+          match_source: "none",
+          matched_lemma: null,
+          matched_surface_form: null,
+          suggestions: [{ value: "spiser", score: 0.9, source_flags: ["from_symspell"] }],
+          confidence: 0.9,
+          reason_tags: ["candidate_high_confidence"],
+        },
+      ],
+    })
+
+    render(<App />)
+    screen.getByLabelText("backend-connection-status")
+    const textarea = screen.getByPlaceholderText(/type lesson notes here.../i)
+    fireEvent.change(textarea, { target: { value: "jeg spisr nu " } })
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500)
+      await Promise.resolve()
+    })
+
+    fireEvent.click(screen.getByRole("button", { name: /^replace$/i }))
+    expect(screen.getByPlaceholderText(/type lesson notes here.../i)).toHaveValue("jeg spiser nu ")
+  })
+
+  it("shows uncertain actions including ignore", async () => {
+    vi.useFakeTimers()
+
+    mockFetchImplementation({
+      analyzeTokens: [
+        {
+          surface_token: "MilkoScna",
+          normalized_token: "milkoscna",
+          lemma_candidate: null,
+          classification: "uncertain",
+          status: "uncertain",
+          match_source: "none",
+          matched_lemma: null,
+          matched_surface_form: null,
+          suggestions: [],
+          confidence: 0.6,
+          reason_tags: ["proper_noun_bias"],
+        },
+      ],
+    })
+
+    render(<App />)
+    screen.getByLabelText("backend-connection-status")
+    fireEvent.change(screen.getByPlaceholderText(/type lesson notes here.../i), {
+      target: { value: "vi så MilkoScna " },
+    })
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500)
+      await Promise.resolve()
+    })
+
+    expect(screen.getByRole("button", { name: /^ignore$/i })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: /^ignore$/i }))
+    await act(async () => {
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    expect(vi.mocked(toast.success)).toHaveBeenCalled()
   })
 
   it("clicking Add calls backend, re-analyzes, and shows success toast", async () => {

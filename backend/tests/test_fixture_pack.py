@@ -53,3 +53,45 @@ def test_lemma_mvb_fixture_sizes_and_basic_schema() -> None:
         for case in class_cases
     )
     assert all({"id", "category", "mode", "db_seed_lexemes"}.issubset(case) for case in robust_cases)
+
+
+def test_typo_fixture_scaffold_basic_schema() -> None:
+    typo_dir = FIXTURES_DIR / "typo"
+    assert typo_dir.is_dir()
+
+    token_cases = _load_json(typo_dir / "typo_tokens_by_error_type.extended.json")
+    context_cases = _load_json(typo_dir / "typo_sentences_context.extended.json")
+    class_cases = _load_json(typo_dir / "typo_classification_impact.extended.json")
+    robust_cases = _load_json(typo_dir / "typo_robustness_noise.extended.json")
+    edge_cases = _load_json(typo_dir / "typo_on_new_word_edge_cases.extended.json")
+
+    assert len(token_cases) >= 10
+    assert len(context_cases) >= 6
+    assert len(class_cases) >= 8
+    assert len(robust_cases) >= 4
+    assert len(edge_cases) >= 5
+
+    assert all(
+        {"id", "category", "error_type", "db_seed_lexemes", "input_token", "expected_status"}.issubset(case)
+        for case in token_cases
+    )
+    assert all(
+        {
+            "id",
+            "category",
+            "sentence",
+            "target_token",
+            "db_seed_lexemes",
+            "expected_status",
+        }.issubset(case)
+        for case in context_cases
+    )
+    assert all(
+        {"id", "category", "db_seed_lexemes", "surface", "expected_status", "expected_reason_tags"}.issubset(case)
+        for case in class_cases
+    )
+    assert all({"id", "category", "mode", "db_seed_lexemes"}.issubset(case) for case in robust_cases)
+    assert all(
+        {"id", "category", "db_seed_lexemes", "surface", "expected_status", "expected_top_candidates"}.issubset(case)
+        for case in edge_cases
+    )

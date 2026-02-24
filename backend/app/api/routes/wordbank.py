@@ -95,6 +95,15 @@ def add_word(payload: AddWordRequest, request: Request) -> AddWordResponse:
                     (lexeme_row["id"], normalized_surface, "manual"),
                 )
                 inserted_surface_form = cursor.rowcount == 1
+                conn.execute(
+                    """
+                    UPDATE surface_forms
+                    SET seen_count = seen_count + 1,
+                        last_seen_at = CURRENT_TIMESTAMP
+                    WHERE lexeme_id = ? AND form = ?
+                    """,
+                    (lexeme_row["id"], normalized_surface),
+                )
     except sqlite3.OperationalError as exc:
         logger.exception("wordbank_db_operational_error")
         raise HTTPException(
@@ -103,6 +112,10 @@ def add_word(payload: AddWordRequest, request: Request) -> AddWordResponse:
         ) from exc
 
     inserted = inserted_lexeme or inserted_surface_form
+    typo_engine = getattr(request.app.state, "typo_engine", None)
+    if typo_engine is not None and inserted:
+        typo_engine.add_user_lexeme(stored_lemma)
+
     status: Literal["inserted", "exists"] = "inserted" if inserted else "exists"
     message = (
         f"Added '{stored_lemma}' to wordbank."
@@ -221,6 +234,9 @@ def reset_database(request: Request) -> ResetDatabaseResponse:
         apply_migrations(db_path)
         request.app.state.db_ready = True
         request.app.state.db_error = None
+        typo_engine = getattr(request.app.state, "typo_engine", None)
+        if typo_engine is not None:
+            typo_engine.invalidate_cache()
     except OSError as exc:
         logger.exception("wordbank_db_reset_os_error")
         raise HTTPException(

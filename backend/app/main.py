@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Callable
 
 from fastapi import FastAPI
@@ -12,6 +13,7 @@ from app.core.config import Settings, load_settings
 from app.db.migrations import apply_migrations
 from app.core.logging import configure_logging
 from app.nlp.adapter import NLPAdapter
+from app.services.typo.typo_engine import TypoEngine
 
 configure_logging()
 logger = logging.getLogger(__name__)
@@ -60,6 +62,20 @@ def create_app(
                 extra={"nlp_model": app_settings.nlp_model},
             )
         app.state.nlp_adapter = adapter
+        typo_engine = None
+        if app_settings.typo_enabled and app.state.db_ready:
+            dictionary_path = app_settings.typo_dictionary_path or (
+                Path(__file__).resolve().parents[2] / "resources" / "dictionaries" / "da_words.txt"
+            )
+            try:
+                typo_engine = TypoEngine(
+                    db_path=app_settings.db_path,
+                    dictionary_path=dictionary_path,
+                )
+            except Exception:
+                logger.exception("backend_typo_engine_startup_failed")
+                typo_engine = None
+        app.state.typo_engine = typo_engine
 
         startup_status = "ok" if app.state.db_ready and app.state.nlp_ready else "degraded"
         logger.info(
@@ -74,6 +90,7 @@ def create_app(
                 "db_error": app.state.db_error,
                 "nlp_error": app.state.nlp_error,
                 "nlp": adapter.metadata() if adapter else None,
+                "typo_enabled": bool(typo_engine is not None),
             },
         )
         yield
@@ -85,6 +102,7 @@ def create_app(
     app.state.nlp_ready = False
     app.state.nlp_error = None
     app.state.nlp_adapter = None
+    app.state.typo_engine = None
     app.add_middleware(
         CORSMiddleware,
         allow_origins=list(app_settings.cors_origins),

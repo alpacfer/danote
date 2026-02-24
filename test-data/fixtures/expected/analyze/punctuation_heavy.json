@@ -7,7 +7,17 @@
       "classification": "new",
       "match_source": "none",
       "matched_lemma": null,
-      "matched_surface_form": null
+      "matched_surface_form": null,
+      "suggestions": [],
+      "confidence": 0.0,
+      "reason_tags": [
+        "gating_ok",
+        "weak_candidate_evidence"
+      ],
+      "status": "new",
+      "surface": "Jeg",
+      "normalized": "jeg",
+      "lemma": "jeg"
     },
     {
       "surface_token": "kan",
@@ -16,7 +26,16 @@
       "classification": "known",
       "match_source": "exact",
       "matched_lemma": "kan",
-      "matched_surface_form": "kan"
+      "matched_surface_form": "kan",
+      "suggestions": [],
+      "confidence": 0.0,
+      "reason_tags": [
+        "exact_match"
+      ],
+      "status": "known",
+      "surface": "kan",
+      "normalized": "kan",
+      "lemma": "kan"
     },
     {
       "surface_token": "godt",
@@ -25,7 +44,17 @@
       "classification": "new",
       "match_source": "none",
       "matched_lemma": null,
-      "matched_surface_form": null
+      "matched_surface_form": null,
+      "suggestions": [],
+      "confidence": 0.0,
+      "reason_tags": [
+        "gating_ok",
+        "weak_candidate_evidence"
+      ],
+      "status": "new",
+      "surface": "godt",
+      "normalized": "godt",
+      "lemma": "god"
     },
     {
       "surface_token": "lide",
@@ -34,7 +63,16 @@
       "classification": "known",
       "match_source": "exact",
       "matched_lemma": "lide",
-      "matched_surface_form": "lide"
+      "matched_surface_form": "lide",
+      "suggestions": [],
+      "confidence": 0.0,
+      "reason_tags": [
+        "exact_match"
+      ],
+      "status": "known",
+      "surface": "lide",
+      "normalized": "lide",
+      "lemma": "lide"
     },
     {
       "surface_token": "bogen",
@@ -43,7 +81,16 @@
       "classification": "variation",
       "match_source": "lemma",
       "matched_lemma": "bog",
-      "matched_surface_form": null
+      "matched_surface_form": null,
+      "suggestions": [],
+      "confidence": 0.0,
+      "reason_tags": [
+        "lemma_match"
+      ],
+      "status": "variation",
+      "surface": "bogen",
+      "normalized": "bogen",
+      "lemma": "bog"
     }
   ]
 }

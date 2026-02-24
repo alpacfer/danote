@@ -1,0 +1,197 @@
+from __future__ import annotations
+
+import json
+import time
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Literal
+
+from app.db.migrations import get_connection
+from app.services.typo.cache import LRUCache
+from app.services.typo.candidates import CandidateProvider
+from app.services.typo.decision import decide_status
+from app.services.typo.gating import should_run_typo_check
+from app.services.typo.normalization import comparison_forms
+from app.services.typo.ranking import rank_candidates
+
+
+TypoStatus = Literal["typo_likely", "uncertain", "new"]
+
+
+@dataclass(frozen=True)
+class TypoSuggestion:
+    value: str
+    score: float
+    source_flags: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class TypoResult:
+    status: TypoStatus
+    normalized: str
+    suggestions: tuple[TypoSuggestion, ...]
+    confidence: float
+    reason_tags: tuple[str, ...]
+    latency_ms: float
+
+
+class TypoEngine:
+    def __init__(self, *, db_path: Path, dictionary_path: Path):
+        self.db_path = db_path
+        self.candidates = CandidateProvider(db_path=db_path, dictionary_path=dictionary_path)
+        self.cache = LRUCache[str, TypoResult](max_size=4096)
+
+    def classify_unknown(
+        self,
+        *,
+        token: str,
+        sentence_start: bool = False,
+    ) -> TypoResult:
+        started = time.perf_counter()
+        forms = comparison_forms(token)
+        gating = should_run_typo_check(
+            token=token,
+            normalized=forms.normalized,
+            sentence_start=sentence_start,
+        )
+        if not gating.should_run:
+            result = TypoResult(
+                status="new",
+                normalized=forms.normalized,
+                suggestions=(),
+                confidence=0.0,
+                reason_tags=gating.reason_tags,
+                latency_ms=(time.perf_counter() - started) * 1000.0,
+            )
+            self._log_event(token=token, result=result)
+            return result
+
+        if self._is_ignored(forms.normalized):
+            result = TypoResult(
+                status="new",
+                normalized=forms.normalized,
+                suggestions=(),
+                confidence=0.0,
+                reason_tags=("gating_skip_ignored",),
+                latency_ms=(time.perf_counter() - started) * 1000.0,
+            )
+            self._log_event(token=token, result=result)
+            return result
+
+        cached = self.cache.get(forms.normalized)
+        if cached is not None:
+            return cached
+
+        max_distance = _max_distance_for_length(len(forms.normalized))
+        candidates = self.candidates.suggest(
+            forms.normalized,
+            max_candidates=20,
+            max_distance=max_distance,
+        )
+        known_lemmas = self._known_lemmas()
+        ranked = rank_candidates(token=forms.normalized, candidates=candidates, known_lemmas=known_lemmas)
+        decision = decide_status(ranked=ranked, proper_noun_bias=gating.proper_noun_bias)
+
+        suggestions = tuple(
+            TypoSuggestion(value=item.value, score=item.score, source_flags=item.source_flags)
+            for item in ranked[:3]
+        )
+        result = TypoResult(
+            status=decision.status,
+            normalized=forms.normalized,
+            suggestions=suggestions,
+            confidence=decision.confidence,
+            reason_tags=gating.reason_tags + decision.reason_tags,
+            latency_ms=(time.perf_counter() - started) * 1000.0,
+        )
+        self.cache.set(forms.normalized, result)
+        self._log_event(token=token, result=result)
+        return result
+
+    def add_user_lexeme(self, lemma: str) -> None:
+        self.candidates.add_user_lexeme(lemma)
+        self.cache.clear()
+
+    def invalidate_cache(self) -> None:
+        self.cache.clear()
+
+    def add_ignored_token(self, token: str, *, scope: str = "global", expires_at: str | None = None) -> None:
+        normalized = comparison_forms(token).normalized
+        if not normalized:
+            return
+        with get_connection(self.db_path) as conn:
+            conn.execute(
+                """
+                INSERT INTO ignored_tokens (token, scope, expires_at)
+                VALUES (?, ?, ?)
+                ON CONFLICT(token, scope)
+                DO UPDATE SET expires_at = excluded.expires_at
+                """,
+                (normalized, scope, expires_at),
+            )
+        self.cache.clear()
+
+    def add_feedback(
+        self,
+        *,
+        raw_token: str,
+        predicted_status: str,
+        suggestions_shown: list[str],
+        user_action: str,
+        chosen_value: str | None = None,
+    ) -> None:
+        with get_connection(self.db_path) as conn:
+            conn.execute(
+                """
+                INSERT INTO typo_feedback
+                (raw_token, predicted_status, suggestions_shown, user_action, chosen_value)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (raw_token, predicted_status, json.dumps(suggestions_shown), user_action, chosen_value),
+            )
+
+    def _is_ignored(self, normalized: str) -> bool:
+        with get_connection(self.db_path) as conn:
+            row = conn.execute(
+                """
+                SELECT 1
+                FROM ignored_tokens
+                WHERE token = ?
+                  AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
+                LIMIT 1
+                """,
+                (normalized,),
+            ).fetchone()
+        return row is not None
+
+    def _known_lemmas(self) -> set[str]:
+        with get_connection(self.db_path) as conn:
+            rows = conn.execute("SELECT lemma FROM lexemes").fetchall()
+        return {str(row["lemma"]) for row in rows}
+
+    def _log_event(self, *, token: str, result: TypoResult) -> None:
+        top = result.suggestions[0].value if result.suggestions else None
+        with get_connection(self.db_path) as conn:
+            conn.execute(
+                """
+                INSERT INTO token_events
+                (raw_token, normalized_token, final_status, top_suggestion, confidence, latency_ms)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    token,
+                    result.normalized,
+                    result.status,
+                    top,
+                    result.confidence,
+                    result.latency_ms,
+                ),
+            )
+
+
+def _max_distance_for_length(length: int) -> int:
+    if length <= 4:
+        return 1
+    if length <= 8:
+        return 2
+    return 2

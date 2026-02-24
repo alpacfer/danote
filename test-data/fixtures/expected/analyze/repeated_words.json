@@ -7,7 +7,16 @@
       "classification": "variation",
       "match_source": "lemma",
       "matched_lemma": "bog",
-      "matched_surface_form": null
+      "matched_surface_form": null,
+      "suggestions": [],
+      "confidence": 0.0,
+      "reason_tags": [
+        "lemma_match"
+      ],
+      "status": "variation",
+      "surface": "bogen",
+      "normalized": "bogen",
+      "lemma": "bog"
     },
     {
       "surface_token": "bogen",
@@ -16,7 +25,16 @@
       "classification": "variation",
       "match_source": "lemma",
       "matched_lemma": "bog",
-      "matched_surface_form": null
+      "matched_surface_form": null,
+      "suggestions": [],
+      "confidence": 0.0,
+      "reason_tags": [
+        "lemma_match"
+      ],
+      "status": "variation",
+      "surface": "bogen",
+      "normalized": "bogen",
+      "lemma": "bog"
     },
     {
       "surface_token": "bogen",
@@ -25,7 +43,16 @@
       "classification": "variation",
       "match_source": "lemma",
       "matched_lemma": "bog",
-      "matched_surface_form": null
+      "matched_surface_form": null,
+      "suggestions": [],
+      "confidence": 0.0,
+      "reason_tags": [
+        "lemma_match"
+      ],
+      "status": "variation",
+      "surface": "bogen",
+      "normalized": "bogen",
+      "lemma": "bog"
     },
     {
       "surface_token": "bogen",
@@ -34,7 +61,16 @@
       "classification": "variation",
       "match_source": "lemma",
       "matched_lemma": "bog",
-      "matched_surface_form": null
+      "matched_surface_form": null,
+      "suggestions": [],
+      "confidence": 0.0,
+      "reason_tags": [
+        "lemma_match"
+      ],
+      "status": "variation",
+      "surface": "bogen",
+      "normalized": "bogen",
+      "lemma": "bog"
     }
   ]
 }

@@ -31,7 +31,7 @@ Analyze full note text and return token classifications for finalized tokens.
 }
 ```
 
-### Response JSON (stable v0 schema)
+### Response JSON (v1 typo-aware schema)
 
 ```json
 {
@@ -43,7 +43,14 @@ Analyze full note text and return token classifications for finalized tokens.
       "classification": "variation",
       "match_source": "lemma",
       "matched_lemma": "bog",
-      "matched_surface_form": null
+      "matched_surface_form": null,
+      "suggestions": [],
+      "confidence": 0.0,
+      "reason_tags": ["lemma_match"],
+      "status": "variation",
+      "surface": "bogen",
+      "normalized": "bogen",
+      "lemma": "bog"
     }
   ]
 }
@@ -55,11 +62,14 @@ Analyze full note text and return token classifications for finalized tokens.
 - Skip pure punctuation tokens.
 - Repeated spaces/newlines are allowed and do not break analysis.
 
-### Classification Rules (v0)
+### Classification Rules (v1)
 
 - Exact DB match: `known`
 - Else lemma found in lexeme DB: `variation`
-- Else: `new`
+- Else typo engine path:
+  - high confidence: `typo_likely`
+  - medium confidence or proper noun risk: `uncertain`
+  - low confidence/no candidate: `new`
 
 ### Failure Responses
 
@@ -101,3 +111,48 @@ Persist a token into the local wordbank with manual source. The backend stores t
 ### Failure Responses
 
 - `503` with JSON `{ "detail": "Database unavailable..." }` when DB is unavailable/locked.
+
+## POST `/api/tokens/feedback`
+
+Record user actions taken on typo suggestions.
+
+### Request JSON
+
+```json
+{
+  "raw_token": "spisr",
+  "predicted_status": "typo_likely",
+  "suggestions_shown": ["spiser"],
+  "user_action": "replace",
+  "chosen_value": "spiser"
+}
+```
+
+### Response JSON
+
+```json
+{
+  "status": "recorded"
+}
+```
+
+## POST `/api/tokens/ignore`
+
+Suppress token from future typo prompts.
+
+### Request JSON
+
+```json
+{
+  "token": "MilkoScna",
+  "scope": "global"
+}
+```
+
+### Response JSON
+
+```json
+{
+  "status": "ignored"
+}
+```
