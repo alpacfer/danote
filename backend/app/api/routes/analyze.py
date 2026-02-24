@@ -56,6 +56,7 @@ def analyze_note(payload: AnalyzeRequest, request: Request) -> AnalyzeResponse:
 
     tokens: list[AnalyzedToken] = []
     try:
+        surfaces: list[str] = []
         for nlp_token in nlp_adapter.tokenize(payload.text):
             surface = nlp_token.text
             if not surface.strip():
@@ -64,8 +65,9 @@ def analyze_note(payload: AnalyzeRequest, request: Request) -> AnalyzeResponse:
                 continue
             if not is_wordlike_token(surface):
                 continue
+            surfaces.append(surface)
 
-            result = classifier.classify(surface)
+        for result in classifier.classify_many(surfaces):
             tokens.append(
                 AnalyzedToken(
                     surface_token=result.surface_token,

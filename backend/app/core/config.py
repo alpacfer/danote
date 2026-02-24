@@ -7,6 +7,7 @@ import os
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 DATA_DIR = BASE_DIR / "data"
+DEFAULT_CORS_ORIGINS = ("http://127.0.0.1:4173", "http://localhost:4173")
 
 
 @dataclass(frozen=True)
@@ -17,11 +18,18 @@ class Settings:
     port: int
     db_path: Path
     nlp_model: str
+    cors_origins: tuple[str, ...] = DEFAULT_CORS_ORIGINS
 
 
 
 def load_settings() -> Settings:
     db_path = Path(os.getenv("DANOTE_DB_PATH", DATA_DIR / "danote.sqlite3"))
+    raw_cors_origins = os.getenv("DANOTE_CORS_ORIGINS", "")
+    parsed_cors_origins = tuple(
+        origin.strip()
+        for origin in raw_cors_origins.split(",")
+        if origin.strip()
+    )
     return Settings(
         environment=os.getenv("DANOTE_ENV", "development"),
         app_name=os.getenv("DANOTE_APP_NAME", "danote-backend"),
@@ -29,4 +37,5 @@ def load_settings() -> Settings:
         port=int(os.getenv("DANOTE_PORT", "8000")),
         db_path=db_path,
         nlp_model=os.getenv("DANOTE_NLP_MODEL", "da_dacy_small_tft-0.0.0"),
+        cors_origins=parsed_cors_origins or DEFAULT_CORS_ORIGINS,
     )

@@ -1,25 +1,48 @@
 import { useEffect, useMemo, useRef, useState } from "react"
+import { ArrowLeft, BookOpen, Moon, NotebookPen, Settings, Sun } from "lucide-react"
+import { useTheme } from "next-themes"
 
 import { Badge } from "@/components/ui/badge"
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb"
 import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { Label } from "@/components/ui/label"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarTrigger,
+} from "@/components/ui/sidebar"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
 
 type ConnectionStatus = "loading" | "connected" | "degraded" | "offline"
 type TokenClassification = "known" | "variation" | "new"
+type AppSection = "playground" | "wordbank" | "developer"
 
 type AnalyzedToken = {
   surface_token: string
@@ -36,6 +59,25 @@ type AddWordResponse = {
   stored_lemma: string
   stored_surface_form: string | null
   source: "manual"
+  message: string
+}
+
+type WordbankLemma = {
+  lemma: string
+  variation_count: number
+}
+
+type LemmaListResponse = {
+  items: WordbankLemma[]
+}
+
+type LemmaDetailsResponse = {
+  lemma: string
+  surface_forms: string[]
+}
+
+type ResetDatabaseResponse = {
+  status: "reset"
   message: string
 }
 
@@ -76,14 +118,176 @@ function finalizedAnalysisText(text: string): string {
   return trimmedRight
 }
 
+function addLoadingKey(token: AnalyzedToken): string {
+  return token.normalized_token || token.surface_token
+}
+
+type AppSidebarProps = {
+  activeSection: AppSection
+  onSelectPlayground: () => void
+  onSelectWordbank: () => void
+  onSelectDeveloper: () => void
+}
+
+function ThemeToggleButton() {
+  const { resolvedTheme, setTheme } = useTheme()
+  const isDark = resolvedTheme === "dark"
+
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon"
+      className="self-start"
+      aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
+      onClick={() => {
+        setTheme(isDark ? "light" : "dark")
+      }}
+    >
+      {isDark ? <Sun className="size-4" /> : <Moon className="size-4" />}
+    </Button>
+  )
+}
+
+type AppBreadcrumbProps = {
+  activeSection: AppSection
+  selectedLemma: string | null
+  onSelectWordbank: () => void
+}
+
+function AppBreadcrumb({
+  activeSection,
+  selectedLemma,
+  onSelectWordbank,
+}: AppBreadcrumbProps) {
+  if (activeSection === "playground") {
+    return (
+      <Breadcrumb>
+        <BreadcrumbList className="text-2xl font-semibold">
+          <BreadcrumbItem>
+            <BreadcrumbPage>Playground</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+    )
+  }
+
+  if (activeSection === "developer") {
+    return (
+      <Breadcrumb>
+        <BreadcrumbList className="text-2xl font-semibold">
+          <BreadcrumbItem>
+            <BreadcrumbPage>Developer</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+    )
+  }
+
+  return (
+    <Breadcrumb>
+      <BreadcrumbList className="text-2xl font-semibold">
+        <BreadcrumbItem>
+          {selectedLemma ? (
+            <BreadcrumbLink asChild>
+              <button type="button" className="font-semibold" onClick={onSelectWordbank}>
+                Wordbank
+              </button>
+            </BreadcrumbLink>
+          ) : (
+            <BreadcrumbPage>Wordbank</BreadcrumbPage>
+          )}
+        </BreadcrumbItem>
+        {selectedLemma && (
+          <>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>{selectedLemma}</BreadcrumbPage>
+            </BreadcrumbItem>
+          </>
+        )}
+      </BreadcrumbList>
+    </Breadcrumb>
+  )
+}
+
+function AppSidebar({
+  activeSection,
+  onSelectPlayground,
+  onSelectWordbank,
+  onSelectDeveloper,
+}: AppSidebarProps) {
+  return (
+    <Sidebar variant="inset">
+      <SidebarHeader>
+        <p className="px-2 text-sm font-semibold">Danote</p>
+      </SidebarHeader>
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  type="button"
+                  isActive={activeSection === "playground"}
+                  onClick={onSelectPlayground}
+                >
+                  <NotebookPen />
+                  <span>Playground</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  type="button"
+                  isActive={activeSection === "wordbank"}
+                  onClick={onSelectWordbank}
+                >
+                  <BookOpen />
+                  <span>Wordbank</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  type="button"
+                  isActive={activeSection === "developer"}
+                  onClick={onSelectDeveloper}
+                >
+                  <Settings />
+                  <span>Developer</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+      <SidebarFooter>
+        <ThemeToggleButton />
+      </SidebarFooter>
+    </Sidebar>
+  )
+}
+
 function App() {
   const [status, setStatus] = useState<ConnectionStatus>("loading")
+  const [activeSection, setActiveSection] = useState<AppSection>("playground")
   const [noteText, setNoteText] = useState("")
   const [tokens, setTokens] = useState<AnalyzedToken[]>([])
   const [analysisError, setAnalysisError] = useState<string | null>(null)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [analysisRefreshTick, setAnalysisRefreshTick] = useState(0)
   const [addingTokens, setAddingTokens] = useState<Record<string, boolean>>({})
+  const [wordbankRefreshTick, setWordbankRefreshTick] = useState(0)
+
+  const [lemmas, setLemmas] = useState<WordbankLemma[]>([])
+  const [wordbankError, setWordbankError] = useState<string | null>(null)
+  const [isWordbankLoading, setIsWordbankLoading] = useState(false)
+  const [selectedLemma, setSelectedLemma] = useState<string | null>(null)
+  const [lemmaDetails, setLemmaDetails] = useState<LemmaDetailsResponse | null>(null)
+  const [lemmaDetailsError, setLemmaDetailsError] = useState<string | null>(null)
+  const [isLemmaDetailsLoading, setIsLemmaDetailsLoading] = useState(false)
+  const [isResettingDatabase, setIsResettingDatabase] = useState(false)
+
   const latestRequestIdRef = useRef(0)
   const activeControllerRef = useRef<AbortController | null>(null)
   const analysisInput = useMemo(() => finalizedAnalysisText(noteText), [noteText])
@@ -192,14 +396,105 @@ function App() {
     }
   }, [])
 
+  useEffect(() => {
+    if (activeSection !== "wordbank") {
+      return
+    }
+
+    let cancelled = false
+    setIsWordbankLoading(true)
+    setWordbankError(null)
+
+    void (async () => {
+      try {
+        const response = await fetch(`${BACKEND_URL}/api/wordbank/lemmas`)
+        if (!response.ok) {
+          const message = await extractErrorMessage(
+            response,
+            `Wordbank request failed with status ${response.status}`,
+          )
+          throw new Error(message)
+        }
+
+        const payload = (await response.json()) as LemmaListResponse
+        if (!cancelled) {
+          setLemmas(payload.items ?? [])
+        }
+      } catch (error) {
+        if (!cancelled) {
+          const message = error instanceof Error ? error.message : "Could not load wordbank."
+          setWordbankError(message)
+          setLemmas([])
+        }
+        void error
+      } finally {
+        if (!cancelled) {
+          setIsWordbankLoading(false)
+        }
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [activeSection, wordbankRefreshTick])
+
+  useEffect(() => {
+    if (activeSection !== "wordbank" || !selectedLemma) {
+      setLemmaDetails(null)
+      setLemmaDetailsError(null)
+      setIsLemmaDetailsLoading(false)
+      return
+    }
+
+    let cancelled = false
+    setIsLemmaDetailsLoading(true)
+    setLemmaDetailsError(null)
+
+    void (async () => {
+      try {
+        const response = await fetch(
+          `${BACKEND_URL}/api/wordbank/lemmas/${encodeURIComponent(selectedLemma)}`,
+        )
+        if (!response.ok) {
+          const message = await extractErrorMessage(
+            response,
+            `Word details request failed with status ${response.status}`,
+          )
+          throw new Error(message)
+        }
+
+        const payload = (await response.json()) as LemmaDetailsResponse
+        if (!cancelled) {
+          setLemmaDetails(payload)
+        }
+      } catch (error) {
+        if (!cancelled) {
+          const message = error instanceof Error ? error.message : "Could not load lemma details."
+          setLemmaDetailsError(message)
+          setLemmaDetails(null)
+        }
+        void error
+      } finally {
+        if (!cancelled) {
+          setIsLemmaDetailsLoading(false)
+        }
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [activeSection, selectedLemma])
+
   const badgeVariant =
     status === "connected"
       ? "secondary"
       : status === "degraded"
         ? "outline"
         : status === "offline"
-        ? "destructive"
-        : "outline"
+          ? "destructive"
+          : "outline"
 
   const statusVariantMap: Record<TokenClassification, "secondary" | "outline" | "destructive"> = {
     known: "secondary",
@@ -215,7 +510,7 @@ function App() {
   async function addTokenToWordbank(token: AnalyzedToken) {
     const requestSurface = token.normalized_token || token.surface_token
     const requestLemma = token.lemma_candidate
-    const loadingKey = requestSurface
+    const loadingKey = addLoadingKey(token)
 
     setAddingTokens((current) => ({ ...current, [loadingKey]: true }))
 
@@ -242,6 +537,7 @@ function App() {
       const payload = (await response.json()) as AddWordResponse
       toast.success(payload.message)
       setAnalysisRefreshTick((current) => current + 1)
+      setWordbankRefreshTick((current) => current + 1)
     } catch (error) {
       const message = error instanceof Error ? error.message : "Could not add word to wordbank. Try again."
       toast.error(message)
@@ -255,164 +551,326 @@ function App() {
     }
   }
 
-  return (
-    <main className="mx-auto min-h-screen w-full max-w-5xl p-6 md:p-8">
-      <Card className="min-h-[75vh]">
-        <CardHeader className="gap-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <CardTitle>Danote</CardTitle>
-              <CardDescription>Language-learning notes with Danish-first analysis.</CardDescription>
+  async function resetDatabase() {
+    const shouldReset = window.confirm(
+      "This will delete the complete database and cannot be undone. Continue?",
+    )
+    if (!shouldReset) {
+      return
+    }
+
+    setIsResettingDatabase(true)
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/wordbank/database`, {
+        method: "DELETE",
+      })
+      if (!response.ok) {
+        const message = await extractErrorMessage(
+          response,
+          `Reset database request failed with status ${response.status}`,
+        )
+        throw new Error(message)
+      }
+
+      const payload = (await response.json()) as ResetDatabaseResponse
+      toast.success(payload.message)
+
+      setNoteText("")
+      setTokens([])
+      setAnalysisError(null)
+      setSelectedLemma(null)
+      setLemmas([])
+      setLemmaDetails(null)
+      setLemmaDetailsError(null)
+      setWordbankRefreshTick((current) => current + 1)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not reset database."
+      toast.error(message)
+      void error
+    } finally {
+      setIsResettingDatabase(false)
+    }
+  }
+
+  function renderWordbankContent() {
+    if (!selectedLemma) {
+      return (
+        <div className="space-y-4">
+          {wordbankError && (
+            <p className="text-destructive text-sm" role="alert">
+              {wordbankError}
+            </p>
+          )}
+          {isWordbankLoading ? (
+            <div className="space-y-3">
+              <Skeleton className="h-20 w-full" />
+              <Skeleton className="h-20 w-full" />
+              <Skeleton className="h-20 w-full" />
             </div>
+          ) : lemmas.length === 0 ? (
+            <p className="text-muted-foreground text-sm">No saved lemmas yet.</p>
+          ) : (
+            <ScrollArea className="h-[520px]">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+                {lemmas.map((lemma) => (
+                  <Button
+                    key={lemma.lemma}
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-9 justify-center"
+                    onClick={() => setSelectedLemma(lemma.lemma)}
+                  >
+                    {lemma.lemma}
+                  </Button>
+                ))}
+              </div>
+            </ScrollArea>
+          )}
+        </div>
+      )
+    }
+
+    return (
+      <div className="space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-xl font-semibold">{lemmaDetails?.lemma ?? selectedLemma}</h2>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              setSelectedLemma(null)
+            }}
+          >
+            <ArrowLeft className="size-4" />
+            Back to list
+          </Button>
+        </div>
+        <Separator />
+        {lemmaDetailsError && (
+          <p className="text-destructive text-sm" role="alert">
+            {lemmaDetailsError}
+          </p>
+        )}
+        {isLemmaDetailsLoading ? (
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-8 w-full" />
+          </div>
+        ) : !lemmaDetails ? (
+          <p className="text-muted-foreground text-sm">No details found for this lemma.</p>
+        ) : lemmaDetails.surface_forms.length === 0 ? (
+          <p className="text-muted-foreground text-sm">No saved variations for this lemma.</p>
+        ) : (
+          <ScrollArea className="h-[520px] rounded-md border p-2">
+            <div className="divide-border divide-y rounded-md border">
+              {lemmaDetails.surface_forms.map((form) => (
+                <p key={form} className="px-3 py-2 text-sm">
+                  {form}
+                </p>
+              ))}
+            </div>
+          </ScrollArea>
+        )}
+      </div>
+    )
+  }
+
+  function renderPlaygroundContent() {
+    return (
+      <div className="space-y-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>Lesson Notes</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="relative">
+              <Textarea
+                id="lesson-notes"
+                placeholder="Type lesson notes here..."
+                className="min-h-[360px] resize-y pb-8"
+                value={noteText}
+                onChange={(event) => setNoteText(event.target.value)}
+              />
+              <p className="text-muted-foreground absolute right-3 bottom-2 text-xs" aria-label="note-character-count">
+                {noteText.length}
+              </p>
+            </div>
+            {analysisError && (
+              <p className="text-destructive mt-2 text-sm" role="alert">
+                {analysisError}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Detected Words</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ScrollArea className="h-[320px] w-full rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Token</TableHead>
+                    <TableHead>Lemma</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Match source</TableHead>
+                    <TableHead>Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {isAnalyzing ? (
+                    <TableRow>
+                      <TableCell colSpan={5}>
+                        <div className="space-y-2">
+                          <p className="text-muted-foreground text-sm">Loading detected words...</p>
+                          <Skeleton className="h-4 w-full" />
+                          <Skeleton className="h-4 w-4/5" />
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ) : analysisError ? (
+                    <TableRow>
+                      <TableCell className="text-destructive" colSpan={5}>
+                        Could not load detected words. Try analyzing again.
+                      </TableCell>
+                    </TableRow>
+                  ) : tokens.length === 0 ? (
+                    <TableRow>
+                      <TableCell className="text-muted-foreground">No tokens yet</TableCell>
+                      <TableCell className="text-muted-foreground">-</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">pending</Badge>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">-</TableCell>
+                      <TableCell className="text-muted-foreground">-</TableCell>
+                    </TableRow>
+                  ) : (
+                    tokens.map((token, index) => {
+                      const loadingKey = addLoadingKey(token)
+                      return (
+                        <TableRow key={`${token.surface_token}-${token.match_source}-${index}`}>
+                          <TableCell>{token.surface_token}</TableCell>
+                          <TableCell>{token.matched_lemma ?? token.lemma_candidate ?? "-"}</TableCell>
+                          <TableCell>
+                            <Badge variant={statusVariantMap[token.classification]}>
+                              {token.classification}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={sourceVariantMap[token.match_source]}>
+                              {token.match_source}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {token.classification === "new" ? (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="xs"
+                                disabled={Boolean(addingTokens[loadingKey])}
+                                onClick={() => {
+                                  void addTokenToWordbank(token)
+                                }}
+                              >
+                                {addingTokens[loadingKey] ? "Adding..." : "Add"}
+                              </Button>
+                            ) : (
+                              <span className="text-muted-foreground text-xs">-</span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </ScrollArea>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  function renderDeveloperContent() {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Developer</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm">Backend status</span>
             <Badge variant={badgeVariant} aria-label="backend-connection-status">
               {status}
             </Badge>
           </div>
-          <Separator />
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="notes" className="w-full gap-4">
-            <TabsList>
-              <TabsTrigger value="notes">Notes</TabsTrigger>
-              <TabsTrigger value="detected-words">Detected words</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="notes">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Lesson Notes</CardTitle>
-                  <CardDescription>
-                    Write naturally. Analysis results will appear in the detected words tab.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="lesson-notes">Notes text</Label>
-                  <p className="text-muted-foreground text-sm">
-                      Paste or type your lesson notes here. Analysis runs after a pause and only includes finalized
-                      tokens.
-                  </p>
-                    <Textarea
-                      id="lesson-notes"
-                      placeholder="Type lesson notes here..."
-                      className="min-h-[360px] resize-y"
-                      value={noteText}
-                      onChange={(event) => setNoteText(event.target.value)}
-                    />
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-muted-foreground text-sm">Legend:</span>
-                    <Badge variant="secondary">known</Badge>
-                    <Badge variant="outline">variation</Badge>
-                    <Badge variant="destructive">new</Badge>
-                  </div>
-                  <p className="text-muted-foreground text-xs">
-                    Auto-analysis uses a short debounce and processes the full note text.
-                  </p>
-                  {analysisError && (
-                    <p className="text-destructive text-sm" role="alert">
-                      {analysisError}
-                    </p>
-                  )}
-                  <p className="text-muted-foreground text-xs" aria-label="note-character-count">
-                    Characters: {noteText.length}
-                  </p>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="detected-words">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Detected Words</CardTitle>
-                  <CardDescription>
-                    Results from the last Analyze request.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ScrollArea className="h-[320px] w-full rounded-md border">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Token</TableHead>
-                          <TableHead>Lemma</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Match source</TableHead>
-                          <TableHead>Action</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {isAnalyzing ? (
-                          <TableRow>
-                            <TableCell colSpan={5}>
-                              <div className="space-y-2">
-                                <p className="text-muted-foreground text-sm">Loading detected words...</p>
-                                <Skeleton className="h-4 w-full" />
-                                <Skeleton className="h-4 w-4/5" />
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ) : analysisError ? (
-                          <TableRow>
-                            <TableCell className="text-destructive" colSpan={5}>
-                              Could not load detected words. Try analyzing again.
-                            </TableCell>
-                          </TableRow>
-                        ) : tokens.length === 0 ? (
-                          <TableRow>
-                            <TableCell className="text-muted-foreground">No tokens yet</TableCell>
-                            <TableCell className="text-muted-foreground">-</TableCell>
-                            <TableCell>
-                              <Badge variant="outline">pending</Badge>
-                            </TableCell>
-                            <TableCell className="text-muted-foreground">-</TableCell>
-                            <TableCell className="text-muted-foreground">-</TableCell>
-                          </TableRow>
-                        ) : (
-                          tokens.map((token, index) => (
-                            <TableRow key={`${token.surface_token}-${token.match_source}-${index}`}>
-                              <TableCell>{token.surface_token}</TableCell>
-                              <TableCell>{token.matched_lemma ?? token.lemma_candidate ?? "-"}</TableCell>
-                              <TableCell>
-                                <Badge variant={statusVariantMap[token.classification]}>
-                                  {token.classification}
-                                </Badge>
-                              </TableCell>
-                              <TableCell>
-                                <Badge variant={sourceVariantMap[token.match_source]}>
-                                  {token.match_source}
-                                </Badge>
-                              </TableCell>
-                              <TableCell>
-                                {token.classification === "new" ? (
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="xs"
-                                    disabled={Boolean(addingTokens[token.normalized_token])}
-                                    onClick={() => {
-                                      void addTokenToWordbank(token)
-                                    }}
-                                  >
-                                    {addingTokens[token.normalized_token] ? "Adding..." : "Add"}
-                                  </Button>
-                                ) : (
-                                  <span className="text-muted-foreground text-xs">-</span>
-                                )}
-                              </TableCell>
-                            </TableRow>
-                          ))
-                        )}
-                      </TableBody>
-                    </Table>
-                  </ScrollArea>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
+          <div className="text-muted-foreground text-sm">
+            Backend: <code>{BACKEND_URL}</code>
+          </div>
+          <Button
+            type="button"
+            variant="destructive"
+            size="sm"
+            disabled={isResettingDatabase}
+            onClick={() => {
+              void resetDatabase()
+            }}
+          >
+            {isResettingDatabase ? "Deleting..." : "Delete complete DB"}
+          </Button>
         </CardContent>
       </Card>
-    </main>
+    )
+  }
+
+  return (
+    <SidebarProvider>
+      <AppSidebar
+        activeSection={activeSection}
+        onSelectPlayground={() => {
+          setActiveSection("playground")
+        }}
+        onSelectWordbank={() => {
+          setActiveSection("wordbank")
+          setSelectedLemma(null)
+        }}
+        onSelectDeveloper={() => {
+          setActiveSection("developer")
+          setSelectedLemma(null)
+        }}
+      />
+      <SidebarInset>
+        <header className="flex h-12 items-center gap-2 px-4 md:hidden">
+          <SidebarTrigger />
+          <span className="text-sm font-medium">Danote</span>
+        </header>
+        <main className="w-full p-4 md:p-8">
+          <span className="sr-only" aria-label="backend-connection-status">
+            {status}
+          </span>
+          <div className="mb-4 flex justify-start">
+            <AppBreadcrumb
+              activeSection={activeSection}
+              selectedLemma={selectedLemma}
+              onSelectWordbank={() => {
+                setActiveSection("wordbank")
+                setSelectedLemma(null)
+              }}
+            />
+          </div>
+          <div className="mx-auto w-full max-w-7xl">
+            {activeSection === "playground"
+              ? renderPlaygroundContent()
+              : activeSection === "wordbank"
+                ? renderWordbankContent()
+                : renderDeveloperContent()}
+          </div>
+        </main>
+      </SidebarInset>
+    </SidebarProvider>
   )
 }
 

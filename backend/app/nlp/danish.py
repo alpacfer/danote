@@ -3,8 +3,6 @@ from __future__ import annotations
 import logging
 from importlib.metadata import version as package_version
 
-import dacy
-import lemmy
 from packaging.specifiers import SpecifierSet
 from packaging.version import InvalidVersion, Version
 
@@ -23,6 +21,10 @@ logger = logging.getLogger(__name__)
 class DaCyLemmyNLPAdapter(NLPAdapter):
     def __init__(self, model_name: str):
         self.model_name = model_name
+        # Import lazily so backend startup can degrade cleanly if NLP deps are absent.
+        import dacy
+        import lemmy
+
         self._nlp = dacy.load(model_name)
         self._lemmatizer = lemmy.load("da")
         self._warn_if_spacy_version_incompatible()

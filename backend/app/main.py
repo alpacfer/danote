@@ -12,15 +12,21 @@ from app.core.config import Settings, load_settings
 from app.db.migrations import apply_migrations
 from app.core.logging import configure_logging
 from app.nlp.adapter import NLPAdapter
-from app.nlp.danish import load_danish_nlp_adapter
 
 configure_logging()
 logger = logging.getLogger(__name__)
 
 
+def _default_nlp_adapter_factory(settings: Settings) -> NLPAdapter:
+    # Import lazily so missing NLP dependencies degrade health instead of crashing import.
+    from app.nlp.danish import load_danish_nlp_adapter
+
+    return load_danish_nlp_adapter(settings)
+
+
 def create_app(
     settings: Settings | None = None,
-    nlp_adapter_factory: Callable[[Settings], NLPAdapter] = load_danish_nlp_adapter,
+    nlp_adapter_factory: Callable[[Settings], NLPAdapter] = _default_nlp_adapter_factory,
 ) -> FastAPI:
     app_settings = settings or load_settings()
 
@@ -81,7 +87,7 @@ def create_app(
     app.state.nlp_adapter = None
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://127.0.0.1:4173", "http://localhost:4173"],
+        allow_origins=list(app_settings.cors_origins),
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

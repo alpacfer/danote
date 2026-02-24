@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import sys
+import types
+
 from app.nlp.danish import DaCyLemmyNLPAdapter
 
 
@@ -52,8 +55,8 @@ class _FakeLemmy:
 
 
 def test_adapter_returns_lemmas_for_simple_danish_nouns_verbs(monkeypatch) -> None:
-    monkeypatch.setattr("app.nlp.danish.dacy.load", lambda _model: _FakeNLP())
-    monkeypatch.setattr("app.nlp.danish.lemmy.load", lambda _lang: _FakeLemmy())
+    monkeypatch.setitem(sys.modules, "dacy", types.SimpleNamespace(load=lambda _model: _FakeNLP()))
+    monkeypatch.setitem(sys.modules, "lemmy", types.SimpleNamespace(load=lambda _lang: _FakeLemmy()))
 
     adapter = DaCyLemmyNLPAdapter("fake-model")
 
@@ -62,8 +65,8 @@ def test_adapter_returns_lemmas_for_simple_danish_nouns_verbs(monkeypatch) -> No
 
 
 def test_adapter_candidate_ranking_handles_common_failure_patterns(monkeypatch) -> None:
-    monkeypatch.setattr("app.nlp.danish.dacy.load", lambda _model: _FakeNLP())
-    monkeypatch.setattr("app.nlp.danish.lemmy.load", lambda _lang: _FakeLemmy())
+    monkeypatch.setitem(sys.modules, "dacy", types.SimpleNamespace(load=lambda _model: _FakeNLP()))
+    monkeypatch.setitem(sys.modules, "lemmy", types.SimpleNamespace(load=lambda _lang: _FakeLemmy()))
 
     adapter = DaCyLemmyNLPAdapter("fake-model")
 

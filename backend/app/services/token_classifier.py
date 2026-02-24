@@ -52,6 +52,16 @@ class LemmaAwareClassifier:
         self.nlp_adapter = nlp_adapter or _NullNLPAdapter()
 
     def classify(self, token: str) -> TokenClassification:
+        with get_connection(self.db_path) as conn:
+            return self._classify_with_connection(token, conn)
+
+    def classify_many(self, tokens: list[str]) -> list[TokenClassification]:
+        if not tokens:
+            return []
+        with get_connection(self.db_path) as conn:
+            return [self._classify_with_connection(token, conn) for token in tokens]
+
+    def _classify_with_connection(self, token: str, conn) -> TokenClassification:
         normalized = normalize_token(token)
 
         if not normalized:
@@ -63,69 +73,68 @@ class LemmaAwareClassifier:
                 match_source="none",
             )
 
-        with get_connection(self.db_path) as conn:
-            exact_row = conn.execute(
-                """
-                SELECT l.lemma, sf.form
-                FROM surface_forms sf
-                JOIN lexemes l ON l.id = sf.lexeme_id
-                WHERE sf.form = ?
-                LIMIT 1
-                """,
-                (normalized,),
-            ).fetchone()
+        exact_row = conn.execute(
+            """
+            SELECT l.lemma, sf.form
+            FROM surface_forms sf
+            JOIN lexemes l ON l.id = sf.lexeme_id
+            WHERE sf.form = ?
+            LIMIT 1
+            """,
+            (normalized,),
+        ).fetchone()
 
-            if exact_row is not None:
-                return TokenClassification(
-                    surface_token=token,
-                    normalized_token=normalized,
-                    lemma_candidate=exact_row["lemma"],
-                    classification="known",
-                    match_source="exact",
-                    matched_lemma=exact_row["lemma"],
-                    matched_surface_form=exact_row["form"],
-                )
+        if exact_row is not None:
+            return TokenClassification(
+                surface_token=token,
+                normalized_token=normalized,
+                lemma_candidate=exact_row["lemma"],
+                classification="known",
+                match_source="exact",
+                matched_lemma=exact_row["lemma"],
+                matched_surface_form=exact_row["form"],
+            )
 
-            # Also treat exact lexeme lemma matches as known when no explicit surface form exists.
-            lemma_exact_row = conn.execute(
-                """
-                SELECT lemma
-                FROM lexemes
-                WHERE lemma = ?
-                LIMIT 1
-                """,
-                (normalized,),
-            ).fetchone()
-            if lemma_exact_row is not None:
-                return TokenClassification(
-                    surface_token=token,
-                    normalized_token=normalized,
-                    lemma_candidate=lemma_exact_row["lemma"],
-                    classification="known",
-                    match_source="exact",
-                    matched_lemma=lemma_exact_row["lemma"],
-                    matched_surface_form=normalized,
-                )
+        # Also treat exact lexeme lemma matches as known when no explicit surface form exists.
+        lemma_exact_row = conn.execute(
+            """
+            SELECT lemma
+            FROM lexemes
+            WHERE lemma = ?
+            LIMIT 1
+            """,
+            (normalized,),
+        ).fetchone()
+        if lemma_exact_row is not None:
+            return TokenClassification(
+                surface_token=token,
+                normalized_token=normalized,
+                lemma_candidate=lemma_exact_row["lemma"],
+                classification="known",
+                match_source="exact",
+                matched_lemma=lemma_exact_row["lemma"],
+                matched_surface_form=normalized,
+            )
 
-            lemma_candidates = self._lemma_candidates_for_token(normalized)
-            if not lemma_candidates:
-                return TokenClassification(
-                    surface_token=token,
-                    normalized_token=normalized,
-                    lemma_candidate=None,
-                    classification="new",
-                    match_source="none",
-                )
+        lemma_candidates = self._lemma_candidates_for_token(normalized)
+        if not lemma_candidates:
+            return TokenClassification(
+                surface_token=token,
+                normalized_token=normalized,
+                lemma_candidate=None,
+                classification="new",
+                match_source="none",
+            )
 
-            placeholders = ", ".join("?" for _ in lemma_candidates)
-            lemma_rows = conn.execute(
-                f"""
-                SELECT lemma
-                FROM lexemes
-                WHERE lemma IN ({placeholders})
-                """,
-                tuple(lemma_candidates),
-            ).fetchall()
+        placeholders = ", ".join("?" for _ in lemma_candidates)
+        lemma_rows = conn.execute(
+            f"""
+            SELECT lemma
+            FROM lexemes
+            WHERE lemma IN ({placeholders})
+            """,
+            tuple(lemma_candidates),
+        ).fetchall()
 
         lexeme_set = {normalize_candidate(row["lemma"]) for row in lemma_rows}
         matched_lemma = pick_best_candidate_in_lexicon(

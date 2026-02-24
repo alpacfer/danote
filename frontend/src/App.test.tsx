@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from "@testing-library/react"
+import { act, fireEvent, render, screen } from "@testing-library/react"
 import { vi } from "vitest"
 import { toast } from "sonner"
 
@@ -51,6 +51,24 @@ function mockFetchImplementation(options?: {
     message: string
   }
   addWordHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+  lemmasOk?: boolean
+  lemmasResponse?: {
+    items: Array<{
+      lemma: string
+      variation_count: number
+    }>
+  }
+  lemmaDetailsOk?: boolean
+  lemmaDetailsResponse?: {
+    lemma: string
+    surface_forms: string[]
+  }
+  resetDbOk?: boolean
+  resetDbResponse?: {
+    status: "reset"
+    message: string
+  }
+  resetDbHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
 }) {
   const healthOk = options?.healthOk ?? true
   const healthStatus = options?.healthStatus ?? "ok"
@@ -64,6 +82,12 @@ function mockFetchImplementation(options?: {
     source: "manual" as const,
     message: "Added 'kat' to wordbank.",
   }
+  const lemmasOk = options?.lemmasOk ?? true
+  const lemmasResponse = options?.lemmasResponse ?? { items: [] }
+  const lemmaDetailsOk = options?.lemmaDetailsOk ?? true
+  const lemmaDetailsResponse = options?.lemmaDetailsResponse ?? { lemma: "bog", surface_forms: ["bogen"] }
+  const resetDbOk = options?.resetDbOk ?? true
+  const resetDbResponse = options?.resetDbResponse ?? { status: "reset" as const, message: "Database reset complete." }
 
   return vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
     const url = String(input)
@@ -95,50 +119,94 @@ function mockFetchImplementation(options?: {
       return responseOf(addWordResponse)
     }
 
+    if (url.endsWith("/api/wordbank/lemmas")) {
+      if (!lemmasOk) {
+        throw new Error("wordbank request failed")
+      }
+      return responseOf(lemmasResponse)
+    }
+
+    if (url.includes("/api/wordbank/lemmas/")) {
+      if (!lemmaDetailsOk) {
+        throw new Error("word details request failed")
+      }
+      return responseOf(lemmaDetailsResponse)
+    }
+
+    if (url.endsWith("/api/wordbank/database")) {
+      if (options?.resetDbHandler) {
+        return options.resetDbHandler(input, init)
+      }
+      if (!resetDbOk) {
+        throw new Error("reset database request failed")
+      }
+      return responseOf(resetDbResponse)
+    }
+
     return { ok: false, status: 404 } as Response
   })
 }
 
-function switchToDetectedWordsTab() {
-  const notesTab = screen.getByRole("tab", { name: /notes/i })
-  const detectedWordsTab = screen.getByRole("tab", { name: /detected words/i })
-  fireEvent.mouseDown(detectedWordsTab)
-  fireEvent.click(detectedWordsTab)
-  expect(detectedWordsTab).toHaveAttribute("aria-selected", "true")
-  expect(notesTab).toHaveAttribute("aria-selected", "false")
-}
-
 describe("App shell", () => {
-  it("renders header, tabs, and backend status badge", async () => {
+  it("renders header, cards, and backend status badge", async () => {
     mockFetchImplementation()
 
     render(<App />)
 
-    expect(screen.getByText(/danote/i)).toBeInTheDocument()
-    expect(screen.getByRole("tab", { name: /notes/i })).toBeInTheDocument()
-    expect(screen.getByRole("tab", { name: /detected words/i })).toBeInTheDocument()
-    expect(screen.getByLabelText(/notes text/i)).toBeInTheDocument()
+    expect(screen.getAllByText(/danote/i).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/lesson notes/i).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/detected words/i).length).toBeGreaterThan(0)
+    expect(screen.getByPlaceholderText(/type lesson notes here.../i)).toBeInTheDocument()
     const statusBadge = await screen.findByLabelText("backend-connection-status")
     expect(statusBadge).toHaveTextContent(/connected/i)
   })
 
-  it("switches tabs correctly", async () => {
+  it("renders sidebar navigation with playground and wordbank", async () => {
+    mockFetchImplementation()
+
+    render(<App />)
+    await screen.findByLabelText("backend-connection-status")
+
+    expect(screen.getByRole("button", { name: /playground/i })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /wordbank/i })).toBeInTheDocument()
+  })
+
+  it("shows saved lemmas in wordbank and opens lemma details page", async () => {
+    mockFetchImplementation({
+      lemmasResponse: {
+        items: [
+          { lemma: "bog", variation_count: 2 },
+          { lemma: "hus", variation_count: 1 },
+        ],
+      },
+      lemmaDetailsResponse: {
+        lemma: "bog",
+        surface_forms: ["bogen", "bogens"],
+      },
+    })
+
+    render(<App />)
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
+    const bogItem = await screen.findByRole("button", { name: /bog/i })
+    expect(bogItem).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /hus/i })).toBeInTheDocument()
+
+    fireEvent.click(bogItem)
+    expect(await screen.findByRole("button", { name: /back to list/i })).toBeInTheDocument()
+    expect(screen.getByText(/^bogen$/i)).toBeInTheDocument()
+    expect(screen.getByText(/^bogens$/i)).toBeInTheDocument()
+  })
+
+  it("shows notes and detected words in one page", async () => {
     mockFetchImplementation()
 
     render(<App />)
     await screen.findByText(/connected/i)
 
-    const notesTab = screen.getByRole("tab", { name: /notes/i })
-    const detectedWordsTab = screen.getByRole("tab", { name: /detected words/i })
-
-    expect(notesTab).toHaveAttribute("aria-selected", "true")
-    expect(detectedWordsTab).toHaveAttribute("aria-selected", "false")
-
-    fireEvent.mouseDown(detectedWordsTab)
-    fireEvent.click(detectedWordsTab)
-
-    expect(detectedWordsTab).toHaveAttribute("aria-selected", "true")
-    expect(notesTab).toHaveAttribute("aria-selected", "false")
+    expect(screen.getAllByText(/lesson notes/i).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/detected words/i).length).toBeGreaterThan(0)
   })
 
   it("renders offline status when health check fails", async () => {
@@ -163,7 +231,7 @@ describe("App shell", () => {
     render(<App />)
     await screen.findByLabelText("backend-connection-status")
 
-    const textarea = screen.getByLabelText(/notes text/i)
+    const textarea = screen.getByPlaceholderText(/type lesson notes here.../i)
     fireEvent.change(textarea, { target: { value: "Jeg kan godt lide bogen" } })
     expect(textarea).toHaveValue("Jeg kan godt lide bogen")
 
@@ -176,15 +244,15 @@ describe("App shell", () => {
     expect(textarea).toHaveValue("linje 1\nlinje 2")
   })
 
-  it("renders legend badges", async () => {
+  it("renders detected words table headers", async () => {
     mockFetchImplementation()
 
     render(<App />)
     await screen.findByLabelText("backend-connection-status")
 
-    expect(screen.getByText(/^known$/i)).toBeInTheDocument()
-    expect(screen.getByText(/^variation$/i)).toBeInTheDocument()
-    expect(screen.getByText(/^new$/i)).toBeInTheDocument()
+    expect(screen.getByText(/^token$/i)).toBeInTheDocument()
+    expect(screen.getByText(/^lemma$/i)).toBeInTheDocument()
+    expect(screen.getByText(/^status$/i)).toBeInTheDocument()
   })
 
   it("debounce collapses rapid typing into one analyze call", async () => {
@@ -201,7 +269,7 @@ describe("App shell", () => {
     render(<App />)
     screen.getByLabelText("backend-connection-status")
 
-    const textarea = screen.getByLabelText(/notes text/i)
+    const textarea = screen.getByPlaceholderText(/type lesson notes here.../i)
     fireEvent.change(textarea, { target: { value: "Jeg" } })
     fireEvent.change(textarea, { target: { value: "Jeg kan" } })
     fireEvent.change(textarea, { target: { value: "Jeg kan godt lide bogen " } })
@@ -244,7 +312,7 @@ describe("App shell", () => {
 
     render(<App />)
     screen.getByLabelText("backend-connection-status")
-    const textarea = screen.getByLabelText(/notes text/i)
+    const textarea = screen.getByPlaceholderText(/type lesson notes here.../i)
 
     fireEvent.change(textarea, { target: { value: "b" } })
     await act(async () => {
@@ -274,9 +342,7 @@ describe("App shell", () => {
     expect(analyzeBodies).toHaveLength(1)
     expect(analyzeBodies[0]).toBe(JSON.stringify({ text: "bogen" }))
 
-    switchToDetectedWordsTab()
-    const panel = screen.getByRole("tabpanel")
-    expect(within(panel).getByText(/^bogen$/i)).toBeInTheDocument()
+    expect(screen.getAllByText(/^bogen$/i).length).toBeGreaterThanOrEqual(1)
   })
 
   it("stale responses do not overwrite newer results", async () => {
@@ -293,7 +359,7 @@ describe("App shell", () => {
     render(<App />)
     screen.getByLabelText("backend-connection-status")
 
-    const textarea = screen.getByLabelText(/notes text/i)
+    const textarea = screen.getByPlaceholderText(/type lesson notes here.../i)
     fireEvent.change(textarea, { target: { value: "første " } })
     await act(async () => {
       await vi.advanceTimersByTimeAsync(500)
@@ -325,9 +391,7 @@ describe("App shell", () => {
       await Promise.resolve()
     })
 
-    switchToDetectedWordsTab()
-    const panel = screen.getByRole("tabpanel")
-    expect(within(panel).getAllByText(/^anden$/i).length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText(/^anden$/i).length).toBeGreaterThanOrEqual(1)
 
     await act(async () => {
       resolvers[0](
@@ -348,8 +412,8 @@ describe("App shell", () => {
       await Promise.resolve()
     })
 
-    expect(within(panel).queryByText(/^første$/i)).not.toBeInTheDocument()
-    expect(within(panel).getAllByText(/^anden$/i).length).toBeGreaterThanOrEqual(1)
+    expect(screen.queryByText(/^første$/i)).not.toBeInTheDocument()
+    expect(screen.getAllByText(/^anden$/i).length).toBeGreaterThanOrEqual(1)
   })
 
   it("renders detected rows and status mapping on success", async () => {
@@ -390,7 +454,7 @@ describe("App shell", () => {
     render(<App />)
     screen.getByLabelText("backend-connection-status")
 
-    fireEvent.change(screen.getByLabelText(/notes text/i), {
+    fireEvent.change(screen.getByPlaceholderText(/type lesson notes here.../i), {
       target: { value: "Jeg kan godt lide bogen " },
     })
     await act(async () => {
@@ -398,20 +462,17 @@ describe("App shell", () => {
       await Promise.resolve()
     })
 
-    switchToDetectedWordsTab()
-    const panel = screen.getByRole("tabpanel")
+    expect(screen.getAllByText(/^kan$/i).length).toBeGreaterThanOrEqual(1)
+    expect(screen.getByText(/^bogen$/i)).toBeInTheDocument()
+    expect(screen.getAllByText(/^kat$/i).length).toBeGreaterThanOrEqual(1)
 
-    expect((within(panel).getAllByText(/^kan$/i)).length).toBeGreaterThanOrEqual(1)
-    expect(within(panel).getByText(/^bogen$/i)).toBeInTheDocument()
-    expect((within(panel).getAllByText(/^kat$/i)).length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText(/^known$/i).length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText(/^variation$/i).length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText(/^new$/i).length).toBeGreaterThanOrEqual(1)
 
-    expect(within(panel).getByText(/^known$/i)).toBeInTheDocument()
-    expect(within(panel).getByText(/^variation$/i)).toBeInTheDocument()
-    expect(within(panel).getByText(/^new$/i)).toBeInTheDocument()
-
-    expect(within(panel).getByText(/^exact$/i)).toBeInTheDocument()
-    expect(within(panel).getByText(/^lemma$/)).toBeInTheDocument()
-    expect(within(panel).getByText(/^none$/i)).toBeInTheDocument()
+    expect(screen.getByText(/^exact$/i)).toBeInTheDocument()
+    expect(screen.getByText(/^lemma$/)).toBeInTheDocument()
+    expect(screen.getByText(/^none$/i)).toBeInTheDocument()
   })
 
   it("shows Add action only for new rows", async () => {
@@ -443,7 +504,7 @@ describe("App shell", () => {
     render(<App />)
     screen.getByLabelText("backend-connection-status")
 
-    fireEvent.change(screen.getByLabelText(/notes text/i), {
+    fireEvent.change(screen.getByPlaceholderText(/type lesson notes here.../i), {
       target: { value: "kan kat " },
     })
     await act(async () => {
@@ -451,9 +512,7 @@ describe("App shell", () => {
       await Promise.resolve()
     })
 
-    switchToDetectedWordsTab()
-    const panel = screen.getByRole("tabpanel")
-    expect(within(panel).getAllByRole("button", { name: /^add$/i })).toHaveLength(1)
+    expect(screen.getAllByRole("button", { name: /^add$/i })).toHaveLength(1)
   })
 
   it("clicking Add calls backend, re-analyzes, and shows success toast", async () => {
@@ -508,7 +567,7 @@ describe("App shell", () => {
     render(<App />)
     screen.getByLabelText("backend-connection-status")
 
-    fireEvent.change(screen.getByLabelText(/notes text/i), {
+    fireEvent.change(screen.getByPlaceholderText(/type lesson notes here.../i), {
       target: { value: "kat " },
     })
     await act(async () => {
@@ -516,9 +575,7 @@ describe("App shell", () => {
       await Promise.resolve()
     })
 
-    switchToDetectedWordsTab()
-    const panel = screen.getByRole("tabpanel")
-    fireEvent.click(within(panel).getByRole("button", { name: /^add$/i }))
+    fireEvent.click(screen.getByRole("button", { name: /^add$/i }))
 
     await act(async () => {
       await Promise.resolve()
@@ -558,7 +615,7 @@ describe("App shell", () => {
     render(<App />)
     screen.getByLabelText("backend-connection-status")
 
-    fireEvent.change(screen.getByLabelText(/notes text/i), {
+    fireEvent.change(screen.getByPlaceholderText(/type lesson notes here.../i), {
       target: { value: "kat " },
     })
     await act(async () => {
@@ -566,9 +623,7 @@ describe("App shell", () => {
       await Promise.resolve()
     })
 
-    switchToDetectedWordsTab()
-    const panel = screen.getByRole("tabpanel")
-    fireEvent.click(within(panel).getByRole("button", { name: /^add$/i }))
+    fireEvent.click(screen.getByRole("button", { name: /^add$/i }))
 
     await act(async () => {
       await Promise.resolve()
@@ -577,6 +632,31 @@ describe("App shell", () => {
 
     expect(vi.mocked(toast.error)).toHaveBeenCalledTimes(1)
     expect(vi.mocked(toast.error)).toHaveBeenCalledWith("add word request failed")
+  })
+
+  it("deletes complete db from developer options", async () => {
+    const resetMethods: Array<string | undefined> = []
+    vi.spyOn(window, "confirm").mockReturnValue(true)
+    mockFetchImplementation({
+      resetDbHandler: async (_input, init) => {
+        resetMethods.push(init?.method)
+        return responseOf({ status: "reset", message: "Database reset complete." })
+      },
+    })
+
+    render(<App />)
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /developer/i }))
+    fireEvent.click(screen.getByRole("button", { name: /delete complete db/i }))
+
+    await act(async () => {
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(resetMethods).toEqual(["DELETE"])
+    expect(vi.mocked(toast.success)).toHaveBeenCalledWith("Database reset complete.")
   })
 
   it("renders loading and error states", async () => {
@@ -595,7 +675,7 @@ describe("App shell", () => {
     render(<App />)
     screen.getByLabelText("backend-connection-status")
 
-    const textarea = screen.getByLabelText(/notes text/i)
+    const textarea = screen.getByPlaceholderText(/type lesson notes here.../i)
 
     fireEvent.change(textarea, {
       target: { value: "test " },
@@ -603,13 +683,10 @@ describe("App shell", () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(500)
     })
-    switchToDetectedWordsTab()
     expect(screen.getByText(/loading detected words/i)).toBeInTheDocument()
 
     fail = true
-    fireEvent.mouseDown(screen.getByRole("tab", { name: /notes/i }))
-    fireEvent.click(screen.getByRole("tab", { name: /notes/i }))
-    const notesTextarea = screen.getByLabelText(/notes text/i)
+    const notesTextarea = screen.getByPlaceholderText(/type lesson notes here.../i)
     fireEvent.change(notesTextarea, {
       target: { value: "test2 " },
     })
