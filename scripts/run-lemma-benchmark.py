@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import re
 import tempfile
 from collections import defaultdict
 from dataclasses import dataclass
@@ -15,23 +16,58 @@ from app.services.token_classifier import LemmaAwareClassifier, normalize_token
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 FIXTURES_DIR = ROOT_DIR / "test-data" / "fixtures" / "lemma"
+EDGE_PUNCT_PATTERN = re.compile(r"^[^\wæøåÆØÅ]+|[^\wæøåÆØÅ]+$", flags=re.UNICODE)
 
 
 @dataclass(frozen=True)
 class CaseResult:
+    case_id: str
     category: str
     passed: bool
+    expected: str
+    predicted: str
+
+
+@dataclass(frozen=True)
+class StatusResult:
+    case_id: str
+    category: str
+    passed: bool
+    expected: str
+    predicted: str
 
 
 def _load_json(path: Path):
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def _metric(results: list[CaseResult]) -> tuple[int, int, float]:
+def _metric(results: list[CaseResult] | list[StatusResult]) -> tuple[int, int, float]:
     total = len(results)
     passed = sum(1 for result in results if result.passed)
     accuracy = (passed / total * 100.0) if total else 0.0
     return passed, total, accuracy
+
+
+def _strip_edge_punctuation(token: str) -> str:
+    cleaned = token.strip()
+    while True:
+        updated = EDGE_PUNCT_PATTERN.sub("", cleaned)
+        if updated == cleaned:
+            break
+        cleaned = updated
+    return cleaned
+
+
+def _seed_lemmas(db_path: Path, lemmas: list[str]) -> None:
+    apply_migrations(db_path)
+    with get_connection(db_path) as conn:
+        conn.execute("DELETE FROM surface_forms")
+        conn.execute("DELETE FROM lexemes")
+        for lemma in lemmas:
+            conn.execute(
+                "INSERT OR IGNORE INTO lexemes (lemma, source) VALUES (?, 'manual')",
+                (normalize_token(lemma),),
+            )
 
 
 def run() -> None:
@@ -55,13 +91,23 @@ def run() -> None:
 
         token_results: list[CaseResult] = []
         context_results: list[CaseResult] = []
-        class_results: list[CaseResult] = []
-        robust_results: list[CaseResult] = []
+        class_results: list[StatusResult] = []
+        robust_results: list[StatusResult] = []
+        failures: list[CaseResult | StatusResult] = []
 
         for case in token_cases:
             predicted = normalize_token(adapter.lemma_for_token(case["surface"]) or "")
             expected = normalize_token(case["expected_lemma"])
-            token_results.append(CaseResult(case["category"], predicted == expected))
+            result = CaseResult(
+                case_id=case["id"],
+                category=case["category"],
+                passed=predicted == expected,
+                expected=expected,
+                predicted=predicted,
+            )
+            token_results.append(result)
+            if not result.passed:
+                failures.append(result)
 
         for case in context_cases:
             predicted = ""
@@ -72,49 +118,164 @@ def run() -> None:
             if not predicted:
                 predicted = normalize_token(adapter.lemma_for_token(case["target_token"]) or "")
             expected = normalize_token(case["expected_lemma"])
-            context_results.append(CaseResult(case["category"], predicted == expected))
+            result = CaseResult(
+                case_id=case["id"],
+                category=case["category"],
+                passed=predicted == expected,
+                expected=expected,
+                predicted=predicted,
+            )
+            context_results.append(result)
+            if not result.passed:
+                failures.append(result)
 
         for case in classification_cases:
-            apply_migrations(db_path)
-            with get_connection(db_path) as conn:
-                conn.execute("DELETE FROM surface_forms")
-                conn.execute("DELETE FROM lexemes")
-                for lemma in case["db_seed_lexemes"]:
-                    conn.execute(
-                        "INSERT OR IGNORE INTO lexemes (lemma, source) VALUES (?, 'manual')",
-                        (normalize_token(lemma),),
-                    )
+            _seed_lemmas(db_path, case["db_seed_lexemes"])
             classifier = LemmaAwareClassifier(db_path, nlp_adapter=adapter)
             status = classifier.classify(case["surface"]).classification
-            class_results.append(CaseResult(case["category"], status == case["expected_status"]))
+            result = StatusResult(
+                case_id=case["id"],
+                category=case["category"],
+                passed=status == case["expected_status"],
+                expected=case["expected_status"],
+                predicted=status,
+            )
+            class_results.append(result)
+            if not result.passed:
+                failures.append(result)
 
         for case in robustness_cases:
-            ok = True
-            try:
-                _ = adapter.tokenize(case["text"])
-                _ = adapter.lemma_for_token(case["text"])
-            except Exception:
-                ok = False
-            robust_results.append(CaseResult(case["category"], ok))
+            if case["mode"] == "single_token":
+                _seed_lemmas(db_path, case["db_seed_lexemes"])
+                classifier = LemmaAwareClassifier(db_path, nlp_adapter=adapter)
+                cleaned_token = _strip_edge_punctuation(case["input_token"])
+                status_result = classifier.classify(cleaned_token)
+                expected_status = case["expected_status"]
+                expected_lemma = normalize_token(case.get("expected_lemma", ""))
+                predicted_lemma = normalize_token(status_result.lemma_candidate or status_result.matched_lemma or "")
+                passed = status_result.classification == expected_status
+                if expected_lemma:
+                    passed = passed and predicted_lemma == expected_lemma
+
+                result = StatusResult(
+                    case_id=case["id"],
+                    category=case["category"],
+                    passed=passed,
+                    expected=f"{expected_status}:{expected_lemma}",
+                    predicted=f"{status_result.classification}:{predicted_lemma}",
+                )
+                robust_results.append(result)
+                if not result.passed:
+                    failures.append(result)
+                continue
+
+            if case["mode"] == "note_text":
+                _seed_lemmas(db_path, case["db_seed_lexemes"])
+                classifier = LemmaAwareClassifier(db_path, nlp_adapter=adapter)
+                predicted_sequence: list[tuple[str, str]] = []
+                for token in adapter.tokenize(case["input_text"]):
+                    if not token.text.strip() or token.is_punctuation:
+                        continue
+                    status_result = classifier.classify(token.text)
+                    predicted_sequence.append((status_result.normalized_token, status_result.classification))
+
+                expected_sequence = [
+                    (item["normalized_token"], item["expected_status"])
+                    for item in case["expected_sequence"]
+                ]
+                passed = predicted_sequence == expected_sequence
+                result = StatusResult(
+                    case_id=case["id"],
+                    category=case["category"],
+                    passed=passed,
+                    expected=str(expected_sequence),
+                    predicted=str(predicted_sequence),
+                )
+                robust_results.append(result)
+                if not result.passed:
+                    failures.append(result)
+                continue
+
+            unknown = StatusResult(
+                case_id=case["id"],
+                category=case["category"],
+                passed=False,
+                expected="recognized mode",
+                predicted=str(case.get("mode")),
+            )
+            robust_results.append(unknown)
+            failures.append(unknown)
 
         category_map: dict[str, list[CaseResult]] = defaultdict(list)
-        for group in (token_results, context_results, class_results, robust_results):
+        for group in (token_results, context_results):
             for result in group:
                 category_map[result.category].append(result)
+        category_status_map: dict[str, list[StatusResult]] = defaultdict(list)
+        for group in (class_results, robust_results):
+            for result in group:
+                category_status_map[result.category].append(result)
 
         lemma_passed, lemma_total, lemma_accuracy = _metric(token_results + context_results)
+        lemma_coverage = sum(
+            1
+            for result in token_results + context_results
+            if bool(result.predicted)
+        )
+        lemma_coverage_rate = (lemma_coverage / lemma_total * 100.0) if lemma_total else 0.0
+        token_passed, token_total, token_accuracy = _metric(token_results)
+        context_passed, context_total, context_accuracy = _metric(context_results)
+        context_gain = context_accuracy - token_accuracy
+
         class_passed, class_total, class_accuracy = _metric(class_results)
+        variation_cases = [result for result in class_results if result.expected == "variation"]
+        variation_passed, variation_total, variation_accuracy = _metric(variation_cases)
+        new_cases = [result for result in class_results if result.expected == "new"]
+        false_variation = sum(1 for result in new_cases if result.predicted == "variation")
+        false_variation_rate = (false_variation / len(new_cases) * 100.0) if new_cases else 0.0
+        false_new = sum(1 for result in variation_cases if result.predicted == "new")
+        false_new_rate = (false_new / len(variation_cases) * 100.0) if variation_cases else 0.0
+
         robust_passed, robust_total, robust_accuracy = _metric(robust_results)
 
-        print("Danote Lemma Benchmark (Checkpoint 18)")
+        print("Danote Lemma Benchmark (Checkpoint 18 MVB)")
+        print("Policies: case-insensitive DB lookup, edge punctuation stripped for single-token robustness tests")
+        print("")
         print(f"Lemma accuracy: {lemma_passed}/{lemma_total} ({lemma_accuracy:.1f}%)")
+        print(f"Lemma coverage: {lemma_coverage}/{lemma_total} ({lemma_coverage_rate:.1f}%)")
+        print(f"Token-only lemma accuracy: {token_passed}/{token_total} ({token_accuracy:.1f}%)")
+        print(f"Sentence-context lemma accuracy: {context_passed}/{context_total} ({context_accuracy:.1f}%)")
+        print(f"Context gain: {context_gain:+.1f} pp")
+        print("")
         print(f"Classification impact accuracy: {class_passed}/{class_total} ({class_accuracy:.1f}%)")
+        print(
+            "Variation accuracy: "
+            f"{variation_passed}/{variation_total} ({variation_accuracy:.1f}%)"
+        )
+        print(f"False variation rate (expected new -> predicted variation): {false_variation_rate:.1f}%")
+        print(f"False new rate (expected variation -> predicted new): {false_new_rate:.1f}%")
+        print("")
         print(f"Robustness pass rate: {robust_passed}/{robust_total} ({robust_accuracy:.1f}%)")
         print("")
-        print("Per-category:")
+        print("Per-category (lemma):")
         for category in sorted(category_map):
             passed, total, accuracy = _metric(category_map[category])
             print(f"- {category}: {passed}/{total} ({accuracy:.1f}%)")
+        print("")
+        print("Per-category (classification/robustness):")
+        for category in sorted(category_status_map):
+            passed, total, accuracy = _metric(category_status_map[category])
+            print(f"- {category}: {passed}/{total} ({accuracy:.1f}%)")
+
+        print("")
+        print("Top failures (up to 20):")
+        if not failures:
+            print("- none")
+        else:
+            for result in failures[:20]:
+                print(
+                    f"- {result.case_id} [{result.category}] "
+                    f"expected={result.expected} predicted={result.predicted}"
+                )
 
 
 if __name__ == "__main__":

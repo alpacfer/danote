@@ -30,3 +30,26 @@ def test_analysis_cases_reference_existing_files() -> None:
         expected_path = FIXTURES_DIR / "expected" / "analyze" / case["expected_file"]
         assert note_path.exists(), f"missing note fixture: {note_path}"
         assert expected_path.exists(), f"missing expected fixture: {expected_path}"
+
+
+def test_lemma_mvb_fixture_sizes_and_basic_schema() -> None:
+    token_cases = _load_json(FIXTURES_DIR / "lemma" / "lemma_tokens_by_category.json")
+    context_cases = _load_json(FIXTURES_DIR / "lemma" / "lemma_sentences_context.json")
+    class_cases = _load_json(FIXTURES_DIR / "lemma" / "classification_impact_variation.json")
+    robust_cases = _load_json(FIXTURES_DIR / "lemma" / "lemma_robustness_noise.json")
+
+    assert len(token_cases) == 60
+    assert len(context_cases) == 20
+    assert len(class_cases) == 30
+    assert len(robust_cases) == 10
+
+    assert all({"id", "category", "surface", "expected_lemma"}.issubset(case) for case in token_cases)
+    assert all(
+        {"id", "category", "sentence", "target_token", "expected_lemma"}.issubset(case)
+        for case in context_cases
+    )
+    assert all(
+        {"id", "category", "db_seed_lexemes", "surface", "expected_status"}.issubset(case)
+        for case in class_cases
+    )
+    assert all({"id", "category", "mode", "db_seed_lexemes"}.issubset(case) for case in robust_cases)

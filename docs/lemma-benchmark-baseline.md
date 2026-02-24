@@ -11,6 +11,18 @@ Track lemma recognition strength by category before adding typo and phrase featu
 - `test-data/fixtures/lemma/classification_impact_variation.json`
 - `test-data/fixtures/lemma/lemma_robustness_noise.json`
 
+## MVB Scope (Current)
+
+- Token lemma cases: `60`
+- Sentence-context lemma cases: `20`
+- Classification-impact cases: `30`
+- Robustness/noise cases: `10`
+
+## Frozen Policies
+
+- Case normalization for DB lookup: `enabled` (case-insensitive behavior)
+- Punctuation tolerance for benchmark single-token robustness cases: `enabled` (edge punctuation stripped)
+
 ## Run Benchmark
 
 ```bash

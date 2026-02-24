@@ -57,6 +57,7 @@
 - Golden outputs: `test-data/fixtures/expected/analyze/*.json`.
 - Golden refresh tool: `scripts/generate_fixture_goldens.py`.
 - Lemma benchmark runner: `scripts/run-lemma-benchmark.py`.
+- MVB lemma set sizes: tokens `60`, sentence-context `20`, classification impact `30`, robustness `10`.
 
 ## Before Tagging Prototype
 

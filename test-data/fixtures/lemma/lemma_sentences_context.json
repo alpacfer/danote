@@ -1,26 +1,24 @@
 [
-  {
-    "id": "context_aux_participle",
-    "category": "sentence_context",
-    "sentence": "Jeg har spist i dag.",
-    "target_token": "spist",
-    "expected_lemma": "spise",
-    "notes": "Participle in auxiliary context"
-  },
-  {
-    "id": "context_motion_participle",
-    "category": "sentence_context",
-    "sentence": "Han er gået hjem.",
-    "target_token": "gået",
-    "expected_lemma": "gå",
-    "notes": "Motion verb participle"
-  },
-  {
-    "id": "context_adverb",
-    "category": "sentence_context",
-    "sentence": "Han synger godt.",
-    "target_token": "godt",
-    "expected_lemma": "god",
-    "notes": "Adverbial usage"
-  }
+  {"id":"context_001","category":"participle_aux","sentence":"Jeg har spist morgenmad.","target_token":"spist","expected_lemma":"spise"},
+  {"id":"context_002","category":"participle_aux","sentence":"Han er gået hjem.","target_token":"gået","expected_lemma":"gå"},
+  {"id":"context_003","category":"participle_aux","sentence":"Vi har arbejdet hele dagen.","target_token":"arbejdet","expected_lemma":"arbejde"},
+  {"id":"context_004","category":"participle_aux","sentence":"De havde snakket sammen.","target_token":"snakket","expected_lemma":"snakke"},
+  {"id":"context_005","category":"participle_aux","sentence":"Jeg har skrevet brevet.","target_token":"skrevet","expected_lemma":"skrive"},
+  {"id":"context_006","category":"participle_aux","sentence":"Hun er kommet sent.","target_token":"kommet","expected_lemma":"komme"},
+  {"id":"context_007","category":"participle_aux","sentence":"Vi har lært meget.","target_token":"lært","expected_lemma":"lære"},
+  {"id":"context_008","category":"participle_aux","sentence":"Han har haft travlt.","target_token":"haft","expected_lemma":"have"},
+
+  {"id":"context_009","category":"adjective_adverb","sentence":"Det er godt.","target_token":"godt","expected_lemma":"god"},
+  {"id":"context_010","category":"adjective_adverb","sentence":"Han synger godt.","target_token":"godt","expected_lemma":"god"},
+  {"id":"context_011","category":"adjective_adverb","sentence":"Bilen er større nu.","target_token":"større","expected_lemma":"stor"},
+  {"id":"context_012","category":"adjective_adverb","sentence":"Det er bedst at vente.","target_token":"bedst","expected_lemma":"god"},
+  {"id":"context_013","category":"adjective_adverb","sentence":"Huset er smukt.","target_token":"smukt","expected_lemma":"smuk"},
+  {"id":"context_014","category":"adjective_adverb","sentence":"De er gode venner.","target_token":"gode","expected_lemma":"god"},
+
+  {"id":"context_015","category":"lesson_style","sentence":"Jeg kan godt lide bogen.","target_token":"bogen","expected_lemma":"bog"},
+  {"id":"context_016","category":"lesson_style","sentence":"Vi så børnene i parken.","target_token":"børnene","expected_lemma":"barn"},
+  {"id":"context_017","category":"lesson_style","sentence":"Han bor i huset.","target_token":"huset","expected_lemma":"hus"},
+  {"id":"context_018","category":"lesson_style","sentence":"Katten sidder på stolen.","target_token":"stolen","expected_lemma":"stol"},
+  {"id":"context_019","category":"lesson_style","sentence":"Jeg lærte dansk på skolen.","target_token":"lærte","expected_lemma":"lære"},
+  {"id":"context_020","category":"lesson_style","sentence":"De gik hjem efter timen.","target_token":"gik","expected_lemma":"gå"}
 ]

@@ -1,23 +1,34 @@
 [
-  {
-    "id": "impact_exact_known",
-    "category": "classification_impact",
-    "db_seed_lexemes": ["bog"],
-    "surface": "bog",
-    "expected_status": "known"
-  },
-  {
-    "id": "impact_variation_definite",
-    "category": "classification_impact",
-    "db_seed_lexemes": ["bog"],
-    "surface": "bogen",
-    "expected_status": "variation"
-  },
-  {
-    "id": "impact_new_unknown",
-    "category": "classification_impact",
-    "db_seed_lexemes": ["bog"],
-    "surface": "kat",
-    "expected_status": "new"
-  }
+  {"id":"class_001","category":"exact_known","db_seed_lexemes":["bog"],"surface":"bog","expected_status":"known"},
+  {"id":"class_002","category":"exact_known","db_seed_lexemes":["hus"],"surface":"hus","expected_status":"known"},
+  {"id":"class_003","category":"exact_known","db_seed_lexemes":["stol"],"surface":"stol","expected_status":"known"},
+  {"id":"class_004","category":"exact_known","db_seed_lexemes":["god"],"surface":"god","expected_status":"known"},
+  {"id":"class_005","category":"exact_known","db_seed_lexemes":["stor"],"surface":"stor","expected_status":"known"},
+  {"id":"class_006","category":"exact_known","db_seed_lexemes":["spise"],"surface":"spise","expected_status":"known"},
+  {"id":"class_007","category":"exact_known","db_seed_lexemes":["arbejde"],"surface":"arbejde","expected_status":"known"},
+  {"id":"class_008","category":"exact_known","db_seed_lexemes":["gå"],"surface":"gå","expected_status":"known"},
+  {"id":"class_009","category":"exact_known","db_seed_lexemes":["være"],"surface":"være","expected_status":"known"},
+  {"id":"class_010","category":"exact_known","db_seed_lexemes":["kunne"],"surface":"kunne","expected_status":"known"},
+
+  {"id":"class_011","category":"variation","db_seed_lexemes":["bog"],"surface":"bogen","expected_status":"variation"},
+  {"id":"class_012","category":"variation","db_seed_lexemes":["bog"],"surface":"bøgerne","expected_status":"variation"},
+  {"id":"class_013","category":"variation","db_seed_lexemes":["hus"],"surface":"huset","expected_status":"variation"},
+  {"id":"class_014","category":"variation","db_seed_lexemes":["hus"],"surface":"husene","expected_status":"variation"},
+  {"id":"class_015","category":"variation","db_seed_lexemes":["god"],"surface":"godt","expected_status":"variation"},
+  {"id":"class_016","category":"variation","db_seed_lexemes":["god"],"surface":"gode","expected_status":"variation"},
+  {"id":"class_017","category":"variation","db_seed_lexemes":["stor"],"surface":"større","expected_status":"variation"},
+  {"id":"class_018","category":"variation","db_seed_lexemes":["stor"],"surface":"størst","expected_status":"variation"},
+  {"id":"class_019","category":"variation","db_seed_lexemes":["spise"],"surface":"spiser","expected_status":"variation"},
+  {"id":"class_020","category":"variation","db_seed_lexemes":["spise"],"surface":"spiste","expected_status":"variation"},
+  {"id":"class_021","category":"variation","db_seed_lexemes":["arbejde"],"surface":"arbejder","expected_status":"variation"},
+  {"id":"class_022","category":"variation","db_seed_lexemes":["gå"],"surface":"gik","expected_status":"variation"},
+  {"id":"class_023","category":"variation","db_seed_lexemes":["gå"],"surface":"gået","expected_status":"variation"},
+  {"id":"class_024","category":"variation","db_seed_lexemes":["være"],"surface":"er","expected_status":"variation"},
+  {"id":"class_025","category":"variation","db_seed_lexemes":["kunne"],"surface":"kan","expected_status":"variation"},
+
+  {"id":"class_026","category":"new_guard","db_seed_lexemes":["bog"],"surface":"kat","expected_status":"new"},
+  {"id":"class_027","category":"new_guard","db_seed_lexemes":["hus"],"surface":"bil","expected_status":"new"},
+  {"id":"class_028","category":"new_guard","db_seed_lexemes":["god"],"surface":"grim","expected_status":"new"},
+  {"id":"class_029","category":"new_guard","db_seed_lexemes":["gå"],"surface":"løbe","expected_status":"new"},
+  {"id":"class_030","category":"new_guard","db_seed_lexemes":["kunne"],"surface":"skulle","expected_status":"new"}
 ]
