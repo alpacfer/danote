@@ -48,6 +48,28 @@ def _load_json(path: Path):
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+
+
+def _compute_confusion_and_macro_f1(observations: list[tuple[str, str]]) -> tuple[dict[str, dict[str, int]], float]:
+    labels = ["typo_likely", "uncertain", "new"]
+    matrix = {expected: {predicted: 0 for predicted in labels} for expected in labels}
+    for expected, predicted in observations:
+        if expected in matrix and predicted in matrix[expected]:
+            matrix[expected][predicted] += 1
+
+    f1_scores: list[float] = []
+    for label in labels:
+        tp = matrix[label][label]
+        fp = sum(matrix[e][label] for e in labels if e != label)
+        fn = sum(matrix[label][p] for p in labels if p != label)
+        precision = tp / (tp + fp) if (tp + fp) else 0.0
+        recall = tp / (tp + fn) if (tp + fn) else 0.0
+        f1 = (2 * precision * recall / (precision + recall)) if (precision + recall) else 0.0
+        f1_scores.append(f1)
+
+    macro_f1 = sum(f1_scores) / len(f1_scores) if f1_scores else 0.0
+    return matrix, macro_f1
+
 def _seed_lemmas(db_path: Path, lemmas: list[str]) -> None:
     with get_connection(db_path) as conn:
         conn.execute("DELETE FROM surface_forms")
@@ -99,11 +121,14 @@ def main(*, allow_degraded_nlp: bool = False, dictionary_mode: str = "combined")
         passed = 0
         top1_passed = 0
         failures: list[dict[str, str]] = []
+        status_observations: list[tuple[str, str]] = []
 
         for case in token_cases:
             _seed_lemmas(db_path, case["db_seed_lexemes"])
             result = classifier.classify(case["input_token"])
             total += 1
+            if result.classification in {"typo_likely", "uncertain", "new"}:
+                status_observations.append((case["expected_status"], result.classification))
             if result.classification == case["expected_status"]:
                 passed += 1
             else:
@@ -124,6 +149,8 @@ def main(*, allow_degraded_nlp: bool = False, dictionary_mode: str = "combined")
             _seed_lemmas(db_path, case["db_seed_lexemes"])
             result = classifier.classify(case["target_token"])
             total += 1
+            if result.classification in {"typo_likely", "uncertain", "new"}:
+                status_observations.append((case["expected_status"], result.classification))
             if result.classification == case["expected_status"]:
                 passed += 1
             else:
@@ -140,6 +167,8 @@ def main(*, allow_degraded_nlp: bool = False, dictionary_mode: str = "combined")
             _seed_lemmas(db_path, case["db_seed_lexemes"])
             result = classifier.classify(case["surface"])
             total += 1
+            if result.classification in {"typo_likely", "uncertain", "new"}:
+                status_observations.append((case["expected_status"], result.classification))
             if result.classification == case["expected_status"]:
                 passed += 1
             else:
@@ -165,6 +194,7 @@ def main(*, allow_degraded_nlp: bool = False, dictionary_mode: str = "combined")
 
         accuracy = (passed / total * 100.0) if total else 0.0
         top1 = (top1_passed / len(token_cases) * 100.0) if token_cases else 0.0
+        confusion_matrix, macro_f1 = _compute_confusion_and_macro_f1(status_observations)
         print("Danote Typo Benchmark (v1 scaffold)")
         if adapter_warning:
             print(f"Warning: {adapter_warning}")
@@ -172,6 +202,7 @@ def main(*, allow_degraded_nlp: bool = False, dictionary_mode: str = "combined")
         print(f"Status accuracy: {passed}/{total} ({accuracy:.1f}%)")
         print(f"Top-1 accuracy (token set): {top1_passed}/{len(token_cases)} ({top1:.1f}%)")
         print(f"Dictionary mode: {dictionary_mode} ({len(dictionary_paths)} source files)")
+        print(f"Status macro-F1 (typo_likely/uncertain/new): {macro_f1 * 100.0:.1f}%")
 
         report_path = append_benchmark_report(
             benchmark="typo",
@@ -197,6 +228,8 @@ def main(*, allow_degraded_nlp: bool = False, dictionary_mode: str = "combined")
                             2,
                         ),
                     },
+                    "macro_f1": round(macro_f1 * 100.0, 2),
+                    "status_confusion_matrix": confusion_matrix,
                     "case_counts": {
                         "token": len(token_cases),
                         "context": len(context_cases),

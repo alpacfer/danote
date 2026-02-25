@@ -1,6 +1,12 @@
 {
   "version": "v1",
-  "statuses": ["known", "variation", "typo_likely", "uncertain", "new"],
+  "statuses": [
+    "known",
+    "variation",
+    "typo_likely",
+    "uncertain",
+    "new"
+  ],
   "precedence": {
     "exact_known_before_typo": true,
     "lemma_variation_before_typo": true
@@ -20,11 +26,28 @@
   "candidate_generation": {
     "max_candidates": 20,
     "max_edit_distance_by_length": [
-      {"min_len": 3, "max_len": 4, "max_distance": 1},
-      {"min_len": 5, "max_len": 8, "max_distance": 2},
-      {"min_len": 9, "max_len": 64, "max_distance": 2}
+      {
+        "min_len": 3,
+        "max_len": 4,
+        "max_distance": 1
+      },
+      {
+        "min_len": 5,
+        "max_len": 8,
+        "max_distance": 2
+      },
+      {
+        "min_len": 9,
+        "max_len": 64,
+        "max_distance": 2
+      }
     ],
-    "source_priority": ["user", "symspell", "hunspell", "general"]
+    "source_priority": [
+      "user",
+      "symspell",
+      "hunspell",
+      "general"
+    ]
   },
   "scoring_weights": {
     "edit_distance": 0.35,
@@ -42,35 +65,65 @@
   },
   "decision_table": [
     {
-      "when_all": ["exact_match"],
+      "when_all": [
+        "exact_match"
+      ],
       "status": "known",
-      "reason_tags": ["exact_match"]
+      "reason_tags": [
+        "exact_match"
+      ]
     },
     {
-      "when_all": ["lemma_match"],
+      "when_all": [
+        "lemma_match"
+      ],
       "status": "variation",
-      "reason_tags": ["lemma_match"]
+      "reason_tags": [
+        "lemma_match"
+      ]
     },
     {
-      "when_all": ["gating_skipped"],
+      "when_all": [
+        "gating_skipped"
+      ],
       "status": "new",
-      "reason_tags": ["gating_skipped"]
+      "reason_tags": [
+        "gating_skipped"
+      ]
     },
     {
-      "when_all": ["candidate_exists", "top_confidence_gte_typo", "margin_gte_min"],
-      "when_none": ["proper_noun_bias"],
+      "when_all": [
+        "candidate_exists",
+        "top_confidence_gte_typo",
+        "margin_gte_min"
+      ],
+      "when_none": [
+        "proper_noun_bias"
+      ],
       "status": "typo_likely",
-      "reason_tags": ["candidate_high_confidence", "clear_margin"]
+      "reason_tags": [
+        "candidate_high_confidence",
+        "clear_margin"
+      ]
     },
     {
-      "when_all": ["candidate_exists", "top_confidence_gte_uncertain"],
+      "when_all": [
+        "candidate_exists",
+        "top_confidence_gte_uncertain"
+      ],
       "status": "uncertain",
-      "reason_tags": ["candidate_medium_confidence"]
+      "reason_tags": [
+        "candidate_medium_confidence"
+      ]
     },
     {
-      "when_all": ["weak_or_no_candidate"],
+      "when_all": [
+        "weak_or_no_candidate"
+      ],
       "status": "new",
-      "reason_tags": ["weak_candidate_evidence"]
+      "reason_tags": [
+        "weak_candidate_evidence"
+      ]
     }
   ]
 }
