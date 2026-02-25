@@ -57,7 +57,14 @@
 - Golden outputs: `test-data/fixtures/expected/analyze/*.json`.
 - Golden refresh tool: `scripts/generate_fixture_goldens.py`.
 - Lemma benchmark runner: `scripts/run-lemma-benchmark.py`.
+- Translation benchmark runner (word-only): `scripts/run-translation-benchmark.py`.
 - MVB lemma set sizes: tokens `60`, sentence-context `20`, classification impact `30`, robustness `10`.
+
+Run benchmark scripts with the repo venv interpreter:
+
+```bash
+PYTHONPATH=backend backend/.venv/bin/python scripts/run-translation-benchmark.py
+```
 
 ## Before Tagging Prototype
 

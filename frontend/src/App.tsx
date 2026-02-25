@@ -822,6 +822,10 @@ function App() {
                 id="lesson-notes"
                 placeholder="Type lesson notes here..."
                 className="min-h-[360px] resize-y pb-8"
+                spellCheck={false}
+                autoCorrect="off"
+                autoCapitalize="off"
+                autoComplete="off"
                 value={noteText}
                 onChange={(event) => setNoteText(event.target.value)}
               />

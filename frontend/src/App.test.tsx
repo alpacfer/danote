@@ -251,6 +251,10 @@ describe("App shell", () => {
     await screen.findByLabelText("backend-connection-status")
 
     const textarea = screen.getByPlaceholderText(/type lesson notes here.../i)
+    expect(textarea).toHaveAttribute("spellcheck", "false")
+    expect(textarea).toHaveAttribute("autocorrect", "off")
+    expect(textarea).toHaveAttribute("autocapitalize", "off")
+    expect(textarea).toHaveAttribute("autocomplete", "off")
     fireEvent.change(textarea, { target: { value: "Jeg kan godt lide bogen" } })
     expect(textarea).toHaveValue("Jeg kan godt lide bogen")
 

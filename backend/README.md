@@ -8,6 +8,7 @@ Python API service for danote.
 - ASGI server: Uvicorn
 - Config/logging: standard library modules (`os`, `pathlib`, `logging`)
 - Database driver: `sqlite3` from Python standard library
+- Translation: Argos Translate (`argostranslate`) for Danish -> English
 
 ## Database (Checkpoint 5)
 

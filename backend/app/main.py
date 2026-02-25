@@ -13,7 +13,7 @@ from app.core.config import Settings, load_settings
 from app.db.migrations import apply_migrations
 from app.core.logging import configure_logging
 from app.nlp.adapter import NLPAdapter
-from app.services.translation import MyMemoryTranslationService
+from app.services.translation import ArgosTranslationService
 from app.services.typo.typo_engine import TypoEngine
 
 configure_logging()
@@ -81,11 +81,14 @@ def create_app(
                 logger.exception("backend_typo_engine_startup_failed")
                 typo_engine = None
         app.state.typo_engine = typo_engine
-        app.state.translation_service = (
-            MyMemoryTranslationService(timeout_seconds=app_settings.translation_timeout_seconds)
-            if app_settings.translation_enabled
-            else None
-        )
+        if app_settings.translation_enabled:
+            try:
+                app.state.translation_service = ArgosTranslationService()
+            except Exception:
+                logger.exception("backend_translation_startup_failed")
+                app.state.translation_service = None
+        else:
+            app.state.translation_service = None
 
         startup_status = "ok" if app.state.db_ready and app.state.nlp_ready else "degraded"
         logger.info(

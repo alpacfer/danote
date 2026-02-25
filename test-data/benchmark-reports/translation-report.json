@@ -1,0 +1,716 @@
+{
+  "benchmark": "translation",
+  "created_at": "2026-02-25T16:51:47.155671+00:00",
+  "runs": [
+    {
+      "timestamp": "2026-02-25T16:51:47.155671+00:00",
+      "fixture": "test-data/fixtures/translation/translation_words.da_en.v1.json",
+      "summary": {
+        "provider_availability": {
+          "available": 39,
+          "total": 40,
+          "rate": 97.5
+        },
+        "word_output": {
+          "passed": 36,
+          "total": 40,
+          "rate": 90.0
+        },
+        "exact_match": {
+          "passed": 29,
+          "total": 40,
+          "accuracy": 72.5
+        },
+        "exact_match_successful_provider": {
+          "passed": 29,
+          "total": 39,
+          "accuracy": 74.36
+        }
+      },
+      "top_failures": [
+        {
+          "id": "w001",
+          "source_word": "bog",
+          "expected": [
+            "book"
+          ],
+          "predicted": "postedsalesheader",
+          "is_word_output": true,
+          "provider_error": null
+        },
+        {
+          "id": "w008",
+          "source_word": "mad",
+          "expected": [
+            "food"
+          ],
+          "predicted": "pagkain",
+          "is_word_output": true,
+          "provider_error": null
+        },
+        {
+          "id": "w017",
+          "source_word": "by",
+          "expected": [
+            "city",
+            "town"
+          ],
+          "predicted": "by",
+          "is_word_output": true,
+          "provider_error": null
+        },
+        {
+          "id": "w019",
+          "source_word": "sol",
+          "expected": [
+            "sun"
+          ],
+          "predicted": "sol",
+          "is_word_output": true,
+          "provider_error": null
+        },
+        {
+          "id": "w020",
+          "source_word": "måne",
+          "expected": [
+            "moon"
+          ],
+          "predicted": "gibbous",
+          "is_word_output": true,
+          "provider_error": null
+        },
+        {
+          "id": "w025",
+          "source_word": "tid",
+          "expected": [
+            "time"
+          ],
+          "predicted": null,
+          "is_word_output": false,
+          "provider_error": "Translation provider request failed: The read operation timed out"
+        },
+        {
+          "id": "w029",
+          "source_word": "aften",
+          "expected": [
+            "evening"
+          ],
+          "predicted": "evening.",
+          "is_word_output": false,
+          "provider_error": null
+        },
+        {
+          "id": "w031",
+          "source_word": "pen",
+          "expected": [
+            "money"
+          ],
+          "predicted": "subcutaneous use",
+          "is_word_output": false,
+          "provider_error": null
+        },
+        {
+          "id": "w033",
+          "source_word": "sprog",
+          "expected": [
+            "language"
+          ],
+          "predicted": "languages",
+          "is_word_output": true,
+          "provider_error": null
+        },
+        {
+          "id": "w034",
+          "source_word": "ord",
+          "expected": [
+            "word"
+          ],
+          "predicted": "word?",
+          "is_word_output": false,
+          "provider_error": null
+        },
+        {
+          "id": "w038",
+          "source_word": "hoved",
+          "expected": [
+            "head"
+          ],
+          "predicted": "main",
+          "is_word_output": true,
+          "provider_error": null
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-02-25T16:56:43.256364+00:00",
+      "fixture": "test-data/fixtures/translation/translation_words.da_en.v1.json",
+      "summary": {
+        "provider_availability": {
+          "available": 40,
+          "total": 40,
+          "rate": 100.0
+        },
+        "word_output": {
+          "passed": 37,
+          "total": 40,
+          "rate": 92.5
+        },
+        "exact_match": {
+          "passed": 30,
+          "total": 40,
+          "accuracy": 75.0
+        },
+        "exact_match_successful_provider": {
+          "passed": 30,
+          "total": 40,
+          "accuracy": 75.0
+        }
+      },
+      "top_failures": [
+        {
+          "id": "w001",
+          "source_word": "bog",
+          "expected": [
+            "book"
+          ],
+          "predicted": "postedsalesheader",
+          "is_word_output": true,
+          "provider_error": null
+        },
+        {
+          "id": "w008",
+          "source_word": "mad",
+          "expected": [
+            "food"
+          ],
+          "predicted": "pagkain",
+          "is_word_output": true,
+          "provider_error": null
+        },
+        {
+          "id": "w017",
+          "source_word": "by",
+          "expected": [
+            "city",
+            "town"
+          ],
+          "predicted": "by",
+          "is_word_output": true,
+          "provider_error": null
+        },
+        {
+          "id": "w019",
+          "source_word": "sol",
+          "expected": [
+            "sun"
+          ],
+          "predicted": "sol",
+          "is_word_output": true,
+          "provider_error": null
+        },
+        {
+          "id": "w020",
+          "source_word": "måne",
+          "expected": [
+            "moon"
+          ],
+          "predicted": "gibbous",
+          "is_word_output": true,
+          "provider_error": null
+        },
+        {
+          "id": "w029",
+          "source_word": "aften",
+          "expected": [
+            "evening"
+          ],
+          "predicted": "evening.",
+          "is_word_output": false,
+          "provider_error": null
+        },
+        {
+          "id": "w031",
+          "source_word": "pen",
+          "expected": [
+            "money"
+          ],
+          "predicted": "subcutaneous use",
+          "is_word_output": false,
+          "provider_error": null
+        },
+        {
+          "id": "w033",
+          "source_word": "sprog",
+          "expected": [
+            "language"
+          ],
+          "predicted": "languages",
+          "is_word_output": true,
+          "provider_error": null
+        },
+        {
+          "id": "w034",
+          "source_word": "ord",
+          "expected": [
+            "word"
+          ],
+          "predicted": "word?",
+          "is_word_output": false,
+          "provider_error": null
+        },
+        {
+          "id": "w038",
+          "source_word": "hoved",
+          "expected": [
+            "head"
+          ],
+          "predicted": "main",
+          "is_word_output": true,
+          "provider_error": null
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-02-25T16:57:18.483940+00:00",
+      "fixture": "test-data/fixtures/translation/translation_words.da_en.v1.json",
+      "summary": {
+        "provider_availability": {
+          "available": 40,
+          "total": 40,
+          "rate": 100.0
+        },
+        "word_output": {
+          "passed": 37,
+          "total": 40,
+          "rate": 92.5
+        },
+        "exact_match": {
+          "passed": 30,
+          "total": 40,
+          "accuracy": 75.0
+        },
+        "exact_match_successful_provider": {
+          "passed": 30,
+          "total": 40,
+          "accuracy": 75.0
+        }
+      },
+      "top_failures": [
+        {
+          "id": "w001",
+          "source_word": "bog",
+          "expected": [
+            "book"
+          ],
+          "predicted": "postedsalesheader",
+          "is_word_output": true,
+          "provider_error": null
+        },
+        {
+          "id": "w008",
+          "source_word": "mad",
+          "expected": [
+            "food"
+          ],
+          "predicted": "pagkain",
+          "is_word_output": true,
+          "provider_error": null
+        },
+        {
+          "id": "w017",
+          "source_word": "by",
+          "expected": [
+            "city",
+            "town"
+          ],
+          "predicted": "by",
+          "is_word_output": true,
+          "provider_error": null
+        },
+        {
+          "id": "w019",
+          "source_word": "sol",
+          "expected": [
+            "sun"
+          ],
+          "predicted": "sol",
+          "is_word_output": true,
+          "provider_error": null
+        },
+        {
+          "id": "w020",
+          "source_word": "måne",
+          "expected": [
+            "moon"
+          ],
+          "predicted": "gibbous",
+          "is_word_output": true,
+          "provider_error": null
+        },
+        {
+          "id": "w029",
+          "source_word": "aften",
+          "expected": [
+            "evening"
+          ],
+          "predicted": "evening.",
+          "is_word_output": false,
+          "provider_error": null
+        },
+        {
+          "id": "w031",
+          "source_word": "pen",
+          "expected": [
+            "money"
+          ],
+          "predicted": "subcutaneous use",
+          "is_word_output": false,
+          "provider_error": null
+        },
+        {
+          "id": "w033",
+          "source_word": "sprog",
+          "expected": [
+            "language"
+          ],
+          "predicted": "languages",
+          "is_word_output": true,
+          "provider_error": null
+        },
+        {
+          "id": "w034",
+          "source_word": "ord",
+          "expected": [
+            "word"
+          ],
+          "predicted": "word?",
+          "is_word_output": false,
+          "provider_error": null
+        },
+        {
+          "id": "w038",
+          "source_word": "hoved",
+          "expected": [
+            "head"
+          ],
+          "predicted": "main",
+          "is_word_output": true,
+          "provider_error": null
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-02-25T17:12:24.515795+00:00",
+      "fixture": "test-data/fixtures/translation/translation_words.da_en.v1.json",
+      "summary": {
+        "provider_availability": {
+          "available": 40,
+          "total": 40,
+          "rate": 100.0
+        },
+        "word_output": {
+          "passed": 40,
+          "total": 40,
+          "rate": 100.0
+        },
+        "exact_match": {
+          "passed": 34,
+          "total": 40,
+          "accuracy": 85.0
+        },
+        "exact_match_successful_provider": {
+          "passed": 34,
+          "total": 40,
+          "accuracy": 85.0
+        }
+      },
+      "top_failures": [
+        {
+          "id": "w010",
+          "source_word": "te",
+          "expected": [
+            "tea"
+          ],
+          "predicted": "no",
+          "is_word_output": true,
+          "provider_error": null
+        },
+        {
+          "id": "w015",
+          "source_word": "ven",
+          "expected": [
+            "friend"
+          ],
+          "predicted": "na",
+          "is_word_output": true,
+          "provider_error": null
+        },
+        {
+          "id": "w029",
+          "source_word": "aften",
+          "expected": [
+            "evening"
+          ],
+          "predicted": "night",
+          "is_word_output": true,
+          "provider_error": null
+        },
+        {
+          "id": "w031",
+          "source_word": "pen",
+          "expected": [
+            "money"
+          ],
+          "predicted": "pen",
+          "is_word_output": true,
+          "provider_error": null
+        },
+        {
+          "id": "w034",
+          "source_word": "ord",
+          "expected": [
+            "word"
+          ],
+          "predicted": "words",
+          "is_word_output": true,
+          "provider_error": null
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-02-25T17:16:02.381638+00:00",
+      "fixture": "test-data/fixtures/translation/translation_words.da_en.v1.json",
+      "summary": {
+        "provider_availability": {
+          "available": 200,
+          "total": 200,
+          "rate": 100.0
+        },
+        "word_output": {
+          "passed": 196,
+          "total": 200,
+          "rate": 98.0
+        },
+        "exact_match": {
+          "passed": 179,
+          "total": 200,
+          "accuracy": 89.5
+        },
+        "exact_match_successful_provider": {
+          "passed": 179,
+          "total": 200,
+          "accuracy": 89.5
+        }
+      },
+      "top_failures": [
+        {
+          "id": "w010",
+          "source_word": "te",
+          "expected": [
+            "tea"
+          ],
+          "predicted": "no",
+          "is_word_output": true,
+          "provider_error": null
+        },
+        {
+          "id": "w015",
+          "source_word": "ven",
+          "expected": [
+            "friend"
+          ],
+          "predicted": "na",
+          "is_word_output": true,
+          "provider_error": null
+        },
+        {
+          "id": "w029",
+          "source_word": "aften",
+          "expected": [
+            "evening"
+          ],
+          "predicted": "night",
+          "is_word_output": true,
+          "provider_error": null
+        },
+        {
+          "id": "w031",
+          "source_word": "pen",
+          "expected": [
+            "money"
+          ],
+          "predicted": "pen",
+          "is_word_output": true,
+          "provider_error": null
+        },
+        {
+          "id": "w034",
+          "source_word": "ord",
+          "expected": [
+            "word"
+          ],
+          "predicted": "words",
+          "is_word_output": true,
+          "provider_error": null
+        },
+        {
+          "id": "w035",
+          "source_word": "spørgsmål",
+          "expected": [
+            "question"
+          ],
+          "predicted": "questions",
+          "is_word_output": true,
+          "provider_error": null
+        },
+        {
+          "id": "w091",
+          "source_word": "mål",
+          "expected": [
+            "goal",
+            "target"
+          ],
+          "predicted": "objectives",
+          "is_word_output": true,
+          "provider_error": null
+        },
+        {
+          "id": "w098",
+          "source_word": "ro",
+          "expected": [
+            "calm",
+            "peace"
+          ],
+          "predicted": "ro",
+          "is_word_output": true,
+          "provider_error": null
+        },
+        {
+          "id": "w131",
+          "source_word": "æg",
+          "expected": [
+            "egg"
+          ],
+          "predicted": "eggs",
+          "is_word_output": true,
+          "provider_error": null
+        },
+        {
+          "id": "w135",
+          "source_word": "svinekød",
+          "expected": [
+            "pork"
+          ],
+          "predicted": "pigmeat;",
+          "is_word_output": false,
+          "provider_error": null
+        },
+        {
+          "id": "w136",
+          "source_word": "ris",
+          "expected": [
+            "rice"
+          ],
+          "predicted": "ris",
+          "is_word_output": true,
+          "provider_error": null
+        },
+        {
+          "id": "w144",
+          "source_word": "jordbær",
+          "expected": [
+            "strawberry"
+          ],
+          "predicted": "strawberries",
+          "is_word_output": true,
+          "provider_error": null
+        },
+        {
+          "id": "w157",
+          "source_word": "ske",
+          "expected": [
+            "spoon"
+          ],
+          "predicted": "no",
+          "is_word_output": true,
+          "provider_error": null
+        },
+        {
+          "id": "w159",
+          "source_word": "pande",
+          "expected": [
+            "pan"
+          ],
+          "predicted": "forehead",
+          "is_word_output": true,
+          "provider_error": null
+        },
+        {
+          "id": "w161",
+          "source_word": "bad",
+          "expected": [
+            "bathroom"
+          ],
+          "predicted": "bath",
+          "is_word_output": true,
+          "provider_error": null
+        },
+        {
+          "id": "w172",
+          "source_word": "café",
+          "expected": [
+            "cafe",
+            "coffee shop"
+          ],
+          "predicted": "café",
+          "is_word_output": true,
+          "provider_error": null
+        },
+        {
+          "id": "w184",
+          "source_word": "ben",
+          "expected": [
+            "leg"
+          ],
+          "predicted": "legs",
+          "is_word_output": true,
+          "provider_error": null
+        },
+        {
+          "id": "w192",
+          "source_word": "mor",
+          "expected": [
+            "mother",
+            "mom"
+          ],
+          "predicted": "mom.",
+          "is_word_output": false,
+          "provider_error": null
+        },
+        {
+          "id": "w193",
+          "source_word": "far",
+          "expected": [
+            "father",
+            "dad"
+          ],
+          "predicted": "dad.",
+          "is_word_output": false,
+          "provider_error": null
+        },
+        {
+          "id": "w198",
+          "source_word": "kollega",
+          "expected": [
+            "colleague",
+            "coworker"
+          ],
+          "predicted": "member",
+          "is_word_output": true,
+          "provider_error": null
+        }
+      ]
+    }
+  ],
+  "updated_at": "2026-02-25T17:16:02.381638+00:00"
+}

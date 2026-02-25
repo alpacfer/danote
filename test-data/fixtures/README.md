@@ -25,20 +25,28 @@ This directory stores regression fixtures and lemma benchmark inputs for prototy
 - `typo/typo_robustness_noise.extended.json`: punctuation/noise/gating cases.
 - `typo/typo_on_new_word_edge_cases.extended.json`: edge cases where true new words can resemble typos.
 
+## Translation Benchmark Set (Word-only)
+
+- `translation/translation_words.da_en.v1.json`: Danish single-word -> acceptable English single-word translations.
+
 ## Benchmark Reports
 
 Benchmark runners append timestamped results to:
 
 - `test-data/benchmark-reports/lemma-report.json`
 - `test-data/benchmark-reports/typo-report.json`
+- `test-data/benchmark-reports/translation-report.json`
 
 Run:
 
 ```bash
 cd /workspace/danote
-PYTHONPATH=backend python scripts/run-lemma-benchmark.py
-PYTHONPATH=backend python scripts/run-typo-benchmark.py
+PYTHONPATH=backend backend/.venv/bin/python scripts/run-lemma-benchmark.py
+PYTHONPATH=backend backend/.venv/bin/python scripts/run-typo-benchmark.py
+PYTHONPATH=backend backend/.venv/bin/python scripts/run-translation-benchmark.py
 ```
+
+If your shell does not have `python`, use `python3` or the project venv binary above.
 
 If model download is blocked in your environment, either:
 
@@ -46,8 +54,8 @@ If model download is blocked in your environment, either:
 - run with degraded fallback explicitly:
 
 ```bash
-PYTHONPATH=backend python scripts/run-lemma-benchmark.py --allow-degraded-nlp
-PYTHONPATH=backend python scripts/run-typo-benchmark.py --allow-degraded-nlp
+PYTHONPATH=backend backend/.venv/bin/python scripts/run-lemma-benchmark.py --allow-degraded-nlp
+PYTHONPATH=backend backend/.venv/bin/python scripts/run-typo-benchmark.py --allow-degraded-nlp
 ```
 
 ## Refresh Golden Outputs
