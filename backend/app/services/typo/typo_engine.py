@@ -11,7 +11,7 @@ from app.services.typo.cache import LRUCache
 from app.services.typo.candidates import CandidateProvider
 from app.services.typo.decision import decide_status
 from app.services.typo.gating import should_run_typo_check
-from app.services.typo.normalization import comparison_forms
+from app.services.typo.normalization import ComparisonForms, comparison_forms
 from app.services.typo.ranking import rank_candidates
 
 
@@ -119,7 +119,23 @@ class TypoEngine:
         if cached is not None:
             return cached
 
-        max_distance = _max_distance_for_length(len(forms.normalized))
+        if any(self.candidates.is_known_dictionary_word(form) for form in forms.alternates):
+            result = TypoResult(
+                status="new",
+                normalized=forms.normalized,
+                suggestions=(),
+                confidence=0.0,
+                reason_tags=gating.reason_tags + ("gating_skip_dictionary_exact",),
+                latency_ms=(time.perf_counter() - started) * 1000.0,
+            )
+            self.cache.set(cache_key, result)
+            self._log_event(token=token, result=result)
+            return result
+
+        max_distance = _max_distance_for_length(
+            len(forms.normalized),
+            large_dictionary=self.candidates.general_word_count >= 500_000,
+        )
         candidates = self.candidates.suggest(
             forms.normalized,
             max_candidates=20,
@@ -135,16 +151,20 @@ class TypoEngine:
             min_margin=self._decision_thresholds.min_margin,
         )
 
+        resolved_status, resolution_tags = self._resolve_status_by_dictionary_membership(
+            status=decision.status,
+            forms=forms,
+        )
         suggestions = tuple(
             TypoSuggestion(value=item.value, score=item.score, source_flags=item.source_flags)
             for item in ranked[:3]
         )
         result = TypoResult(
-            status=decision.status,
+            status=resolved_status,
             normalized=forms.normalized,
             suggestions=suggestions,
             confidence=decision.confidence,
-            reason_tags=gating.reason_tags + decision.reason_tags,
+            reason_tags=gating.reason_tags + decision.reason_tags + resolution_tags,
             latency_ms=(time.perf_counter() - started) * 1000.0,
         )
         self.cache.set(cache_key, result)
@@ -235,8 +255,27 @@ class TypoEngine:
                 ),
             )
 
+    def _resolve_status_by_dictionary_membership(
+        self,
+        *,
+        status: TypoStatus,
+        forms: ComparisonForms,
+    ) -> tuple[TypoStatus, tuple[str, ...]]:
+        in_dictionary = any(self.candidates.is_known_dictionary_word(form) for form in forms.alternates)
+        if in_dictionary:
+            if status == "uncertain":
+                return "new", ("uncertain_resolved_dictionary_hit",)
+            return status, ()
+        if status in {"new", "uncertain"}:
+            return "typo_likely", ("dictionary_miss_forced_typo",)
+        return status, ()
 
-def _max_distance_for_length(length: int) -> int:
+
+def _max_distance_for_length(length: int, *, large_dictionary: bool = False) -> int:
+    if large_dictionary:
+        # Large lexicons dramatically increase candidate search cost at edit distance 2.
+        # Keep typo checks responsive by restricting to distance 1 in this mode.
+        return 1
     if length <= 4:
         return 1
     if length <= 8:

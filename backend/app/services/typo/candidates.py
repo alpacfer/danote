@@ -41,6 +41,8 @@ class CandidateProvider:
         self.prefix_length = prefix_length
         self._symspell = None
         self._general_words: set[str] = set()
+        self._suggestion_words: set[str] = set()
+        self.general_word_count = 0
         self._load()
 
     def _resolve_dictionary_paths(
@@ -65,22 +67,25 @@ class CandidateProvider:
 
     def _load(self) -> None:
         self._general_words = set()
+        self._suggestion_words = set()
         for dictionary_path in self.dictionary_paths:
             if not dictionary_path.exists():
                 continue
-            self._general_words.update(
-                {
-                    line.strip().lower()
-                    for line in dictionary_path.read_text(encoding="utf-8").splitlines()
-                    if line.strip()
-                }
-            )
+            words = {
+                line.strip().lower()
+                for line in dictionary_path.read_text(encoding="utf-8").splitlines()
+                if line.strip()
+            }
+            self._general_words.update(words)
+            if not _is_membership_only_dictionary(dictionary_path):
+                self._suggestion_words.update(words)
+        self.general_word_count = len(self._general_words)
         if SymSpell is not None:
             self._symspell = SymSpell(
                 max_dictionary_edit_distance=self.max_dictionary_edit_distance,
                 prefix_length=self.prefix_length,
             )
-            for word in self._general_words:
+            for word in self._suggestion_words:
                 self._symspell.create_dictionary_entry(word, 10)
             for lemma in self._load_user_lemmas():
                 self._symspell.create_dictionary_entry(lemma, 100)
@@ -106,7 +111,7 @@ class CandidateProvider:
         normalized = token.strip().lower()
         if not normalized:
             return False
-        if normalized in self._general_words:
+        if self.is_known_dictionary_word(normalized):
             return True
         with get_connection(self.db_path) as conn:
             row = conn.execute(
@@ -114,6 +119,12 @@ class CandidateProvider:
                 (normalized,),
             ).fetchone()
         return row is not None
+
+    def is_known_dictionary_word(self, token: str) -> bool:
+        normalized = token.strip().lower()
+        if not normalized:
+            return False
+        return normalized in self._general_words
 
     def suggest(self, token: str, *, max_candidates: int = 10, max_distance: int = 2) -> list[Candidate]:
         forms = comparison_forms(token)
@@ -153,7 +164,7 @@ class CandidateProvider:
 
         # Fallback path without SymSpell dependency.
         user_lemmas = self._load_user_lemmas()
-        words = self._general_words | user_lemmas
+        words = self._suggestion_words | user_lemmas
         scored = []
         for word in words:
             distance = _levenshtein(normalized, word)
@@ -181,3 +192,13 @@ def _levenshtein(a: str, b: str) -> int:
             curr.append(min(insert_cost, delete_cost, replace_cost))
         prev = curr
     return prev[-1]
+
+
+def _is_membership_only_dictionary(path: Path) -> bool:
+    try:
+        size_bytes = path.stat().st_size
+    except OSError:
+        return False
+    # Very large dictionaries are useful for exact validity checks,
+    # but too expensive for broad typo-candidate search.
+    return size_bytes >= 5_000_000

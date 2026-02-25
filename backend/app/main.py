@@ -65,12 +65,18 @@ def create_app(
         app.state.nlp_adapter = adapter
         typo_engine = None
         if app_settings.typo_enabled and app.state.db_ready:
-            resources_path = Path(__file__).resolve().parents[2] / "resources" / "dictionaries"
+            resources_path = Path(__file__).resolve().parents[1] / "resources" / "dictionaries"
             configured_dictionary_path = app_settings.typo_dictionary_path
-            dictionary_paths = (
-                (configured_dictionary_path,)
-                if configured_dictionary_path is not None
-                else (resources_path / "da_words.txt", resources_path / "dsdo.txt")
+            dictionary_paths = tuple(
+                path
+                for path in dict.fromkeys(
+                    (
+                        resources_path / "da_words.txt",
+                        resources_path / "dsdo.txt",
+                        configured_dictionary_path,
+                    )
+                )
+                if path is not None
             )
             try:
                 typo_engine = TypoEngine(

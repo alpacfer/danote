@@ -206,5 +206,6 @@
   {"id":"w197","da":"bedstefar","acceptable":["grandfather","grandpa"]},
   {"id":"w198","da":"kollega","acceptable":["colleague","coworker"]},
   {"id":"w199","da":"chef","acceptable":["boss","manager"]},
-  {"id":"w200","da":"kunde","acceptable":["customer","client"]}
+  {"id":"w200","da":"kunde","acceptable":["customer","client"]},
+  {"id":"w201","da":"is","acceptable":["ice","ice cream"]}
 ]

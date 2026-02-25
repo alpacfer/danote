@@ -119,3 +119,15 @@ def test_symbol_only_tokens_are_filtered_but_numbers_remain(analysis_client: Tes
     assert response.status_code == 200
     normalized = [item["normalized_token"] for item in response.json()["tokens"]]
     assert normalized == ["2", "kan"]
+
+
+def test_typo_token_is_not_silently_classified_as_new(analysis_client: TestClient) -> None:
+    response = analysis_client.post(
+        "/api/analyze",
+        json={"text": "spisr"},
+    )
+
+    assert response.status_code == 200
+    token = response.json()["tokens"][0]
+    assert token["classification"] == "typo_likely"
+    assert token["suggestions"]

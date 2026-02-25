@@ -31,9 +31,11 @@ class _FakeClient:
         self._raises = raises
         self._sequence = sequence or []
         self.calls = 0
+        self.requests: list[dict] = []
 
     def post(self, *_args, **_kwargs) -> _FakeResponse:
         self.calls += 1
+        self.requests.append(_kwargs)
         if self._sequence:
             event = self._sequence.pop(0)
             if isinstance(event, Exception):
@@ -94,3 +96,43 @@ def test_translation_service_does_not_retry_non_retryable_status(monkeypatch) ->
     with pytest.raises(TranslationError):
         service.translate_da_to_en("bog")
     assert fake_client.calls == 1
+
+
+def test_translation_service_disambiguates_is_when_provider_echoes_identity(monkeypatch) -> None:
+    service = DeepLTranslationService(api_key="test-key", max_retries=0)
+    fake_client = _FakeClient(
+        sequence=[
+            _FakeResponse(payload={"translations": [{"text": "is"}]}),
+            _FakeResponse(payload={"translations": [{"text": "ice cream"}]}),
+        ]
+    )
+    monkeypatch.setattr(service, "_ensure_client", lambda: fake_client)
+    assert service.translate_da_to_en("is") == "ice cream"
+    assert fake_client.calls == 2
+    assert fake_client.requests[1]["json"]["context"] != fake_client.requests[0]["json"]["context"]
+
+
+def test_translation_service_uses_fallback_when_disambiguation_response_is_still_identity(monkeypatch) -> None:
+    service = DeepLTranslationService(api_key="test-key", max_retries=0)
+    fake_client = _FakeClient(
+        sequence=[
+            _FakeResponse(payload={"translations": [{"text": "is"}]}),
+            _FakeResponse(payload={"translations": [{"text": "is"}]}),
+        ]
+    )
+    monkeypatch.setattr(service, "_ensure_client", lambda: fake_client)
+    assert service.translate_da_to_en("is") == "ice cream"
+    assert fake_client.calls == 2
+
+
+def test_translation_service_uses_fallback_if_disambiguation_call_fails(monkeypatch) -> None:
+    service = DeepLTranslationService(api_key="test-key", max_retries=0)
+    fake_client = _FakeClient(
+        sequence=[
+            _FakeResponse(payload={"translations": [{"text": "is"}]}),
+            httpx.ConnectError("transport failed"),
+        ]
+    )
+    monkeypatch.setattr(service, "_ensure_client", lambda: fake_client)
+    assert service.translate_da_to_en("is") == "ice cream"
+    assert fake_client.calls == 2

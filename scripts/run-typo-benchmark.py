@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import tempfile
+import time
 from pathlib import Path
 
 from app.core.config import Settings
@@ -48,10 +49,12 @@ def _load_json(path: Path):
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def _to_binary_status(status: str) -> str:
+    return "likely_typo" if status in {"typo_likely", "uncertain"} else "not_typo"
 
 
 def _compute_confusion_and_macro_f1(observations: list[tuple[str, str]]) -> tuple[dict[str, dict[str, int]], float]:
-    labels = ["typo_likely", "uncertain", "new"]
+    labels = ["likely_typo", "not_typo"]
     matrix = {expected: {predicted: 0 for predicted in labels} for expected in labels}
     for expected, predicted in observations:
         if expected in matrix and predicted in matrix[expected]:
@@ -81,7 +84,12 @@ def _seed_lemmas(db_path: Path, lemmas: list[str]) -> None:
             )
 
 
-def main(*, allow_degraded_nlp: bool = False, dictionary_mode: str = "combined") -> int:
+def main(
+    *,
+    allow_degraded_nlp: bool = False,
+    dictionary_mode: str = "combined",
+) -> int:
+    started = time.perf_counter()
     token_cases = _load_json(FIXTURES_DIR / "typo_tokens_by_error_type.extended.json")
     context_cases = _load_json(FIXTURES_DIR / "typo_sentences_context.extended.json")
     class_cases = _load_json(FIXTURES_DIR / "typo_classification_impact.extended.json")
@@ -127,9 +135,10 @@ def main(*, allow_degraded_nlp: bool = False, dictionary_mode: str = "combined")
             _seed_lemmas(db_path, case["db_seed_lexemes"])
             result = classifier.classify(case["input_token"])
             total += 1
-            if result.classification in {"typo_likely", "uncertain", "new"}:
-                status_observations.append((case["expected_status"], result.classification))
-            if result.classification == case["expected_status"]:
+            expected_binary = _to_binary_status(case["expected_status"])
+            predicted_binary = _to_binary_status(result.classification)
+            status_observations.append((expected_binary, predicted_binary))
+            if predicted_binary == expected_binary:
                 passed += 1
             else:
                 failures.append(
@@ -138,6 +147,8 @@ def main(*, allow_degraded_nlp: bool = False, dictionary_mode: str = "combined")
                         "category": case["category"],
                         "expected": case["expected_status"],
                         "predicted": result.classification,
+                        "expected_binary": expected_binary,
+                        "predicted_binary": predicted_binary,
                     }
                 )
             expected_top = case.get("expected_top_candidate") or ""
@@ -149,9 +160,10 @@ def main(*, allow_degraded_nlp: bool = False, dictionary_mode: str = "combined")
             _seed_lemmas(db_path, case["db_seed_lexemes"])
             result = classifier.classify(case["target_token"])
             total += 1
-            if result.classification in {"typo_likely", "uncertain", "new"}:
-                status_observations.append((case["expected_status"], result.classification))
-            if result.classification == case["expected_status"]:
+            expected_binary = _to_binary_status(case["expected_status"])
+            predicted_binary = _to_binary_status(result.classification)
+            status_observations.append((expected_binary, predicted_binary))
+            if predicted_binary == expected_binary:
                 passed += 1
             else:
                 failures.append(
@@ -160,6 +172,8 @@ def main(*, allow_degraded_nlp: bool = False, dictionary_mode: str = "combined")
                         "category": case["category"],
                         "expected": case["expected_status"],
                         "predicted": result.classification,
+                        "expected_binary": expected_binary,
+                        "predicted_binary": predicted_binary,
                     }
                 )
 
@@ -167,9 +181,10 @@ def main(*, allow_degraded_nlp: bool = False, dictionary_mode: str = "combined")
             _seed_lemmas(db_path, case["db_seed_lexemes"])
             result = classifier.classify(case["surface"])
             total += 1
-            if result.classification in {"typo_likely", "uncertain", "new"}:
-                status_observations.append((case["expected_status"], result.classification))
-            if result.classification == case["expected_status"]:
+            expected_binary = _to_binary_status(case["expected_status"])
+            predicted_binary = _to_binary_status(result.classification)
+            status_observations.append((expected_binary, predicted_binary))
+            if predicted_binary == expected_binary:
                 passed += 1
             else:
                 failures.append(
@@ -178,6 +193,8 @@ def main(*, allow_degraded_nlp: bool = False, dictionary_mode: str = "combined")
                         "category": case["category"],
                         "expected": case["expected_status"],
                         "predicted": result.classification,
+                        "expected_binary": expected_binary,
+                        "predicted_binary": predicted_binary,
                     }
                 )
 
@@ -189,20 +206,24 @@ def main(*, allow_degraded_nlp: bool = False, dictionary_mode: str = "combined")
             _seed_lemmas(db_path, case["db_seed_lexemes"])
             result = classifier.classify(case["input_token"])
             robustness_total += 1
-            if result.classification == case["expected_status"]:
+            expected_binary = _to_binary_status(case["expected_status"])
+            predicted_binary = _to_binary_status(result.classification)
+            if predicted_binary == expected_binary:
                 robustness_passed += 1
 
         accuracy = (passed / total * 100.0) if total else 0.0
         top1 = (top1_passed / len(token_cases) * 100.0) if token_cases else 0.0
         confusion_matrix, macro_f1 = _compute_confusion_and_macro_f1(status_observations)
+        elapsed_ms = (time.perf_counter() - started) * 1000.0
         print("Danote Typo Benchmark (v1 scaffold)")
         if adapter_warning:
             print(f"Warning: {adapter_warning}")
         print(f"Cases: {total}")
-        print(f"Status accuracy: {passed}/{total} ({accuracy:.1f}%)")
+        print(f"Binary status accuracy (likely_typo/not_typo): {passed}/{total} ({accuracy:.1f}%)")
         print(f"Top-1 accuracy (token set): {top1_passed}/{len(token_cases)} ({top1:.1f}%)")
         print(f"Dictionary mode: {dictionary_mode} ({len(dictionary_paths)} source files)")
-        print(f"Status macro-F1 (typo_likely/uncertain/new): {macro_f1 * 100.0:.1f}%")
+        print(f"Binary status macro-F1 (likely_typo/not_typo): {macro_f1 * 100.0:.1f}%")
+        print(f"Elapsed: {elapsed_ms / 1000.0:.2f}s")
 
         report_path = append_benchmark_report(
             benchmark="typo",
@@ -228,8 +249,10 @@ def main(*, allow_degraded_nlp: bool = False, dictionary_mode: str = "combined")
                             2,
                         ),
                     },
-                    "macro_f1": round(macro_f1 * 100.0, 2),
+                    "macro_f1_binary": round(macro_f1 * 100.0, 2),
+                    "elapsed_ms": round(elapsed_ms, 2),
                     "status_confusion_matrix": confusion_matrix,
+                    "status_labels": ["likely_typo", "not_typo"],
                     "case_counts": {
                         "token": len(token_cases),
                         "context": len(context_cases),

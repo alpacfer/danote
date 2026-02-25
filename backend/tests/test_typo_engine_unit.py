@@ -19,7 +19,7 @@ def test_typo_engine_flags_clear_typo_candidate(tmp_path) -> None:
 
     result = engine.classify_unknown(token="spisr")
 
-    assert result.status in {"typo_likely", "uncertain"}
+    assert result.status == "typo_likely"
     assert result.suggestions
     assert result.suggestions[0].value in {"spiser", "spise"}
 

@@ -68,7 +68,7 @@ def test_typo_detection_end_to_end_with_classifier_precedence_and_guards(tmp_pat
 
     # Genuine misspelling should be sent to typo engine and produce suggestions.
     typo = classifier.classify("spisr")
-    assert typo.classification in {"typo_likely", "uncertain"}
+    assert typo.classification == "typo_likely"
     assert typo.suggestions
     assert typo.suggestions[0].value in {"spiser", "spise"}
 
@@ -144,4 +144,4 @@ def test_typo_engine_proper_noun_bias_is_applied_only_off_sentence_start(tmp_pat
     # Same token, but only the non-initial position should carry proper-noun bias.
     assert "proper_noun_bias" not in sentence_start.reason_tags
     assert "proper_noun_bias" in mid_sentence.reason_tags
-    assert mid_sentence.status in {"new", "uncertain"}
+    assert mid_sentence.status in {"new", "typo_likely"}

@@ -58,6 +58,13 @@ PYTHONPATH=backend backend/.venv/bin/python scripts/run-lemma-benchmark.py --all
 PYTHONPATH=backend backend/.venv/bin/python scripts/run-typo-benchmark.py --allow-degraded-nlp
 ```
 
+Typo benchmark binary status labels:
+
+```bash
+# `uncertain` is evaluated as `likely_typo` (binary: likely_typo/not_typo)
+PYTHONPATH=backend backend/.venv/bin/python scripts/run-typo-benchmark.py --dictionary-mode combined
+```
+
 ## Refresh Golden Outputs
 
 Run:
