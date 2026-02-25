@@ -13,6 +13,7 @@ from app.core.config import Settings, load_settings
 from app.db.migrations import apply_migrations
 from app.core.logging import configure_logging
 from app.nlp.adapter import NLPAdapter
+from app.services.translation import MyMemoryTranslationService
 from app.services.typo.typo_engine import TypoEngine
 
 configure_logging()
@@ -80,6 +81,11 @@ def create_app(
                 logger.exception("backend_typo_engine_startup_failed")
                 typo_engine = None
         app.state.typo_engine = typo_engine
+        app.state.translation_service = (
+            MyMemoryTranslationService(timeout_seconds=app_settings.translation_timeout_seconds)
+            if app_settings.translation_enabled
+            else None
+        )
 
         startup_status = "ok" if app.state.db_ready and app.state.nlp_ready else "degraded"
         logger.info(
@@ -95,6 +101,7 @@ def create_app(
                 "nlp_error": app.state.nlp_error,
                 "nlp": adapter.metadata() if adapter else None,
                 "typo_enabled": bool(typo_engine is not None),
+                "translation_enabled": app_settings.translation_enabled,
             },
         )
         yield
@@ -107,6 +114,7 @@ def create_app(
     app.state.nlp_error = None
     app.state.nlp_adapter = None
     app.state.typo_engine = None
+    app.state.translation_service = None
     app.add_middleware(
         CORSMiddleware,
         allow_origins=list(app_settings.cors_origins),
