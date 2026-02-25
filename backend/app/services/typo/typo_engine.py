@@ -78,7 +78,8 @@ class TypoEngine:
             self._log_event(token=token, result=result)
             return result
 
-        cached = self.cache.get(forms.normalized)
+        cache_key = f"{forms.normalized}|{int(sentence_start)}"
+        cached = self.cache.get(cache_key)
         if cached is not None:
             return cached
 
@@ -104,7 +105,7 @@ class TypoEngine:
             reason_tags=gating.reason_tags + decision.reason_tags,
             latency_ms=(time.perf_counter() - started) * 1000.0,
         )
-        self.cache.set(forms.normalized, result)
+        self.cache.set(cache_key, result)
         self._log_event(token=token, result=result)
         return result
 

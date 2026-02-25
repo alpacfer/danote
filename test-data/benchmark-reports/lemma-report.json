@@ -1,0 +1,1267 @@
+{
+  "benchmark": "lemma",
+  "created_at": "2026-02-25T10:18:04.739487+00:00",
+  "runs": [
+    {
+      "timestamp": "2026-02-25T10:18:04.739487+00:00",
+      "summary": {
+        "lemma": {
+          "passed": 117,
+          "total": 481,
+          "accuracy": 24.32,
+          "coverage": {
+            "passed": 481,
+            "total": 481,
+            "rate": 100.0
+          }
+        },
+        "token": {
+          "passed": 108,
+          "total": 379,
+          "accuracy": 28.5
+        },
+        "context": {
+          "passed": 9,
+          "total": 102,
+          "accuracy": 8.82,
+          "gain_pp": -19.67
+        },
+        "classification": {
+          "passed": 120,
+          "total": 391,
+          "accuracy": 30.69,
+          "variation_accuracy": 0.0,
+          "false_variation_rate": 0.0,
+          "false_new_rate": 100.0
+        },
+        "robustness": {
+          "passed": 18,
+          "total": 75,
+          "accuracy": 24.0
+        }
+      },
+      "per_category": {
+        "lemma": {
+          "adjective_adverb": {
+            "passed": 1,
+            "total": 18,
+            "accuracy": 5.56
+          },
+          "adjective_basic": {
+            "passed": 10,
+            "total": 29,
+            "accuracy": 34.48
+          },
+          "adjective_comparison": {
+            "passed": 0,
+            "total": 20,
+            "accuracy": 0.0
+          },
+          "adverb_particle": {
+            "passed": 20,
+            "total": 20,
+            "accuracy": 100.0
+          },
+          "borrowed_technical": {
+            "passed": 6,
+            "total": 24,
+            "accuracy": 25.0
+          },
+          "compound_diacritics_context": {
+            "passed": 0,
+            "total": 12,
+            "accuracy": 0.0
+          },
+          "diacritics_focus": {
+            "passed": 6,
+            "total": 21,
+            "accuracy": 28.57
+          },
+          "lesson_style": {
+            "passed": 0,
+            "total": 20,
+            "accuracy": 0.0
+          },
+          "modal_aux_context": {
+            "passed": 5,
+            "total": 12,
+            "accuracy": 41.67
+          },
+          "noun_compound": {
+            "passed": 1,
+            "total": 25,
+            "accuracy": 4.0
+          },
+          "noun_genitive": {
+            "passed": 0,
+            "total": 24,
+            "accuracy": 0.0
+          },
+          "noun_irregular": {
+            "passed": 7,
+            "total": 28,
+            "accuracy": 25.0
+          },
+          "noun_irregular_context": {
+            "passed": 0,
+            "total": 12,
+            "accuracy": 0.0
+          },
+          "noun_regular": {
+            "passed": 18,
+            "total": 72,
+            "accuracy": 25.0
+          },
+          "participle_aux": {
+            "passed": 0,
+            "total": 20,
+            "accuracy": 0.0
+          },
+          "practical_technical_context": {
+            "passed": 3,
+            "total": 8,
+            "accuracy": 37.5
+          },
+          "proper_noun": {
+            "passed": 12,
+            "total": 12,
+            "accuracy": 100.0
+          },
+          "verb_irregular_modal": {
+            "passed": 14,
+            "total": 48,
+            "accuracy": 29.17
+          },
+          "verb_regular": {
+            "passed": 14,
+            "total": 56,
+            "accuracy": 25.0
+          }
+        },
+        "classification_robustness": {
+          "casing": {
+            "passed": 1,
+            "total": 10,
+            "accuracy": 10.0
+          },
+          "emoji_noise": {
+            "passed": 0,
+            "total": 3,
+            "accuracy": 0.0
+          },
+          "empty_malformed": {
+            "passed": 5,
+            "total": 5,
+            "accuracy": 100.0
+          },
+          "exact_known": {
+            "passed": 82,
+            "total": 82,
+            "accuracy": 100.0
+          },
+          "list_formatting": {
+            "passed": 0,
+            "total": 5,
+            "accuracy": 0.0
+          },
+          "markdownish": {
+            "passed": 0,
+            "total": 1,
+            "accuracy": 0.0
+          },
+          "mixed_language": {
+            "passed": 0,
+            "total": 4,
+            "accuracy": 0.0
+          },
+          "new_guard_near_shape": {
+            "passed": 13,
+            "total": 13,
+            "accuracy": 100.0
+          },
+          "new_guard_semantic": {
+            "passed": 20,
+            "total": 20,
+            "accuracy": 100.0
+          },
+          "numeric_context": {
+            "passed": 0,
+            "total": 1,
+            "accuracy": 0.0
+          },
+          "priority_exact_over_lemma": {
+            "passed": 5,
+            "total": 5,
+            "accuracy": 100.0
+          },
+          "punctuation_attached": {
+            "passed": 0,
+            "total": 15,
+            "accuracy": 0.0
+          },
+          "punctuation_heavy_note": {
+            "passed": 0,
+            "total": 2,
+            "accuracy": 0.0
+          },
+          "separator_tokens": {
+            "passed": 0,
+            "total": 1,
+            "accuracy": 0.0
+          },
+          "tabs_semicolons": {
+            "passed": 0,
+            "total": 1,
+            "accuracy": 0.0
+          },
+          "trim_whitespace": {
+            "passed": 0,
+            "total": 3,
+            "accuracy": 0.0
+          },
+          "typo_guard": {
+            "passed": 12,
+            "total": 12,
+            "accuracy": 100.0
+          },
+          "typo_guard_sequence": {
+            "passed": 0,
+            "total": 1,
+            "accuracy": 0.0
+          },
+          "unicode_punctuation": {
+            "passed": 0,
+            "total": 6,
+            "accuracy": 0.0
+          },
+          "variation_adjective_basic": {
+            "passed": 0,
+            "total": 19,
+            "accuracy": 0.0
+          },
+          "variation_adjective_comparison": {
+            "passed": 0,
+            "total": 20,
+            "accuracy": 0.0
+          },
+          "variation_borrowed_technical": {
+            "passed": 0,
+            "total": 18,
+            "accuracy": 0.0
+          },
+          "variation_diacritics": {
+            "passed": 0,
+            "total": 15,
+            "accuracy": 0.0
+          },
+          "variation_noun_compound": {
+            "passed": 0,
+            "total": 24,
+            "accuracy": 0.0
+          },
+          "variation_noun_genitive": {
+            "passed": 0,
+            "total": 24,
+            "accuracy": 0.0
+          },
+          "variation_noun_irregular": {
+            "passed": 0,
+            "total": 21,
+            "accuracy": 0.0
+          },
+          "variation_noun_regular": {
+            "passed": 0,
+            "total": 54,
+            "accuracy": 0.0
+          },
+          "variation_verb_irregular_modal": {
+            "passed": 0,
+            "total": 34,
+            "accuracy": 0.0
+          },
+          "variation_verb_regular": {
+            "passed": 0,
+            "total": 42,
+            "accuracy": 0.0
+          },
+          "whitespace_newline": {
+            "passed": 0,
+            "total": 5,
+            "accuracy": 0.0
+          }
+        }
+      },
+      "top_failures": [
+        {
+          "id": "token_002",
+          "category": "noun_regular",
+          "expected": "bog",
+          "predicted": "bogen"
+        },
+        {
+          "id": "token_003",
+          "category": "noun_regular",
+          "expected": "bog",
+          "predicted": "bøger"
+        },
+        {
+          "id": "token_004",
+          "category": "noun_regular",
+          "expected": "bog",
+          "predicted": "bøgerne"
+        },
+        {
+          "id": "token_006",
+          "category": "noun_regular",
+          "expected": "hus",
+          "predicted": "huset"
+        },
+        {
+          "id": "token_007",
+          "category": "noun_regular",
+          "expected": "hus",
+          "predicted": "huse"
+        },
+        {
+          "id": "token_008",
+          "category": "noun_regular",
+          "expected": "hus",
+          "predicted": "husene"
+        },
+        {
+          "id": "token_010",
+          "category": "noun_regular",
+          "expected": "bil",
+          "predicted": "bilen"
+        },
+        {
+          "id": "token_011",
+          "category": "noun_regular",
+          "expected": "bil",
+          "predicted": "biler"
+        },
+        {
+          "id": "token_012",
+          "category": "noun_regular",
+          "expected": "bil",
+          "predicted": "bilerne"
+        },
+        {
+          "id": "token_014",
+          "category": "noun_regular",
+          "expected": "stol",
+          "predicted": "stolen"
+        },
+        {
+          "id": "token_015",
+          "category": "noun_regular",
+          "expected": "stol",
+          "predicted": "stole"
+        },
+        {
+          "id": "token_016",
+          "category": "noun_regular",
+          "expected": "stol",
+          "predicted": "stolene"
+        },
+        {
+          "id": "token_018",
+          "category": "noun_regular",
+          "expected": "skole",
+          "predicted": "skolen"
+        },
+        {
+          "id": "token_019",
+          "category": "noun_regular",
+          "expected": "skole",
+          "predicted": "skoler"
+        },
+        {
+          "id": "token_020",
+          "category": "noun_regular",
+          "expected": "skole",
+          "predicted": "skolerne"
+        },
+        {
+          "id": "token_022",
+          "category": "noun_regular",
+          "expected": "by",
+          "predicted": "byen"
+        },
+        {
+          "id": "token_023",
+          "category": "noun_regular",
+          "expected": "by",
+          "predicted": "byer"
+        },
+        {
+          "id": "token_024",
+          "category": "noun_regular",
+          "expected": "by",
+          "predicted": "byerne"
+        },
+        {
+          "id": "token_026",
+          "category": "noun_regular",
+          "expected": "dag",
+          "predicted": "dagen"
+        },
+        {
+          "id": "token_027",
+          "category": "noun_regular",
+          "expected": "dag",
+          "predicted": "dage"
+        }
+      ],
+      "enforce_targets": false,
+      "adapter_warning": "NLP adapter unavailable; using identity fallback: <urlopen error Tunnel connection failed: 403 Forbidden>",
+      "targets": {
+        "min_lemma_accuracy": 95.0,
+        "min_classification_accuracy": 98.0,
+        "min_robustness_accuracy": 95.0,
+        "max_false_variation_rate": 0.0
+      }
+    },
+    {
+      "timestamp": "2026-02-25T10:23:04.195616+00:00",
+      "summary": {
+        "lemma": {
+          "passed": 117,
+          "total": 481,
+          "accuracy": 24.32,
+          "coverage": {
+            "passed": 481,
+            "total": 481,
+            "rate": 100.0
+          }
+        },
+        "token": {
+          "passed": 108,
+          "total": 379,
+          "accuracy": 28.5
+        },
+        "context": {
+          "passed": 9,
+          "total": 102,
+          "accuracy": 8.82,
+          "gain_pp": -19.67
+        },
+        "classification": {
+          "passed": 120,
+          "total": 391,
+          "accuracy": 30.69,
+          "variation_accuracy": 0.0,
+          "false_variation_rate": 0.0,
+          "false_new_rate": 100.0
+        },
+        "robustness": {
+          "passed": 18,
+          "total": 75,
+          "accuracy": 24.0
+        }
+      },
+      "per_category": {
+        "lemma": {
+          "adjective_adverb": {
+            "passed": 1,
+            "total": 18,
+            "accuracy": 5.56
+          },
+          "adjective_basic": {
+            "passed": 10,
+            "total": 29,
+            "accuracy": 34.48
+          },
+          "adjective_comparison": {
+            "passed": 0,
+            "total": 20,
+            "accuracy": 0.0
+          },
+          "adverb_particle": {
+            "passed": 20,
+            "total": 20,
+            "accuracy": 100.0
+          },
+          "borrowed_technical": {
+            "passed": 6,
+            "total": 24,
+            "accuracy": 25.0
+          },
+          "compound_diacritics_context": {
+            "passed": 0,
+            "total": 12,
+            "accuracy": 0.0
+          },
+          "diacritics_focus": {
+            "passed": 6,
+            "total": 21,
+            "accuracy": 28.57
+          },
+          "lesson_style": {
+            "passed": 0,
+            "total": 20,
+            "accuracy": 0.0
+          },
+          "modal_aux_context": {
+            "passed": 5,
+            "total": 12,
+            "accuracy": 41.67
+          },
+          "noun_compound": {
+            "passed": 1,
+            "total": 25,
+            "accuracy": 4.0
+          },
+          "noun_genitive": {
+            "passed": 0,
+            "total": 24,
+            "accuracy": 0.0
+          },
+          "noun_irregular": {
+            "passed": 7,
+            "total": 28,
+            "accuracy": 25.0
+          },
+          "noun_irregular_context": {
+            "passed": 0,
+            "total": 12,
+            "accuracy": 0.0
+          },
+          "noun_regular": {
+            "passed": 18,
+            "total": 72,
+            "accuracy": 25.0
+          },
+          "participle_aux": {
+            "passed": 0,
+            "total": 20,
+            "accuracy": 0.0
+          },
+          "practical_technical_context": {
+            "passed": 3,
+            "total": 8,
+            "accuracy": 37.5
+          },
+          "proper_noun": {
+            "passed": 12,
+            "total": 12,
+            "accuracy": 100.0
+          },
+          "verb_irregular_modal": {
+            "passed": 14,
+            "total": 48,
+            "accuracy": 29.17
+          },
+          "verb_regular": {
+            "passed": 14,
+            "total": 56,
+            "accuracy": 25.0
+          }
+        },
+        "classification_robustness": {
+          "casing": {
+            "passed": 1,
+            "total": 10,
+            "accuracy": 10.0
+          },
+          "emoji_noise": {
+            "passed": 0,
+            "total": 3,
+            "accuracy": 0.0
+          },
+          "empty_malformed": {
+            "passed": 5,
+            "total": 5,
+            "accuracy": 100.0
+          },
+          "exact_known": {
+            "passed": 82,
+            "total": 82,
+            "accuracy": 100.0
+          },
+          "list_formatting": {
+            "passed": 0,
+            "total": 5,
+            "accuracy": 0.0
+          },
+          "markdownish": {
+            "passed": 0,
+            "total": 1,
+            "accuracy": 0.0
+          },
+          "mixed_language": {
+            "passed": 0,
+            "total": 4,
+            "accuracy": 0.0
+          },
+          "new_guard_near_shape": {
+            "passed": 13,
+            "total": 13,
+            "accuracy": 100.0
+          },
+          "new_guard_semantic": {
+            "passed": 20,
+            "total": 20,
+            "accuracy": 100.0
+          },
+          "numeric_context": {
+            "passed": 0,
+            "total": 1,
+            "accuracy": 0.0
+          },
+          "priority_exact_over_lemma": {
+            "passed": 5,
+            "total": 5,
+            "accuracy": 100.0
+          },
+          "punctuation_attached": {
+            "passed": 0,
+            "total": 15,
+            "accuracy": 0.0
+          },
+          "punctuation_heavy_note": {
+            "passed": 0,
+            "total": 2,
+            "accuracy": 0.0
+          },
+          "separator_tokens": {
+            "passed": 0,
+            "total": 1,
+            "accuracy": 0.0
+          },
+          "tabs_semicolons": {
+            "passed": 0,
+            "total": 1,
+            "accuracy": 0.0
+          },
+          "trim_whitespace": {
+            "passed": 0,
+            "total": 3,
+            "accuracy": 0.0
+          },
+          "typo_guard": {
+            "passed": 12,
+            "total": 12,
+            "accuracy": 100.0
+          },
+          "typo_guard_sequence": {
+            "passed": 0,
+            "total": 1,
+            "accuracy": 0.0
+          },
+          "unicode_punctuation": {
+            "passed": 0,
+            "total": 6,
+            "accuracy": 0.0
+          },
+          "variation_adjective_basic": {
+            "passed": 0,
+            "total": 19,
+            "accuracy": 0.0
+          },
+          "variation_adjective_comparison": {
+            "passed": 0,
+            "total": 20,
+            "accuracy": 0.0
+          },
+          "variation_borrowed_technical": {
+            "passed": 0,
+            "total": 18,
+            "accuracy": 0.0
+          },
+          "variation_diacritics": {
+            "passed": 0,
+            "total": 15,
+            "accuracy": 0.0
+          },
+          "variation_noun_compound": {
+            "passed": 0,
+            "total": 24,
+            "accuracy": 0.0
+          },
+          "variation_noun_genitive": {
+            "passed": 0,
+            "total": 24,
+            "accuracy": 0.0
+          },
+          "variation_noun_irregular": {
+            "passed": 0,
+            "total": 21,
+            "accuracy": 0.0
+          },
+          "variation_noun_regular": {
+            "passed": 0,
+            "total": 54,
+            "accuracy": 0.0
+          },
+          "variation_verb_irregular_modal": {
+            "passed": 0,
+            "total": 34,
+            "accuracy": 0.0
+          },
+          "variation_verb_regular": {
+            "passed": 0,
+            "total": 42,
+            "accuracy": 0.0
+          },
+          "whitespace_newline": {
+            "passed": 0,
+            "total": 5,
+            "accuracy": 0.0
+          }
+        }
+      },
+      "top_failures": [
+        {
+          "id": "token_002",
+          "category": "noun_regular",
+          "expected": "bog",
+          "predicted": "bogen"
+        },
+        {
+          "id": "token_003",
+          "category": "noun_regular",
+          "expected": "bog",
+          "predicted": "bøger"
+        },
+        {
+          "id": "token_004",
+          "category": "noun_regular",
+          "expected": "bog",
+          "predicted": "bøgerne"
+        },
+        {
+          "id": "token_006",
+          "category": "noun_regular",
+          "expected": "hus",
+          "predicted": "huset"
+        },
+        {
+          "id": "token_007",
+          "category": "noun_regular",
+          "expected": "hus",
+          "predicted": "huse"
+        },
+        {
+          "id": "token_008",
+          "category": "noun_regular",
+          "expected": "hus",
+          "predicted": "husene"
+        },
+        {
+          "id": "token_010",
+          "category": "noun_regular",
+          "expected": "bil",
+          "predicted": "bilen"
+        },
+        {
+          "id": "token_011",
+          "category": "noun_regular",
+          "expected": "bil",
+          "predicted": "biler"
+        },
+        {
+          "id": "token_012",
+          "category": "noun_regular",
+          "expected": "bil",
+          "predicted": "bilerne"
+        },
+        {
+          "id": "token_014",
+          "category": "noun_regular",
+          "expected": "stol",
+          "predicted": "stolen"
+        },
+        {
+          "id": "token_015",
+          "category": "noun_regular",
+          "expected": "stol",
+          "predicted": "stole"
+        },
+        {
+          "id": "token_016",
+          "category": "noun_regular",
+          "expected": "stol",
+          "predicted": "stolene"
+        },
+        {
+          "id": "token_018",
+          "category": "noun_regular",
+          "expected": "skole",
+          "predicted": "skolen"
+        },
+        {
+          "id": "token_019",
+          "category": "noun_regular",
+          "expected": "skole",
+          "predicted": "skoler"
+        },
+        {
+          "id": "token_020",
+          "category": "noun_regular",
+          "expected": "skole",
+          "predicted": "skolerne"
+        },
+        {
+          "id": "token_022",
+          "category": "noun_regular",
+          "expected": "by",
+          "predicted": "byen"
+        },
+        {
+          "id": "token_023",
+          "category": "noun_regular",
+          "expected": "by",
+          "predicted": "byer"
+        },
+        {
+          "id": "token_024",
+          "category": "noun_regular",
+          "expected": "by",
+          "predicted": "byerne"
+        },
+        {
+          "id": "token_026",
+          "category": "noun_regular",
+          "expected": "dag",
+          "predicted": "dagen"
+        },
+        {
+          "id": "token_027",
+          "category": "noun_regular",
+          "expected": "dag",
+          "predicted": "dage"
+        }
+      ],
+      "enforce_targets": false,
+      "adapter_warning": "NLP adapter unavailable; using identity fallback: <urlopen error [Errno 101] Network is unreachable>",
+      "targets": {
+        "min_lemma_accuracy": 95.0,
+        "min_classification_accuracy": 98.0,
+        "min_robustness_accuracy": 95.0,
+        "max_false_variation_rate": 0.0
+      }
+    },
+    {
+      "timestamp": "2026-02-25T10:24:02.050773+00:00",
+      "summary": {
+        "lemma": {
+          "passed": 117,
+          "total": 481,
+          "accuracy": 24.32,
+          "coverage": {
+            "passed": 481,
+            "total": 481,
+            "rate": 100.0
+          }
+        },
+        "token": {
+          "passed": 108,
+          "total": 379,
+          "accuracy": 28.5
+        },
+        "context": {
+          "passed": 9,
+          "total": 102,
+          "accuracy": 8.82,
+          "gain_pp": -19.67
+        },
+        "classification": {
+          "passed": 120,
+          "total": 391,
+          "accuracy": 30.69,
+          "variation_accuracy": 0.0,
+          "false_variation_rate": 0.0,
+          "false_new_rate": 100.0
+        },
+        "robustness": {
+          "passed": 18,
+          "total": 75,
+          "accuracy": 24.0
+        }
+      },
+      "per_category": {
+        "lemma": {
+          "adjective_adverb": {
+            "passed": 1,
+            "total": 18,
+            "accuracy": 5.56
+          },
+          "adjective_basic": {
+            "passed": 10,
+            "total": 29,
+            "accuracy": 34.48
+          },
+          "adjective_comparison": {
+            "passed": 0,
+            "total": 20,
+            "accuracy": 0.0
+          },
+          "adverb_particle": {
+            "passed": 20,
+            "total": 20,
+            "accuracy": 100.0
+          },
+          "borrowed_technical": {
+            "passed": 6,
+            "total": 24,
+            "accuracy": 25.0
+          },
+          "compound_diacritics_context": {
+            "passed": 0,
+            "total": 12,
+            "accuracy": 0.0
+          },
+          "diacritics_focus": {
+            "passed": 6,
+            "total": 21,
+            "accuracy": 28.57
+          },
+          "lesson_style": {
+            "passed": 0,
+            "total": 20,
+            "accuracy": 0.0
+          },
+          "modal_aux_context": {
+            "passed": 5,
+            "total": 12,
+            "accuracy": 41.67
+          },
+          "noun_compound": {
+            "passed": 1,
+            "total": 25,
+            "accuracy": 4.0
+          },
+          "noun_genitive": {
+            "passed": 0,
+            "total": 24,
+            "accuracy": 0.0
+          },
+          "noun_irregular": {
+            "passed": 7,
+            "total": 28,
+            "accuracy": 25.0
+          },
+          "noun_irregular_context": {
+            "passed": 0,
+            "total": 12,
+            "accuracy": 0.0
+          },
+          "noun_regular": {
+            "passed": 18,
+            "total": 72,
+            "accuracy": 25.0
+          },
+          "participle_aux": {
+            "passed": 0,
+            "total": 20,
+            "accuracy": 0.0
+          },
+          "practical_technical_context": {
+            "passed": 3,
+            "total": 8,
+            "accuracy": 37.5
+          },
+          "proper_noun": {
+            "passed": 12,
+            "total": 12,
+            "accuracy": 100.0
+          },
+          "verb_irregular_modal": {
+            "passed": 14,
+            "total": 48,
+            "accuracy": 29.17
+          },
+          "verb_regular": {
+            "passed": 14,
+            "total": 56,
+            "accuracy": 25.0
+          }
+        },
+        "classification_robustness": {
+          "casing": {
+            "passed": 1,
+            "total": 10,
+            "accuracy": 10.0
+          },
+          "emoji_noise": {
+            "passed": 0,
+            "total": 3,
+            "accuracy": 0.0
+          },
+          "empty_malformed": {
+            "passed": 5,
+            "total": 5,
+            "accuracy": 100.0
+          },
+          "exact_known": {
+            "passed": 82,
+            "total": 82,
+            "accuracy": 100.0
+          },
+          "list_formatting": {
+            "passed": 0,
+            "total": 5,
+            "accuracy": 0.0
+          },
+          "markdownish": {
+            "passed": 0,
+            "total": 1,
+            "accuracy": 0.0
+          },
+          "mixed_language": {
+            "passed": 0,
+            "total": 4,
+            "accuracy": 0.0
+          },
+          "new_guard_near_shape": {
+            "passed": 13,
+            "total": 13,
+            "accuracy": 100.0
+          },
+          "new_guard_semantic": {
+            "passed": 20,
+            "total": 20,
+            "accuracy": 100.0
+          },
+          "numeric_context": {
+            "passed": 0,
+            "total": 1,
+            "accuracy": 0.0
+          },
+          "priority_exact_over_lemma": {
+            "passed": 5,
+            "total": 5,
+            "accuracy": 100.0
+          },
+          "punctuation_attached": {
+            "passed": 0,
+            "total": 15,
+            "accuracy": 0.0
+          },
+          "punctuation_heavy_note": {
+            "passed": 0,
+            "total": 2,
+            "accuracy": 0.0
+          },
+          "separator_tokens": {
+            "passed": 0,
+            "total": 1,
+            "accuracy": 0.0
+          },
+          "tabs_semicolons": {
+            "passed": 0,
+            "total": 1,
+            "accuracy": 0.0
+          },
+          "trim_whitespace": {
+            "passed": 0,
+            "total": 3,
+            "accuracy": 0.0
+          },
+          "typo_guard": {
+            "passed": 12,
+            "total": 12,
+            "accuracy": 100.0
+          },
+          "typo_guard_sequence": {
+            "passed": 0,
+            "total": 1,
+            "accuracy": 0.0
+          },
+          "unicode_punctuation": {
+            "passed": 0,
+            "total": 6,
+            "accuracy": 0.0
+          },
+          "variation_adjective_basic": {
+            "passed": 0,
+            "total": 19,
+            "accuracy": 0.0
+          },
+          "variation_adjective_comparison": {
+            "passed": 0,
+            "total": 20,
+            "accuracy": 0.0
+          },
+          "variation_borrowed_technical": {
+            "passed": 0,
+            "total": 18,
+            "accuracy": 0.0
+          },
+          "variation_diacritics": {
+            "passed": 0,
+            "total": 15,
+            "accuracy": 0.0
+          },
+          "variation_noun_compound": {
+            "passed": 0,
+            "total": 24,
+            "accuracy": 0.0
+          },
+          "variation_noun_genitive": {
+            "passed": 0,
+            "total": 24,
+            "accuracy": 0.0
+          },
+          "variation_noun_irregular": {
+            "passed": 0,
+            "total": 21,
+            "accuracy": 0.0
+          },
+          "variation_noun_regular": {
+            "passed": 0,
+            "total": 54,
+            "accuracy": 0.0
+          },
+          "variation_verb_irregular_modal": {
+            "passed": 0,
+            "total": 34,
+            "accuracy": 0.0
+          },
+          "variation_verb_regular": {
+            "passed": 0,
+            "total": 42,
+            "accuracy": 0.0
+          },
+          "whitespace_newline": {
+            "passed": 0,
+            "total": 5,
+            "accuracy": 0.0
+          }
+        }
+      },
+      "top_failures": [
+        {
+          "id": "token_002",
+          "category": "noun_regular",
+          "expected": "bog",
+          "predicted": "bogen"
+        },
+        {
+          "id": "token_003",
+          "category": "noun_regular",
+          "expected": "bog",
+          "predicted": "bøger"
+        },
+        {
+          "id": "token_004",
+          "category": "noun_regular",
+          "expected": "bog",
+          "predicted": "bøgerne"
+        },
+        {
+          "id": "token_006",
+          "category": "noun_regular",
+          "expected": "hus",
+          "predicted": "huset"
+        },
+        {
+          "id": "token_007",
+          "category": "noun_regular",
+          "expected": "hus",
+          "predicted": "huse"
+        },
+        {
+          "id": "token_008",
+          "category": "noun_regular",
+          "expected": "hus",
+          "predicted": "husene"
+        },
+        {
+          "id": "token_010",
+          "category": "noun_regular",
+          "expected": "bil",
+          "predicted": "bilen"
+        },
+        {
+          "id": "token_011",
+          "category": "noun_regular",
+          "expected": "bil",
+          "predicted": "biler"
+        },
+        {
+          "id": "token_012",
+          "category": "noun_regular",
+          "expected": "bil",
+          "predicted": "bilerne"
+        },
+        {
+          "id": "token_014",
+          "category": "noun_regular",
+          "expected": "stol",
+          "predicted": "stolen"
+        },
+        {
+          "id": "token_015",
+          "category": "noun_regular",
+          "expected": "stol",
+          "predicted": "stole"
+        },
+        {
+          "id": "token_016",
+          "category": "noun_regular",
+          "expected": "stol",
+          "predicted": "stolene"
+        },
+        {
+          "id": "token_018",
+          "category": "noun_regular",
+          "expected": "skole",
+          "predicted": "skolen"
+        },
+        {
+          "id": "token_019",
+          "category": "noun_regular",
+          "expected": "skole",
+          "predicted": "skoler"
+        },
+        {
+          "id": "token_020",
+          "category": "noun_regular",
+          "expected": "skole",
+          "predicted": "skolerne"
+        },
+        {
+          "id": "token_022",
+          "category": "noun_regular",
+          "expected": "by",
+          "predicted": "byen"
+        },
+        {
+          "id": "token_023",
+          "category": "noun_regular",
+          "expected": "by",
+          "predicted": "byer"
+        },
+        {
+          "id": "token_024",
+          "category": "noun_regular",
+          "expected": "by",
+          "predicted": "byerne"
+        },
+        {
+          "id": "token_026",
+          "category": "noun_regular",
+          "expected": "dag",
+          "predicted": "dagen"
+        },
+        {
+          "id": "token_027",
+          "category": "noun_regular",
+          "expected": "dag",
+          "predicted": "dage"
+        }
+      ],
+      "enforce_targets": false,
+      "adapter_warning": "NLP adapter unavailable; using identity fallback: <urlopen error Tunnel connection failed: 403 Forbidden>",
+      "targets": {
+        "min_lemma_accuracy": 95.0,
+        "min_classification_accuracy": 98.0,
+        "min_robustness_accuracy": 95.0,
+        "max_false_variation_rate": 0.0
+      }
+    }
+  ],
+  "updated_at": "2026-02-25T10:24:02.050773+00:00"
+}
