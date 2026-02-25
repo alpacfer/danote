@@ -3,7 +3,9 @@
     "id": "typo_tok_001",
     "category": "single_edit",
     "error_type": "deletion",
-    "db_seed_lexemes": ["spise"],
+    "db_seed_lexemes": [
+      "spise"
+    ],
     "input_token": "spisr",
     "expected_status": "typo_likely",
     "expected_top_candidate": "spiser"
@@ -12,7 +14,9 @@
     "id": "typo_tok_002",
     "category": "single_edit",
     "error_type": "insertion",
-    "db_seed_lexemes": ["skole"],
+    "db_seed_lexemes": [
+      "skole"
+    ],
     "input_token": "skolle",
     "expected_status": "typo_likely",
     "expected_top_candidate": "skole"
@@ -21,7 +25,9 @@
     "id": "typo_tok_003",
     "category": "single_edit",
     "error_type": "substitution",
-    "db_seed_lexemes": ["hjem"],
+    "db_seed_lexemes": [
+      "hjem"
+    ],
     "input_token": "hjam",
     "expected_status": "typo_likely",
     "expected_top_candidate": "hjem"
@@ -30,7 +36,9 @@
     "id": "typo_tok_004",
     "category": "single_edit",
     "error_type": "transposition",
-    "db_seed_lexemes": ["klasse"],
+    "db_seed_lexemes": [
+      "klasse"
+    ],
     "input_token": "klases",
     "expected_status": "typo_likely",
     "expected_top_candidate": "klasse"
@@ -39,7 +47,9 @@
     "id": "typo_tok_005",
     "category": "danish_diacritic",
     "error_type": "diacritic_omission",
-    "db_seed_lexemes": ["svær"],
+    "db_seed_lexemes": [
+      "svær"
+    ],
     "input_token": "svaer",
     "expected_status": "uncertain",
     "expected_top_candidate": "svær"
@@ -48,7 +58,9 @@
     "id": "typo_tok_006",
     "category": "danish_diacritic",
     "error_type": "aa_aa_ring",
-    "db_seed_lexemes": ["måned"],
+    "db_seed_lexemes": [
+      "måned"
+    ],
     "input_token": "maaned",
     "expected_status": "uncertain",
     "expected_top_candidate": "måned"
@@ -57,7 +69,9 @@
     "id": "typo_tok_007",
     "category": "compound",
     "error_type": "compound_split",
-    "db_seed_lexemes": ["hovedstol"],
+    "db_seed_lexemes": [
+      "hovedstol"
+    ],
     "input_token": "hovedstool",
     "expected_status": "uncertain",
     "expected_top_candidate": "hovedstol"
@@ -66,7 +80,9 @@
     "id": "typo_tok_008",
     "category": "guard",
     "error_type": "acronym_like",
-    "db_seed_lexemes": ["sensor"],
+    "db_seed_lexemes": [
+      "sensor"
+    ],
     "input_token": "PLC",
     "expected_status": "new",
     "expected_top_candidate": ""
@@ -75,7 +91,9 @@
     "id": "typo_tok_009",
     "category": "guard",
     "error_type": "mixed_digits",
-    "db_seed_lexemes": ["sensor"],
+    "db_seed_lexemes": [
+      "sensor"
+    ],
     "input_token": "usb6525",
     "expected_status": "new",
     "expected_top_candidate": ""
@@ -84,9 +102,5402 @@
     "id": "typo_tok_010",
     "category": "new_word_vs_typo",
     "error_type": "domain_term",
-    "db_seed_lexemes": ["bog", "skrive"],
+    "db_seed_lexemes": [
+      "bog",
+      "skrive"
+    ],
     "input_token": "kalibreringsarm",
     "expected_status": "new",
     "expected_top_candidate": ""
+  },
+  {
+    "id": "typo_tok_ext_001",
+    "category": "single_edit_noun_regular",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "bog"
+    ],
+    "input_token": "bogg",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "bog"
+  },
+  {
+    "id": "typo_tok_ext_002",
+    "category": "single_edit_noun_regular",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "hus"
+    ],
+    "input_token": "hhus",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "hus"
+  },
+  {
+    "id": "typo_tok_ext_003",
+    "category": "single_edit_noun_regular",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "bil"
+    ],
+    "input_token": "bal",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "bil"
+  },
+  {
+    "id": "typo_tok_ext_004",
+    "category": "single_edit_noun_regular",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "stol"
+    ],
+    "input_token": "sotl",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "stol"
+  },
+  {
+    "id": "typo_tok_ext_005",
+    "category": "danish_diacritic_noun_regular",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "skole"
+    ],
+    "input_token": "skale",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "skole"
+  },
+  {
+    "id": "typo_tok_ext_006",
+    "category": "single_edit_noun_regular",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "by"
+    ],
+    "input_token": "byy",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "by"
+  },
+  {
+    "id": "typo_tok_ext_007",
+    "category": "single_edit_noun_regular",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "dag"
+    ],
+    "input_token": "ddag",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "dag"
+  },
+  {
+    "id": "typo_tok_ext_008",
+    "category": "single_edit_noun_regular",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "uge"
+    ],
+    "input_token": "uae",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "uge"
+  },
+  {
+    "id": "typo_tok_ext_009",
+    "category": "single_edit_noun_regular",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "ven"
+    ],
+    "input_token": "vven",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "ven"
+  },
+  {
+    "id": "typo_tok_ext_010",
+    "category": "danish_diacritic_noun_regular",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "kat"
+    ],
+    "input_token": "ket",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "kat"
+  },
+  {
+    "id": "typo_tok_ext_011",
+    "category": "single_edit_noun_regular",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "hund"
+    ],
+    "input_token": "hud",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "hund"
+  },
+  {
+    "id": "typo_tok_ext_012",
+    "category": "single_edit_noun_regular",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "pige"
+    ],
+    "input_token": "piige",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "pige"
+  },
+  {
+    "id": "typo_tok_ext_013",
+    "category": "single_edit_noun_regular",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "dreng"
+    ],
+    "input_token": "drang",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "dreng"
+  },
+  {
+    "id": "typo_tok_ext_014",
+    "category": "single_edit_noun_regular",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "park"
+    ],
+    "input_token": "prak",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "park"
+  },
+  {
+    "id": "typo_tok_ext_015",
+    "category": "danish_diacritic_noun_regular",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "time"
+    ],
+    "input_token": "tiae",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "time"
+  },
+  {
+    "id": "typo_tok_ext_016",
+    "category": "single_edit_noun_regular",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "opgave"
+    ],
+    "input_token": "opgae",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "opgave"
+  },
+  {
+    "id": "typo_tok_ext_017",
+    "category": "single_edit_noun_regular",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "sætning"
+    ],
+    "input_token": "sættning",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "sætning"
+  },
+  {
+    "id": "typo_tok_ext_018",
+    "category": "single_edit_noun_regular",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "bogstav"
+    ],
+    "input_token": "bogatav",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "bogstav"
+  },
+  {
+    "id": "typo_tok_ext_019",
+    "category": "single_edit_noun_irregular",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "mand"
+    ],
+    "input_token": "mnad",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "mand"
+  },
+  {
+    "id": "typo_tok_ext_020",
+    "category": "danish_diacritic_noun_irregular",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "barn"
+    ],
+    "input_token": "baan",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "barn"
+  },
+  {
+    "id": "typo_tok_ext_021",
+    "category": "single_edit_noun_irregular",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "fod"
+    ],
+    "input_token": "fodd",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "fod"
+  },
+  {
+    "id": "typo_tok_ext_022",
+    "category": "single_edit_noun_irregular",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "tand"
+    ],
+    "input_token": "taand",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "tand"
+  },
+  {
+    "id": "typo_tok_ext_023",
+    "category": "single_edit_noun_irregular",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "gås"
+    ],
+    "input_token": "gas",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "gås"
+  },
+  {
+    "id": "typo_tok_ext_024",
+    "category": "single_edit_noun_irregular",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "nat"
+    ],
+    "input_token": "nnat",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "nat"
+  },
+  {
+    "id": "typo_tok_ext_025",
+    "category": "danish_diacritic_noun_irregular",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "hånd"
+    ],
+    "input_token": "haand",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "hånd"
+  },
+  {
+    "id": "typo_tok_ext_026",
+    "category": "single_edit_noun_compound",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "arbejdsplads"
+    ],
+    "input_token": "arbejdsplas",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "arbejdsplads"
+  },
+  {
+    "id": "typo_tok_ext_027",
+    "category": "single_edit_noun_compound",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "sommerhus"
+    ],
+    "input_token": "sommmerhus",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "sommerhus"
+  },
+  {
+    "id": "typo_tok_ext_028",
+    "category": "single_edit_noun_compound",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "sprogskole"
+    ],
+    "input_token": "sprogakole",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "sprogskole"
+  },
+  {
+    "id": "typo_tok_ext_029",
+    "category": "single_edit_noun_compound",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "skolebog"
+    ],
+    "input_token": "skoelbog",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "skolebog"
+  },
+  {
+    "id": "typo_tok_ext_030",
+    "category": "danish_diacritic_noun_compound",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "cykelhjelm"
+    ],
+    "input_token": "cykelajelm",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "cykelhjelm"
+  },
+  {
+    "id": "typo_tok_ext_031",
+    "category": "single_edit_noun_compound",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "computerprogram"
+    ],
+    "input_token": "computerprogrm",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "computerprogram"
+  },
+  {
+    "id": "typo_tok_ext_032",
+    "category": "single_edit_noun_compound",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "testsystem"
+    ],
+    "input_token": "testssystem",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "testsystem"
+  },
+  {
+    "id": "typo_tok_ext_033",
+    "category": "single_edit_noun_compound",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "laboratorietest"
+    ],
+    "input_token": "laboratarietest",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "laboratorietest"
+  },
+  {
+    "id": "typo_tok_ext_034",
+    "category": "single_edit_noun_compound",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "morgenmad"
+    ],
+    "input_token": "moregnmad",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "morgenmad"
+  },
+  {
+    "id": "typo_tok_ext_035",
+    "category": "danish_diacritic_noun_compound",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "eftermiddag"
+    ],
+    "input_token": "efteraiddag",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "eftermiddag"
+  },
+  {
+    "id": "typo_tok_ext_036",
+    "category": "single_edit_noun_compound",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "weekend"
+    ],
+    "input_token": "weeked",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "weekend"
+  },
+  {
+    "id": "typo_tok_ext_037",
+    "category": "single_edit_noun_compound",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "klasseværelse"
+    ],
+    "input_token": "klasseeværelse",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "klasseværelse"
+  },
+  {
+    "id": "typo_tok_ext_038",
+    "category": "single_edit_noun_compound",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "skrivebord"
+    ],
+    "input_token": "skrivabord",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "skrivebord"
+  },
+  {
+    "id": "typo_tok_ext_039",
+    "category": "single_edit_noun_compound",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "vindueskarm"
+    ],
+    "input_token": "vindeuskarm",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "vindueskarm"
+  },
+  {
+    "id": "typo_tok_ext_040",
+    "category": "danish_diacritic_noun_compound",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "fjernbetjening"
+    ],
+    "input_token": "fjernbeajening",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "fjernbetjening"
+  },
+  {
+    "id": "typo_tok_ext_041",
+    "category": "single_edit_noun_compound",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "datasæt"
+    ],
+    "input_token": "datast",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "datasæt"
+  },
+  {
+    "id": "typo_tok_ext_042",
+    "category": "single_edit_noun_compound",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "brugergrænseflade"
+    ],
+    "input_token": "brugergrrænseflade",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "brugergrænseflade"
+  },
+  {
+    "id": "typo_tok_ext_043",
+    "category": "single_edit_noun_compound",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "ordliste"
+    ],
+    "input_token": "ordlaste",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "ordliste"
+  },
+  {
+    "id": "typo_tok_ext_044",
+    "category": "single_edit_noun_compound",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "læsebog"
+    ],
+    "input_token": "læesbog",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "læsebog"
+  },
+  {
+    "id": "typo_tok_ext_045",
+    "category": "danish_diacritic_adjective_basic",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "god"
+    ],
+    "input_token": "gad",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "god"
+  },
+  {
+    "id": "typo_tok_ext_046",
+    "category": "single_edit_adjective_basic",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "stor"
+    ],
+    "input_token": "str",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "stor"
+  },
+  {
+    "id": "typo_tok_ext_047",
+    "category": "single_edit_adjective_basic",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "smuk"
+    ],
+    "input_token": "smmuk",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "smuk"
+  },
+  {
+    "id": "typo_tok_ext_048",
+    "category": "single_edit_adjective_basic",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "lang"
+    ],
+    "input_token": "laag",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "lang"
+  },
+  {
+    "id": "typo_tok_ext_049",
+    "category": "single_edit_adjective_basic",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "kort"
+    ],
+    "input_token": "krot",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "kort"
+  },
+  {
+    "id": "typo_tok_ext_050",
+    "category": "danish_diacritic_adjective_basic",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "ny"
+    ],
+    "input_token": "na",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "ny"
+  },
+  {
+    "id": "typo_tok_ext_051",
+    "category": "single_edit_adjective_basic",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "gammel"
+    ],
+    "input_token": "gamml",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "gammel"
+  },
+  {
+    "id": "typo_tok_ext_052",
+    "category": "single_edit_adjective_basic",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "svær"
+    ],
+    "input_token": "svvær",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "svær"
+  },
+  {
+    "id": "typo_tok_ext_053",
+    "category": "single_edit_adjective_basic",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "hurtig"
+    ],
+    "input_token": "huraig",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "hurtig"
+  },
+  {
+    "id": "typo_tok_ext_054",
+    "category": "single_edit_adjective_basic",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "vigtig"
+    ],
+    "input_token": "vitgig",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "vigtig"
+  },
+  {
+    "id": "typo_tok_ext_055",
+    "category": "danish_diacritic_verb_regular",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "spise"
+    ],
+    "input_token": "spase",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "spise"
+  },
+  {
+    "id": "typo_tok_ext_056",
+    "category": "single_edit_verb_regular",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "arbejde"
+    ],
+    "input_token": "arbeje",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "arbejde"
+  },
+  {
+    "id": "typo_tok_ext_057",
+    "category": "single_edit_verb_regular",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "snakke"
+    ],
+    "input_token": "snaakke",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "snakke"
+  },
+  {
+    "id": "typo_tok_ext_058",
+    "category": "single_edit_verb_regular",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "lære"
+    ],
+    "input_token": "læae",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "lære"
+  },
+  {
+    "id": "typo_tok_ext_059",
+    "category": "single_edit_verb_regular",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "bo"
+    ],
+    "input_token": "bbo",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "bo"
+  },
+  {
+    "id": "typo_tok_ext_060",
+    "category": "danish_diacritic_verb_regular",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "købe"
+    ],
+    "input_token": "koebe",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "købe"
+  },
+  {
+    "id": "typo_tok_ext_061",
+    "category": "single_edit_verb_regular",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "vente"
+    ],
+    "input_token": "vene",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "vente"
+  },
+  {
+    "id": "typo_tok_ext_062",
+    "category": "single_edit_verb_regular",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "rejse"
+    ],
+    "input_token": "reejse",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "rejse"
+  },
+  {
+    "id": "typo_tok_ext_063",
+    "category": "single_edit_verb_regular",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "åbne"
+    ],
+    "input_token": "åbae",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "åbne"
+  },
+  {
+    "id": "typo_tok_ext_064",
+    "category": "single_edit_verb_regular",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "lukke"
+    ],
+    "input_token": "lkuke",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "lukke"
+  },
+  {
+    "id": "typo_tok_ext_065",
+    "category": "danish_diacritic_verb_regular",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "prøve"
+    ],
+    "input_token": "proeve",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "prøve"
+  },
+  {
+    "id": "typo_tok_ext_066",
+    "category": "single_edit_verb_regular",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "bruge"
+    ],
+    "input_token": "brue",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "bruge"
+  },
+  {
+    "id": "typo_tok_ext_067",
+    "category": "single_edit_verb_regular",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "starte"
+    ],
+    "input_token": "staarte",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "starte"
+  },
+  {
+    "id": "typo_tok_ext_068",
+    "category": "single_edit_verb_regular",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "stoppe"
+    ],
+    "input_token": "stoape",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "stoppe"
+  },
+  {
+    "id": "typo_tok_ext_069",
+    "category": "single_edit_verb_irregular_modal",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "være"
+    ],
+    "input_token": "vræe",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "være"
+  },
+  {
+    "id": "typo_tok_ext_070",
+    "category": "danish_diacritic_verb_irregular_modal",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "have"
+    ],
+    "input_token": "haae",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "have"
+  },
+  {
+    "id": "typo_tok_ext_071",
+    "category": "single_edit_verb_irregular_modal",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "gå"
+    ],
+    "input_token": "gåå",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "gå"
+  },
+  {
+    "id": "typo_tok_ext_072",
+    "category": "single_edit_verb_irregular_modal",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "komme"
+    ],
+    "input_token": "koomme",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "komme"
+  },
+  {
+    "id": "typo_tok_ext_073",
+    "category": "single_edit_verb_irregular_modal",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "se"
+    ],
+    "input_token": "sa",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "se"
+  },
+  {
+    "id": "typo_tok_ext_074",
+    "category": "single_edit_verb_irregular_modal",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "skrive"
+    ],
+    "input_token": "skirve",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "skrive"
+  },
+  {
+    "id": "typo_tok_ext_075",
+    "category": "danish_diacritic_verb_irregular_modal",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "tage"
+    ],
+    "input_token": "taae",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "tage"
+  },
+  {
+    "id": "typo_tok_ext_076",
+    "category": "single_edit_verb_irregular_modal",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "få"
+    ],
+    "input_token": "fåå",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "få"
+  },
+  {
+    "id": "typo_tok_ext_077",
+    "category": "single_edit_verb_irregular_modal",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "give"
+    ],
+    "input_token": "giive",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "give"
+  },
+  {
+    "id": "typo_tok_ext_078",
+    "category": "single_edit_verb_irregular_modal",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "blive"
+    ],
+    "input_token": "blave",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "blive"
+  },
+  {
+    "id": "typo_tok_ext_079",
+    "category": "single_edit_verb_irregular_modal",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "kunne"
+    ],
+    "input_token": "knune",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "kunne"
+  },
+  {
+    "id": "typo_tok_ext_080",
+    "category": "danish_diacritic_verb_irregular_modal",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "skulle"
+    ],
+    "input_token": "skuale",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "skulle"
+  },
+  {
+    "id": "typo_tok_ext_081",
+    "category": "single_edit_verb_irregular_modal",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "ville"
+    ],
+    "input_token": "vile",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "ville"
+  },
+  {
+    "id": "typo_tok_ext_082",
+    "category": "single_edit_verb_irregular_modal",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "måtte"
+    ],
+    "input_token": "mååtte",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "måtte"
+  },
+  {
+    "id": "typo_tok_ext_083",
+    "category": "single_edit_adverb_particle",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "ikke"
+    ],
+    "input_token": "ikae",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "ikke"
+  },
+  {
+    "id": "typo_tok_ext_084",
+    "category": "single_edit_adverb_particle",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "meget"
+    ],
+    "input_token": "mgeet",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "meget"
+  },
+  {
+    "id": "typo_tok_ext_085",
+    "category": "danish_diacritic_adverb_particle",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "også"
+    ],
+    "input_token": "ogsaa",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "også"
+  },
+  {
+    "id": "typo_tok_ext_086",
+    "category": "single_edit_adverb_particle",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "altid"
+    ],
+    "input_token": "altd",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "altid"
+  },
+  {
+    "id": "typo_tok_ext_087",
+    "category": "single_edit_adverb_particle",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "aldrig"
+    ],
+    "input_token": "alddrig",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "aldrig"
+  },
+  {
+    "id": "typo_tok_ext_088",
+    "category": "single_edit_adverb_particle",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "ofte"
+    ],
+    "input_token": "ofae",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "ofte"
+  },
+  {
+    "id": "typo_tok_ext_089",
+    "category": "single_edit_adverb_particle",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "her"
+    ],
+    "input_token": "hher",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "her"
+  },
+  {
+    "id": "typo_tok_ext_090",
+    "category": "danish_diacritic_adverb_particle",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "der"
+    ],
+    "input_token": "dar",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "der"
+  },
+  {
+    "id": "typo_tok_ext_091",
+    "category": "single_edit_adverb_particle",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "nu"
+    ],
+    "input_token": "nuu",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "nu"
+  },
+  {
+    "id": "typo_tok_ext_092",
+    "category": "single_edit_adverb_particle",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "snart"
+    ],
+    "input_token": "snnart",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "snart"
+  },
+  {
+    "id": "typo_tok_ext_093",
+    "category": "single_edit_adverb_particle",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "måske"
+    ],
+    "input_token": "måake",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "måske"
+  },
+  {
+    "id": "typo_tok_ext_094",
+    "category": "single_edit_adverb_particle",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "gerne"
+    ],
+    "input_token": "grene",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "gerne"
+  },
+  {
+    "id": "typo_tok_ext_095",
+    "category": "danish_diacritic_adverb_particle",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "allerede"
+    ],
+    "input_token": "alleaede",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "allerede"
+  },
+  {
+    "id": "typo_tok_ext_096",
+    "category": "single_edit_adverb_particle",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "sammen"
+    ],
+    "input_token": "sammn",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "sammen"
+  },
+  {
+    "id": "typo_tok_ext_097",
+    "category": "single_edit_adverb_particle",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "hjemme"
+    ],
+    "input_token": "hjeemme",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "hjemme"
+  },
+  {
+    "id": "typo_tok_ext_098",
+    "category": "single_edit_adverb_particle",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "ude"
+    ],
+    "input_token": "uae",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "ude"
+  },
+  {
+    "id": "typo_tok_ext_099",
+    "category": "single_edit_adverb_particle",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "indenfor"
+    ],
+    "input_token": "indnefor",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "indenfor"
+  },
+  {
+    "id": "typo_tok_ext_100",
+    "category": "danish_diacritic_adverb_particle",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "udenfor"
+    ],
+    "input_token": "udeafor",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "udenfor"
+  },
+  {
+    "id": "typo_tok_ext_101",
+    "category": "single_edit_adverb_particle",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "næsten"
+    ],
+    "input_token": "næstn",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "næsten"
+  },
+  {
+    "id": "typo_tok_ext_102",
+    "category": "single_edit_adverb_particle",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "helt"
+    ],
+    "input_token": "heelt",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "helt"
+  },
+  {
+    "id": "typo_tok_ext_103",
+    "category": "single_edit_borrowed_technical",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "computer"
+    ],
+    "input_token": "compater",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "computer"
+  },
+  {
+    "id": "typo_tok_ext_104",
+    "category": "single_edit_borrowed_technical",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "robot"
+    ],
+    "input_token": "rboot",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "robot"
+  },
+  {
+    "id": "typo_tok_ext_105",
+    "category": "danish_diacritic_borrowed_technical",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "sensor"
+    ],
+    "input_token": "senaor",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "sensor"
+  },
+  {
+    "id": "typo_tok_ext_106",
+    "category": "single_edit_borrowed_technical",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "model"
+    ],
+    "input_token": "modl",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "model"
+  },
+  {
+    "id": "typo_tok_ext_107",
+    "category": "single_edit_borrowed_technical",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "motor"
+    ],
+    "input_token": "mootor",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "motor"
+  },
+  {
+    "id": "typo_tok_ext_108",
+    "category": "single_edit_borrowed_technical",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "server"
+    ],
+    "input_token": "seraer",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "server"
+  },
+  {
+    "id": "typo_tok_ext_109",
+    "category": "single_edit_diacritics_focus",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "træ"
+    ],
+    "input_token": "ttræ",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "træ"
+  },
+  {
+    "id": "typo_tok_ext_110",
+    "category": "danish_diacritic_diacritics_focus",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "øvelse"
+    ],
+    "input_token": "oevelse",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "øvelse"
+  },
+  {
+    "id": "typo_tok_ext_111",
+    "category": "single_edit_diacritics_focus",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "løsning"
+    ],
+    "input_token": "løsnig",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "løsning"
+  },
+  {
+    "id": "typo_tok_ext_112",
+    "category": "single_edit_diacritics_focus",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "spørgsmål"
+    ],
+    "input_token": "spørrgsmål",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "spørgsmål"
+  },
+  {
+    "id": "typo_tok_ext_113",
+    "category": "single_edit_diacritics_focus",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "år"
+    ],
+    "input_token": "åa",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "år"
+  },
+  {
+    "id": "typo_tok_ext_114",
+    "category": "single_edit_diacritics_focus",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "mål"
+    ],
+    "input_token": "mmål",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "mål"
+  },
+  {
+    "id": "typo_tok_ext_115",
+    "category": "danish_diacritic_proper_noun",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "københavn"
+    ],
+    "input_token": "koebenhavn",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "københavn"
+  },
+  {
+    "id": "typo_tok_ext_116",
+    "category": "single_edit_proper_noun",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "aarhus"
+    ],
+    "input_token": "aarhs",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "aarhus"
+  },
+  {
+    "id": "typo_tok_ext_117",
+    "category": "single_edit_proper_noun",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "odense"
+    ],
+    "input_token": "odeense",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "odense"
+  },
+  {
+    "id": "typo_tok_ext_118",
+    "category": "single_edit_proper_noun",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "danmark"
+    ],
+    "input_token": "danaark",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "danmark"
+  },
+  {
+    "id": "typo_tok_ext_119",
+    "category": "single_edit_proper_noun",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "spanien"
+    ],
+    "input_token": "spnaien",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "spanien"
+  },
+  {
+    "id": "typo_tok_ext_120",
+    "category": "danish_diacritic_proper_noun",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "valencia"
+    ],
+    "input_token": "valeacia",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "valencia"
+  },
+  {
+    "id": "typo_tok_ext_121",
+    "category": "single_edit_proper_noun",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "europa"
+    ],
+    "input_token": "euroa",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "europa"
+  },
+  {
+    "id": "typo_tok_ext_122",
+    "category": "single_edit_proper_noun",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "alejandro"
+    ],
+    "input_token": "alejjandro",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "alejandro"
+  },
+  {
+    "id": "typo_tok_ext_123",
+    "category": "single_edit_proper_noun",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "maria"
+    ],
+    "input_token": "maaia",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "maria"
+  },
+  {
+    "id": "typo_tok_ext_124",
+    "category": "single_edit_proper_noun",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "foss"
+    ],
+    "input_token": "fsos",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "foss"
+  },
+  {
+    "id": "typo_tok_ext_125",
+    "category": "danish_diacritic_proper_noun",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "labview"
+    ],
+    "input_token": "labaiew",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "labview"
+  },
+  {
+    "id": "typo_tok_ext_126",
+    "category": "single_edit_proper_noun",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "dtu"
+    ],
+    "input_token": "dtuu",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "dtu"
+  },
+  {
+    "id": "typo_tok_ext_127",
+    "category": "single_edit_noun_regular",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "bog"
+    ],
+    "input_token": "bbog",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "bog"
+  },
+  {
+    "id": "typo_tok_ext_128",
+    "category": "single_edit_noun_regular",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "hus"
+    ],
+    "input_token": "has",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "hus"
+  },
+  {
+    "id": "typo_tok_ext_129",
+    "category": "single_edit_noun_regular",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "bil"
+    ],
+    "input_token": "bbil",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "bil"
+  },
+  {
+    "id": "typo_tok_ext_130",
+    "category": "danish_diacritic_noun_regular",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "stol"
+    ],
+    "input_token": "stal",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "stol"
+  },
+  {
+    "id": "typo_tok_ext_131",
+    "category": "single_edit_noun_regular",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "skole"
+    ],
+    "input_token": "skoe",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "skole"
+  },
+  {
+    "id": "typo_tok_ext_132",
+    "category": "single_edit_noun_regular",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "by"
+    ],
+    "input_token": "bby",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "by"
+  },
+  {
+    "id": "typo_tok_ext_133",
+    "category": "single_edit_noun_regular",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "dag"
+    ],
+    "input_token": "deg",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "dag"
+  },
+  {
+    "id": "typo_tok_ext_134",
+    "category": "single_edit_noun_regular",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "uge"
+    ],
+    "input_token": "uuge",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "uge"
+  },
+  {
+    "id": "typo_tok_ext_135",
+    "category": "danish_diacritic_noun_regular",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "ven"
+    ],
+    "input_token": "van",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "ven"
+  },
+  {
+    "id": "typo_tok_ext_136",
+    "category": "single_edit_noun_regular",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "kat"
+    ],
+    "input_token": "katt",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "kat"
+  },
+  {
+    "id": "typo_tok_ext_137",
+    "category": "single_edit_noun_regular",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "hund"
+    ],
+    "input_token": "huund",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "hund"
+  },
+  {
+    "id": "typo_tok_ext_138",
+    "category": "single_edit_noun_regular",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "pige"
+    ],
+    "input_token": "piae",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "pige"
+  },
+  {
+    "id": "typo_tok_ext_139",
+    "category": "single_edit_noun_regular",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "dreng"
+    ],
+    "input_token": "derng",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "dreng"
+  },
+  {
+    "id": "typo_tok_ext_140",
+    "category": "danish_diacritic_noun_regular",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "park"
+    ],
+    "input_token": "paak",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "park"
+  },
+  {
+    "id": "typo_tok_ext_141",
+    "category": "single_edit_noun_regular",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "time"
+    ],
+    "input_token": "tie",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "time"
+  },
+  {
+    "id": "typo_tok_ext_142",
+    "category": "single_edit_noun_regular",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "opgave"
+    ],
+    "input_token": "opggave",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "opgave"
+  },
+  {
+    "id": "typo_tok_ext_143",
+    "category": "single_edit_noun_regular",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "sætning"
+    ],
+    "input_token": "sætaing",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "sætning"
+  },
+  {
+    "id": "typo_tok_ext_144",
+    "category": "single_edit_noun_regular",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "bogstav"
+    ],
+    "input_token": "bosgtav",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "bogstav"
+  },
+  {
+    "id": "typo_tok_ext_145",
+    "category": "danish_diacritic_noun_irregular",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "mand"
+    ],
+    "input_token": "maad",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "mand"
+  },
+  {
+    "id": "typo_tok_ext_146",
+    "category": "single_edit_noun_irregular",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "barn"
+    ],
+    "input_token": "ban",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "barn"
+  },
+  {
+    "id": "typo_tok_ext_147",
+    "category": "single_edit_noun_irregular",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "fod"
+    ],
+    "input_token": "ffod",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "fod"
+  },
+  {
+    "id": "typo_tok_ext_148",
+    "category": "single_edit_noun_irregular",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "tand"
+    ],
+    "input_token": "taad",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "tand"
+  },
+  {
+    "id": "typo_tok_ext_149",
+    "category": "single_edit_noun_irregular",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "gås"
+    ],
+    "input_token": "ggås",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "gås"
+  },
+  {
+    "id": "typo_tok_ext_150",
+    "category": "danish_diacritic_noun_irregular",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "nat"
+    ],
+    "input_token": "net",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "nat"
+  },
+  {
+    "id": "typo_tok_ext_151",
+    "category": "single_edit_noun_irregular",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "hånd"
+    ],
+    "input_token": "håd",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "hånd"
+  },
+  {
+    "id": "typo_tok_ext_152",
+    "category": "single_edit_noun_compound",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "arbejdsplads"
+    ],
+    "input_token": "arbejddsplads",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "arbejdsplads"
+  },
+  {
+    "id": "typo_tok_ext_153",
+    "category": "single_edit_noun_compound",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "sommerhus"
+    ],
+    "input_token": "sommarhus",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "sommerhus"
+  },
+  {
+    "id": "typo_tok_ext_154",
+    "category": "single_edit_noun_compound",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "sprogskole"
+    ],
+    "input_token": "sprosgkole",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "sprogskole"
+  },
+  {
+    "id": "typo_tok_ext_155",
+    "category": "danish_diacritic_noun_compound",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "skolebog"
+    ],
+    "input_token": "skolabog",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "skolebog"
+  },
+  {
+    "id": "typo_tok_ext_156",
+    "category": "single_edit_noun_compound",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "cykelhjelm"
+    ],
+    "input_token": "cykelhjem",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "cykelhjelm"
+  },
+  {
+    "id": "typo_tok_ext_157",
+    "category": "single_edit_noun_compound",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "computerprogram"
+    ],
+    "input_token": "computeerprogram",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "computerprogram"
+  },
+  {
+    "id": "typo_tok_ext_158",
+    "category": "single_edit_noun_compound",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "testsystem"
+    ],
+    "input_token": "testsastem",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "testsystem"
+  },
+  {
+    "id": "typo_tok_ext_159",
+    "category": "single_edit_noun_compound",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "laboratorietest"
+    ],
+    "input_token": "laboraotrietest",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "laboratorietest"
+  },
+  {
+    "id": "typo_tok_ext_160",
+    "category": "danish_diacritic_noun_compound",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "morgenmad"
+    ],
+    "input_token": "morganmad",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "morgenmad"
+  },
+  {
+    "id": "typo_tok_ext_161",
+    "category": "single_edit_noun_compound",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "eftermiddag"
+    ],
+    "input_token": "eftermiddg",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "eftermiddag"
+  },
+  {
+    "id": "typo_tok_ext_162",
+    "category": "single_edit_noun_compound",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "weekend"
+    ],
+    "input_token": "weeekend",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "weekend"
+  },
+  {
+    "id": "typo_tok_ext_163",
+    "category": "single_edit_noun_compound",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "klasseværelse"
+    ],
+    "input_token": "klasseaærelse",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "klasseværelse"
+  },
+  {
+    "id": "typo_tok_ext_164",
+    "category": "single_edit_noun_compound",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "skrivebord"
+    ],
+    "input_token": "skrievbord",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "skrivebord"
+  },
+  {
+    "id": "typo_tok_ext_165",
+    "category": "danish_diacritic_noun_compound",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "vindueskarm"
+    ],
+    "input_token": "vinduaskarm",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "vindueskarm"
+  },
+  {
+    "id": "typo_tok_ext_166",
+    "category": "single_edit_noun_compound",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "fjernbetjening"
+    ],
+    "input_token": "fjernbetjenig",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "fjernbetjening"
+  },
+  {
+    "id": "typo_tok_ext_167",
+    "category": "single_edit_noun_compound",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "datasæt"
+    ],
+    "input_token": "dattasæt",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "datasæt"
+  },
+  {
+    "id": "typo_tok_ext_168",
+    "category": "single_edit_noun_compound",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "brugergrænseflade"
+    ],
+    "input_token": "brugergranseflade",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "brugergrænseflade"
+  },
+  {
+    "id": "typo_tok_ext_169",
+    "category": "single_edit_noun_compound",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "ordliste"
+    ],
+    "input_token": "ordilste",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "ordliste"
+  },
+  {
+    "id": "typo_tok_ext_170",
+    "category": "danish_diacritic_noun_compound",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "læsebog"
+    ],
+    "input_token": "laesebog",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "læsebog"
+  },
+  {
+    "id": "typo_tok_ext_171",
+    "category": "single_edit_adjective_basic",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "god"
+    ],
+    "input_token": "godd",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "god"
+  },
+  {
+    "id": "typo_tok_ext_172",
+    "category": "single_edit_adjective_basic",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "stor"
+    ],
+    "input_token": "sttor",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "stor"
+  },
+  {
+    "id": "typo_tok_ext_173",
+    "category": "single_edit_adjective_basic",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "smuk"
+    ],
+    "input_token": "smak",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "smuk"
+  },
+  {
+    "id": "typo_tok_ext_174",
+    "category": "single_edit_adjective_basic",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "lang"
+    ],
+    "input_token": "lnag",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "lang"
+  },
+  {
+    "id": "typo_tok_ext_175",
+    "category": "danish_diacritic_adjective_basic",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "kort"
+    ],
+    "input_token": "koat",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "kort"
+  },
+  {
+    "id": "typo_tok_ext_176",
+    "category": "single_edit_adjective_basic",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "ny"
+    ],
+    "input_token": "nyy",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "ny"
+  },
+  {
+    "id": "typo_tok_ext_177",
+    "category": "single_edit_adjective_basic",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "gammel"
+    ],
+    "input_token": "gammmel",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "gammel"
+  },
+  {
+    "id": "typo_tok_ext_178",
+    "category": "single_edit_adjective_basic",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "svær"
+    ],
+    "input_token": "svar",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "svær"
+  },
+  {
+    "id": "typo_tok_ext_179",
+    "category": "single_edit_adjective_basic",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "hurtig"
+    ],
+    "input_token": "hutrig",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "hurtig"
+  },
+  {
+    "id": "typo_tok_ext_180",
+    "category": "danish_diacritic_adjective_basic",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "vigtig"
+    ],
+    "input_token": "vigaig",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "vigtig"
+  },
+  {
+    "id": "typo_tok_ext_181",
+    "category": "single_edit_verb_regular",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "spise"
+    ],
+    "input_token": "spie",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "spise"
+  },
+  {
+    "id": "typo_tok_ext_182",
+    "category": "single_edit_verb_regular",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "arbejde"
+    ],
+    "input_token": "arbbejde",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "arbejde"
+  },
+  {
+    "id": "typo_tok_ext_183",
+    "category": "single_edit_verb_regular",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "snakke"
+    ],
+    "input_token": "snaake",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "snakke"
+  },
+  {
+    "id": "typo_tok_ext_184",
+    "category": "single_edit_verb_regular",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "lære"
+    ],
+    "input_token": "lræe",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "lære"
+  },
+  {
+    "id": "typo_tok_ext_185",
+    "category": "danish_diacritic_verb_regular",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "bo"
+    ],
+    "input_token": "ba",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "bo"
+  },
+  {
+    "id": "typo_tok_ext_186",
+    "category": "single_edit_verb_regular",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "købe"
+    ],
+    "input_token": "køe",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "købe"
+  },
+  {
+    "id": "typo_tok_ext_187",
+    "category": "single_edit_verb_regular",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "vente"
+    ],
+    "input_token": "veente",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "vente"
+  },
+  {
+    "id": "typo_tok_ext_188",
+    "category": "single_edit_verb_regular",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "rejse"
+    ],
+    "input_token": "rease",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "rejse"
+  },
+  {
+    "id": "typo_tok_ext_189",
+    "category": "single_edit_verb_regular",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "åbne"
+    ],
+    "input_token": "ånbe",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "åbne"
+  },
+  {
+    "id": "typo_tok_ext_190",
+    "category": "danish_diacritic_verb_regular",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "lukke"
+    ],
+    "input_token": "luake",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "lukke"
+  },
+  {
+    "id": "typo_tok_ext_191",
+    "category": "single_edit_verb_regular",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "prøve"
+    ],
+    "input_token": "prøe",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "prøve"
+  },
+  {
+    "id": "typo_tok_ext_192",
+    "category": "single_edit_verb_regular",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "bruge"
+    ],
+    "input_token": "brruge",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "bruge"
+  },
+  {
+    "id": "typo_tok_ext_193",
+    "category": "single_edit_verb_regular",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "starte"
+    ],
+    "input_token": "staate",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "starte"
+  },
+  {
+    "id": "typo_tok_ext_194",
+    "category": "single_edit_verb_regular",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "stoppe"
+    ],
+    "input_token": "stpope",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "stoppe"
+  },
+  {
+    "id": "typo_tok_ext_195",
+    "category": "danish_diacritic_verb_irregular_modal",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "være"
+    ],
+    "input_token": "vaere",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "være"
+  },
+  {
+    "id": "typo_tok_ext_196",
+    "category": "single_edit_verb_irregular_modal",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "have"
+    ],
+    "input_token": "hae",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "have"
+  },
+  {
+    "id": "typo_tok_ext_197",
+    "category": "single_edit_verb_irregular_modal",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "gå"
+    ],
+    "input_token": "ggå",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "gå"
+  },
+  {
+    "id": "typo_tok_ext_198",
+    "category": "single_edit_verb_irregular_modal",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "komme"
+    ],
+    "input_token": "koame",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "komme"
+  },
+  {
+    "id": "typo_tok_ext_199",
+    "category": "single_edit_verb_irregular_modal",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "se"
+    ],
+    "input_token": "sse",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "se"
+  },
+  {
+    "id": "typo_tok_ext_200",
+    "category": "danish_diacritic_verb_irregular_modal",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "skrive"
+    ],
+    "input_token": "skrave",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "skrive"
+  },
+  {
+    "id": "typo_tok_ext_201",
+    "category": "single_edit_verb_irregular_modal",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "tage"
+    ],
+    "input_token": "tae",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "tage"
+  },
+  {
+    "id": "typo_tok_ext_202",
+    "category": "single_edit_verb_irregular_modal",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "få"
+    ],
+    "input_token": "ffå",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "få"
+  },
+  {
+    "id": "typo_tok_ext_203",
+    "category": "single_edit_verb_irregular_modal",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "give"
+    ],
+    "input_token": "giae",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "give"
+  },
+  {
+    "id": "typo_tok_ext_204",
+    "category": "single_edit_verb_irregular_modal",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "blive"
+    ],
+    "input_token": "bilve",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "blive"
+  },
+  {
+    "id": "typo_tok_ext_205",
+    "category": "danish_diacritic_verb_irregular_modal",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "kunne"
+    ],
+    "input_token": "kuane",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "kunne"
+  },
+  {
+    "id": "typo_tok_ext_206",
+    "category": "single_edit_verb_irregular_modal",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "skulle"
+    ],
+    "input_token": "skule",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "skulle"
+  },
+  {
+    "id": "typo_tok_ext_207",
+    "category": "single_edit_verb_irregular_modal",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "ville"
+    ],
+    "input_token": "viille",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "ville"
+  },
+  {
+    "id": "typo_tok_ext_208",
+    "category": "single_edit_verb_irregular_modal",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "måtte"
+    ],
+    "input_token": "måate",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "måtte"
+  },
+  {
+    "id": "typo_tok_ext_209",
+    "category": "danish_diacritic_adverb_particle",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "meget"
+    ],
+    "input_token": "meaet",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "meget"
+  },
+  {
+    "id": "typo_tok_ext_210",
+    "category": "single_edit_adverb_particle",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "også"
+    ],
+    "input_token": "ogå",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "også"
+  },
+  {
+    "id": "typo_tok_ext_211",
+    "category": "single_edit_adverb_particle",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "altid"
+    ],
+    "input_token": "alltid",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "altid"
+  },
+  {
+    "id": "typo_tok_ext_212",
+    "category": "single_edit_adverb_particle",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "aldrig"
+    ],
+    "input_token": "aldaig",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "aldrig"
+  },
+  {
+    "id": "typo_tok_ext_213",
+    "category": "single_edit_adverb_particle",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "ofte"
+    ],
+    "input_token": "otfe",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "ofte"
+  },
+  {
+    "id": "typo_tok_ext_214",
+    "category": "danish_diacritic_adverb_particle",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "her"
+    ],
+    "input_token": "har",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "her"
+  },
+  {
+    "id": "typo_tok_ext_215",
+    "category": "single_edit_adverb_particle",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "der"
+    ],
+    "input_token": "derr",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "der"
+  },
+  {
+    "id": "typo_tok_ext_216",
+    "category": "single_edit_adverb_particle",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "nu"
+    ],
+    "input_token": "nnu",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "nu"
+  },
+  {
+    "id": "typo_tok_ext_217",
+    "category": "single_edit_adverb_particle",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "snart"
+    ],
+    "input_token": "snert",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "snart"
+  },
+  {
+    "id": "typo_tok_ext_218",
+    "category": "single_edit_adverb_particle",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "måske"
+    ],
+    "input_token": "msåke",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "måske"
+  },
+  {
+    "id": "typo_tok_ext_219",
+    "category": "danish_diacritic_adverb_particle",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "gerne"
+    ],
+    "input_token": "geane",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "gerne"
+  },
+  {
+    "id": "typo_tok_ext_220",
+    "category": "single_edit_adverb_particle",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "allerede"
+    ],
+    "input_token": "alleree",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "allerede"
+  },
+  {
+    "id": "typo_tok_ext_221",
+    "category": "single_edit_adverb_particle",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "sammen"
+    ],
+    "input_token": "sammmen",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "sammen"
+  },
+  {
+    "id": "typo_tok_ext_222",
+    "category": "single_edit_adverb_particle",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "hjemme"
+    ],
+    "input_token": "hjeame",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "hjemme"
+  },
+  {
+    "id": "typo_tok_ext_223",
+    "category": "single_edit_adverb_particle",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "ude"
+    ],
+    "input_token": "uude",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "ude"
+  },
+  {
+    "id": "typo_tok_ext_224",
+    "category": "danish_diacritic_adverb_particle",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "indenfor"
+    ],
+    "input_token": "indeafor",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "indenfor"
+  },
+  {
+    "id": "typo_tok_ext_225",
+    "category": "single_edit_adverb_particle",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "udenfor"
+    ],
+    "input_token": "udenfr",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "udenfor"
+  },
+  {
+    "id": "typo_tok_ext_226",
+    "category": "single_edit_adverb_particle",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "næsten"
+    ],
+    "input_token": "næssten",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "næsten"
+  },
+  {
+    "id": "typo_tok_ext_227",
+    "category": "single_edit_adverb_particle",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "helt"
+    ],
+    "input_token": "heat",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "helt"
+  },
+  {
+    "id": "typo_tok_ext_228",
+    "category": "single_edit_borrowed_technical",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "computer"
+    ],
+    "input_token": "comupter",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "computer"
+  },
+  {
+    "id": "typo_tok_ext_229",
+    "category": "danish_diacritic_borrowed_technical",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "robot"
+    ],
+    "input_token": "roaot",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "robot"
+  },
+  {
+    "id": "typo_tok_ext_230",
+    "category": "single_edit_borrowed_technical",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "sensor"
+    ],
+    "input_token": "sensr",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "sensor"
+  },
+  {
+    "id": "typo_tok_ext_231",
+    "category": "single_edit_borrowed_technical",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "model"
+    ],
+    "input_token": "moodel",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "model"
+  },
+  {
+    "id": "typo_tok_ext_232",
+    "category": "single_edit_borrowed_technical",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "motor"
+    ],
+    "input_token": "moaor",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "motor"
+  },
+  {
+    "id": "typo_tok_ext_233",
+    "category": "single_edit_borrowed_technical",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "server"
+    ],
+    "input_token": "sevrer",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "server"
+  },
+  {
+    "id": "typo_tok_ext_234",
+    "category": "danish_diacritic_diacritics_focus",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "træ"
+    ],
+    "input_token": "trae",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "træ"
+  },
+  {
+    "id": "typo_tok_ext_235",
+    "category": "single_edit_diacritics_focus",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "øvelse"
+    ],
+    "input_token": "øvele",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "øvelse"
+  },
+  {
+    "id": "typo_tok_ext_236",
+    "category": "single_edit_diacritics_focus",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "løsning"
+    ],
+    "input_token": "løssning",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "løsning"
+  },
+  {
+    "id": "typo_tok_ext_237",
+    "category": "single_edit_diacritics_focus",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "spørgsmål"
+    ],
+    "input_token": "spørasmål",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "spørgsmål"
+  },
+  {
+    "id": "typo_tok_ext_238",
+    "category": "single_edit_diacritics_focus",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "år"
+    ],
+    "input_token": "åår",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "år"
+  },
+  {
+    "id": "typo_tok_ext_239",
+    "category": "danish_diacritic_diacritics_focus",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "mål"
+    ],
+    "input_token": "maal",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "mål"
+  },
+  {
+    "id": "typo_tok_ext_240",
+    "category": "single_edit_proper_noun",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "københavn"
+    ],
+    "input_token": "københan",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "københavn"
+  },
+  {
+    "id": "typo_tok_ext_241",
+    "category": "single_edit_proper_noun",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "aarhus"
+    ],
+    "input_token": "aarrhus",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "aarhus"
+  },
+  {
+    "id": "typo_tok_ext_242",
+    "category": "single_edit_proper_noun",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "odense"
+    ],
+    "input_token": "odease",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "odense"
+  },
+  {
+    "id": "typo_tok_ext_243",
+    "category": "single_edit_proper_noun",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "danmark"
+    ],
+    "input_token": "damnark",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "danmark"
+  },
+  {
+    "id": "typo_tok_ext_244",
+    "category": "danish_diacritic_proper_noun",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "spanien"
+    ],
+    "input_token": "spaaien",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "spanien"
+  },
+  {
+    "id": "typo_tok_ext_245",
+    "category": "single_edit_proper_noun",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "valencia"
+    ],
+    "input_token": "valenca",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "valencia"
+  },
+  {
+    "id": "typo_tok_ext_246",
+    "category": "single_edit_proper_noun",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "europa"
+    ],
+    "input_token": "eurropa",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "europa"
+  },
+  {
+    "id": "typo_tok_ext_247",
+    "category": "single_edit_proper_noun",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "alejandro"
+    ],
+    "input_token": "alejendro",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "alejandro"
+  },
+  {
+    "id": "typo_tok_ext_248",
+    "category": "single_edit_proper_noun",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "maria"
+    ],
+    "input_token": "mraia",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "maria"
+  },
+  {
+    "id": "typo_tok_ext_249",
+    "category": "danish_diacritic_proper_noun",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "foss"
+    ],
+    "input_token": "foas",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "foss"
+  },
+  {
+    "id": "typo_tok_ext_250",
+    "category": "single_edit_proper_noun",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "labview"
+    ],
+    "input_token": "labviw",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "labview"
+  },
+  {
+    "id": "typo_tok_ext_251",
+    "category": "single_edit_proper_noun",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "dtu"
+    ],
+    "input_token": "ddtu",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "dtu"
+  },
+  {
+    "id": "typo_tok_ext_252",
+    "category": "single_edit_noun_regular",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "bog"
+    ],
+    "input_token": "bag",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "bog"
+  },
+  {
+    "id": "typo_tok_ext_253",
+    "category": "single_edit_noun_regular",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "hus"
+    ],
+    "input_token": "hhus",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "hus"
+  },
+  {
+    "id": "typo_tok_ext_254",
+    "category": "danish_diacritic_noun_regular",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "bil"
+    ],
+    "input_token": "bal",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "bil"
+  },
+  {
+    "id": "typo_tok_ext_255",
+    "category": "single_edit_noun_regular",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "stol"
+    ],
+    "input_token": "stl",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "stol"
+  },
+  {
+    "id": "typo_tok_ext_256",
+    "category": "single_edit_noun_regular",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "skole"
+    ],
+    "input_token": "skkole",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "skole"
+  },
+  {
+    "id": "typo_tok_ext_257",
+    "category": "single_edit_noun_regular",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "by"
+    ],
+    "input_token": "ba",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "by"
+  },
+  {
+    "id": "typo_tok_ext_258",
+    "category": "single_edit_noun_regular",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "dag"
+    ],
+    "input_token": "ddag",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "dag"
+  },
+  {
+    "id": "typo_tok_ext_259",
+    "category": "danish_diacritic_noun_regular",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "uge"
+    ],
+    "input_token": "uae",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "uge"
+  },
+  {
+    "id": "typo_tok_ext_260",
+    "category": "single_edit_noun_regular",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "ven"
+    ],
+    "input_token": "venn",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "ven"
+  },
+  {
+    "id": "typo_tok_ext_261",
+    "category": "single_edit_noun_regular",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "kat"
+    ],
+    "input_token": "kkat",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "kat"
+  },
+  {
+    "id": "typo_tok_ext_262",
+    "category": "single_edit_noun_regular",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "hund"
+    ],
+    "input_token": "huad",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "hund"
+  },
+  {
+    "id": "typo_tok_ext_263",
+    "category": "single_edit_noun_regular",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "pige"
+    ],
+    "input_token": "pgie",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "pige"
+  },
+  {
+    "id": "typo_tok_ext_264",
+    "category": "danish_diacritic_noun_regular",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "dreng"
+    ],
+    "input_token": "drang",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "dreng"
+  },
+  {
+    "id": "typo_tok_ext_265",
+    "category": "single_edit_noun_regular",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "park"
+    ],
+    "input_token": "pak",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "park"
+  },
+  {
+    "id": "typo_tok_ext_266",
+    "category": "single_edit_noun_regular",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "time"
+    ],
+    "input_token": "tiime",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "time"
+  },
+  {
+    "id": "typo_tok_ext_267",
+    "category": "single_edit_noun_regular",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "opgave"
+    ],
+    "input_token": "opgeve",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "opgave"
+  },
+  {
+    "id": "typo_tok_ext_268",
+    "category": "single_edit_noun_regular",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "sætning"
+    ],
+    "input_token": "sænting",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "sætning"
+  },
+  {
+    "id": "typo_tok_ext_269",
+    "category": "danish_diacritic_noun_regular",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "bogstav"
+    ],
+    "input_token": "bogatav",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "bogstav"
+  },
+  {
+    "id": "typo_tok_ext_270",
+    "category": "single_edit_noun_irregular",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "mand"
+    ],
+    "input_token": "mad",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "mand"
+  },
+  {
+    "id": "typo_tok_ext_271",
+    "category": "single_edit_noun_irregular",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "barn"
+    ],
+    "input_token": "baarn",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "barn"
+  },
+  {
+    "id": "typo_tok_ext_272",
+    "category": "single_edit_noun_irregular",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "fod"
+    ],
+    "input_token": "fad",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "fod"
+  },
+  {
+    "id": "typo_tok_ext_273",
+    "category": "single_edit_noun_irregular",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "tand"
+    ],
+    "input_token": "tnad",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "tand"
+  },
+  {
+    "id": "typo_tok_ext_274",
+    "category": "danish_diacritic_noun_irregular",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "gås"
+    ],
+    "input_token": "gaas",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "gås"
+  },
+  {
+    "id": "typo_tok_ext_275",
+    "category": "single_edit_noun_irregular",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "nat"
+    ],
+    "input_token": "natt",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "nat"
+  },
+  {
+    "id": "typo_tok_ext_276",
+    "category": "single_edit_noun_irregular",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "hånd"
+    ],
+    "input_token": "håånd",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "hånd"
+  },
+  {
+    "id": "typo_tok_ext_277",
+    "category": "single_edit_noun_compound",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "arbejdsplads"
+    ],
+    "input_token": "arbejdaplads",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "arbejdsplads"
+  },
+  {
+    "id": "typo_tok_ext_278",
+    "category": "single_edit_noun_compound",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "sommerhus"
+    ],
+    "input_token": "somemrhus",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "sommerhus"
+  },
+  {
+    "id": "typo_tok_ext_279",
+    "category": "danish_diacritic_noun_compound",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "sprogskole"
+    ],
+    "input_token": "sprogakole",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "sprogskole"
+  },
+  {
+    "id": "typo_tok_ext_280",
+    "category": "single_edit_noun_compound",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "skolebog"
+    ],
+    "input_token": "skolebg",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "skolebog"
+  },
+  {
+    "id": "typo_tok_ext_281",
+    "category": "single_edit_noun_compound",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "cykelhjelm"
+    ],
+    "input_token": "cykellhjelm",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "cykelhjelm"
+  },
+  {
+    "id": "typo_tok_ext_282",
+    "category": "single_edit_noun_compound",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "computerprogram"
+    ],
+    "input_token": "computeaprogram",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "computerprogram"
+  },
+  {
+    "id": "typo_tok_ext_283",
+    "category": "single_edit_noun_compound",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "testsystem"
+    ],
+    "input_token": "testysstem",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "testsystem"
+  },
+  {
+    "id": "typo_tok_ext_284",
+    "category": "danish_diacritic_noun_compound",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "laboratorietest"
+    ],
+    "input_token": "laboratarietest",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "laboratorietest"
+  },
+  {
+    "id": "typo_tok_ext_285",
+    "category": "single_edit_noun_compound",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "morgenmad"
+    ],
+    "input_token": "morgenmd",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "morgenmad"
+  },
+  {
+    "id": "typo_tok_ext_286",
+    "category": "single_edit_noun_compound",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "eftermiddag"
+    ],
+    "input_token": "efterrmiddag",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "eftermiddag"
+  },
+  {
+    "id": "typo_tok_ext_287",
+    "category": "single_edit_noun_compound",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "weekend"
+    ],
+    "input_token": "weeaend",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "weekend"
+  },
+  {
+    "id": "typo_tok_ext_288",
+    "category": "single_edit_noun_compound",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "klasseværelse"
+    ],
+    "input_token": "klassveærelse",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "klasseværelse"
+  },
+  {
+    "id": "typo_tok_ext_289",
+    "category": "danish_diacritic_noun_compound",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "skrivebord"
+    ],
+    "input_token": "skrivabord",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "skrivebord"
+  },
+  {
+    "id": "typo_tok_ext_290",
+    "category": "single_edit_noun_compound",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "vindueskarm"
+    ],
+    "input_token": "vindueskam",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "vindueskarm"
+  },
+  {
+    "id": "typo_tok_ext_291",
+    "category": "single_edit_noun_compound",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "fjernbetjening"
+    ],
+    "input_token": "fjernbeetjening",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "fjernbetjening"
+  },
+  {
+    "id": "typo_tok_ext_292",
+    "category": "single_edit_noun_compound",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "datasæt"
+    ],
+    "input_token": "datesæt",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "datasæt"
+  },
+  {
+    "id": "typo_tok_ext_293",
+    "category": "single_edit_noun_compound",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "brugergrænseflade"
+    ],
+    "input_token": "brugergærnseflade",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "brugergrænseflade"
+  },
+  {
+    "id": "typo_tok_ext_294",
+    "category": "danish_diacritic_noun_compound",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "ordliste"
+    ],
+    "input_token": "ordlaste",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "ordliste"
+  },
+  {
+    "id": "typo_tok_ext_295",
+    "category": "single_edit_noun_compound",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "læsebog"
+    ],
+    "input_token": "læsebg",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "læsebog"
+  },
+  {
+    "id": "typo_tok_ext_296",
+    "category": "single_edit_adjective_basic",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "god"
+    ],
+    "input_token": "ggod",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "god"
+  },
+  {
+    "id": "typo_tok_ext_297",
+    "category": "single_edit_adjective_basic",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "stor"
+    ],
+    "input_token": "star",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "stor"
+  },
+  {
+    "id": "typo_tok_ext_298",
+    "category": "single_edit_adjective_basic",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "smuk"
+    ],
+    "input_token": "sumk",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "smuk"
+  },
+  {
+    "id": "typo_tok_ext_299",
+    "category": "danish_diacritic_adjective_basic",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "lang"
+    ],
+    "input_token": "laag",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "lang"
+  },
+  {
+    "id": "typo_tok_ext_300",
+    "category": "single_edit_adjective_basic",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "kort"
+    ],
+    "input_token": "kot",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "kort"
+  },
+  {
+    "id": "typo_tok_ext_301",
+    "category": "single_edit_adjective_basic",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "ny"
+    ],
+    "input_token": "nny",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "ny"
+  },
+  {
+    "id": "typo_tok_ext_302",
+    "category": "single_edit_adjective_basic",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "gammel"
+    ],
+    "input_token": "gamael",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "gammel"
+  },
+  {
+    "id": "typo_tok_ext_303",
+    "category": "single_edit_adjective_basic",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "svær"
+    ],
+    "input_token": "sævr",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "svær"
+  },
+  {
+    "id": "typo_tok_ext_304",
+    "category": "danish_diacritic_adjective_basic",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "hurtig"
+    ],
+    "input_token": "huraig",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "hurtig"
+  },
+  {
+    "id": "typo_tok_ext_305",
+    "category": "single_edit_adjective_basic",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "vigtig"
+    ],
+    "input_token": "vigtg",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "vigtig"
+  },
+  {
+    "id": "typo_tok_ext_306",
+    "category": "single_edit_verb_regular",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "spise"
+    ],
+    "input_token": "sppise",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "spise"
+  },
+  {
+    "id": "typo_tok_ext_307",
+    "category": "single_edit_verb_regular",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "arbejde"
+    ],
+    "input_token": "arbajde",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "arbejde"
+  },
+  {
+    "id": "typo_tok_ext_308",
+    "category": "single_edit_verb_regular",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "snakke"
+    ],
+    "input_token": "snkake",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "snakke"
+  },
+  {
+    "id": "typo_tok_ext_309",
+    "category": "danish_diacritic_verb_regular",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "lære"
+    ],
+    "input_token": "laere",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "lære"
+  },
+  {
+    "id": "typo_tok_ext_310",
+    "category": "single_edit_verb_regular",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "bo"
+    ],
+    "input_token": "boo",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "bo"
+  },
+  {
+    "id": "typo_tok_ext_311",
+    "category": "single_edit_verb_regular",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "købe"
+    ],
+    "input_token": "køøbe",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "købe"
+  },
+  {
+    "id": "typo_tok_ext_312",
+    "category": "single_edit_verb_regular",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "vente"
+    ],
+    "input_token": "veate",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "vente"
+  },
+  {
+    "id": "typo_tok_ext_313",
+    "category": "single_edit_verb_regular",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "rejse"
+    ],
+    "input_token": "rjese",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "rejse"
+  },
+  {
+    "id": "typo_tok_ext_314",
+    "category": "danish_diacritic_verb_regular",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "åbne"
+    ],
+    "input_token": "aabne",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "åbne"
+  },
+  {
+    "id": "typo_tok_ext_315",
+    "category": "single_edit_verb_regular",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "lukke"
+    ],
+    "input_token": "luke",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "lukke"
+  },
+  {
+    "id": "typo_tok_ext_316",
+    "category": "single_edit_verb_regular",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "prøve"
+    ],
+    "input_token": "prrøve",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "prøve"
+  },
+  {
+    "id": "typo_tok_ext_317",
+    "category": "single_edit_verb_regular",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "bruge"
+    ],
+    "input_token": "brage",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "bruge"
+  },
+  {
+    "id": "typo_tok_ext_318",
+    "category": "single_edit_verb_regular",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "starte"
+    ],
+    "input_token": "strate",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "starte"
+  },
+  {
+    "id": "typo_tok_ext_319",
+    "category": "danish_diacritic_verb_regular",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "stoppe"
+    ],
+    "input_token": "stoape",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "stoppe"
+  },
+  {
+    "id": "typo_tok_ext_320",
+    "category": "single_edit_verb_irregular_modal",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "være"
+    ],
+    "input_token": "væe",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "være"
+  },
+  {
+    "id": "typo_tok_ext_321",
+    "category": "single_edit_verb_irregular_modal",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "have"
+    ],
+    "input_token": "haave",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "have"
+  },
+  {
+    "id": "typo_tok_ext_322",
+    "category": "single_edit_verb_irregular_modal",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "gå"
+    ],
+    "input_token": "ga",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "gå"
+  },
+  {
+    "id": "typo_tok_ext_323",
+    "category": "single_edit_verb_irregular_modal",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "komme"
+    ],
+    "input_token": "kmome",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "komme"
+  },
+  {
+    "id": "typo_tok_ext_324",
+    "category": "danish_diacritic_verb_irregular_modal",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "se"
+    ],
+    "input_token": "sa",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "se"
+  },
+  {
+    "id": "typo_tok_ext_325",
+    "category": "single_edit_verb_irregular_modal",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "skrive"
+    ],
+    "input_token": "skrie",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "skrive"
+  },
+  {
+    "id": "typo_tok_ext_326",
+    "category": "single_edit_verb_irregular_modal",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "tage"
+    ],
+    "input_token": "taage",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "tage"
+  },
+  {
+    "id": "typo_tok_ext_327",
+    "category": "single_edit_verb_irregular_modal",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "få"
+    ],
+    "input_token": "fa",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "få"
+  },
+  {
+    "id": "typo_tok_ext_328",
+    "category": "single_edit_verb_irregular_modal",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "give"
+    ],
+    "input_token": "gvie",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "give"
+  },
+  {
+    "id": "typo_tok_ext_329",
+    "category": "danish_diacritic_verb_irregular_modal",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "blive"
+    ],
+    "input_token": "blave",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "blive"
+  },
+  {
+    "id": "typo_tok_ext_330",
+    "category": "single_edit_verb_irregular_modal",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "kunne"
+    ],
+    "input_token": "kune",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "kunne"
+  },
+  {
+    "id": "typo_tok_ext_331",
+    "category": "single_edit_verb_irregular_modal",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "skulle"
+    ],
+    "input_token": "skuulle",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "skulle"
+  },
+  {
+    "id": "typo_tok_ext_332",
+    "category": "single_edit_verb_irregular_modal",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "ville"
+    ],
+    "input_token": "viale",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "ville"
+  },
+  {
+    "id": "typo_tok_ext_333",
+    "category": "single_edit_verb_irregular_modal",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "måtte"
+    ],
+    "input_token": "mtåte",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "måtte"
+  },
+  {
+    "id": "typo_tok_ext_334",
+    "category": "danish_diacritic_adverb_particle",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "ikke"
+    ],
+    "input_token": "ikae",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "ikke"
+  },
+  {
+    "id": "typo_tok_ext_335",
+    "category": "single_edit_adverb_particle",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "meget"
+    ],
+    "input_token": "megt",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "meget"
+  },
+  {
+    "id": "typo_tok_ext_336",
+    "category": "single_edit_adverb_particle",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "også"
+    ],
+    "input_token": "oggså",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "også"
+  },
+  {
+    "id": "typo_tok_ext_337",
+    "category": "single_edit_adverb_particle",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "altid"
+    ],
+    "input_token": "alaid",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "altid"
+  },
+  {
+    "id": "typo_tok_ext_338",
+    "category": "single_edit_adverb_particle",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "aldrig"
+    ],
+    "input_token": "alrdig",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "aldrig"
+  },
+  {
+    "id": "typo_tok_ext_339",
+    "category": "danish_diacritic_adverb_particle",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "ofte"
+    ],
+    "input_token": "ofae",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "ofte"
+  },
+  {
+    "id": "typo_tok_ext_340",
+    "category": "single_edit_adverb_particle",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "her"
+    ],
+    "input_token": "herr",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "her"
+  },
+  {
+    "id": "typo_tok_ext_341",
+    "category": "single_edit_adverb_particle",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "der"
+    ],
+    "input_token": "dder",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "der"
+  },
+  {
+    "id": "typo_tok_ext_342",
+    "category": "single_edit_adverb_particle",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "nu"
+    ],
+    "input_token": "na",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "nu"
+  },
+  {
+    "id": "typo_tok_ext_343",
+    "category": "single_edit_adverb_particle",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "snart"
+    ],
+    "input_token": "sanrt",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "snart"
+  },
+  {
+    "id": "typo_tok_ext_344",
+    "category": "danish_diacritic_adverb_particle",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "måske"
+    ],
+    "input_token": "maaske",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "måske"
+  },
+  {
+    "id": "typo_tok_ext_345",
+    "category": "single_edit_adverb_particle",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "gerne"
+    ],
+    "input_token": "gere",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "gerne"
+  },
+  {
+    "id": "typo_tok_ext_346",
+    "category": "single_edit_adverb_particle",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "allerede"
+    ],
+    "input_token": "alleerede",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "allerede"
+  },
+  {
+    "id": "typo_tok_ext_347",
+    "category": "single_edit_adverb_particle",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "sammen"
+    ],
+    "input_token": "samaen",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "sammen"
+  },
+  {
+    "id": "typo_tok_ext_348",
+    "category": "single_edit_adverb_particle",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "hjemme"
+    ],
+    "input_token": "hjmeme",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "hjemme"
+  },
+  {
+    "id": "typo_tok_ext_349",
+    "category": "danish_diacritic_adverb_particle",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "ude"
+    ],
+    "input_token": "uae",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "ude"
+  },
+  {
+    "id": "typo_tok_ext_350",
+    "category": "single_edit_adverb_particle",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "indenfor"
+    ],
+    "input_token": "indenfr",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "indenfor"
+  },
+  {
+    "id": "typo_tok_ext_351",
+    "category": "single_edit_adverb_particle",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "udenfor"
+    ],
+    "input_token": "udeenfor",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "udenfor"
+  },
+  {
+    "id": "typo_tok_ext_352",
+    "category": "single_edit_adverb_particle",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "næsten"
+    ],
+    "input_token": "næsaen",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "næsten"
+  },
+  {
+    "id": "typo_tok_ext_353",
+    "category": "single_edit_adverb_particle",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "helt"
+    ],
+    "input_token": "hlet",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "helt"
+  },
+  {
+    "id": "typo_tok_ext_354",
+    "category": "danish_diacritic_borrowed_technical",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "computer"
+    ],
+    "input_token": "compater",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "computer"
+  },
+  {
+    "id": "typo_tok_ext_355",
+    "category": "single_edit_borrowed_technical",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "robot"
+    ],
+    "input_token": "robt",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "robot"
+  },
+  {
+    "id": "typo_tok_ext_356",
+    "category": "single_edit_borrowed_technical",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "sensor"
+    ],
+    "input_token": "sennsor",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "sensor"
+  },
+  {
+    "id": "typo_tok_ext_357",
+    "category": "single_edit_borrowed_technical",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "model"
+    ],
+    "input_token": "moael",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "model"
+  },
+  {
+    "id": "typo_tok_ext_358",
+    "category": "single_edit_borrowed_technical",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "motor"
+    ],
+    "input_token": "mtoor",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "motor"
+  },
+  {
+    "id": "typo_tok_ext_359",
+    "category": "danish_diacritic_borrowed_technical",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "server"
+    ],
+    "input_token": "seraer",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "server"
+  },
+  {
+    "id": "typo_tok_ext_360",
+    "category": "single_edit_diacritics_focus",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "træ"
+    ],
+    "input_token": "trææ",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "træ"
+  },
+  {
+    "id": "typo_tok_ext_361",
+    "category": "single_edit_diacritics_focus",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "øvelse"
+    ],
+    "input_token": "øveelse",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "øvelse"
+  },
+  {
+    "id": "typo_tok_ext_362",
+    "category": "single_edit_diacritics_focus",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "løsning"
+    ],
+    "input_token": "løsaing",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "løsning"
+  },
+  {
+    "id": "typo_tok_ext_363",
+    "category": "single_edit_diacritics_focus",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "spørgsmål"
+    ],
+    "input_token": "spøgrsmål",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "spørgsmål"
+  },
+  {
+    "id": "typo_tok_ext_364",
+    "category": "danish_diacritic_diacritics_focus",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "år"
+    ],
+    "input_token": "aar",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "år"
+  },
+  {
+    "id": "typo_tok_ext_365",
+    "category": "single_edit_diacritics_focus",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "mål"
+    ],
+    "input_token": "måll",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "mål"
+  },
+  {
+    "id": "typo_tok_ext_366",
+    "category": "single_edit_proper_noun",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "københavn"
+    ],
+    "input_token": "købeenhavn",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "københavn"
+  },
+  {
+    "id": "typo_tok_ext_367",
+    "category": "single_edit_proper_noun",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "aarhus"
+    ],
+    "input_token": "aaraus",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "aarhus"
+  },
+  {
+    "id": "typo_tok_ext_368",
+    "category": "single_edit_proper_noun",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "odense"
+    ],
+    "input_token": "odnese",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "odense"
+  },
+  {
+    "id": "typo_tok_ext_369",
+    "category": "danish_diacritic_proper_noun",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "danmark"
+    ],
+    "input_token": "danaark",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "danmark"
+  },
+  {
+    "id": "typo_tok_ext_370",
+    "category": "single_edit_proper_noun",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "spanien"
+    ],
+    "input_token": "spanin",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "spanien"
+  },
+  {
+    "id": "typo_tok_ext_371",
+    "category": "single_edit_proper_noun",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "valencia"
+    ],
+    "input_token": "valeencia",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "valencia"
+  },
+  {
+    "id": "typo_tok_ext_372",
+    "category": "single_edit_proper_noun",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "europa"
+    ],
+    "input_token": "eurapa",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "europa"
+  },
+  {
+    "id": "typo_tok_ext_373",
+    "category": "single_edit_proper_noun",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "alejandro"
+    ],
+    "input_token": "aleajndro",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "alejandro"
+  },
+  {
+    "id": "typo_tok_ext_374",
+    "category": "danish_diacritic_proper_noun",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "maria"
+    ],
+    "input_token": "maaia",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "maria"
+  },
+  {
+    "id": "typo_tok_ext_375",
+    "category": "single_edit_proper_noun",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "foss"
+    ],
+    "input_token": "fos",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "foss"
+  },
+  {
+    "id": "typo_tok_ext_376",
+    "category": "single_edit_proper_noun",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "labview"
+    ],
+    "input_token": "labbview",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "labview"
+  },
+  {
+    "id": "typo_tok_ext_377",
+    "category": "single_edit_proper_noun",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "dtu"
+    ],
+    "input_token": "dau",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "dtu"
+  },
+  {
+    "id": "typo_tok_ext_378",
+    "category": "single_edit_noun_regular",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "bog"
+    ],
+    "input_token": "bbog",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "bog"
+  },
+  {
+    "id": "typo_tok_ext_379",
+    "category": "danish_diacritic_noun_regular",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "hus"
+    ],
+    "input_token": "has",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "hus"
+  },
+  {
+    "id": "typo_tok_ext_380",
+    "category": "single_edit_noun_regular",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "bil"
+    ],
+    "input_token": "bill",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "bil"
+  },
+  {
+    "id": "typo_tok_ext_381",
+    "category": "single_edit_noun_regular",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "stol"
+    ],
+    "input_token": "sttol",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "stol"
+  },
+  {
+    "id": "typo_tok_ext_382",
+    "category": "single_edit_noun_regular",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "skole"
+    ],
+    "input_token": "skale",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "skole"
+  },
+  {
+    "id": "typo_tok_ext_383",
+    "category": "single_edit_noun_regular",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "by"
+    ],
+    "input_token": "bby",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "by"
+  },
+  {
+    "id": "typo_tok_ext_384",
+    "category": "danish_diacritic_noun_regular",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "dag"
+    ],
+    "input_token": "deg",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "dag"
+  },
+  {
+    "id": "typo_tok_ext_385",
+    "category": "single_edit_noun_regular",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "uge"
+    ],
+    "input_token": "ugee",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "uge"
+  },
+  {
+    "id": "typo_tok_ext_386",
+    "category": "single_edit_noun_regular",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "ven"
+    ],
+    "input_token": "vven",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "ven"
+  },
+  {
+    "id": "typo_tok_ext_387",
+    "category": "single_edit_noun_regular",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "kat"
+    ],
+    "input_token": "ket",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "kat"
+  },
+  {
+    "id": "typo_tok_ext_388",
+    "category": "single_edit_noun_regular",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "hund"
+    ],
+    "input_token": "hnud",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "hund"
+  },
+  {
+    "id": "typo_tok_ext_389",
+    "category": "danish_diacritic_noun_regular",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "pige"
+    ],
+    "input_token": "piae",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "pige"
+  },
+  {
+    "id": "typo_tok_ext_390",
+    "category": "single_edit_noun_regular",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "dreng"
+    ],
+    "input_token": "dreg",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "dreng"
+  },
+  {
+    "id": "typo_tok_ext_391",
+    "category": "single_edit_noun_regular",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "park"
+    ],
+    "input_token": "paark",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "park"
+  },
+  {
+    "id": "typo_tok_ext_392",
+    "category": "single_edit_noun_regular",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "time"
+    ],
+    "input_token": "tiae",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "time"
+  },
+  {
+    "id": "typo_tok_ext_393",
+    "category": "single_edit_noun_regular",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "opgave"
+    ],
+    "input_token": "opagve",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "opgave"
+  },
+  {
+    "id": "typo_tok_ext_394",
+    "category": "danish_diacritic_noun_regular",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "sætning"
+    ],
+    "input_token": "saetning",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "sætning"
+  },
+  {
+    "id": "typo_tok_ext_395",
+    "category": "single_edit_noun_regular",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "bogstav"
+    ],
+    "input_token": "bogstv",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "bogstav"
+  },
+  {
+    "id": "typo_tok_ext_396",
+    "category": "single_edit_noun_irregular",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "mand"
+    ],
+    "input_token": "maand",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "mand"
+  },
+  {
+    "id": "typo_tok_ext_397",
+    "category": "single_edit_noun_irregular",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "barn"
+    ],
+    "input_token": "baan",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "barn"
+  },
+  {
+    "id": "typo_tok_ext_398",
+    "category": "single_edit_noun_irregular",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "fod"
+    ],
+    "input_token": "ffod",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "fod"
+  },
+  {
+    "id": "typo_tok_ext_399",
+    "category": "danish_diacritic_noun_irregular",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "tand"
+    ],
+    "input_token": "taad",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "tand"
+  },
+  {
+    "id": "typo_tok_ext_400",
+    "category": "single_edit_noun_irregular",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "gås"
+    ],
+    "input_token": "gåss",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "gås"
+  },
+  {
+    "id": "typo_tok_ext_401",
+    "category": "single_edit_noun_irregular",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "nat"
+    ],
+    "input_token": "nnat",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "nat"
+  },
+  {
+    "id": "typo_tok_ext_402",
+    "category": "single_edit_noun_irregular",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "hånd"
+    ],
+    "input_token": "håad",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "hånd"
+  },
+  {
+    "id": "typo_tok_ext_403",
+    "category": "single_edit_noun_compound",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "arbejdsplads"
+    ],
+    "input_token": "arbejsdplads",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "arbejdsplads"
+  },
+  {
+    "id": "typo_tok_ext_404",
+    "category": "danish_diacritic_noun_compound",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "sommerhus"
+    ],
+    "input_token": "sommarhus",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "sommerhus"
+  },
+  {
+    "id": "typo_tok_ext_405",
+    "category": "single_edit_noun_compound",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "sprogskole"
+    ],
+    "input_token": "sprogskoe",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "sprogskole"
+  },
+  {
+    "id": "typo_tok_ext_406",
+    "category": "single_edit_noun_compound",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "skolebog"
+    ],
+    "input_token": "skollebog",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "skolebog"
+  },
+  {
+    "id": "typo_tok_ext_407",
+    "category": "single_edit_noun_compound",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "cykelhjelm"
+    ],
+    "input_token": "cykelajelm",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "cykelhjelm"
+  },
+  {
+    "id": "typo_tok_ext_408",
+    "category": "single_edit_noun_compound",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "computerprogram"
+    ],
+    "input_token": "computreprogram",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "computerprogram"
+  },
+  {
+    "id": "typo_tok_ext_409",
+    "category": "danish_diacritic_noun_compound",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "testsystem"
+    ],
+    "input_token": "testsastem",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "testsystem"
+  },
+  {
+    "id": "typo_tok_ext_410",
+    "category": "single_edit_noun_compound",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "laboratorietest"
+    ],
+    "input_token": "laboratorietet",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "laboratorietest"
+  },
+  {
+    "id": "typo_tok_ext_411",
+    "category": "single_edit_noun_compound",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "morgenmad"
+    ],
+    "input_token": "morggenmad",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "morgenmad"
+  },
+  {
+    "id": "typo_tok_ext_412",
+    "category": "single_edit_noun_compound",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "eftermiddag"
+    ],
+    "input_token": "efteraiddag",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "eftermiddag"
+  },
+  {
+    "id": "typo_tok_ext_413",
+    "category": "single_edit_noun_compound",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "weekend"
+    ],
+    "input_token": "wekeend",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "weekend"
+  },
+  {
+    "id": "typo_tok_ext_414",
+    "category": "danish_diacritic_noun_compound",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "klasseværelse"
+    ],
+    "input_token": "klassevaerelse",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "klasseværelse"
+  },
+  {
+    "id": "typo_tok_ext_415",
+    "category": "single_edit_noun_compound",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "skrivebord"
+    ],
+    "input_token": "skrivebod",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "skrivebord"
+  },
+  {
+    "id": "typo_tok_ext_416",
+    "category": "single_edit_noun_compound",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "vindueskarm"
+    ],
+    "input_token": "vinduueskarm",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "vindueskarm"
+  },
+  {
+    "id": "typo_tok_ext_417",
+    "category": "single_edit_noun_compound",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "fjernbetjening"
+    ],
+    "input_token": "fjernbeajening",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "fjernbetjening"
+  },
+  {
+    "id": "typo_tok_ext_418",
+    "category": "single_edit_noun_compound",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "datasæt"
+    ],
+    "input_token": "daatsæt",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "datasæt"
+  },
+  {
+    "id": "typo_tok_ext_419",
+    "category": "danish_diacritic_noun_compound",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "brugergrænseflade"
+    ],
+    "input_token": "brugergraenseflade",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "brugergrænseflade"
+  },
+  {
+    "id": "typo_tok_ext_420",
+    "category": "single_edit_noun_compound",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "ordliste"
+    ],
+    "input_token": "ordlise",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "ordliste"
+  },
+  {
+    "id": "typo_tok_ext_421",
+    "category": "single_edit_noun_compound",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "læsebog"
+    ],
+    "input_token": "læssebog",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "læsebog"
+  },
+  {
+    "id": "typo_tok_ext_422",
+    "category": "single_edit_adjective_basic",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "god"
+    ],
+    "input_token": "gad",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "god"
+  },
+  {
+    "id": "typo_tok_ext_423",
+    "category": "single_edit_adjective_basic",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "stor"
+    ],
+    "input_token": "sotr",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "stor"
+  },
+  {
+    "id": "typo_tok_ext_424",
+    "category": "danish_diacritic_adjective_basic",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "smuk"
+    ],
+    "input_token": "smak",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "smuk"
+  },
+  {
+    "id": "typo_tok_ext_425",
+    "category": "single_edit_adjective_basic",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "lang"
+    ],
+    "input_token": "lag",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "lang"
+  },
+  {
+    "id": "typo_tok_ext_426",
+    "category": "single_edit_adjective_basic",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "kort"
+    ],
+    "input_token": "koort",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "kort"
+  },
+  {
+    "id": "typo_tok_ext_427",
+    "category": "single_edit_adjective_basic",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "ny"
+    ],
+    "input_token": "na",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "ny"
+  },
+  {
+    "id": "typo_tok_ext_428",
+    "category": "danish_diacritic_adjective_basic",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "svær"
+    ],
+    "input_token": "svaer",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "svær"
+  },
+  {
+    "id": "typo_tok_ext_429",
+    "category": "single_edit_adjective_basic",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "hurtig"
+    ],
+    "input_token": "hurtg",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "hurtig"
+  },
+  {
+    "id": "typo_tok_ext_430",
+    "category": "single_edit_adjective_basic",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "vigtig"
+    ],
+    "input_token": "viggtig",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "vigtig"
+  },
+  {
+    "id": "typo_tok_ext_431",
+    "category": "single_edit_verb_regular",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "spise"
+    ],
+    "input_token": "spase",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "spise"
+  },
+  {
+    "id": "typo_tok_ext_432",
+    "category": "single_edit_verb_regular",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "arbejde"
+    ],
+    "input_token": "arebjde",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "arbejde"
+  },
+  {
+    "id": "typo_tok_ext_433",
+    "category": "danish_diacritic_verb_regular",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "snakke"
+    ],
+    "input_token": "snaake",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "snakke"
+  },
+  {
+    "id": "typo_tok_ext_434",
+    "category": "single_edit_verb_regular",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "lære"
+    ],
+    "input_token": "læe",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "lære"
+  },
+  {
+    "id": "typo_tok_ext_435",
+    "category": "single_edit_verb_regular",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "bo"
+    ],
+    "input_token": "bbo",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "bo"
+  },
+  {
+    "id": "typo_tok_ext_436",
+    "category": "single_edit_verb_regular",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "købe"
+    ],
+    "input_token": "køae",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "købe"
+  },
+  {
+    "id": "typo_tok_ext_437",
+    "category": "single_edit_verb_regular",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "vente"
+    ],
+    "input_token": "vnete",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "vente"
+  },
+  {
+    "id": "typo_tok_ext_438",
+    "category": "danish_diacritic_verb_regular",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "rejse"
+    ],
+    "input_token": "rease",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "rejse"
+  },
+  {
+    "id": "typo_tok_ext_439",
+    "category": "single_edit_verb_regular",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "åbne"
+    ],
+    "input_token": "åbe",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "åbne"
+  },
+  {
+    "id": "typo_tok_ext_440",
+    "category": "single_edit_verb_regular",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "lukke"
+    ],
+    "input_token": "luukke",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "lukke"
+  },
+  {
+    "id": "typo_tok_ext_441",
+    "category": "single_edit_verb_regular",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "prøve"
+    ],
+    "input_token": "prave",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "prøve"
+  },
+  {
+    "id": "typo_tok_ext_442",
+    "category": "single_edit_verb_regular",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "bruge"
+    ],
+    "input_token": "burge",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "bruge"
+  },
+  {
+    "id": "typo_tok_ext_443",
+    "category": "danish_diacritic_verb_regular",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "starte"
+    ],
+    "input_token": "staate",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "starte"
+  },
+  {
+    "id": "typo_tok_ext_444",
+    "category": "single_edit_verb_regular",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "stoppe"
+    ],
+    "input_token": "stope",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "stoppe"
+  },
+  {
+    "id": "typo_tok_ext_445",
+    "category": "single_edit_verb_irregular_modal",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "være"
+    ],
+    "input_token": "væære",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "være"
+  },
+  {
+    "id": "typo_tok_ext_446",
+    "category": "single_edit_verb_irregular_modal",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "have"
+    ],
+    "input_token": "haae",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "have"
+  },
+  {
+    "id": "typo_tok_ext_447",
+    "category": "single_edit_verb_irregular_modal",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "gå"
+    ],
+    "input_token": "ggå",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "gå"
+  },
+  {
+    "id": "typo_tok_ext_448",
+    "category": "danish_diacritic_verb_irregular_modal",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "komme"
+    ],
+    "input_token": "koame",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "komme"
+  },
+  {
+    "id": "typo_tok_ext_449",
+    "category": "single_edit_verb_irregular_modal",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "se"
+    ],
+    "input_token": "see",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "se"
+  },
+  {
+    "id": "typo_tok_ext_450",
+    "category": "single_edit_verb_irregular_modal",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "skrive"
+    ],
+    "input_token": "skrrive",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "skrive"
+  },
+  {
+    "id": "typo_tok_ext_451",
+    "category": "single_edit_verb_irregular_modal",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "tage"
+    ],
+    "input_token": "taae",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "tage"
+  },
+  {
+    "id": "typo_tok_ext_452",
+    "category": "single_edit_verb_irregular_modal",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "få"
+    ],
+    "input_token": "ffå",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "få"
+  },
+  {
+    "id": "typo_tok_ext_453",
+    "category": "danish_diacritic_verb_irregular_modal",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "give"
+    ],
+    "input_token": "giae",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "give"
+  },
+  {
+    "id": "typo_tok_ext_454",
+    "category": "single_edit_verb_irregular_modal",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "blive"
+    ],
+    "input_token": "blie",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "blive"
+  },
+  {
+    "id": "typo_tok_ext_455",
+    "category": "single_edit_verb_irregular_modal",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "kunne"
+    ],
+    "input_token": "kuunne",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "kunne"
+  },
+  {
+    "id": "typo_tok_ext_456",
+    "category": "single_edit_verb_irregular_modal",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "skulle"
+    ],
+    "input_token": "skuale",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "skulle"
+  },
+  {
+    "id": "typo_tok_ext_457",
+    "category": "single_edit_verb_irregular_modal",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "ville"
+    ],
+    "input_token": "vlile",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "ville"
+  },
+  {
+    "id": "typo_tok_ext_458",
+    "category": "danish_diacritic_verb_irregular_modal",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "måtte"
+    ],
+    "input_token": "maatte",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "måtte"
+  },
+  {
+    "id": "typo_tok_ext_459",
+    "category": "single_edit_adverb_particle",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "ikke"
+    ],
+    "input_token": "ike",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "ikke"
+  },
+  {
+    "id": "typo_tok_ext_460",
+    "category": "single_edit_adverb_particle",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "meget"
+    ],
+    "input_token": "meeget",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "meget"
+  },
+  {
+    "id": "typo_tok_ext_461",
+    "category": "single_edit_adverb_particle",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "også"
+    ],
+    "input_token": "ogaå",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "også"
+  },
+  {
+    "id": "typo_tok_ext_462",
+    "category": "single_edit_adverb_particle",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "altid"
+    ],
+    "input_token": "atlid",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "altid"
+  },
+  {
+    "id": "typo_tok_ext_463",
+    "category": "danish_diacritic_adverb_particle",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "aldrig"
+    ],
+    "input_token": "aldaig",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "aldrig"
+  },
+  {
+    "id": "typo_tok_ext_464",
+    "category": "single_edit_adverb_particle",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "ofte"
+    ],
+    "input_token": "ofe",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "ofte"
+  },
+  {
+    "id": "typo_tok_ext_465",
+    "category": "single_edit_adverb_particle",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "her"
+    ],
+    "input_token": "hher",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "her"
+  },
+  {
+    "id": "typo_tok_ext_466",
+    "category": "single_edit_adverb_particle",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "der"
+    ],
+    "input_token": "dar",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "der"
+  },
+  {
+    "id": "typo_tok_ext_467",
+    "category": "single_edit_adverb_particle",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "nu"
+    ],
+    "input_token": "nnu",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "nu"
+  },
+  {
+    "id": "typo_tok_ext_468",
+    "category": "danish_diacritic_adverb_particle",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "snart"
+    ],
+    "input_token": "snert",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "snart"
+  },
+  {
+    "id": "typo_tok_ext_469",
+    "category": "single_edit_adverb_particle",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "måske"
+    ],
+    "input_token": "måse",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "måske"
+  },
+  {
+    "id": "typo_tok_ext_470",
+    "category": "single_edit_adverb_particle",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "gerne"
+    ],
+    "input_token": "geerne",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "gerne"
+  },
+  {
+    "id": "typo_tok_ext_471",
+    "category": "single_edit_adverb_particle",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "allerede"
+    ],
+    "input_token": "alleaede",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "allerede"
+  },
+  {
+    "id": "typo_tok_ext_472",
+    "category": "danish_diacritic_adverb_particle",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "hjemme"
+    ],
+    "input_token": "hjeame",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "hjemme"
+  },
+  {
+    "id": "typo_tok_ext_473",
+    "category": "single_edit_adverb_particle",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "ude"
+    ],
+    "input_token": "udee",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "ude"
+  },
+  {
+    "id": "typo_tok_ext_474",
+    "category": "single_edit_adverb_particle",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "indenfor"
+    ],
+    "input_token": "indeenfor",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "indenfor"
+  },
+  {
+    "id": "typo_tok_ext_475",
+    "category": "single_edit_adverb_particle",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "udenfor"
+    ],
+    "input_token": "udeafor",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "udenfor"
+  },
+  {
+    "id": "typo_tok_ext_476",
+    "category": "single_edit_adverb_particle",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "næsten"
+    ],
+    "input_token": "nætsen",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "næsten"
+  },
+  {
+    "id": "typo_tok_ext_477",
+    "category": "danish_diacritic_adverb_particle",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "helt"
+    ],
+    "input_token": "heat",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "helt"
+  },
+  {
+    "id": "typo_tok_ext_478",
+    "category": "single_edit_borrowed_technical",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "computer"
+    ],
+    "input_token": "computr",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "computer"
+  },
+  {
+    "id": "typo_tok_ext_479",
+    "category": "single_edit_borrowed_technical",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "robot"
+    ],
+    "input_token": "roobot",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "robot"
+  },
+  {
+    "id": "typo_tok_ext_480",
+    "category": "single_edit_borrowed_technical",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "sensor"
+    ],
+    "input_token": "senaor",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "sensor"
+  },
+  {
+    "id": "typo_tok_ext_481",
+    "category": "single_edit_borrowed_technical",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "model"
+    ],
+    "input_token": "mdoel",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "model"
+  },
+  {
+    "id": "typo_tok_ext_482",
+    "category": "danish_diacritic_borrowed_technical",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "motor"
+    ],
+    "input_token": "moaor",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "motor"
+  },
+  {
+    "id": "typo_tok_ext_483",
+    "category": "single_edit_borrowed_technical",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "server"
+    ],
+    "input_token": "servr",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "server"
+  },
+  {
+    "id": "typo_tok_ext_484",
+    "category": "single_edit_diacritics_focus",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "træ"
+    ],
+    "input_token": "ttræ",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "træ"
+  },
+  {
+    "id": "typo_tok_ext_485",
+    "category": "single_edit_diacritics_focus",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "øvelse"
+    ],
+    "input_token": "øvease",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "øvelse"
+  },
+  {
+    "id": "typo_tok_ext_486",
+    "category": "single_edit_diacritics_focus",
+    "error_type": "transposition",
+    "db_seed_lexemes": [
+      "løsning"
+    ],
+    "input_token": "lønsing",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "løsning"
+  },
+  {
+    "id": "typo_tok_ext_487",
+    "category": "danish_diacritic_diacritics_focus",
+    "error_type": "diacritic_swap",
+    "db_seed_lexemes": [
+      "spørgsmål"
+    ],
+    "input_token": "spoergsmål",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "spørgsmål"
+  },
+  {
+    "id": "typo_tok_ext_488",
+    "category": "single_edit_diacritics_focus",
+    "error_type": "deletion",
+    "db_seed_lexemes": [
+      "år"
+    ],
+    "input_token": "årr",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "år"
+  },
+  {
+    "id": "typo_tok_ext_489",
+    "category": "single_edit_diacritics_focus",
+    "error_type": "insertion",
+    "db_seed_lexemes": [
+      "mål"
+    ],
+    "input_token": "mmål",
+    "expected_status": "typo_likely",
+    "expected_top_candidate": "mål"
+  },
+  {
+    "id": "typo_tok_ext_490",
+    "category": "single_edit_proper_noun",
+    "error_type": "substitution",
+    "db_seed_lexemes": [
+      "københavn"
+    ],
+    "input_token": "købeahavn",
+    "expected_status": "uncertain",
+    "expected_top_candidate": "københavn"
   }
 ]
