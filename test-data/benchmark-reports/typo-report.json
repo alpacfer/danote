@@ -1,0 +1,233 @@
+{
+  "benchmark": "typo",
+  "created_at": "2026-02-25T10:18:10.988325+00:00",
+  "runs": [
+    {
+      "timestamp": "2026-02-25T10:18:10.988325+00:00",
+      "summary": {
+        "status_accuracy": {
+          "passed": 15,
+          "total": 29,
+          "accuracy": 51.72
+        },
+        "top1_token_accuracy": {
+          "passed": 8,
+          "total": 10,
+          "accuracy": 80.0
+        },
+        "robustness_single_token_accuracy": {
+          "passed": 2,
+          "total": 3,
+          "accuracy": 66.67
+        },
+        "case_counts": {
+          "token": 10,
+          "context": 6,
+          "classification": 8,
+          "edge": 5
+        }
+      },
+      "adapter_warning": "NLP adapter unavailable; using identity fallback: <urlopen error Tunnel connection failed: 403 Forbidden>",
+      "top_failures": [
+        {
+          "id": "typo_tok_001",
+          "category": "single_edit",
+          "expected": "typo_likely",
+          "predicted": "uncertain"
+        },
+        {
+          "id": "typo_tok_002",
+          "category": "single_edit",
+          "expected": "typo_likely",
+          "predicted": "uncertain"
+        },
+        {
+          "id": "typo_tok_003",
+          "category": "single_edit",
+          "expected": "typo_likely",
+          "predicted": "uncertain"
+        },
+        {
+          "id": "typo_tok_004",
+          "category": "single_edit",
+          "expected": "typo_likely",
+          "predicted": "uncertain"
+        },
+        {
+          "id": "typo_tok_007",
+          "category": "compound",
+          "expected": "uncertain",
+          "predicted": "new"
+        },
+        {
+          "id": "typo_ctx_001",
+          "category": "verb_context",
+          "expected": "typo_likely",
+          "predicted": "uncertain"
+        },
+        {
+          "id": "typo_ctx_002",
+          "category": "verb_context",
+          "expected": "typo_likely",
+          "predicted": "uncertain"
+        },
+        {
+          "id": "typo_ctx_003",
+          "category": "proper_noun_bias",
+          "expected": "uncertain",
+          "predicted": "new"
+        },
+        {
+          "id": "typo_ctx_006",
+          "category": "lemma_precedence_guard",
+          "expected": "variation",
+          "predicted": "uncertain"
+        },
+        {
+          "id": "typo_cls_002",
+          "category": "precedence_lemma_variation",
+          "expected": "variation",
+          "predicted": "uncertain"
+        },
+        {
+          "id": "typo_cls_003",
+          "category": "high_confidence_typo",
+          "expected": "typo_likely",
+          "predicted": "uncertain"
+        },
+        {
+          "id": "typo_cls_006",
+          "category": "proper_noun_bias",
+          "expected": "uncertain",
+          "predicted": "new"
+        },
+        {
+          "id": "typo_edge_001",
+          "category": "brand_like",
+          "expected": "uncertain",
+          "predicted": "new"
+        },
+        {
+          "id": "typo_edge_005",
+          "category": "obvious_typo_control",
+          "expected": "typo_likely",
+          "predicted": "uncertain"
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-02-25T10:24:09.549382+00:00",
+      "summary": {
+        "status_accuracy": {
+          "passed": 15,
+          "total": 29,
+          "accuracy": 51.72
+        },
+        "top1_token_accuracy": {
+          "passed": 8,
+          "total": 10,
+          "accuracy": 80.0
+        },
+        "robustness_single_token_accuracy": {
+          "passed": 2,
+          "total": 3,
+          "accuracy": 66.67
+        },
+        "case_counts": {
+          "token": 10,
+          "context": 6,
+          "classification": 8,
+          "edge": 5
+        }
+      },
+      "adapter_warning": "NLP adapter unavailable; using identity fallback: <urlopen error Tunnel connection failed: 403 Forbidden>",
+      "top_failures": [
+        {
+          "id": "typo_tok_001",
+          "category": "single_edit",
+          "expected": "typo_likely",
+          "predicted": "uncertain"
+        },
+        {
+          "id": "typo_tok_002",
+          "category": "single_edit",
+          "expected": "typo_likely",
+          "predicted": "uncertain"
+        },
+        {
+          "id": "typo_tok_003",
+          "category": "single_edit",
+          "expected": "typo_likely",
+          "predicted": "uncertain"
+        },
+        {
+          "id": "typo_tok_004",
+          "category": "single_edit",
+          "expected": "typo_likely",
+          "predicted": "uncertain"
+        },
+        {
+          "id": "typo_tok_007",
+          "category": "compound",
+          "expected": "uncertain",
+          "predicted": "new"
+        },
+        {
+          "id": "typo_ctx_001",
+          "category": "verb_context",
+          "expected": "typo_likely",
+          "predicted": "uncertain"
+        },
+        {
+          "id": "typo_ctx_002",
+          "category": "verb_context",
+          "expected": "typo_likely",
+          "predicted": "uncertain"
+        },
+        {
+          "id": "typo_ctx_003",
+          "category": "proper_noun_bias",
+          "expected": "uncertain",
+          "predicted": "new"
+        },
+        {
+          "id": "typo_ctx_006",
+          "category": "lemma_precedence_guard",
+          "expected": "variation",
+          "predicted": "uncertain"
+        },
+        {
+          "id": "typo_cls_002",
+          "category": "precedence_lemma_variation",
+          "expected": "variation",
+          "predicted": "uncertain"
+        },
+        {
+          "id": "typo_cls_003",
+          "category": "high_confidence_typo",
+          "expected": "typo_likely",
+          "predicted": "uncertain"
+        },
+        {
+          "id": "typo_cls_006",
+          "category": "proper_noun_bias",
+          "expected": "uncertain",
+          "predicted": "new"
+        },
+        {
+          "id": "typo_edge_001",
+          "category": "brand_like",
+          "expected": "uncertain",
+          "predicted": "new"
+        },
+        {
+          "id": "typo_edge_005",
+          "category": "obvious_typo_control",
+          "expected": "typo_likely",
+          "predicted": "uncertain"
+        }
+      ]
+    }
+  ],
+  "updated_at": "2026-02-25T10:24:09.549382+00:00"
+}

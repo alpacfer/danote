@@ -25,6 +25,31 @@ This directory stores regression fixtures and lemma benchmark inputs for prototy
 - `typo/typo_robustness_noise.extended.json`: punctuation/noise/gating cases.
 - `typo/typo_on_new_word_edge_cases.extended.json`: edge cases where true new words can resemble typos.
 
+## Benchmark Reports
+
+Benchmark runners append timestamped results to:
+
+- `test-data/benchmark-reports/lemma-report.json`
+- `test-data/benchmark-reports/typo-report.json`
+
+Run:
+
+```bash
+cd /workspace/danote
+PYTHONPATH=backend python scripts/run-lemma-benchmark.py
+PYTHONPATH=backend python scripts/run-typo-benchmark.py
+```
+
+If model download is blocked in your environment, either:
+
+- enable outbound network access to download `da_dacy_small_tft-0.0.0`, or
+- run with degraded fallback explicitly:
+
+```bash
+PYTHONPATH=backend python scripts/run-lemma-benchmark.py --allow-degraded-nlp
+PYTHONPATH=backend python scripts/run-typo-benchmark.py --allow-degraded-nlp
+```
+
 ## Refresh Golden Outputs
 
 Run:

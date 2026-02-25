@@ -15,6 +15,7 @@ from app.db.migrations import apply_migrations, get_connection
 from app.nlp.danish import load_danish_nlp_adapter
 from app.nlp.token_filter import is_wordlike_token
 from app.services.token_classifier import LemmaAwareClassifier, normalize_token
+from benchmark_reporting import append_benchmark_report
 
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
@@ -46,6 +47,22 @@ class StatusResult:
     passed: bool
     expected: str
     predicted: str
+
+
+class _IdentityNLPAdapter:
+    def tokenize(self, text: str):
+        return []
+
+    def lemma_candidates_for_token(self, token: str) -> list[str]:
+        normalized = normalize_token(token)
+        return [normalized] if normalized else []
+
+    def lemma_for_token(self, token: str) -> str | None:
+        normalized = normalize_token(token)
+        return normalized or None
+
+    def metadata(self) -> dict[str, str]:
+        return {"adapter": "identity_fallback", "degraded": "true"}
 
 
 def _load_json(path: Path):
@@ -84,6 +101,7 @@ def _seed_lemmas(db_path: Path, lemmas: list[str]) -> None:
 def run(
     *,
     enforce_targets: bool = False,
+    allow_degraded_nlp: bool = False,
     min_lemma_accuracy: float = DEFAULT_MIN_LEMMA_ACCURACY,
     min_classification_accuracy: float = DEFAULT_MIN_CLASSIFICATION_ACCURACY,
     min_robustness_accuracy: float = DEFAULT_MIN_ROBUSTNESS_ACCURACY,
@@ -105,7 +123,20 @@ def run(
             db_path=db_path,
             nlp_model="da_dacy_small_tft-0.0.0",
         )
-        adapter = load_danish_nlp_adapter(settings)
+        adapter_warning: str | None = None
+        try:
+            adapter = load_danish_nlp_adapter(settings)
+        except Exception as exc:  # pragma: no cover - environment fallback
+            if not allow_degraded_nlp:
+                print("Danote Lemma Benchmark (Checkpoint 18 MVB)")
+                print(
+                    "Failed to load Danish NLP adapter. "
+                    "Enable model download/network access or run with --allow-degraded-nlp."
+                )
+                print(f"Error: {exc}")
+                return 2
+            adapter = _IdentityNLPAdapter()
+            adapter_warning = f"NLP adapter unavailable; using identity fallback: {exc}"
 
         token_results: list[CaseResult] = []
         context_results: list[CaseResult] = []
@@ -259,6 +290,8 @@ def run(
 
         print("Danote Lemma Benchmark (Checkpoint 18 MVB)")
         print("Policies: case-insensitive DB lookup, edge punctuation stripped for single-token robustness tests")
+        if adapter_warning:
+            print(f"Warning: {adapter_warning}")
         print("")
         print(f"Lemma accuracy: {lemma_passed}/{lemma_total} ({lemma_accuracy:.1f}%)")
         print(f"Lemma coverage: {lemma_coverage}/{lemma_total} ({lemma_coverage_rate:.1f}%)")
@@ -296,6 +329,85 @@ def run(
                     f"- {result.case_id} [{result.category}] "
                     f"expected={result.expected} predicted={result.predicted}"
                 )
+
+        report_path = append_benchmark_report(
+            benchmark="lemma",
+            run_data={
+                "summary": {
+                    "lemma": {
+                        "passed": lemma_passed,
+                        "total": lemma_total,
+                        "accuracy": round(lemma_accuracy, 2),
+                        "coverage": {
+                            "passed": lemma_coverage,
+                            "total": lemma_total,
+                            "rate": round(lemma_coverage_rate, 2),
+                        },
+                    },
+                    "token": {
+                        "passed": token_passed,
+                        "total": token_total,
+                        "accuracy": round(token_accuracy, 2),
+                    },
+                    "context": {
+                        "passed": context_passed,
+                        "total": context_total,
+                        "accuracy": round(context_accuracy, 2),
+                        "gain_pp": round(context_gain, 2),
+                    },
+                    "classification": {
+                        "passed": class_passed,
+                        "total": class_total,
+                        "accuracy": round(class_accuracy, 2),
+                        "variation_accuracy": round(variation_accuracy, 2),
+                        "false_variation_rate": round(false_variation_rate, 2),
+                        "false_new_rate": round(false_new_rate, 2),
+                    },
+                    "robustness": {
+                        "passed": robust_passed,
+                        "total": robust_total,
+                        "accuracy": round(robust_accuracy, 2),
+                    },
+                },
+                "per_category": {
+                    "lemma": {
+                        category: {
+                            "passed": _metric(category_map[category])[0],
+                            "total": _metric(category_map[category])[1],
+                            "accuracy": round(_metric(category_map[category])[2], 2),
+                        }
+                        for category in sorted(category_map)
+                    },
+                    "classification_robustness": {
+                        category: {
+                            "passed": _metric(category_status_map[category])[0],
+                            "total": _metric(category_status_map[category])[1],
+                            "accuracy": round(_metric(category_status_map[category])[2], 2),
+                        }
+                        for category in sorted(category_status_map)
+                    },
+                },
+                "top_failures": [
+                    {
+                        "id": result.case_id,
+                        "category": result.category,
+                        "expected": result.expected,
+                        "predicted": result.predicted,
+                    }
+                    for result in failures[:20]
+                ],
+                "enforce_targets": enforce_targets,
+                "adapter_warning": adapter_warning,
+                "targets": {
+                    "min_lemma_accuracy": min_lemma_accuracy,
+                    "min_classification_accuracy": min_classification_accuracy,
+                    "min_robustness_accuracy": min_robustness_accuracy,
+                    "max_false_variation_rate": max_false_variation_rate,
+                },
+            },
+        )
+        print("")
+        print(f"Report updated: {report_path.relative_to(ROOT_DIR)}")
 
         if not enforce_targets:
             return 0
@@ -337,6 +449,11 @@ def _parse_args() -> argparse.Namespace:
         help="Exit non-zero when accuracy thresholds are not met.",
     )
     parser.add_argument(
+        "--allow-degraded-nlp",
+        action="store_true",
+        help="Allow identity NLP fallback when Danish model is unavailable.",
+    )
+    parser.add_argument(
         "--min-lemma-accuracy",
         type=float,
         default=DEFAULT_MIN_LEMMA_ACCURACY,
@@ -364,6 +481,7 @@ if __name__ == "__main__":
     sys.exit(
         run(
             enforce_targets=args.enforce_targets,
+            allow_degraded_nlp=args.allow_degraded_nlp,
             min_lemma_accuracy=args.min_lemma_accuracy,
             min_classification_accuracy=args.min_classification_accuracy,
             min_robustness_accuracy=args.min_robustness_accuracy,
