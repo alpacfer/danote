@@ -36,9 +36,9 @@
     "context_plausibility": 0.03
   },
   "decision_thresholds": {
-    "typo_likely_min_confidence": 0.84,
-    "uncertain_min_confidence": 0.56,
-    "min_top1_top2_margin": 0.12
+    "typo_likely_min_confidence": 0.78,
+    "uncertain_min_confidence": 0.5,
+    "min_top1_top2_margin": 0.08
   },
   "decision_table": [
     {

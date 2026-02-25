@@ -64,13 +64,17 @@ def create_app(
         app.state.nlp_adapter = adapter
         typo_engine = None
         if app_settings.typo_enabled and app.state.db_ready:
-            dictionary_path = app_settings.typo_dictionary_path or (
-                Path(__file__).resolve().parents[2] / "resources" / "dictionaries" / "da_words.txt"
+            resources_path = Path(__file__).resolve().parents[2] / "resources" / "dictionaries"
+            configured_dictionary_path = app_settings.typo_dictionary_path
+            dictionary_paths = (
+                (configured_dictionary_path,)
+                if configured_dictionary_path is not None
+                else (resources_path / "da_words.txt", resources_path / "dsdo.txt")
             )
             try:
                 typo_engine = TypoEngine(
                     db_path=app_settings.db_path,
-                    dictionary_path=dictionary_path,
+                    dictionary_paths=dictionary_paths,
                 )
             except Exception:
                 logger.exception("backend_typo_engine_startup_failed")

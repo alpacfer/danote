@@ -35,11 +35,47 @@ class TypoResult:
     latency_ms: float
 
 
+
+
+@dataclass(frozen=True)
+class DecisionThresholds:
+    typo_threshold: float
+    uncertain_threshold: float
+    min_margin: float
+
+
+def _load_decision_thresholds() -> DecisionThresholds:
+    policy_path = Path(__file__).resolve().parents[2] / "core" / "typo_policy.v1.json"
+    default = DecisionThresholds(typo_threshold=0.78, uncertain_threshold=0.5, min_margin=0.08)
+    try:
+        payload = json.loads(policy_path.read_text(encoding="utf-8"))
+        node = payload.get("decision_thresholds", {})
+        return DecisionThresholds(
+            typo_threshold=float(node.get("typo_likely_min_confidence", default.typo_threshold)),
+            uncertain_threshold=float(node.get("uncertain_min_confidence", default.uncertain_threshold)),
+            min_margin=float(node.get("min_top1_top2_margin", default.min_margin)),
+        )
+    except Exception:
+        return default
+
+
 class TypoEngine:
-    def __init__(self, *, db_path: Path, dictionary_path: Path):
+    def __init__(
+        self,
+        *,
+        db_path: Path,
+        dictionary_path: Path | None = None,
+        dictionary_paths: tuple[Path, ...] | None = None,
+    ):
         self.db_path = db_path
-        self.candidates = CandidateProvider(db_path=db_path, dictionary_path=dictionary_path)
+        self.candidates = CandidateProvider(
+            db_path=db_path,
+            dictionary_path=dictionary_path,
+            dictionary_paths=dictionary_paths,
+        )
         self.cache = LRUCache[str, TypoResult](max_size=4096)
+        self._ignored_tokens_cache: set[str] | None = None
+        self._decision_thresholds = _load_decision_thresholds()
 
     def classify_unknown(
         self,
@@ -91,7 +127,13 @@ class TypoEngine:
         )
         known_lemmas = self._known_lemmas()
         ranked = rank_candidates(token=forms.normalized, candidates=candidates, known_lemmas=known_lemmas)
-        decision = decide_status(ranked=ranked, proper_noun_bias=gating.proper_noun_bias)
+        decision = decide_status(
+            ranked=ranked,
+            proper_noun_bias=gating.proper_noun_bias,
+            typo_threshold=self._decision_thresholds.typo_threshold,
+            uncertain_threshold=self._decision_thresholds.uncertain_threshold,
+            min_margin=self._decision_thresholds.min_margin,
+        )
 
         suggestions = tuple(
             TypoSuggestion(value=item.value, score=item.score, source_flags=item.source_flags)
@@ -130,6 +172,8 @@ class TypoEngine:
                 """,
                 (normalized, scope, expires_at),
             )
+        if self._ignored_tokens_cache is not None:
+            self._ignored_tokens_cache.add(normalized)
         self.cache.clear()
 
     def add_feedback(
@@ -152,18 +196,20 @@ class TypoEngine:
             )
 
     def _is_ignored(self, normalized: str) -> bool:
+        if self._ignored_tokens_cache is None:
+            self._ignored_tokens_cache = self._ignored_tokens_from_db()
+        return normalized in self._ignored_tokens_cache
+
+    def _ignored_tokens_from_db(self) -> set[str]:
         with get_connection(self.db_path) as conn:
-            row = conn.execute(
+            rows = conn.execute(
                 """
-                SELECT 1
+                SELECT token
                 FROM ignored_tokens
-                WHERE token = ?
-                  AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
-                LIMIT 1
-                """,
-                (normalized,),
-            ).fetchone()
-        return row is not None
+                WHERE expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP
+                """
+            ).fetchall()
+        return {str(row["token"]) for row in rows}
 
     def _known_lemmas(self) -> set[str]:
         with get_connection(self.db_path) as conn:

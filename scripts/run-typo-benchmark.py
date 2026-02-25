@@ -15,7 +15,17 @@ from benchmark_reporting import append_benchmark_report
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 FIXTURES_DIR = ROOT_DIR / "test-data" / "fixtures" / "typo"
-DICTIONARY_PATH = ROOT_DIR / "backend" / "resources" / "dictionaries" / "da_words.txt"
+DICTIONARY_DIR = ROOT_DIR / "backend" / "resources" / "dictionaries"
+BASE_DICTIONARY_PATH = DICTIONARY_DIR / "da_words.txt"
+DSDO_DICTIONARY_PATH = DICTIONARY_DIR / "dsdo.txt"
+
+
+def _resolve_dictionary_paths(mode: str) -> tuple[Path, ...]:
+    if mode == "base":
+        return (BASE_DICTIONARY_PATH,)
+    if mode == "combined":
+        return (BASE_DICTIONARY_PATH, DSDO_DICTIONARY_PATH)
+    raise ValueError(f"Unsupported dictionary mode: {mode}")
 
 
 class _IdentityNLPAdapter:
@@ -49,7 +59,7 @@ def _seed_lemmas(db_path: Path, lemmas: list[str]) -> None:
             )
 
 
-def main(*, allow_degraded_nlp: bool = False) -> int:
+def main(*, allow_degraded_nlp: bool = False, dictionary_mode: str = "combined") -> int:
     token_cases = _load_json(FIXTURES_DIR / "typo_tokens_by_error_type.extended.json")
     context_cases = _load_json(FIXTURES_DIR / "typo_sentences_context.extended.json")
     class_cases = _load_json(FIXTURES_DIR / "typo_classification_impact.extended.json")
@@ -81,7 +91,8 @@ def main(*, allow_degraded_nlp: bool = False) -> int:
                 return 2
             adapter = _IdentityNLPAdapter()
             adapter_warning = f"NLP adapter unavailable; using identity fallback: {exc}"
-        typo_engine = TypoEngine(db_path=db_path, dictionary_path=DICTIONARY_PATH)
+        dictionary_paths = _resolve_dictionary_paths(dictionary_mode)
+        typo_engine = TypoEngine(db_path=db_path, dictionary_paths=dictionary_paths)
         classifier = LemmaAwareClassifier(db_path, nlp_adapter=adapter, typo_engine=typo_engine)
 
         total = 0
@@ -160,10 +171,13 @@ def main(*, allow_degraded_nlp: bool = False) -> int:
         print(f"Cases: {total}")
         print(f"Status accuracy: {passed}/{total} ({accuracy:.1f}%)")
         print(f"Top-1 accuracy (token set): {top1_passed}/{len(token_cases)} ({top1:.1f}%)")
+        print(f"Dictionary mode: {dictionary_mode} ({len(dictionary_paths)} source files)")
 
         report_path = append_benchmark_report(
             benchmark="typo",
             run_data={
+                "dictionary_mode": dictionary_mode,
+                "dictionary_paths": [str(path.relative_to(ROOT_DIR)) for path in dictionary_paths],
                 "summary": {
                     "status_accuracy": {
                         "passed": passed,
@@ -208,5 +222,16 @@ if __name__ == "__main__":
         action="store_true",
         help="Allow identity NLP fallback when Danish model is unavailable.",
     )
+    parser.add_argument(
+        "--dictionary-mode",
+        choices=["base", "combined"],
+        default="combined",
+        help="Dictionary set to benchmark: base (da_words) or combined (da_words + dsdo).",
+    )
     args = parser.parse_args()
-    raise SystemExit(main(allow_degraded_nlp=args.allow_degraded_nlp))
+    raise SystemExit(
+        main(
+            allow_degraded_nlp=args.allow_degraded_nlp,
+            dictionary_mode=args.dictionary_mode,
+        )
+    )
