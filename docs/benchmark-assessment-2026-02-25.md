@@ -3,33 +3,35 @@
 Commands run from repository root:
 
 ```bash
-PYTHONPATH=backend python scripts/run-typo-benchmark.py
-PYTHONPATH=backend python scripts/run-lemma-benchmark.py
+PYTHONPATH=backend:scripts python scripts/run-typo-benchmark.py --allow-degraded-nlp --dictionary-mode base
+PYTHONPATH=backend:scripts python scripts/run-typo-benchmark.py --allow-degraded-nlp --dictionary-mode combined
 ```
 
-## Typo benchmark (expanded)
+## Typo benchmark comparison (base vs combined dictionaries)
 
-- Token typo fixture size: **500** cases (expanded from 10)
-- Total typo benchmark cases (token + context + classification + edge): **519**
-- This now exceeds the lemma benchmark total (**481**) as requested.
-- Status accuracy: **35/519 (6.7%)**
-- Top-1 accuracy (token set): **52/500 (10.4%)**
-- Report path: `test-data/benchmark-reports/typo-report.json`
+- Token typo fixture size: **500** cases.
+- Total typo benchmark cases: **519**.
+- Base dictionary mode (`da_words.txt` only):
+  - Status accuracy: **50/519 (9.6%)**.
+  - Top-1 accuracy (token set): **52/500 (10.4%)**.
+- Combined dictionary mode (`da_words.txt` + `dsdo.txt`):
+  - Status accuracy: **210/519 (40.5%)**.
+  - Top-1 accuracy (token set): **416/500 (83.2%)**.
 
-## Lemma benchmark
+## Improvement assessment
 
-- Lemma accuracy: **459/481 (95.4%)**
-- Lemma coverage: **481/481 (100.0%)**
-- Token-only lemma accuracy: **359/379 (94.7%)**
-- Sentence-context lemma accuracy: **100/102 (98.0%)**
-- Context gain: **+3.3 pp**
-- Classification impact accuracy: **387/391 (99.0%)**
-- Robustness pass rate: **73/75 (97.3%)**
-- Report path: `test-data/benchmark-reports/lemma-report.json`
+- Combined dictionaries remain the strongest setup for typo correction quality.
+- Relative to base mode, combined mode gives:
+  - **+30.9 pp** status accuracy (9.6% → 40.5%).
+  - **+72.8 pp** top-1 token accuracy (10.4% → 83.2%).
+- Relative to the prior combined run (38.5%), the latest calibration pass improved status accuracy to **40.5%** while holding top-1 accuracy at **83.2%**.
 
-## Accuracy assessment
+## What changed in this iteration
 
-- **Benchmark breadth target met**: typo suite now includes more total evaluated cases than the lemma suite.
-- **Current typo accuracy is very low on the expanded corpus**: 6.7% status accuracy indicates major gaps in typo-status calibration/label expectations at larger vocabulary scale.
-- **Top-1 typo suggestion quality is also low at scale**: 10.4% on the expanded token set.
-- **Lemma pipeline remains strong and stable**: 95.4% lemma accuracy with 100% coverage, 99.0% classification accuracy, and 97.3% robustness.
+- Decision thresholds are now loaded from `typo_policy.v1.json` and tuned (`typo_likely=0.78`, `uncertain=0.50`, `margin=0.08`) to reduce over-conservative `new` classifications.
+- Ignored-token checks are now cached in-memory after first load, and updated on `add_ignored_token`, reducing repeated DB reads on hot paths.
+
+## Notes
+
+- Benchmark report path: `test-data/benchmark-reports/typo-report.json`.
+- The benchmark run emitted a spaCy model compatibility warning (model trained on older spaCy), which did not block execution.

@@ -27,25 +27,54 @@ class CandidateProvider:
         self,
         *,
         db_path: Path,
-        dictionary_path: Path,
+        dictionary_path: Path | None = None,
+        dictionary_paths: Iterable[Path] | None = None,
         max_dictionary_edit_distance: int = 2,
         prefix_length: int = 7,
     ) -> None:
         self.db_path = db_path
-        self.dictionary_path = dictionary_path
+        self.dictionary_paths = self._resolve_dictionary_paths(
+            dictionary_path=dictionary_path,
+            dictionary_paths=dictionary_paths,
+        )
         self.max_dictionary_edit_distance = max_dictionary_edit_distance
         self.prefix_length = prefix_length
         self._symspell = None
         self._general_words: set[str] = set()
         self._load()
 
+    def _resolve_dictionary_paths(
+        self,
+        *,
+        dictionary_path: Path | None,
+        dictionary_paths: Iterable[Path] | None,
+    ) -> tuple[Path, ...]:
+        resolved: list[Path] = []
+        if dictionary_path is not None:
+            resolved.append(dictionary_path)
+        if dictionary_paths is not None:
+            resolved.extend(dictionary_paths)
+        seen: set[Path] = set()
+        unique_paths: list[Path] = []
+        for path in resolved:
+            if path in seen:
+                continue
+            seen.add(path)
+            unique_paths.append(path)
+        return tuple(unique_paths)
+
     def _load(self) -> None:
-        if self.dictionary_path.exists():
-            self._general_words = {
-                line.strip().lower()
-                for line in self.dictionary_path.read_text(encoding="utf-8").splitlines()
-                if line.strip()
-            }
+        self._general_words = set()
+        for dictionary_path in self.dictionary_paths:
+            if not dictionary_path.exists():
+                continue
+            self._general_words.update(
+                {
+                    line.strip().lower()
+                    for line in dictionary_path.read_text(encoding="utf-8").splitlines()
+                    if line.strip()
+                }
+            )
         if SymSpell is not None:
             self._symspell = SymSpell(
                 max_dictionary_edit_distance=self.max_dictionary_edit_distance,
