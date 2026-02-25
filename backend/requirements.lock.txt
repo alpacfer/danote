@@ -1,0 +1,12 @@
+# Backend lock file (Priority C baseline).
+# Update policy is documented in docs/backend-dependency-locking.md.
+
+fastapi==0.116.1
+uvicorn[standard]==0.35.0
+spacy==3.8.11
+dacy==1.1.4
+lemmy==2.1.0
+symspellpy==6.9.0
+rapidfuzz==3.14.3
+pytest==8.4.2
+httpx==0.28.1

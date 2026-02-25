@@ -12,10 +12,38 @@ Language-learning note-taking web app (Danish-first) with a browser frontend and
 
 ## Run Instructions
 
+## Developer Quickstart
+
+```bash
+cd <repo-root>
+make setup
+make lint
+make test
+```
+
+For ongoing documentation/workflow verification:
+
+```bash
+cd <repo-root>
+make docs-smoke
+```
+
+For AI-agent focused verification:
+
+```bash
+cd <repo-root>
+make agent-verify
+```
+
+Agent-specific guidance:
+
+- `AGENTS.md`
+- `docs/agent-playbook.md`
+
 One-command startup (recommended):
 
 ```bash
-cd /home/alejandro/Documents/github/danote/danote
+cd <repo-root>
 ./scripts/run-project.sh
 ```
 
@@ -34,7 +62,7 @@ cd backend
 python3 -m venv .venv
 source .venv/bin/activate
 pip install --upgrade pip
-pip install -r requirements-dev.txt
+pip install -r requirements.lock.txt
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
@@ -43,7 +71,7 @@ If `python3-venv` / `python3-pip` are missing on Linux, bootstrap with `uv` firs
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ~/.local/bin/uv venv --clear backend/.venv
-~/.local/bin/uv pip install --python backend/.venv/bin/python -r backend/requirements-dev.txt
+~/.local/bin/uv pip install --python backend/.venv/bin/python -r backend/requirements.lock.txt
 ```
 
 Frontend:
@@ -88,7 +116,7 @@ Fixture pack:
 Refresh golden outputs:
 
 ```bash
-cd /home/alejandro/Documents/github/danote/danote
+cd <repo-root>
 PYTHONPATH=backend backend/.venv/bin/python scripts/generate_fixture_goldens.py
 ```
 
@@ -102,7 +130,7 @@ PYTHONPATH=. .venv/bin/pytest tests/test_regression_fixtures.py -q
 Run scripted e2e reliability flow:
 
 ```bash
-cd /home/alejandro/Documents/github/danote/danote
+cd <repo-root>
 ./scripts/e2e-regression.sh
 ```
 
@@ -117,3 +145,10 @@ Manual demo and release docs:
 
 - Lockfiles must be committed when dependencies are introduced.
 - Environment/runtime versions are tracked in `docs/versions.md`.
+
+
+## Priority C references
+
+- Backend dependency locking: `docs/backend-dependency-locking.md`
+- ADR index: `docs/adr/README.md`
+- Test pyramid + CI split: `docs/test-pyramid-and-ci.md`

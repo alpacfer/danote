@@ -71,7 +71,7 @@ cd backend
 python3 -m venv .venv
 source .venv/bin/activate
 pip install --upgrade pip
-pip install -r requirements-dev.txt
+pip install -r requirements.lock.txt
 ```
 
 If your Linux image is missing `python3-venv` / `python3-pip`, use `uv` (no sudo required):
@@ -79,7 +79,7 @@ If your Linux image is missing `python3-venv` / `python3-pip`, use `uv` (no sudo
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ~/.local/bin/uv venv --clear .venv
-~/.local/bin/uv pip install --python .venv/bin/python -r requirements-dev.txt
+~/.local/bin/uv pip install --python .venv/bin/python -r requirements.lock.txt
 ```
 
 ## Run
@@ -113,7 +113,7 @@ uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```bash
 cd backend
 source .venv/bin/activate
-pytest
+PYTHONPATH=. pytest
 ```
 
 Fixture regression subset:
@@ -122,3 +122,10 @@ Fixture regression subset:
 cd backend
 PYTHONPATH=. .venv/bin/pytest tests/test_regression_fixtures.py -q
 ```
+
+
+Dependency lock policy:
+
+- Canonical backend install file: `requirements.lock.txt`.
+- Refresh lock file with `../scripts/sync-backend-lock.sh` when dependency inputs change.
+- See `../docs/backend-dependency-locking.md` for details.
