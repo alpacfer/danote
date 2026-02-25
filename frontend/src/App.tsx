@@ -76,6 +76,7 @@ type AddWordResponse = {
 
 type WordbankLemma = {
   lemma: string
+  english_translation: string | null
   variation_count: number
 }
 
@@ -85,6 +86,7 @@ type LemmaListResponse = {
 
 type LemmaDetailsResponse = {
   lemma: string
+  english_translation: string | null
   surface_forms: string[]
 }
 
@@ -747,6 +749,7 @@ function App() {
                     onClick={() => setSelectedLemma(lemma.lemma)}
                   >
                     {lemma.lemma}
+                    {lemma.english_translation ? ` (${lemma.english_translation})` : ""}
                   </Button>
                 ))}
               </div>
@@ -759,7 +762,12 @@ function App() {
     return (
       <div className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-xl font-semibold">{lemmaDetails?.lemma ?? selectedLemma}</h2>
+          <h2 className="text-xl font-semibold">
+            {lemmaDetails?.lemma ?? selectedLemma}
+            {lemmaDetails?.english_translation
+              ? ` (${lemmaDetails.english_translation})`
+              : ""}
+          </h2>
           <Button
             type="button"
             variant="outline"

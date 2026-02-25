@@ -17,6 +17,7 @@ def _settings(db_path) -> Settings:
         port=8001,
         db_path=db_path,
         nlp_model="da_dacy_small_tft-0.0.0",
+        translation_enabled=False,
     )
 
 

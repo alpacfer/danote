@@ -12,12 +12,14 @@ from app.api.schemas.v1.wordbank import (
 )
 from app.db.migrations import apply_migrations, get_connection
 from app.services.token_classifier import normalize_token
+from app.services.translation import TranslationService
 
 
 class WordbankUseCase:
-    def __init__(self, db_path, typo_engine=None):
+    def __init__(self, db_path, typo_engine=None, translation_service: TranslationService | None = None):
         self._db_path = db_path
         self._typo_engine = typo_engine
+        self._translation_service = translation_service
 
     def add_word(self, surface_token: str, lemma_candidate: str | None) -> AddWordResponse:
         normalized_surface = normalize_token(surface_token)
@@ -29,14 +31,15 @@ class WordbankUseCase:
 
         inserted_lexeme = False
         inserted_surface_form = False
+        english_translation = self._lookup_translation(stored_lemma)
 
         with get_connection(self._db_path) as conn:
             cursor = conn.execute(
                 """
-                INSERT OR IGNORE INTO lexemes (lemma, source)
-                VALUES (?, ?)
+                INSERT OR IGNORE INTO lexemes (lemma, source, english_translation)
+                VALUES (?, ?, ?)
                 """,
-                (stored_lemma, "manual"),
+                (stored_lemma, "manual", english_translation),
             )
             inserted_lexeme = cursor.rowcount == 1
 
@@ -46,6 +49,16 @@ class WordbankUseCase:
             ).fetchone()
             if lexeme_row is None:
                 raise RuntimeError("Failed to create or load lexeme")
+
+            if english_translation:
+                conn.execute(
+                    """
+                    UPDATE lexemes
+                    SET english_translation = COALESCE(english_translation, ?)
+                    WHERE id = ?
+                    """,
+                    (english_translation, lexeme_row["id"]),
+                )
 
             if normalized_surface:
                 cursor = conn.execute(
@@ -89,7 +102,7 @@ class WordbankUseCase:
         with get_connection(self._db_path) as conn:
             rows = conn.execute(
                 """
-                SELECT l.lemma, COUNT(sf.id) AS variation_count
+                SELECT l.lemma, l.english_translation, COUNT(sf.id) AS variation_count
                 FROM lexemes l
                 LEFT JOIN surface_forms sf ON sf.lexeme_id = l.id
                 GROUP BY l.id, l.lemma
@@ -99,7 +112,11 @@ class WordbankUseCase:
 
         return LemmaListResponse(
             items=[
-                LemmaSummary(lemma=row["lemma"], variation_count=int(row["variation_count"]))
+                LemmaSummary(
+                    lemma=row["lemma"],
+                    english_translation=row["english_translation"],
+                    variation_count=int(row["variation_count"]),
+                )
                 for row in rows
             ]
         )
@@ -112,7 +129,7 @@ class WordbankUseCase:
         with get_connection(self._db_path) as conn:
             lexeme_row = conn.execute(
                 """
-                SELECT id, lemma
+                SELECT id, lemma, english_translation
                 FROM lexemes
                 WHERE lemma = ?
                 """,
@@ -134,8 +151,19 @@ class WordbankUseCase:
 
         return LemmaDetailsResponse(
             lemma=lexeme_row["lemma"],
+            english_translation=lexeme_row["english_translation"],
             surface_forms=[row["form"] for row in form_rows],
         )
+
+
+    def _lookup_translation(self, lemma: str) -> str | None:
+        if self._translation_service is None:
+            return None
+
+        try:
+            return self._translation_service.translate_da_to_en(lemma)
+        except Exception:
+            return None
 
     def reset_database(self) -> ResetDatabaseResponse:
         if self._db_path.exists():

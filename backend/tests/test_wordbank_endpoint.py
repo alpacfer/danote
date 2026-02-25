@@ -15,6 +15,7 @@ def _test_settings(db_path) -> Settings:
         port=8001,
         db_path=db_path,
         nlp_model="da_dacy_small_tft-0.0.0",
+        translation_enabled=False,
     )
 
 
@@ -96,8 +97,8 @@ def test_list_lemmas_returns_sorted_lemmas_with_variation_counts(tmp_path, stub_
     assert response.status_code == 200
     payload = response.json()
     assert payload["items"] == [
-        {"lemma": "bog", "variation_count": 2},
-        {"lemma": "hus", "variation_count": 1},
+        {"lemma": "bog", "english_translation": None, "variation_count": 2},
+        {"lemma": "hus", "english_translation": None, "variation_count": 1},
     ]
 
 
@@ -114,6 +115,7 @@ def test_get_lemma_details_returns_all_saved_variations(tmp_path, stub_nlp_adapt
     assert response.status_code == 200
     payload = response.json()
     assert payload["lemma"] == "bog"
+    assert payload["english_translation"] is None
     assert payload["surface_forms"] == ["bogen", "bogens"]
 
 

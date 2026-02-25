@@ -21,7 +21,8 @@ class Settings:
     cors_origins: tuple[str, ...] = DEFAULT_CORS_ORIGINS
     typo_enabled: bool = True
     typo_dictionary_path: Path | None = None
-
+    translation_enabled: bool = True
+    translation_timeout_seconds: float = 4.0
 
 
 def load_settings() -> Settings:
@@ -44,4 +45,7 @@ def load_settings() -> Settings:
         typo_dictionary_path=Path(os.getenv("DANOTE_TYPO_DICTIONARY_PATH"))
         if os.getenv("DANOTE_TYPO_DICTIONARY_PATH")
         else None,
+        translation_enabled=os.getenv("DANOTE_TRANSLATION_ENABLED", "1").lower()
+        not in {"0", "false", "no"},
+        translation_timeout_seconds=float(os.getenv("DANOTE_TRANSLATION_TIMEOUT", "4.0")),
     )

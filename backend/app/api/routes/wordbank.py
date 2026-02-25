@@ -30,6 +30,7 @@ def _wordbank_use_case(request: Request) -> WordbankUseCase:
     return WordbankUseCase(
         db_path=request.app.state.settings.db_path,
         typo_engine=getattr(request.app.state, "typo_engine", None),
+        translation_service=getattr(request.app.state, "translation_service", None),
     )
 
 

@@ -20,6 +20,7 @@ class AddWordResponse(BaseModel):
 
 class LemmaSummary(BaseModel):
     lemma: str
+    english_translation: str | None
     variation_count: int
 
 
@@ -29,6 +30,7 @@ class LemmaListResponse(BaseModel):
 
 class LemmaDetailsResponse(BaseModel):
     lemma: str
+    english_translation: str | None
     surface_forms: list[str]
 
 
