@@ -18,6 +18,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -37,7 +38,8 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Textarea } from "@/components/ui/textarea"
+import { NotesEditor } from "@/components/notes-editor"
+import { mapAnalyzedTokensToHighlights } from "@/lib/token-highlights"
 import { toast } from "sonner"
 
 type ConnectionStatus = "loading" | "connected" | "degraded" | "offline"
@@ -87,12 +89,22 @@ type LemmaListResponse = {
 type LemmaDetailsResponse = {
   lemma: string
   english_translation: string | null
-  surface_forms: string[]
+  surface_forms: Array<{
+    form: string
+    english_translation: string | null
+  }>
 }
 
 type ResetDatabaseResponse = {
   status: "reset"
   message: string
+}
+
+type GenerateTranslationResponse = {
+  status: "generated" | "unavailable"
+  source_word: string
+  lemma: string
+  english_translation: string | null
 }
 
 type TokenFeedbackPayload = {
@@ -101,6 +113,13 @@ type TokenFeedbackPayload = {
   suggestions_shown: string[]
   user_action: TokenAction
   chosen_value?: string
+}
+
+type HighlightPopoverState = {
+  open: boolean
+  x: number
+  y: number
+  tokenIndex: number | null
 }
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? "http://127.0.0.1:8000"
@@ -157,6 +176,10 @@ function replaceFirstTokenOccurrence(text: string, source: string, replacement: 
     return text.replace(pattern, replacement)
   }
   return text.replace(source, replacement)
+}
+
+function normalizeWordKey(value: string): string {
+  return value.normalize("NFKC").toLocaleLowerCase()
 }
 
 type AppSidebarProps = {
@@ -326,10 +349,36 @@ function App() {
   const [lemmaDetailsError, setLemmaDetailsError] = useState<string | null>(null)
   const [isLemmaDetailsLoading, setIsLemmaDetailsLoading] = useState(false)
   const [isResettingDatabase, setIsResettingDatabase] = useState(false)
+  const [highlightPopover, setHighlightPopover] = useState<HighlightPopoverState>({
+    open: false,
+    x: 0,
+    y: 0,
+    tokenIndex: null,
+  })
+  const [generatedTranslationMap, setGeneratedTranslationMap] = useState<Record<string, string | null>>({})
+  const [isGeneratingTranslation, setIsGeneratingTranslation] = useState(false)
+  const [generateTranslationError, setGenerateTranslationError] = useState<string | null>(null)
 
   const latestRequestIdRef = useRef(0)
   const activeControllerRef = useRef<AbortController | null>(null)
   const analysisInput = useMemo(() => finalizedAnalysisText(noteText), [noteText])
+  const noteHighlights = useMemo(
+    () => mapAnalyzedTokensToHighlights(noteText, tokens),
+    [noteText, tokens],
+  )
+  const popoverToken = useMemo(() => {
+    if (highlightPopover.tokenIndex === null) {
+      return null
+    }
+    return tokens[highlightPopover.tokenIndex] ?? null
+  }, [highlightPopover.tokenIndex, tokens])
+  const popoverTranslation = useMemo(() => {
+    if (!popoverToken) {
+      return null
+    }
+    const key = normalizeWordKey(popoverToken.normalized_token || popoverToken.surface_token)
+    return generatedTranslationMap[key] ?? null
+  }, [generatedTranslationMap, popoverToken])
 
   useEffect(() => {
     let cancelled = false
@@ -526,6 +575,15 @@ function App() {
     }
   }, [activeSection, selectedLemma])
 
+  useEffect(() => {
+    if (!highlightPopover.open) {
+      return
+    }
+    if (highlightPopover.tokenIndex === null || !tokens[highlightPopover.tokenIndex]) {
+      setHighlightPopover((current) => ({ ...current, open: false, tokenIndex: null }))
+    }
+  }, [highlightPopover.open, highlightPopover.tokenIndex, tokens])
+
   const badgeVariant =
     status === "connected"
       ? "secondary"
@@ -596,6 +654,56 @@ function App() {
         delete next[loadingKey]
         return next
       })
+    }
+  }
+
+  async function generateTranslationForToken(token: AnalyzedToken) {
+    const sourceWord = token.normalized_token || token.surface_token
+    const sourceKey = normalizeWordKey(sourceWord)
+    if (Object.hasOwn(generatedTranslationMap, sourceKey)) {
+      return
+    }
+
+    setIsGeneratingTranslation(true)
+    setGenerateTranslationError(null)
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/wordbank/translation`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          surface_token: token.surface_token,
+          lemma_candidate: token.matched_lemma ?? token.lemma_candidate ?? token.lemma,
+        }),
+      })
+      if (!response.ok) {
+        const message = await extractErrorMessage(
+          response,
+          `Translation request failed with status ${response.status}`,
+        )
+        throw new Error(message)
+      }
+
+      const payload = (await response.json()) as GenerateTranslationResponse
+      const responseKey = normalizeWordKey(payload.source_word || sourceWord)
+      const translation = payload.english_translation?.trim() || null
+
+      setGeneratedTranslationMap((current) => ({ ...current, [responseKey]: translation }))
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not generate translation."
+      setGenerateTranslationError(message)
+      void error
+    } finally {
+      setIsGeneratingTranslation(false)
+    }
+  }
+
+  function openHighlightPopover(tokenIndex: number, x: number, y: number) {
+    setHighlightPopover({ open: true, tokenIndex, x, y })
+    const token = tokens[tokenIndex]
+    if (token) {
+      void generateTranslationForToken(token)
     }
   }
 
@@ -798,9 +906,10 @@ function App() {
           <ScrollArea className="h-[520px] rounded-md border p-2">
             <div className="divide-border divide-y rounded-md border">
               {lemmaDetails.surface_forms.map((form) => (
-                <p key={form} className="px-3 py-2 text-sm">
-                  {form}
-                </p>
+                <div key={form.form} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
+                  <span>{form.form}</span>
+                  <span className="text-muted-foreground text-xs">{form.english_translation ?? "No translation"}</span>
+                </div>
               ))}
             </div>
           </ScrollArea>
@@ -818,16 +927,81 @@ function App() {
           </CardHeader>
           <CardContent>
             <div className="relative">
-              <Textarea
+              <Popover
+                open={highlightPopover.open && Boolean(popoverToken)}
+                onOpenChange={(open) => {
+                  setHighlightPopover((current) => ({
+                    ...current,
+                    open,
+                    tokenIndex: open ? current.tokenIndex : null,
+                  }))
+                }}
+              >
+                <PopoverAnchor asChild>
+                  <button
+                    type="button"
+                    aria-hidden="true"
+                    tabIndex={-1}
+                    className="pointer-events-none fixed size-px opacity-0"
+                    style={{ left: highlightPopover.x, top: highlightPopover.y }}
+                  />
+                </PopoverAnchor>
+                <PopoverContent align="start" sideOffset={8} className="space-y-3">
+                  {popoverToken && (
+                    <>
+                      <div className="space-y-1">
+                        <p className="text-sm font-semibold">{popoverToken.surface_token}</p>
+                        <p className="text-muted-foreground text-xs">
+                          {popoverToken.classification === "variation" ? "variation" : "word"}
+                        </p>
+                      </div>
+
+                      <div className="space-y-1">
+                        <p className="text-xs font-medium">Translations</p>
+                        {isGeneratingTranslation ? (
+                          <p className="text-muted-foreground text-xs">Loading translations...</p>
+                        ) : generateTranslationError ? (
+                          <p className="text-destructive text-xs">
+                            {generateTranslationError}
+                          </p>
+                        ) : popoverTranslation ? (
+                          <ul className="text-muted-foreground list-disc pl-4 text-xs">
+                            <li>{popoverTranslation}</li>
+                          </ul>
+                        ) : (
+                          <p className="text-muted-foreground text-xs">No translation available.</p>
+                        )}
+                      </div>
+
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="w-full"
+                        disabled={Boolean(addingTokens[addLoadingKey(popoverToken)])}
+                        onClick={() => {
+                          void addTokenToWordbank(popoverToken)
+                          setHighlightPopover((current) => ({ ...current, open: false, tokenIndex: null }))
+                        }}
+                      >
+                        {addingTokens[addLoadingKey(popoverToken)]
+                          ? "Adding..."
+                          : popoverToken.classification === "variation"
+                            ? "Add variation"
+                            : "Add to wordbank"}
+                      </Button>
+                    </>
+                  )}
+                </PopoverContent>
+              </Popover>
+              <NotesEditor
                 id="lesson-notes"
                 placeholder="Type lesson notes here..."
-                className="min-h-[360px] resize-y pb-8"
-                spellCheck={false}
-                autoCorrect="off"
-                autoCapitalize="off"
-                autoComplete="off"
                 value={noteText}
-                onChange={(event) => setNoteText(event.target.value)}
+                highlights={noteHighlights}
+                onChange={setNoteText}
+                onHighlightClick={({ tokenIndex, x, y }) => {
+                  openHighlightPopover(tokenIndex, x, y)
+                }}
               />
               <p className="text-muted-foreground absolute right-3 bottom-2 text-xs" aria-label="note-character-count">
                 {noteText.length}

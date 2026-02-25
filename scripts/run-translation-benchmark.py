@@ -3,15 +3,17 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
-from app.services.translation import ArgosTranslationService, TranslationError
+from app.services.translation import DeepLTranslationService, TranslationError
 from benchmark_reporting import append_benchmark_report
 
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 FIXTURE_PATH = ROOT_DIR / "test-data" / "fixtures" / "translation" / "translation_words.da_en.v1.json"
+DEFAULT_DEEPL_API_KEY = "4f853833-6289-42af-86ca-3171a46e05d6:fx"
 
 
 @dataclass(frozen=True)
@@ -99,7 +101,13 @@ def _load_cases(path: Path) -> list[BenchmarkCase]:
 
 def run(*, max_failures: int) -> int:
     cases = _load_cases(FIXTURE_PATH)
-    service = ArgosTranslationService()
+    deepl_api_key = os.getenv("DANOTE_DEEPL_API_KEY", DEFAULT_DEEPL_API_KEY).strip()
+    if not deepl_api_key:
+        raise RuntimeError("DANOTE_DEEPL_API_KEY is required to run the translation benchmark.")
+    service = DeepLTranslationService(
+        api_key=deepl_api_key,
+        base_url=os.getenv("DANOTE_DEEPL_API_URL"),
+    )
 
     total = len(cases)
     exact_passed = 0

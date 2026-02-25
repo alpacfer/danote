@@ -10,6 +10,18 @@ class AddWordRequest(BaseModel):
     lemma_candidate: str | None = None
 
 
+class GenerateTranslationRequest(BaseModel):
+    surface_token: str = Field(..., min_length=1)
+    lemma_candidate: str | None = None
+
+
+class GenerateTranslationResponse(BaseModel):
+    status: Literal["generated", "unavailable"]
+    source_word: str
+    lemma: str
+    english_translation: str | None
+
+
 class AddWordResponse(BaseModel):
     status: Literal["inserted", "exists"]
     stored_lemma: str
@@ -29,9 +41,13 @@ class LemmaListResponse(BaseModel):
 
 
 class LemmaDetailsResponse(BaseModel):
+    class SurfaceFormDetails(BaseModel):
+        form: str
+        english_translation: str | None
+
     lemma: str
     english_translation: str | None
-    surface_forms: list[str]
+    surface_forms: list[SurfaceFormDetails]
 
 
 class ResetDatabaseResponse(BaseModel):

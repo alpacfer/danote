@@ -13,7 +13,7 @@ from app.core.config import Settings, load_settings
 from app.db.migrations import apply_migrations
 from app.core.logging import configure_logging
 from app.nlp.adapter import NLPAdapter
-from app.services.translation import ArgosTranslationService
+from app.services.translation import DeepLTranslationService
 from app.services.typo.typo_engine import TypoEngine
 
 configure_logging()
@@ -82,10 +82,17 @@ def create_app(
                 typo_engine = None
         app.state.typo_engine = typo_engine
         if app_settings.translation_enabled:
-            try:
-                app.state.translation_service = ArgosTranslationService()
-            except Exception:
-                logger.exception("backend_translation_startup_failed")
+            if app_settings.translation_deepl_api_key:
+                try:
+                    app.state.translation_service = DeepLTranslationService(
+                        api_key=app_settings.translation_deepl_api_key,
+                        base_url=app_settings.translation_deepl_api_url,
+                    )
+                except Exception:
+                    logger.exception("backend_translation_startup_failed")
+                    app.state.translation_service = None
+            else:
+                logger.warning("backend_translation_startup_skipped_missing_deepl_key")
                 app.state.translation_service = None
         else:
             app.state.translation_service = None
@@ -105,9 +112,14 @@ def create_app(
                 "nlp": adapter.metadata() if adapter else None,
                 "typo_enabled": bool(typo_engine is not None),
                 "translation_enabled": app_settings.translation_enabled,
+                "translation_provider": "deepl" if app.state.translation_service else None,
             },
         )
         yield
+        translation_service = getattr(app.state, "translation_service", None)
+        close = getattr(translation_service, "close", None)
+        if callable(close):
+            close()
 
     app = FastAPI(title="Danote Backend", version="0.1.0", lifespan=lifespan)
     app.state.settings = app_settings

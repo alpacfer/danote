@@ -22,6 +22,8 @@ class Settings:
     typo_enabled: bool = True
     typo_dictionary_path: Path | None = None
     translation_enabled: bool = True
+    translation_deepl_api_key: str | None = None
+    translation_deepl_api_url: str | None = None
 
 
 def load_settings() -> Settings:
@@ -46,4 +48,6 @@ def load_settings() -> Settings:
         else None,
         translation_enabled=os.getenv("DANOTE_TRANSLATION_ENABLED", "1").lower()
         not in {"0", "false", "no"},
+        translation_deepl_api_key=os.getenv("DANOTE_DEEPL_API_KEY"),
+        translation_deepl_api_url=os.getenv("DANOTE_DEEPL_API_URL"),
     )

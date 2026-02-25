@@ -8,7 +8,7 @@ Python API service for danote.
 - ASGI server: Uvicorn
 - Config/logging: standard library modules (`os`, `pathlib`, `logging`)
 - Database driver: `sqlite3` from Python standard library
-- Translation: Argos Translate (`argostranslate`) for Danish -> English
+- Translation: DeepL API (`httpx` client) for Danish -> English
 
 ## Database (Checkpoint 5)
 
@@ -88,6 +88,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 ```bash
 cd backend
 source .venv/bin/activate
+export DANOTE_DEEPL_API_KEY="your-deepl-key"
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 

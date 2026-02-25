@@ -25,8 +25,17 @@ log "running frontend tests"
 
 log "running backend fast unit suite"
 (
-  cd "$ROOT_DIR"
-  make test-backend-unit
+  if command -v make >/dev/null 2>&1; then
+    cd "$ROOT_DIR"
+    make test-backend-unit
+  else
+    cd "$ROOT_DIR/backend"
+    PYTHONPATH=. .venv/bin/python -m pytest -q \
+      tests/test_typo_engine_unit.py \
+      tests/test_token_classifier_unit.py \
+      tests/test_token_filter_unit.py \
+      tests/test_use_cases_unit.py
+  fi
 )
 
 log "documentation command smoke checks passed"

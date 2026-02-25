@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react"
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { vi } from "vitest"
 import { toast } from "sonner"
 
@@ -47,6 +47,15 @@ function responseOf(payload: unknown): Response {
   } as Response
 }
 
+function getNotesEditor(): HTMLElement {
+  return screen.getByRole("textbox", { name: /lesson notes/i })
+}
+
+function setNotesEditorText(value: string) {
+  const input = screen.getByTestId("lesson-notes-test-input")
+  fireEvent.change(input, { target: { value } })
+}
+
 function mockFetchImplementation(options?: {
   healthOk?: boolean
   healthStatus?: "ok" | "degraded"
@@ -67,12 +76,17 @@ function mockFetchImplementation(options?: {
     items: Array<{
       lemma: string
       variation_count: number
+      english_translation?: string | null
     }>
   }
   lemmaDetailsOk?: boolean
   lemmaDetailsResponse?: {
     lemma: string
-    surface_forms: string[]
+    english_translation?: string | null
+    surface_forms: Array<{
+      form: string
+      english_translation: string | null
+    }>
   }
   resetDbOk?: boolean
   resetDbResponse?: {
@@ -80,6 +94,13 @@ function mockFetchImplementation(options?: {
     message: string
   }
   resetDbHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+  translationResponse?: {
+    status: "generated" | "unavailable"
+    source_word: string
+    lemma: string
+    english_translation: string | null
+  }
+  translationHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
 }) {
   const healthOk = options?.healthOk ?? true
   const healthStatus = options?.healthStatus ?? "ok"
@@ -96,9 +117,19 @@ function mockFetchImplementation(options?: {
   const lemmasOk = options?.lemmasOk ?? true
   const lemmasResponse = options?.lemmasResponse ?? { items: [] }
   const lemmaDetailsOk = options?.lemmaDetailsOk ?? true
-  const lemmaDetailsResponse = options?.lemmaDetailsResponse ?? { lemma: "bog", surface_forms: ["bogen"] }
+  const lemmaDetailsResponse = options?.lemmaDetailsResponse ?? {
+    lemma: "bog",
+    english_translation: null,
+    surface_forms: [{ form: "bogen", english_translation: null }],
+  }
   const resetDbOk = options?.resetDbOk ?? true
   const resetDbResponse = options?.resetDbResponse ?? { status: "reset" as const, message: "Database reset complete." }
+  const translationResponse = options?.translationResponse ?? {
+    status: "unavailable" as const,
+    source_word: "kat",
+    lemma: "kat",
+    english_translation: null,
+  }
 
   return vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
     const url = String(input)
@@ -162,6 +193,13 @@ function mockFetchImplementation(options?: {
       return responseOf({ status: "ignored" })
     }
 
+    if (url.endsWith("/api/wordbank/translation")) {
+      if (options?.translationHandler) {
+        return options.translationHandler(input, init)
+      }
+      return responseOf(translationResponse)
+    }
+
     return { ok: false, status: 404 } as Response
   })
 }
@@ -175,7 +213,7 @@ describe("App shell", () => {
     expect(screen.getAllByText(/danote/i).length).toBeGreaterThan(0)
     expect(screen.getAllByText(/lesson notes/i).length).toBeGreaterThan(0)
     expect(screen.getAllByText(/detected words/i).length).toBeGreaterThan(0)
-    expect(screen.getByPlaceholderText(/type lesson notes here.../i)).toBeInTheDocument()
+    expect(getNotesEditor()).toBeInTheDocument()
     const statusBadge = await screen.findByLabelText("backend-connection-status")
     expect(statusBadge).toHaveTextContent(/connected/i)
   })
@@ -200,7 +238,10 @@ describe("App shell", () => {
       },
       lemmaDetailsResponse: {
         lemma: "bog",
-        surface_forms: ["bogen", "bogens"],
+        surface_forms: [
+          { form: "bogen", english_translation: "book" },
+          { form: "bogens", english_translation: "book's" },
+        ],
       },
     })
 
@@ -214,8 +255,8 @@ describe("App shell", () => {
 
     fireEvent.click(bogItem)
     expect(await screen.findByRole("button", { name: /back to list/i })).toBeInTheDocument()
-    expect(screen.getByText(/^bogen$/i)).toBeInTheDocument()
-    expect(screen.getByText(/^bogens$/i)).toBeInTheDocument()
+    expect(await screen.findByText(/^book$/i)).toBeInTheDocument()
+    expect(screen.getByText(/^book's$/i)).toBeInTheDocument()
   })
 
   it("shows notes and detected words in one page", async () => {
@@ -244,27 +285,24 @@ describe("App shell", () => {
     expect(await screen.findByText(/degraded/i)).toBeInTheDocument()
   })
 
-  it("textarea accepts typing and paste", async () => {
+  it("notes editor accepts typing and paste-like updates", async () => {
     mockFetchImplementation()
 
     render(<App />)
     await screen.findByLabelText("backend-connection-status")
 
-    const textarea = screen.getByPlaceholderText(/type lesson notes here.../i)
-    expect(textarea).toHaveAttribute("spellcheck", "false")
-    expect(textarea).toHaveAttribute("autocorrect", "off")
-    expect(textarea).toHaveAttribute("autocapitalize", "off")
-    expect(textarea).toHaveAttribute("autocomplete", "off")
-    fireEvent.change(textarea, { target: { value: "Jeg kan godt lide bogen" } })
-    expect(textarea).toHaveValue("Jeg kan godt lide bogen")
+    const editor = getNotesEditor()
+    expect(editor).toHaveAttribute("spellcheck", "false")
+    expect(editor).toHaveAttribute("autocorrect", "off")
+    expect(editor).toHaveAttribute("autocapitalize", "off")
+    expect(editor).toHaveAttribute("autocomplete", "off")
 
-    fireEvent.paste(textarea, {
-      clipboardData: {
-        getData: () => "linje 1\nlinje 2",
-      },
-    })
-    fireEvent.change(textarea, { target: { value: "linje 1\nlinje 2" } })
-    expect(textarea).toHaveValue("linje 1\nlinje 2")
+    setNotesEditorText("Jeg kan godt lide bogen")
+    expect(getNotesEditor()).toHaveTextContent("Jeg kan godt lide bogen")
+
+    setNotesEditorText("linje 1\nlinje 2")
+    expect(getNotesEditor()).toHaveTextContent(/linje 1/i)
+    expect(getNotesEditor()).toHaveTextContent(/linje 2/i)
   })
 
   it("renders detected words table headers", async () => {
@@ -292,10 +330,9 @@ describe("App shell", () => {
     render(<App />)
     screen.getByLabelText("backend-connection-status")
 
-    const textarea = screen.getByPlaceholderText(/type lesson notes here.../i)
-    fireEvent.change(textarea, { target: { value: "Jeg" } })
-    fireEvent.change(textarea, { target: { value: "Jeg kan" } })
-    fireEvent.change(textarea, { target: { value: "Jeg kan godt lide bogen " } })
+    setNotesEditorText("Jeg")
+    setNotesEditorText("Jeg kan")
+    setNotesEditorText("Jeg kan godt lide bogen ")
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(400)
@@ -335,28 +372,26 @@ describe("App shell", () => {
 
     render(<App />)
     screen.getByLabelText("backend-connection-status")
-    const textarea = screen.getByPlaceholderText(/type lesson notes here.../i)
-
-    fireEvent.change(textarea, { target: { value: "b" } })
+    setNotesEditorText("b")
     await act(async () => {
       await vi.advanceTimersByTimeAsync(500)
     })
-    fireEvent.change(textarea, { target: { value: "bo" } })
+    setNotesEditorText("bo")
     await act(async () => {
       await vi.advanceTimersByTimeAsync(500)
     })
-    fireEvent.change(textarea, { target: { value: "boge" } })
+    setNotesEditorText("boge")
     await act(async () => {
       await vi.advanceTimersByTimeAsync(500)
     })
-    fireEvent.change(textarea, { target: { value: "bogen" } })
+    setNotesEditorText("bogen")
     await act(async () => {
       await vi.advanceTimersByTimeAsync(500)
     })
 
     expect(analyzeBodies).toHaveLength(0)
 
-    fireEvent.change(textarea, { target: { value: "bogen " } })
+    setNotesEditorText("bogen ")
     await act(async () => {
       await vi.advanceTimersByTimeAsync(500)
       await Promise.resolve()
@@ -382,13 +417,12 @@ describe("App shell", () => {
     render(<App />)
     screen.getByLabelText("backend-connection-status")
 
-    const textarea = screen.getByPlaceholderText(/type lesson notes here.../i)
-    fireEvent.change(textarea, { target: { value: "første " } })
+    setNotesEditorText("første ")
     await act(async () => {
       await vi.advanceTimersByTimeAsync(500)
     })
 
-    fireEvent.change(textarea, { target: { value: "anden " } })
+    setNotesEditorText("anden ")
     await act(async () => {
       await vi.advanceTimersByTimeAsync(500)
     })
@@ -477,16 +511,14 @@ describe("App shell", () => {
     render(<App />)
     screen.getByLabelText("backend-connection-status")
 
-    fireEvent.change(screen.getByPlaceholderText(/type lesson notes here.../i), {
-      target: { value: "Jeg kan godt lide bogen " },
-    })
+    setNotesEditorText("Jeg kan godt lide bogen ")
     await act(async () => {
       await vi.advanceTimersByTimeAsync(500)
       await Promise.resolve()
     })
 
     expect(screen.getAllByText(/^kan$/i).length).toBeGreaterThanOrEqual(1)
-    expect(screen.getByText(/^bogen$/i)).toBeInTheDocument()
+    expect(screen.getAllByText(/^bogen$/i).length).toBeGreaterThanOrEqual(1)
     expect(screen.getAllByText(/^kat$/i).length).toBeGreaterThanOrEqual(1)
 
     expect(screen.getAllByText(/^known$/i).length).toBeGreaterThanOrEqual(1)
@@ -527,15 +559,212 @@ describe("App shell", () => {
     render(<App />)
     screen.getByLabelText("backend-connection-status")
 
-    fireEvent.change(screen.getByPlaceholderText(/type lesson notes here.../i), {
-      target: { value: "kan kat " },
-    })
+    setNotesEditorText("kan kat ")
     await act(async () => {
       await vi.advanceTimersByTimeAsync(500)
       await Promise.resolve()
     })
 
     expect(screen.getAllByRole("button", { name: /^add$/i })).toHaveLength(1)
+  })
+
+  it("highlights new, variation, and typo_likely tokens in the editor", async () => {
+    vi.useFakeTimers()
+
+    mockFetchImplementation({
+      analyzeTokens: [
+        {
+          surface_token: "kan",
+          normalized_token: "kan",
+          lemma_candidate: "kan",
+          classification: "known",
+          match_source: "exact",
+          matched_lemma: "kan",
+          matched_surface_form: "kan",
+        },
+        {
+          surface_token: "bogen",
+          normalized_token: "bogen",
+          lemma_candidate: "bog",
+          classification: "variation",
+          match_source: "lemma",
+          matched_lemma: "bog",
+          matched_surface_form: null,
+        },
+        {
+          surface_token: "spisr",
+          normalized_token: "spisr",
+          lemma_candidate: "spiser",
+          classification: "typo_likely",
+          match_source: "none",
+          matched_lemma: null,
+          matched_surface_form: null,
+        },
+        {
+          surface_token: "nyord",
+          normalized_token: "nyord",
+          lemma_candidate: "nyord",
+          classification: "new",
+          match_source: "none",
+          matched_lemma: null,
+          matched_surface_form: null,
+        },
+      ],
+    })
+
+    render(<App />)
+    screen.getByLabelText("backend-connection-status")
+
+    setNotesEditorText("kan bogen spisr nyord ")
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500)
+      await Promise.resolve()
+    })
+
+    const editor = getNotesEditor()
+    expect(editor.querySelector('mark[data-status="variation"]')).toBeInTheDocument()
+    expect(editor.querySelector('mark[data-status="typo_likely"]')).toBeInTheDocument()
+    expect(editor.querySelector('mark[data-status="new"]')).toBeInTheDocument()
+  })
+
+  it("does not highlight known or uncertain tokens", async () => {
+    vi.useFakeTimers()
+
+    mockFetchImplementation({
+      analyzeTokens: [
+        {
+          surface_token: "kan",
+          normalized_token: "kan",
+          lemma_candidate: "kan",
+          classification: "known",
+          match_source: "exact",
+          matched_lemma: "kan",
+          matched_surface_form: "kan",
+        },
+        {
+          surface_token: "MilkoScna",
+          normalized_token: "milkoscna",
+          lemma_candidate: null,
+          classification: "uncertain",
+          match_source: "none",
+          matched_lemma: null,
+          matched_surface_form: null,
+        },
+      ],
+    })
+
+    render(<App />)
+    screen.getByLabelText("backend-connection-status")
+
+    setNotesEditorText("kan MilkoScna ")
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500)
+      await Promise.resolve()
+    })
+
+    expect(getNotesEditor().querySelector("mark")).not.toBeInTheDocument()
+  })
+
+  it("highlights full words at the start of each new line", async () => {
+    vi.useFakeTimers()
+
+    mockFetchImplementation({
+      analyzeTokens: [
+        {
+          surface_token: "asdfsadf",
+          normalized_token: "asdfsadf",
+          lemma_candidate: "asdfsadf",
+          classification: "new",
+          match_source: "none",
+          matched_lemma: null,
+          matched_surface_form: null,
+        },
+        {
+          surface_token: "katten",
+          normalized_token: "katten",
+          lemma_candidate: "kat",
+          classification: "variation",
+          match_source: "lemma",
+          matched_lemma: "kat",
+          matched_surface_form: null,
+        },
+        {
+          surface_token: "komputer",
+          normalized_token: "komputer",
+          lemma_candidate: "komputer",
+          classification: "new",
+          match_source: "none",
+          matched_lemma: null,
+          matched_surface_form: null,
+        },
+        {
+          surface_token: "dyr",
+          normalized_token: "dyr",
+          lemma_candidate: "dyr",
+          classification: "new",
+          match_source: "none",
+          matched_lemma: null,
+          matched_surface_form: null,
+        },
+      ],
+    })
+
+    render(<App />)
+    screen.getByLabelText("backend-connection-status")
+
+    setNotesEditorText("asdfsadf\n\nkatten \n\nkomputer\n\ndyr ")
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500)
+      await Promise.resolve()
+    })
+
+    const marks = Array.from(getNotesEditor().querySelectorAll("mark")).map((node) => node.textContent)
+    expect(marks).toEqual(expect.arrayContaining(["asdfsadf", "katten", "komputer", "dyr"]))
+    expect(marks).not.toContain("atten")
+    expect(marks).not.toContain("mputer")
+  })
+
+  it("clicking a highlighted variation opens popover with add action and translation", async () => {
+    vi.useRealTimers()
+
+    mockFetchImplementation({
+      analyzeTokens: [
+        {
+          surface_token: "katten",
+          normalized_token: "katten",
+          lemma_candidate: "kat",
+          classification: "variation",
+          match_source: "lemma",
+          matched_lemma: "kat",
+          matched_surface_form: null,
+        },
+      ],
+      lemmasResponse: {
+        items: [],
+      },
+      translationResponse: {
+        status: "generated",
+        source_word: "katten",
+        lemma: "kat",
+        english_translation: "cat",
+      },
+    })
+
+    render(<App />)
+    screen.getByLabelText("backend-connection-status")
+
+    setNotesEditorText("katten ")
+    await waitFor(() => {
+      const mark = getNotesEditor().querySelector("mark[data-status='variation']")
+      expect(mark).toBeInTheDocument()
+    })
+
+    const mark = getNotesEditor().querySelector("mark[data-status='variation']")
+    expect(mark).toBeInTheDocument()
+    fireEvent.click(mark as HTMLElement, { clientX: 160, clientY: 140 })
+
+    expect(await screen.findByRole("button", { name: /add variation/i })).toBeInTheDocument()
+    expect(await screen.findByText(/^cat$/i)).toBeInTheDocument()
   })
 
   it("shows typo actions and replace updates note text", async () => {
@@ -561,8 +790,7 @@ describe("App shell", () => {
 
     render(<App />)
     screen.getByLabelText("backend-connection-status")
-    const textarea = screen.getByPlaceholderText(/type lesson notes here.../i)
-    fireEvent.change(textarea, { target: { value: "jeg spisr nu " } })
+    setNotesEditorText("jeg spisr nu ")
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(500)
@@ -570,7 +798,7 @@ describe("App shell", () => {
     })
 
     fireEvent.click(screen.getByRole("button", { name: /^replace$/i }))
-    expect(screen.getByPlaceholderText(/type lesson notes here.../i)).toHaveValue("jeg spiser nu ")
+    expect(screen.getByLabelText("note-character-count")).toHaveTextContent("14")
   })
 
   it("shows uncertain actions including ignore", async () => {
@@ -596,9 +824,7 @@ describe("App shell", () => {
 
     render(<App />)
     screen.getByLabelText("backend-connection-status")
-    fireEvent.change(screen.getByPlaceholderText(/type lesson notes here.../i), {
-      target: { value: "vi så MilkoScna " },
-    })
+    setNotesEditorText("vi så MilkoScna ")
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(500)
@@ -666,9 +892,7 @@ describe("App shell", () => {
     render(<App />)
     screen.getByLabelText("backend-connection-status")
 
-    fireEvent.change(screen.getByPlaceholderText(/type lesson notes here.../i), {
-      target: { value: "kat " },
-    })
+    setNotesEditorText("kat ")
     await act(async () => {
       await vi.advanceTimersByTimeAsync(500)
       await Promise.resolve()
@@ -714,9 +938,7 @@ describe("App shell", () => {
     render(<App />)
     screen.getByLabelText("backend-connection-status")
 
-    fireEvent.change(screen.getByPlaceholderText(/type lesson notes here.../i), {
-      target: { value: "kat " },
-    })
+    setNotesEditorText("kat ")
     await act(async () => {
       await vi.advanceTimersByTimeAsync(500)
       await Promise.resolve()
@@ -774,21 +996,14 @@ describe("App shell", () => {
     render(<App />)
     screen.getByLabelText("backend-connection-status")
 
-    const textarea = screen.getByPlaceholderText(/type lesson notes here.../i)
-
-    fireEvent.change(textarea, {
-      target: { value: "test " },
-    })
+    setNotesEditorText("test ")
     await act(async () => {
       await vi.advanceTimersByTimeAsync(500)
     })
     expect(screen.getByText(/loading detected words/i)).toBeInTheDocument()
 
     fail = true
-    const notesTextarea = screen.getByPlaceholderText(/type lesson notes here.../i)
-    fireEvent.change(notesTextarea, {
-      target: { value: "test2 " },
-    })
+    setNotesEditorText("test2 ")
     await act(async () => {
       await vi.advanceTimersByTimeAsync(600)
       await Promise.resolve()

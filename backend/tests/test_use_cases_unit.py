@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from app.api.schemas.v1.wordbank import LemmaDetailsResponse
 from app.db.migrations import apply_migrations
 from app.services.use_cases.analyze import AnalyzeNoteUseCase
 from app.services.use_cases.wordbank import WordbankUseCase
@@ -52,7 +53,12 @@ def test_wordbank_use_case_round_trip(tmp_path: Path) -> None:
 
     details = use_case.get_lemma_details("bog")
     assert details.lemma == "bog"
-    assert details.surface_forms == ["bogen"]
+    assert details.surface_forms == [
+        LemmaDetailsResponse.SurfaceFormDetails(
+            form="bogen",
+            english_translation=None,
+        )
+    ]
 
     listing = use_case.list_lemmas()
     assert listing.items[0].lemma == "bog"
@@ -60,16 +66,41 @@ def test_wordbank_use_case_round_trip(tmp_path: Path) -> None:
     assert listing.items[0].english_translation is None
 
 
-def test_wordbank_use_case_stores_english_translation(tmp_path: Path) -> None:
+def test_wordbank_use_case_stores_deepl_translations_for_lemma_and_surface(tmp_path: Path) -> None:
     use_case = WordbankUseCase(
         _db_path(tmp_path),
-        translation_service=FakeTranslationService({"bog": "book"}),
+        translation_service=FakeTranslationService({"bog": "book", "bogen": "the book"}),
     )
 
     use_case.add_word("Bogen", "bog")
 
     details = use_case.get_lemma_details("bog")
     assert details.english_translation == "book"
+    assert details.surface_forms == [
+        LemmaDetailsResponse.SurfaceFormDetails(
+            form="bogen",
+            english_translation="the book",
+        )
+    ]
+
+
+def test_wordbank_generate_translation_uses_surface_form_not_lemma(tmp_path: Path) -> None:
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        translation_service=FakeTranslationService({"bogen": "book", "bogens": "book's"}),
+    )
+
+    generated_a = use_case.generate_translation("Bogen", "bog")
+    generated_b = use_case.generate_translation("Bogens", "bog")
+
+    assert generated_a.status == "generated"
+    assert generated_a.source_word == "bogen"
+    assert generated_a.lemma == "bog"
+    assert generated_a.english_translation == "book"
+    assert generated_b.status == "generated"
+    assert generated_b.source_word == "bogens"
+    assert generated_b.lemma == "bog"
+    assert generated_b.english_translation == "book's"
 
 
 def test_analyze_use_case_filters_non_word_tokens(tmp_path: Path) -> None:

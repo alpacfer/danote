@@ -1,14 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import time
 from typing import Protocol
 
-try:
-    import argostranslate.package as argos_package
-    import argostranslate.translate as argos_translate
-except ImportError:  # pragma: no cover - dependency wiring handled in runtime/tests
-    argos_package = None
-    argos_translate = None
+import httpx
 
 
 class TranslationError(RuntimeError):
@@ -20,62 +16,117 @@ class TranslationService(Protocol):
 
 
 @dataclass
-class ArgosTranslationService:
-    """Danish->English translator backed by local Argos Translate models."""
+class DeepLTranslationService:
+    """Danish->English translator backed by the DeepL API."""
 
-    source_code: str = "da"
-    target_code: str = "en"
-    _translator: object | None = field(default=None, init=False, repr=False, compare=False)
+    api_key: str
+    source_code: str = "DA"
+    target_code: str = "EN-US"
+    context_template: str = (
+        "Dette er et dansk ord fra en elevnote. "
+        "Giv en fuld engelsk oversaettelse som frase. "
+        "For bestemt form brug artikel, fx \"the ...\"."
+    )
+    base_url: str | None = None
+    timeout_seconds: float = 10.0
+    max_retries: int = 5
+    backoff_seconds: float = 0.5
+    max_backoff_seconds: float = 8.0
+    min_request_interval_seconds: float = 0.35
+    _client: httpx.Client | None = field(default=None, init=False, repr=False, compare=False)
+    _next_allowed_request_at: float = field(default=0.0, init=False, repr=False, compare=False)
 
-    def _ensure_translator(self):
-        if self._translator is not None:
-            return self._translator
-        if argos_package is None or argos_translate is None:
-            raise TranslationError("Argos Translate is not installed in the backend environment.")
+    def __post_init__(self) -> None:
+        normalized_key = self.api_key.strip()
+        if not normalized_key:
+            raise TranslationError("DeepL API key is required for translation.")
+        self.api_key = normalized_key
 
-        try:
-            source_lang = next(
-                language for language in argos_translate.get_installed_languages() if language.code == self.source_code
-            )
-            target_lang = next(
-                language for language in argos_translate.get_installed_languages() if language.code == self.target_code
-            )
-            self._translator = source_lang.get_translation(target_lang)
-            return self._translator
-        except Exception:
-            pass
+        if self.base_url is None:
+            self.base_url = "https://api-free.deepl.com" if normalized_key.endswith(":fx") else "https://api.deepl.com"
 
-        try:
-            argos_package.update_package_index()
-            package = next(
-                candidate
-                for candidate in argos_package.get_available_packages()
-                if candidate.from_code == self.source_code and candidate.to_code == self.target_code
-            )
-            download_path = package.download()
-            argos_package.install_from_path(download_path)
-            source_lang = next(
-                language for language in argos_translate.get_installed_languages() if language.code == self.source_code
-            )
-            target_lang = next(
-                language for language in argos_translate.get_installed_languages() if language.code == self.target_code
-            )
-            self._translator = source_lang.get_translation(target_lang)
-            return self._translator
-        except Exception as exc:
-            raise TranslationError(f"Argos translation setup failed: {exc}") from exc
+    def _ensure_client(self) -> httpx.Client:
+        if self._client is None:
+            self._client = httpx.Client(base_url=self.base_url, timeout=self.timeout_seconds)
+        return self._client
+
+    def close(self) -> None:
+        if self._client is not None:
+            self._client.close()
+            self._client = None
 
     def translate_da_to_en(self, text: str) -> str | None:
         normalized = text.strip()
         if not normalized:
             return None
 
+        payload = {
+            "text": [normalized],
+            "source_lang": self.source_code,
+            "target_lang": self.target_code,
+            "context": self.context_template,
+        }
+
+        headers = {"Authorization": f"DeepL-Auth-Key {self.api_key}"}
+
+        response = self._post_with_retry(payload=payload, headers=headers)
+
         try:
-            translated = self._ensure_translator().translate(normalized)
-        except TranslationError:
-            raise
-        except Exception as exc:
-            raise TranslationError(f"Argos translation request failed: {exc}") from exc
+            body = response.json()
+        except ValueError as exc:
+            raise TranslationError("DeepL translation response was not valid JSON.") from exc
+
+        entries = body.get("translations")
+        if not isinstance(entries, list) or not entries:
+            return None
+
+        first = entries[0]
+        translated = first.get("text") if isinstance(first, dict) else None
 
         cleaned = translated.strip() if isinstance(translated, str) else ""
         return cleaned or None
+
+    def _post_with_retry(self, *, payload: dict[str, object], headers: dict[str, str]) -> httpx.Response:
+        attempts = self.max_retries + 1
+        for attempt in range(attempts):
+            try:
+                self._enforce_request_interval()
+                response = self._ensure_client().post("/v2/translate", json=payload, headers=headers)
+                response.raise_for_status()
+                return response
+            except httpx.HTTPStatusError as exc:
+                status_code = exc.response.status_code if exc.response is not None else 0
+                should_retry = status_code in {429, 500, 502, 503, 504}
+                if should_retry and attempt < self.max_retries:
+                    self._sleep_before_retry(attempt=attempt, response=exc.response)
+                    continue
+                raise TranslationError(f"DeepL translation request failed with status {status_code}.") from exc
+            except httpx.HTTPError as exc:
+                if attempt < self.max_retries:
+                    self._sleep_before_retry(attempt=attempt, response=None)
+                    continue
+                raise TranslationError(f"DeepL translation request failed: {exc}") from exc
+
+        raise TranslationError("DeepL translation request failed after retries.")
+
+    def _sleep_before_retry(self, *, attempt: int, response: httpx.Response | None) -> None:
+        retry_after = response.headers.get("Retry-After") if response is not None else None
+        if retry_after:
+            try:
+                delay = float(retry_after)
+            except ValueError:
+                delay = self.backoff_seconds * (2**attempt)
+        else:
+            delay = self.backoff_seconds * (2**attempt)
+
+        delay = max(0.0, min(delay, self.max_backoff_seconds))
+        if delay > 0:
+            time.sleep(delay)
+
+    def _enforce_request_interval(self) -> None:
+        if self.min_request_interval_seconds <= 0:
+            return
+        now = time.monotonic()
+        if now < self._next_allowed_request_at:
+            time.sleep(self._next_allowed_request_at - now)
+        self._next_allowed_request_at = time.monotonic() + self.min_request_interval_seconds

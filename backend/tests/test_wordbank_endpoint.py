@@ -116,7 +116,10 @@ def test_get_lemma_details_returns_all_saved_variations(tmp_path, stub_nlp_adapt
     payload = response.json()
     assert payload["lemma"] == "bog"
     assert payload["english_translation"] is None
-    assert payload["surface_forms"] == ["bogen", "bogens"]
+    assert payload["surface_forms"] == [
+        {"form": "bogen", "english_translation": None},
+        {"form": "bogens", "english_translation": None},
+    ]
 
 
 def test_get_lemma_details_returns_not_found_for_unknown_lemma(tmp_path, stub_nlp_adapter_factory) -> None:
@@ -153,3 +156,52 @@ def test_reset_database_clears_tables(tmp_path, stub_nlp_adapter_factory) -> Non
     assert surface_count is not None
     assert lexeme_count["count"] == 0
     assert surface_count["count"] == 0
+
+
+def test_generate_translation_returns_generated_value(tmp_path, stub_nlp_adapter_factory) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    apply_migrations(db_path)
+    app = create_app(_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+
+    class StubTranslationService:
+        def translate_da_to_en(self, text: str) -> str | None:
+            if text == "katten":
+                return "the cat"
+            return None
+
+    with TestClient(app) as client:
+        client.app.state.translation_service = StubTranslationService()
+        response = client.post(
+            "/api/wordbank/translation",
+            json={"surface_token": "katten", "lemma_candidate": "kat"},
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload == {
+        "status": "generated",
+        "source_word": "katten",
+        "lemma": "kat",
+        "english_translation": "the cat",
+    }
+
+
+def test_generate_translation_returns_unavailable_when_provider_has_none(tmp_path, stub_nlp_adapter_factory) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    apply_migrations(db_path)
+    app = create_app(_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/wordbank/translation",
+            json={"surface_token": "katten", "lemma_candidate": "kat"},
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload == {
+        "status": "unavailable",
+        "source_word": "katten",
+        "lemma": "kat",
+        "english_translation": None,
+    }
