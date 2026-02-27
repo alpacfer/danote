@@ -43,13 +43,13 @@ lint-backend:
 	fi
 
 test-backend-unit:
-	cd $(BACKEND_DIR) && PYTHONPATH=. pytest -q tests/test_typo_engine_unit.py tests/test_token_classifier_unit.py tests/test_token_filter_unit.py tests/test_use_cases_unit.py
+	cd $(BACKEND_DIR) && PYTHONPATH=. .venv/bin/pytest -q tests/test_typo_engine_unit.py tests/test_token_classifier_unit.py tests/test_token_filter_unit.py tests/test_use_cases_unit.py
 
 test-backend-medium:
-	cd $(BACKEND_DIR) && PYTHONPATH=. pytest -q tests/test_reliability.py tests/test_wordbank_endpoint.py
+	cd $(BACKEND_DIR) && PYTHONPATH=. .venv/bin/pytest -q tests/test_reliability.py tests/test_wordbank_endpoint.py
 
 test-backend-slow:
-	cd $(BACKEND_DIR) && PYTHONPATH=. pytest -q tests/test_regression_fixtures.py
+	cd $(BACKEND_DIR) && PYTHONPATH=. .venv/bin/pytest -q tests/test_regression_fixtures.py
 
 test-frontend:
 	cd $(FRONTEND_DIR) && npm test -- --run

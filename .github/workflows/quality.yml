@@ -30,6 +30,7 @@ jobs:
       - name: Install backend dependencies
         run: make setup-backend
 
+
       - name: Lint
         run: make lint
 
@@ -53,6 +54,7 @@ jobs:
 
       - name: Install backend dependencies
         run: make setup-backend
+
 
       - name: Medium backend integration tests
         run: make test-backend-medium

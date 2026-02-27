@@ -1,0 +1,32 @@
+name: Benchmark Guard
+
+on:
+  schedule:
+    - cron: '0 5 * * 1'
+  workflow_dispatch:
+
+jobs:
+  typo-benchmark:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install backend dependencies
+        run: make setup-backend
+
+      - name: Run typo benchmark
+        run: |
+          backend/.venv/bin/python scripts/run-typo-benchmark.py --dictionary-set base --sample-size 200
+
+      - name: Upload benchmark reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-reports
+          path: test-data/benchmark-reports
+          if-no-files-found: error

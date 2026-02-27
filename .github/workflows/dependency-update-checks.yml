@@ -1,0 +1,36 @@
+name: Dependency Update Checks
+
+on:
+  pull_request:
+    branches: [main, work]
+  workflow_dispatch:
+
+jobs:
+  dependency-quality:
+    if: github.actor == 'dependabot[bot]' || startsWith(github.head_ref, 'dependabot/')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          make setup-frontend
+          make setup-backend
+
+      - name: Dependency PR quality checks
+        run: |
+          make lint
+          make test
