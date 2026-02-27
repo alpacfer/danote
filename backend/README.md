@@ -65,6 +65,22 @@ Runtime note:
   `nlp_model_spacy_version_mismatch` when incompatible (includes model name + version spec + runtime version).
 - If incompatibility is reported, align runtime/model versions before relying on benchmark-quality lemma behavior.
 
+
+### POS Benchmark
+
+Run a benchmark for POS tagging speed **and** tagging accuracy against a small gold dataset:
+
+```bash
+cd backend
+./.venv/bin/python scripts/benchmark_pos.py --iterations 50 --warmup 3
+```
+
+The script evaluates `resources/benchmarks/pos_gold_dataset.json` and prints JSON with:
+
+- accuracy (`correct`, `total`, `accuracy_pct`, per-word mismatches)
+- timing (`mean/median/min/max` per iteration, `tokens_per_second`)
+- POS coverage and class distributions
+
 ## Environment Setup
 
 ```bash
