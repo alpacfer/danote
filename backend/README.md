@@ -48,9 +48,9 @@ Starter seed includes lexemes used by tests and prototype examples:
 
 ### NLP Model and Compatibility
 
-Default model configured by `DANOTE_NLP_MODEL`:
+Default model (fixed):
 
-- `da_dacy_small_tft-0.0.0`
+- `da_dacy_small_trf-0.2.0`
 
 Compatibility check command:
 

@@ -23,7 +23,7 @@ def test_cors_allows_configured_origin(tmp_path, stub_nlp_adapter_factory) -> No
         host="127.0.0.1",
         port=8001,
         db_path=tmp_path / "danote.sqlite3",
-        nlp_model="da_dacy_small_tft-0.0.0",
+        nlp_model="da_dacy_small_trf-0.2.0",
         cors_origins=("http://127.0.0.1:5173",),
     )
     app = create_app(settings=settings, nlp_adapter_factory=stub_nlp_adapter_factory)

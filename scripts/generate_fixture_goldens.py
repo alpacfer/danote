@@ -39,7 +39,7 @@ def generate() -> None:
             host="127.0.0.1",
             port=8001,
             db_path=db_path,
-            nlp_model="da_dacy_small_tft-0.0.0",
+            nlp_model="da_dacy_small_trf-0.2.0",
         )
 
         app = create_app(settings=settings)

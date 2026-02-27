@@ -16,7 +16,7 @@ FIXTURES_DIR = Path(__file__).resolve().parents[2] / "test-data" / "fixtures"
 NOTES_DIR = FIXTURES_DIR / "notes"
 EXPECTED_ANALYZE_DIR = FIXTURES_DIR / "expected" / "analyze"
 CASES_FILE = FIXTURES_DIR / "analysis-cases.json"
-MODEL = "da_dacy_small_tft-0.0.0"
+MODEL = "da_dacy_small_trf-0.2.0"
 
 
 def _load_cases() -> list[dict[str, str]]:

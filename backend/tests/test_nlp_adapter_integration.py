@@ -5,7 +5,7 @@ import pytest
 from app.nlp.danish import DaCyLemmyNLPAdapter
 
 
-MODEL = "da_dacy_small_tft-0.0.0"
+MODEL = "da_dacy_small_trf-0.2.0"
 
 
 @pytest.fixture(scope="module")

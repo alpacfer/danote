@@ -8,7 +8,7 @@ from app.nlp.danish import DaCyLemmyNLPAdapter
 from app.services.token_classifier import LemmaAwareClassifier
 
 
-MODEL = "da_dacy_small_tft-0.0.0"
+MODEL = "da_dacy_small_trf-0.2.0"
 
 
 @pytest.fixture(scope="module")

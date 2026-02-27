@@ -50,7 +50,7 @@ If your shell does not have `python`, use `python3` or the project venv binary a
 
 If model download is blocked in your environment, either:
 
-- enable outbound network access to download `da_dacy_small_tft-0.0.0`, or
+- enable outbound network access to download `da_dacy_small_trf-0.2.0`, or
 - run with degraded fallback explicitly:
 
 ```bash
