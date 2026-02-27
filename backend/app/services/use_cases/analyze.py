@@ -62,6 +62,8 @@ class AnalyzeNoteUseCase:
                         ],
                         confidence=result.confidence,
                         reason_tags=list(result.reason_tags),
+                        pos_tag=nlp_token.pos,
+                        morphology=nlp_token.morphology,
                         status=result.classification,
                         surface=result.surface_token,
                         normalized=result.normalized_token,
