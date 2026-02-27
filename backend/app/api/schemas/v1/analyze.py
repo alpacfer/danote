@@ -13,6 +13,8 @@ class AnalyzedToken(BaseModel):
     surface_token: str
     normalized_token: str
     lemma_candidate: str | None
+    pos_tag: str | None = None
+    morphology: str | None = None
     classification: Literal["known", "variation", "typo_likely", "uncertain", "new"]
     match_source: Literal["exact", "lemma", "none"]
     matched_lemma: str | None

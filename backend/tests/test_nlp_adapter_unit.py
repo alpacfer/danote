@@ -7,13 +7,13 @@ from app.nlp.danish import DaCyLemmyNLPAdapter
 
 
 class _FakeToken:
-    def __init__(self, text: str, tag_: str, is_punct: bool = False):
+    def __init__(self, text: str, tag_: str, *, pos_: str = "", morph: str = "", is_punct: bool = False):
         self.text = text
         self.tag_ = tag_
-        self.pos_ = ""
+        self.pos_ = pos_
         self.is_punct = is_punct
         self.is_space = False
-        self.morph = ""
+        self.morph = morph
 
 
 class _FakeNLP:
@@ -29,6 +29,7 @@ class _FakeNLP:
             "spist": [_FakeToken("spist", "X")],
             "gået": [_FakeToken("gået", "X")],
             "lærer": [_FakeToken("lærer", "NOUN")],
+            "jeg": [_FakeToken("jeg", "PRON", pos_="PRON", morph="Case=Nom|Person=1")],
         }
         if text in mapping:
             return mapping[text]
@@ -75,3 +76,15 @@ def test_adapter_candidate_ranking_handles_common_failure_patterns(monkeypatch) 
     assert adapter.lemma_for_token("spist") == "spise"
     assert adapter.lemma_for_token("gået") == "gå"
     assert adapter.lemma_for_token("lærer") == "lære"
+
+
+def test_adapter_tokenize_exposes_pos_and_morphology(monkeypatch) -> None:
+    monkeypatch.setitem(sys.modules, "dacy", types.SimpleNamespace(load=lambda _model: _FakeNLP()))
+    monkeypatch.setitem(sys.modules, "lemmy", types.SimpleNamespace(load=lambda _lang: _FakeLemmy()))
+
+    adapter = DaCyLemmyNLPAdapter("fake-model")
+
+    token = adapter.tokenize("jeg")[0]
+    assert token.text == "jeg"
+    assert token.pos == "PRON"
+    assert token.morphology == "Case=Nom|Person=1"

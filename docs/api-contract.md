@@ -21,7 +21,7 @@ When startup checks fail (for example DB path invalid or NLP initialization fail
 
 ## POST `/api/analyze`
 
-Analyze full note text and return token classifications for finalized tokens.
+Analyze full note text and return token classifications for finalized tokens. POS/morphology annotations come from the NLP pipeline and may be `null` when unavailable.
 
 ### Request JSON
 
@@ -50,7 +50,9 @@ Analyze full note text and return token classifications for finalized tokens.
       "status": "variation",
       "surface": "bogen",
       "normalized": "bogen",
-      "lemma": "bog"
+      "lemma": "bog",
+      "pos_tag": "NOUN",
+      "morphology": "Definite=Def|Gender=Com|Number=Sing"
     }
   ]
 }
