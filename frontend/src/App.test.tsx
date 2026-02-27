@@ -22,6 +22,8 @@ type AnalyzeToken = {
   surface_token: string
   normalized_token: string
   lemma_candidate: string | null
+  pos_tag?: string | null
+  morphology?: string | null
   classification: "known" | "variation" | "typo_likely" | "uncertain" | "new"
   match_source: "exact" | "lemma" | "none"
   matched_lemma: string | null
@@ -687,6 +689,8 @@ describe("App shell", () => {
           match_source: "lemma",
           matched_lemma: "kat",
           matched_surface_form: null,
+          pos_tag: "NOUN",
+          morphology: "Number=Sing|Definite=Def",
         },
         {
           surface_token: "komputer",
@@ -737,6 +741,8 @@ describe("App shell", () => {
           match_source: "lemma",
           matched_lemma: "kat",
           matched_surface_form: null,
+          pos_tag: "NOUN",
+          morphology: "Number=Sing|Definite=Def",
         },
       ],
       lemmasResponse: {
@@ -765,6 +771,8 @@ describe("App shell", () => {
 
     expect(await screen.findByRole("button", { name: /add variation/i })).toBeInTheDocument()
     expect(await screen.findByText(/^cat$/i)).toBeInTheDocument()
+    expect(await screen.findByText(/^POS: NOUN$/i)).toBeInTheDocument()
+    expect(await screen.findByText(/^Morphology: Number=Sing\|Definite=Def$/i)).toBeInTheDocument()
   })
 
   it("shows typo actions and replace updates note text", async () => {
