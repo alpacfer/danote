@@ -28,6 +28,8 @@ class AnalyzedToken(BaseModel):
     surface: str
     normalized: str
     lemma: str | None
+    pos_tag: str | None = None
+    morphology: str | None = None
 
 
 class AnalyzeResponse(BaseModel):

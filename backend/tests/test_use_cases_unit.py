@@ -131,3 +131,18 @@ def test_analyze_use_case_filters_non_word_tokens(tmp_path: Path) -> None:
     tokens = use_case.execute("Hej, bog")
     surfaces = [token.surface_token for token in tokens]
     assert surfaces == ["Hej", "bog"]
+
+
+
+def test_analyze_use_case_includes_pos_and_morphology(tmp_path: Path) -> None:
+    use_case = AnalyzeNoteUseCase(
+        _db_path(tmp_path),
+        nlp_adapter=FakeNLPAdapter(),
+        typo_engine=None,
+    )
+
+    tokens = use_case.execute("Hej, bog")
+    assert tokens[0].pos_tag == "INTJ"
+    assert tokens[0].morphology == "Polite=Form"
+    assert tokens[1].pos_tag is None
+    assert tokens[1].morphology == "Gender=Com|Number=Sing"
