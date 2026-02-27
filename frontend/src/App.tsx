@@ -20,6 +20,13 @@ import {
 } from "@/components/ui/card"
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
@@ -126,6 +133,13 @@ type HighlightPopoverState = {
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? "http://127.0.0.1:8000"
 const ANALYZE_DEBOUNCE_MS = 450
+const NLP_MODEL_OPTIONS = [
+  "da_dacy_small_trf-0.2.0",
+  "da_dacy_medium_trf-0.2.0",
+  "da_dacy_large_trf-0.2.0",
+] as const
+
+type NlpModelOption = (typeof NLP_MODEL_OPTIONS)[number]
 
 async function extractErrorMessage(response: Response, fallback: string): Promise<string> {
   try {
@@ -351,6 +365,9 @@ function App() {
   const [lemmaDetailsError, setLemmaDetailsError] = useState<string | null>(null)
   const [isLemmaDetailsLoading, setIsLemmaDetailsLoading] = useState(false)
   const [isResettingDatabase, setIsResettingDatabase] = useState(false)
+  const [selectedNlpModel, setSelectedNlpModel] = useState<NlpModelOption>(
+    NLP_MODEL_OPTIONS[0],
+  )
   const [highlightPopover, setHighlightPopover] = useState<HighlightPopoverState>({
     open: false,
     x: 0,
@@ -1194,6 +1211,25 @@ function App() {
           </div>
           <div className="text-muted-foreground text-sm">
             Backend: <code>{BACKEND_URL}</code>
+          </div>
+          <div className="space-y-2">
+            <p className="text-sm font-medium">NLP model</p>
+            <Select value={selectedNlpModel} onValueChange={(value) => setSelectedNlpModel(value as NlpModelOption)}>
+              <SelectTrigger aria-label="NLP model picker" className="w-full max-w-sm">
+                <SelectValue placeholder="Select model" />
+              </SelectTrigger>
+              <SelectContent>
+                {NLP_MODEL_OPTIONS.map((model) => (
+                  <SelectItem key={model} value={model}>
+                    {model}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-muted-foreground text-xs">
+              Preferred model for local benchmarking. Backend default remains <code>da_dacy_small_trf-0.2.0</code> unless
+              <code> DANOTE_NLP_MODEL</code> is set before startup.
+            </p>
           </div>
           <Button
             type="button"
