@@ -963,6 +963,22 @@ describe("App shell", () => {
     expect(vi.mocked(toast.error)).toHaveBeenCalledWith("add word request failed")
   })
 
+
+  it("shows NLP model picker in developer options", async () => {
+    mockFetchImplementation({})
+
+    render(<App />)
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /developer/i }))
+
+    const modelPicker = screen.getByRole("combobox", { name: /nlp model picker/i })
+    expect(modelPicker).toBeInTheDocument()
+    expect(modelPicker).toHaveTextContent("da_dacy_small_trf-0.2.0")
+
+    expect(screen.getByText(/backend default remains/i)).toBeInTheDocument()
+  })
+
   it("deletes complete db from developer options", async () => {
     const resetMethods: Array<string | undefined> = []
     vi.spyOn(window, "confirm").mockReturnValue(true)
