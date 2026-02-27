@@ -1,0 +1,41 @@
+name: Security Scan
+
+on:
+  pull_request:
+  schedule:
+    - cron: '0 4 * * 1'
+  workflow_dispatch:
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          make setup-frontend
+          make setup-backend
+
+      - name: Python dependency audit
+        run: |
+          backend/.venv/bin/python -m pip install pip-audit
+          backend/.venv/bin/python -m pip_audit -r backend/requirements.lock.txt
+
+      - name: Frontend dependency audit
+        run: |
+          cd frontend
+          npm audit --audit-level=high

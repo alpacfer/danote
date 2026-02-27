@@ -1,0 +1,38 @@
+name: Docs Integrity
+
+on:
+  pull_request:
+    paths:
+      - 'README.md'
+      - 'docs/**'
+      - 'scripts/docs-smoke.sh'
+      - 'scripts/e2e-regression.sh'
+      - 'Makefile'
+  workflow_dispatch:
+
+jobs:
+  docs-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          make setup-frontend
+          make setup-backend
+
+      - name: Docs smoke checks
+        run: make docs-smoke
