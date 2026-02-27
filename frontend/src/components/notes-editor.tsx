@@ -276,7 +276,10 @@ export function NotesEditor({
     if (fromEditorText(editor) === value) {
       return
     }
-    editor.commands.setContent(toEditorContent(value), false)
+    editor.commands.setContent(toEditorContent(value), {
+      emitUpdate: false,
+      parseOptions: { preserveWhitespace: "full" },
+    })
   }, [editor, value])
 
   const normalizedHighlights = useMemo(() => highlights, [highlights])
