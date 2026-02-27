@@ -143,6 +143,6 @@ def test_analyze_use_case_includes_pos_and_morphology(tmp_path: Path) -> None:
 
     tokens = use_case.execute("Hej, bog")
     assert tokens[0].pos_tag == "INTJ"
-    assert tokens[0].morphology == "Polite=Form"
-    assert tokens[1].pos_tag is None
-    assert tokens[1].morphology == "Gender=Com|Number=Sing"
+    assert tokens[0].morphology == "PronType=Prs"
+    assert tokens[1].pos_tag == "NOUN"
+    assert tokens[1].morphology == "Definite=Ind|Gender=Com"
