@@ -40,7 +40,7 @@ def load_settings() -> Settings:
         host=os.getenv("DANOTE_HOST", "127.0.0.1"),
         port=int(os.getenv("DANOTE_PORT", "8000")),
         db_path=db_path,
-        nlp_model=os.getenv("DANOTE_NLP_MODEL", "da_dacy_small_tft-0.0.0"),
+        nlp_model="da_dacy_small_trf-0.2.0",
         cors_origins=parsed_cors_origins or DEFAULT_CORS_ORIGINS,
         typo_enabled=os.getenv("DANOTE_TYPO_ENABLED", "1").lower() not in {"0", "false", "no"},
         typo_dictionary_path=Path(os.getenv("DANOTE_TYPO_DICTIONARY_PATH"))

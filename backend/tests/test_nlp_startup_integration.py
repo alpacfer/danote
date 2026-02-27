@@ -6,7 +6,7 @@ from app.core.config import Settings
 from app.main import create_app
 
 
-MODEL = "da_dacy_small_tft-0.0.0"
+MODEL = "da_dacy_small_trf-0.2.0"
 
 
 def test_backend_startup_loads_nlp_pipeline_and_exposes_metadata(tmp_path) -> None:

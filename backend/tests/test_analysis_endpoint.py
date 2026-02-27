@@ -9,7 +9,7 @@ from app.db.seed import seed_starter_data
 from app.main import create_app
 
 
-MODEL = "da_dacy_small_tft-0.0.0"
+MODEL = "da_dacy_small_trf-0.2.0"
 
 
 @pytest.fixture(scope="module")

@@ -46,12 +46,12 @@ This document tracks the baseline development environment and dependency locking
 - Analysis endpoint (checkpoint 9): `POST /api/analyze` with stable token list schema (documented in `docs/api-contract.md`)
 - NLP adapter abstraction: `app/nlp/adapter.py`
 - Danish NLP implementation: `DaCyLemmyNLPAdapter` in `app/nlp/danish.py`
-- Default Danish NLP model: `da_dacy_small_tft-0.0.0` (`DANOTE_NLP_MODEL`)
+- Default Danish NLP model (fixed): `da_dacy_small_trf-0.2.0`
 - Key libraries:
   - `fastapi 0.116.1`
   - `uvicorn[standard] 0.35.0`
-  - `spacy 3.8.11`
-  - `dacy 1.1.4`
+  - `spacy 3.7.5`
+  - `dacy 2.7.8`
   - `lemmy 2.1.0`
   - `pytest 8.4.2` (test)
   - `httpx 0.28.1` (test client transport)
