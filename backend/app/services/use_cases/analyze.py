@@ -3,7 +3,7 @@ from __future__ import annotations
 import sqlite3
 
 from app.api.schemas.v1.analyze import AnalyzedToken
-from app.nlp.adapter import NLPAdapter
+from app.nlp.adapter import NLPAdapter, NLPToken
 from app.nlp.token_filter import is_wordlike_token
 from app.services.token_classifier import LemmaAwareClassifier
 
@@ -21,7 +21,7 @@ class AnalyzeNoteUseCase:
             typo_engine=self._typo_engine,
         )
 
-        surfaces: list[str] = []
+        filtered_nlp_tokens: list[NLPToken] = []
         for nlp_token in self._nlp_adapter.tokenize(text):
             surface = nlp_token.text
             if not surface.strip():
@@ -30,11 +30,14 @@ class AnalyzeNoteUseCase:
                 continue
             if not is_wordlike_token(surface):
                 continue
-            surfaces.append(surface)
+            filtered_nlp_tokens.append(nlp_token)
+
+        surfaces = [token.text for token in filtered_nlp_tokens]
 
         tokens: list[AnalyzedToken] = []
         try:
-            for result in classifier.classify_many(surfaces):
+            for index, result in enumerate(classifier.classify_many(surfaces)):
+                nlp_token = filtered_nlp_tokens[index]
                 tokens.append(
                     AnalyzedToken(
                         surface_token=result.surface_token,
@@ -58,6 +61,8 @@ class AnalyzeNoteUseCase:
                         surface=result.surface_token,
                         normalized=result.normalized_token,
                         lemma=result.matched_lemma or result.lemma_candidate,
+                        pos_tag=nlp_token.pos,
+                        morphology=nlp_token.morphology,
                     )
                 )
         except sqlite3.OperationalError:

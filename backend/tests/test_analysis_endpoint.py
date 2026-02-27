@@ -100,8 +100,20 @@ def test_response_matches_contract_schema_exactly(analysis_client: TestClient) -
         "surface",
         "normalized",
         "lemma",
+        "pos_tag",
+        "morphology",
     }
 
+
+
+
+def test_response_includes_pos_and_morphology_fields(analysis_client: TestClient) -> None:
+    response = analysis_client.post("/api/analyze", json={"text": "kan"})
+
+    assert response.status_code == 200
+    token = response.json()["tokens"][0]
+    assert "pos_tag" in token
+    assert "morphology" in token
 
 def test_empty_and_newline_heavy_input_safe(analysis_client: TestClient) -> None:
     for text in ["", "\n\n\n   \n"]:
