@@ -51,6 +51,8 @@ type AnalyzedToken = {
   surface_token: string
   normalized_token: string
   lemma_candidate: string | null
+  pos_tag: string | null
+  morphology: string | null
   classification: TokenClassification
   status: TokenClassification
   match_source: "exact" | "lemma" | "none"
@@ -954,6 +956,12 @@ function App() {
                         <p className="text-muted-foreground text-xs">
                           {popoverToken.classification === "variation" ? "variation" : "word"}
                         </p>
+                        {popoverToken.pos_tag && (
+                          <p className="text-muted-foreground text-xs">POS: {popoverToken.pos_tag}</p>
+                        )}
+                        {popoverToken.morphology && (
+                          <p className="text-muted-foreground text-xs">Morphology: {popoverToken.morphology}</p>
+                        )}
                       </div>
 
                       <div className="space-y-1">
