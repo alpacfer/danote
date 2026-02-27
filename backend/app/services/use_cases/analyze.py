@@ -21,7 +21,7 @@ class AnalyzeNoteUseCase:
             typo_engine=self._typo_engine,
         )
 
-        surfaces: list[str] = []
+        token_metadata: list[tuple[str, str | None, str | None]] = []
         for nlp_token in self._nlp_adapter.tokenize(text):
             surface = nlp_token.text
             if not surface.strip():
@@ -30,16 +30,24 @@ class AnalyzeNoteUseCase:
                 continue
             if not is_wordlike_token(surface):
                 continue
-            surfaces.append(surface)
+            token_metadata.append((surface, nlp_token.pos, nlp_token.morphology))
+
+        surfaces = [surface for surface, _, _ in token_metadata]
 
         tokens: list[AnalyzedToken] = []
         try:
-            for result in classifier.classify_many(surfaces):
+            for result, (_, pos_tag, morphology) in zip(
+                classifier.classify_many(surfaces),
+                token_metadata,
+                strict=True,
+            ):
                 tokens.append(
                     AnalyzedToken(
                         surface_token=result.surface_token,
                         normalized_token=result.normalized_token,
                         lemma_candidate=result.lemma_candidate,
+                        pos_tag=pos_tag,
+                        morphology=morphology,
                         classification=result.classification,
                         match_source=result.match_source,
                         matched_lemma=result.matched_lemma,

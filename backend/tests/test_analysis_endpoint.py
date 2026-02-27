@@ -89,6 +89,8 @@ def test_response_matches_contract_schema_exactly(analysis_client: TestClient) -
         "surface_token",
         "normalized_token",
         "lemma_candidate",
+        "pos_tag",
+        "morphology",
         "classification",
         "match_source",
         "matched_lemma",

@@ -21,10 +21,10 @@ class FakeTranslationService:
 class FakeNLPAdapter:
     def tokenize(self, text: str) -> list[NLPToken]:
         return [
-            NLPToken(text="Hej", lemma="hej", pos=None, morphology=None, is_punctuation=False),
+            NLPToken(text="Hej", lemma="hej", pos="INTJ", morphology="PronType=Prs", is_punctuation=False),
             NLPToken(text=",", lemma=None, pos=None, morphology=None, is_punctuation=True),
             NLPToken(text=" ", lemma=None, pos=None, morphology=None, is_punctuation=False),
-            NLPToken(text="bog", lemma="bog", pos=None, morphology=None, is_punctuation=False),
+            NLPToken(text="bog", lemma="bog", pos="NOUN", morphology="Definite=Ind|Gender=Com", is_punctuation=False),
         ]
 
     def lemma_candidates_for_token(self, token: str) -> list[str]:
@@ -102,6 +102,24 @@ def test_wordbank_generate_translation_uses_surface_form_not_lemma(tmp_path: Pat
     assert generated_b.lemma == "bog"
     assert generated_b.english_translation == "book's"
 
+
+
+
+def test_analyze_use_case_propagates_pos_and_morphology(tmp_path: Path) -> None:
+    use_case = AnalyzeNoteUseCase(
+        _db_path(tmp_path),
+        nlp_adapter=FakeNLPAdapter(),
+        typo_engine=None,
+    )
+
+    tokens = use_case.execute("Hej bog")
+
+    assert tokens[0].surface_token == "Hej"
+    assert tokens[0].pos_tag == "INTJ"
+    assert tokens[0].morphology == "PronType=Prs"
+    assert tokens[1].surface_token == "bog"
+    assert tokens[1].pos_tag == "NOUN"
+    assert tokens[1].morphology == "Definite=Ind|Gender=Com"
 
 def test_analyze_use_case_filters_non_word_tokens(tmp_path: Path) -> None:
     use_case = AnalyzeNoteUseCase(
