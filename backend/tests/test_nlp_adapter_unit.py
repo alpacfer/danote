@@ -3,7 +3,9 @@ from __future__ import annotations
 import sys
 import types
 
+from app.core.config import Settings
 from app.nlp.danish import DaCyLemmyNLPAdapter
+from app.nlp.danish import load_danish_nlp_adapter
 
 
 class _FakeToken:
@@ -88,3 +90,30 @@ def test_adapter_tokenize_exposes_pos_and_morphology(monkeypatch) -> None:
     assert token.text == "jeg"
     assert token.pos == "PRON"
     assert token.morphology == "Case=Nom|Person=1"
+
+
+def test_load_adapter_falls_back_when_requested_model_unavailable(monkeypatch, tmp_path) -> None:
+    def _load(model_name: str):
+        if model_name == "fallback-model":
+            return _FakeNLP()
+        raise ValueError("model unavailable")
+
+    fake_dacy = types.SimpleNamespace(
+        load=_load,
+        models=lambda: ["fallback-model"],
+    )
+    monkeypatch.setitem(sys.modules, "dacy", fake_dacy)
+    monkeypatch.setitem(sys.modules, "lemmy", types.SimpleNamespace(load=lambda _lang: _FakeLemmy()))
+
+    settings = Settings(
+        environment="test",
+        app_name="danote-backend-test",
+        host="127.0.0.1",
+        port=8001,
+        db_path=tmp_path / "danote.sqlite3",
+        nlp_model="missing-model",
+    )
+
+    adapter = load_danish_nlp_adapter(settings)
+    assert isinstance(adapter, DaCyLemmyNLPAdapter)
+    assert adapter.model_name == "fallback-model"

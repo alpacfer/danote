@@ -99,6 +99,12 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 ~/.local/bin/uv pip install --python .venv/bin/python -r requirements.lock.txt
 ```
 
+From repo root, you can run a one-command setup for the pinned DaCy model:
+
+```bash
+./scripts/setup-dacy-model.sh
+```
+
 ## Run
 
 ```bash

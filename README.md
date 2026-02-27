@@ -49,6 +49,16 @@ cd <repo-root>
 
 This starts backend and frontend together, checks backend health, and stops both on `Ctrl+C`.
 
+One-command setup for the pinned DaCy model `da_dacy_small_trf-0.2.0`:
+
+```bash
+cd <repo-root>
+./scripts/setup-dacy-model.sh
+```
+
+This script installs system build prerequisites, recreates `backend/.venv`, installs
+`backend/requirements.lock.txt`, installs the model wheel, and validates the model load.
+
 Local workflow:
 
 1. Start backend service.

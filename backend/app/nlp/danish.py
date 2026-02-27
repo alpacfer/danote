@@ -131,4 +131,41 @@ class DaCyLemmyNLPAdapter(NLPAdapter):
 
 
 def load_danish_nlp_adapter(settings: Settings) -> NLPAdapter:
-    return DaCyLemmyNLPAdapter(model_name=settings.nlp_model)
+    requested_model = settings.nlp_model
+    attempted_models: list[str] = []
+    errors: dict[str, str] = {}
+
+    # Import lazily so startup still degrades cleanly if NLP deps are absent.
+    import dacy
+
+    available_models: list[str] = []
+    try:
+        available_models = list(dacy.models())
+    except Exception:
+        available_models = []
+
+    candidate_models = [requested_model]
+    if requested_model not in available_models:
+        candidate_models.extend(available_models)
+
+    for model_name in dict.fromkeys(candidate_models):
+        attempted_models.append(model_name)
+        try:
+            adapter = DaCyLemmyNLPAdapter(model_name=model_name)
+            if model_name != requested_model:
+                logger.warning(
+                    "nlp_model_fallback_selected",
+                    extra={
+                        "requested_model": requested_model,
+                        "selected_model": model_name,
+                        "available_models": available_models,
+                    },
+                )
+            return adapter
+        except Exception as exc:
+            errors[model_name] = str(exc)
+
+    details = "; ".join(f"{model}: {errors.get(model, 'unknown error')}" for model in attempted_models)
+    raise RuntimeError(
+        f"Failed to load NLP model. Requested='{requested_model}'. Attempts: {details}"
+    )
