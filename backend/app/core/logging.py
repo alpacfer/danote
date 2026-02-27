@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, UTC
+from datetime import datetime, timezone
 
 
 class JsonFormatter(logging.Formatter):
@@ -34,7 +34,7 @@ class JsonFormatter(logging.Formatter):
             key: value for key, value in record.__dict__.items() if key not in standard
         }
         payload = {
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "level": record.levelname,
             "logger": record.name,
             "message": record.getMessage(),

@@ -276,7 +276,10 @@ export function NotesEditor({
     if (fromEditorText(editor) === value) {
       return
     }
-    editor.commands.setContent(toEditorContent(value), false, { preserveWhitespace: "full" })
+    editor.commands.setContent(toEditorContent(value), {
+      emitUpdate: false,
+      parseOptions: { preserveWhitespace: "full" },
+    })
   }, [editor, value])
 
   const normalizedHighlights = useMemo(() => highlights, [highlights])
@@ -305,10 +308,6 @@ export function NotesEditor({
           role="textbox"
           aria-label={ariaLabel ?? "Lesson notes"}
           aria-multiline="true"
-          spellCheck={false}
-          autoCorrect="off"
-          autoCapitalize="off"
-          autoComplete="off"
           className="border-input min-h-[360px] w-full rounded-md border bg-transparent px-3 py-2 pb-8"
         />
       </div>
