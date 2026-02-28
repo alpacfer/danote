@@ -19,6 +19,16 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import {
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandShortcut,
+  CommandSeparator,
+} from "@/components/ui/command"
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -564,10 +574,15 @@ function translationKeysForToken(token: Pick<AnalyzedToken, "surface_token" | "n
 
 type AppSidebarProps = {
   activeSection: AppSection
+  lemmas: WordbankLemma[]
+  savedNotes: SavedNote[]
   onSelectPlayground: () => void
   onSelectNotes: () => void
   onSelectWordbank: () => void
   onSelectDeveloper: () => void
+  onOpenWordbankLemma: (lemma: string) => void
+  onOpenSavedNote: (noteId: string) => void
+  onAddWordFromSearch: (surfaceToken: string, lemmaCandidate: string | null) => Promise<string | null>
 }
 
 function ThemeToggleButton() {
@@ -668,15 +683,472 @@ function AppBreadcrumb({
 
 function AppSidebar({
   activeSection,
+  lemmas,
+  savedNotes,
   onSelectPlayground,
   onSelectNotes,
   onSelectWordbank,
   onSelectDeveloper,
+  onOpenWordbankLemma,
+  onOpenSavedNote,
+  onAddWordFromSearch,
 }: AppSidebarProps) {
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [resolvedQueryCandidate, setResolvedQueryCandidate] = useState<{
+    query: string
+    surface: string
+    lemma: string | null
+    classification: TokenClassification
+    translation: string | null
+    matchedLemma: WordbankLemma | null
+  } | null>(null)
+  const trimmedQuery = searchQuery.trim()
+  const normalizedQuery = trimmedQuery.toLocaleLowerCase("da-DK")
+  const matchingLemmas = useMemo(() => {
+    if (!normalizedQuery) {
+      return []
+    }
+    return lemmas
+      .filter((lemma) => {
+        const lemmaValue = lemma.lemma.trim().toLocaleLowerCase("da-DK")
+        const translationValue = lemma.english_translation?.trim().toLocaleLowerCase("da-DK") ?? ""
+        return lemmaValue.includes(normalizedQuery) || translationValue.includes(normalizedQuery)
+      })
+      .slice(0, 8)
+  }, [lemmas, normalizedQuery])
+  const matchingNotes = useMemo(() => {
+    if (!normalizedQuery) {
+      return []
+    }
+    return savedNotes
+      .filter((note) => {
+        const name = note.name.trim().toLocaleLowerCase("da-DK")
+        const text = note.text.trim().toLocaleLowerCase("da-DK")
+        return name.includes(normalizedQuery) || text.includes(normalizedQuery)
+      })
+      .slice(0, 8)
+  }, [normalizedQuery, savedNotes])
+  const activeResolvedCandidate = useMemo(() => {
+    if (!resolvedQueryCandidate || resolvedQueryCandidate.query !== normalizedQuery) {
+      return null
+    }
+    return resolvedQueryCandidate
+  }, [normalizedQuery, resolvedQueryCandidate])
+  const wordbankResults = useMemo(() => {
+    const variationMatch = activeResolvedCandidate?.matchedLemma
+      ? {
+        lemma: activeResolvedCandidate.matchedLemma,
+        surface: activeResolvedCandidate.surface,
+      }
+      : null
+    const directMatches = matchingLemmas.map((lemma) => ({
+      lemma,
+      matchSurface: null as string | null,
+    }))
+
+    if (!variationMatch) {
+      return directMatches
+    }
+
+    const hasLemma = directMatches.some((item) => item.lemma.lemma === variationMatch.lemma.lemma)
+    if (hasLemma) {
+      return directMatches
+    }
+
+    return [{ lemma: variationMatch.lemma, matchSurface: variationMatch.surface }, ...directMatches]
+  }, [activeResolvedCandidate, matchingLemmas])
+  const hasWordbankResults = wordbankResults.length > 0
+  const newWordResult = useMemo(() => {
+    if (!activeResolvedCandidate || hasWordbankResults) {
+      return null
+    }
+    if (activeResolvedCandidate.classification === "typo_likely") {
+      return null
+    }
+
+    const lemma = activeResolvedCandidate.lemma?.trim() || activeResolvedCandidate.surface.trim()
+    if (!lemma) {
+      return null
+    }
+
+    return {
+      surface: activeResolvedCandidate.surface,
+      lemma,
+      translation: activeResolvedCandidate.translation,
+    }
+  }, [activeResolvedCandidate, hasWordbankResults])
+  const addVariationResult = useMemo(() => {
+    if (!activeResolvedCandidate?.matchedLemma) {
+      return null
+    }
+    if (activeResolvedCandidate.classification !== "variation") {
+      return null
+    }
+    const surface = activeResolvedCandidate.surface.trim()
+    const lemma = activeResolvedCandidate.matchedLemma.lemma.trim()
+    if (!surface || !lemma || surface.toLocaleLowerCase("da-DK") === lemma.toLocaleLowerCase("da-DK")) {
+      return null
+    }
+    return {
+      surface,
+      lemma,
+    }
+  }, [activeResolvedCandidate])
+  const hasWordbankSectionResults = hasWordbankResults || Boolean(newWordResult)
+  const hasWordbankActions = Boolean(newWordResult) || Boolean(addVariationResult)
+  const hasNoteResults = matchingNotes.length > 0
+  const pageItems = useMemo(
+    () => [
+      {
+        key: "page-playground",
+        label: "Playground",
+        shortcut: "Alt+P",
+        icon: NotebookPen,
+        onSelect: onSelectPlayground,
+      },
+      {
+        key: "page-notes",
+        label: "Notes",
+        shortcut: "Alt+N",
+        icon: BookOpen,
+        onSelect: onSelectNotes,
+      },
+      {
+        key: "page-wordbank",
+        label: "Wordbank",
+        shortcut: "Alt+W",
+        icon: BookOpen,
+        onSelect: onSelectWordbank,
+      },
+      {
+        key: "page-developer",
+        label: "Developer",
+        shortcut: "Alt+D",
+        icon: Settings,
+        onSelect: onSelectDeveloper,
+      },
+    ],
+    [onSelectDeveloper, onSelectNotes, onSelectPlayground, onSelectWordbank],
+  )
+  const matchingPageItems = useMemo(() => {
+    if (!normalizedQuery) {
+      return pageItems
+    }
+    return pageItems.filter((item) => item.label.toLocaleLowerCase("da-DK").includes(normalizedQuery))
+  }, [normalizedQuery, pageItems])
+  const hasPageResults = matchingPageItems.length > 0
+  const hasAnyResults = hasWordbankSectionResults || hasNoteResults || hasPageResults
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      const key = event.key.toLowerCase()
+      const shouldOpenSearch = (event.metaKey || event.ctrlKey) && key === "k"
+      if (shouldOpenSearch) {
+        event.preventDefault()
+        setIsSearchOpen((current) => !current)
+        return
+      }
+
+      const target = event.target as HTMLElement | null
+      const isTypingTarget = Boolean(
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable),
+      )
+      if (isTypingTarget || !event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
+        return
+      }
+
+      if (key === "p") {
+        event.preventDefault()
+        onSelectPlayground()
+        return
+      }
+      if (key === "n") {
+        event.preventDefault()
+        onSelectNotes()
+        return
+      }
+      if (key === "w") {
+        event.preventDefault()
+        onSelectWordbank()
+        return
+      }
+      if (key === "d") {
+        event.preventDefault()
+        onSelectDeveloper()
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown)
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown)
+    }
+  }, [onSelectDeveloper, onSelectNotes, onSelectPlayground, onSelectWordbank])
+
+  useEffect(() => {
+    if (!normalizedQuery || /\s/u.test(normalizedQuery)) {
+      return
+    }
+
+    const alreadyDirectMatch = matchingLemmas.some(
+      (lemma) => lemma.lemma.trim().toLocaleLowerCase("da-DK") === normalizedQuery,
+    )
+    if (alreadyDirectMatch) {
+      return
+    }
+
+    const controller = new AbortController()
+    let cancelled = false
+
+    void (async () => {
+      try {
+        const response = await fetch(`${BACKEND_URL}/api/analyze`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            text: trimmedQuery,
+          }),
+          signal: controller.signal,
+        })
+        if (!response.ok) {
+          setResolvedQueryCandidate((current) => (current?.query === normalizedQuery ? null : current))
+          return
+        }
+        const payload = (await response.json()) as { tokens?: AnalyzedToken[] }
+        const token = payload.tokens?.[0]
+        if (!token || cancelled) {
+          setResolvedQueryCandidate((current) => (current?.query === normalizedQuery ? null : current))
+          return
+        }
+        const matchedLemmaKey = token.matched_lemma?.trim().toLocaleLowerCase("da-DK") ?? null
+        const resolvedLemma = matchedLemmaKey
+          ? lemmas.find((lemma) => lemma.lemma.trim().toLocaleLowerCase("da-DK") === matchedLemmaKey) ?? null
+          : null
+
+        if (resolvedLemma) {
+          setResolvedQueryCandidate({
+            query: normalizedQuery,
+            surface: token.surface_token || trimmedQuery,
+            lemma: token.matched_lemma ?? token.lemma_candidate ?? token.lemma ?? null,
+            classification: token.classification,
+            translation: resolvedLemma.english_translation ?? null,
+            matchedLemma: resolvedLemma,
+          })
+          return
+        }
+
+        let translation: string | null = null
+        if (token.classification !== "typo_likely") {
+          try {
+            const translationResponse = await fetch(`${BACKEND_URL}/api/wordbank/translation`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                surface_token: token.surface_token || trimmedQuery,
+                lemma_candidate: token.lemma_candidate ?? token.lemma ?? null,
+              }),
+              signal: controller.signal,
+            })
+            if (translationResponse.ok) {
+              const translationPayload = (await translationResponse.json()) as GenerateTranslationResponse
+              translation = translationPayload.english_translation?.trim() || null
+            }
+          } catch {
+            translation = null
+          }
+        }
+
+        if (!cancelled) {
+          setResolvedQueryCandidate({
+            query: normalizedQuery,
+            surface: token.surface_token || trimmedQuery,
+            lemma: token.lemma_candidate ?? token.lemma ?? null,
+            classification: token.classification,
+            translation,
+            matchedLemma: null,
+          })
+        }
+      } catch {
+        if (!cancelled) {
+          setResolvedQueryCandidate((current) => (current?.query === normalizedQuery ? null : current))
+        }
+      }
+    })()
+
+    return () => {
+      cancelled = true
+      controller.abort()
+    }
+  }, [lemmas, matchingLemmas, normalizedQuery, trimmedQuery])
+
+  useEffect(() => {
+    if (isSearchOpen) {
+      return
+    }
+    const clearTimeoutId = window.setTimeout(() => {
+      setSearchQuery("")
+    }, 220)
+    return () => {
+      window.clearTimeout(clearTimeoutId)
+    }
+  }, [isSearchOpen])
+
   return (
     <Sidebar variant="inset">
-      <SidebarHeader>
+      <SidebarHeader className="gap-2">
         <p className="px-2 text-sm font-semibold">Danote</p>
+        <Button
+          type="button"
+          variant="outline"
+          className="justify-between"
+          onClick={() => setIsSearchOpen(true)}
+        >
+          Search...
+          <span className="text-muted-foreground text-[10px] uppercase">Cmd/Ctrl+K</span>
+        </Button>
+        <CommandDialog
+          open={isSearchOpen}
+          onOpenChange={(open) => {
+            setIsSearchOpen(open)
+          }}
+          title="Search wordbank and notes"
+          description="Search saved words, variations, translations, and notes."
+        >
+          <CommandInput
+            placeholder="Search words and notes..."
+            value={searchQuery}
+            onValueChange={setSearchQuery}
+            aria-label="command search"
+          />
+          <CommandList>
+            {normalizedQuery && !hasAnyResults ? <CommandEmpty>No results found.</CommandEmpty> : null}
+            {hasWordbankSectionResults ? (
+              <CommandGroup heading="Wordbank">
+                {wordbankResults.map(({ lemma, matchSurface }) => (
+                  <CommandItem
+                    key={`search-lemma-${lemma.lemma}`}
+                    value={`wordbank-${lemma.lemma} ${lemma.english_translation ?? ""} ${matchSurface ?? ""}`}
+                    onSelect={() => {
+                      onOpenWordbankLemma(lemma.lemma)
+                      setIsSearchOpen(false)
+                      setSearchQuery("")
+                    }}
+                    className="flex-col items-start gap-0.5"
+                  >
+                    <span className="font-medium">{lemma.lemma}</span>
+                    <span className="text-muted-foreground text-xs">
+                      {lemma.english_translation?.trim() || "No translation available."}
+                    </span>
+                    {matchSurface ? (
+                      <span className="text-muted-foreground text-[11px]">
+                        Variation match: {matchSurface}
+                      </span>
+                    ) : null}
+                  </CommandItem>
+                ))}
+                {newWordResult ? (
+                  <CommandItem
+                    value={`new-word-${newWordResult.surface} ${newWordResult.lemma} ${newWordResult.translation ?? ""}`}
+                    onSelect={() => {
+                      void (async () => {
+                        const addedLemma = await onAddWordFromSearch(newWordResult.surface, newWordResult.lemma)
+                        if (addedLemma) {
+                          setIsSearchOpen(false)
+                          setSearchQuery("")
+                        }
+                      })()
+                    }}
+                    className="flex-col items-start gap-0.5"
+                  >
+                    <span className="font-medium">Add "{newWordResult.surface}" to wordbank</span>
+                    <span className="text-muted-foreground text-xs">
+                      Lemma: {newWordResult.lemma}
+                    </span>
+                    <span className="text-muted-foreground text-xs">
+                      {newWordResult.translation?.trim() || "No translation available."}
+                    </span>
+                  </CommandItem>
+                ) : null}
+                {addVariationResult ? (
+                  <CommandItem
+                    value={`add-variation-${addVariationResult.surface} ${addVariationResult.lemma}`}
+                    onSelect={() => {
+                      void (async () => {
+                        const addedLemma = await onAddWordFromSearch(
+                          addVariationResult.surface,
+                          addVariationResult.lemma,
+                        )
+                        if (addedLemma) {
+                          setIsSearchOpen(false)
+                          setSearchQuery("")
+                        }
+                      })()
+                    }}
+                    className="flex-col items-start gap-0.5"
+                  >
+                    <span className="font-medium">
+                      Add variation "{addVariationResult.surface}"
+                    </span>
+                    <span className="text-muted-foreground text-xs">
+                      for lemma: {addVariationResult.lemma}
+                    </span>
+                  </CommandItem>
+                ) : null}
+              </CommandGroup>
+            ) : null}
+            {(hasWordbankSectionResults || hasWordbankActions) && hasNoteResults ? <CommandSeparator /> : null}
+            {hasNoteResults ? (
+              <CommandGroup heading="Notes">
+                {matchingNotes.map((note) => (
+                  <CommandItem
+                    key={`search-note-${note.id}`}
+                    value={`note-${note.id} ${note.name} ${note.text}`}
+                    onSelect={() => {
+                      onOpenSavedNote(note.id)
+                      setIsSearchOpen(false)
+                      setSearchQuery("")
+                    }}
+                    className="flex-col items-start gap-0.5"
+                  >
+                    <span className="font-medium">{note.name}</span>
+                    <span className="text-muted-foreground line-clamp-2 text-xs">
+                      {previewText(note.text, 80)}
+                    </span>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            ) : null}
+            {(hasWordbankSectionResults || hasWordbankActions || hasNoteResults) && hasPageResults ? <CommandSeparator /> : null}
+            {hasPageResults ? (
+              <CommandGroup heading="Pages">
+                {matchingPageItems.map((item) => {
+                  const Icon = item.icon
+                  return (
+                    <CommandItem
+                      key={item.key}
+                      value={item.key}
+                      onSelect={() => {
+                        item.onSelect()
+                        setIsSearchOpen(false)
+                      }}
+                    >
+                      <Icon />
+                      <span>{item.label}</span>
+                      <CommandShortcut>{item.shortcut}</CommandShortcut>
+                    </CommandItem>
+                  )
+                })}
+              </CommandGroup>
+            ) : null}
+          </CommandList>
+        </CommandDialog>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
@@ -691,6 +1163,7 @@ function AppSidebar({
                 >
                   <NotebookPen />
                   <span>Playground</span>
+                  <span aria-hidden="true" className="text-muted-foreground ml-auto text-[11px]">Alt+P</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
@@ -701,6 +1174,7 @@ function AppSidebar({
                 >
                   <BookOpen />
                   <span>Notes</span>
+                  <span aria-hidden="true" className="text-muted-foreground ml-auto text-[11px]">Alt+N</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
@@ -711,6 +1185,7 @@ function AppSidebar({
                 >
                   <BookOpen />
                   <span>Wordbank</span>
+                  <span aria-hidden="true" className="text-muted-foreground ml-auto text-[11px]">Alt+W</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
@@ -721,6 +1196,7 @@ function AppSidebar({
                 >
                   <Settings />
                   <span>Developer</span>
+                  <span aria-hidden="true" className="text-muted-foreground ml-auto text-[11px]">Alt+D</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
@@ -1116,10 +1592,6 @@ function App() {
   }, [])
 
   useEffect(() => {
-    if (activeSection !== "wordbank") {
-      return
-    }
-
     let cancelled = false
     setIsWordbankLoading(true)
     setWordbankError(null)
@@ -1156,7 +1628,7 @@ function App() {
     return () => {
       cancelled = true
     }
-  }, [activeSection, wordbankRefreshTick])
+  }, [wordbankRefreshTick])
 
   useEffect(() => {
     if (activeSection !== "wordbank" || !selectedLemma) {
@@ -1250,6 +1722,29 @@ function App() {
         ? "Autosaved"
         : "Autosave off"
 
+  async function addWordToWordbank(surfaceToken: string, lemmaCandidate: string | null): Promise<AddWordResponse> {
+    const response = await fetch(`${BACKEND_URL}/api/wordbank/lexemes`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        surface_token: surfaceToken,
+        lemma_candidate: lemmaCandidate,
+      }),
+    })
+
+    if (!response.ok) {
+      const message = await extractErrorMessage(
+        response,
+        `Add word request failed with status ${response.status}`,
+      )
+      throw new Error(message)
+    }
+
+    return (await response.json()) as AddWordResponse
+  }
+
   async function addTokenToWordbank(token: AnalyzedToken) {
     const requestSurface = token.normalized_token || token.surface_token
     const requestLemma = token.lemma_candidate
@@ -1258,26 +1753,7 @@ function App() {
     setAddingTokens((current) => ({ ...current, [loadingKey]: true }))
 
     try {
-      const response = await fetch(`${BACKEND_URL}/api/wordbank/lexemes`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          surface_token: requestSurface,
-          lemma_candidate: requestLemma,
-        }),
-      })
-
-      if (!response.ok) {
-        const message = await extractErrorMessage(
-          response,
-          `Add word request failed with status ${response.status}`,
-        )
-        throw new Error(message)
-      }
-
-      const payload = (await response.json()) as AddWordResponse
+      const payload = await addWordToWordbank(requestSurface, requestLemma)
       toast.success(payload.message)
       void postTokenFeedback({
         raw_token: token.surface_token,
@@ -1298,6 +1774,22 @@ function App() {
         delete next[loadingKey]
         return next
       })
+    }
+  }
+
+  async function addWordFromSearch(surfaceToken: string, lemmaCandidate: string | null): Promise<string | null> {
+    try {
+      const payload = await addWordToWordbank(surfaceToken, lemmaCandidate)
+      toast.success(payload.message)
+      setAnalysisRefreshTick((current) => current + 1)
+      setWordbankRefreshTick((current) => current + 1)
+      setActiveSection("wordbank")
+      setSelectedLemma(payload.stored_lemma)
+      return payload.stored_lemma
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not add word to wordbank. Try again."
+      toast.error(message)
+      return null
     }
   }
 
@@ -1707,6 +2199,14 @@ function App() {
     setActiveNoteId(note.id)
     setAutosaveStatus("saved")
     setActiveSection("playground")
+  }
+
+  function openSavedNoteById(noteId: string) {
+    const note = savedNotes.find((candidate) => candidate.id === noteId)
+    if (!note) {
+      return
+    }
+    openSavedNoteInPlayground(note)
   }
 
   function renderWordbankContent() {
@@ -2312,6 +2812,8 @@ function App() {
     <SidebarProvider>
       <AppSidebar
         activeSection={activeSection}
+        lemmas={lemmas}
+        savedNotes={savedNotes}
         onSelectPlayground={() => {
           setActiveSection("playground")
         }}
@@ -2327,6 +2829,12 @@ function App() {
           setActiveSection("developer")
           setSelectedLemma(null)
         }}
+        onOpenWordbankLemma={(lemma) => {
+          setActiveSection("wordbank")
+          setSelectedLemma(lemma)
+        }}
+        onOpenSavedNote={openSavedNoteById}
+        onAddWordFromSearch={addWordFromSearch}
       />
       <SidebarInset>
         <header className="flex h-12 items-center gap-2 px-4 md:hidden">

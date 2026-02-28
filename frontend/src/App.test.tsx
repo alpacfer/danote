@@ -11,6 +11,8 @@ vi.mock("sonner", () => ({
 
 import App from "./App"
 
+const SAVED_NOTES_STORAGE_KEY = "danote.saved-notes.v1"
+
 afterEach(() => {
   vi.mocked(toast.success).mockReset()
   vi.mocked(toast.error).mockReset()
@@ -229,6 +231,156 @@ describe("App shell", () => {
     expect(screen.getByRole("button", { name: /playground/i })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /^notes$/i })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /wordbank/i })).toBeInTheDocument()
+  })
+
+  it("command dialog search opens centered and resolves variation plus notes", async () => {
+    const fetchSpy = mockFetchImplementation({
+      lemmasResponse: {
+        items: [
+          { lemma: "bog", variation_count: 1, english_translation: "book" },
+          { lemma: "hus", variation_count: 1, english_translation: "house" },
+        ],
+      },
+      analyzeHandler: async (_input, init) => {
+        const payload = JSON.parse(String(init?.body ?? "{}")) as { text?: string }
+        if (payload.text === "bogen") {
+          return responseOf({
+            tokens: [
+              {
+                surface_token: "bogen",
+                normalized_token: "bogen",
+                lemma_candidate: "bog",
+                classification: "variation",
+                match_source: "lemma",
+                matched_lemma: "bog",
+                matched_surface_form: null,
+              },
+            ],
+          })
+        }
+        return responseOf({ tokens: [] })
+      },
+    })
+    window.localStorage.setItem(
+      SAVED_NOTES_STORAGE_KEY,
+      JSON.stringify([
+        {
+          id: "note-1",
+          name: "Bogen note",
+          text: "Jeg laeser en bog i dag",
+          tokens: [],
+          discoveredTokenMetadata: {},
+          generatedTranslationMap: {},
+          savedAt: "2026-02-28T12:00:00.000Z",
+        },
+      ]),
+    )
+
+    render(<App />)
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    const commandDialog = await screen.findByRole("dialog")
+    expect(commandDialog).toBeInTheDocument()
+    const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
+    fireEvent.change(searchInput, { target: { value: "bogen" } })
+
+    expect(await screen.findByText(/^book$/i)).toBeInTheDocument()
+    expect(await screen.findByText(/variation match: bogen/i)).toBeInTheDocument()
+    const addVariationButton = await screen.findByText(/add variation "bogen"/i)
+    fireEvent.click(addVariationButton)
+    await waitFor(() => {
+      expect(
+        fetchSpy.mock.calls.some(([input, init]) => {
+          if (!String(input).endsWith("/api/wordbank/lexemes")) {
+            return false
+          }
+          const body = JSON.parse(String(init?.body ?? "{}")) as {
+            surface_token?: string
+            lemma_candidate?: string
+          }
+          return body.surface_token === "bogen" && body.lemma_candidate === "bog"
+        }),
+      ).toBe(true)
+    })
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    const commandDialogAgain = await screen.findByRole("dialog")
+    const searchInputAgain = within(commandDialogAgain).getByPlaceholderText(/search words and notes/i)
+    fireEvent.change(searchInputAgain, { target: { value: "bog" } })
+    const savedNoteResult = await screen.findByText(/bogen note/i)
+    fireEvent.click(savedNoteResult)
+
+    expect(await screen.findByRole("button", { name: /create new note/i })).toBeInTheDocument()
+    expect(getNotesEditor()).toHaveTextContent(/jeg laeser en bog i dag/i)
+  })
+
+  it("command search offers adding a generated new word when there is no match", async () => {
+    const fetchSpy = mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      analyzeHandler: async (_input, init) => {
+        const payload = JSON.parse(String(init?.body ?? "{}")) as { text?: string }
+        if (payload.text === "snakker") {
+          return responseOf({
+            tokens: [
+              {
+                surface_token: "snakker",
+                normalized_token: "snakker",
+                lemma_candidate: "snakke",
+                classification: "new",
+                match_source: "none",
+                matched_lemma: null,
+                matched_surface_form: null,
+              },
+            ],
+          })
+        }
+        return responseOf({ tokens: [] })
+      },
+      translationHandler: async () =>
+        responseOf({
+          status: "generated",
+          source_word: "snakker",
+          lemma: "snakke",
+          english_translation: "talks",
+        }),
+      addWordResponse: {
+        status: "inserted",
+        stored_lemma: "snakke",
+        stored_surface_form: "snakker",
+        source: "manual",
+        message: "Added 'snakke' to wordbank.",
+      },
+    })
+
+    render(<App />)
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    const commandDialog = await screen.findByRole("dialog")
+    const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
+    fireEvent.change(searchInput, { target: { value: "snakker" } })
+
+    expect(await screen.findByText(/add "snakker" to wordbank/i)).toBeInTheDocument()
+    expect(await screen.findByText(/lemma: snakke/i)).toBeInTheDocument()
+    expect(await screen.findByText(/^talks$/i)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByText(/add "snakker" to wordbank/i))
+
+    await waitFor(() => {
+      expect(
+        fetchSpy.mock.calls.some(([input, init]) => {
+          if (!String(input).endsWith("/api/wordbank/lexemes")) {
+            return false
+          }
+          const body = JSON.parse(String(init?.body ?? "{}")) as {
+            surface_token?: string
+            lemma_candidate?: string
+          }
+          return body.surface_token === "snakker" && body.lemma_candidate === "snakke"
+        }),
+      ).toBe(true)
+    })
   })
 
   it("saves a named note with analysis and reopens it in playground", async () => {

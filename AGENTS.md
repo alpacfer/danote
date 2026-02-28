@@ -33,6 +33,9 @@ If you change backend orchestration or API schemas, additionally run:
 - Add/modify request-response models in `api/schemas/v1/` first; route files should import from schemas.
 - Prefer adding/expanding tests rather than changing expectations silently.
 - Update docs when command or workflow behavior changes.
+- When adding a new shadcn component, always use the official CLI command with default values:
+  `npx shadcn@latest add <component>`.
+  Do not handcraft component source or use custom generator settings unless explicitly requested.
 
 ## Self-verification checklist before finishing
 
