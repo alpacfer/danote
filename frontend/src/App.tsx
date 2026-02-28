@@ -593,12 +593,14 @@ function ThemeToggleButton() {
 type AppBreadcrumbProps = {
   activeSection: AppSection
   selectedLemma: string | null
+  activeNoteName: string | null
   onSelectWordbank: () => void
 }
 
 function AppBreadcrumb({
   activeSection,
   selectedLemma,
+  activeNoteName,
   onSelectWordbank,
 }: AppBreadcrumbProps) {
   if (activeSection === "playground") {
@@ -606,7 +608,7 @@ function AppBreadcrumb({
       <Breadcrumb>
         <BreadcrumbList className="text-2xl font-semibold">
           <BreadcrumbItem>
-            <BreadcrumbPage>Playground</BreadcrumbPage>
+            <BreadcrumbPage>{activeNoteName?.trim() || "Playground"}</BreadcrumbPage>
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
@@ -2227,13 +2229,7 @@ function App() {
 
   function renderNotesContent() {
     if (savedNotes.length === 0) {
-      return (
-        <Card>
-          <CardContent className="py-6">
-            <p className="text-muted-foreground text-sm">No saved notes yet. Save one from Playground.</p>
-          </CardContent>
-        </Card>
-      )
+      return <p className="text-muted-foreground text-sm">No saved notes yet. Save one from Playground.</p>
     }
 
     return (
@@ -2337,15 +2333,16 @@ function App() {
           <SidebarTrigger />
           <span className="text-sm font-medium">Danote</span>
         </header>
-        <main className="w-full px-1 py-2 md:px-2 md:py-4">
+        <main className="w-full px-1 pt-3 pb-2 md:px-2 md:pt-8 md:pb-4">
           <span className="sr-only" aria-label="backend-connection-status">
             {status}
           </span>
           <div className="mx-auto w-full max-w-7xl">
-            <div className="mb-4 flex items-center justify-between gap-3">
+            <div className="mb-1 md:mb-2 flex items-center justify-between gap-3">
               <AppBreadcrumb
                 activeSection={activeSection}
                 selectedLemma={selectedLemma}
+                activeNoteName={activeSavedNote?.name ?? null}
                 onSelectWordbank={() => {
                   setActiveSection("wordbank")
                   setSelectedLemma(null)
