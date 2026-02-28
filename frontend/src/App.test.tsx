@@ -106,6 +106,22 @@ function mockFetchImplementation(options?: {
     english_translation: string | null
   }
   translationHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+  sentencebankOk?: boolean
+  sentencebankResponse?: {
+    items: Array<{
+      id: number
+      source_text: string
+      english_translation?: string | null
+      created_at: string
+    }>
+  }
+  addSentenceOk?: boolean
+  addSentenceResponse?: {
+    status: "inserted" | "exists"
+    source_text: string
+    english_translation: string | null
+    message: string
+  }
 }) {
   const healthOk = options?.healthOk ?? true
   const healthStatus = options?.healthStatus ?? "ok"
@@ -134,6 +150,15 @@ function mockFetchImplementation(options?: {
     source_word: "kat",
     lemma: "kat",
     english_translation: null,
+  }
+  const sentencebankOk = options?.sentencebankOk ?? true
+  const sentencebankResponse = options?.sentencebankResponse ?? { items: [] }
+  const addSentenceOk = options?.addSentenceOk ?? true
+  const addSentenceResponse = options?.addSentenceResponse ?? {
+    status: "inserted" as const,
+    source_text: "Jeg elsker dansk",
+    english_translation: "I love Danish",
+    message: "Added sentence.",
   }
 
   return vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
@@ -205,6 +230,20 @@ function mockFetchImplementation(options?: {
       return responseOf(translationResponse)
     }
 
+    if (url.endsWith("/api/sentencebank/sentences") && init?.method === "POST") {
+      if (!addSentenceOk) {
+        throw new Error("add sentence request failed")
+      }
+      return responseOf(addSentenceResponse)
+    }
+
+    if (url.endsWith("/api/sentencebank/sentences")) {
+      if (!sentencebankOk) {
+        throw new Error("sentencebank request failed")
+      }
+      return responseOf(sentencebankResponse)
+    }
+
     return { ok: false, status: 404 } as Response
   })
 }
@@ -222,7 +261,7 @@ describe("App shell", () => {
     expect(statusBadge).toHaveTextContent(/connected/i)
   })
 
-  it("renders sidebar navigation with playground, notes, and wordbank", async () => {
+  it("renders sidebar navigation with playground, notes, wordbank, and sentencebank", async () => {
     mockFetchImplementation()
 
     render(<App />)
@@ -231,6 +270,30 @@ describe("App shell", () => {
     expect(screen.getByRole("button", { name: /playground/i })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /^notes$/i })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /wordbank/i })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /sentencebank/i })).toBeInTheDocument()
+  })
+
+  it("shows saved sentences in sentencebank", async () => {
+    mockFetchImplementation({
+      sentencebankResponse: {
+        items: [
+          {
+            id: 1,
+            source_text: "Jeg elsker dansk",
+            english_translation: "I love Danish",
+            created_at: "2026-02-28T12:00:00.000Z",
+          },
+        ],
+      },
+    })
+
+    render(<App />)
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /sentencebank/i }))
+
+    expect(await screen.findByText(/jeg elsker dansk/i)).toBeInTheDocument()
+    expect(screen.getByText(/i love danish/i)).toBeInTheDocument()
   })
 
   it("command dialog search opens centered and resolves variation plus notes", async () => {

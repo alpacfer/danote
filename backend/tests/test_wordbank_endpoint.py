@@ -250,3 +250,63 @@ def test_generate_phrase_translation_returns_cached_value_without_second_provide
         "english_translation": "i like it",
     }
     assert stub_service.calls == 1
+
+
+def test_add_sentence_inserts_and_returns_translation_from_provider(tmp_path, stub_nlp_adapter_factory) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    apply_migrations(db_path)
+    app = create_app(_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+
+    class StubTranslationService:
+        def translate_da_to_en(self, text: str) -> str | None:
+            if text == "Jeg elsker kaffe":
+                return "i love coffee"
+            return None
+
+    with TestClient(app) as client:
+        client.app.state.translation_service = StubTranslationService()
+        response = client.post(
+            "/api/sentencebank/sentences",
+            json={"source_text": "Jeg elsker kaffe"},
+        )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "status": "inserted",
+        "source_text": "Jeg elsker kaffe",
+        "english_translation": "i love coffee",
+        "message": 'Added "Jeg elsker kaffe" to sentencebank.',
+    }
+
+
+def test_add_sentence_duplicate_is_graceful(tmp_path, stub_nlp_adapter_factory) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    apply_migrations(db_path)
+    app = create_app(_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+
+    with TestClient(app) as client:
+        first = client.post("/api/sentencebank/sentences", json={"source_text": "Jeg laeser hver dag"})
+        second = client.post("/api/sentencebank/sentences", json={"source_text": "  jeg   laeser hver dag "})
+
+    assert first.status_code == 200
+    assert first.json()["status"] == "inserted"
+
+    assert second.status_code == 200
+    second_payload = second.json()
+    assert second_payload["status"] == "exists"
+    assert "already" in second_payload["message"].lower()
+
+
+def test_list_sentences_returns_newest_first(tmp_path, stub_nlp_adapter_factory) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    apply_migrations(db_path)
+    app = create_app(_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+
+    with TestClient(app) as client:
+        client.post("/api/sentencebank/sentences", json={"source_text": "Jeg laeser en bog"})
+        client.post("/api/sentencebank/sentences", json={"source_text": "Vi spiser nu"})
+        response = client.get("/api/sentencebank/sentences")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert [item["source_text"] for item in payload["items"]] == ["Vi spiser nu", "Jeg laeser en bog"]

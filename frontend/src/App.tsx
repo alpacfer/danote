@@ -70,7 +70,7 @@ import { toast } from "sonner"
 
 type ConnectionStatus = "loading" | "connected" | "degraded" | "offline"
 type TokenClassification = "known" | "variation" | "typo_likely" | "uncertain" | "new"
-type AppSection = "playground" | "notes" | "wordbank" | "developer"
+type AppSection = "playground" | "notes" | "wordbank" | "sentencebank" | "developer"
 type TokenAction = "add_as_new"
 
 type AnalyzedToken = {
@@ -145,6 +145,24 @@ type GeneratePhraseTranslationResponse = {
   english_translation: string | null
 }
 
+type SentencebankSentence = {
+  id: number
+  source_text: string
+  english_translation: string | null
+  created_at: string
+}
+
+type SentenceListResponse = {
+  items: SentencebankSentence[]
+}
+
+type AddSentenceResponse = {
+  status: "inserted" | "exists"
+  source_text: string
+  english_translation: string | null
+  message: string
+}
+
 type TokenFeedbackPayload = {
   raw_token: string
   predicted_status: string
@@ -204,6 +222,7 @@ const NLP_MODEL_OPTIONS = [
 ] as const
 const POPOVER_VIEWPORT_MARGIN_PX = 12
 const POPOVER_ESTIMATED_HEIGHT_PX = 280
+const PHRASE_POPOVER_MAX_TEXT_WIDTH_CLASS = "max-w-[42ch]"
 const SAVED_NOTES_STORAGE_KEY = "danote.saved-notes.v1"
 const NOTE_AUTOSAVE_DEBOUNCE_MS = 900
 
@@ -580,6 +599,7 @@ type AppSidebarProps = {
   onSelectPlayground: () => void
   onSelectNotes: () => void
   onSelectWordbank: () => void
+  onSelectSentencebank: () => void
   onSelectDeveloper: () => void
   onOpenWordbankLemma: (lemma: string) => void
   onOpenSavedNote: (noteId: string) => void
@@ -655,6 +675,18 @@ function AppBreadcrumb({
     )
   }
 
+  if (activeSection === "sentencebank") {
+    return (
+      <Breadcrumb>
+        <BreadcrumbList className="text-2xl font-semibold">
+          <BreadcrumbItem>
+            <BreadcrumbPage>Sentencebank</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+    )
+  }
+
   return (
     <Breadcrumb>
       <BreadcrumbList className="text-2xl font-semibold">
@@ -689,6 +721,7 @@ function AppSidebar({
   onSelectPlayground,
   onSelectNotes,
   onSelectWordbank,
+  onSelectSentencebank,
   onSelectDeveloper,
   onOpenWordbankLemma,
   onOpenSavedNote,
@@ -823,6 +856,13 @@ function AppSidebar({
         onSelect: onSelectWordbank,
       },
       {
+        key: "page-sentencebank",
+        label: "Sentencebank",
+        shortcut: "Alt+S",
+        icon: BookOpen,
+        onSelect: onSelectSentencebank,
+      },
+      {
         key: "page-developer",
         label: "Developer",
         shortcut: "Alt+D",
@@ -830,7 +870,7 @@ function AppSidebar({
         onSelect: onSelectDeveloper,
       },
     ],
-    [onSelectDeveloper, onSelectNotes, onSelectPlayground, onSelectWordbank],
+    [onSelectDeveloper, onSelectNotes, onSelectPlayground, onSelectSentencebank, onSelectWordbank],
   )
   const matchingPageItems = useMemo(() => {
     if (!normalizedQuery) {
@@ -877,6 +917,11 @@ function AppSidebar({
         onSelectWordbank()
         return
       }
+      if (key === "s") {
+        event.preventDefault()
+        onSelectSentencebank()
+        return
+      }
       if (key === "d") {
         event.preventDefault()
         onSelectDeveloper()
@@ -887,7 +932,7 @@ function AppSidebar({
     return () => {
       window.removeEventListener("keydown", handleKeyDown)
     }
-  }, [onSelectDeveloper, onSelectNotes, onSelectPlayground, onSelectWordbank])
+  }, [onSelectDeveloper, onSelectNotes, onSelectPlayground, onSelectSentencebank, onSelectWordbank])
 
   useEffect(() => {
     if (!normalizedQuery || /\s/u.test(normalizedQuery)) {
@@ -1192,6 +1237,17 @@ function AppSidebar({
               <SidebarMenuItem>
                 <SidebarMenuButton
                   type="button"
+                  isActive={activeSection === "sentencebank"}
+                  onClick={onSelectSentencebank}
+                >
+                  <BookOpen />
+                  <span>Sentencebank</span>
+                  <span aria-hidden="true" className="text-muted-foreground ml-auto text-[11px]">Alt+S</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  type="button"
                   isActive={activeSection === "developer"}
                   onClick={onSelectDeveloper}
                 >
@@ -1227,10 +1283,15 @@ function App() {
   const [analysisRefreshTick, setAnalysisRefreshTick] = useState(0)
   const [addingTokens, setAddingTokens] = useState<Record<string, boolean>>({})
   const [wordbankRefreshTick, setWordbankRefreshTick] = useState(0)
+  const [sentencebankRefreshTick, setSentencebankRefreshTick] = useState(0)
 
   const [lemmas, setLemmas] = useState<WordbankLemma[]>([])
+  const [sentences, setSentences] = useState<SentencebankSentence[]>([])
   const [wordbankError, setWordbankError] = useState<string | null>(null)
+  const [sentencebankError, setSentencebankError] = useState<string | null>(null)
   const [isWordbankLoading, setIsWordbankLoading] = useState(false)
+  const [isSentencebankLoading, setIsSentencebankLoading] = useState(false)
+  const [isSavingSentence, setIsSavingSentence] = useState(false)
   const [selectedLemma, setSelectedLemma] = useState<string | null>(null)
   const [lemmaDetails, setLemmaDetails] = useState<LemmaDetailsResponse | null>(null)
   const [lemmaDetailsError, setLemmaDetailsError] = useState<string | null>(null)
@@ -1386,6 +1447,13 @@ function App() {
     }
     return generatedTranslationMap[phraseKey] ?? null
   }, [generatedTranslationMap, phrasePopover.selectedText])
+  const isSelectedPhraseSaved = useMemo(() => {
+    const phraseKey = normalizePhraseKey(phrasePopover.selectedText)
+    if (!phraseKey) {
+      return false
+    }
+    return sentences.some((sentence) => normalizePhraseKey(sentence.source_text) === phraseKey)
+  }, [phrasePopover.selectedText, sentences])
 
   useEffect(() => {
     setSavedNotes(loadSavedNotes())
@@ -1630,6 +1698,45 @@ function App() {
       cancelled = true
     }
   }, [wordbankRefreshTick])
+
+  useEffect(() => {
+    let cancelled = false
+    setIsSentencebankLoading(true)
+    setSentencebankError(null)
+
+    void (async () => {
+      try {
+        const response = await fetch(`${BACKEND_URL}/api/sentencebank/sentences`)
+        if (!response.ok) {
+          const message = await extractErrorMessage(
+            response,
+            `Sentencebank request failed with status ${response.status}`,
+          )
+          throw new Error(message)
+        }
+
+        const payload = (await response.json()) as SentenceListResponse
+        if (!cancelled) {
+          setSentences(payload.items ?? [])
+        }
+      } catch (error) {
+        if (!cancelled) {
+          const message = error instanceof Error ? error.message : "Could not load sentencebank."
+          setSentencebankError(message)
+          setSentences([])
+        }
+        void error
+      } finally {
+        if (!cancelled) {
+          setIsSentencebankLoading(false)
+        }
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [sentencebankRefreshTick])
 
   useEffect(() => {
     if (activeSection !== "wordbank" || !selectedLemma) {
@@ -1912,6 +2019,48 @@ function App() {
     }, PHRASE_TRANSLATION_DELAY_MS)
   }
 
+  async function addSentenceToSentencebank(selectedText: string) {
+    const normalizedSelection = selectedText.replace(/\s+/gu, " ").trim()
+    if (!normalizedSelection || !hasMultipleWords(normalizedSelection)) {
+      return
+    }
+    const selectionKey = normalizePhraseKey(normalizedSelection)
+    if (sentences.some((sentence) => normalizePhraseKey(sentence.source_text) === selectionKey)) {
+      return
+    }
+
+    setIsSavingSentence(true)
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/sentencebank/sentences`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          source_text: normalizedSelection,
+        }),
+      })
+      if (!response.ok) {
+        const message = await extractErrorMessage(
+          response,
+          `Save sentence request failed with status ${response.status}`,
+        )
+        throw new Error(message)
+      }
+
+      const payload = (await response.json()) as AddSentenceResponse
+      toast.success(payload.message)
+      setSentencebankRefreshTick((current) => current + 1)
+      setPhrasePopover((current) => ({ ...current, open: false, selectedText: "" }))
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not save sentence. Try again."
+      toast.error(message)
+      void error
+    } finally {
+      setIsSavingSentence(false)
+    }
+  }
+
   function openHighlightPopover(tokenIndex: number, left: number, lineTop: number, lineBottom: number) {
     const token = tokens[tokenIndex]
     if (!token || token.classification === "typo_likely" || token.pos_tag === "PROPN" || token.pos_tag === "NUM") {
@@ -2027,9 +2176,11 @@ function App() {
       setAnalysisError(null)
       setSelectedLemma(null)
       setLemmas([])
+      setSentences([])
       setLemmaDetails(null)
       setLemmaDetailsError(null)
       setWordbankRefreshTick((current) => current + 1)
+      setSentencebankRefreshTick((current) => current + 1)
     } catch (error) {
       const message = error instanceof Error ? error.message : "Could not reset database."
       toast.error(message)
@@ -2213,7 +2364,7 @@ function App() {
   function renderWordbankContent() {
     if (!selectedLemma) {
       return (
-        <div className="space-y-4">
+        <div className="flex min-h-0 flex-1 flex-col gap-4">
           {wordbankError && (
             <p className="text-destructive text-sm" role="alert">
               {wordbankError}
@@ -2251,7 +2402,7 @@ function App() {
           ) : lemmas.length === 0 ? (
             <p className="text-muted-foreground text-sm">No saved lemmas yet.</p>
           ) : (
-            <ScrollArea className="h-[520px]">
+            <ScrollArea className="min-h-0 flex-1">
               <div className="space-y-4">
                 {groupedWordbankLemmas.map((group) => (
                   <section key={group.letter} className="space-y-2">
@@ -2293,7 +2444,7 @@ function App() {
     )
 
     return (
-      <div className="space-y-4">
+      <div className="flex min-h-0 flex-1 flex-col gap-4">
         {lemmaDetailsError && (
           <p className="text-destructive text-sm" role="alert">
             {lemmaDetailsError}
@@ -2349,7 +2500,7 @@ function App() {
           <p className="text-muted-foreground text-sm">No details found for this lemma.</p>
           )
         ) : (
-          <ScrollArea className="h-[520px]">
+          <ScrollArea className="min-h-0 flex-1">
             <div className="space-y-3 pr-1">
               <Card>
                 <CardContent className="space-y-3">
@@ -2565,18 +2716,43 @@ function App() {
               onOpenAutoFocus={(event) => {
                 event.preventDefault()
               }}
-              className="space-y-2"
+              className={`${PHRASE_POPOVER_MAX_TEXT_WIDTH_CLASS} space-y-2`}
             >
-              <p className="text-sm font-semibold leading-snug">{phrasePopover.selectedText}</p>
-              {isGeneratingPhraseTranslation && !phraseTranslation ? (
-                <Skeleton data-testid="phrase-translation-skeleton" className="h-4 w-28" />
-              ) : generatePhraseTranslationError ? (
-                <p className="text-destructive text-xs">{generatePhraseTranslationError}</p>
-              ) : phraseTranslation ? (
-                <p className="text-muted-foreground text-sm">{phraseTranslation}</p>
-              ) : (
-                <p className="text-muted-foreground text-xs">No translation available.</p>
-              )}
+              <div className="flex items-start justify-between gap-3">
+                <div className={`space-y-1 ${PHRASE_POPOVER_MAX_TEXT_WIDTH_CLASS} min-w-0`}>
+                  <p className="text-sm font-semibold leading-snug break-words">{phrasePopover.selectedText}</p>
+                  {isGeneratingPhraseTranslation && !phraseTranslation ? (
+                    <Skeleton data-testid="phrase-translation-skeleton" className="h-4 w-28" />
+                  ) : generatePhraseTranslationError ? (
+                    <p className="text-destructive text-xs">{generatePhraseTranslationError}</p>
+                  ) : phraseTranslation ? (
+                    <p className="text-muted-foreground text-sm break-words">{phraseTranslation}</p>
+                  ) : (
+                    <p className="text-muted-foreground text-xs">No translation available.</p>
+                  )}
+                </div>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex">
+                      <Button
+                        type="button"
+                        variant="default"
+                        size="icon-sm"
+                        aria-label="Add to sentencebank"
+                        disabled={isSavingSentence || isSelectedPhraseSaved}
+                        onClick={() => {
+                          void addSentenceToSentencebank(phrasePopover.selectedText)
+                        }}
+                      >
+                        <Plus />
+                      </Button>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" sideOffset={6}>
+                    <p>{isSelectedPhraseSaved ? "Already in sentencebank" : isSavingSentence ? "Saving..." : "Add to sentencebank"}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
             </PopoverContent>
           </Popover>
           <Popover
@@ -2775,6 +2951,56 @@ function App() {
     )
   }
 
+  function renderSentencebankContent() {
+    if (sentencebankError) {
+      return (
+        <p className="text-destructive text-sm" role="alert">
+          {sentencebankError}
+        </p>
+      )
+    }
+
+    if (isSentencebankLoading && sentences.length === 0) {
+      return (
+        <div className="space-y-3">
+          <Card>
+            <CardContent className="space-y-2">
+              <Skeleton className="h-5 w-48" />
+              <Skeleton className="h-4 w-32" />
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="space-y-2">
+              <Skeleton className="h-5 w-56" />
+              <Skeleton className="h-4 w-36" />
+            </CardContent>
+          </Card>
+        </div>
+      )
+    }
+
+    if (sentences.length === 0) {
+      return <p className="text-muted-foreground text-sm">No saved sentences yet. Select a sentence in Playground to add one.</p>
+    }
+
+    return (
+      <ScrollArea className="min-h-0 flex-1">
+        <div className="space-y-3 pr-1">
+          {sentences.map((sentence) => (
+            <Card key={sentence.id}>
+              <CardContent className="space-y-2">
+                <p className="text-base font-medium leading-relaxed max-w-[70ch] break-words">{sentence.source_text}</p>
+                <p className="text-muted-foreground text-sm max-w-[70ch] break-words">
+                  {sentence.english_translation?.trim() || "No translation available."}
+                </p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </ScrollArea>
+    )
+  }
+
   function renderDeveloperContent() {
     return (
       <Card>
@@ -2843,6 +3069,10 @@ function App() {
           setActiveSection("wordbank")
           setSelectedLemma(null)
         }}
+        onSelectSentencebank={() => {
+          setActiveSection("sentencebank")
+          setSelectedLemma(null)
+        }}
         onSelectDeveloper={() => {
           setActiveSection("developer")
           setSelectedLemma(null)
@@ -2859,11 +3089,11 @@ function App() {
           <SidebarTrigger />
           <span className="text-sm font-medium">Danote</span>
         </header>
-        <main className="w-full px-1 pt-3 pb-2 md:px-2 md:pt-8 md:pb-4">
+        <main className="flex min-h-0 w-full flex-1 flex-col px-1 pt-3 pb-2 md:px-2 md:pt-8 md:pb-4">
           <span className="sr-only" aria-label="backend-connection-status">
             {status}
           </span>
-          <div className="mx-auto w-full max-w-7xl">
+          <div className="mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col">
             <div className="mb-1 md:mb-2 flex items-center justify-between gap-3">
               <AppBreadcrumb
                 activeSection={activeSection}
@@ -2892,12 +3122,14 @@ function App() {
                 </div>
               ) : null}
             </div>
-            {activeSection === "playground"
+              {activeSection === "playground"
               ? renderPlaygroundContent()
               : activeSection === "notes"
                 ? renderNotesContent()
               : activeSection === "wordbank"
                 ? renderWordbankContent()
+                : activeSection === "sentencebank"
+                  ? renderSentencebankContent()
                 : renderDeveloperContent()}
           </div>
         </main>

@@ -5,6 +5,7 @@ from pathlib import Path
 from app.api.schemas.v1.wordbank import LemmaDetailsResponse
 from app.db.migrations import apply_migrations
 from app.services.use_cases.analyze import AnalyzeNoteUseCase
+from app.services.use_cases.sentencebank import SentencebankUseCase
 from app.services.use_cases.wordbank import WordbankUseCase
 from app.nlp.adapter import NLPToken
 
@@ -164,6 +165,23 @@ def test_wordbank_phrase_translation_caches_by_normalized_phrase(tmp_path: Path)
     assert cached.source_text == "jeg kan godt lide det"
     assert cached.english_translation == "i like it"
     assert translation_service.calls == ["jeg kan godt lide det"]
+
+
+def test_sentencebank_use_case_add_and_list(tmp_path: Path) -> None:
+    use_case = SentencebankUseCase(
+        _db_path(tmp_path),
+        translation_service=FakeTranslationService({"Jeg elsker dansk": "i love danish"}),
+    )
+
+    inserted = use_case.add_sentence("Jeg elsker dansk")
+    duplicate = use_case.add_sentence("  jeg elsker   dansk ")
+    listing = use_case.list_sentences()
+
+    assert inserted.status == "inserted"
+    assert inserted.source_text == "Jeg elsker dansk"
+    assert inserted.english_translation == "i love danish"
+    assert duplicate.status == "exists"
+    assert listing.items[0].source_text == "Jeg elsker dansk"
 
 
 
