@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import { BookOpen, Moon, NotebookPen, Save, Settings, Sun } from "lucide-react"
+import { BookOpen, Eye, Moon, NotebookPen, Plus, Save, Settings, Sun } from "lucide-react"
 import { useTheme } from "next-themes"
 
 import { Badge } from "@/components/ui/badge"
@@ -48,6 +48,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import {
   Sidebar,
   SidebarContent,
@@ -2641,50 +2642,67 @@ function App() {
                     ) : (
                       <p className="text-muted-foreground text-xs">No translation available.</p>
                     )}
-                    <div className="mt-2.5 flex flex-wrap gap-1.5">
-                      {popoverDisplayToken.pos_tag && (
-                        <Badge variant="secondary" className={posBadgeClass(popoverDisplayToken.pos_tag)}>
-                          {popoverDisplayToken.pos_tag}
-                        </Badge>
+                    <div className="mt-2.5 flex items-center justify-between gap-2">
+                      <div className="flex flex-1 flex-wrap justify-start gap-1.5">
+                        {popoverDisplayToken.pos_tag && (
+                          <Badge variant="secondary" className={posBadgeClass(popoverDisplayToken.pos_tag)}>
+                            {popoverDisplayToken.pos_tag}
+                          </Badge>
+                        )}
+                        {popoverSecondaryTags.map((tag) => (
+                          <Badge key={tag} variant="secondary">
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                      {popoverDisplayToken.classification === "known" ? (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="inline-flex">
+                              <Button
+                                type="button"
+                                variant="default"
+                                size="icon-sm"
+                                aria-label="Open in wordbank"
+                                disabled={!popoverLemma}
+                                onClick={() => {
+                                  openKnownTokenInWordbank(popoverDisplayToken)
+                                }}
+                              >
+                                <Eye />
+                              </Button>
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent side="right" sideOffset={6}>
+                            <p>Open in wordbank</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      ) : (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="inline-flex">
+                              <Button
+                                type="button"
+                                variant="default"
+                                size="icon-sm"
+                                aria-label={popoverDisplayToken.classification === "variation" ? "Add variation" : "Add to wordbank"}
+                                disabled={Boolean(addingTokens[addLoadingKey(popoverDisplayToken)])}
+                                onClick={() => {
+                                  void addTokenToWordbank(popoverDisplayToken)
+                                  setHighlightPopover((current) => ({ ...current, open: false, tokenIndex: null }))
+                                }}
+                              >
+                                <Plus />
+                              </Button>
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent side="right" sideOffset={6}>
+                            <p>{popoverDisplayToken.classification === "variation" ? "Add variation" : "Add to wordbank"}</p>
+                          </TooltipContent>
+                        </Tooltip>
                       )}
-                      {popoverSecondaryTags.map((tag) => (
-                        <Badge key={tag} variant="secondary">
-                          {tag}
-                        </Badge>
-                      ))}
                     </div>
                   </div>
-
-                  {popoverDisplayToken.classification === "known" ? (
-                    <Button
-                      type="button"
-                      size="sm"
-                      className="w-full"
-                      disabled={!popoverLemma}
-                      onClick={() => {
-                        openKnownTokenInWordbank(popoverDisplayToken)
-                      }}
-                    >
-                      Open in wordbank
-                    </Button>
-                  ) : (
-                    <Button
-                      type="button"
-                      size="sm"
-                      className="w-full"
-                      disabled={Boolean(addingTokens[addLoadingKey(popoverDisplayToken)])}
-                      onClick={() => {
-                        void addTokenToWordbank(popoverDisplayToken)
-                        setHighlightPopover((current) => ({ ...current, open: false, tokenIndex: null }))
-                      }}
-                    >
-                      {addingTokens[addLoadingKey(popoverDisplayToken)]
-                        ? "Adding..."
-                        : popoverDisplayToken.classification === "variation"
-                          ? "Add variation"
-                          : "Add to wordbank"}
-                    </Button>
-                  )}
                 </>
               )}
             </PopoverContent>
