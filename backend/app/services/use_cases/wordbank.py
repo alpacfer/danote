@@ -5,6 +5,7 @@ from typing import Literal
 
 from app.api.schemas.v1.wordbank import (
     AddWordResponse,
+    GeneratePhraseTranslationResponse,
     GenerateTranslationResponse,
     LemmaDetailsResponse,
     LemmaListResponse,
@@ -150,6 +151,53 @@ class WordbankUseCase:
             status="generated" if english_translation else "unavailable",
             source_word=normalized_surface,
             lemma=stored_lemma,
+            english_translation=english_translation,
+        )
+
+    def generate_phrase_translation(self, source_text: str) -> GeneratePhraseTranslationResponse:
+        normalized_source_text = normalize_token(source_text)
+        if not normalized_source_text:
+            raise ValueError("source_text is required")
+
+        with get_connection(self._db_path) as conn:
+            existing = conn.execute(
+                """
+                SELECT english_translation
+                FROM phrase_translations
+                WHERE source_phrase = ?
+                LIMIT 1
+                """,
+                (normalized_source_text,),
+            ).fetchone()
+
+            if existing is not None:
+                cached_translation = existing["english_translation"]
+                return GeneratePhraseTranslationResponse(
+                    status="cached" if cached_translation else "unavailable",
+                    source_text=normalized_source_text,
+                    english_translation=cached_translation,
+                )
+
+            english_translation = self._lookup_translation(normalized_source_text)
+            conn.execute(
+                """
+                INSERT INTO phrase_translations (
+                    source_phrase,
+                    english_translation,
+                    translation_provider
+                )
+                VALUES (?, ?, ?)
+                """,
+                (
+                    normalized_source_text,
+                    english_translation,
+                    "deepl" if english_translation else None,
+                ),
+            )
+
+        return GeneratePhraseTranslationResponse(
+            status="generated" if english_translation else "unavailable",
+            source_text=normalized_source_text,
             english_translation=english_translation,
         )
 

@@ -2,6 +2,8 @@ from app.api.schemas.v1.analyze import AnalyzedToken, AnalyzeRequest, AnalyzeRes
 from app.api.schemas.v1.wordbank import (
     AddWordRequest,
     AddWordResponse,
+    GeneratePhraseTranslationRequest,
+    GeneratePhraseTranslationResponse,
     LemmaDetailsResponse,
     LemmaListResponse,
     LemmaSummary,
@@ -14,6 +16,8 @@ __all__ = [
     "AnalyzedToken",
     "AddWordRequest",
     "AddWordResponse",
+    "GeneratePhraseTranslationRequest",
+    "GeneratePhraseTranslationResponse",
     "LemmaSummary",
     "LemmaListResponse",
     "LemmaDetailsResponse",

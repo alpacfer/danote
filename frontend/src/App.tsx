@@ -115,6 +115,12 @@ type GenerateTranslationResponse = {
   english_translation: string | null
 }
 
+type GeneratePhraseTranslationResponse = {
+  status: "generated" | "cached" | "unavailable"
+  source_text: string
+  english_translation: string | null
+}
+
 type TokenFeedbackPayload = {
   raw_token: string
   predicted_status: string
@@ -132,6 +138,15 @@ type HighlightPopoverState = {
   tokenIndex: number | null
 }
 
+type PhrasePopoverState = {
+  open: boolean
+  left: number
+  lineTop: number
+  lineBottom: number
+  side: "top" | "bottom"
+  selectedText: string
+}
+
 type DiscoveredTokenMetadata = {
   pos_tag: string
   morphology: string | null
@@ -145,6 +160,7 @@ type DiscoveredTokenMemory = {
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? "http://127.0.0.1:8000"
 const ANALYZE_DEBOUNCE_MS = 450
+const PHRASE_TRANSLATION_DELAY_MS = 1000
 const NLP_MODEL_OPTIONS = [
   "da_dacy_small_trf-0.2.0",
   "da_dacy_medium_trf-0.2.0",
@@ -195,6 +211,14 @@ function addLoadingKey(token: AnalyzedToken): string {
 
 function normalizeWordKey(value: string): string {
   return value.normalize("NFKC").toLocaleLowerCase()
+}
+
+function normalizePhraseKey(value: string): string {
+  return normalizeWordKey(value).replace(/\s+/gu, " ").trim()
+}
+
+function hasMultipleWords(value: string): boolean {
+  return value.split(/\s+/u).filter(Boolean).length >= 2
 }
 
 function preferredPopoverSide(lineTop: number, lineBottom: number): "top" | "bottom" {
@@ -546,13 +570,25 @@ function App() {
     side: "bottom",
     tokenIndex: null,
   })
+  const [phrasePopover, setPhrasePopover] = useState<PhrasePopoverState>({
+    open: false,
+    left: 0,
+    lineTop: 0,
+    lineBottom: 0,
+    side: "bottom",
+    selectedText: "",
+  })
   const [discoveredTokenMetadata, setDiscoveredTokenMetadata] = useState<Record<string, DiscoveredTokenMemory>>({})
   const [generatedTranslationMap, setGeneratedTranslationMap] = useState<Record<string, string | null>>({})
   const [isGeneratingTranslation, setIsGeneratingTranslation] = useState(false)
   const [generateTranslationError, setGenerateTranslationError] = useState<string | null>(null)
+  const [isGeneratingPhraseTranslation, setIsGeneratingPhraseTranslation] = useState(false)
+  const [generatePhraseTranslationError, setGeneratePhraseTranslationError] = useState<string | null>(null)
 
   const latestRequestIdRef = useRef(0)
   const activeControllerRef = useRef<AbortController | null>(null)
+  const phraseTranslationRequestKeyRef = useRef<string | null>(null)
+  const phraseTranslationDelayTimeoutRef = useRef<number | null>(null)
   const analysisInput = useMemo(() => finalizedAnalysisText(noteText), [noteText])
   const noteHighlights = useMemo(
     () => mapAnalyzedTokensToHighlights(noteText, tokens),
@@ -744,6 +780,13 @@ function App() {
     (popoverIsNoun || popoverIsVerbLike) &&
     (!popoverTranslation || Boolean(generateTranslationError))
   )
+  const phraseTranslation = useMemo(() => {
+    const phraseKey = normalizePhraseKey(phrasePopover.selectedText)
+    if (!phraseKey || !Object.hasOwn(generatedTranslationMap, phraseKey)) {
+      return null
+    }
+    return generatedTranslationMap[phraseKey] ?? null
+  }, [generatedTranslationMap, phrasePopover.selectedText])
 
   useEffect(() => {
     if (tokens.length === 0) {
@@ -1101,6 +1144,71 @@ function App() {
     }
   }
 
+  async function generateTranslationForPhrase(selectedText: string) {
+    const phraseKey = normalizePhraseKey(selectedText)
+    if (!phraseKey || Object.hasOwn(generatedTranslationMap, phraseKey)) {
+      setIsGeneratingPhraseTranslation(false)
+      return
+    }
+
+    if (phraseTranslationDelayTimeoutRef.current !== null) {
+      window.clearTimeout(phraseTranslationDelayTimeoutRef.current)
+      phraseTranslationDelayTimeoutRef.current = null
+    }
+
+    phraseTranslationRequestKeyRef.current = phraseKey
+    setIsGeneratingPhraseTranslation(true)
+    setGeneratePhraseTranslationError(null)
+    phraseTranslationDelayTimeoutRef.current = window.setTimeout(() => {
+      phraseTranslationDelayTimeoutRef.current = null
+      void (async () => {
+        try {
+          const response = await fetch(`${BACKEND_URL}/api/wordbank/phrase-translation`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              source_text: selectedText,
+            }),
+          })
+          if (!response.ok) {
+            const message = await extractErrorMessage(
+              response,
+              `Phrase translation request failed with status ${response.status}`,
+            )
+            throw new Error(message)
+          }
+
+          const payload = (await response.json()) as GeneratePhraseTranslationResponse
+          const responseKey = normalizePhraseKey(payload.source_text || selectedText)
+          const translation = payload.english_translation?.trim() || null
+
+          setGeneratedTranslationMap((current) => {
+            const next = { ...current }
+            if (responseKey) {
+              next[responseKey] = translation
+            }
+            if (phraseKey) {
+              next[phraseKey] = translation
+            }
+            return next
+          })
+        } catch (error) {
+          if (phraseTranslationRequestKeyRef.current === phraseKey) {
+            const message = error instanceof Error ? error.message : "Could not generate phrase translation."
+            setGeneratePhraseTranslationError(message)
+          }
+          void error
+        } finally {
+          if (phraseTranslationRequestKeyRef.current === phraseKey) {
+            setIsGeneratingPhraseTranslation(false)
+          }
+        }
+      })()
+    }, PHRASE_TRANSLATION_DELAY_MS)
+  }
+
   function openHighlightPopover(tokenIndex: number, left: number, lineTop: number, lineBottom: number) {
     const token = tokens[tokenIndex]
     if (!token || token.classification === "typo_likely" || token.pos_tag === "PROPN" || token.pos_tag === "NUM") {
@@ -1109,8 +1217,59 @@ function App() {
 
     const side = preferredPopoverSide(lineTop, lineBottom)
     setHighlightPopover({ open: true, tokenIndex, left, lineTop, lineBottom, side })
+    setPhrasePopover((current) => ({ ...current, open: false }))
     void generateTranslationForToken(token)
   }
+
+  function handleEditorSelection(payload: {
+    selectedText: string
+    left: number
+    lineTop: number
+    lineBottom: number
+  } | null) {
+    if (!payload) {
+      if (phraseTranslationDelayTimeoutRef.current !== null) {
+        window.clearTimeout(phraseTranslationDelayTimeoutRef.current)
+        phraseTranslationDelayTimeoutRef.current = null
+      }
+      setPhrasePopover((current) => ({ ...current, open: false, selectedText: "" }))
+      setGeneratePhraseTranslationError(null)
+      setIsGeneratingPhraseTranslation(false)
+      return
+    }
+
+    const normalizedSelection = payload.selectedText.replace(/\s+/gu, " ").trim()
+    if (!normalizedSelection || !hasMultipleWords(normalizedSelection)) {
+      if (phraseTranslationDelayTimeoutRef.current !== null) {
+        window.clearTimeout(phraseTranslationDelayTimeoutRef.current)
+        phraseTranslationDelayTimeoutRef.current = null
+      }
+      setPhrasePopover((current) => ({ ...current, open: false, selectedText: "" }))
+      setGeneratePhraseTranslationError(null)
+      setIsGeneratingPhraseTranslation(false)
+      return
+    }
+
+    const side = preferredPopoverSide(payload.lineTop, payload.lineBottom)
+    setPhrasePopover({
+      open: true,
+      selectedText: normalizedSelection,
+      left: payload.left,
+      lineTop: payload.lineTop,
+      lineBottom: payload.lineBottom,
+      side,
+    })
+    setHighlightPopover((current) => ({ ...current, open: false, tokenIndex: null }))
+    void generateTranslationForPhrase(normalizedSelection)
+  }
+
+  useEffect(() => {
+    return () => {
+      if (phraseTranslationDelayTimeoutRef.current !== null) {
+        window.clearTimeout(phraseTranslationDelayTimeoutRef.current)
+      }
+    }
+  }, [])
 
   function openKnownTokenInWordbank(token: AnalyzedToken) {
     const lemma = token.matched_lemma ?? token.lemma_candidate ?? token.lemma
@@ -1278,6 +1437,52 @@ function App() {
           <CardContent>
             <div className="relative">
               <Popover
+                open={phrasePopover.open && Boolean(phrasePopover.selectedText)}
+                onOpenChange={(open) => {
+                  setPhrasePopover((current) => ({
+                    ...current,
+                    open,
+                    selectedText: open ? current.selectedText : "",
+                  }))
+                  if (!open) {
+                    setGeneratePhraseTranslationError(null)
+                  }
+                }}
+              >
+                <PopoverAnchor asChild>
+                  <button
+                    type="button"
+                    aria-hidden="true"
+                    tabIndex={-1}
+                    className="pointer-events-none fixed size-px opacity-0"
+                    style={{
+                      left: phrasePopover.left,
+                      top: phrasePopover.side === "bottom" ? phrasePopover.lineBottom : phrasePopover.lineTop,
+                    }}
+                  />
+                </PopoverAnchor>
+                <PopoverContent
+                  side={phrasePopover.side}
+                  align="start"
+                  sideOffset={8}
+                  onOpenAutoFocus={(event) => {
+                    event.preventDefault()
+                  }}
+                  className="space-y-2"
+                >
+                  <p className="text-sm font-semibold leading-snug">{phrasePopover.selectedText}</p>
+                  {isGeneratingPhraseTranslation && !phraseTranslation ? (
+                    <Skeleton data-testid="phrase-translation-skeleton" className="h-4 w-28" />
+                  ) : generatePhraseTranslationError ? (
+                    <p className="text-destructive text-xs">{generatePhraseTranslationError}</p>
+                  ) : phraseTranslation ? (
+                    <p className="text-muted-foreground text-sm">{phraseTranslation}</p>
+                  ) : (
+                    <p className="text-muted-foreground text-xs">No translation available.</p>
+                  )}
+                </PopoverContent>
+              </Popover>
+              <Popover
                 open={highlightPopover.open && Boolean(popoverDisplayToken)}
                 onOpenChange={(open) => {
                   setHighlightPopover((current) => ({
@@ -1398,10 +1603,20 @@ function App() {
                   if (highlightPopover.open) {
                     setHighlightPopover((current) => ({ ...current, open: false, tokenIndex: null }))
                   }
+                  if (phrasePopover.open) {
+                    setPhrasePopover((current) => ({ ...current, open: false, selectedText: "" }))
+                  }
+                  if (phraseTranslationDelayTimeoutRef.current !== null) {
+                    window.clearTimeout(phraseTranslationDelayTimeoutRef.current)
+                    phraseTranslationDelayTimeoutRef.current = null
+                  }
+                  setGeneratePhraseTranslationError(null)
+                  setIsGeneratingPhraseTranslation(false)
                 }}
                 onHighlightClick={({ tokenIndex, left, lineTop, lineBottom }) => {
                   openHighlightPopover(tokenIndex, left, lineTop, lineBottom)
                 }}
+                onTextSelectionSettled={handleEditorSelection}
               />
               <p className="text-muted-foreground absolute right-3 bottom-2 text-xs" aria-label="note-character-count">
                 {noteText.length}

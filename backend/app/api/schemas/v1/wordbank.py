@@ -22,6 +22,16 @@ class GenerateTranslationResponse(BaseModel):
     english_translation: str | None
 
 
+class GeneratePhraseTranslationRequest(BaseModel):
+    source_text: str = Field(..., min_length=1)
+
+
+class GeneratePhraseTranslationResponse(BaseModel):
+    status: Literal["generated", "cached", "unavailable"]
+    source_text: str
+    english_translation: str | None
+
+
 class AddWordResponse(BaseModel):
     status: Literal["inserted", "exists"]
     stored_lemma: str

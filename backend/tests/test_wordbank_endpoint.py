@@ -205,3 +205,48 @@ def test_generate_translation_returns_unavailable_when_provider_has_none(tmp_pat
         "lemma": "kat",
         "english_translation": None,
     }
+
+
+def test_generate_phrase_translation_returns_cached_value_without_second_provider_call(
+    tmp_path,
+    stub_nlp_adapter_factory,
+) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    apply_migrations(db_path)
+    app = create_app(_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+
+    class StubTranslationService:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def translate_da_to_en(self, text: str) -> str | None:
+            self.calls += 1
+            if text == "jeg kan godt lide det":
+                return "i like it"
+            return None
+
+    stub_service = StubTranslationService()
+    with TestClient(app) as client:
+        client.app.state.translation_service = stub_service
+        first_response = client.post(
+            "/api/wordbank/phrase-translation",
+            json={"source_text": "Jeg kan godt lide det"},
+        )
+        second_response = client.post(
+            "/api/wordbank/phrase-translation",
+            json={"source_text": "  jeg   kan godt   lide det "},
+        )
+
+    assert first_response.status_code == 200
+    assert first_response.json() == {
+        "status": "generated",
+        "source_text": "jeg kan godt lide det",
+        "english_translation": "i like it",
+    }
+    assert second_response.status_code == 200
+    assert second_response.json() == {
+        "status": "cached",
+        "source_text": "jeg kan godt lide det",
+        "english_translation": "i like it",
+    }
+    assert stub_service.calls == 1

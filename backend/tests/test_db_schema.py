@@ -39,6 +39,7 @@ def test_db_init_creates_expected_tables(tmp_path) -> None:
         "schema_migrations",
         "lexemes",
         "surface_forms",
+        "phrase_translations",
         "token_events",
         "typo_feedback",
         "ignored_tokens",

@@ -8,6 +8,8 @@ from fastapi import APIRouter, HTTPException, Request
 from app.api.schemas.v1.wordbank import (
     AddWordRequest,
     AddWordResponse,
+    GeneratePhraseTranslationRequest,
+    GeneratePhraseTranslationResponse,
     GenerateTranslationRequest,
     GenerateTranslationResponse,
     LemmaDetailsResponse,
@@ -60,6 +62,25 @@ def generate_translation(payload: GenerateTranslationRequest, request: Request) 
 
     try:
         return _wordbank_use_case(request).generate_translation(payload.surface_token, payload.lemma_candidate)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except sqlite3.OperationalError as exc:
+        logger.exception("wordbank_db_operational_error")
+        raise HTTPException(
+            status_code=503,
+            detail=f"Database unavailable: {exc}",
+        ) from exc
+
+
+@router.post("/wordbank/phrase-translation", response_model=GeneratePhraseTranslationResponse)
+def generate_phrase_translation(
+    payload: GeneratePhraseTranslationRequest,
+    request: Request,
+) -> GeneratePhraseTranslationResponse:
+    _require_db_ready(request)
+
+    try:
+        return _wordbank_use_case(request).generate_phrase_translation(payload.source_text)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except sqlite3.OperationalError as exc:

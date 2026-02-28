@@ -14,8 +14,10 @@ from app.nlp.adapter import NLPToken
 class FakeTranslationService:
     def __init__(self, mapping: dict[str, str]):
         self._mapping = mapping
+        self.calls: list[str] = []
 
     def translate_da_to_en(self, text: str) -> str | None:
+        self.calls.append(text)
         return self._mapping.get(text)
 
 class FakeNLPAdapter:
@@ -101,6 +103,25 @@ def test_wordbank_generate_translation_uses_surface_form_not_lemma(tmp_path: Pat
     assert generated_b.source_word == "bogens"
     assert generated_b.lemma == "bog"
     assert generated_b.english_translation == "book's"
+
+
+def test_wordbank_phrase_translation_caches_by_normalized_phrase(tmp_path: Path) -> None:
+    translation_service = FakeTranslationService({"jeg kan godt lide det": "i like it"})
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        translation_service=translation_service,
+    )
+
+    generated = use_case.generate_phrase_translation("Jeg kan godt lide det")
+    cached = use_case.generate_phrase_translation("  jeg   kan godt   lide det ")
+
+    assert generated.status == "generated"
+    assert generated.source_text == "jeg kan godt lide det"
+    assert generated.english_translation == "i like it"
+    assert cached.status == "cached"
+    assert cached.source_text == "jeg kan godt lide det"
+    assert cached.english_translation == "i like it"
+    assert translation_service.calls == ["jeg kan godt lide det"]
 
 
 

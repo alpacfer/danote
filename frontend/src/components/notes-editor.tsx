@@ -22,6 +22,12 @@ type NotesEditorProps = {
     lineTop: number
     lineBottom: number
   }) => void
+  onTextSelectionSettled?: (payload: {
+    selectedText: string
+    left: number
+    lineTop: number
+    lineBottom: number
+  } | null) => void
 }
 
 type HighlightMarkAttributes = {
@@ -206,8 +212,10 @@ export function NotesEditor({
   ariaLabel,
   className,
   onHighlightClick,
+  onTextSelectionSettled,
 }: NotesEditorProps) {
   const valueRef = useRef(value)
+  const selectionTimeoutRef = useRef<number | null>(null)
 
   useEffect(() => {
     valueRef.current = value
@@ -290,7 +298,61 @@ export function NotesEditor({
         onChange(nextValue)
       }
     },
+    onSelectionUpdate: ({ editor: currentEditor }) => {
+      const hasSelection = !currentEditor.state.selection.empty
+      currentEditor.view.dom.classList.toggle("danote-has-selection", hasSelection)
+
+      if (selectionTimeoutRef.current !== null) {
+        window.clearTimeout(selectionTimeoutRef.current)
+        selectionTimeoutRef.current = null
+      }
+
+      if (!onTextSelectionSettled) {
+        return
+      }
+
+      if (!hasSelection) {
+        onTextSelectionSettled(null)
+        return
+      }
+
+      const from = currentEditor.state.selection.from
+      const to = currentEditor.state.selection.to
+
+      selectionTimeoutRef.current = window.setTimeout(() => {
+        selectionTimeoutRef.current = null
+
+        const activeSelection = currentEditor.state.selection
+        if (activeSelection.empty || activeSelection.from !== from || activeSelection.to !== to) {
+          return
+        }
+
+        const selectedText = currentEditor.state.doc.textBetween(from, to, " ", " ").replace(/\s+/gu, " ").trim()
+        if (!selectedText) {
+          onTextSelectionSettled(null)
+          return
+        }
+
+        const fromCoords = currentEditor.view.coordsAtPos(from)
+        const toCoords = currentEditor.view.coordsAtPos(to)
+
+        onTextSelectionSettled({
+          selectedText,
+          left: Math.min(fromCoords.left, toCoords.left),
+          lineTop: Math.min(fromCoords.top, toCoords.top),
+          lineBottom: Math.max(fromCoords.bottom, toCoords.bottom),
+        })
+      }, 180)
+    },
   })
+
+  useEffect(() => {
+    return () => {
+      if (selectionTimeoutRef.current !== null) {
+        window.clearTimeout(selectionTimeoutRef.current)
+      }
+    }
+  }, [])
 
   useEffect(() => {
     if (!editor) {

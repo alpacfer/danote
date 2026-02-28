@@ -144,9 +144,24 @@
   margin: 0;
 }
 
+.danote-notes-editor {
+  caret-color: var(--primary);
+}
+
+.danote-notes-editor::selection,
+.danote-notes-editor *::selection {
+  background-color: color-mix(in oklch, var(--primary) 38%, transparent);
+  color: var(--primary-foreground);
+}
+
+.danote-notes-editor::-moz-selection,
+.danote-notes-editor *::-moz-selection {
+  background-color: color-mix(in oklch, var(--primary) 38%, transparent);
+  color: var(--primary-foreground);
+}
+
 .danote-notes-editor mark {
   border-radius: 0.25rem;
-  padding: 0 0.08rem;
 }
 
 .danote-notes-editor mark.clickable-word {
@@ -176,4 +191,17 @@
   text-decoration-color: var(--danote-typo-underline);
   text-decoration-thickness: 2px;
   text-underline-offset: 0.12em;
+}
+
+.danote-notes-editor.danote-has-selection mark[data-status="new"],
+.danote-notes-editor.danote-has-selection mark[data-status="variation"],
+.danote-notes-editor.danote-has-selection mark[data-status="typo_likely"] {
+  background-color: transparent !important;
+  box-shadow: none;
+  text-decoration: none;
+}
+
+.danote-notes-editor.danote-has-selection mark {
+  padding: 0;
+  border-radius: 0;
 }
