@@ -51,9 +51,14 @@ class LemmaListResponse(BaseModel):
 
 
 class LemmaDetailsResponse(BaseModel):
+    pos_tag: str | None = None
+    morphology: str | None = None
+
     class SurfaceFormDetails(BaseModel):
         form: str
         english_translation: str | None
+        pos_tag: str | None = None
+        morphology: str | None = None
 
     lemma: str
     english_translation: str | None

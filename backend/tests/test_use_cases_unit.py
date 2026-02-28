@@ -86,6 +86,48 @@ def test_wordbank_use_case_stores_deepl_translations_for_lemma_and_surface(tmp_p
     ]
 
 
+def test_wordbank_use_case_includes_pos_and_morphology_when_nlp_available(tmp_path: Path) -> None:
+    class WordbankNLPAdapter:
+        def tokenize(self, text: str) -> list[NLPToken]:
+            return [
+                NLPToken(
+                    text=text,
+                    lemma=text.lower(),
+                    pos="NOUN",
+                    morphology="Gender=Com|Number=Sing",
+                    is_punctuation=False,
+                )
+            ]
+
+        def lemma_candidates_for_token(self, token: str) -> list[str]:
+            return [token.lower()]
+
+        def lemma_for_token(self, token: str) -> str | None:
+            return token.lower()
+
+        def metadata(self) -> dict[str, str]:
+            return {"adapter": "wordbank-fake"}
+
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        nlp_adapter=WordbankNLPAdapter(),
+    )
+
+    use_case.add_word("Bogen", "bog")
+
+    details = use_case.get_lemma_details("bog")
+    assert details.pos_tag == "NOUN"
+    assert details.morphology == "Gender=Com|Number=Sing"
+    assert details.surface_forms == [
+        LemmaDetailsResponse.SurfaceFormDetails(
+            form="bogen",
+            english_translation=None,
+            pos_tag="NOUN",
+            morphology="Gender=Com|Number=Sing",
+        )
+    ]
+
+
 def test_wordbank_generate_translation_uses_surface_form_not_lemma(tmp_path: Path) -> None:
     use_case = WordbankUseCase(
         _db_path(tmp_path),

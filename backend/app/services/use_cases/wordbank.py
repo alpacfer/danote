@@ -13,15 +13,24 @@ from app.api.schemas.v1.wordbank import (
     ResetDatabaseResponse,
 )
 from app.db.migrations import apply_migrations, get_connection
+from app.nlp.adapter import NLPAdapter
+from app.nlp.token_filter import is_wordlike_token
 from app.services.token_classifier import normalize_token
 from app.services.translation import TranslationService
 
 
 class WordbankUseCase:
-    def __init__(self, db_path, typo_engine=None, translation_service: TranslationService | None = None):
+    def __init__(
+        self,
+        db_path,
+        typo_engine=None,
+        translation_service: TranslationService | None = None,
+        nlp_adapter: NLPAdapter | None = None,
+    ):
         self._db_path = db_path
         self._typo_engine = typo_engine
         self._translation_service = translation_service
+        self._nlp_adapter = nlp_adapter
 
     def add_word(self, surface_token: str, lemma_candidate: str | None) -> AddWordResponse:
         normalized_surface = normalize_token(surface_token)
@@ -269,17 +278,44 @@ class WordbankUseCase:
                 (lexeme_row["id"],),
             ).fetchall()
 
-        return LemmaDetailsResponse(
-            lemma=lexeme_row["lemma"],
-            english_translation=lexeme_row["english_translation"],
-            surface_forms=[
+        lemma_pos_tag, lemma_morphology = self._extract_pos_and_morphology(lexeme_row["lemma"])
+
+        surface_forms: list[LemmaDetailsResponse.SurfaceFormDetails] = []
+        for row in form_rows:
+            pos_tag, morphology = self._extract_pos_and_morphology(row["form"])
+            surface_forms.append(
                 LemmaDetailsResponse.SurfaceFormDetails(
                     form=row["form"],
                     english_translation=row["english_translation"],
+                    pos_tag=pos_tag,
+                    morphology=morphology,
                 )
-                for row in form_rows
-            ],
+            )
+
+        return LemmaDetailsResponse(
+            lemma=lexeme_row["lemma"],
+            english_translation=lexeme_row["english_translation"],
+            pos_tag=lemma_pos_tag,
+            morphology=lemma_morphology,
+            surface_forms=surface_forms,
         )
+
+
+    def _extract_pos_and_morphology(self, value: str) -> tuple[str | None, str | None]:
+        if self._nlp_adapter is None:
+            return None, None
+
+        for token in self._nlp_adapter.tokenize(value):
+            surface = token.text
+            if not surface.strip():
+                continue
+            if token.is_punctuation:
+                continue
+            if not is_wordlike_token(surface):
+                continue
+            return token.pos, token.morphology
+
+        return None, None
 
 
     def _lookup_translation(self, source_word: str) -> str | None:

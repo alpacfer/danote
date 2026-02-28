@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import { ArrowLeft, BookOpen, Moon, NotebookPen, Settings, Sun } from "lucide-react"
+import { BookOpen, Moon, NotebookPen, Settings, Sun } from "lucide-react"
 import { useTheme } from "next-themes"
 
 import { Badge } from "@/components/ui/badge"
@@ -27,7 +27,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   Sidebar,
@@ -97,9 +96,13 @@ type LemmaListResponse = {
 type LemmaDetailsResponse = {
   lemma: string
   english_translation: string | null
+  pos_tag: string | null
+  morphology: string | null
   surface_forms: Array<{
     form: string
     english_translation: string | null
+    pos_tag: string | null
+    morphology: string | null
   }>
 }
 
@@ -380,6 +383,74 @@ function posBadgeClass(posTag: string | null): string {
   return colorByPos[posTag] ?? "bg-muted text-muted-foreground border-transparent"
 }
 
+function lemmaLabelForPos(lemma: string, posTag: string | null, morphology: string | null): string {
+  if (posTag === "NOUN") {
+    const article = nounArticleFromMorphology(morphology)
+    return article ? `${lemma} (${article})` : lemma
+  }
+  if (posTag === "VERB" || posTag === "AUX") {
+    return `at ${lemma}`
+  }
+  return lemma
+}
+
+function shouldShowLemmaLabel(surface: string, lemmaLabel: string, posTag: string | null): boolean {
+  return posTag === "NOUN" || lemmaLabel !== surface
+}
+
+function secondaryTagsForPos(posTag: string | null, morphology: string | null): string[] {
+  const tags: string[] = []
+  if (posTag === "VERB" || posTag === "AUX") {
+    const form = verbFormFromMorphology(morphology)
+    if (form) {
+      tags.push(form)
+    }
+  }
+  if (posTag === "NOUN") {
+    const number = numberFromMorphology(morphology)
+    if (number) {
+      tags.push(number)
+    }
+  }
+  if (posTag === "DET") {
+    const gender = determinerWordTypeFromMorphology(morphology)
+    const number = numberFromMorphology(morphology)
+    if (gender) {
+      tags.push(gender)
+    }
+    if (number) {
+      tags.push(number)
+    }
+  }
+  if (posTag === "ADJ") {
+    const gender = genderFromMorphology(morphology)
+    const number = numberFromMorphology(morphology)
+    if (gender) {
+      tags.push(gender)
+    }
+    if (number) {
+      tags.push(number)
+    }
+  }
+  if (posTag === "PRON") {
+    const person = personFromMorphology(morphology)
+    const number = numberFromMorphology(morphology)
+    if (person) {
+      tags.push(person)
+    }
+    if (number) {
+      tags.push(number)
+    }
+  }
+  if (posTag === "ADV") {
+    const degree = degreeFromMorphology(morphology)
+    if (degree) {
+      tags.push(degree)
+    }
+  }
+  return tags
+}
+
 function isLowConfidencePosTag(posTag: string | null): boolean {
   return !posTag || posTag === "X"
 }
@@ -558,6 +629,7 @@ function App() {
   const [lemmaDetails, setLemmaDetails] = useState<LemmaDetailsResponse | null>(null)
   const [lemmaDetailsError, setLemmaDetailsError] = useState<string | null>(null)
   const [isLemmaDetailsLoading, setIsLemmaDetailsLoading] = useState(false)
+  const [showLemmaDetailsLoadingSkeleton, setShowLemmaDetailsLoadingSkeleton] = useState(false)
   const [isResettingDatabase, setIsResettingDatabase] = useState(false)
   const [selectedNlpModel, setSelectedNlpModel] = useState<NlpModelOption>(
     NLP_MODEL_OPTIONS[0],
@@ -589,11 +661,33 @@ function App() {
   const activeControllerRef = useRef<AbortController | null>(null)
   const phraseTranslationRequestKeyRef = useRef<string | null>(null)
   const phraseTranslationDelayTimeoutRef = useRef<number | null>(null)
+  const lemmaDetailsLoadingDelayTimeoutRef = useRef<number | null>(null)
   const analysisInput = useMemo(() => finalizedAnalysisText(noteText), [noteText])
   const noteHighlights = useMemo(
     () => mapAnalyzedTokensToHighlights(noteText, tokens),
     [noteText, tokens],
   )
+  const groupedWordbankLemmas = useMemo(() => {
+    const collator = new Intl.Collator("da", { sensitivity: "base" })
+    const sortedLemmas = [...lemmas].sort((left, right) => collator.compare(left.lemma, right.lemma))
+    const groups = new Map<string, WordbankLemma[]>()
+
+    for (const lemma of sortedLemmas) {
+      const normalizedLemma = lemma.lemma.trim()
+      if (!normalizedLemma) {
+        continue
+      }
+      const groupLetter = normalizedLemma[0].toLocaleUpperCase("da-DK")
+      if (!groups.has(groupLetter)) {
+        groups.set(groupLetter, [])
+      }
+      groups.get(groupLetter)?.push(lemma)
+    }
+
+    return Array.from(groups.entries())
+      .sort(([left], [right]) => collator.compare(left, right))
+      .map(([letter, items]) => ({ letter, items }))
+  }, [lemmas])
   const popoverToken = useMemo(() => {
     if (highlightPopover.tokenIndex === null) {
       return null
@@ -651,130 +745,22 @@ function App() {
   }, [popoverDisplayToken])
   const popoverIsNoun = popoverDisplayToken?.pos_tag === "NOUN"
   const popoverIsVerbLike = popoverDisplayToken?.pos_tag === "VERB" || popoverDisplayToken?.pos_tag === "AUX"
-  const popoverIsAdj = popoverDisplayToken?.pos_tag === "ADJ"
-  const popoverIsDet = popoverDisplayToken?.pos_tag === "DET"
-  const popoverIsPron = popoverDisplayToken?.pos_tag === "PRON"
-  const popoverIsAdv = popoverDisplayToken?.pos_tag === "ADV"
-  const popoverNounNumber = useMemo(() => {
-    if (!popoverIsNoun) {
-      return null
-    }
-    return numberFromMorphology(popoverDisplayToken?.morphology ?? null)
-  }, [popoverDisplayToken?.morphology, popoverIsNoun])
-  const popoverNounArticle = useMemo(() => {
-    if (!popoverIsNoun) {
-      return null
-    }
-    return nounArticleFromMorphology(popoverDisplayToken?.morphology ?? null)
-  }, [popoverDisplayToken?.morphology, popoverIsNoun])
-  const popoverVerbForm = useMemo(() => {
-    if (!popoverIsVerbLike) {
-      return null
-    }
-    return verbFormFromMorphology(popoverDisplayToken?.morphology ?? null)
-  }, [popoverDisplayToken?.morphology, popoverIsVerbLike])
-  const popoverAdjGender = useMemo(() => {
-    if (!popoverIsAdj) {
-      return null
-    }
-    return genderFromMorphology(popoverDisplayToken?.morphology ?? null)
-  }, [popoverDisplayToken?.morphology, popoverIsAdj])
-  const popoverAdjNumber = useMemo(() => {
-    if (!popoverIsAdj) {
-      return null
-    }
-    return numberFromMorphology(popoverDisplayToken?.morphology ?? null)
-  }, [popoverDisplayToken?.morphology, popoverIsAdj])
-  const popoverDetGender = useMemo(() => {
-    if (!popoverIsDet) {
-      return null
-    }
-    return determinerWordTypeFromMorphology(popoverDisplayToken?.morphology ?? null)
-  }, [popoverDisplayToken?.morphology, popoverIsDet])
-  const popoverDetNumber = useMemo(() => {
-    if (!popoverIsDet) {
-      return null
-    }
-    return numberFromMorphology(popoverDisplayToken?.morphology ?? null)
-  }, [popoverDisplayToken?.morphology, popoverIsDet])
-  const popoverPronPerson = useMemo(() => {
-    if (!popoverIsPron) {
-      return null
-    }
-    return personFromMorphology(popoverDisplayToken?.morphology ?? null)
-  }, [popoverDisplayToken?.morphology, popoverIsPron])
-  const popoverPronNumber = useMemo(() => {
-    if (!popoverIsPron) {
-      return null
-    }
-    return numberFromMorphology(popoverDisplayToken?.morphology ?? null)
-  }, [popoverDisplayToken?.morphology, popoverIsPron])
-  const popoverAdvDegree = useMemo(() => {
-    if (!popoverIsAdv) {
-      return null
-    }
-    return degreeFromMorphology(popoverDisplayToken?.morphology ?? null)
-  }, [popoverDisplayToken?.morphology, popoverIsAdv])
   const popoverLemmaLabel = useMemo(() => {
     if (!popoverLemma) {
       return null
     }
-    if (popoverIsNoun) {
-      return popoverNounArticle ? `${popoverLemma} (${popoverNounArticle})` : popoverLemma
-    }
-    return popoverIsVerbLike ? `at ${popoverLemma}` : popoverLemma
-  }, [popoverIsNoun, popoverIsVerbLike, popoverLemma, popoverNounArticle])
+    return lemmaLabelForPos(popoverLemma, popoverDisplayToken?.pos_tag ?? null, popoverDisplayToken?.morphology ?? null)
+  }, [popoverDisplayToken?.morphology, popoverDisplayToken?.pos_tag, popoverLemma])
   const showPopoverLemma = Boolean(
     popoverLemmaLabel &&
     popoverDisplayToken &&
     (popoverIsNoun || popoverLemmaLabel !== popoverDisplayToken.surface_token),
   )
   const popoverSecondaryTags = useMemo(() => {
-    const tags: string[] = []
-    if (popoverIsVerbLike && popoverVerbForm) {
-      tags.push(popoverVerbForm)
-    }
-    if (popoverIsNoun && popoverNounNumber) {
-      tags.push(popoverNounNumber)
-    }
-    if (popoverIsDet && popoverDetGender) {
-      tags.push(popoverDetGender)
-    }
-    if (popoverIsDet && popoverDetNumber) {
-      tags.push(popoverDetNumber)
-    }
-    if (popoverIsAdj && popoverAdjGender) {
-      tags.push(popoverAdjGender)
-    }
-    if (popoverIsAdj && popoverAdjNumber) {
-      tags.push(popoverAdjNumber)
-    }
-    if (popoverIsPron && popoverPronPerson) {
-      tags.push(popoverPronPerson)
-    }
-    if (popoverIsPron && popoverPronNumber) {
-      tags.push(popoverPronNumber)
-    }
-    if (popoverIsAdv && popoverAdvDegree) {
-      tags.push(popoverAdvDegree)
-    }
-    return tags
+    return secondaryTagsForPos(popoverDisplayToken?.pos_tag ?? null, popoverDisplayToken?.morphology ?? null)
   }, [
-    popoverAdjGender,
-    popoverAdjNumber,
-    popoverAdvDegree,
-    popoverDetGender,
-    popoverDetNumber,
-    popoverIsAdj,
-    popoverIsAdv,
-    popoverIsDet,
-    popoverIsNoun,
-    popoverIsPron,
-    popoverIsVerbLike,
-    popoverNounNumber,
-    popoverPronNumber,
-    popoverPronPerson,
-    popoverVerbForm,
+    popoverDisplayToken?.morphology,
+    popoverDisplayToken?.pos_tag,
   ])
   const showTranslationSkeleton = isGeneratingTranslation || (
     (popoverIsNoun || popoverIsVerbLike) &&
@@ -976,15 +962,26 @@ function App() {
 
   useEffect(() => {
     if (activeSection !== "wordbank" || !selectedLemma) {
+      if (lemmaDetailsLoadingDelayTimeoutRef.current !== null) {
+        window.clearTimeout(lemmaDetailsLoadingDelayTimeoutRef.current)
+        lemmaDetailsLoadingDelayTimeoutRef.current = null
+      }
       setLemmaDetails(null)
       setLemmaDetailsError(null)
       setIsLemmaDetailsLoading(false)
+      setShowLemmaDetailsLoadingSkeleton(false)
       return
     }
 
     let cancelled = false
     setIsLemmaDetailsLoading(true)
     setLemmaDetailsError(null)
+    setShowLemmaDetailsLoadingSkeleton(false)
+    lemmaDetailsLoadingDelayTimeoutRef.current = window.setTimeout(() => {
+      if (!cancelled) {
+        setShowLemmaDetailsLoadingSkeleton(true)
+      }
+    }, 180)
 
     void (async () => {
       try {
@@ -1011,14 +1008,23 @@ function App() {
         }
         void error
       } finally {
+        if (lemmaDetailsLoadingDelayTimeoutRef.current !== null) {
+          window.clearTimeout(lemmaDetailsLoadingDelayTimeoutRef.current)
+          lemmaDetailsLoadingDelayTimeoutRef.current = null
+        }
         if (!cancelled) {
           setIsLemmaDetailsLoading(false)
+          setShowLemmaDetailsLoadingSkeleton(false)
         }
       }
     })()
 
     return () => {
       cancelled = true
+      if (lemmaDetailsLoadingDelayTimeoutRef.current !== null) {
+        window.clearTimeout(lemmaDetailsLoadingDelayTimeoutRef.current)
+        lemmaDetailsLoadingDelayTimeoutRef.current = null
+      }
     }
   }, [activeSection, selectedLemma])
 
@@ -1345,29 +1351,58 @@ function App() {
               {wordbankError}
             </p>
           )}
-          {isWordbankLoading ? (
-            <div className="space-y-3">
-              <Skeleton className="h-20 w-full" />
-              <Skeleton className="h-20 w-full" />
-              <Skeleton className="h-20 w-full" />
+          {isWordbankLoading && lemmas.length === 0 ? (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Skeleton className="h-3 w-4" />
+                <div className="flex flex-wrap gap-2">
+                  <Skeleton className="h-8 w-16 rounded-md" />
+                  <Skeleton className="h-8 w-20 rounded-md" />
+                  <Skeleton className="h-8 w-14 rounded-md" />
+                  <Skeleton className="h-8 w-24 rounded-md" />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-3 w-4" />
+                <div className="flex flex-wrap gap-2">
+                  <Skeleton className="h-8 w-[4.5rem] rounded-md" />
+                  <Skeleton className="h-8 w-12 rounded-md" />
+                  <Skeleton className="h-8 w-[5.5rem] rounded-md" />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-3 w-4" />
+                <div className="flex flex-wrap gap-2">
+                  <Skeleton className="h-8 w-[3.75rem] rounded-md" />
+                  <Skeleton className="h-8 w-[4.75rem] rounded-md" />
+                  <Skeleton className="h-8 w-[2.75rem] rounded-md" />
+                  <Skeleton className="h-8 w-[4.25rem] rounded-md" />
+                </div>
+              </div>
             </div>
           ) : lemmas.length === 0 ? (
             <p className="text-muted-foreground text-sm">No saved lemmas yet.</p>
           ) : (
             <ScrollArea className="h-[520px]">
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-                {lemmas.map((lemma) => (
-                  <Button
-                    key={lemma.lemma}
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-9 justify-center"
-                    onClick={() => setSelectedLemma(lemma.lemma)}
-                  >
-                    {lemma.lemma}
-                    {lemma.english_translation ? ` (${lemma.english_translation})` : ""}
-                  </Button>
+              <div className="space-y-4">
+                {groupedWordbankLemmas.map((group) => (
+                  <section key={group.letter} className="space-y-2">
+                    <h3 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">{group.letter}</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {group.items.map((lemma) => (
+                        <Button
+                          key={lemma.lemma}
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="w-auto"
+                          onClick={() => setSelectedLemma(lemma.lemma)}
+                        >
+                          {lemma.lemma}
+                        </Button>
+                      ))}
+                    </div>
+                  </section>
                 ))}
               </div>
             </ScrollArea>
@@ -1376,50 +1411,145 @@ function App() {
       )
     }
 
+    const normalizedSelectedLemma = (lemmaDetails?.lemma ?? selectedLemma).trim().toLocaleLowerCase("da-DK")
+    const variationForms = lemmaDetails?.surface_forms.filter(
+      (form) => form.form.trim().toLocaleLowerCase("da-DK") !== normalizedSelectedLemma,
+    ) ?? []
+    const lemmaCardLabel = lemmaDetails
+      ? lemmaLabelForPos(lemmaDetails.lemma, lemmaDetails.pos_tag, lemmaDetails.morphology)
+      : null
+    const showLemmaCardLabel = Boolean(
+      lemmaDetails &&
+      lemmaCardLabel &&
+      shouldShowLemmaLabel(lemmaDetails.lemma, lemmaCardLabel, lemmaDetails.pos_tag),
+    )
+
     return (
       <div className="space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-xl font-semibold">
-            {lemmaDetails?.lemma ?? selectedLemma}
-            {lemmaDetails?.english_translation
-              ? ` (${lemmaDetails.english_translation})`
-              : ""}
-          </h2>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => {
-              setSelectedLemma(null)
-            }}
-          >
-            <ArrowLeft className="size-4" />
-            Back to list
-          </Button>
-        </div>
-        <Separator />
         {lemmaDetailsError && (
           <p className="text-destructive text-sm" role="alert">
             {lemmaDetailsError}
           </p>
         )}
-        {isLemmaDetailsLoading ? (
-          <div className="space-y-2">
-            <Skeleton className="h-8 w-full" />
-            <Skeleton className="h-8 w-full" />
+        {isLemmaDetailsLoading && showLemmaDetailsLoadingSkeleton ? (
+          <div className="space-y-3">
+            <Card>
+              <CardContent className="space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <Skeleton className="h-6 w-28" />
+                  <Skeleton className="h-4 w-20" />
+                </div>
+                <Skeleton className="h-4 w-32" />
+                <div className="flex flex-wrap gap-1.5">
+                  <Skeleton className="h-5 w-14 rounded-full" />
+                  <Skeleton className="h-5 w-[4.5rem] rounded-full" />
+                  <Skeleton className="h-5 w-16 rounded-full" />
+                </div>
+              </CardContent>
+            </Card>
+            <div className="grid gap-3 md:grid-cols-2">
+              <Card>
+                <CardContent className="space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <Skeleton className="h-6 w-24" />
+                    <Skeleton className="h-4 w-16" />
+                  </div>
+                  <Skeleton className="h-4 w-28" />
+                  <div className="flex flex-wrap gap-1.5">
+                    <Skeleton className="h-5 w-12 rounded-full" />
+                    <Skeleton className="h-5 w-20 rounded-full" />
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <Skeleton className="h-6 w-20" />
+                    <Skeleton className="h-4 w-14" />
+                  </div>
+                  <Skeleton className="h-4 w-24" />
+                  <div className="flex flex-wrap gap-1.5">
+                    <Skeleton className="h-5 w-16 rounded-full" />
+                    <Skeleton className="h-5 w-10 rounded-full" />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         ) : !lemmaDetails ? (
+          isLemmaDetailsLoading ? null : (
           <p className="text-muted-foreground text-sm">No details found for this lemma.</p>
-        ) : lemmaDetails.surface_forms.length === 0 ? (
-          <p className="text-muted-foreground text-sm">No saved variations for this lemma.</p>
+          )
         ) : (
-          <ScrollArea className="h-[520px] rounded-md border p-2">
-            <div className="divide-border divide-y rounded-md border">
-              {lemmaDetails.surface_forms.map((form) => (
-                <div key={form.form} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
-                  <span>{form.form}</span>
-                  <span className="text-muted-foreground text-xs">{form.english_translation ?? "No translation"}</span>
+          <ScrollArea className="h-[520px]">
+            <div className="space-y-3 pr-1">
+              <Card>
+                <CardContent className="space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-lg font-bold leading-tight">{lemmaDetails.lemma}</p>
+                    {showLemmaCardLabel ? (
+                      <p className="text-muted-foreground text-right text-sm font-normal italic leading-tight">
+                        {lemmaCardLabel}
+                      </p>
+                    ) : null}
+                  </div>
+                  <p className="text-muted-foreground text-sm">
+                    {lemmaDetails.english_translation ?? "No translation available."}
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {lemmaDetails.pos_tag && (
+                      <Badge variant="secondary" className={posBadgeClass(lemmaDetails.pos_tag)}>
+                        {lemmaDetails.pos_tag}
+                      </Badge>
+                    )}
+                    {secondaryTagsForPos(lemmaDetails.pos_tag, lemmaDetails.morphology).map((tag) => (
+                      <Badge key={`lemma-tag-${tag}`} variant="secondary">
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {variationForms.length === 0 ? (
+                <p className="text-muted-foreground text-sm">No saved variations for this lemma.</p>
+              ) : (
+                <div className="grid gap-3 md:grid-cols-2">
+                  {variationForms.map((form) => {
+                    const lemmaLabel = lemmaLabelForPos(lemmaDetails.lemma, form.pos_tag, form.morphology)
+                    const showLemmaLabel = shouldShowLemmaLabel(form.form, lemmaLabel, form.pos_tag)
+                    return (
+                      <Card key={form.form}>
+                        <CardContent className="space-y-3">
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="text-lg font-bold leading-tight">{form.form}</p>
+                            {showLemmaLabel ? (
+                              <p className="text-muted-foreground text-right text-sm font-normal italic leading-tight">
+                                {lemmaLabel}
+                              </p>
+                            ) : null}
+                          </div>
+                          <p className="text-muted-foreground text-sm">
+                            {form.english_translation ?? "No translation available."}
+                          </p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {form.pos_tag && (
+                              <Badge variant="secondary" className={posBadgeClass(form.pos_tag)}>
+                                {form.pos_tag}
+                              </Badge>
+                            )}
+                            {secondaryTagsForPos(form.pos_tag, form.morphology).map((tag) => (
+                              <Badge key={`${form.form}-${tag}`} variant="secondary">
+                                {tag}
+                              </Badge>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )
+                  })}
                 </div>
-              ))}
+              )}
             </div>
           </ScrollArea>
         )}
@@ -1430,205 +1560,198 @@ function App() {
   function renderPlaygroundContent() {
     return (
       <div className="space-y-4">
-        <Card>
-          <CardHeader>
-            <CardTitle>Lesson Notes</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="relative">
-              <Popover
-                open={phrasePopover.open && Boolean(phrasePopover.selectedText)}
-                onOpenChange={(open) => {
-                  setPhrasePopover((current) => ({
-                    ...current,
-                    open,
-                    selectedText: open ? current.selectedText : "",
-                  }))
-                  if (!open) {
-                    setGeneratePhraseTranslationError(null)
-                  }
+        <div className="relative">
+          <Popover
+            open={phrasePopover.open && Boolean(phrasePopover.selectedText)}
+            onOpenChange={(open) => {
+              setPhrasePopover((current) => ({
+                ...current,
+                open,
+                selectedText: open ? current.selectedText : "",
+              }))
+              if (!open) {
+                setGeneratePhraseTranslationError(null)
+              }
+            }}
+          >
+            <PopoverAnchor asChild>
+              <button
+                type="button"
+                aria-hidden="true"
+                tabIndex={-1}
+                className="pointer-events-none fixed size-px opacity-0"
+                style={{
+                  left: phrasePopover.left,
+                  top: phrasePopover.side === "bottom" ? phrasePopover.lineBottom : phrasePopover.lineTop,
                 }}
-              >
-                <PopoverAnchor asChild>
-                  <button
-                    type="button"
-                    aria-hidden="true"
-                    tabIndex={-1}
-                    className="pointer-events-none fixed size-px opacity-0"
-                    style={{
-                      left: phrasePopover.left,
-                      top: phrasePopover.side === "bottom" ? phrasePopover.lineBottom : phrasePopover.lineTop,
-                    }}
-                  />
-                </PopoverAnchor>
-                <PopoverContent
-                  side={phrasePopover.side}
-                  align="start"
-                  sideOffset={8}
-                  onOpenAutoFocus={(event) => {
-                    event.preventDefault()
-                  }}
-                  className="space-y-2"
-                >
-                  <p className="text-sm font-semibold leading-snug">{phrasePopover.selectedText}</p>
-                  {isGeneratingPhraseTranslation && !phraseTranslation ? (
-                    <Skeleton data-testid="phrase-translation-skeleton" className="h-4 w-28" />
-                  ) : generatePhraseTranslationError ? (
-                    <p className="text-destructive text-xs">{generatePhraseTranslationError}</p>
-                  ) : phraseTranslation ? (
-                    <p className="text-muted-foreground text-sm">{phraseTranslation}</p>
-                  ) : (
-                    <p className="text-muted-foreground text-xs">No translation available.</p>
-                  )}
-                </PopoverContent>
-              </Popover>
-              <Popover
-                open={highlightPopover.open && Boolean(popoverDisplayToken)}
-                onOpenChange={(open) => {
-                  setHighlightPopover((current) => ({
-                    ...current,
-                    open,
-                    tokenIndex: open ? current.tokenIndex : null,
-                  }))
-                }}
-              >
-                <PopoverAnchor asChild>
-                  <button
-                    type="button"
-                    aria-hidden="true"
-                    tabIndex={-1}
-                    className="pointer-events-none fixed size-px opacity-0"
-                    style={{
-                      left: highlightPopover.left,
-                      top: highlightPopover.side === "bottom" ? highlightPopover.lineBottom : highlightPopover.lineTop,
-                    }}
-                  />
-                </PopoverAnchor>
-                <PopoverContent
-                  side={highlightPopover.side}
-                  align="start"
-                  sideOffset={8}
-                  onOpenAutoFocus={(event) => {
-                    event.preventDefault()
-                  }}
-                  className="space-y-3"
-                >
-                  {popoverDisplayToken && (
-                    <>
-                      <div className="space-y-1">
-                        <div className="flex items-center justify-between gap-3">
-                          {popoverDisplayToken.surface_token ? (
-                            <p className="text-lg font-bold leading-tight">{popoverDisplayToken.surface_token}</p>
-                          ) : (
-                            <Skeleton data-testid="word-skeleton" className="h-7 w-28" />
-                          )}
-                          {showPopoverLemma ? (
-                            <p className="text-muted-foreground text-right text-sm font-normal italic leading-tight">
-                              {popoverLemmaLabel}
-                            </p>
-                          ) : (popoverIsNoun || popoverIsVerbLike) && !popoverLemma ? (
-                            <Skeleton
-                              data-testid={popoverIsNoun ? "noun-lemma-skeleton" : "verb-lemma-skeleton"}
-                              className="h-4 w-20"
-                            />
-                          ) : null}
-                        </div>
-                        {showTranslationSkeleton ? (
-                          <Skeleton
-                            data-testid={popoverIsNoun ? "noun-translation-skeleton" : popoverIsVerbLike ? "verb-translation-skeleton" : "translation-skeleton"}
-                            className="h-4 w-24"
-                          />
-                        ) : generateTranslationError ? (
-                          <p className="text-destructive text-xs">{generateTranslationError}</p>
-                        ) : popoverTranslation ? (
-                          <p className="text-muted-foreground text-sm">{popoverTranslation}</p>
-                        ) : (
-                          <p className="text-muted-foreground text-xs">No translation available.</p>
-                        )}
-                        <div className="mt-2.5 flex flex-wrap gap-1.5">
-                          {popoverDisplayToken.pos_tag && (
-                            <Badge variant="secondary" className={posBadgeClass(popoverDisplayToken.pos_tag)}>
-                              {popoverDisplayToken.pos_tag}
-                            </Badge>
-                          )}
-                          {popoverSecondaryTags.map((tag) => (
-                            <Badge key={tag} variant="secondary">
-                              {tag}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-
-                      {popoverDisplayToken.classification === "known" ? (
-                        <Button
-                          type="button"
-                          size="sm"
-                          className="w-full"
-                          disabled={!popoverLemma}
-                          onClick={() => {
-                            openKnownTokenInWordbank(popoverDisplayToken)
-                          }}
-                        >
-                          Open in wordbank
-                        </Button>
-                      ) : (
-                        <Button
-                          type="button"
-                          size="sm"
-                          className="w-full"
-                          disabled={Boolean(addingTokens[addLoadingKey(popoverDisplayToken)])}
-                          onClick={() => {
-                            void addTokenToWordbank(popoverDisplayToken)
-                            setHighlightPopover((current) => ({ ...current, open: false, tokenIndex: null }))
-                          }}
-                        >
-                          {addingTokens[addLoadingKey(popoverDisplayToken)]
-                            ? "Adding..."
-                            : popoverDisplayToken.classification === "variation"
-                              ? "Add variation"
-                              : "Add to wordbank"}
-                        </Button>
-                      )}
-                    </>
-                  )}
-                </PopoverContent>
-              </Popover>
-              <NotesEditor
-                id="lesson-notes"
-                placeholder="Type lesson notes here..."
-                value={noteText}
-                highlights={noteHighlights}
-                onChange={(nextText) => {
-                  setNoteText(nextText)
-                  if (highlightPopover.open) {
-                    setHighlightPopover((current) => ({ ...current, open: false, tokenIndex: null }))
-                  }
-                  if (phrasePopover.open) {
-                    setPhrasePopover((current) => ({ ...current, open: false, selectedText: "" }))
-                  }
-                  if (phraseTranslationDelayTimeoutRef.current !== null) {
-                    window.clearTimeout(phraseTranslationDelayTimeoutRef.current)
-                    phraseTranslationDelayTimeoutRef.current = null
-                  }
-                  setGeneratePhraseTranslationError(null)
-                  setIsGeneratingPhraseTranslation(false)
-                }}
-                onHighlightClick={({ tokenIndex, left, lineTop, lineBottom }) => {
-                  openHighlightPopover(tokenIndex, left, lineTop, lineBottom)
-                }}
-                onTextSelectionSettled={handleEditorSelection}
               />
-              <p className="text-muted-foreground absolute right-3 bottom-2 text-xs" aria-label="note-character-count">
-                {noteText.length}
-              </p>
-            </div>
-            {analysisError && (
-              <p className="text-destructive mt-2 text-sm" role="alert">
-                {analysisError}
-              </p>
-            )}
-          </CardContent>
-        </Card>
+            </PopoverAnchor>
+            <PopoverContent
+              side={phrasePopover.side}
+              align="start"
+              sideOffset={8}
+              onOpenAutoFocus={(event) => {
+                event.preventDefault()
+              }}
+              className="space-y-2"
+            >
+              <p className="text-sm font-semibold leading-snug">{phrasePopover.selectedText}</p>
+              {isGeneratingPhraseTranslation && !phraseTranslation ? (
+                <Skeleton data-testid="phrase-translation-skeleton" className="h-4 w-28" />
+              ) : generatePhraseTranslationError ? (
+                <p className="text-destructive text-xs">{generatePhraseTranslationError}</p>
+              ) : phraseTranslation ? (
+                <p className="text-muted-foreground text-sm">{phraseTranslation}</p>
+              ) : (
+                <p className="text-muted-foreground text-xs">No translation available.</p>
+              )}
+            </PopoverContent>
+          </Popover>
+          <Popover
+            open={highlightPopover.open && Boolean(popoverDisplayToken)}
+            onOpenChange={(open) => {
+              setHighlightPopover((current) => ({
+                ...current,
+                open,
+                tokenIndex: open ? current.tokenIndex : null,
+              }))
+            }}
+          >
+            <PopoverAnchor asChild>
+              <button
+                type="button"
+                aria-hidden="true"
+                tabIndex={-1}
+                className="pointer-events-none fixed size-px opacity-0"
+                style={{
+                  left: highlightPopover.left,
+                  top: highlightPopover.side === "bottom" ? highlightPopover.lineBottom : highlightPopover.lineTop,
+                }}
+              />
+            </PopoverAnchor>
+            <PopoverContent
+              side={highlightPopover.side}
+              align="start"
+              sideOffset={8}
+              onOpenAutoFocus={(event) => {
+                event.preventDefault()
+              }}
+              className="space-y-3"
+            >
+              {popoverDisplayToken && (
+                <>
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between gap-3">
+                      {popoverDisplayToken.surface_token ? (
+                        <p className="text-lg font-bold leading-tight">{popoverDisplayToken.surface_token}</p>
+                      ) : (
+                        <Skeleton data-testid="word-skeleton" className="h-7 w-28" />
+                      )}
+                      {showPopoverLemma ? (
+                        <p className="text-muted-foreground text-right text-sm font-normal italic leading-tight">
+                          {popoverLemmaLabel}
+                        </p>
+                      ) : (popoverIsNoun || popoverIsVerbLike) && !popoverLemma ? (
+                        <Skeleton
+                          data-testid={popoverIsNoun ? "noun-lemma-skeleton" : "verb-lemma-skeleton"}
+                          className="h-4 w-20"
+                        />
+                      ) : null}
+                    </div>
+                    {showTranslationSkeleton ? (
+                      <Skeleton
+                        data-testid={popoverIsNoun ? "noun-translation-skeleton" : popoverIsVerbLike ? "verb-translation-skeleton" : "translation-skeleton"}
+                        className="h-4 w-24"
+                      />
+                    ) : generateTranslationError ? (
+                      <p className="text-destructive text-xs">{generateTranslationError}</p>
+                    ) : popoverTranslation ? (
+                      <p className="text-muted-foreground text-sm">{popoverTranslation}</p>
+                    ) : (
+                      <p className="text-muted-foreground text-xs">No translation available.</p>
+                    )}
+                    <div className="mt-2.5 flex flex-wrap gap-1.5">
+                      {popoverDisplayToken.pos_tag && (
+                        <Badge variant="secondary" className={posBadgeClass(popoverDisplayToken.pos_tag)}>
+                          {popoverDisplayToken.pos_tag}
+                        </Badge>
+                      )}
+                      {popoverSecondaryTags.map((tag) => (
+                        <Badge key={tag} variant="secondary">
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+
+                  {popoverDisplayToken.classification === "known" ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="w-full"
+                      disabled={!popoverLemma}
+                      onClick={() => {
+                        openKnownTokenInWordbank(popoverDisplayToken)
+                      }}
+                    >
+                      Open in wordbank
+                    </Button>
+                  ) : (
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="w-full"
+                      disabled={Boolean(addingTokens[addLoadingKey(popoverDisplayToken)])}
+                      onClick={() => {
+                        void addTokenToWordbank(popoverDisplayToken)
+                        setHighlightPopover((current) => ({ ...current, open: false, tokenIndex: null }))
+                      }}
+                    >
+                      {addingTokens[addLoadingKey(popoverDisplayToken)]
+                        ? "Adding..."
+                        : popoverDisplayToken.classification === "variation"
+                          ? "Add variation"
+                          : "Add to wordbank"}
+                    </Button>
+                  )}
+                </>
+              )}
+            </PopoverContent>
+          </Popover>
+          <NotesEditor
+            id="lesson-notes"
+            placeholder="Type lesson notes here..."
+            value={noteText}
+            highlights={noteHighlights}
+            onChange={(nextText) => {
+              setNoteText(nextText)
+              if (highlightPopover.open) {
+                setHighlightPopover((current) => ({ ...current, open: false, tokenIndex: null }))
+              }
+              if (phrasePopover.open) {
+                setPhrasePopover((current) => ({ ...current, open: false, selectedText: "" }))
+              }
+              if (phraseTranslationDelayTimeoutRef.current !== null) {
+                window.clearTimeout(phraseTranslationDelayTimeoutRef.current)
+                phraseTranslationDelayTimeoutRef.current = null
+              }
+              setGeneratePhraseTranslationError(null)
+              setIsGeneratingPhraseTranslation(false)
+            }}
+            onHighlightClick={({ tokenIndex, left, lineTop, lineBottom }) => {
+              openHighlightPopover(tokenIndex, left, lineTop, lineBottom)
+            }}
+            onTextSelectionSettled={handleEditorSelection}
+          />
+          <p className="text-muted-foreground absolute right-3 bottom-2 text-xs" aria-label="note-character-count">
+            {noteText.length}
+          </p>
+        </div>
+        {analysisError && (
+          <p className="text-destructive mt-2 text-sm" role="alert">
+            {analysisError}
+          </p>
+        )}
       </div>
     )
   }
@@ -1705,7 +1828,7 @@ function App() {
           <SidebarTrigger />
           <span className="text-sm font-medium">Danote</span>
         </header>
-        <main className="w-full p-2 md:p-4">
+        <main className="w-full px-1 py-2 md:px-2 md:py-4">
           <span className="sr-only" aria-label="backend-connection-status">
             {status}
           </span>

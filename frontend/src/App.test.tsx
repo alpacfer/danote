@@ -255,7 +255,7 @@ describe("App shell", () => {
     expect(screen.getByRole("button", { name: /hus/i })).toBeInTheDocument()
 
     fireEvent.click(bogItem)
-    expect(await screen.findByRole("button", { name: /back to list/i })).toBeInTheDocument()
+    expect(await screen.findByText(/^bog$/i)).toBeInTheDocument()
     expect(await screen.findByText(/^book$/i)).toBeInTheDocument()
     expect(screen.getByText(/^book's$/i)).toBeInTheDocument()
   })
@@ -734,8 +734,8 @@ describe("App shell", () => {
     expect(screen.queryByRole("button", { name: /add variation/i })).not.toBeInTheDocument()
 
     fireEvent.click(openButton)
-    expect(await screen.findByRole("button", { name: /back to list/i })).toBeInTheDocument()
-    expect(await screen.findByText(/^book$/i)).toBeInTheDocument()
+    expect(await screen.findByText(/^bog$/i)).toBeInTheDocument()
+    expect((await screen.findAllByText(/^book$/i)).length).toBeGreaterThanOrEqual(1)
   })
 
   it("noun popover hides duplicate lemma and shows translation skeleton when unavailable", async () => {
