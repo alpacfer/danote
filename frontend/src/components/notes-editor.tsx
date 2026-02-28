@@ -1,5 +1,6 @@
 import { useEditor, EditorContent, type Editor as TiptapEditor } from "@tiptap/react"
 import type { JSONContent } from "@tiptap/core"
+import { TextSelection } from "@tiptap/pm/state"
 import Highlight from "@tiptap/extension-highlight"
 import StarterKit from "@tiptap/starter-kit"
 import { useEffect, useMemo, useRef } from "react"
@@ -230,7 +231,7 @@ export function NotesEditor({
     content: toEditorContent(value),
     editorProps: {
       handleDOMEvents: {
-        click: (_view, event) => {
+        click: (view, event) => {
           const eventTarget = event.target
           const targetElement =
             eventTarget instanceof Element ? eventTarget : eventTarget instanceof Node ? eventTarget.parentElement : null
@@ -244,6 +245,19 @@ export function NotesEditor({
           if (Number.isNaN(tokenIndex)) {
             return false
           }
+
+          let clickPosition: { pos: number; inside: number } | null = null
+          const root = view.root as Document | ShadowRoot
+          if ("elementFromPoint" in root && typeof root.elementFromPoint === "function") {
+            clickPosition = view.posAtCoords({ left: event.clientX, top: event.clientY })
+          }
+          if (clickPosition) {
+            const transaction = view.state.tr.setSelection(
+              TextSelection.create(view.state.doc, clickPosition.pos),
+            )
+            view.dispatch(transaction)
+          }
+          view.focus()
 
           const markRect = mark.getBoundingClientRect()
           onHighlightClick?.({

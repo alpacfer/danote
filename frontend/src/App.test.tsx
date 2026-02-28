@@ -1255,6 +1255,51 @@ describe("App shell", () => {
     expect(within(popoverContent as HTMLElement).getByText(/^have$/i)).toBeInTheDocument()
   })
 
+  it("keeps editor focus when opening popover and dismisses popover when typing", async () => {
+    mockFetchImplementation({
+      analyzeTokens: [
+        {
+          surface_token: "katten",
+          normalized_token: "katten",
+          lemma_candidate: "kat",
+          classification: "variation",
+          match_source: "lemma",
+          matched_lemma: "kat",
+          matched_surface_form: null,
+          pos_tag: "NOUN",
+          morphology: "Gender=Com|Number=Sing|Definite=Def",
+        },
+      ],
+      translationResponse: {
+        status: "generated",
+        source_word: "katten",
+        lemma: "kat",
+        english_translation: "cat",
+      },
+    })
+
+    render(<App />)
+    screen.getByLabelText("backend-connection-status")
+
+    setNotesEditorText("katten ")
+    await waitFor(() => {
+      const mark = getNotesEditor().querySelector("mark[data-status='variation']")
+      expect(mark).toBeInTheDocument()
+    })
+
+    const mark = getNotesEditor().querySelector("mark[data-status='variation']")
+    expect(mark).toBeInTheDocument()
+    fireEvent.click(mark as HTMLElement, { clientX: 160, clientY: 140 })
+
+    expect(await screen.findByRole("button", { name: /add variation/i })).toBeInTheDocument()
+    expect(getNotesEditor().contains(document.activeElement)).toBe(true)
+
+    setNotesEditorText("katten x")
+    await waitFor(() => {
+      expect(screen.queryByRole("button", { name: /add variation/i })).not.toBeInTheDocument()
+    })
+  })
+
   it("adding from popover calls backend, re-analyzes, and shows success toast", async () => {
     vi.useRealTimers()
     let analyzeCallCount = 0

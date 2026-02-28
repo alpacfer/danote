@@ -360,13 +360,10 @@ function isLowConfidencePosTag(posTag: string | null): boolean {
   return !posTag || posTag === "X"
 }
 
-function translationKeysForToken(token: Pick<AnalyzedToken, "surface_token" | "normalized_token" | "matched_lemma" | "lemma_candidate" | "lemma">): string[] {
+function translationKeysForToken(token: Pick<AnalyzedToken, "surface_token" | "normalized_token">): string[] {
   const keys = [
     token.normalized_token,
     token.surface_token,
-    token.matched_lemma,
-    token.lemma_candidate,
-    token.lemma,
   ]
     .filter((value): value is string => Boolean(value && value.trim()))
     .map((value) => normalizeWordKey(value))
@@ -1081,12 +1078,11 @@ function App() {
 
       const payload = (await response.json()) as GenerateTranslationResponse
       const responseKey = normalizeWordKey(payload.source_word || sourceWord)
-      const lemmaKey = normalizeWordKey(payload.lemma || "")
       const translation = payload.english_translation?.trim() || null
 
       setGeneratedTranslationMap((current) => {
         const next = { ...current }
-        for (const key of [...tokenKeys, responseKey, lemmaKey]) {
+        for (const key of [...tokenKeys, responseKey]) {
           if (!key) {
             continue
           }
@@ -1303,7 +1299,15 @@ function App() {
                     }}
                   />
                 </PopoverAnchor>
-                <PopoverContent side={highlightPopover.side} align="start" sideOffset={8} className="space-y-3">
+                <PopoverContent
+                  side={highlightPopover.side}
+                  align="start"
+                  sideOffset={8}
+                  onOpenAutoFocus={(event) => {
+                    event.preventDefault()
+                  }}
+                  className="space-y-3"
+                >
                   {popoverDisplayToken && (
                     <>
                       <div className="space-y-1">
@@ -1389,7 +1393,12 @@ function App() {
                 placeholder="Type lesson notes here..."
                 value={noteText}
                 highlights={noteHighlights}
-                onChange={setNoteText}
+                onChange={(nextText) => {
+                  setNoteText(nextText)
+                  if (highlightPopover.open) {
+                    setHighlightPopover((current) => ({ ...current, open: false, tokenIndex: null }))
+                  }
+                }}
                 onHighlightClick={({ tokenIndex, left, lineTop, lineBottom }) => {
                   openHighlightPopover(tokenIndex, left, lineTop, lineBottom)
                 }}
