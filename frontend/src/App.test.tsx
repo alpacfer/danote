@@ -1054,8 +1054,8 @@ describe("App shell", () => {
     let popoverContent = addVariationButton.closest('[data-slot="popover-content"]')
     expect(popoverContent).not.toBeNull()
     expect(within(popoverContent as HTMLElement).getByText(/^PRON$/i)).toBeInTheDocument()
-    expect(within(popoverContent as HTMLElement).getByText(/^Person: 3rd person$/i)).toBeInTheDocument()
-    expect(within(popoverContent as HTMLElement).getByText(/^Number: Singular$/i)).toBeInTheDocument()
+    expect(within(popoverContent as HTMLElement).getByText(/^3rd person$/i)).toBeInTheDocument()
+    expect(within(popoverContent as HTMLElement).getByText(/^Singular$/i)).toBeInTheDocument()
 
     setNotesEditorText("det hus ")
     await waitFor(() => {
@@ -1072,9 +1072,9 @@ describe("App shell", () => {
     await waitFor(() => {
       expect(within(popoverContent as HTMLElement).getByText(/^DET$/)).toBeInTheDocument()
     })
-    expect(within(popoverContent as HTMLElement).getByText(/^Gender: Neuter$/i)).toBeInTheDocument()
-    expect(within(popoverContent as HTMLElement).getByText(/^Number: Singular$/i)).toBeInTheDocument()
-    expect(within(popoverContent as HTMLElement).queryByText(/^Person: 3rd person$/i)).not.toBeInTheDocument()
+    expect(within(popoverContent as HTMLElement).getByText(/^t-word$/i)).toBeInTheDocument()
+    expect(within(popoverContent as HTMLElement).getByText(/^Singular$/i)).toBeInTheDocument()
+    expect(within(popoverContent as HTMLElement).queryByText(/^3rd person$/i)).not.toBeInTheDocument()
   })
 
   it("clicking a typo_likely highlight does not open popover or request translation", async () => {
@@ -1206,8 +1206,8 @@ describe("App shell", () => {
     fireEvent.click(mark as HTMLElement, { clientX: 140, clientY: 120 })
 
     expect(await screen.findByText(/^ADJ$/i)).toBeInTheDocument()
-    expect(await screen.findByText(/^Gender: Common$/i)).toBeInTheDocument()
-    expect(await screen.findByText(/^Number: Plural$/i)).toBeInTheDocument()
+    expect(await screen.findByText(/^Common$/i)).toBeInTheDocument()
+    expect(await screen.findByText(/^Plural$/i)).toBeInTheDocument()
     expect(await screen.findByText(/^big$/i)).toBeInTheDocument()
   })
 
