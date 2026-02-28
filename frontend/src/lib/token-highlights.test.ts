@@ -64,4 +64,29 @@ describe("token highlight mapping", () => {
       { from: 4, to: 7, classification: "typo_likely", tokenIndex: 2 },
     ])
   })
+
+  it("does not highlight proper nouns or numerals", () => {
+    const highlights = mapAnalyzedTokensToHighlights("København 42 kat ", [
+      {
+        surface_token: "København",
+        normalized_token: "københavn",
+        pos_tag: "PROPN",
+        classification: "new",
+      },
+      {
+        surface_token: "42",
+        normalized_token: "42",
+        pos_tag: "NUM",
+        classification: "new",
+      },
+      {
+        surface_token: "kat",
+        normalized_token: "kat",
+        pos_tag: "NOUN",
+        classification: "new",
+      },
+    ])
+
+    expect(highlights).toEqual([{ from: 13, to: 16, classification: "new", tokenIndex: 2 }])
+  })
 })

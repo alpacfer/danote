@@ -15,7 +15,12 @@ type NotesEditorProps = {
   id?: string
   ariaLabel?: string
   className?: string
-  onHighlightClick?: (payload: { tokenIndex: number; x: number; y: number }) => void
+  onHighlightClick?: (payload: {
+    tokenIndex: number
+    left: number
+    lineTop: number
+    lineBottom: number
+  }) => void
 }
 
 type HighlightMarkAttributes = {
@@ -240,10 +245,12 @@ export function NotesEditor({
             return false
           }
 
+          const markRect = mark.getBoundingClientRect()
           onHighlightClick?.({
             tokenIndex,
-            x: event.clientX,
-            y: event.clientY,
+            left: markRect.left,
+            lineTop: markRect.top,
+            lineBottom: markRect.bottom,
           })
           return false
         },

@@ -1089,6 +1089,102 @@ describe("App shell", () => {
     expect(translationCalls).toBe(1)
   })
 
+  it("updates popover fields when context changes a word to a new POS", async () => {
+    mockFetchImplementation({
+      analyzeHandler: async (_input, init) => {
+        const body = JSON.parse(String(init?.body ?? "{}")) as { text?: string }
+        const text = body.text ?? ""
+        if (text.trim() === "det") {
+          return responseOf({
+            tokens: [
+              {
+                surface_token: "det",
+                normalized_token: "det",
+                lemma_candidate: "den",
+                pos_tag: "PRON",
+                morphology: "Person=3|Number=Sing|PronType=Prs",
+                classification: "variation",
+                match_source: "lemma",
+                matched_lemma: "den",
+                matched_surface_form: "det",
+              },
+            ],
+          })
+        }
+        return responseOf({
+          tokens: [
+            {
+              surface_token: "det",
+              normalized_token: "det",
+              lemma_candidate: "den",
+              pos_tag: "DET",
+              morphology: "Gender=Neut|Number=Sing|PronType=Art",
+              classification: "variation",
+              match_source: "lemma",
+              matched_lemma: "den",
+              matched_surface_form: "det",
+            },
+            {
+              surface_token: "hus",
+              normalized_token: "hus",
+              lemma_candidate: "hus",
+              pos_tag: "NOUN",
+              morphology: "Gender=Neut|Number=Sing",
+              classification: "new",
+              match_source: "none",
+              matched_lemma: null,
+              matched_surface_form: null,
+            },
+          ],
+        })
+      },
+      translationResponse: {
+        status: "generated",
+        source_word: "det",
+        lemma: "den",
+        english_translation: "it",
+      },
+    })
+
+    render(<App />)
+    screen.getByLabelText("backend-connection-status")
+
+    setNotesEditorText("det ")
+    await waitFor(() => {
+      const mark = getNotesEditor().querySelector("mark[data-status='variation']")
+      expect(mark).toBeInTheDocument()
+    })
+
+    let detMark = getNotesEditor().querySelector("mark[data-status='variation']")
+    fireEvent.click(detMark as HTMLElement, { clientX: 150, clientY: 130 })
+
+    let addVariationButton = await screen.findByRole("button", { name: /add variation/i })
+    let popoverContent = addVariationButton.closest('[data-slot="popover-content"]')
+    expect(popoverContent).not.toBeNull()
+    expect(within(popoverContent as HTMLElement).getByText(/^PRON$/i)).toBeInTheDocument()
+    expect(within(popoverContent as HTMLElement).getByText(/^Person: 3rd person$/i)).toBeInTheDocument()
+    expect(within(popoverContent as HTMLElement).getByText(/^Number: Singular$/i)).toBeInTheDocument()
+
+    setNotesEditorText("det hus ")
+    await waitFor(() => {
+      const mark = getNotesEditor().querySelector("mark[data-status='variation']")
+      expect(mark).toBeInTheDocument()
+    })
+
+    detMark = getNotesEditor().querySelector("mark[data-status='variation']")
+    fireEvent.click(detMark as HTMLElement, { clientX: 152, clientY: 132 })
+
+    addVariationButton = await screen.findByRole("button", { name: /add variation/i })
+    popoverContent = addVariationButton.closest('[data-slot="popover-content"]')
+    expect(popoverContent).not.toBeNull()
+    await waitFor(() => {
+      expect(within(popoverContent as HTMLElement).getByText(/^DET$/)).toBeInTheDocument()
+    })
+    expect(within(popoverContent as HTMLElement).getByText(/^Gender: Neuter$/i)).toBeInTheDocument()
+    expect(within(popoverContent as HTMLElement).getByText(/^Number: Singular$/i)).toBeInTheDocument()
+    expect(within(popoverContent as HTMLElement).queryByText(/^Person: 3rd person$/i)).not.toBeInTheDocument()
+  })
+
   it("clicking a typo_likely highlight does not open popover or request translation", async () => {
     vi.useRealTimers()
     const fetchSpy = mockFetchImplementation({
@@ -1131,6 +1227,140 @@ describe("App shell", () => {
       String(input).endsWith("/api/wordbank/translation"),
     )
     expect(translationCalls).toHaveLength(0)
+  })
+
+  it("does not highlight proper nouns or numerals or open popover for them", async () => {
+    const fetchSpy = mockFetchImplementation({
+      analyzeTokens: [
+        {
+          surface_token: "København",
+          normalized_token: "københavn",
+          lemma_candidate: "København",
+          pos_tag: "PROPN",
+          classification: "new",
+          match_source: "none",
+          matched_lemma: null,
+          matched_surface_form: null,
+        },
+        {
+          surface_token: "42",
+          normalized_token: "42",
+          lemma_candidate: "42",
+          pos_tag: "NUM",
+          classification: "new",
+          match_source: "none",
+          matched_lemma: null,
+          matched_surface_form: null,
+        },
+      ],
+      translationHandler: async () => {
+        throw new Error("translation endpoint should not be called for proper nouns or numerals")
+      },
+    })
+
+    render(<App />)
+    screen.getByLabelText("backend-connection-status")
+
+    setNotesEditorText("København 42 ")
+    await waitFor(() => {
+      expect(getNotesEditor().querySelector("mark")).not.toBeInTheDocument()
+    })
+
+    await act(async () => {
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(screen.queryByText(/^translations$/i)).not.toBeInTheDocument()
+    const translationCalls = fetchSpy.mock.calls.filter(([input]) =>
+      String(input).endsWith("/api/wordbank/translation"),
+    )
+    expect(translationCalls).toHaveLength(0)
+  })
+
+  it("adjective popover shows gender and number with translation", async () => {
+    mockFetchImplementation({
+      analyzeTokens: [
+        {
+          surface_token: "stor",
+          normalized_token: "stor",
+          lemma_candidate: "stor",
+          pos_tag: "ADJ",
+          morphology: "Degree=Pos|Gender=Com|Number=Plur",
+          classification: "new",
+          match_source: "none",
+          matched_lemma: null,
+          matched_surface_form: null,
+        },
+      ],
+      translationResponse: {
+        status: "generated",
+        source_word: "stor",
+        lemma: "stor",
+        english_translation: "big",
+      },
+    })
+
+    render(<App />)
+    screen.getByLabelText("backend-connection-status")
+    setNotesEditorText("stor ")
+
+    await waitFor(() => {
+      const mark = getNotesEditor().querySelector("mark[data-status='new']")
+      expect(mark).toBeInTheDocument()
+    })
+
+    const mark = getNotesEditor().querySelector("mark[data-status='new']")
+    fireEvent.click(mark as HTMLElement, { clientX: 140, clientY: 120 })
+
+    expect(await screen.findByText(/^ADJ$/i)).toBeInTheDocument()
+    expect(await screen.findByText(/^Gender: Common$/i)).toBeInTheDocument()
+    expect(await screen.findByText(/^Number: Plural$/i)).toBeInTheDocument()
+    expect(await screen.findByText(/^big$/i)).toBeInTheDocument()
+  })
+
+  it("aux popover follows verb layout and shows translation", async () => {
+    mockFetchImplementation({
+      analyzeTokens: [
+        {
+          surface_token: "har",
+          normalized_token: "har",
+          lemma_candidate: "have",
+          pos_tag: "AUX",
+          morphology: "Mood=Ind|Tense=Pres|VerbForm=Fin",
+          classification: "variation",
+          match_source: "lemma",
+          matched_lemma: "have",
+          matched_surface_form: "have",
+        },
+      ],
+      translationResponse: {
+        status: "generated",
+        source_word: "har",
+        lemma: "have",
+        english_translation: "have",
+      },
+    })
+
+    render(<App />)
+    screen.getByLabelText("backend-connection-status")
+    setNotesEditorText("har ")
+
+    await waitFor(() => {
+      const mark = getNotesEditor().querySelector("mark[data-status='variation']")
+      expect(mark).toBeInTheDocument()
+    })
+
+    const mark = getNotesEditor().querySelector("mark[data-status='variation']")
+    fireEvent.click(mark as HTMLElement, { clientX: 150, clientY: 130 })
+
+    const addVariationButton = await screen.findByRole("button", { name: /add variation/i })
+    const popoverContent = addVariationButton.closest('[data-slot="popover-content"]')
+    expect(popoverContent).not.toBeNull()
+    expect(within(popoverContent as HTMLElement).getByText(/^AUX$/i)).toBeInTheDocument()
+    expect(within(popoverContent as HTMLElement).getByText(/^Present$/i)).toBeInTheDocument()
+    expect(within(popoverContent as HTMLElement).getByText(/^at have$/i)).toBeInTheDocument()
+    expect(within(popoverContent as HTMLElement).getByText(/^have$/i)).toBeInTheDocument()
   })
 
   it("shows typo actions and replace updates note text", async () => {

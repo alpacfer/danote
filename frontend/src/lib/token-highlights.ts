@@ -10,6 +10,7 @@ export type HighlightSpan = {
 type HighlightableToken = {
   surface_token: string
   normalized_token: string
+  pos_tag?: string | null
   classification: "known" | "variation" | "typo_likely" | "uncertain" | "new"
 }
 
@@ -64,6 +65,14 @@ function spanMatchesToken(span: TextTokenSpan, token: HighlightableToken): boole
   )
 }
 
+function isProperNoun(token: HighlightableToken): boolean {
+  return token.pos_tag === "PROPN"
+}
+
+function isNumeral(token: HighlightableToken): boolean {
+  return token.pos_tag === "NUM"
+}
+
 export function mapAnalyzedTokensToHighlights(
   text: string,
   tokens: HighlightableToken[],
@@ -81,6 +90,10 @@ export function mapAnalyzedTokensToHighlights(
   let cursor = 0
 
   for (const [tokenIndex, token] of tokens.entries()) {
+    if (isProperNoun(token) || isNumeral(token)) {
+      continue
+    }
+
     let matchedIndex = -1
 
     for (let index = cursor; index < textSpans.length; index += 1) {
