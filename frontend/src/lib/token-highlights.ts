@@ -1,4 +1,4 @@
-export type HighlightClassification = "new" | "variation" | "typo_likely"
+export type HighlightClassification = "known" | "new" | "variation" | "typo_likely"
 
 export type HighlightSpan = {
   from: number
@@ -53,7 +53,7 @@ function comparable(value: string): string {
 }
 
 function isHighlightClassification(value: HighlightableToken["classification"]): value is HighlightClassification {
-  return value === "new" || value === "variation" || value === "typo_likely"
+  return value === "known" || value === "new" || value === "variation" || value === "typo_likely"
 }
 
 function spanMatchesToken(span: TextTokenSpan, token: HighlightableToken): boolean {

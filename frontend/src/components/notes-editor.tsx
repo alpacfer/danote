@@ -21,7 +21,7 @@ type NotesEditorProps = {
 type HighlightMarkAttributes = {
   color: string
   status: HighlightClassification
-  tokenIndex: number
+  tokenIndex: number | null
 }
 
 const ClassificationHighlight = Highlight.extend({
@@ -58,9 +58,10 @@ const ClassificationHighlight = Highlight.extend({
 })
 
 const HIGHLIGHT_COLOR_MAP: Record<HighlightClassification, string> = {
+  known: "transparent",
   new: "var(--danote-highlight-new)",
   variation: "var(--danote-highlight-variation)",
-  typo_likely: "var(--danote-highlight-typo)",
+  typo_likely: "transparent",
 }
 
 const TEST_MODE = import.meta.env.MODE === "test"
@@ -175,11 +176,12 @@ function applyHighlights(editor: TiptapEditor, highlights: HighlightSpan[]) {
     if (!range) {
       continue
     }
+    const isInteractiveHighlight = highlight.classification !== "typo_likely"
 
     const attributes: HighlightMarkAttributes = {
       color: HIGHLIGHT_COLOR_MAP[highlight.classification],
       status: highlight.classification,
-      tokenIndex: highlight.tokenIndex,
+      tokenIndex: isInteractiveHighlight ? highlight.tokenIndex : null,
     }
 
     transaction = transaction.addMark(range.from, range.to, markType.create(attributes))

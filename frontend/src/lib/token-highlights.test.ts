@@ -14,7 +14,7 @@ describe("token highlight mapping", () => {
     ])
   })
 
-  it("maps tokens in order and only returns highlightable classifications", () => {
+  it("maps tokens in order and returns highlightable classifications including known", () => {
     const highlights = mapAnalyzedTokensToHighlights("kan bogen nyord ", [
       {
         surface_token: "kan",
@@ -34,6 +34,7 @@ describe("token highlight mapping", () => {
     ])
 
     expect(highlights).toEqual([
+      { from: 0, to: 3, classification: "known", tokenIndex: 0 },
       { from: 4, to: 9, classification: "variation", tokenIndex: 1 },
       { from: 10, to: 15, classification: "new", tokenIndex: 2 },
     ])

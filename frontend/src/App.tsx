@@ -131,6 +131,12 @@ type HighlightPopoverState = {
   tokenIndex: number | null
 }
 
+type DiscoveredTokenMetadata = {
+  pos_tag: string
+  morphology: string | null
+  lemma: string | null
+}
+
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? "http://127.0.0.1:8000"
 const ANALYZE_DEBOUNCE_MS = 450
 const NLP_MODEL_OPTIONS = [
@@ -196,6 +202,86 @@ function replaceFirstTokenOccurrence(text: string, source: string, replacement: 
 
 function normalizeWordKey(value: string): string {
   return value.normalize("NFKC").toLocaleLowerCase()
+}
+
+function nounArticleFromMorphology(morphology: string | null): "en" | "et" | null {
+  if (!morphology) {
+    return null
+  }
+  if (/(^|\|)Gender=Com(\||$)/u.test(morphology)) {
+    return "en"
+  }
+  if (/(^|\|)Gender=Neut(\||$)/u.test(morphology)) {
+    return "et"
+  }
+  return null
+}
+
+type VerbFormLabel = "Infinitive" | "Present" | "Past (preterite)" | "Past participle"
+
+function verbFormFromMorphology(morphology: string | null): VerbFormLabel | null {
+  if (!morphology) {
+    return null
+  }
+  if (/(^|\|)VerbForm=Part(\||$)/u.test(morphology)) {
+    return "Past participle"
+  }
+  if (/(^|\|)VerbForm=Inf(\||$)/u.test(morphology)) {
+    return "Infinitive"
+  }
+  if (/(^|\|)Tense=Past(\||$)/u.test(morphology)) {
+    return "Past (preterite)"
+  }
+  if (/(^|\|)Tense=Pres(\||$)/u.test(morphology)) {
+    return "Present"
+  }
+  return null
+}
+
+function posBadgeClass(posTag: string | null): string {
+  if (!posTag) {
+    return ""
+  }
+
+  const colorByPos: Record<string, string> = {
+    ADJ: "bg-pink-100 text-pink-800 dark:bg-pink-900/40 dark:text-pink-200 border-transparent",
+    ADP: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900/40 dark:text-cyan-200 border-transparent",
+    ADV: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-200 border-transparent",
+    AUX: "bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-200 border-transparent",
+    CCONJ: "bg-lime-100 text-lime-800 dark:bg-lime-900/40 dark:text-lime-200 border-transparent",
+    DET: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200 border-transparent",
+    INTJ: "bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-200 border-transparent",
+    NOUN: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200 border-transparent",
+    NUM: "bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-200 border-transparent",
+    PART: "bg-zinc-100 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200 border-transparent",
+    PRON: "bg-teal-100 text-teal-800 dark:bg-teal-900/40 dark:text-teal-200 border-transparent",
+    PROPN: "bg-fuchsia-100 text-fuchsia-800 dark:bg-fuchsia-900/40 dark:text-fuchsia-200 border-transparent",
+    PUNCT: "bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200 border-transparent",
+    SCONJ: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-200 border-transparent",
+    SYM: "bg-stone-100 text-stone-800 dark:bg-stone-800 dark:text-stone-200 border-transparent",
+    VERB: "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200 border-transparent",
+    X: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200 border-transparent",
+  }
+
+  return colorByPos[posTag] ?? "bg-muted text-muted-foreground border-transparent"
+}
+
+function isLowConfidencePosTag(posTag: string | null): boolean {
+  return !posTag || posTag === "X"
+}
+
+function translationKeysForToken(token: Pick<AnalyzedToken, "surface_token" | "normalized_token" | "matched_lemma" | "lemma_candidate" | "lemma">): string[] {
+  const keys = [
+    token.normalized_token,
+    token.surface_token,
+    token.matched_lemma,
+    token.lemma_candidate,
+    token.lemma,
+  ]
+    .filter((value): value is string => Boolean(value && value.trim()))
+    .map((value) => normalizeWordKey(value))
+
+  return [...new Set(keys)]
 }
 
 type AppSidebarProps = {
@@ -374,6 +460,7 @@ function App() {
     y: 0,
     tokenIndex: null,
   })
+  const [discoveredTokenMetadata, setDiscoveredTokenMetadata] = useState<Record<string, DiscoveredTokenMetadata>>({})
   const [generatedTranslationMap, setGeneratedTranslationMap] = useState<Record<string, string | null>>({})
   const [isGeneratingTranslation, setIsGeneratingTranslation] = useState(false)
   const [generateTranslationError, setGenerateTranslationError] = useState<string | null>(null)
@@ -391,13 +478,92 @@ function App() {
     }
     return tokens[highlightPopover.tokenIndex] ?? null
   }, [highlightPopover.tokenIndex, tokens])
-  const popoverTranslation = useMemo(() => {
+  const popoverDisplayToken = useMemo(() => {
     if (!popoverToken) {
       return null
     }
     const key = normalizeWordKey(popoverToken.normalized_token || popoverToken.surface_token)
-    return generatedTranslationMap[key] ?? null
-  }, [generatedTranslationMap, popoverToken])
+    const remembered = discoveredTokenMetadata[key]
+    if (!remembered || !isLowConfidencePosTag(popoverToken.pos_tag)) {
+      return popoverToken
+    }
+
+    return {
+      ...popoverToken,
+      pos_tag: remembered.pos_tag,
+      morphology: popoverToken.morphology ?? remembered.morphology,
+      lemma_candidate: popoverToken.lemma_candidate ?? remembered.lemma,
+      lemma: popoverToken.lemma ?? remembered.lemma,
+    }
+  }, [discoveredTokenMetadata, popoverToken])
+  const popoverTranslation = useMemo(() => {
+    if (!popoverDisplayToken) {
+      return null
+    }
+    for (const key of translationKeysForToken(popoverDisplayToken)) {
+      if (Object.hasOwn(generatedTranslationMap, key)) {
+        return generatedTranslationMap[key] ?? null
+      }
+    }
+    return null
+  }, [generatedTranslationMap, popoverDisplayToken])
+  const popoverLemma = useMemo(() => {
+    if (!popoverDisplayToken) {
+      return null
+    }
+    return popoverDisplayToken.matched_lemma ?? popoverDisplayToken.lemma_candidate ?? popoverDisplayToken.lemma ?? null
+  }, [popoverDisplayToken])
+  const popoverIsNoun = popoverDisplayToken?.pos_tag === "NOUN"
+  const popoverIsVerb = popoverDisplayToken?.pos_tag === "VERB"
+  const showNounLemma =
+    popoverIsNoun &&
+    Boolean(popoverLemma)
+  const popoverNounArticle = useMemo(() => {
+    if (!popoverIsNoun) {
+      return null
+    }
+    return nounArticleFromMorphology(popoverDisplayToken?.morphology ?? null)
+  }, [popoverDisplayToken?.morphology, popoverIsNoun])
+  const popoverVerbForm = useMemo(() => {
+    if (!popoverIsVerb) {
+      return null
+    }
+    return verbFormFromMorphology(popoverDisplayToken?.morphology ?? null)
+  }, [popoverDisplayToken?.morphology, popoverIsVerb])
+
+  useEffect(() => {
+    if (tokens.length === 0) {
+      return
+    }
+
+    setDiscoveredTokenMetadata((current) => {
+      let changed = false
+      const next = { ...current }
+      for (const token of tokens) {
+        if (isLowConfidencePosTag(token.pos_tag)) {
+          continue
+        }
+        const key = normalizeWordKey(token.normalized_token || token.surface_token)
+        const existing = next[key]
+        const lemma = token.matched_lemma ?? token.lemma_candidate ?? token.lemma ?? null
+        const candidate: DiscoveredTokenMetadata = {
+          pos_tag: token.pos_tag,
+          morphology: token.morphology,
+          lemma,
+        }
+        if (
+          !existing ||
+          existing.pos_tag !== candidate.pos_tag ||
+          existing.morphology !== candidate.morphology ||
+          existing.lemma !== candidate.lemma
+        ) {
+          next[key] = candidate
+          changed = true
+        }
+      }
+      return changed ? next : current
+    })
+  }, [tokens])
 
   useEffect(() => {
     let cancelled = false
@@ -678,8 +844,8 @@ function App() {
 
   async function generateTranslationForToken(token: AnalyzedToken) {
     const sourceWord = token.normalized_token || token.surface_token
-    const sourceKey = normalizeWordKey(sourceWord)
-    if (Object.hasOwn(generatedTranslationMap, sourceKey)) {
+    const tokenKeys = translationKeysForToken(token)
+    if (tokenKeys.some((key) => Object.hasOwn(generatedTranslationMap, key))) {
       return
     }
 
@@ -706,9 +872,21 @@ function App() {
 
       const payload = (await response.json()) as GenerateTranslationResponse
       const responseKey = normalizeWordKey(payload.source_word || sourceWord)
+      const lemmaKey = normalizeWordKey(payload.lemma || "")
       const translation = payload.english_translation?.trim() || null
 
-      setGeneratedTranslationMap((current) => ({ ...current, [responseKey]: translation }))
+      setGeneratedTranslationMap((current) => {
+        const next = { ...current }
+        for (const key of [...tokenKeys, responseKey, lemmaKey]) {
+          if (!key) {
+            continue
+          }
+          if (next[key] === undefined || (next[key] === null && translation !== null)) {
+            next[key] = translation
+          }
+        }
+        return next
+      })
     } catch (error) {
       const message = error instanceof Error ? error.message : "Could not generate translation."
       setGenerateTranslationError(message)
@@ -719,11 +897,23 @@ function App() {
   }
 
   function openHighlightPopover(tokenIndex: number, x: number, y: number) {
-    setHighlightPopover({ open: true, tokenIndex, x, y })
     const token = tokens[tokenIndex]
-    if (token) {
-      void generateTranslationForToken(token)
+    if (!token || token.classification === "typo_likely") {
+      return
     }
+
+    setHighlightPopover({ open: true, tokenIndex, x, y })
+    void generateTranslationForToken(token)
+  }
+
+  function openKnownTokenInWordbank(token: AnalyzedToken) {
+    const lemma = token.matched_lemma ?? token.lemma_candidate ?? token.lemma
+    if (!lemma) {
+      return
+    }
+    setHighlightPopover((current) => ({ ...current, open: false, tokenIndex: null }))
+    setActiveSection("wordbank")
+    setSelectedLemma(lemma)
   }
 
   async function postTokenFeedback(payload: TokenFeedbackPayload) {
@@ -947,7 +1137,7 @@ function App() {
           <CardContent>
             <div className="relative">
               <Popover
-                open={highlightPopover.open && Boolean(popoverToken)}
+                open={highlightPopover.open && Boolean(popoverDisplayToken)}
                 onOpenChange={(open) => {
                   setHighlightPopover((current) => ({
                     ...current,
@@ -966,54 +1156,153 @@ function App() {
                   />
                 </PopoverAnchor>
                 <PopoverContent align="start" sideOffset={8} className="space-y-3">
-                  {popoverToken && (
+                  {popoverDisplayToken && (
                     <>
-                      <div className="space-y-1">
-                        <p className="text-sm font-semibold">{popoverToken.surface_token}</p>
-                        <p className="text-muted-foreground text-xs">
-                          {popoverToken.classification === "variation" ? "variation" : "word"}
-                        </p>
-                        {popoverToken.pos_tag && (
-                          <p className="text-muted-foreground text-xs">POS: {popoverToken.pos_tag}</p>
-                        )}
-                        {popoverToken.morphology && (
-                          <p className="text-muted-foreground text-xs">Morphology: {popoverToken.morphology}</p>
-                        )}
-                      </div>
+                      {popoverIsNoun ? (
+                        <>
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="space-y-1">
+                              {popoverDisplayToken.surface_token ? (
+                                <p className="text-lg font-semibold leading-tight">
+                                  {popoverDisplayToken.surface_token}
+                                </p>
+                              ) : (
+                                <Skeleton data-testid="noun-word-skeleton" className="h-7 w-28" />
+                              )}
+                              {showNounLemma && popoverLemma ? (
+                                <p className="text-muted-foreground text-sm">
+                                  {popoverNounArticle ? `${popoverLemma} (${popoverNounArticle})` : popoverLemma}
+                                </p>
+                              ) : !popoverLemma ? (
+                                <Skeleton data-testid="noun-lemma-skeleton" className="h-4 w-20" />
+                              ) : null}
+                            </div>
+                            {popoverDisplayToken.pos_tag && (
+                              <Badge variant="secondary" className={posBadgeClass(popoverDisplayToken.pos_tag)}>
+                                {popoverDisplayToken.pos_tag}
+                              </Badge>
+                            )}
+                          </div>
 
-                      <div className="space-y-1">
-                        <p className="text-xs font-medium">Translations</p>
-                        {isGeneratingTranslation ? (
-                          <p className="text-muted-foreground text-xs">Loading translations...</p>
-                        ) : generateTranslationError ? (
-                          <p className="text-destructive text-xs">
-                            {generateTranslationError}
-                          </p>
-                        ) : popoverTranslation ? (
-                          <ul className="text-muted-foreground list-disc pl-4 text-xs">
-                            <li>{popoverTranslation}</li>
-                          </ul>
-                        ) : (
-                          <p className="text-muted-foreground text-xs">No translation available.</p>
-                        )}
-                      </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium">Translation</p>
+                            {isGeneratingTranslation || generateTranslationError || !popoverTranslation ? (
+                              <Skeleton data-testid="noun-translation-skeleton" className="h-4 w-24" />
+                            ) : (
+                              <p className="text-muted-foreground text-sm">{popoverTranslation}</p>
+                            )}
+                          </div>
+                        </>
+                      ) : popoverIsVerb ? (
+                        <>
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="space-y-1">
+                              {popoverDisplayToken.surface_token ? (
+                                <p className="text-lg font-semibold leading-tight">
+                                  {popoverDisplayToken.surface_token}
+                                  {popoverVerbForm && (
+                                    <span className="text-muted-foreground ml-2 text-sm font-normal italic">
+                                      {popoverVerbForm}
+                                    </span>
+                                  )}
+                                </p>
+                              ) : (
+                                <Skeleton data-testid="verb-word-skeleton" className="h-7 w-28" />
+                              )}
+                              {popoverLemma ? (
+                                <p className="text-muted-foreground text-sm">{`at ${popoverLemma}`}</p>
+                              ) : (
+                                <Skeleton data-testid="verb-lemma-skeleton" className="h-4 w-20" />
+                              )}
+                            </div>
+                            <div className="flex flex-col items-end gap-1">
+                              {popoverDisplayToken.pos_tag && (
+                                <Badge variant="secondary" className={posBadgeClass(popoverDisplayToken.pos_tag)}>
+                                  {popoverDisplayToken.pos_tag}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
 
-                      <Button
-                        type="button"
-                        size="sm"
-                        className="w-full"
-                        disabled={Boolean(addingTokens[addLoadingKey(popoverToken)])}
-                        onClick={() => {
-                          void addTokenToWordbank(popoverToken)
-                          setHighlightPopover((current) => ({ ...current, open: false, tokenIndex: null }))
-                        }}
-                      >
-                        {addingTokens[addLoadingKey(popoverToken)]
-                          ? "Adding..."
-                          : popoverToken.classification === "variation"
-                            ? "Add variation"
-                            : "Add to wordbank"}
-                      </Button>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium">Translation</p>
+                            {isGeneratingTranslation || generateTranslationError || !popoverTranslation ? (
+                              <Skeleton data-testid="verb-translation-skeleton" className="h-4 w-24" />
+                            ) : (
+                              <p className="text-muted-foreground text-sm">{popoverTranslation}</p>
+                            )}
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="space-y-1">
+                              <p className="text-sm font-semibold">{popoverDisplayToken.surface_token}</p>
+                              <p className="text-muted-foreground text-xs">
+                                {popoverDisplayToken.classification === "variation" ? "variation" : "word"}
+                              </p>
+                            </div>
+                            {popoverDisplayToken.pos_tag && (
+                              <Badge variant="secondary" className={posBadgeClass(popoverDisplayToken.pos_tag)}>
+                                {popoverDisplayToken.pos_tag}
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="space-y-1">
+                            {popoverDisplayToken.morphology && (
+                              <p className="text-muted-foreground text-xs">Morphology: {popoverDisplayToken.morphology}</p>
+                            )}
+                          </div>
+
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium">Translations</p>
+                            {isGeneratingTranslation ? (
+                              <p className="text-muted-foreground text-xs">Loading translations...</p>
+                            ) : generateTranslationError ? (
+                              <p className="text-destructive text-xs">
+                                {generateTranslationError}
+                              </p>
+                            ) : popoverTranslation ? (
+                              <ul className="text-muted-foreground list-disc pl-4 text-xs">
+                                <li>{popoverTranslation}</li>
+                              </ul>
+                            ) : (
+                              <p className="text-muted-foreground text-xs">No translation available.</p>
+                            )}
+                          </div>
+                        </>
+                      )}
+
+                      {popoverDisplayToken.classification === "known" ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="w-full"
+                          disabled={!popoverLemma}
+                          onClick={() => {
+                            openKnownTokenInWordbank(popoverDisplayToken)
+                          }}
+                        >
+                          Open in wordbank
+                        </Button>
+                      ) : (
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="w-full"
+                          disabled={Boolean(addingTokens[addLoadingKey(popoverDisplayToken)])}
+                          onClick={() => {
+                            void addTokenToWordbank(popoverDisplayToken)
+                            setHighlightPopover((current) => ({ ...current, open: false, tokenIndex: null }))
+                          }}
+                        >
+                          {addingTokens[addLoadingKey(popoverDisplayToken)]
+                            ? "Adding..."
+                            : popoverDisplayToken.classification === "variation"
+                              ? "Add variation"
+                              : "Add to wordbank"}
+                        </Button>
+                      )}
                     </>
                   )}
                 </PopoverContent>
