@@ -8,6 +8,14 @@ from app.nlp.token_filter import is_wordlike_token
 from app.services.token_classifier import LemmaAwareClassifier
 
 
+def strip_inline_comments(text: str) -> str:
+    """Remove inline comments beginning with '#' on each line."""
+    if "#" not in text:
+        return text
+
+    return "\n".join(line.split("#", 1)[0] for line in text.splitlines())
+
+
 class AnalyzeNoteUseCase:
     def __init__(self, db_path, nlp_adapter: NLPAdapter, typo_engine=None):
         self._db_path = db_path
@@ -15,6 +23,7 @@ class AnalyzeNoteUseCase:
         self._typo_engine = typo_engine
 
     def execute(self, text: str) -> list[AnalyzedToken]:
+        text_without_comments = strip_inline_comments(text)
         classifier = LemmaAwareClassifier(
             self._db_path,
             nlp_adapter=self._nlp_adapter,
@@ -22,7 +31,7 @@ class AnalyzeNoteUseCase:
         )
 
         token_metadata: list[tuple[str, str | None, str | None]] = []
-        for nlp_token in self._nlp_adapter.tokenize(text):
+        for nlp_token in self._nlp_adapter.tokenize(text_without_comments):
             surface = nlp_token.text
             if not surface.strip():
                 continue

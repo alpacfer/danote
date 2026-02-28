@@ -6,6 +6,7 @@ from typing import Literal
 from app.api.schemas.v1.wordbank import (
     AddWordResponse,
     GeneratePhraseTranslationResponse,
+    GenerateReverseTranslationResponse,
     GenerateTranslationResponse,
     LemmaDetailsResponse,
     LemmaListResponse,
@@ -210,6 +211,17 @@ class WordbankUseCase:
             english_translation=english_translation,
         )
 
+    def generate_reverse_translation(self, source_word: str) -> GenerateReverseTranslationResponse:
+        normalized_source = normalize_token(source_word)
+        if not normalized_source:
+            raise ValueError("source_word is required")
+        danish_translation = self._lookup_reverse_translation(normalized_source)
+        return GenerateReverseTranslationResponse(
+            status="generated" if danish_translation else "unavailable",
+            source_word=normalized_source,
+            danish_translation=danish_translation,
+        )
+
     def list_lemmas(self) -> LemmaListResponse:
         with get_connection(self._db_path) as conn:
             rows = conn.execute(
@@ -324,6 +336,19 @@ class WordbankUseCase:
 
         try:
             return self._translation_service.translate_da_to_en(source_word)
+        except Exception:
+            return None
+
+    def _lookup_reverse_translation(self, source_word: str) -> str | None:
+        if self._translation_service is None:
+            return None
+
+        translate_en_to_da = getattr(self._translation_service, "translate_en_to_da", None)
+        if not callable(translate_en_to_da):
+            return None
+
+        try:
+            return translate_en_to_da(source_word)
         except Exception:
             return None
 

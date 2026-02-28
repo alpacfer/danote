@@ -10,6 +10,8 @@ from app.api.schemas.v1.wordbank import (
     AddWordResponse,
     GeneratePhraseTranslationRequest,
     GeneratePhraseTranslationResponse,
+    GenerateReverseTranslationRequest,
+    GenerateReverseTranslationResponse,
     GenerateTranslationRequest,
     GenerateTranslationResponse,
     LemmaDetailsResponse,
@@ -63,6 +65,25 @@ def generate_translation(payload: GenerateTranslationRequest, request: Request) 
 
     try:
         return _wordbank_use_case(request).generate_translation(payload.surface_token, payload.lemma_candidate)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except sqlite3.OperationalError as exc:
+        logger.exception("wordbank_db_operational_error")
+        raise HTTPException(
+            status_code=503,
+            detail=f"Database unavailable: {exc}",
+        ) from exc
+
+
+@router.post("/wordbank/reverse-translation", response_model=GenerateReverseTranslationResponse)
+def generate_reverse_translation(
+    payload: GenerateReverseTranslationRequest,
+    request: Request,
+) -> GenerateReverseTranslationResponse:
+    _require_db_ready(request)
+
+    try:
+        return _wordbank_use_case(request).generate_reverse_translation(payload.source_word)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except sqlite3.OperationalError as exc:

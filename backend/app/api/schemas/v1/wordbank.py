@@ -22,6 +22,16 @@ class GenerateTranslationResponse(BaseModel):
     english_translation: str | None
 
 
+class GenerateReverseTranslationRequest(BaseModel):
+    source_word: str = Field(..., min_length=1)
+
+
+class GenerateReverseTranslationResponse(BaseModel):
+    status: Literal["generated", "unavailable"]
+    source_word: str
+    danish_translation: str | None
+
+
 class GeneratePhraseTranslationRequest(BaseModel):
     source_text: str = Field(..., min_length=1)
 

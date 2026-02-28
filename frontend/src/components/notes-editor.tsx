@@ -32,8 +32,9 @@ type NotesEditorProps = {
 
 type HighlightMarkAttributes = {
   color: string
-  status: HighlightClassification
+  status: HighlightClassification | null
   tokenIndex: number | null
+  comment: "true" | null
 }
 
 const ClassificationHighlight = Highlight.extend({
@@ -62,6 +63,18 @@ const ClassificationHighlight = Highlight.extend({
           return {
             "data-token-index": String(attributes.tokenIndex),
             class: "clickable-word",
+          }
+        },
+      },
+      comment: {
+        default: null,
+        parseHTML: (element) => element.getAttribute("data-comment"),
+        renderHTML: (attributes: { comment?: "true" | null }) => {
+          if (attributes.comment !== "true") {
+            return {}
+          }
+          return {
+            "data-comment": "true",
           }
         },
       },
@@ -166,6 +179,30 @@ function resolveRangeToPositions(
   return { from, to: endCharPos + 1 }
 }
 
+function commentRangesFromText(text: string): Array<{ from: number; to: number }> {
+  if (!text || !text.includes("#")) {
+    return []
+  }
+
+  const ranges: Array<{ from: number; to: number }> = []
+  const lines = text.split("\n")
+  let lineStartOffset = 0
+
+  for (const line of lines) {
+    const commentStart = line.indexOf("#")
+    if (commentStart >= 0) {
+      const from = lineStartOffset + commentStart
+      const to = lineStartOffset + line.length
+      if (to > from) {
+        ranges.push({ from, to })
+      }
+    }
+    lineStartOffset += line.length + 1
+  }
+
+  return ranges
+}
+
 function applyHighlights(editor: TiptapEditor, highlights: HighlightSpan[]) {
   const markType = editor.state.schema.marks.highlight
   if (!markType) {
@@ -194,8 +231,25 @@ function applyHighlights(editor: TiptapEditor, highlights: HighlightSpan[]) {
       color: HIGHLIGHT_COLOR_MAP[highlight.classification],
       status: highlight.classification,
       tokenIndex: isInteractiveHighlight ? highlight.tokenIndex : null,
+      comment: null,
     }
 
+    transaction = transaction.addMark(range.from, range.to, markType.create(attributes))
+  }
+
+  const editorText = fromEditorText(editor)
+  for (const commentRange of commentRangesFromText(editorText)) {
+    const range = resolveRangeToPositions(positionMap, commentRange.from, commentRange.to)
+    if (!range) {
+      continue
+    }
+
+    const attributes: HighlightMarkAttributes = {
+      color: "transparent",
+      status: null,
+      tokenIndex: null,
+      comment: "true",
+    }
     transaction = transaction.addMark(range.from, range.to, markType.create(attributes))
   }
 

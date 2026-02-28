@@ -106,6 +106,12 @@ function mockFetchImplementation(options?: {
     english_translation: string | null
   }
   translationHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+  reverseTranslationResponse?: {
+    status: "generated" | "unavailable"
+    source_word: string
+    danish_translation: string | null
+  }
+  reverseTranslationHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
   sentencebankOk?: boolean
   sentencebankResponse?: {
     items: Array<{
@@ -150,6 +156,11 @@ function mockFetchImplementation(options?: {
     source_word: "kat",
     lemma: "kat",
     english_translation: null,
+  }
+  const reverseTranslationResponse = options?.reverseTranslationResponse ?? {
+    status: "unavailable" as const,
+    source_word: "house",
+    danish_translation: null,
   }
   const sentencebankOk = options?.sentencebankOk ?? true
   const sentencebankResponse = options?.sentencebankResponse ?? { items: [] }
@@ -228,6 +239,13 @@ function mockFetchImplementation(options?: {
         return options.translationHandler(input, init)
       }
       return responseOf(translationResponse)
+    }
+
+    if (url.endsWith("/api/wordbank/reverse-translation")) {
+      if (options?.reverseTranslationHandler) {
+        return options.reverseTranslationHandler(input, init)
+      }
+      return responseOf(reverseTranslationResponse)
     }
 
     if (url.endsWith("/api/sentencebank/sentences") && init?.method === "POST") {
@@ -424,11 +442,11 @@ describe("App shell", () => {
     const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
     fireEvent.change(searchInput, { target: { value: "snakker" } })
 
-    expect(await screen.findByText(/add "snakker" to wordbank/i)).toBeInTheDocument()
+    expect(await screen.findByText(/add danish "snakker" to wordbank \(danish -> english\)/i)).toBeInTheDocument()
     expect(await screen.findByText(/lemma: snakke/i)).toBeInTheDocument()
     expect(await screen.findByText(/^talks$/i)).toBeInTheDocument()
 
-    fireEvent.click(screen.getByText(/add "snakker" to wordbank/i))
+    fireEvent.click(screen.getByText(/add danish "snakker" to wordbank \(danish -> english\)/i))
 
     await waitFor(() => {
       expect(
@@ -444,6 +462,217 @@ describe("App shell", () => {
         }),
       ).toBe(true)
     })
+  })
+
+  it("command search translates likely english unknown words and offers adding translated danish word", async () => {
+    const fetchSpy = mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      analyzeHandler: async (_input, init) => {
+        const payload = JSON.parse(String(init?.body ?? "{}")) as { text?: string }
+        if (payload.text === "house") {
+          return responseOf({
+            tokens: [
+              {
+                surface_token: "house",
+                normalized_token: "house",
+                lemma_candidate: "house",
+                classification: "new",
+                match_source: "none",
+                matched_lemma: null,
+                matched_surface_form: null,
+              },
+            ],
+          })
+        }
+        return responseOf({ tokens: [] })
+      },
+      translationResponse: {
+        status: "unavailable",
+        source_word: "house",
+        lemma: "house",
+        english_translation: null,
+      },
+      reverseTranslationResponse: {
+        status: "generated",
+        source_word: "house",
+        danish_translation: "hus",
+      },
+      addWordResponse: {
+        status: "inserted",
+        stored_lemma: "hus",
+        stored_surface_form: "hus",
+        source: "manual",
+        message: "Added 'hus' to wordbank.",
+      },
+    })
+
+    render(<App />)
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    const commandDialog = await screen.findByRole("dialog")
+    const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
+    fireEvent.change(searchInput, { target: { value: "house" } })
+
+    expect(await screen.findByText(/add danish "hus" to wordbank \(english -> danish from "house"\)/i)).toBeInTheDocument()
+    expect(await screen.findByText(/lemma: hus/i)).toBeInTheDocument()
+    expect(await screen.findByText(/^house$/i)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByText(/add danish "hus" to wordbank \(english -> danish from "house"\)/i))
+
+    await waitFor(() => {
+      expect(
+        fetchSpy.mock.calls.some(([input, init]) => {
+          if (!String(input).endsWith("/api/wordbank/reverse-translation")) {
+            return false
+          }
+          const body = JSON.parse(String(init?.body ?? "{}")) as { source_word?: string }
+          return body.source_word === "house"
+        }),
+      ).toBe(true)
+      expect(
+        fetchSpy.mock.calls.some(([input, init]) => {
+          if (!String(input).endsWith("/api/wordbank/lexemes")) {
+            return false
+          }
+          const body = JSON.parse(String(init?.body ?? "{}")) as {
+            surface_token?: string
+            lemma_candidate?: string
+          }
+          return body.surface_token === "hus" && body.lemma_candidate === "hus"
+        }),
+      ).toBe(true)
+    })
+  })
+
+  it("command search still reverse-translates likely english words when classifier marks typo_likely", async () => {
+    const fetchSpy = mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      analyzeHandler: async (_input, init) => {
+        const payload = JSON.parse(String(init?.body ?? "{}")) as { text?: string }
+        if (payload.text === "water") {
+          return responseOf({
+            tokens: [
+              {
+                surface_token: "water",
+                normalized_token: "water",
+                lemma_candidate: "vater",
+                classification: "typo_likely",
+                match_source: "none",
+                matched_lemma: null,
+                matched_surface_form: null,
+              },
+            ],
+          })
+        }
+        return responseOf({ tokens: [] })
+      },
+      reverseTranslationResponse: {
+        status: "generated",
+        source_word: "water",
+        danish_translation: "vand",
+      },
+      translationResponse: {
+        status: "generated",
+        source_word: "water",
+        lemma: "vater",
+        english_translation: "water",
+      },
+      addWordResponse: {
+        status: "inserted",
+        stored_lemma: "vand",
+        stored_surface_form: "vand",
+        source: "manual",
+        message: "Added 'vand' to wordbank.",
+      },
+    })
+
+    render(<App />)
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    const commandDialog = await screen.findByRole("dialog")
+    const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
+    fireEvent.change(searchInput, { target: { value: "water" } })
+
+    expect(await screen.findByText(/add danish "vand" to wordbank \(english -> danish from "water"\)/i)).toBeInTheDocument()
+    expect(await screen.findByText(/lemma: vand/i)).toBeInTheDocument()
+    expect(await screen.findByText(/^water$/i)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByText(/add danish "vand" to wordbank \(english -> danish from "water"\)/i))
+
+    await waitFor(() => {
+      expect(
+        fetchSpy.mock.calls.some(([input, init]) => {
+          if (!String(input).endsWith("/api/wordbank/reverse-translation")) {
+            return false
+          }
+          const body = JSON.parse(String(init?.body ?? "{}")) as { source_word?: string }
+          return body.source_word === "water"
+        }),
+      ).toBe(true)
+      expect(
+        fetchSpy.mock.calls.some(([input, init]) => {
+          if (!String(input).endsWith("/api/wordbank/lexemes")) {
+            return false
+          }
+          const body = JSON.parse(String(init?.body ?? "{}")) as {
+            surface_token?: string
+            lemma_candidate?: string
+          }
+          return body.surface_token === "vand" && body.lemma_candidate === "vand"
+        }),
+      ).toBe(true)
+    })
+  })
+
+  it("command search shows two add options when both translation directions are available", async () => {
+    mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      analyzeHandler: async (_input, init) => {
+        const payload = JSON.parse(String(init?.body ?? "{}")) as { text?: string }
+        if (payload.text === "gift") {
+          return responseOf({
+            tokens: [
+              {
+                surface_token: "gift",
+                normalized_token: "gift",
+                lemma_candidate: "gift",
+                classification: "new",
+                match_source: "none",
+                matched_lemma: null,
+                matched_surface_form: null,
+              },
+            ],
+          })
+        }
+        return responseOf({ tokens: [] })
+      },
+      translationResponse: {
+        status: "generated",
+        source_word: "gift",
+        lemma: "gift",
+        english_translation: "poison",
+      },
+      reverseTranslationResponse: {
+        status: "generated",
+        source_word: "gift",
+        danish_translation: "gave",
+      },
+    })
+
+    render(<App />)
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    const commandDialog = await screen.findByRole("dialog")
+    const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
+    fireEvent.change(searchInput, { target: { value: "gift" } })
+
+    expect(await screen.findByText(/add danish "gift" to wordbank \(danish -> english\)/i)).toBeInTheDocument()
+    expect(await screen.findByText(/add danish "gave" to wordbank \(english -> danish from "gift"\)/i)).toBeInTheDocument()
+    expect(await screen.findByText(/^poison$/i)).toBeInTheDocument()
+    expect(await screen.findByText(/^gift$/i)).toBeInTheDocument()
   })
 
   it("saves a named note with analysis and reopens it in playground", async () => {
@@ -897,6 +1126,45 @@ describe("App shell", () => {
     expect(marks).toEqual(expect.arrayContaining(["asdfsadf", "katten", "komputer", "dyr"]))
     expect(marks).not.toContain("atten")
     expect(marks).not.toContain("mputer")
+  })
+
+  it("renders hash comments with dedicated comment marks", async () => {
+    vi.useFakeTimers()
+
+    mockFetchImplementation({
+      analyzeTokens: [
+        {
+          surface_token: "kan",
+          normalized_token: "kan",
+          lemma_candidate: "kan",
+          classification: "known",
+          match_source: "exact",
+          matched_lemma: "kan",
+          matched_surface_form: "kan",
+        },
+        {
+          surface_token: "lide",
+          normalized_token: "lide",
+          lemma_candidate: "lide",
+          classification: "known",
+          match_source: "exact",
+          matched_lemma: "lide",
+          matched_surface_form: "lide",
+        },
+      ],
+    })
+
+    render(<App />)
+    screen.getByLabelText("backend-connection-status")
+
+    setNotesEditorText("kan # min kommentar\nlide # anden kommentar")
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500)
+      await Promise.resolve()
+    })
+
+    const commentMarks = Array.from(getNotesEditor().querySelectorAll('mark[data-comment="true"]'))
+    expect(commentMarks.map((node) => node.textContent)).toEqual(["# min kommentar", "# anden kommentar"])
   })
 
   it("clicking a highlighted noun opens noun popover with word, lemma subtitle, and translation", async () => {

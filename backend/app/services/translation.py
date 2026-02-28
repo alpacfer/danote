@@ -13,6 +13,7 @@ class TranslationError(RuntimeError):
 
 class TranslationService(Protocol):
     def translate_da_to_en(self, text: str) -> str | None: ...
+    def translate_en_to_da(self, text: str) -> str | None: ...
 
 
 @dataclass
@@ -78,7 +79,12 @@ class DeepLTranslationService:
         if not normalized:
             return None
 
-        cleaned = self._translate_with_context(text=normalized, context=self.context_template)
+        cleaned = self._translate_with_context(
+            text=normalized,
+            context=self.context_template,
+            source_code=self.source_code,
+            target_code=self.target_code,
+        )
         if cleaned is None:
             return None
 
@@ -88,6 +94,8 @@ class DeepLTranslationService:
                 disambiguated = self._translate_with_context(
                     text=normalized,
                     context=self.homograph_disambiguation_template.format(word=normalized),
+                    source_code=self.source_code,
+                    target_code=self.target_code,
                 )
             except TranslationError:
                 disambiguated = None
@@ -99,11 +107,29 @@ class DeepLTranslationService:
 
         return cleaned
 
-    def _translate_with_context(self, *, text: str, context: str) -> str | None:
+    def translate_en_to_da(self, text: str) -> str | None:
+        normalized = text.strip()
+        if not normalized:
+            return None
+        return self._translate_with_context(
+            text=normalized,
+            context="Kildeteksten er engelsk. Giv den bedste naturlige danske oversaettelse.",
+            source_code="EN",
+            target_code="DA",
+        )
+
+    def _translate_with_context(
+        self,
+        *,
+        text: str,
+        context: str,
+        source_code: str,
+        target_code: str,
+    ) -> str | None:
         payload = {
             "text": [text],
-            "source_lang": self.source_code,
-            "target_lang": self.target_code,
+            "source_lang": source_code,
+            "target_lang": target_code,
             "context": context,
         }
 

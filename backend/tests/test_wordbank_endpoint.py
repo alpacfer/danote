@@ -207,6 +207,36 @@ def test_generate_translation_returns_unavailable_when_provider_has_none(tmp_pat
     }
 
 
+def test_generate_reverse_translation_returns_generated_value(tmp_path, stub_nlp_adapter_factory) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    apply_migrations(db_path)
+    app = create_app(_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+
+    class StubTranslationService:
+        def translate_da_to_en(self, text: str) -> str | None:
+            return None
+
+        def translate_en_to_da(self, text: str) -> str | None:
+            if text == "house":
+                return "hus"
+            return None
+
+    with TestClient(app) as client:
+        client.app.state.translation_service = StubTranslationService()
+        response = client.post(
+            "/api/wordbank/reverse-translation",
+            json={"source_word": "House"},
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload == {
+        "status": "generated",
+        "source_word": "house",
+        "danish_translation": "hus",
+    }
+
+
 def test_generate_phrase_translation_returns_cached_value_without_second_provider_call(
     tmp_path,
     stub_nlp_adapter_factory,

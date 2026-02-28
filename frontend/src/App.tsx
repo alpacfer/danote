@@ -139,6 +139,12 @@ type GenerateTranslationResponse = {
   english_translation: string | null
 }
 
+type GenerateReverseTranslationResponse = {
+  status: "generated" | "unavailable"
+  source_word: string
+  danish_translation: string | null
+}
+
 type GeneratePhraseTranslationResponse = {
   status: "generated" | "cached" | "unavailable"
   source_text: string
@@ -592,6 +598,20 @@ function translationKeysForToken(token: Pick<AnalyzedToken, "surface_token" | "n
   return [...new Set(keys)]
 }
 
+function isLikelyEnglishWord(value: string): boolean {
+  const normalized = value.trim().toLocaleLowerCase("en-US")
+  if (!normalized || /\s/u.test(normalized)) {
+    return false
+  }
+  if (!/^[a-z][a-z'-]*$/u.test(normalized)) {
+    return false
+  }
+  if (/[æøå]/u.test(normalized)) {
+    return false
+  }
+  return /[aeiouy]/u.test(normalized)
+}
+
 type AppSidebarProps = {
   activeSection: AppSection
   lemmas: WordbankLemma[]
@@ -734,7 +754,10 @@ function AppSidebar({
     surface: string
     lemma: string | null
     classification: TokenClassification
-    translation: string | null
+    querySurface: string
+    queryLemma: string | null
+    daToEnTranslation: string | null
+    enToDaTranslation: string | null
     matchedLemma: WordbankLemma | null
   } | null>(null)
   const trimmedQuery = searchQuery.trim()
@@ -793,25 +816,60 @@ function AppSidebar({
     return [{ lemma: variationMatch.lemma, matchSurface: variationMatch.surface }, ...directMatches]
   }, [activeResolvedCandidate, matchingLemmas])
   const hasWordbankResults = wordbankResults.length > 0
-  const newWordResult = useMemo(() => {
+  const newWordOptions = useMemo(() => {
     if (!activeResolvedCandidate || hasWordbankResults) {
-      return null
+      return []
     }
-    if (activeResolvedCandidate.classification === "typo_likely") {
-      return null
+    if (
+      activeResolvedCandidate.classification === "typo_likely" &&
+      !activeResolvedCandidate.daToEnTranslation &&
+      !activeResolvedCandidate.enToDaTranslation
+    ) {
+      return []
     }
 
-    const lemma = activeResolvedCandidate.lemma?.trim() || activeResolvedCandidate.surface.trim()
-    if (!lemma) {
-      return null
+    const normalize = (value: string) => value.trim().toLocaleLowerCase("da-DK").replace(/\s+/gu, " ")
+    const querySurface = activeResolvedCandidate.querySurface.trim()
+    const queryLemma = activeResolvedCandidate.queryLemma?.trim() || querySurface
+    const enToDa = activeResolvedCandidate.enToDaTranslation?.trim() || null
+    const daToEn = activeResolvedCandidate.daToEnTranslation?.trim() || null
+    const options: Array<{
+      key: string
+      title: string
+      surface: string
+      lemma: string
+      translation: string | null
+    }> = []
+
+    if (
+      querySurface &&
+      queryLemma &&
+      (daToEn || !enToDa)
+    ) {
+      options.push({
+        key: `add-danish-${querySurface}-${queryLemma}`,
+        title: `Add Danish "${querySurface}" to wordbank (Danish -> English)`,
+        surface: querySurface,
+        lemma: queryLemma,
+        translation: daToEn,
+      })
     }
 
-    return {
-      surface: activeResolvedCandidate.surface,
-      lemma,
-      translation: activeResolvedCandidate.translation,
+    if (enToDa) {
+      const isDuplicateSurface = options.some((option) => normalize(option.surface) === normalize(enToDa))
+      if (!isDuplicateSurface) {
+        options.push({
+          key: `add-english-${trimmedQuery}-${enToDa}`,
+          title: `Add Danish "${enToDa}" to wordbank (English -> Danish from "${trimmedQuery}")`,
+          surface: enToDa,
+          lemma: enToDa,
+          translation: trimmedQuery.trim() || null,
+        })
+      }
     }
-  }, [activeResolvedCandidate, hasWordbankResults])
+
+    return options
+  }, [activeResolvedCandidate, hasWordbankResults, trimmedQuery])
   const addVariationResult = useMemo(() => {
     if (!activeResolvedCandidate?.matchedLemma) {
       return null
@@ -829,8 +887,8 @@ function AppSidebar({
       lemma,
     }
   }, [activeResolvedCandidate])
-  const hasWordbankSectionResults = hasWordbankResults || Boolean(newWordResult)
-  const hasWordbankActions = Boolean(newWordResult) || Boolean(addVariationResult)
+  const hasWordbankSectionResults = hasWordbankResults || newWordOptions.length > 0
+  const hasWordbankActions = newWordOptions.length > 0 || Boolean(addVariationResult)
   const hasNoteResults = matchingNotes.length > 0
   const pageItems = useMemo(
     () => [
@@ -972,52 +1030,103 @@ function AppSidebar({
           return
         }
         const matchedLemmaKey = token.matched_lemma?.trim().toLocaleLowerCase("da-DK") ?? null
-        const resolvedLemma = matchedLemmaKey
+        const matchedWordbankLemma = matchedLemmaKey
           ? lemmas.find((lemma) => lemma.lemma.trim().toLocaleLowerCase("da-DK") === matchedLemmaKey) ?? null
           : null
 
-        if (resolvedLemma) {
+        if (matchedWordbankLemma) {
           setResolvedQueryCandidate({
             query: normalizedQuery,
             surface: token.surface_token || trimmedQuery,
             lemma: token.matched_lemma ?? token.lemma_candidate ?? token.lemma ?? null,
             classification: token.classification,
-            translation: resolvedLemma.english_translation ?? null,
-            matchedLemma: resolvedLemma,
+            translation: matchedWordbankLemma.english_translation ?? null,
+            querySurface: token.surface_token || trimmedQuery,
+            queryLemma: token.lemma_candidate ?? token.lemma ?? null,
+            daToEnTranslation: matchedWordbankLemma.english_translation ?? null,
+            enToDaTranslation: null,
+            matchedLemma: matchedWordbankLemma,
           })
           return
         }
 
-        let translation: string | null = null
-        if (token.classification !== "typo_likely") {
-          try {
-            const translationResponse = await fetch(`${BACKEND_URL}/api/wordbank/translation`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                surface_token: token.surface_token || trimmedQuery,
-                lemma_candidate: token.lemma_candidate ?? token.lemma ?? null,
-              }),
-              signal: controller.signal,
-            })
-            if (translationResponse.ok) {
-              const translationPayload = (await translationResponse.json()) as GenerateTranslationResponse
-              translation = translationPayload.english_translation?.trim() || null
+        let resolvedSurface = token.surface_token || trimmedQuery
+        let resolvedLemma = token.lemma_candidate ?? token.lemma ?? null
+        const normalizeComparable = (value: string) =>
+          value.trim().toLocaleLowerCase("da-DK").replace(/\s+/gu, " ")
+        const sourceForDaToEn = token.surface_token || trimmedQuery
+        const sourceForEnToDa = trimmedQuery
+        let daToEnTranslation: string | null = null
+        let enToDaTranslation: string | null = null
+
+        try {
+          const translationResponse = await fetch(`${BACKEND_URL}/api/wordbank/translation`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              surface_token: sourceForDaToEn,
+              lemma_candidate: token.lemma_candidate ?? token.lemma ?? null,
+            }),
+            signal: controller.signal,
+          })
+          if (translationResponse.ok) {
+            const translationPayload = (await translationResponse.json()) as GenerateTranslationResponse
+            const translated = translationPayload.english_translation?.trim() || null
+            if (translated && normalizeComparable(translated) !== normalizeComparable(sourceForDaToEn)) {
+              daToEnTranslation = translated
             }
-          } catch {
-            translation = null
           }
+        } catch {
+          daToEnTranslation = null
+        }
+
+        try {
+          const reverseResponse = await fetch(`${BACKEND_URL}/api/wordbank/reverse-translation`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              source_word: sourceForEnToDa,
+            }),
+            signal: controller.signal,
+          })
+          if (reverseResponse.ok) {
+            const reversePayload = (await reverseResponse.json()) as GenerateReverseTranslationResponse
+            const translated = reversePayload.danish_translation?.trim() || null
+            if (translated && normalizeComparable(translated) !== normalizeComparable(sourceForEnToDa)) {
+              enToDaTranslation = translated
+            }
+          }
+        } catch {
+          enToDaTranslation = null
+        }
+
+        if (
+          token.match_source === "none" &&
+          enToDaTranslation &&
+          (
+            isLikelyEnglishWord(trimmedQuery) ||
+            !resolvedLemma ||
+            normalizeComparable(resolvedLemma) === normalizeComparable(sourceForEnToDa)
+          )
+        ) {
+          resolvedSurface = enToDaTranslation
+          resolvedLemma = enToDaTranslation
         }
 
         if (!cancelled) {
           setResolvedQueryCandidate({
             query: normalizedQuery,
-            surface: token.surface_token || trimmedQuery,
-            lemma: token.lemma_candidate ?? token.lemma ?? null,
+            surface: resolvedSurface,
+            lemma: resolvedLemma,
             classification: token.classification,
-            translation,
+            querySurface: token.surface_token || trimmedQuery,
+            queryLemma: token.lemma_candidate ?? token.lemma ?? null,
+            daToEnTranslation,
+            enToDaTranslation,
             matchedLemma: null,
           })
         }
@@ -1099,12 +1208,13 @@ function AppSidebar({
                     ) : null}
                   </CommandItem>
                 ))}
-                {newWordResult ? (
+                {newWordOptions.map((option) => (
                   <CommandItem
-                    value={`new-word-${newWordResult.surface} ${newWordResult.lemma} ${newWordResult.translation ?? ""}`}
+                    key={option.key}
+                    value={`new-word-${option.surface} ${option.lemma} ${option.translation ?? ""}`}
                     onSelect={() => {
                       void (async () => {
-                        const addedLemma = await onAddWordFromSearch(newWordResult.surface, newWordResult.lemma)
+                        const addedLemma = await onAddWordFromSearch(option.surface, option.lemma)
                         if (addedLemma) {
                           setIsSearchOpen(false)
                           setSearchQuery("")
@@ -1113,15 +1223,15 @@ function AppSidebar({
                     }}
                     className="flex-col items-start gap-0.5"
                   >
-                    <span className="font-medium">Add "{newWordResult.surface}" to wordbank</span>
+                    <span className="font-medium">{option.title}</span>
                     <span className="text-muted-foreground text-xs">
-                      Lemma: {newWordResult.lemma}
+                      Lemma: {option.lemma}
                     </span>
                     <span className="text-muted-foreground text-xs">
-                      {newWordResult.translation?.trim() || "No translation available."}
+                      {option.translation?.trim() || "No translation available."}
                     </span>
                   </CommandItem>
-                ) : null}
+                ))}
                 {addVariationResult ? (
                   <CommandItem
                     value={`add-variation-${addVariationResult.surface} ${addVariationResult.lemma}`}

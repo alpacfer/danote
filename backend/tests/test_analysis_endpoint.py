@@ -145,3 +145,14 @@ def test_typo_token_is_not_silently_classified_as_new(analysis_client: TestClien
     token = response.json()["tokens"][0]
     assert token["classification"] == "typo_likely"
     assert token["suggestions"]
+
+
+def test_hash_comments_are_ignored_on_each_line(analysis_client: TestClient) -> None:
+    response = analysis_client.post(
+        "/api/analyze",
+        json={"text": "kan # ignore this\nlide # also ignored"},
+    )
+
+    assert response.status_code == 200
+    normalized = [item["normalized_token"] for item in response.json()["tokens"]]
+    assert normalized == ["kan", "lide"]

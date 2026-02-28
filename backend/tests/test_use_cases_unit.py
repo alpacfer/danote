@@ -4,7 +4,7 @@ from pathlib import Path
 
 from app.api.schemas.v1.wordbank import LemmaDetailsResponse
 from app.db.migrations import apply_migrations
-from app.services.use_cases.analyze import AnalyzeNoteUseCase
+from app.services.use_cases.analyze import AnalyzeNoteUseCase, strip_inline_comments
 from app.services.use_cases.sentencebank import SentencebankUseCase
 from app.services.use_cases.wordbank import WordbankUseCase
 from app.nlp.adapter import NLPToken
@@ -18,6 +18,10 @@ class FakeTranslationService:
         self.calls: list[str] = []
 
     def translate_da_to_en(self, text: str) -> str | None:
+        self.calls.append(text)
+        return self._mapping.get(text)
+
+    def translate_en_to_da(self, text: str) -> str | None:
         self.calls.append(text)
         return self._mapping.get(text)
 
@@ -167,6 +171,18 @@ def test_wordbank_phrase_translation_caches_by_normalized_phrase(tmp_path: Path)
     assert translation_service.calls == ["jeg kan godt lide det"]
 
 
+def test_wordbank_generate_reverse_translation_uses_en_to_da_provider(tmp_path: Path) -> None:
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        translation_service=FakeTranslationService({"house": "hus"}),
+    )
+
+    generated = use_case.generate_reverse_translation("House")
+    assert generated.status == "generated"
+    assert generated.source_word == "house"
+    assert generated.danish_translation == "hus"
+
+
 def test_sentencebank_use_case_add_and_list(tmp_path: Path) -> None:
     use_case = SentencebankUseCase(
         _db_path(tmp_path),
@@ -227,3 +243,43 @@ def test_analyze_use_case_includes_pos_and_morphology(tmp_path: Path) -> None:
     assert tokens[0].morphology == "PronType=Prs"
     assert tokens[1].pos_tag == "NOUN"
     assert tokens[1].morphology == "Definite=Ind|Gender=Com"
+
+
+def test_strip_inline_comments_removes_text_after_hash_per_line() -> None:
+    text = "hej # ignore this\nverden\n# full line comment\nigen # skip"
+    stripped = strip_inline_comments(text)
+    assert stripped == "hej \nverden\n\nigen "
+
+
+def test_analyze_use_case_ignores_comment_text_after_hash(tmp_path: Path) -> None:
+    class WhitespaceNLPAdapter:
+        def tokenize(self, text: str) -> list[NLPToken]:
+            return [
+                NLPToken(
+                    text=part,
+                    lemma=part.lower(),
+                    pos="X",
+                    morphology=None,
+                    is_punctuation=False,
+                )
+                for part in text.split()
+            ]
+
+        def lemma_candidates_for_token(self, token: str) -> list[str]:
+            return [token.lower()]
+
+        def lemma_for_token(self, token: str) -> str | None:
+            return token.lower()
+
+        def metadata(self) -> dict[str, str]:
+            return {"adapter": "whitespace-fake"}
+
+    use_case = AnalyzeNoteUseCase(
+        _db_path(tmp_path),
+        nlp_adapter=WhitespaceNLPAdapter(),
+        typo_engine=None,
+    )
+
+    tokens = use_case.execute("hej # ignore me\nverden")
+    surfaces = [token.surface_token for token in tokens]
+    assert surfaces == ["hej", "verden"]

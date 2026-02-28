@@ -61,6 +61,16 @@ def test_translation_service_returns_translated_text(monkeypatch) -> None:
     assert service.translate_da_to_en("bog") == "book"
 
 
+def test_translation_service_can_translate_en_to_da(monkeypatch) -> None:
+    service = DeepLTranslationService(api_key="test-key")
+    fake_client = _FakeClient(_FakeResponse(payload={"translations": [{"text": "hus"}]}))
+    monkeypatch.setattr(service, "_ensure_client", lambda: fake_client)
+    assert service.translate_en_to_da("house") == "hus"
+    request_json = fake_client.requests[0]["json"]
+    assert request_json["source_lang"] == "EN"
+    assert request_json["target_lang"] == "DA"
+
+
 def test_translation_service_raises_on_transport_errors(monkeypatch) -> None:
     service = DeepLTranslationService(api_key="test-key")
     monkeypatch.setattr(

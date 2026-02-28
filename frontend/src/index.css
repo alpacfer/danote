@@ -131,6 +131,7 @@
   --danote-highlight-variation: color-mix(in oklch, oklch(0.8 0.15 235) 30%, transparent);
   --danote-highlight-typo: color-mix(in oklch, oklch(0.72 0.19 26) 36%, transparent);
   --danote-typo-underline: oklch(0.6 0.22 25);
+  --danote-comment-foreground: color-mix(in oklch, var(--muted-foreground) 88%, transparent);
 }
 
 .dark {
@@ -138,6 +139,7 @@
   --danote-highlight-variation: color-mix(in oklch, oklch(0.73 0.14 240) 35%, transparent);
   --danote-highlight-typo: color-mix(in oklch, oklch(0.72 0.2 26) 40%, transparent);
   --danote-typo-underline: oklch(0.72 0.2 25);
+  --danote-comment-foreground: color-mix(in oklch, var(--muted-foreground) 94%, transparent);
 }
 
 .danote-notes-editor p {
@@ -191,4 +193,11 @@
   text-decoration-color: var(--danote-typo-underline);
   text-decoration-thickness: 2px;
   text-underline-offset: 0.12em;
+}
+
+.danote-notes-editor mark[data-comment="true"] {
+  background-color: transparent !important;
+  box-shadow: none;
+  color: var(--danote-comment-foreground);
+  font-style: italic;
 }
