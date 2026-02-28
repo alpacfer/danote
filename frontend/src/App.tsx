@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import { BookOpen, Moon, NotebookPen, Settings, Sun } from "lucide-react"
+import { BookOpen, Moon, NotebookPen, Save, Settings, Sun } from "lucide-react"
 import { useTheme } from "next-themes"
 
 import { Badge } from "@/components/ui/badge"
@@ -18,6 +18,16 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
@@ -49,7 +59,7 @@ import { toast } from "sonner"
 
 type ConnectionStatus = "loading" | "connected" | "degraded" | "offline"
 type TokenClassification = "known" | "variation" | "typo_likely" | "uncertain" | "new"
-type AppSection = "playground" | "wordbank" | "developer"
+type AppSection = "playground" | "notes" | "wordbank" | "developer"
 type TokenAction = "add_as_new"
 
 type AnalyzedToken = {
@@ -161,6 +171,18 @@ type DiscoveredTokenMemory = {
   byPos: Record<string, DiscoveredTokenMetadata>
 }
 
+type SaveDialogMode = "initial" | "create_new"
+
+type SavedNote = {
+  id: string
+  name: string
+  text: string
+  tokens: AnalyzedToken[]
+  discoveredTokenMetadata: Record<string, DiscoveredTokenMemory>
+  generatedTranslationMap: Record<string, string | null>
+  savedAt: string
+}
+
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? "http://127.0.0.1:8000"
 const ANALYZE_DEBOUNCE_MS = 450
 const PHRASE_TRANSLATION_DELAY_MS = 1000
@@ -171,8 +193,82 @@ const NLP_MODEL_OPTIONS = [
 ] as const
 const POPOVER_VIEWPORT_MARGIN_PX = 12
 const POPOVER_ESTIMATED_HEIGHT_PX = 280
+const SAVED_NOTES_STORAGE_KEY = "danote.saved-notes.v1"
+const NOTE_AUTOSAVE_DEBOUNCE_MS = 900
 
 type NlpModelOption = (typeof NLP_MODEL_OPTIONS)[number]
+
+function loadSavedNotes(): SavedNote[] {
+  if (typeof window === "undefined") {
+    return []
+  }
+
+  try {
+    const raw = window.localStorage.getItem(SAVED_NOTES_STORAGE_KEY)
+    if (!raw) {
+      return []
+    }
+    const parsed = JSON.parse(raw) as unknown
+    if (!Array.isArray(parsed)) {
+      return []
+    }
+    return parsed.filter((item): item is SavedNote => {
+      if (!item || typeof item !== "object") {
+        return false
+      }
+      const candidate = item as Partial<SavedNote>
+      return (
+        typeof candidate.id === "string" &&
+        typeof candidate.name === "string" &&
+        typeof candidate.text === "string" &&
+        typeof candidate.savedAt === "string" &&
+        Array.isArray(candidate.tokens) &&
+        candidate.discoveredTokenMetadata !== null &&
+        typeof candidate.discoveredTokenMetadata === "object" &&
+        candidate.generatedTranslationMap !== null &&
+        typeof candidate.generatedTranslationMap === "object"
+      )
+    })
+  } catch {
+    return []
+  }
+}
+
+function persistSavedNotes(notes: SavedNote[]) {
+  if (typeof window === "undefined") {
+    return
+  }
+  window.localStorage.setItem(SAVED_NOTES_STORAGE_KEY, JSON.stringify(notes))
+}
+
+function createSavedNoteId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID()
+  }
+  return `note-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+}
+
+function formatSavedNoteTimestamp(value: string): string {
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) {
+    return value
+  }
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(parsed)
+}
+
+function previewText(value: string, maxLength = 180): string {
+  const normalized = value.replace(/\s+/gu, " ").trim()
+  if (!normalized) {
+    return "No text saved."
+  }
+  if (normalized.length <= maxLength) {
+    return normalized
+  }
+  return `${normalized.slice(0, maxLength - 1)}...`
+}
 
 async function extractErrorMessage(response: Response, fallback: string): Promise<string> {
   try {
@@ -469,6 +565,7 @@ function translationKeysForToken(token: Pick<AnalyzedToken, "surface_token" | "n
 type AppSidebarProps = {
   activeSection: AppSection
   onSelectPlayground: () => void
+  onSelectNotes: () => void
   onSelectWordbank: () => void
   onSelectDeveloper: () => void
 }
@@ -528,6 +625,18 @@ function AppBreadcrumb({
     )
   }
 
+  if (activeSection === "notes") {
+    return (
+      <Breadcrumb>
+        <BreadcrumbList className="text-2xl font-semibold">
+          <BreadcrumbItem>
+            <BreadcrumbPage>Notes</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+    )
+  }
+
   return (
     <Breadcrumb>
       <BreadcrumbList className="text-2xl font-semibold">
@@ -558,6 +667,7 @@ function AppBreadcrumb({
 function AppSidebar({
   activeSection,
   onSelectPlayground,
+  onSelectNotes,
   onSelectWordbank,
   onSelectDeveloper,
 }: AppSidebarProps) {
@@ -579,6 +689,16 @@ function AppSidebar({
                 >
                   <NotebookPen />
                   <span>Playground</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  type="button"
+                  isActive={activeSection === "notes"}
+                  onClick={onSelectNotes}
+                >
+                  <BookOpen />
+                  <span>Notes</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
@@ -616,6 +736,13 @@ function App() {
   const [status, setStatus] = useState<ConnectionStatus>("loading")
   const [activeSection, setActiveSection] = useState<AppSection>("playground")
   const [noteText, setNoteText] = useState("")
+  const [savedNotes, setSavedNotes] = useState<SavedNote[]>([])
+  const [activeNoteId, setActiveNoteId] = useState<string | null>(null)
+  const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false)
+  const [saveDialogMode, setSaveDialogMode] = useState<SaveDialogMode>("initial")
+  const [noteNameDraft, setNoteNameDraft] = useState("")
+  const [duplicateNameConflictNoteId, setDuplicateNameConflictNoteId] = useState<string | null>(null)
+  const [autosaveStatus, setAutosaveStatus] = useState<"off" | "saving" | "saved">("off")
   const [tokens, setTokens] = useState<AnalyzedToken[]>([])
   const [analysisError, setAnalysisError] = useState<string | null>(null)
   const [analysisRefreshTick, setAnalysisRefreshTick] = useState(0)
@@ -662,6 +789,7 @@ function App() {
   const phraseTranslationRequestKeyRef = useRef<string | null>(null)
   const phraseTranslationDelayTimeoutRef = useRef<number | null>(null)
   const lemmaDetailsLoadingDelayTimeoutRef = useRef<number | null>(null)
+  const noteAutosaveTimeoutRef = useRef<number | null>(null)
   const analysisInput = useMemo(() => finalizedAnalysisText(noteText), [noteText])
   const noteHighlights = useMemo(
     () => mapAnalyzedTokensToHighlights(noteText, tokens),
@@ -745,6 +873,12 @@ function App() {
   }, [popoverDisplayToken])
   const popoverIsNoun = popoverDisplayToken?.pos_tag === "NOUN"
   const popoverIsVerbLike = popoverDisplayToken?.pos_tag === "VERB" || popoverDisplayToken?.pos_tag === "AUX"
+  const activeSavedNote = useMemo(
+    () => savedNotes.find((note) => note.id === activeNoteId) ?? null,
+    [activeNoteId, savedNotes],
+  )
+  const activeSavedNoteId = activeSavedNote?.id ?? null
+  const activeSavedNoteName = activeSavedNote?.name ?? null
   const popoverLemmaLabel = useMemo(() => {
     if (!popoverLemma) {
       return null
@@ -773,6 +907,68 @@ function App() {
     }
     return generatedTranslationMap[phraseKey] ?? null
   }, [generatedTranslationMap, phrasePopover.selectedText])
+
+  useEffect(() => {
+    setSavedNotes(loadSavedNotes())
+  }, [])
+
+  useEffect(() => {
+    persistSavedNotes(savedNotes)
+  }, [savedNotes])
+
+  useEffect(() => {
+    if (!activeSavedNoteId || !activeSavedNoteName) {
+      if (noteAutosaveTimeoutRef.current !== null) {
+        window.clearTimeout(noteAutosaveTimeoutRef.current)
+        noteAutosaveTimeoutRef.current = null
+      }
+      setAutosaveStatus("off")
+      return
+    }
+
+    setAutosaveStatus("saving")
+    if (noteAutosaveTimeoutRef.current !== null) {
+      window.clearTimeout(noteAutosaveTimeoutRef.current)
+    }
+    noteAutosaveTimeoutRef.current = window.setTimeout(() => {
+      noteAutosaveTimeoutRef.current = null
+      const savedAt = new Date().toISOString()
+      const nextNote: SavedNote = {
+        id: activeSavedNoteId,
+        name: activeSavedNoteName,
+        text: noteText,
+        tokens: [...tokens],
+        discoveredTokenMetadata: { ...discoveredTokenMetadata },
+        generatedTranslationMap: { ...generatedTranslationMap },
+        savedAt,
+      }
+
+      setSavedNotes((current) => {
+        const existingIndex = current.findIndex((note) => note.id === activeSavedNoteId)
+        if (existingIndex === -1) {
+          return [nextNote, ...current]
+        }
+        const next = [...current]
+        next[existingIndex] = nextNote
+        return next
+      })
+      setAutosaveStatus("saved")
+    }, NOTE_AUTOSAVE_DEBOUNCE_MS)
+
+    return () => {
+      if (noteAutosaveTimeoutRef.current !== null) {
+        window.clearTimeout(noteAutosaveTimeoutRef.current)
+        noteAutosaveTimeoutRef.current = null
+      }
+    }
+  }, [
+    activeSavedNoteId,
+    activeSavedNoteName,
+    discoveredTokenMetadata,
+    generatedTranslationMap,
+    noteText,
+    tokens,
+  ])
 
   useEffect(() => {
     if (tokens.length === 0) {
@@ -1045,6 +1241,12 @@ function App() {
         : status === "offline"
           ? "destructive"
           : "outline"
+  const autosaveStatusLabel =
+    autosaveStatus === "saving"
+      ? "Autosaving..."
+      : autosaveStatus === "saved"
+        ? "Autosaved"
+        : "Autosave off"
 
   async function addTokenToWordbank(token: AnalyzedToken) {
     const requestSurface = token.normalized_token || token.surface_token
@@ -1342,6 +1544,169 @@ function App() {
     }
   }
 
+  function openSaveDialog() {
+    if (activeSavedNote) {
+      setSaveDialogMode("create_new")
+      setNoteNameDraft(`Note ${savedNotes.length + 1}`)
+    } else {
+      setSaveDialogMode("initial")
+      setNoteNameDraft(`Note ${savedNotes.length + 1}`)
+    }
+    setDuplicateNameConflictNoteId(null)
+    setIsSaveDialogOpen(true)
+  }
+
+  function findDuplicateNameNoteId(name: string, excludedNoteId: string | null): string | null {
+    const normalized = name.trim().toLocaleLowerCase()
+    if (!normalized) {
+      return null
+    }
+    const duplicate = savedNotes.find(
+      (note) => note.id !== excludedNoteId && note.name.trim().toLocaleLowerCase() === normalized,
+    )
+    return duplicate?.id ?? null
+  }
+
+  function saveCurrentNote(
+    name: string,
+    options?: {
+      forceNew?: boolean
+      forcedNoteId?: string
+      silent?: boolean
+    },
+  ) {
+    if (!name) {
+      toast.error("Note name is required.")
+      return
+    }
+
+    const forceNew = options?.forceNew ?? false
+    const excludedNoteId = forceNew ? null : (options?.forcedNoteId ?? activeSavedNote?.id ?? null)
+    const duplicateNameNoteId = findDuplicateNameNoteId(name, excludedNoteId)
+    if (duplicateNameNoteId) {
+      setDuplicateNameConflictNoteId(duplicateNameNoteId)
+      return
+    }
+
+    const savedAt = new Date().toISOString()
+    const noteId = options?.forcedNoteId ?? (forceNew ? undefined : activeSavedNote?.id) ?? createSavedNoteId()
+    const nextNote: SavedNote = {
+      id: noteId,
+      name,
+      text: noteText,
+      tokens: [...tokens],
+      discoveredTokenMetadata: { ...discoveredTokenMetadata },
+      generatedTranslationMap: { ...generatedTranslationMap },
+      savedAt,
+    }
+
+    setSavedNotes((current) => {
+      const existingIndex = current.findIndex((note) => note.id === noteId)
+      if (existingIndex === -1) {
+        return [nextNote, ...current]
+      }
+      const next = [...current]
+      next[existingIndex] = nextNote
+      return next
+    })
+    setActiveNoteId(noteId)
+    setDuplicateNameConflictNoteId(null)
+    setAutosaveStatus("saved")
+    setIsSaveDialogOpen(false)
+    if (!options?.silent) {
+      toast.success("Note saved.")
+    }
+  }
+
+  function saveActiveNoteSilently() {
+    if (!activeSavedNote) {
+      return
+    }
+    const savedAt = new Date().toISOString()
+    const nextNote: SavedNote = {
+      id: activeSavedNote.id,
+      name: activeSavedNote.name,
+      text: noteText,
+      tokens: [...tokens],
+      discoveredTokenMetadata: { ...discoveredTokenMetadata },
+      generatedTranslationMap: { ...generatedTranslationMap },
+      savedAt,
+    }
+
+    setSavedNotes((current) => {
+      const existingIndex = current.findIndex((note) => note.id === nextNote.id)
+      if (existingIndex === -1) {
+        return [nextNote, ...current]
+      }
+      const next = [...current]
+      next[existingIndex] = nextNote
+      return next
+    })
+    setAutosaveStatus("saved")
+  }
+
+  function createNewNamedNote(name: string) {
+    if (!name) {
+      toast.error("Note name is required.")
+      return
+    }
+
+    const duplicateNameNoteId = findDuplicateNameNoteId(name, null)
+    if (duplicateNameNoteId) {
+      setDuplicateNameConflictNoteId(duplicateNameNoteId)
+      return
+    }
+
+    if (noteAutosaveTimeoutRef.current !== null) {
+      window.clearTimeout(noteAutosaveTimeoutRef.current)
+      noteAutosaveTimeoutRef.current = null
+    }
+    saveActiveNoteSilently()
+
+    const savedAt = new Date().toISOString()
+    const noteId = createSavedNoteId()
+    const nextNote: SavedNote = {
+      id: noteId,
+      name,
+      text: "",
+      tokens: [],
+      discoveredTokenMetadata: {},
+      generatedTranslationMap: {},
+      savedAt,
+    }
+
+    setSavedNotes((current) => [nextNote, ...current])
+    setActiveNoteId(noteId)
+    setNoteText("")
+    setTokens([])
+    setDiscoveredTokenMetadata({})
+    setGeneratedTranslationMap({})
+    setAnalysisError(null)
+    setGeneratePhraseTranslationError(null)
+    setGenerateTranslationError(null)
+    setHighlightPopover((current) => ({ ...current, open: false, tokenIndex: null }))
+    setPhrasePopover((current) => ({ ...current, open: false, selectedText: "" }))
+    setDuplicateNameConflictNoteId(null)
+    setAutosaveStatus("saved")
+    setIsSaveDialogOpen(false)
+    toast.success("New note created.")
+  }
+
+  function openSavedNoteInPlayground(note: SavedNote) {
+    setNoteText(note.text)
+    setTokens(note.tokens)
+    setDiscoveredTokenMetadata(note.discoveredTokenMetadata)
+    setGeneratedTranslationMap(note.generatedTranslationMap)
+    setAnalysisError(null)
+    setGeneratePhraseTranslationError(null)
+    setGenerateTranslationError(null)
+    setHighlightPopover((current) => ({ ...current, open: false, tokenIndex: null }))
+    setPhrasePopover((current) => ({ ...current, open: false, selectedText: "" }))
+    setActiveNoteId(note.id)
+    setAutosaveStatus("saved")
+    setActiveSection("playground")
+  }
+
   function renderWordbankContent() {
     if (!selectedLemma) {
       return (
@@ -1560,6 +1925,110 @@ function App() {
   function renderPlaygroundContent() {
     return (
       <div className="space-y-4">
+        <Dialog
+          open={isSaveDialogOpen}
+          onOpenChange={(open) => {
+            setIsSaveDialogOpen(open)
+            if (!open) {
+              setDuplicateNameConflictNoteId(null)
+            }
+          }}
+        >
+          <DialogContent>
+            <form
+              className="space-y-4"
+              onSubmit={(event) => {
+                event.preventDefault()
+                if (saveDialogMode === "create_new") {
+                  createNewNamedNote(noteNameDraft.trim())
+                  return
+                }
+                saveCurrentNote(noteNameDraft.trim())
+              }}
+            >
+              <DialogHeader>
+                <DialogTitle>{saveDialogMode === "create_new" ? "Create new note" : "Save note"}</DialogTitle>
+                {saveDialogMode === "create_new" ? (
+                  <DialogDescription>
+                    The current note will be saved. Creating a new note clears the editor.
+                  </DialogDescription>
+                ) : (
+                  <DialogDescription>Name this note to store text and analysis.</DialogDescription>
+                )}
+              </DialogHeader>
+              {saveDialogMode === "create_new" ? (
+                <div className="space-y-2">
+                  <Label htmlFor="save-note-name-new">New note name</Label>
+                  <Input
+                    id="save-note-name-new"
+                    value={noteNameDraft}
+                    onChange={(event) => {
+                      setNoteNameDraft(event.target.value)
+                      setDuplicateNameConflictNoteId(null)
+                    }}
+                    placeholder="My Danish note copy"
+                    autoComplete="off"
+                    autoFocus
+                  />
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label htmlFor="save-note-name">Note name</Label>
+                  <Input
+                    id="save-note-name"
+                    value={noteNameDraft}
+                    onChange={(event) => {
+                      setNoteNameDraft(event.target.value)
+                      setDuplicateNameConflictNoteId(null)
+                    }}
+                    placeholder="My Danish note"
+                    autoComplete="off"
+                    autoFocus
+                  />
+                </div>
+              )}
+              {duplicateNameConflictNoteId ? (
+                <p className="text-muted-foreground text-sm">
+                  {saveDialogMode === "create_new"
+                    ? "A note with this title already exists. Use it or change the name."
+                    : "A note with this title already exists. Overwrite it or change the name."}
+                </p>
+              ) : null}
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsSaveDialogOpen(false)}>
+                  Cancel
+                </Button>
+                {duplicateNameConflictNoteId ? (
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      if (saveDialogMode === "create_new") {
+                        if (noteAutosaveTimeoutRef.current !== null) {
+                          window.clearTimeout(noteAutosaveTimeoutRef.current)
+                          noteAutosaveTimeoutRef.current = null
+                        }
+                        saveActiveNoteSilently()
+                        setActiveNoteId(duplicateNameConflictNoteId)
+                        setDuplicateNameConflictNoteId(null)
+                        setIsSaveDialogOpen(false)
+                        toast.success("Opened existing note for autosave.")
+                        return
+                      }
+                      saveCurrentNote(noteNameDraft.trim(), { forcedNoteId: duplicateNameConflictNoteId })
+                    }}
+                  >
+                    {saveDialogMode === "create_new" ? "Use existing note" : "Overwrite existing"}
+                  </Button>
+                ) : null}
+                {saveDialogMode === "create_new" ? (
+                  <Button type="submit">Create new note</Button>
+                ) : (
+                  <Button type="submit">Save</Button>
+                )}
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
         <div className="relative">
           <Popover
             open={phrasePopover.open && Boolean(phrasePopover.selectedText)}
@@ -1756,6 +2225,42 @@ function App() {
     )
   }
 
+  function renderNotesContent() {
+    if (savedNotes.length === 0) {
+      return (
+        <Card>
+          <CardContent className="py-6">
+            <p className="text-muted-foreground text-sm">No saved notes yet. Save one from Playground.</p>
+          </CardContent>
+        </Card>
+      )
+    }
+
+    return (
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        {savedNotes.map((note) => {
+          return (
+            <Card key={note.id} className="p-0">
+              <button
+                type="button"
+                className="hover:bg-accent/60 focus-visible:ring-ring w-full rounded-lg p-4 text-left outline-none transition-colors hover:cursor-pointer focus-visible:ring-2"
+                onClick={() => {
+                  openSavedNoteInPlayground(note)
+                }}
+              >
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <CardTitle className="text-base leading-tight">{note.name}</CardTitle>
+                  <p className="text-muted-foreground text-xs">{formatSavedNoteTimestamp(note.savedAt)}</p>
+                </div>
+                <p className="text-muted-foreground text-sm leading-relaxed">{previewText(note.text)}</p>
+              </button>
+            </Card>
+          )
+        })}
+      </div>
+    )
+  }
+
   function renderDeveloperContent() {
     return (
       <Card>
@@ -1814,6 +2319,10 @@ function App() {
         onSelectPlayground={() => {
           setActiveSection("playground")
         }}
+        onSelectNotes={() => {
+          setActiveSection("notes")
+          setSelectedLemma(null)
+        }}
         onSelectWordbank={() => {
           setActiveSection("wordbank")
           setSelectedLemma(null)
@@ -1833,7 +2342,7 @@ function App() {
             {status}
           </span>
           <div className="mx-auto w-full max-w-7xl">
-            <div className="mb-4 flex justify-start">
+            <div className="mb-4 flex items-center justify-between gap-3">
               <AppBreadcrumb
                 activeSection={activeSection}
                 selectedLemma={selectedLemma}
@@ -1842,9 +2351,28 @@ function App() {
                   setSelectedLemma(null)
                 }}
               />
+              {activeSection === "playground" ? (
+                <div className="flex items-center gap-2">
+                  <p className="text-muted-foreground text-xs" aria-label="note-autosave-status">
+                    {autosaveStatusLabel}
+                  </p>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="gap-1.5"
+                    onClick={openSaveDialog}
+                  >
+                    <Save className="size-3.5" />
+                    {activeSavedNote ? "Create new note" : "Save note"}
+                  </Button>
+                </div>
+              ) : null}
             </div>
             {activeSection === "playground"
               ? renderPlaygroundContent()
+              : activeSection === "notes"
+                ? renderNotesContent()
               : activeSection === "wordbank"
                 ? renderWordbankContent()
                 : renderDeveloperContent()}

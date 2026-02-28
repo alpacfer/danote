@@ -16,6 +16,7 @@ afterEach(() => {
   vi.mocked(toast.error).mockReset()
   vi.useRealTimers()
   vi.restoreAllMocks()
+  window.localStorage.clear()
 })
 
 type AnalyzeToken = {
@@ -219,14 +220,72 @@ describe("App shell", () => {
     expect(statusBadge).toHaveTextContent(/connected/i)
   })
 
-  it("renders sidebar navigation with playground and wordbank", async () => {
+  it("renders sidebar navigation with playground, notes, and wordbank", async () => {
     mockFetchImplementation()
 
     render(<App />)
     await screen.findByLabelText("backend-connection-status")
 
     expect(screen.getByRole("button", { name: /playground/i })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /^notes$/i })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /wordbank/i })).toBeInTheDocument()
+  })
+
+  it("saves a named note with analysis and reopens it in playground", async () => {
+    vi.useRealTimers()
+
+    mockFetchImplementation({
+      analyzeTokens: [
+        {
+          surface_token: "katten",
+          normalized_token: "katten",
+          lemma_candidate: "kat",
+          classification: "variation",
+          match_source: "lemma",
+          matched_lemma: "kat",
+          matched_surface_form: null,
+        },
+      ],
+    })
+
+    render(<App />)
+    await screen.findByLabelText("backend-connection-status")
+
+    setNotesEditorText("katten ")
+    await waitFor(() => {
+      const mark = getNotesEditor().querySelector("mark[data-status='variation']")
+      expect(mark).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole("button", { name: /save note/i }))
+    const saveDialog = await screen.findByRole("dialog")
+    const noteNameInput = within(saveDialog).getByLabelText(/note name/i)
+    expect(noteNameInput).toHaveAttribute("autocomplete", "off")
+    fireEvent.change(noteNameInput, {
+      target: { value: "My saved note" },
+    })
+    fireEvent.click(within(saveDialog).getByRole("button", { name: /^save$/i }))
+    await waitFor(() => {
+      expect(screen.getByLabelText("note-autosave-status")).toHaveTextContent(/autosaved/i)
+    })
+
+    expect(screen.getByRole("button", { name: /create new note/i })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: /create new note/i }))
+    const createDialog = await screen.findByRole("dialog")
+    expect(within(createDialog).getByText(/current note will be saved/i)).toBeInTheDocument()
+    expect(within(createDialog).getByLabelText(/new note name/i)).toBeInTheDocument()
+    fireEvent.click(within(createDialog).getByRole("button", { name: /cancel/i }))
+
+    fireEvent.click(screen.getByRole("button", { name: /^notes$/i }))
+    const savedCardButton = await screen.findByRole("button", { name: /my saved note/i })
+    expect(savedCardButton).toBeInTheDocument()
+    expect(savedCardButton).toHaveTextContent("katten")
+    expect(screen.queryByRole("button", { name: /open in playground/i })).not.toBeInTheDocument()
+    expect(screen.queryByText(/known/i)).not.toBeInTheDocument()
+
+    fireEvent.click(savedCardButton)
+    expect(await screen.findByRole("button", { name: /create new note/i })).toBeInTheDocument()
+    expect(getNotesEditor()).toHaveTextContent("katten")
   })
 
   it("shows saved lemmas in wordbank and opens lemma details page", async () => {
