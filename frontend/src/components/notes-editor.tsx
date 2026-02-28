@@ -300,7 +300,6 @@ export function NotesEditor({
     },
     onSelectionUpdate: ({ editor: currentEditor }) => {
       const hasSelection = !currentEditor.state.selection.empty
-      currentEditor.view.dom.classList.toggle("danote-has-selection", hasSelection)
 
       if (selectionTimeoutRef.current !== null) {
         window.clearTimeout(selectionTimeoutRef.current)
