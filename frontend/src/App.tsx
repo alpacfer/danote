@@ -44,7 +44,6 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { NotesEditor } from "@/components/notes-editor"
 import { mapAnalyzedTokensToHighlights } from "@/lib/token-highlights"
 import { toast } from "sonner"
@@ -52,7 +51,7 @@ import { toast } from "sonner"
 type ConnectionStatus = "loading" | "connected" | "degraded" | "offline"
 type TokenClassification = "known" | "variation" | "typo_likely" | "uncertain" | "new"
 type AppSection = "playground" | "wordbank" | "developer"
-type TokenAction = "replace" | "add_as_new" | "ignore" | "dismiss"
+type TokenAction = "add_as_new"
 
 type AnalyzedToken = {
   surface_token: string
@@ -192,21 +191,6 @@ function finalizedAnalysisText(text: string): string {
 
 function addLoadingKey(token: AnalyzedToken): string {
   return `${token.normalized_token || token.surface_token}:${token.classification}`
-}
-
-function escapeRegex(input: string): string {
-  return input.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-}
-
-function replaceFirstTokenOccurrence(text: string, source: string, replacement: string): string {
-  if (!source) {
-    return text
-  }
-  const pattern = new RegExp(`\\b${escapeRegex(source)}\\b`, "u")
-  if (pattern.test(text)) {
-    return text.replace(pattern, replacement)
-  }
-  return text.replace(source, replacement)
 }
 
 function normalizeWordKey(value: string): string {
@@ -527,11 +511,8 @@ function App() {
   const [noteText, setNoteText] = useState("")
   const [tokens, setTokens] = useState<AnalyzedToken[]>([])
   const [analysisError, setAnalysisError] = useState<string | null>(null)
-  const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [analysisRefreshTick, setAnalysisRefreshTick] = useState(0)
   const [addingTokens, setAddingTokens] = useState<Record<string, boolean>>({})
-  const [ignoringTokens, setIgnoringTokens] = useState<Record<string, boolean>>({})
-  const [replacingTokens, setReplacingTokens] = useState<Record<string, boolean>>({})
   const [wordbankRefreshTick, setWordbankRefreshTick] = useState(0)
 
   const [lemmas, setLemmas] = useState<WordbankLemma[]>([])
@@ -777,7 +758,6 @@ function App() {
   useEffect(() => {
     if (!analysisInput) {
       activeControllerRef.current?.abort()
-      setIsAnalyzing(false)
       setAnalysisError(null)
       setTokens([])
       return
@@ -791,7 +771,6 @@ function App() {
       const controller = new AbortController()
       activeControllerRef.current = controller
 
-      setIsAnalyzing(true)
       setAnalysisError(null)
       try {
         const response = await fetch(`${BACKEND_URL}/api/analyze`, {
@@ -825,10 +804,6 @@ function App() {
           setTokens([])
         }
         void error
-      } finally {
-        if (requestId === latestRequestIdRef.current) {
-          setIsAnalyzing(false)
-        }
       }
     }, ANALYZE_DEBOUNCE_MS)
 
@@ -951,19 +926,6 @@ function App() {
         : status === "offline"
           ? "destructive"
           : "outline"
-
-  const statusVariantMap: Record<TokenClassification, "secondary" | "outline" | "destructive"> = {
-    known: "secondary",
-    variation: "outline",
-    typo_likely: "destructive",
-    uncertain: "outline",
-    new: "destructive",
-  }
-  const sourceVariantMap: Record<AnalyzedToken["match_source"], "secondary" | "outline" | "destructive"> = {
-    exact: "secondary",
-    lemma: "outline",
-    none: "destructive",
-  }
 
   async function addTokenToWordbank(token: AnalyzedToken) {
     const requestSurface = token.normalized_token || token.surface_token
@@ -1102,71 +1064,6 @@ function App() {
       })
     } catch {
       // Feedback logging is best-effort in v1.
-    }
-  }
-
-  async function ignoreToken(token: AnalyzedToken) {
-    const loadingKey = addLoadingKey(token)
-    setIgnoringTokens((current) => ({ ...current, [loadingKey]: true }))
-    try {
-      const response = await fetch(`${BACKEND_URL}/api/tokens/ignore`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ token: token.normalized_token || token.surface_token, scope: "global" }),
-      })
-      if (!response.ok) {
-        const message = await extractErrorMessage(
-          response,
-          `Ignore token request failed with status ${response.status}`,
-        )
-        throw new Error(message)
-      }
-      void postTokenFeedback({
-        raw_token: token.surface_token,
-        predicted_status: token.classification,
-        suggestions_shown: (token.suggestions ?? []).map((item) => item.value),
-        user_action: "ignore",
-      })
-      toast.success(`Ignoring "${token.surface_token}" for typo checks.`)
-      setAnalysisRefreshTick((current) => current + 1)
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Could not ignore token."
-      toast.error(message)
-      void error
-    } finally {
-      setIgnoringTokens((current) => {
-        const next = { ...current }
-        delete next[loadingKey]
-        return next
-      })
-    }
-  }
-
-  async function replaceTokenWithSuggestion(token: AnalyzedToken) {
-    const topSuggestion = token.suggestions?.[0]?.value
-    if (!topSuggestion) {
-      return
-    }
-    const loadingKey = addLoadingKey(token)
-    setReplacingTokens((current) => ({ ...current, [loadingKey]: true }))
-    try {
-      setNoteText((current) => replaceFirstTokenOccurrence(current, token.surface_token, topSuggestion))
-      void postTokenFeedback({
-        raw_token: token.surface_token,
-        predicted_status: token.classification,
-        suggestions_shown: (token.suggestions ?? []).map((item) => item.value),
-        user_action: "replace",
-        chosen_value: topSuggestion,
-      })
-      toast.success(`Replaced "${token.surface_token}" with "${topSuggestion}".`)
-    } finally {
-      setReplacingTokens((current) => {
-        const next = { ...current }
-        delete next[loadingKey]
-        return next
-      })
     }
   }
 
@@ -1477,159 +1374,6 @@ function App() {
             )}
           </CardContent>
         </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Detected Words</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ScrollArea className="h-[320px] w-full rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Token</TableHead>
-                    <TableHead>Lemma</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Match source</TableHead>
-                    <TableHead>Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {isAnalyzing ? (
-                    <TableRow>
-                      <TableCell colSpan={5}>
-                        <div className="space-y-2">
-                          <p className="text-muted-foreground text-sm">Loading detected words...</p>
-                          <Skeleton className="h-4 w-full" />
-                          <Skeleton className="h-4 w-4/5" />
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ) : analysisError ? (
-                    <TableRow>
-                      <TableCell className="text-destructive" colSpan={5}>
-                        Could not load detected words. Try analyzing again.
-                      </TableCell>
-                    </TableRow>
-                  ) : tokens.length === 0 ? (
-                    <TableRow>
-                      <TableCell className="text-muted-foreground">No tokens yet</TableCell>
-                      <TableCell className="text-muted-foreground">-</TableCell>
-                      <TableCell>
-                        <Badge variant="outline">pending</Badge>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">-</TableCell>
-                      <TableCell className="text-muted-foreground">-</TableCell>
-                    </TableRow>
-                  ) : (
-                    tokens.map((token, index) => {
-                      const loadingKey = addLoadingKey(token)
-                      return (
-                        <TableRow key={`${token.surface_token}-${token.match_source}-${index}`}>
-                          <TableCell>{token.surface_token}</TableCell>
-                          <TableCell>{token.matched_lemma ?? token.lemma_candidate ?? "-"}</TableCell>
-                          <TableCell>
-                            <Badge variant={statusVariantMap[token.classification]}>
-                              {token.classification}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={sourceVariantMap[token.match_source]}>
-                              {token.match_source}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            {token.classification === "new" && (
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="xs"
-                                disabled={Boolean(addingTokens[loadingKey])}
-                                onClick={() => {
-                                  void addTokenToWordbank(token)
-                                }}
-                              >
-                                {addingTokens[loadingKey] ? "Adding..." : "Add"}
-                              </Button>
-                            )}
-                            {token.classification === "typo_likely" && (
-                              <div className="flex flex-wrap gap-1">
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="xs"
-                                  disabled={Boolean(replacingTokens[loadingKey]) || !token.suggestions?.[0]}
-                                  onClick={() => {
-                                    void replaceTokenWithSuggestion(token)
-                                  }}
-                                >
-                                  {replacingTokens[loadingKey] ? "Replacing..." : "Replace"}
-                                </Button>
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="xs"
-                                  disabled={Boolean(addingTokens[loadingKey])}
-                                  onClick={() => {
-                                    void addTokenToWordbank(token)
-                                  }}
-                                >
-                                  {addingTokens[loadingKey] ? "Adding..." : "Add"}
-                                </Button>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="xs"
-                                  disabled={Boolean(ignoringTokens[loadingKey])}
-                                  onClick={() => {
-                                    void ignoreToken(token)
-                                  }}
-                                >
-                                  {ignoringTokens[loadingKey] ? "Ignoring..." : "Ignore"}
-                                </Button>
-                              </div>
-                            )}
-                            {token.classification === "uncertain" && (
-                              <div className="flex flex-wrap gap-1">
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="xs"
-                                  disabled={Boolean(addingTokens[loadingKey])}
-                                  onClick={() => {
-                                    void addTokenToWordbank(token)
-                                  }}
-                                >
-                                  {addingTokens[loadingKey] ? "Adding..." : "Add"}
-                                </Button>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="xs"
-                                  disabled={Boolean(ignoringTokens[loadingKey])}
-                                  onClick={() => {
-                                    void ignoreToken(token)
-                                  }}
-                                >
-                                  {ignoringTokens[loadingKey] ? "Ignoring..." : "Ignore"}
-                                </Button>
-                              </div>
-                            )}
-                            {token.classification !== "new" &&
-                              token.classification !== "typo_likely" &&
-                              token.classification !== "uncertain" && (
-                              <span className="text-muted-foreground text-xs">-</span>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      )
-                    })
-                  )}
-                </TableBody>
-              </Table>
-            </ScrollArea>
-          </CardContent>
-        </Card>
       </div>
     )
   }
@@ -1706,21 +1450,21 @@ function App() {
           <SidebarTrigger />
           <span className="text-sm font-medium">Danote</span>
         </header>
-        <main className="w-full p-4 md:p-8">
+        <main className="w-full p-2 md:p-4">
           <span className="sr-only" aria-label="backend-connection-status">
             {status}
           </span>
-          <div className="mb-4 flex justify-start">
-            <AppBreadcrumb
-              activeSection={activeSection}
-              selectedLemma={selectedLemma}
-              onSelectWordbank={() => {
-                setActiveSection("wordbank")
-                setSelectedLemma(null)
-              }}
-            />
-          </div>
           <div className="mx-auto w-full max-w-7xl">
+            <div className="mb-4 flex justify-start">
+              <AppBreadcrumb
+                activeSection={activeSection}
+                selectedLemma={selectedLemma}
+                onSelectWordbank={() => {
+                  setActiveSection("wordbank")
+                  setSelectedLemma(null)
+                }}
+              />
+            </div>
             {activeSection === "playground"
               ? renderPlaygroundContent()
               : activeSection === "wordbank"

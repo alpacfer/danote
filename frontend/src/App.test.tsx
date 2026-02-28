@@ -207,14 +207,13 @@ function mockFetchImplementation(options?: {
 }
 
 describe("App shell", () => {
-  it("renders header, cards, and backend status badge", async () => {
+  it("renders header, lesson notes card, and backend status badge", async () => {
     mockFetchImplementation()
 
     render(<App />)
 
     expect(screen.getAllByText(/danote/i).length).toBeGreaterThan(0)
     expect(screen.getAllByText(/lesson notes/i).length).toBeGreaterThan(0)
-    expect(screen.getAllByText(/detected words/i).length).toBeGreaterThan(0)
     expect(getNotesEditor()).toBeInTheDocument()
     const statusBadge = await screen.findByLabelText("backend-connection-status")
     expect(statusBadge).toHaveTextContent(/connected/i)
@@ -261,14 +260,13 @@ describe("App shell", () => {
     expect(screen.getByText(/^book's$/i)).toBeInTheDocument()
   })
 
-  it("shows notes and detected words in one page", async () => {
+  it("shows lesson notes in playground", async () => {
     mockFetchImplementation()
 
     render(<App />)
     await screen.findByText(/connected/i)
 
     expect(screen.getAllByText(/lesson notes/i).length).toBeGreaterThan(0)
-    expect(screen.getAllByText(/detected words/i).length).toBeGreaterThan(0)
   })
 
   it("renders offline status when health check fails", async () => {
@@ -305,17 +303,6 @@ describe("App shell", () => {
     setNotesEditorText("linje 1\nlinje 2")
     expect(getNotesEditor()).toHaveTextContent(/linje 1/i)
     expect(getNotesEditor()).toHaveTextContent(/linje 2/i)
-  })
-
-  it("renders detected words table headers", async () => {
-    mockFetchImplementation()
-
-    render(<App />)
-    await screen.findByLabelText("backend-connection-status")
-
-    expect(screen.getByText(/^token$/i)).toBeInTheDocument()
-    expect(screen.getByText(/^lemma$/i)).toBeInTheDocument()
-    expect(screen.getByText(/^status$/i)).toBeInTheDocument()
   })
 
   it("debounce collapses rapid typing into one analyze call", async () => {
@@ -473,101 +460,6 @@ describe("App shell", () => {
 
     expect(screen.queryByText(/^første$/i)).not.toBeInTheDocument()
     expect(screen.getAllByText(/^anden$/i).length).toBeGreaterThanOrEqual(1)
-  })
-
-  it("renders detected rows and status mapping on success", async () => {
-    vi.useFakeTimers()
-
-    mockFetchImplementation({
-      analyzeTokens: [
-        {
-          surface_token: "kan",
-          normalized_token: "kan",
-          lemma_candidate: "kan",
-          classification: "known",
-          match_source: "exact",
-          matched_lemma: "kan",
-          matched_surface_form: "kan",
-        },
-        {
-          surface_token: "bogen",
-          normalized_token: "bogen",
-          lemma_candidate: "bog",
-          classification: "variation",
-          match_source: "lemma",
-          matched_lemma: "bog",
-          matched_surface_form: null,
-        },
-        {
-          surface_token: "kat",
-          normalized_token: "kat",
-          lemma_candidate: "kat",
-          classification: "new",
-          match_source: "none",
-          matched_lemma: null,
-          matched_surface_form: null,
-        },
-      ],
-    })
-
-    render(<App />)
-    screen.getByLabelText("backend-connection-status")
-
-    setNotesEditorText("Jeg kan godt lide bogen ")
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(500)
-      await Promise.resolve()
-    })
-
-    expect(screen.getAllByText(/^kan$/i).length).toBeGreaterThanOrEqual(1)
-    expect(screen.getAllByText(/^bogen$/i).length).toBeGreaterThanOrEqual(1)
-    expect(screen.getAllByText(/^kat$/i).length).toBeGreaterThanOrEqual(1)
-
-    expect(screen.getAllByText(/^known$/i).length).toBeGreaterThanOrEqual(1)
-    expect(screen.getAllByText(/^variation$/i).length).toBeGreaterThanOrEqual(1)
-    expect(screen.getAllByText(/^new$/i).length).toBeGreaterThanOrEqual(1)
-
-    expect(screen.getByText(/^exact$/i)).toBeInTheDocument()
-    expect(screen.getByText(/^lemma$/)).toBeInTheDocument()
-    expect(screen.getByText(/^none$/i)).toBeInTheDocument()
-  })
-
-  it("shows Add action only for new rows", async () => {
-    vi.useFakeTimers()
-
-    mockFetchImplementation({
-      analyzeTokens: [
-        {
-          surface_token: "kan",
-          normalized_token: "kan",
-          lemma_candidate: "kan",
-          classification: "known",
-          match_source: "exact",
-          matched_lemma: "kan",
-          matched_surface_form: "kan",
-        },
-        {
-          surface_token: "kat",
-          normalized_token: "kat",
-          lemma_candidate: "kat",
-          classification: "new",
-          match_source: "none",
-          matched_lemma: null,
-          matched_surface_form: null,
-        },
-      ],
-    })
-
-    render(<App />)
-    screen.getByLabelText("backend-connection-status")
-
-    setNotesEditorText("kan kat ")
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(500)
-      await Promise.resolve()
-    })
-
-    expect(screen.getAllByRole("button", { name: /^add$/i })).toHaveLength(1)
   })
 
   it("highlights new, variation, and typo_likely tokens in the editor", async () => {
@@ -1363,81 +1255,8 @@ describe("App shell", () => {
     expect(within(popoverContent as HTMLElement).getByText(/^have$/i)).toBeInTheDocument()
   })
 
-  it("shows typo actions and replace updates note text", async () => {
-    vi.useFakeTimers()
-
-    mockFetchImplementation({
-      analyzeTokens: [
-        {
-          surface_token: "spisr",
-          normalized_token: "spisr",
-          lemma_candidate: "spiser",
-          classification: "typo_likely",
-          status: "typo_likely",
-          match_source: "none",
-          matched_lemma: null,
-          matched_surface_form: null,
-          suggestions: [{ value: "spiser", score: 0.9, source_flags: ["from_symspell"] }],
-          confidence: 0.9,
-          reason_tags: ["candidate_high_confidence"],
-        },
-      ],
-    })
-
-    render(<App />)
-    screen.getByLabelText("backend-connection-status")
-    setNotesEditorText("jeg spisr nu ")
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(500)
-      await Promise.resolve()
-    })
-
-    fireEvent.click(screen.getByRole("button", { name: /^replace$/i }))
-    expect(screen.getByLabelText("note-character-count")).toHaveTextContent("14")
-  })
-
-  it("shows uncertain actions including ignore", async () => {
-    vi.useFakeTimers()
-
-    mockFetchImplementation({
-      analyzeTokens: [
-        {
-          surface_token: "MilkoScna",
-          normalized_token: "milkoscna",
-          lemma_candidate: null,
-          classification: "uncertain",
-          status: "uncertain",
-          match_source: "none",
-          matched_lemma: null,
-          matched_surface_form: null,
-          suggestions: [],
-          confidence: 0.6,
-          reason_tags: ["proper_noun_bias"],
-        },
-      ],
-    })
-
-    render(<App />)
-    screen.getByLabelText("backend-connection-status")
-    setNotesEditorText("vi så MilkoScna ")
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(500)
-      await Promise.resolve()
-    })
-
-    expect(screen.getByRole("button", { name: /^ignore$/i })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole("button", { name: /^ignore$/i }))
-    await act(async () => {
-      await Promise.resolve()
-      await Promise.resolve()
-    })
-    expect(vi.mocked(toast.success)).toHaveBeenCalled()
-  })
-
-  it("clicking Add calls backend, re-analyzes, and shows success toast", async () => {
-    vi.useFakeTimers()
+  it("adding from popover calls backend, re-analyzes, and shows success toast", async () => {
+    vi.useRealTimers()
     let analyzeCallCount = 0
     const addBodies: string[] = []
 
@@ -1489,32 +1308,34 @@ describe("App shell", () => {
     screen.getByLabelText("backend-connection-status")
 
     setNotesEditorText("kat ")
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(500)
-      await Promise.resolve()
+    await waitFor(() => {
+      const mark = getNotesEditor().querySelector("mark[data-status='new']")
+      expect(mark).toBeInTheDocument()
     })
 
-    fireEvent.click(screen.getByRole("button", { name: /^add$/i }))
+    const mark = getNotesEditor().querySelector("mark[data-status='new']")
+    fireEvent.click(mark as HTMLElement, { clientX: 160, clientY: 140 })
+
+    fireEvent.click(await screen.findByRole("button", { name: /add to wordbank/i }))
 
     await act(async () => {
       await Promise.resolve()
       await Promise.resolve()
     })
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(500)
+    await waitFor(async () => {
       await Promise.resolve()
       await Promise.resolve()
+      expect(analyzeCallCount).toBeGreaterThanOrEqual(2)
     })
 
     expect(addBodies).toHaveLength(1)
     expect(addBodies[0]).toBe(JSON.stringify({ surface_token: "kat", lemma_candidate: "kat" }))
     expect(vi.mocked(toast.success)).toHaveBeenCalledTimes(1)
     expect(vi.mocked(toast.success)).toHaveBeenCalledWith("Added 'kat' to wordbank.")
-    expect(analyzeCallCount).toBeGreaterThanOrEqual(2)
   })
 
-  it("shows error toast when Add fails", async () => {
-    vi.useFakeTimers()
+  it("shows error toast when popover add fails", async () => {
+    vi.useRealTimers()
 
     mockFetchImplementation({
       analyzeTokens: [
@@ -1535,12 +1356,15 @@ describe("App shell", () => {
     screen.getByLabelText("backend-connection-status")
 
     setNotesEditorText("kat ")
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(500)
-      await Promise.resolve()
+    await waitFor(() => {
+      const mark = getNotesEditor().querySelector("mark[data-status='new']")
+      expect(mark).toBeInTheDocument()
     })
 
-    fireEvent.click(screen.getByRole("button", { name: /^add$/i }))
+    const mark = getNotesEditor().querySelector("mark[data-status='new']")
+    fireEvent.click(mark as HTMLElement, { clientX: 160, clientY: 140 })
+
+    fireEvent.click(await screen.findByRole("button", { name: /add to wordbank/i }))
 
     await act(async () => {
       await Promise.resolve()
@@ -1592,7 +1416,7 @@ describe("App shell", () => {
     expect(vi.mocked(toast.success)).toHaveBeenCalledWith("Database reset complete.")
   })
 
-  it("renders loading and error states", async () => {
+  it("renders analysis error state", async () => {
     vi.useFakeTimers()
     let fail = false
 
@@ -1612,7 +1436,7 @@ describe("App shell", () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(500)
     })
-    expect(screen.getByText(/loading detected words/i)).toBeInTheDocument()
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument()
 
     fail = true
     setNotesEditorText("test2 ")
