@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import json
 import time
 from typing import Protocol
 
@@ -12,6 +13,8 @@ class TranslationError(RuntimeError):
 
 
 class TranslationService(Protocol):
+    provider: str
+
     def translate_da_to_en(self, text: str) -> str | None: ...
     def translate_en_to_da(self, text: str) -> str | None: ...
     def detect_source_language(self, text: str) -> str | None: ...
@@ -44,6 +47,7 @@ class DeepLTranslationService:
     backoff_seconds: float = 0.5
     max_backoff_seconds: float = 8.0
     min_request_interval_seconds: float = 0.35
+    provider: str = field(default="deepl", init=False)
     _client: httpx.Client | None = field(default=None, init=False, repr=False, compare=False)
     _next_allowed_request_at: float = field(default=0.0, init=False, repr=False, compare=False)
 
@@ -235,3 +239,109 @@ class DeepLTranslationService:
         if now < self._next_allowed_request_at:
             time.sleep(self._next_allowed_request_at - now)
         self._next_allowed_request_at = time.monotonic() + self.min_request_interval_seconds
+
+
+@dataclass
+class GeminiTranslationService:
+    """Danish/English translation service backed by Gemini Flash."""
+
+    api_key: str
+    model: str = "gemini-3-flash-preview"
+    timeout_seconds: float = 20.0
+    max_retries: int = 2
+    backoff_seconds: float = 0.5
+    provider: str = field(default="gemini", init=False)
+    _client: object | None = field(default=None, init=False, repr=False, compare=False)
+
+    def __post_init__(self) -> None:
+        normalized_key = self.api_key.strip()
+        normalized_model = self.model.strip()
+        if not normalized_key:
+            raise TranslationError("Gemini API key is required for translation.")
+        if not normalized_model:
+            raise TranslationError("Gemini model is required for translation.")
+        self.api_key = normalized_key
+        self.model = normalized_model
+
+    def _ensure_client(self) -> object:
+        if self._client is None:
+            try:
+                from google import genai  # type: ignore import-not-found
+            except ImportError as exc:
+                raise TranslationError("google-genai package is required for Gemini translation.") from exc
+            self._client = genai.Client(api_key=self.api_key)
+        return self._client
+
+    def close(self) -> None:
+        # google-genai does not require explicit close for default client transport.
+        self._client = None
+
+    def translate_da_to_en(self, text: str) -> str | None:
+        normalized = text.strip()
+        if not normalized:
+            return None
+        prompt = (
+            "Translate this Danish text to natural English.\n"
+            "Return only the translation text, with no explanation.\n"
+            f"Text: {normalized}"
+        )
+        return self._generate_text(prompt)
+
+    def translate_en_to_da(self, text: str) -> str | None:
+        normalized = text.strip()
+        if not normalized:
+            return None
+        prompt = (
+            "Translate this English text to natural Danish.\n"
+            "Return only the translation text, with no explanation.\n"
+            f"Text: {normalized}"
+        )
+        return self._generate_text(prompt)
+
+    def detect_source_language(self, text: str) -> str | None:
+        normalized = text.strip()
+        if not normalized:
+            return None
+        prompt = (
+            "Detect the language of this text.\n"
+            "Respond with JSON only in this exact schema: "
+            '{"language":"en|da|ambiguous"}\n'
+            f"Text: {normalized}"
+        )
+        raw = self._generate_text(prompt)
+        if not raw:
+            return None
+
+        try:
+            parsed = json.loads(raw)
+        except ValueError:
+            cleaned = raw.strip().lower()
+            if cleaned.startswith("en"):
+                return "EN"
+            if cleaned.startswith("da"):
+                return "DA"
+            return None
+
+        language = parsed.get("language") if isinstance(parsed, dict) else None
+        cleaned = language.strip().lower() if isinstance(language, str) else ""
+        if cleaned in {"en", "da"}:
+            return cleaned.upper()
+        return None
+
+    def _generate_text(self, prompt: str) -> str | None:
+        attempts = self.max_retries + 1
+        for attempt in range(attempts):
+            try:
+                client = self._ensure_client()
+                response = client.models.generate_content(model=self.model, contents=prompt)
+                text = getattr(response, "text", None)
+                cleaned = text.strip() if isinstance(text, str) else ""
+                return cleaned or None
+            except Exception as exc:
+                if attempt < self.max_retries:
+                    delay = self.backoff_seconds * (2**attempt)
+                    if delay > 0:
+                        time.sleep(delay)
+                    continue
+                raise TranslationError(f"Gemini translation request failed: {exc}") from exc
+        return None

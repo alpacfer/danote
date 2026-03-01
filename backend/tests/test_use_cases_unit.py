@@ -49,6 +49,26 @@ class FakeNLPAdapter:
         return {"adapter": "fake"}
 
 
+class FakeVerificationService:
+    provider = "gemini"
+    reviewer_role = "Professional Danish Language Expert"
+
+    def __init__(self, verdict: str = "verified", message: str = "Entry is consistent."):
+        self._verdict = verdict
+        self._message = message
+        self.calls = []
+
+    def verify_word_entry(self, payload):
+        self.calls.append(payload)
+
+        class Result:
+            def __init__(self, verdict: str, message: str):
+                self.verdict = verdict
+                self.message = message
+
+        return Result(self._verdict, self._message)
+
+
 def _db_path(tmp_path: Path) -> Path:
     db_path = tmp_path / "danote.sqlite3"
     apply_migrations(db_path)
@@ -95,6 +115,31 @@ def test_wordbank_use_case_stores_deepl_translations_for_lemma_and_surface(tmp_p
             english_translation="the book",
         )
     ]
+
+
+def test_wordbank_use_case_runs_verification_task_and_returns_result(tmp_path: Path) -> None:
+    verification_service = FakeVerificationService(
+        verdict="verified",
+        message="Lemma, surface form, and translations are coherent.",
+    )
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        translation_service=FakeTranslationService({"bog": "book", "bogen": "the book"}),
+        verification_service=verification_service,
+    )
+
+    added = use_case.add_word("Bogen", "bog")
+
+    assert added.verification is not None
+    assert added.verification.status == "queued"
+    assert added.verification.provider == "gemini"
+    assert added.verification.reviewer_role == "Professional Danish Language Expert"
+    assert "queued" in added.verification.message.lower()
+
+    verified = use_case.verify_added_word("bog", "bogen")
+    assert verified.verification.status == "verified"
+    assert "coherent" in verified.verification.message.lower()
+    assert len(verification_service.calls) == 1
 
 
 def test_wordbank_use_case_includes_pos_and_morphology_when_nlp_available(tmp_path: Path) -> None:

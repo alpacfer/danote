@@ -1,4 +1,5 @@
 from app.api.schemas.v1.analyze import AnalyzedToken, AnalyzeRequest, AnalyzeResponse
+from app.api.schemas.v1.root import ApiStatusEntry, HealthResponse
 from app.api.schemas.v1.sentencebank import (
     AddSentenceRequest,
     AddSentenceResponse,
@@ -18,12 +19,16 @@ from app.api.schemas.v1.wordbank import (
     LemmaListResponse,
     LemmaSummary,
     ResetDatabaseResponse,
+    VerifyWordRequest,
+    VerifyWordResponse,
 )
 
 __all__ = [
     "AnalyzeRequest",
     "AnalyzeResponse",
     "AnalyzedToken",
+    "ApiStatusEntry",
+    "HealthResponse",
     "AddWordRequest",
     "AddWordResponse",
     "DetectWordLanguageRequest",
@@ -40,4 +45,6 @@ __all__ = [
     "LemmaListResponse",
     "LemmaDetailsResponse",
     "ResetDatabaseResponse",
+    "VerifyWordRequest",
+    "VerifyWordResponse",
 ]

@@ -64,6 +64,7 @@ function setNotesEditorText(value: string) {
 function mockFetchImplementation(options?: {
   healthOk?: boolean
   healthStatus?: "ok" | "degraded"
+  healthResponse?: Record<string, unknown>
   analyzeOk?: boolean
   analyzeTokens?: AnalyzeToken[]
   analyzeHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
@@ -74,6 +75,24 @@ function mockFetchImplementation(options?: {
     stored_surface_form: string | null
     source: "manual"
     message: string
+    verification?: {
+      status: "verified" | "flagged" | "error" | "skipped" | "queued"
+      provider: string | null
+      reviewer_role: string | null
+      message: string
+      composed_word_count: number | null
+    } | null
+  }
+  verifyWordResponse?: {
+    stored_lemma: string
+    stored_surface_form: string | null
+    verification: {
+      status: "verified" | "flagged" | "error" | "skipped" | "queued"
+      provider: string | null
+      reviewer_role: string | null
+      message: string
+      composed_word_count: number | null
+    }
   }
   addWordHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
   lemmasOk?: boolean
@@ -137,6 +156,15 @@ function mockFetchImplementation(options?: {
 }) {
   const healthOk = options?.healthOk ?? true
   const healthStatus = options?.healthStatus ?? "ok"
+  const healthResponse = options?.healthResponse ?? {
+    status: healthStatus,
+    service: "backend",
+    apis: {
+      backend: { status: healthStatus === "ok" ? "ok" : "degraded", active: true, configured: true },
+      gemini: { status: "inactive", active: false, configured: false, message: "Provider 'gemini' is not selected." },
+      deepl: { status: "inactive", active: false, configured: false, message: "Provider 'deepl' is not selected." },
+    },
+  }
   const analyzeOk = options?.analyzeOk ?? true
   const analyzeTokens = options?.analyzeTokens ?? []
   const addWordOk = options?.addWordOk ?? true
@@ -146,6 +174,24 @@ function mockFetchImplementation(options?: {
     stored_surface_form: "kat",
     source: "manual" as const,
     message: "Added 'kat' to wordbank.",
+    verification: {
+      status: "queued" as const,
+      provider: "gemini",
+      reviewer_role: "Professional Danish Language Expert",
+      message: "Word verification queued.",
+      composed_word_count: null,
+    },
+  }
+  const verifyWordResponse = options?.verifyWordResponse ?? {
+    stored_lemma: addWordResponse.stored_lemma,
+    stored_surface_form: addWordResponse.stored_surface_form,
+    verification: {
+      status: "verified" as const,
+      provider: "gemini",
+      reviewer_role: "Professional Danish Language Expert",
+      message: "Entry looks correct.",
+      composed_word_count: 1,
+    },
   }
   const lemmasOk = options?.lemmasOk ?? true
   const lemmasResponse = options?.lemmasResponse ?? { items: [] }
@@ -190,7 +236,7 @@ function mockFetchImplementation(options?: {
       if (!healthOk) {
         throw new Error("network down")
       }
-      return responseOf({ status: healthStatus, service: "backend" })
+      return responseOf(healthResponse)
     }
 
     if (url.endsWith("/api/analyze")) {
@@ -211,6 +257,10 @@ function mockFetchImplementation(options?: {
         throw new Error("add word request failed")
       }
       return responseOf(addWordResponse)
+    }
+
+    if (url.endsWith("/api/wordbank/lexemes/verify")) {
+      return responseOf(verifyWordResponse)
     }
 
     if (url.endsWith("/api/wordbank/lemmas")) {
@@ -487,6 +537,65 @@ describe("App shell", () => {
     })
   })
 
+  it("command search hides duplicate lemma and shows discovered morphology badges", async () => {
+    mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      analyzeHandler: async (_input, init) => {
+        const payload = JSON.parse(String(init?.body ?? "{}")) as { text?: string }
+        if (payload.text === "bog") {
+          return responseOf({
+            tokens: [
+              {
+                surface_token: "bog",
+                normalized_token: "bog",
+                lemma_candidate: "bog",
+                pos_tag: "NOUN",
+                morphology: "Gender=Com|Number=Sing",
+                classification: "new",
+                match_source: "none",
+                matched_lemma: null,
+                matched_surface_form: null,
+              },
+            ],
+          })
+        }
+        return responseOf({ tokens: [] })
+      },
+      translationResponse: {
+        status: "generated",
+        source_word: "bog",
+        lemma: "bog",
+        english_translation: "book",
+      },
+      reverseTranslationResponse: {
+        status: "unavailable",
+        source_word: "bog",
+        danish_translation: null,
+      },
+      detectLanguageResponse: {
+        source_word: "bog",
+        language: "da",
+        confidence: 0.95,
+      },
+    })
+
+    render(<App />)
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    const commandDialog = await screen.findByRole("dialog")
+    const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
+    fireEvent.change(searchInput, { target: { value: "bog" } })
+
+    expect(await screen.findByText(/^book$/i)).toBeInTheDocument()
+    expect(await screen.findByText(/danish -> english/i)).toBeInTheDocument()
+    expect(screen.queryByText(/lemma: bog/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/\(bog\)/i)).not.toBeInTheDocument()
+    expect(await within(commandDialog).findByText(/^NOUN$/i)).toBeInTheDocument()
+    expect(await within(commandDialog).findByText(/^n-word$/i)).toBeInTheDocument()
+    expect(await within(commandDialog).findByText(/^Singular$/i)).toBeInTheDocument()
+  })
+
   it("command search uses detected Danish language to suppress english-to-danish add option", async () => {
     const fetchSpy = mockFetchImplementation({
       lemmasResponse: { items: [] },
@@ -605,10 +714,10 @@ describe("App shell", () => {
 
     expect((await within(commandDialog).findAllByText(/\bhus\b/i)).length).toBeGreaterThan(0)
     expect(await screen.findByText(/english -> danish/i)).toBeInTheDocument()
-    expect(await screen.findByText(/lemma: hus/i)).toBeInTheDocument()
+    expect(screen.queryByText(/lemma: hus/i)).not.toBeInTheDocument()
     expect((await within(commandDialog).findAllByTestId("search-add-icon")).length).toBeGreaterThan(0)
 
-    const optionItem = within(commandDialog).getByText(/lemma: hus/i).closest('[cmdk-item]')
+    const optionItem = within(commandDialog).getByText(/\bhus\b/i).closest('[cmdk-item]')
     expect(optionItem).toBeTruthy()
     fireEvent.click(optionItem as HTMLElement)
 
@@ -696,7 +805,7 @@ describe("App shell", () => {
     expect(await screen.findByText(/english -> danish/i)).toBeInTheDocument()
     expect((await within(commandDialog).findAllByTestId("search-add-icon")).length).toBeGreaterThan(0)
 
-    const optionItem = within(commandDialog).getByText(/lemma: hus/i).closest('[cmdk-item]')
+    const optionItem = within(commandDialog).getByText(/\bhus\b/i).closest('[cmdk-item]')
     expect(optionItem).toBeTruthy()
     fireEvent.click(optionItem as HTMLElement)
 
@@ -784,7 +893,7 @@ describe("App shell", () => {
 
     expect((await within(commandDialog).findAllByText(/\bkrus\b/i)).length).toBeGreaterThan(0)
     expect(await screen.findByText(/english -> danish/i)).toBeInTheDocument()
-    expect(await screen.findByText(/lemma: krus/i)).toBeInTheDocument()
+    expect(screen.queryByText(/lemma: krus/i)).not.toBeInTheDocument()
   })
 
   it("command search infers Danish lemma from translated surface form", async () => {
@@ -852,7 +961,7 @@ describe("App shell", () => {
     fireEvent.change(searchInput, { target: { value: "lamps" } })
 
     expect(await within(commandDialog).findByText(/\blamper\b/i)).toBeInTheDocument()
-    expect(await within(commandDialog).findByText(/lemma: lampe/i)).toBeInTheDocument()
+    expect(await within(commandDialog).findByText(/\(lampe\)/i)).toBeInTheDocument()
     expect(await within(commandDialog).findByText(/^NOUN$/i)).toBeInTheDocument()
   })
 
@@ -908,10 +1017,10 @@ describe("App shell", () => {
 
     expect((await within(commandDialog).findAllByText(/\bvand\b/i)).length).toBeGreaterThan(0)
     expect(await screen.findByText(/english -> danish/i)).toBeInTheDocument()
-    expect(await screen.findByText(/lemma: vand/i)).toBeInTheDocument()
+    expect(screen.queryByText(/lemma: vand/i)).not.toBeInTheDocument()
     expect((await within(commandDialog).findAllByTestId("search-add-icon")).length).toBeGreaterThan(0)
 
-    const optionItem = within(commandDialog).getByText(/lemma: vand/i).closest('[cmdk-item]')
+    const optionItem = within(commandDialog).getByText(/\bvand\b/i).closest('[cmdk-item]')
     expect(optionItem).toBeTruthy()
     fireEvent.click(optionItem as HTMLElement)
 
@@ -987,8 +1096,10 @@ describe("App shell", () => {
     expect((await within(commandDialog).findAllByText(/\bgave\b/i)).length).toBeGreaterThan(0)
     expect(await screen.findByText(/danish -> english/i)).toBeInTheDocument()
     expect(await screen.findByText(/english -> danish/i)).toBeInTheDocument()
-    expect(await screen.findByText(/lemma: gift/i)).toBeInTheDocument()
-    expect(await screen.findByText(/lemma: gave/i)).toBeInTheDocument()
+    expect(screen.queryByText(/lemma: gift/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/\(gift\)/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/lemma: gave/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/\(gave\)/i)).not.toBeInTheDocument()
     expect((await within(commandDialog).findAllByTestId("search-add-icon")).length).toBe(2)
   })
 
@@ -1011,6 +1122,7 @@ describe("App shell", () => {
 
     render(<App />)
     await screen.findByLabelText("backend-connection-status")
+    expect(screen.getByRole("button", { name: /no unread notifications/i })).toBeDisabled()
 
     setNotesEditorText("katten ")
     await waitFor(() => {
@@ -1029,6 +1141,11 @@ describe("App shell", () => {
     await waitFor(() => {
       expect(screen.getByLabelText("note-autosave-status")).toHaveTextContent(/autosaved/i)
     })
+    const notificationButton = screen.getByRole("button", { name: /show notifications \(1 unread\)/i })
+    expect(notificationButton).toBeEnabled()
+    fireEvent.click(notificationButton)
+    const notificationList = await screen.findByLabelText("notification-list")
+    expect(notificationList).toHaveTextContent("Saved note: My saved note")
 
     expect(screen.getByRole("button", { name: /create new note/i })).toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: /create new note/i }))
@@ -1644,6 +1761,60 @@ describe("App shell", () => {
     expect(within(popoverContent as HTMLElement).queryByText(/^\(hus\)$/i)).not.toBeInTheDocument()
     expect(within(popoverContent as HTMLElement).getByText(/^t-word$/i)).toBeInTheDocument()
     expect(within(popoverContent as HTMLElement).getByTestId("noun-translation-skeleton")).toBeInTheDocument()
+  })
+
+  it("retries noun translation once when first response is unavailable", async () => {
+    vi.useRealTimers()
+    let translationCalls = 0
+
+    mockFetchImplementation({
+      analyzeTokens: [
+        {
+          surface_token: "hus",
+          normalized_token: "hus",
+          lemma_candidate: "hus",
+          classification: "new",
+          match_source: "none",
+          matched_lemma: null,
+          matched_surface_form: null,
+          pos_tag: "NOUN",
+          morphology: "Gender=Neut|Number=Sing|Definite=Ind",
+        },
+      ],
+      translationHandler: async () => {
+        translationCalls += 1
+        if (translationCalls === 1) {
+          return responseOf({
+            status: "unavailable",
+            source_word: "hus",
+            lemma: "hus",
+            english_translation: null,
+          })
+        }
+        return responseOf({
+          status: "generated",
+          source_word: "hus",
+          lemma: "hus",
+          english_translation: "house",
+        })
+      },
+    })
+
+    render(<App />)
+    screen.getByLabelText("backend-connection-status")
+
+    setNotesEditorText("hus ")
+    await waitFor(() => {
+      const mark = getNotesEditor().querySelector("mark[data-status='new']")
+      expect(mark).toBeInTheDocument()
+    })
+
+    const mark = getNotesEditor().querySelector("mark[data-status='new']")
+    expect(mark).toBeInTheDocument()
+    fireEvent.click(mark as HTMLElement, { clientX: 180, clientY: 160 })
+
+    expect(await screen.findByText(/^house$/i)).toBeInTheDocument()
+    expect(translationCalls).toBe(2)
   })
 
   it("verb popover shows infinitive subtitle and present form in the title", async () => {
@@ -2284,7 +2455,17 @@ describe("App shell", () => {
 
 
   it("shows NLP model picker in developer options", async () => {
-    mockFetchImplementation({})
+    mockFetchImplementation({
+      healthResponse: {
+        status: "ok",
+        service: "backend",
+        apis: {
+          backend: { status: "ok", active: true, configured: true },
+          gemini: { status: "ok", active: true, configured: true },
+          deepl: { status: "inactive", active: false, configured: false, message: "Provider 'deepl' is not selected." },
+        },
+      },
+    })
 
     render(<App />)
     await screen.findByLabelText("backend-connection-status")
@@ -2296,6 +2477,10 @@ describe("App shell", () => {
     expect(modelPicker).toHaveTextContent("da_dacy_small_trf-0.2.0")
 
     expect(screen.getByText(/backend default remains/i)).toBeInTheDocument()
+    expect(screen.getByLabelText("api-status-list")).toBeInTheDocument()
+    expect(screen.getByText("Backend API")).toBeInTheDocument()
+    expect(screen.getByText("Gemini API")).toBeInTheDocument()
+    expect(screen.getByText("DeepL API")).toBeInTheDocument()
   })
 
   it("deletes complete db from developer options", async () => {

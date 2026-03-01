@@ -8,7 +8,7 @@ Python API service for danote.
 - ASGI server: Uvicorn
 - Config/logging: standard library modules (`os`, `pathlib`, `logging`)
 - Database driver: `sqlite3` from Python standard library
-- Translation: DeepL API (`httpx` client) for Danish -> English
+- Translation: Gemini Flash (`google-genai`) by default, with optional DeepL fallback
 
 ## Database (Checkpoint 5)
 
@@ -110,6 +110,9 @@ From repo root, you can run a one-command setup for the pinned DaCy model:
 ```bash
 cd backend
 source .venv/bin/activate
+export DANOTE_TRANSLATION_PROVIDER="deepl"
+export DANOTE_GEMINI_API_KEY="your-gemini-key"
+export DANOTE_GEMINI_MODEL="gemini-3-flash-preview"
 export DANOTE_DEEPL_API_KEY="your-deepl-key"
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```

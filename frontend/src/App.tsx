@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import { BookOpen, Eye, Moon, NotebookPen, Plus, Save, Settings, Sun } from "lucide-react"
+import { Bell, BookOpen, Eye, Moon, NotebookPen, Plus, Save, Settings, Sun } from "lucide-react"
 import { useTheme } from "next-themes"
 
 import { Badge } from "@/components/ui/badge"
@@ -12,6 +12,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import { Button } from "@/components/ui/button"
+import { ButtonGroup } from "@/components/ui/button-group"
 import {
   Card,
   CardContent,
@@ -38,7 +39,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover"
+import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   Select,
@@ -69,6 +70,7 @@ import { mapAnalyzedTokensToHighlights } from "@/lib/token-highlights"
 import { toast } from "sonner"
 
 type ConnectionStatus = "loading" | "connected" | "degraded" | "offline"
+type ApiRuntimeStatus = "ok" | "degraded" | "inactive" | "missing_key" | "disabled" | "unknown"
 type TokenClassification = "known" | "variation" | "typo_likely" | "uncertain" | "new"
 type AppSection = "playground" | "notes" | "wordbank" | "sentencebank" | "developer"
 type TokenAction = "add_as_new"
@@ -102,6 +104,25 @@ type AddWordResponse = {
   stored_surface_form: string | null
   source: "manual"
   message: string
+  verification?: {
+    status: "verified" | "flagged" | "error" | "skipped" | "queued"
+    provider: string | null
+    reviewer_role: string | null
+    message: string
+    composed_word_count: number | null
+  } | null
+}
+
+type VerifyWordResponse = {
+  stored_lemma: string
+  stored_surface_form: string | null
+  verification: {
+    status: "verified" | "flagged" | "error" | "skipped" | "queued"
+    provider: string | null
+    reviewer_role: string | null
+    message: string
+    composed_word_count: number | null
+  }
 }
 
 type WordbankLemma = {
@@ -176,6 +197,20 @@ type AddSentenceResponse = {
   message: string
 }
 
+type HealthApiStatusEntry = {
+  status?: string
+  active?: boolean
+  configured?: boolean
+  message?: string | null
+}
+
+type HealthPayload = {
+  status?: string
+  service?: string
+  components?: Record<string, string>
+  apis?: Record<string, HealthApiStatusEntry>
+}
+
 type TokenFeedbackPayload = {
   raw_token: string
   predicted_status: string
@@ -223,6 +258,13 @@ type SavedNote = {
   discoveredTokenMetadata: Record<string, DiscoveredTokenMemory>
   generatedTranslationMap: Record<string, string | null>
   savedAt: string
+}
+
+type AppNotification = {
+  id: string
+  message: string
+  createdAt: string
+  read: boolean
 }
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? "http://127.0.0.1:8000"
@@ -291,6 +333,13 @@ function createSavedNoteId(): string {
   return `note-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 }
 
+function createNotificationId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID()
+  }
+  return `notification-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+}
+
 function formatSavedNoteTimestamp(value: string): string {
   const parsed = new Date(value)
   if (Number.isNaN(parsed.getTime())) {
@@ -311,6 +360,59 @@ function previewText(value: string, maxLength = 180): string {
     return normalized
   }
   return `${normalized.slice(0, maxLength - 1)}...`
+}
+
+function normalizeApiRuntimeStatus(value: string | undefined): ApiRuntimeStatus {
+  const normalized = (value ?? "").trim().toLocaleLowerCase("en-US")
+  if (normalized === "ok") {
+    return "ok"
+  }
+  if (normalized === "degraded") {
+    return "degraded"
+  }
+  if (normalized === "inactive") {
+    return "inactive"
+  }
+  if (normalized === "missing_key") {
+    return "missing_key"
+  }
+  if (normalized === "disabled") {
+    return "disabled"
+  }
+  return "unknown"
+}
+
+function apiStatusBadgeClass(status: ApiRuntimeStatus): string {
+  if (status === "ok") {
+    return "border-emerald-300 bg-emerald-50 text-emerald-700"
+  }
+  if (status === "degraded" || status === "missing_key") {
+    return "border-amber-300 bg-amber-50 text-amber-700"
+  }
+  if (status === "inactive" || status === "disabled") {
+    return "border-zinc-300 bg-zinc-50 text-zinc-700"
+  }
+  return "border-red-300 bg-red-50 text-red-700"
+}
+
+function humanizeApiStatus(status: ApiRuntimeStatus): string {
+  if (status === "missing_key") {
+    return "missing key"
+  }
+  return status
+}
+
+function humanizeApiName(name: string): string {
+  if (name === "backend") {
+    return "Backend API"
+  }
+  if (name === "gemini") {
+    return "Gemini API"
+  }
+  if (name === "deepl") {
+    return "DeepL API"
+  }
+  return name
 }
 
 async function extractErrorMessage(response: Response, fallback: string): Promise<string> {
@@ -740,10 +842,12 @@ function AppSidebar({
     querySurface: string
     queryLemma: string | null
     queryPosTag: string | null
+    queryMorphology: string | null
     daToEnTranslation: string | null
     enToDaTranslation: string | null
     enToDaLemma: string | null
     enToDaPosTag: string | null
+    enToDaMorphology: string | null
     queryLanguage: "en" | "da" | "ambiguous" | null
     queryLanguageConfidence: number | null
     matchedLemma: WordbankLemma | null
@@ -820,20 +924,25 @@ function AppSidebar({
     const querySurface = activeResolvedCandidate.querySurface.trim()
     const queryLemma = activeResolvedCandidate.queryLemma?.trim() || querySurface
     const queryPosTag = activeResolvedCandidate.queryPosTag
+    const queryMorphology = activeResolvedCandidate.queryMorphology
     const enToDa = activeResolvedCandidate.enToDaTranslation?.trim() || null
     const enToDaLemma = activeResolvedCandidate.enToDaLemma?.trim() || null
     const enToDaPosTag = activeResolvedCandidate.enToDaPosTag
+    const enToDaMorphology = activeResolvedCandidate.enToDaMorphology
     const daToEn = activeResolvedCandidate.daToEnTranslation?.trim() || null
     const queryLanguage = activeResolvedCandidate.queryLanguage
     const queryLanguageConfidence = activeResolvedCandidate.queryLanguageConfidence ?? 0
     const options: Array<{
       key: string
       translationLabel: string
+      direction: "da_to_en" | "en_to_da"
       directionLabel: string
       queryLabel: string
       surface: string
       lemma: string
+      showLemma: boolean
       posTag: string | null
+      morphology: string | null
     }> = []
 
     if (
@@ -844,11 +953,14 @@ function AppSidebar({
       options.push({
         key: `add-danish-${querySurface}-${queryLemma}`,
         translationLabel: daToEn || querySurface,
+        direction: "da_to_en",
         directionLabel: "Danish -> English",
         queryLabel: trimmedQuery,
         surface: querySurface,
         lemma: queryLemma,
+        showLemma: normalize(querySurface) !== normalize(queryLemma),
         posTag: queryPosTag,
+        morphology: queryMorphology,
       })
     }
 
@@ -858,11 +970,14 @@ function AppSidebar({
         options.push({
           key: `add-english-${trimmedQuery}-${enToDa}`,
           translationLabel: enToDa,
+          direction: "en_to_da",
           directionLabel: "English -> Danish",
           queryLabel: trimmedQuery,
           surface: enToDa,
           lemma: enToDaLemma || enToDa,
+          showLemma: normalize(enToDa) !== normalize(enToDaLemma || enToDa),
           posTag: enToDaPosTag,
+          morphology: enToDaMorphology,
         })
       }
     }
@@ -884,6 +999,8 @@ function AppSidebar({
     return {
       surface,
       lemma,
+      posTag: activeResolvedCandidate.queryPosTag,
+      morphology: activeResolvedCandidate.queryMorphology,
     }
   }, [activeResolvedCandidate])
   const hasWordbankSectionResults = hasWordbankResults || newWordOptions.length > 0
@@ -1044,10 +1161,12 @@ function AppSidebar({
             querySurface: normalizedQuerySurface || trimmedQuery,
             queryLemma: normalizedQueryLemma,
             queryPosTag: token.pos_tag ?? null,
+            queryMorphology: token.morphology ?? null,
             daToEnTranslation: matchedWordbankLemma.english_translation ?? null,
             enToDaTranslation: null,
             enToDaLemma: null,
             enToDaPosTag: null,
+            enToDaMorphology: null,
             queryLanguage: "da",
             queryLanguageConfidence: 1,
             matchedLemma: matchedWordbankLemma,
@@ -1065,6 +1184,7 @@ function AppSidebar({
         let enToDaTranslation: string | null = null
         let enToDaLemma: string | null = null
         let enToDaPosTag: string | null = null
+        let enToDaMorphology: string | null = null
         let queryLanguage: "en" | "da" | "ambiguous" | null = null
         let queryLanguageConfidence: number | null = null
 
@@ -1138,10 +1258,12 @@ function AppSidebar({
               )
               enToDaLemma = inferredLemma || null
               enToDaPosTag = translatedToken?.pos_tag ?? null
+              enToDaMorphology = translatedToken?.morphology ?? null
             }
           } catch {
             enToDaLemma = null
             enToDaPosTag = null
+            enToDaMorphology = null
           }
         }
 
@@ -1194,10 +1316,12 @@ function AppSidebar({
             querySurface: normalizeSearchWord(token.normalized_token || token.surface_token || trimmedQuery),
             queryLemma: normalizeSearchWord(token.lemma_candidate ?? token.lemma ?? "") || null,
             queryPosTag: token.pos_tag ?? null,
+            queryMorphology: token.morphology ?? null,
             daToEnTranslation,
             enToDaTranslation,
             enToDaLemma,
             enToDaPosTag,
+            enToDaMorphology,
             queryLanguage,
             queryLanguageConfidence,
             matchedLemma: null,
@@ -1296,20 +1420,57 @@ function AppSidebar({
                     }}
                     className="flex items-center justify-between gap-3"
                   >
-                    <span className="flex min-w-0 flex-col items-start gap-0.5">
+                    <div className="flex min-w-0 flex-col items-start gap-0.5">
+                      {(() => {
+                        const normalizedTranslation = option.translationLabel.trim().toLocaleLowerCase("da-DK")
+                        const normalizedLemma = option.lemma.trim().toLocaleLowerCase("da-DK")
+                        const showInlineLemma = option.direction === "en_to_da" && normalizedTranslation !== normalizedLemma
+                        return (
+                          <>
                       <span className="flex items-baseline gap-2">
                         <span className="font-medium">{option.translationLabel}</span>
+                        {showInlineLemma ? (
+                          <span className="text-muted-foreground text-xs">({option.lemma})</span>
+                        ) : null}
                         <span className="text-muted-foreground text-xs">{option.directionLabel}</span>
                       </span>
-                      <span className="text-muted-foreground text-xs">
-                        lemma: {option.lemma}
-                      </span>
-                      {option.posTag ? (
-                        <Badge variant="secondary" className={posBadgeClass(option.posTag)}>
-                          {option.posTag}
-                        </Badge>
+                      {option.showLemma && !showInlineLemma ? (
+                        <span className="text-muted-foreground text-xs">lemma: {option.lemma}</span>
                       ) : null}
-                    </span>
+                      <div className="mt-1 flex flex-wrap gap-1.5">
+                        {option.posTag ? (
+                          <Badge
+                            variant="secondary"
+                            className={`border-border/60 text-xs border ${posBadgeClass(option.posTag)}`.trim()}
+                            data-testid="search-metadata-badge"
+                          >
+                            {option.posTag}
+                          </Badge>
+                        ) : null}
+                        {option.posTag === "NOUN" && determinerWordTypeFromMorphology(option.morphology) ? (
+                          <Badge
+                            variant="secondary"
+                            className="border-border/60 text-xs border"
+                            data-testid="search-metadata-badge"
+                          >
+                            {determinerWordTypeFromMorphology(option.morphology)}
+                          </Badge>
+                        ) : null}
+                        {secondaryTagsForPos(option.posTag, option.morphology).map((tag) => (
+                          <Badge
+                            key={`${option.key}-${tag}`}
+                            variant="secondary"
+                            className="border-border/60 text-xs border"
+                            data-testid="search-metadata-badge"
+                          >
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                          </>
+                        )
+                      })()}
+                    </div>
                     <Plus data-testid="search-add-icon" className="text-muted-foreground size-4 shrink-0" />
                   </CommandItem>
                 ))}
@@ -1336,6 +1497,37 @@ function AppSidebar({
                     <span className="text-muted-foreground text-xs">
                       for lemma: {addVariationResult.lemma}
                     </span>
+                    <div className="mt-1 flex flex-wrap gap-1.5">
+                      {addVariationResult.posTag ? (
+                        <Badge
+                          variant="secondary"
+                          className={`border-border/60 text-xs border ${posBadgeClass(addVariationResult.posTag)}`.trim()}
+                          data-testid="search-metadata-badge"
+                        >
+                          {addVariationResult.posTag}
+                        </Badge>
+                      ) : null}
+                      {addVariationResult.posTag === "NOUN" &&
+                      determinerWordTypeFromMorphology(addVariationResult.morphology) ? (
+                        <Badge
+                          variant="secondary"
+                          className="border-border/60 text-xs border"
+                          data-testid="search-metadata-badge"
+                        >
+                          {determinerWordTypeFromMorphology(addVariationResult.morphology)}
+                        </Badge>
+                        ) : null}
+                      {secondaryTagsForPos(addVariationResult.posTag, addVariationResult.morphology).map((tag) => (
+                        <Badge
+                          key={`search-variation-${addVariationResult.surface}-${tag}`}
+                          variant="secondary"
+                          className="border-border/60 text-xs border"
+                          data-testid="search-metadata-badge"
+                        >
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
                   </CommandItem>
                 ) : null}
               </CommandGroup>
@@ -1460,6 +1652,7 @@ function AppSidebar({
 
 function App() {
   const [status, setStatus] = useState<ConnectionStatus>("loading")
+  const [healthPayload, setHealthPayload] = useState<HealthPayload | null>(null)
   const [activeSection, setActiveSection] = useState<AppSection>("playground")
   const [noteText, setNoteText] = useState("")
   const [savedNotes, setSavedNotes] = useState<SavedNote[]>([])
@@ -1472,6 +1665,8 @@ function App() {
   const [tokens, setTokens] = useState<AnalyzedToken[]>([])
   const [analysisError, setAnalysisError] = useState<string | null>(null)
   const [analysisRefreshTick, setAnalysisRefreshTick] = useState(0)
+  const [notifications, setNotifications] = useState<AppNotification[]>([])
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
   const [addingTokens, setAddingTokens] = useState<Record<string, boolean>>({})
   const [wordbankRefreshTick, setWordbankRefreshTick] = useState(0)
   const [sentencebankRefreshTick, setSentencebankRefreshTick] = useState(0)
@@ -1604,6 +1799,11 @@ function App() {
   }, [popoverDisplayToken])
   const popoverIsNoun = popoverDisplayToken?.pos_tag === "NOUN"
   const popoverIsVerbLike = popoverDisplayToken?.pos_tag === "VERB" || popoverDisplayToken?.pos_tag === "AUX"
+  const unreadNotifications = useMemo(
+    () => notifications.filter((notification) => !notification.read),
+    [notifications],
+  )
+  const hasUnreadNotifications = unreadNotifications.length > 0
   const activeSavedNote = useMemo(
     () => savedNotes.find((note) => note.id === activeNoteId) ?? null,
     [activeNoteId, savedNotes],
@@ -1662,6 +1862,35 @@ function App() {
     }
     return sentences.some((sentence) => normalizePhraseKey(sentence.source_text) === phraseKey)
   }, [phrasePopover.selectedText, sentences])
+  const apiStatusItems = useMemo(() => {
+    const apis = healthPayload?.apis ?? {}
+    const priorityOrder = ["backend", "gemini", "deepl"]
+    const orderedNames = [
+      ...priorityOrder.filter((name) => Object.hasOwn(apis, name)),
+      ...Object.keys(apis).filter((name) => !priorityOrder.includes(name)).sort(),
+    ]
+
+    if (orderedNames.length === 0) {
+      return [
+        {
+          name: "backend",
+          label: "Backend API",
+          status: status === "connected" ? "ok" : status === "degraded" ? "degraded" : "unknown",
+          message: null as string | null,
+        },
+      ]
+    }
+
+    return orderedNames.map((name) => {
+      const entry = apis[name] ?? {}
+      return {
+        name,
+        label: humanizeApiName(name),
+        status: normalizeApiRuntimeStatus(entry.status),
+        message: entry.message ?? null,
+      }
+    })
+  }, [healthPayload, status])
 
   useEffect(() => {
     setSavedNotes(loadSavedNotes())
@@ -1777,7 +2006,8 @@ function App() {
       try {
         const response = await fetch(`${BACKEND_URL}/api/health`)
         if (!cancelled && response.ok) {
-          const payload = (await response.json()) as { status?: string }
+          const payload = (await response.json()) as HealthPayload
+          setHealthPayload(payload)
           if (payload.status === "ok") {
             setStatus("connected")
             return
@@ -1787,6 +2017,7 @@ function App() {
             return
           }
           setStatus("offline")
+          setHealthPayload(null)
           return
         }
       } catch {
@@ -1795,6 +2026,7 @@ function App() {
 
       if (!cancelled) {
         setStatus("offline")
+        setHealthPayload(null)
       }
     }
 
@@ -2073,6 +2305,7 @@ function App() {
     try {
       const payload = await addWordToWordbank(requestSurface, requestLemma)
       toast.success(payload.message)
+      void verifyWordInBackground(payload.stored_lemma, payload.stored_surface_form)
       void postTokenFeedback({
         raw_token: token.surface_token,
         predicted_status: token.classification,
@@ -2099,6 +2332,7 @@ function App() {
     try {
       const payload = await addWordToWordbank(surfaceToken, lemmaCandidate)
       toast.success(payload.message)
+      void verifyWordInBackground(payload.stored_lemma, payload.stored_surface_form)
       setAnalysisRefreshTick((current) => current + 1)
       setWordbankRefreshTick((current) => current + 1)
       setActiveSection("wordbank")
@@ -2116,34 +2350,54 @@ function App() {
     const requestSurface = normalizeSearchWord(token.normalized_token || token.surface_token)
     const requestLemma = normalizeSearchWord(token.matched_lemma ?? token.lemma_candidate ?? token.lemma ?? "") || null
     const tokenKeys = translationKeysForToken(token)
-    if (tokenKeys.some((key) => Object.hasOwn(generatedTranslationMap, key))) {
+    const hasResolvedTranslation = tokenKeys.some((key) => {
+      if (!Object.hasOwn(generatedTranslationMap, key)) {
+        return false
+      }
+      return generatedTranslationMap[key] !== null
+    })
+    if (hasResolvedTranslation) {
       return
     }
 
     setIsGeneratingTranslation(true)
     setGenerateTranslationError(null)
     try {
-      const response = await fetch(`${BACKEND_URL}/api/wordbank/translation`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          surface_token: requestSurface,
-          lemma_candidate: requestLemma,
-        }),
-      })
-      if (!response.ok) {
-        const message = await extractErrorMessage(
-          response,
-          `Translation request failed with status ${response.status}`,
-        )
-        throw new Error(message)
+      let payload: GenerateTranslationResponse | null = null
+      let translation: string | null = null
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        const response = await fetch(`${BACKEND_URL}/api/wordbank/translation`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            surface_token: requestSurface,
+            lemma_candidate: requestLemma,
+          }),
+        })
+        if (!response.ok) {
+          const message = await extractErrorMessage(
+            response,
+            `Translation request failed with status ${response.status}`,
+          )
+          throw new Error(message)
+        }
+
+        const nextPayload = (await response.json()) as GenerateTranslationResponse
+        const nextTranslation = nextPayload.english_translation?.trim() || null
+        payload = nextPayload
+        translation = nextTranslation
+        if (nextTranslation) {
+          break
+        }
       }
 
-      const payload = (await response.json()) as GenerateTranslationResponse
+      if (!payload) {
+        return
+      }
+
       const responseKey = normalizeWordKey(payload.source_word || sourceWord)
-      const translation = payload.english_translation?.trim() || null
 
       setGeneratedTranslationMap((current) => {
         const next = { ...current }
@@ -2414,6 +2668,73 @@ function App() {
     setIsSaveDialogOpen(true)
   }
 
+  function pushNotification(message: string) {
+    const createdAt = new Date().toISOString()
+    const nextNotification: AppNotification = {
+      id: createNotificationId(),
+      message,
+      createdAt,
+      read: false,
+    }
+
+    setNotifications((current) => [nextNotification, ...current])
+  }
+
+  function briefErrorInfo(message: string | null | undefined): string {
+    const normalized = (message ?? "").replace(/\s+/gu, " ").trim()
+    if (!normalized) {
+      return ""
+    }
+    const withoutPrefix = normalized.replace(/^verification task failed:\s*/iu, "")
+    return withoutPrefix.length > 48 ? `${withoutPrefix.slice(0, 48).trim()}...` : withoutPrefix
+  }
+
+  function notifyWordVerification(storedLemma: string, verification: VerifyWordResponse["verification"]) {
+    if (!verification || verification.status === "skipped" || verification.status === "queued") {
+      return
+    }
+
+    const isOk = verification.status === "verified"
+    const verdict = isOk ? "OK" : "ERROR"
+    const count = verification.composed_word_count ?? 0
+    const composition = count > 1 ? ` ${count}w` : ""
+    const detail = isOk ? "" : briefErrorInfo(verification.message)
+    void storedLemma
+    pushNotification(`${verdict}${composition}${detail ? ` ${detail}` : ""}`)
+  }
+
+  async function verifyWordInBackground(storedLemma: string, storedSurfaceForm: string | null) {
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/wordbank/lexemes/verify`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          stored_lemma: storedLemma,
+          stored_surface_form: storedSurfaceForm,
+        }),
+      })
+      if (!response.ok) {
+        const message = await extractErrorMessage(
+          response,
+          `Verify word request failed with status ${response.status}`,
+        )
+        throw new Error(message)
+      }
+      const payload = (await response.json()) as VerifyWordResponse
+      notifyWordVerification(payload.stored_lemma, payload.verification)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : null
+      const detail = briefErrorInfo(message)
+      pushNotification(`ERROR${detail ? ` ${detail}` : ""}`)
+    }
+  }
+
+  function markAllNotificationsAsRead() {
+    setNotifications((current) => current.map((notification) => ({ ...notification, read: true })))
+  }
+
   function findDuplicateNameNoteId(name: string, excludedNoteId: string | null): string | null {
     const normalized = name.trim().toLocaleLowerCase()
     if (!normalized) {
@@ -2473,6 +2794,7 @@ function App() {
     setIsSaveDialogOpen(false)
     if (!options?.silent) {
       toast.success("Note saved.")
+      pushNotification(`Saved note: ${name}`)
     }
   }
 
@@ -2548,6 +2870,7 @@ function App() {
     setAutosaveStatus("saved")
     setIsSaveDialogOpen(false)
     toast.success("New note created.")
+    pushNotification(`Created new note: ${name}`)
   }
 
   function openSavedNoteInPlayground(note: SavedNote) {
@@ -2726,7 +3049,7 @@ function App() {
             <div className="space-y-3 pr-1">
               <div>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-                  <h2 className="text-4xl font-bold leading-tight">{lemmaDetails.lemma}</h2>
+                  <h2 className="mr-3 text-4xl font-bold leading-tight">{lemmaDetails.lemma}</h2>
                   {lemmaMetadataBadges.map((badge) => (
                     <Badge key={badge.key} variant="secondary" className={`text-xs ${badge.className}`.trim()}>
                       {badge.label}
@@ -3209,6 +3532,24 @@ function App() {
             Backend: <code>{BACKEND_URL}</code>
           </div>
           <div className="space-y-2">
+            <p className="text-sm font-medium">API status</p>
+            <div className="space-y-2" aria-label="api-status-list">
+              {apiStatusItems.map((item) => (
+                <div key={item.name} className="rounded-md border p-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm">{item.label}</span>
+                    <Badge variant="outline" className={apiStatusBadgeClass(item.status)}>
+                      {humanizeApiStatus(item.status)}
+                    </Badge>
+                  </div>
+                  {item.message ? (
+                    <p className="text-muted-foreground mt-1 text-xs">{item.message}</p>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-2">
             <p className="text-sm font-medium">NLP model</p>
             <Select value={selectedNlpModel} onValueChange={(value) => setSelectedNlpModel(value as NlpModelOption)}>
               <SelectTrigger aria-label="NLP model picker" className="w-full max-w-sm">
@@ -3285,7 +3626,7 @@ function App() {
             {status}
           </span>
           <div className="mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col">
-            <div className="mb-1 md:mb-2 flex items-center justify-between gap-3">
+            <div className="mb-6 md:mb-8 flex items-center justify-between gap-3">
               <AppBreadcrumb
                 activeSection={activeSection}
                 selectedLemma={selectedLemma}
@@ -3300,16 +3641,71 @@ function App() {
                   <p className="text-muted-foreground text-xs" aria-label="note-autosave-status">
                     {autosaveStatusLabel}
                   </p>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    className="gap-1.5"
-                    onClick={openSaveDialog}
-                  >
-                    <Save className="size-3.5" />
-                    {activeSavedNote ? "Create new note" : "Save note"}
-                  </Button>
+                  <ButtonGroup>
+                    <ButtonGroup>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5"
+                        onClick={openSaveDialog}
+                      >
+                        <Save className="size-3.5" />
+                        {activeSavedNote ? "Create new note" : "Save note"}
+                      </Button>
+                    </ButtonGroup>
+                    <ButtonGroup>
+                      <Popover
+                        open={isNotificationsOpen}
+                        onOpenChange={(open) => {
+                          setIsNotificationsOpen(open)
+                          if (open && hasUnreadNotifications) {
+                            markAllNotificationsAsRead()
+                          }
+                        }}
+                      >
+                        <PopoverTrigger asChild>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant={hasUnreadNotifications ? "default" : "outline"}
+                            className="gap-1.5"
+                            aria-label={
+                              hasUnreadNotifications
+                                ? `Show notifications (${unreadNotifications.length} unread)`
+                                : "No unread notifications"
+                            }
+                            disabled={!hasUnreadNotifications}
+                          >
+                            <Bell className="size-3.5" />
+                            {hasUnreadNotifications ? (
+                              <span className="text-[11px] leading-none">{unreadNotifications.length}</span>
+                            ) : null}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent align="end" className="w-80 space-y-2">
+                          <p className="text-sm font-medium">Notifications</p>
+                          {notifications.length === 0 ? (
+                            <p className="text-muted-foreground text-xs">No notifications yet.</p>
+                          ) : (
+                            <ul className="space-y-2" aria-label="notification-list">
+                              {notifications.map((notification) => (
+                                <li key={notification.id} className="rounded-md border px-3 py-2">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <p className="text-sm">{notification.message}</p>
+                                    {!notification.read ? <Badge variant="secondary">New</Badge> : null}
+                                  </div>
+                                  <p className="text-muted-foreground mt-1 text-xs">
+                                    {formatSavedNoteTimestamp(notification.createdAt)}
+                                  </p>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </PopoverContent>
+                      </Popover>
+                    </ButtonGroup>
+                  </ButtonGroup>
                 </div>
               ) : null}
             </div>

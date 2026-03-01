@@ -19,6 +19,8 @@ from app.api.schemas.v1.wordbank import (
     LemmaDetailsResponse,
     LemmaListResponse,
     ResetDatabaseResponse,
+    VerifyWordRequest,
+    VerifyWordResponse,
 )
 from app.services.use_cases import WordbankUseCase
 
@@ -40,6 +42,7 @@ def _wordbank_use_case(request: Request) -> WordbankUseCase:
         typo_engine=getattr(request.app.state, "typo_engine", None),
         translation_service=getattr(request.app.state, "translation_service", None),
         nlp_adapter=getattr(request.app.state, "nlp_adapter", None),
+        verification_service=getattr(request.app.state, "word_verification_service", None),
     )
 
 
@@ -53,6 +56,22 @@ def add_word(payload: AddWordRequest, request: Request) -> AddWordResponse:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except RuntimeError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+    except sqlite3.OperationalError as exc:
+        logger.exception("wordbank_db_operational_error")
+        raise HTTPException(
+            status_code=503,
+            detail=f"Database unavailable: {exc}",
+        ) from exc
+
+
+@router.post("/wordbank/lexemes/verify", response_model=VerifyWordResponse)
+def verify_added_word(payload: VerifyWordRequest, request: Request) -> VerifyWordResponse:
+    _require_db_ready(request)
+
+    try:
+        return _wordbank_use_case(request).verify_added_word(payload.stored_lemma, payload.stored_surface_form)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except sqlite3.OperationalError as exc:
         logger.exception("wordbank_db_operational_error")
         raise HTTPException(

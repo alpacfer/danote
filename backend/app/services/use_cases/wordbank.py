@@ -13,12 +13,14 @@ from app.api.schemas.v1.wordbank import (
     LemmaListResponse,
     LemmaSummary,
     ResetDatabaseResponse,
+    VerifyWordResponse,
 )
 from app.db.migrations import apply_migrations, get_connection
 from app.nlp.adapter import NLPAdapter
 from app.nlp.token_filter import is_wordlike_token
 from app.services.token_classifier import normalize_token
 from app.services.translation import TranslationService
+from app.services.verification import WordVerificationInput, WordVerificationService
 
 
 class WordbankUseCase:
@@ -46,11 +48,13 @@ class WordbankUseCase:
         typo_engine=None,
         translation_service: TranslationService | None = None,
         nlp_adapter: NLPAdapter | None = None,
+        verification_service: WordVerificationService | None = None,
     ):
         self._db_path = db_path
         self._typo_engine = typo_engine
         self._translation_service = translation_service
         self._nlp_adapter = nlp_adapter
+        self._verification_service = verification_service
 
     def add_word(self, surface_token: str, lemma_candidate: str | None) -> AddWordResponse:
         normalized_surface = normalize_token(surface_token)
@@ -64,6 +68,7 @@ class WordbankUseCase:
         inserted_surface_form = False
         lemma_translation = self._lookup_translation(stored_lemma)
         surface_translation = self._lookup_translation(normalized_surface) if normalized_surface else None
+        provider = self._translation_provider_name()
 
         with get_connection(self._db_path) as conn:
             cursor = conn.execute(
@@ -75,7 +80,7 @@ class WordbankUseCase:
                     stored_lemma,
                     "manual",
                     lemma_translation,
-                    "deepl" if lemma_translation else None,
+                    provider if lemma_translation else None,
                 ),
             )
             inserted_lexeme = cursor.rowcount == 1
@@ -91,10 +96,10 @@ class WordbankUseCase:
                 conn.execute(
                     """
                     UPDATE lexemes
-                    SET english_translation = ?, translation_provider = 'deepl'
+                    SET english_translation = ?, translation_provider = ?
                     WHERE id = ?
                     """,
-                    (lemma_translation, lexeme_row["id"]),
+                    (lemma_translation, provider, lexeme_row["id"]),
                 )
 
             if normalized_surface:
@@ -114,7 +119,7 @@ class WordbankUseCase:
                         normalized_surface,
                         "manual",
                         surface_translation,
-                        "deepl" if surface_translation else None,
+                        provider if surface_translation else None,
                     ),
                 )
                 inserted_surface_form = cursor.rowcount == 1
@@ -131,10 +136,10 @@ class WordbankUseCase:
                     conn.execute(
                         """
                         UPDATE surface_forms
-                        SET english_translation = ?, translation_provider = 'deepl'
+                        SET english_translation = ?, translation_provider = ?
                         WHERE lexeme_id = ? AND form = ?
                         """,
-                        (surface_translation, lexeme_row["id"], normalized_surface),
+                        (surface_translation, provider, lexeme_row["id"], normalized_surface),
                     )
 
         inserted = inserted_lexeme or inserted_surface_form
@@ -147,6 +152,7 @@ class WordbankUseCase:
             if inserted
             else f"'{stored_lemma}' is already in the wordbank."
         )
+        verification = self._queued_verification_result()
 
         return AddWordResponse(
             status=status,
@@ -154,6 +160,24 @@ class WordbankUseCase:
             stored_surface_form=normalized_surface or None,
             source="manual",
             message=message,
+            verification=verification,
+        )
+
+    def verify_added_word(self, stored_lemma: str, stored_surface_form: str | None) -> VerifyWordResponse:
+        normalized_lemma = normalize_token(stored_lemma)
+        normalized_surface = normalize_token(stored_surface_form or "") or None
+        if not normalized_lemma:
+            raise ValueError("stored_lemma is required")
+
+        payload = self._build_verification_input(
+            stored_lemma=normalized_lemma,
+            stored_surface_form=normalized_surface,
+        )
+        verification = self._verify_added_word(payload)
+        return VerifyWordResponse(
+            stored_lemma=normalized_lemma,
+            stored_surface_form=normalized_surface,
+            verification=verification,
         )
 
     def generate_translation(self, surface_token: str, lemma_candidate: str | None) -> GenerateTranslationResponse:
@@ -165,15 +189,16 @@ class WordbankUseCase:
             raise ValueError("surface_token or lemma_candidate is required")
 
         english_translation = self._lookup_translation(normalized_surface)
+        provider = self._translation_provider_name()
         if english_translation:
             with get_connection(self._db_path) as conn:
                 conn.execute(
                     """
                     UPDATE surface_forms
-                    SET english_translation = ?, translation_provider = 'deepl'
+                    SET english_translation = ?, translation_provider = ?
                     WHERE form = ?
                     """,
-                    (english_translation, normalized_surface),
+                    (english_translation, provider, normalized_surface),
                 )
 
         return GenerateTranslationResponse(
@@ -208,6 +233,7 @@ class WordbankUseCase:
                 )
 
             english_translation = self._lookup_translation(normalized_source_text)
+            provider = self._translation_provider_name()
             conn.execute(
                 """
                 INSERT INTO phrase_translations (
@@ -220,7 +246,7 @@ class WordbankUseCase:
                 (
                     normalized_source_text,
                     english_translation,
-                    "deepl" if english_translation else None,
+                    provider if english_translation else None,
                 ),
             )
 
@@ -321,10 +347,7 @@ class WordbankUseCase:
                 """
                 SELECT
                     l.lemma,
-                    CASE
-                        WHEN l.translation_provider = 'deepl' THEN l.english_translation
-                        ELSE NULL
-                    END AS english_translation,
+                    l.english_translation AS english_translation,
                     COUNT(sf.id) AS variation_count
                 FROM lexemes l
                 LEFT JOIN surface_forms sf ON sf.lexeme_id = l.id
@@ -356,10 +379,7 @@ class WordbankUseCase:
                 SELECT
                     id,
                     lemma,
-                    CASE
-                        WHEN translation_provider = 'deepl' THEN english_translation
-                        ELSE NULL
-                    END AS english_translation
+                    english_translation AS english_translation
                 FROM lexemes
                 WHERE lemma = ?
                 """,
@@ -373,10 +393,7 @@ class WordbankUseCase:
                 """
                 SELECT
                     form,
-                    CASE
-                        WHEN translation_provider = 'deepl' THEN english_translation
-                        ELSE NULL
-                    END AS english_translation
+                    english_translation AS english_translation
                 FROM surface_forms
                 WHERE lexeme_id = ?
                 ORDER BY form COLLATE NOCASE
@@ -469,11 +486,139 @@ class WordbankUseCase:
             return "da"
         return None
 
+    def _translation_provider_name(self) -> str:
+        provider = getattr(self._translation_service, "provider", None)
+        if isinstance(provider, str):
+            cleaned = provider.strip().lower()
+            if cleaned:
+                return cleaned
+        return "translation"
+
     def _display_lemma_for_list(self, lemma: str) -> str:
         pos_tag, _morphology = self._extract_pos_and_morphology(lemma)
         if pos_tag in {"VERB", "AUX"}:
             return f"at {lemma}"
         return lemma
+
+    def _queued_verification_result(self) -> AddWordResponse.VerificationResult:
+        if self._verification_service is None:
+            return AddWordResponse.VerificationResult(
+                status="skipped",
+                provider=None,
+                reviewer_role=None,
+                message="Word verification is disabled.",
+            )
+
+        provider_name, reviewer_name = self._verification_metadata()
+        return AddWordResponse.VerificationResult(
+            status="queued",
+            provider=provider_name,
+            reviewer_role=reviewer_name,
+            message="Word verification queued.",
+            composed_word_count=None,
+        )
+
+    def _verification_metadata(self) -> tuple[str, str | None]:
+        provider = getattr(self._verification_service, "provider", None)
+        reviewer_role = getattr(self._verification_service, "reviewer_role", None)
+        provider_name = provider.strip().lower() if isinstance(provider, str) and provider.strip() else "verification"
+        reviewer_name = reviewer_role.strip() if isinstance(reviewer_role, str) and reviewer_role.strip() else None
+        return provider_name, reviewer_name
+
+    def _build_verification_input(
+        self,
+        *,
+        stored_lemma: str,
+        stored_surface_form: str | None,
+    ) -> WordVerificationInput:
+        lexeme_source = "manual"
+        lexeme_translation: str | None = None
+        lexeme_translation_provider: str | None = None
+        surface_source: str | None = None
+        surface_translation: str | None = None
+        surface_translation_provider: str | None = None
+
+        with get_connection(self._db_path) as conn:
+            lexeme_row = conn.execute(
+                """
+                SELECT id, source, english_translation, translation_provider
+                FROM lexemes
+                WHERE lemma = ?
+                LIMIT 1
+                """,
+                (stored_lemma,),
+            ).fetchone()
+
+            if lexeme_row is not None:
+                lexeme_source = lexeme_row["source"]
+                lexeme_translation = lexeme_row["english_translation"]
+                lexeme_translation_provider = lexeme_row["translation_provider"]
+
+                if stored_surface_form:
+                    surface_row = conn.execute(
+                        """
+                        SELECT source, english_translation, translation_provider
+                        FROM surface_forms
+                        WHERE lexeme_id = ? AND form = ?
+                        LIMIT 1
+                        """,
+                        (lexeme_row["id"], stored_surface_form),
+                    ).fetchone()
+                    if surface_row is not None:
+                        surface_source = surface_row["source"]
+                        surface_translation = surface_row["english_translation"]
+                        surface_translation_provider = surface_row["translation_provider"]
+
+        lemma_pos_tag, lemma_morphology = self._extract_pos_and_morphology(stored_lemma)
+        surface_pos_tag: str | None = None
+        surface_morphology: str | None = None
+        if stored_surface_form:
+            surface_pos_tag, surface_morphology = self._extract_pos_and_morphology(stored_surface_form)
+
+        return WordVerificationInput(
+            stored_lemma=stored_lemma,
+            stored_surface_form=stored_surface_form,
+            lexeme_source=lexeme_source,
+            lexeme_translation=lexeme_translation,
+            lexeme_translation_provider=lexeme_translation_provider,
+            surface_source=surface_source,
+            surface_translation=surface_translation,
+            surface_translation_provider=surface_translation_provider,
+            lemma_pos_tag=lemma_pos_tag,
+            lemma_morphology=lemma_morphology,
+            surface_pos_tag=surface_pos_tag,
+            surface_morphology=surface_morphology,
+        )
+
+    def _verify_added_word(self, payload: WordVerificationInput) -> AddWordResponse.VerificationResult:
+        if self._verification_service is None:
+            return AddWordResponse.VerificationResult(
+                status="skipped",
+                provider=None,
+                reviewer_role=None,
+                message="Word verification is disabled.",
+            )
+
+        provider_name, reviewer_name = self._verification_metadata()
+
+        try:
+            verdict = self._verification_service.verify_word_entry(payload)
+        except Exception as exc:
+            return AddWordResponse.VerificationResult(
+                status="error",
+                provider=provider_name,
+                reviewer_role=reviewer_name,
+                message=f"Verification task failed: {exc}",
+                composed_word_count=None,
+            )
+
+        return AddWordResponse.VerificationResult(
+            status=verdict.verdict,
+            provider=provider_name,
+            reviewer_role=reviewer_name,
+            message=verdict.message,
+            composed_word_count=getattr(verdict, "composed_word_count", None),
+        )
 
     def reset_database(self) -> ResetDatabaseResponse:
         if self._db_path.exists():

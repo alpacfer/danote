@@ -58,6 +58,47 @@ def test_add_word_inserts_lemma_and_surface_form(tmp_path, stub_nlp_adapter_fact
     assert surface_row["source"] == "manual"
 
 
+def test_add_word_includes_verification_result_when_service_is_available(tmp_path, stub_nlp_adapter_factory) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    apply_migrations(db_path)
+    app = create_app(_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+
+    class StubVerificationService:
+        provider = "gemini"
+        reviewer_role = "Professional Danish Language Expert"
+
+        def verify_word_entry(self, _payload):
+            class Result:
+                verdict = "verified"
+                message = "Storage payload is linguistically coherent."
+
+            return Result()
+
+    with TestClient(app) as client:
+        client.app.state.word_verification_service = StubVerificationService()
+        response = client.post(
+            "/api/wordbank/lexemes",
+            json={"surface_token": "Bogen", "lemma_candidate": "bog"},
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["verification"]["status"] == "queued"
+    assert payload["verification"]["provider"] == "gemini"
+    assert payload["verification"]["reviewer_role"] == "Professional Danish Language Expert"
+
+    with TestClient(app) as client:
+        client.app.state.word_verification_service = StubVerificationService()
+        verify_response = client.post(
+            "/api/wordbank/lexemes/verify",
+            json={"stored_lemma": "bog", "stored_surface_form": "bogen"},
+        )
+
+    assert verify_response.status_code == 200
+    verify_payload = verify_response.json()
+    assert verify_payload["verification"]["status"] == "verified"
+
+
 def test_add_word_duplicate_is_graceful(tmp_path, stub_nlp_adapter_factory) -> None:
     db_path = tmp_path / "danote.sqlite3"
     apply_migrations(db_path)

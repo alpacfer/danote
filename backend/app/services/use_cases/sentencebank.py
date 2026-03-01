@@ -51,6 +51,7 @@ class SentencebankUseCase:
                 )
 
             english_translation = self._lookup_translation(normalized_source_text)
+            provider = self._translation_provider_name()
 
             conn.execute(
                 """
@@ -66,7 +67,7 @@ class SentencebankUseCase:
                     normalized_source_text,
                     normalized_key,
                     english_translation,
-                    "deepl" if english_translation else None,
+                    provider if english_translation else None,
                 ),
             )
 
@@ -107,3 +108,11 @@ class SentencebankUseCase:
             return self._translation_service.translate_da_to_en(source_text)
         except Exception:
             return None
+
+    def _translation_provider_name(self) -> str:
+        provider = getattr(self._translation_service, "provider", None)
+        if isinstance(provider, str):
+            cleaned = provider.strip().lower()
+            if cleaned:
+                return cleaned
+        return "translation"

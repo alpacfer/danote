@@ -53,11 +53,30 @@ class GeneratePhraseTranslationResponse(BaseModel):
 
 
 class AddWordResponse(BaseModel):
+    class VerificationResult(BaseModel):
+        status: Literal["verified", "flagged", "error", "skipped", "queued"]
+        provider: str | None = None
+        reviewer_role: str | None = None
+        message: str
+        composed_word_count: int | None = None
+
     status: Literal["inserted", "exists"]
     stored_lemma: str
     stored_surface_form: str | None
     source: Literal["manual"]
     message: str
+    verification: VerificationResult | None = None
+
+
+class VerifyWordRequest(BaseModel):
+    stored_lemma: str = Field(..., min_length=1)
+    stored_surface_form: str | None = None
+
+
+class VerifyWordResponse(BaseModel):
+    stored_lemma: str
+    stored_surface_form: str | None
+    verification: AddWordResponse.VerificationResult
 
 
 class LemmaSummary(BaseModel):

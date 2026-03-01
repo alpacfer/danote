@@ -10,6 +10,9 @@ BACKEND_PORT="${BACKEND_PORT:-8000}"
 FRONTEND_HOST="${FRONTEND_HOST:-127.0.0.1}"
 FRONTEND_PORT="${FRONTEND_PORT:-4173}"
 VITE_BACKEND_URL="${VITE_BACKEND_URL:-http://$BACKEND_HOST:$BACKEND_PORT}"
+DANOTE_TRANSLATION_PROVIDER="${DANOTE_TRANSLATION_PROVIDER:-deepl}"
+DANOTE_GEMINI_MODEL="${DANOTE_GEMINI_MODEL:-gemini-3-flash-preview}"
+DANOTE_GEMINI_API_KEY="${DANOTE_GEMINI_API_KEY:-AIzaSyCTDgy8kmCa4UB0KH8xfXeK4ToNOjLwlMI}"
 DANOTE_DEEPL_API_KEY="${DANOTE_DEEPL_API_KEY:-4f853833-6289-42af-86ca-3171a46e05d6:fx}"
 
 BACKEND_PID=""
@@ -73,9 +76,12 @@ ensure_frontend_env() {
 
 start_backend() {
   log "starting backend on http://$BACKEND_HOST:$BACKEND_PORT"
-  log "DeepL key configured for backend startup"
+  log "translation provider: $DANOTE_TRANSLATION_PROVIDER"
   (
     cd "$BACKEND_DIR"
+    export DANOTE_TRANSLATION_PROVIDER
+    export DANOTE_GEMINI_MODEL
+    export DANOTE_GEMINI_API_KEY
     export DANOTE_DEEPL_API_KEY
     exec ./.venv/bin/python -m uvicorn app.main:app --reload --host "$BACKEND_HOST" --port "$BACKEND_PORT"
   ) &
