@@ -97,8 +97,8 @@ def test_list_lemmas_returns_sorted_lemmas_with_variation_counts(tmp_path, stub_
     assert response.status_code == 200
     payload = response.json()
     assert payload["items"] == [
-        {"lemma": "bog", "english_translation": None, "variation_count": 2},
-        {"lemma": "hus", "english_translation": None, "variation_count": 1},
+        {"lemma": "bog", "display_lemma": "bog", "english_translation": None, "variation_count": 2},
+        {"lemma": "hus", "display_lemma": "hus", "english_translation": None, "variation_count": 1},
     ]
 
 
@@ -117,8 +117,8 @@ def test_get_lemma_details_returns_all_saved_variations(tmp_path, stub_nlp_adapt
     assert payload["lemma"] == "bog"
     assert payload["english_translation"] is None
     assert payload["surface_forms"] == [
-        {"form": "bogen", "english_translation": None},
-        {"form": "bogens", "english_translation": None},
+        {"form": "bogen", "english_translation": None, "pos_tag": None, "morphology": None},
+        {"form": "bogens", "english_translation": None, "pos_tag": None, "morphology": None},
     ]
 
 
@@ -234,6 +234,86 @@ def test_generate_reverse_translation_returns_generated_value(tmp_path, stub_nlp
         "status": "generated",
         "source_word": "house",
         "danish_translation": "hus",
+    }
+
+
+def test_generate_reverse_translation_normalizes_provider_case(tmp_path, stub_nlp_adapter_factory) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    apply_migrations(db_path)
+    app = create_app(_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+
+    class StubTranslationService:
+        def translate_da_to_en(self, text: str) -> str | None:
+            return None
+
+        def translate_en_to_da(self, text: str) -> str | None:
+            if text == "mug":
+                return "Krus"
+            return None
+
+    with TestClient(app) as client:
+        client.app.state.translation_service = StubTranslationService()
+        response = client.post(
+            "/api/wordbank/reverse-translation",
+            json={"source_word": "Mug"},
+        )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "status": "generated",
+        "source_word": "mug",
+        "danish_translation": "krus",
+    }
+
+
+def test_detect_word_language_returns_provider_detected_english(tmp_path, stub_nlp_adapter_factory) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    apply_migrations(db_path)
+    app = create_app(_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+
+    class StubTranslationService:
+        def translate_da_to_en(self, text: str) -> str | None:
+            return None
+
+        def translate_en_to_da(self, text: str) -> str | None:
+            return None
+
+        def detect_source_language(self, text: str) -> str | None:
+            if text == "house":
+                return "EN"
+            return None
+
+    with TestClient(app) as client:
+        client.app.state.translation_service = StubTranslationService()
+        response = client.post(
+            "/api/wordbank/detect-language",
+            json={"source_word": "House"},
+        )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "source_word": "house",
+        "language": "en",
+        "confidence": 0.82,
+    }
+
+
+def test_detect_word_language_returns_danish_for_danish_chars(tmp_path, stub_nlp_adapter_factory) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    apply_migrations(db_path)
+    app = create_app(_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/wordbank/detect-language",
+            json={"source_word": "børn"},
+        )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "source_word": "børn",
+        "language": "da",
+        "confidence": 0.99,
     }
 
 

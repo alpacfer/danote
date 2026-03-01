@@ -106,6 +106,7 @@ type AddWordResponse = {
 
 type WordbankLemma = {
   lemma: string
+  display_lemma?: string | null
   english_translation: string | null
   variation_count: number
 }
@@ -143,6 +144,12 @@ type GenerateReverseTranslationResponse = {
   status: "generated" | "unavailable"
   source_word: string
   danish_translation: string | null
+}
+
+type DetectWordLanguageResponse = {
+  source_word: string
+  language: "en" | "da" | "ambiguous"
+  confidence: number
 }
 
 type GeneratePhraseTranslationResponse = {
@@ -350,6 +357,10 @@ function normalizeWordKey(value: string): string {
 
 function normalizePhraseKey(value: string): string {
   return normalizeWordKey(value).replace(/\s+/gu, " ").trim()
+}
+
+function normalizeSearchWord(value: string): string {
+  return normalizePhraseKey(value)
 }
 
 function hasMultipleWords(value: string): boolean {
@@ -756,12 +767,17 @@ function AppSidebar({
     classification: TokenClassification
     querySurface: string
     queryLemma: string | null
+    queryPosTag: string | null
     daToEnTranslation: string | null
     enToDaTranslation: string | null
+    enToDaLemma: string | null
+    enToDaPosTag: string | null
+    queryLanguage: "en" | "da" | "ambiguous" | null
+    queryLanguageConfidence: number | null
     matchedLemma: WordbankLemma | null
   } | null>(null)
-  const trimmedQuery = searchQuery.trim()
-  const normalizedQuery = trimmedQuery.toLocaleLowerCase("da-DK")
+  const trimmedQuery = normalizeSearchWord(searchQuery)
+  const normalizedQuery = trimmedQuery
   const matchingLemmas = useMemo(() => {
     if (!normalizedQuery) {
       return []
@@ -831,14 +847,21 @@ function AppSidebar({
     const normalize = (value: string) => value.trim().toLocaleLowerCase("da-DK").replace(/\s+/gu, " ")
     const querySurface = activeResolvedCandidate.querySurface.trim()
     const queryLemma = activeResolvedCandidate.queryLemma?.trim() || querySurface
+    const queryPosTag = activeResolvedCandidate.queryPosTag
     const enToDa = activeResolvedCandidate.enToDaTranslation?.trim() || null
+    const enToDaLemma = activeResolvedCandidate.enToDaLemma?.trim() || null
+    const enToDaPosTag = activeResolvedCandidate.enToDaPosTag
     const daToEn = activeResolvedCandidate.daToEnTranslation?.trim() || null
+    const queryLanguage = activeResolvedCandidate.queryLanguage
+    const queryLanguageConfidence = activeResolvedCandidate.queryLanguageConfidence ?? 0
     const options: Array<{
       key: string
-      title: string
+      translationLabel: string
+      directionLabel: string
+      queryLabel: string
       surface: string
       lemma: string
-      translation: string | null
+      posTag: string | null
     }> = []
 
     if (
@@ -848,22 +871,26 @@ function AppSidebar({
     ) {
       options.push({
         key: `add-danish-${querySurface}-${queryLemma}`,
-        title: `Add Danish "${querySurface}" to wordbank (Danish -> English)`,
+        translationLabel: daToEn || querySurface,
+        directionLabel: "Danish -> English",
+        queryLabel: trimmedQuery,
         surface: querySurface,
         lemma: queryLemma,
-        translation: daToEn,
+        posTag: queryPosTag,
       })
     }
 
-    if (enToDa) {
+    if (enToDa && !(queryLanguage === "da" && queryLanguageConfidence >= 0.7)) {
       const isDuplicateSurface = options.some((option) => normalize(option.surface) === normalize(enToDa))
       if (!isDuplicateSurface) {
         options.push({
           key: `add-english-${trimmedQuery}-${enToDa}`,
-          title: `Add Danish "${enToDa}" to wordbank (English -> Danish from "${trimmedQuery}")`,
+          translationLabel: enToDa,
+          directionLabel: "English -> Danish",
+          queryLabel: trimmedQuery,
           surface: enToDa,
-          lemma: enToDa,
-          translation: trimmedQuery.trim() || null,
+          lemma: enToDaLemma || enToDa,
+          posTag: enToDaPosTag,
         })
       }
     }
@@ -1035,29 +1062,39 @@ function AppSidebar({
           : null
 
         if (matchedWordbankLemma) {
+          const normalizedQuerySurface = normalizeSearchWord(token.normalized_token || token.surface_token || trimmedQuery)
+          const normalizedQueryLemma = normalizeSearchWord(token.lemma_candidate ?? token.lemma ?? "") || null
           setResolvedQueryCandidate({
             query: normalizedQuery,
-            surface: token.surface_token || trimmedQuery,
+            surface: normalizedQuerySurface || trimmedQuery,
             lemma: token.matched_lemma ?? token.lemma_candidate ?? token.lemma ?? null,
             classification: token.classification,
-            translation: matchedWordbankLemma.english_translation ?? null,
-            querySurface: token.surface_token || trimmedQuery,
-            queryLemma: token.lemma_candidate ?? token.lemma ?? null,
+            querySurface: normalizedQuerySurface || trimmedQuery,
+            queryLemma: normalizedQueryLemma,
+            queryPosTag: token.pos_tag ?? null,
             daToEnTranslation: matchedWordbankLemma.english_translation ?? null,
             enToDaTranslation: null,
+            enToDaLemma: null,
+            enToDaPosTag: null,
+            queryLanguage: "da",
+            queryLanguageConfidence: 1,
             matchedLemma: matchedWordbankLemma,
           })
           return
         }
 
-        let resolvedSurface = token.surface_token || trimmedQuery
-        let resolvedLemma = token.lemma_candidate ?? token.lemma ?? null
+        let resolvedSurface = normalizeSearchWord(token.normalized_token || token.surface_token || trimmedQuery)
+        let resolvedLemma = normalizeSearchWord(token.lemma_candidate ?? token.lemma ?? "") || null
         const normalizeComparable = (value: string) =>
           value.trim().toLocaleLowerCase("da-DK").replace(/\s+/gu, " ")
-        const sourceForDaToEn = token.surface_token || trimmedQuery
+        const sourceForDaToEn = normalizeSearchWord(token.normalized_token || token.surface_token || trimmedQuery)
         const sourceForEnToDa = trimmedQuery
         let daToEnTranslation: string | null = null
         let enToDaTranslation: string | null = null
+        let enToDaLemma: string | null = null
+        let enToDaPosTag: string | null = null
+        let queryLanguage: "en" | "da" | "ambiguous" | null = null
+        let queryLanguageConfidence: number | null = null
 
         try {
           const translationResponse = await fetch(`${BACKEND_URL}/api/wordbank/translation`, {
@@ -1095,7 +1132,9 @@ function AppSidebar({
           })
           if (reverseResponse.ok) {
             const reversePayload = (await reverseResponse.json()) as GenerateReverseTranslationResponse
-            const translated = reversePayload.danish_translation?.trim() || null
+            const translated = reversePayload.danish_translation
+              ? normalizeSearchWord(reversePayload.danish_translation)
+              : null
             if (translated && normalizeComparable(translated) !== normalizeComparable(sourceForEnToDa)) {
               enToDaTranslation = translated
             }
@@ -1104,11 +1143,68 @@ function AppSidebar({
           enToDaTranslation = null
         }
 
+        if (enToDaTranslation) {
+          try {
+            const translatedAnalyzeResponse = await fetch(`${BACKEND_URL}/api/analyze`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                text: enToDaTranslation,
+              }),
+              signal: controller.signal,
+            })
+            if (translatedAnalyzeResponse.ok) {
+              const translatedPayload = (await translatedAnalyzeResponse.json()) as { tokens?: AnalyzedToken[] }
+              const translatedToken = translatedPayload.tokens?.[0]
+              const inferredLemma = normalizeSearchWord(
+                translatedToken?.matched_lemma ??
+                translatedToken?.lemma_candidate ??
+                translatedToken?.lemma ??
+                "",
+              )
+              enToDaLemma = inferredLemma || null
+              enToDaPosTag = translatedToken?.pos_tag ?? null
+            }
+          } catch {
+            enToDaLemma = null
+            enToDaPosTag = null
+          }
+        }
+
+        try {
+          const detectLanguageResponse = await fetch(`${BACKEND_URL}/api/wordbank/detect-language`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              source_word: sourceForEnToDa,
+            }),
+            signal: controller.signal,
+          })
+          if (detectLanguageResponse.ok) {
+            const detectPayload = (await detectLanguageResponse.json()) as DetectWordLanguageResponse
+            queryLanguage = detectPayload.language
+            queryLanguageConfidence = Number.isFinite(detectPayload.confidence)
+              ? Math.max(0, Math.min(1, detectPayload.confidence))
+              : null
+          }
+        } catch {
+          queryLanguage = null
+          queryLanguageConfidence = null
+        }
+
         if (
           token.match_source === "none" &&
           enToDaTranslation &&
           (
-            isLikelyEnglishWord(trimmedQuery) ||
+            queryLanguage === "en" ||
+            (
+              queryLanguage !== "da" &&
+              isLikelyEnglishWord(trimmedQuery)
+            ) ||
             !resolvedLemma ||
             normalizeComparable(resolvedLemma) === normalizeComparable(sourceForEnToDa)
           )
@@ -1123,10 +1219,15 @@ function AppSidebar({
             surface: resolvedSurface,
             lemma: resolvedLemma,
             classification: token.classification,
-            querySurface: token.surface_token || trimmedQuery,
-            queryLemma: token.lemma_candidate ?? token.lemma ?? null,
+            querySurface: normalizeSearchWord(token.normalized_token || token.surface_token || trimmedQuery),
+            queryLemma: normalizeSearchWord(token.lemma_candidate ?? token.lemma ?? "") || null,
+            queryPosTag: token.pos_tag ?? null,
             daToEnTranslation,
             enToDaTranslation,
+            enToDaLemma,
+            enToDaPosTag,
+            queryLanguage,
+            queryLanguageConfidence,
             matchedLemma: null,
           })
         }
@@ -1179,7 +1280,7 @@ function AppSidebar({
           <CommandInput
             placeholder="Search words and notes..."
             value={searchQuery}
-            onValueChange={setSearchQuery}
+            onValueChange={(value) => setSearchQuery(normalizeSearchWord(value))}
             aria-label="command search"
           />
           <CommandList>
@@ -1211,7 +1312,7 @@ function AppSidebar({
                 {newWordOptions.map((option) => (
                   <CommandItem
                     key={option.key}
-                    value={`new-word-${option.surface} ${option.lemma} ${option.translation ?? ""}`}
+                    value={`new-word-${option.surface} ${option.lemma} ${option.translationLabel} ${option.directionLabel} ${option.queryLabel}`}
                     onSelect={() => {
                       void (async () => {
                         const addedLemma = await onAddWordFromSearch(option.surface, option.lemma)
@@ -1221,15 +1322,23 @@ function AppSidebar({
                         }
                       })()
                     }}
-                    className="flex-col items-start gap-0.5"
+                    className="flex items-center justify-between gap-3"
                   >
-                    <span className="font-medium">{option.title}</span>
-                    <span className="text-muted-foreground text-xs">
-                      Lemma: {option.lemma}
+                    <span className="flex min-w-0 flex-col items-start gap-0.5">
+                      <span className="flex items-baseline gap-2">
+                        <span className="font-medium">{option.translationLabel}</span>
+                        <span className="text-muted-foreground text-xs">{option.directionLabel}</span>
+                      </span>
+                      <span className="text-muted-foreground text-xs">
+                        lemma: {option.lemma}
+                      </span>
+                      {option.posTag ? (
+                        <Badge variant="secondary" className={posBadgeClass(option.posTag)}>
+                          {option.posTag}
+                        </Badge>
+                      ) : null}
                     </span>
-                    <span className="text-muted-foreground text-xs">
-                      {option.translation?.trim() || "No translation available."}
-                    </span>
+                    <Plus data-testid="search-add-icon" className="text-muted-foreground size-4 shrink-0" />
                   </CommandItem>
                 ))}
                 {addVariationResult ? (
@@ -1941,14 +2050,16 @@ function App() {
         : "Autosave off"
 
   async function addWordToWordbank(surfaceToken: string, lemmaCandidate: string | null): Promise<AddWordResponse> {
+    const normalizedSurfaceToken = normalizeSearchWord(surfaceToken)
+    const normalizedLemmaCandidate = lemmaCandidate ? normalizeSearchWord(lemmaCandidate) : null
     const response = await fetch(`${BACKEND_URL}/api/wordbank/lexemes`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        surface_token: surfaceToken,
-        lemma_candidate: lemmaCandidate,
+        surface_token: normalizedSurfaceToken,
+        lemma_candidate: normalizedLemmaCandidate,
       }),
     })
 
@@ -2012,7 +2123,9 @@ function App() {
   }
 
   async function generateTranslationForToken(token: AnalyzedToken) {
-    const sourceWord = token.normalized_token || token.surface_token
+    const sourceWord = normalizeSearchWord(token.normalized_token || token.surface_token)
+    const requestSurface = normalizeSearchWord(token.normalized_token || token.surface_token)
+    const requestLemma = normalizeSearchWord(token.matched_lemma ?? token.lemma_candidate ?? token.lemma ?? "") || null
     const tokenKeys = translationKeysForToken(token)
     if (tokenKeys.some((key) => Object.hasOwn(generatedTranslationMap, key))) {
       return
@@ -2027,8 +2140,8 @@ function App() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          surface_token: token.surface_token,
-          lemma_candidate: token.matched_lemma ?? token.lemma_candidate ?? token.lemma,
+          surface_token: requestSurface,
+          lemma_candidate: requestLemma,
         }),
       })
       if (!response.ok) {
@@ -2527,7 +2640,7 @@ function App() {
                           className="w-auto"
                           onClick={() => setSelectedLemma(lemma.lemma)}
                         >
-                          {lemma.lemma}
+                          {lemma.display_lemma?.trim() || lemma.lemma}
                         </Button>
                       ))}
                     </div>

@@ -8,6 +8,8 @@ from app.api.schemas.v1.sentencebank import (
 from app.api.schemas.v1.wordbank import (
     AddWordRequest,
     AddWordResponse,
+    DetectWordLanguageRequest,
+    DetectWordLanguageResponse,
     GeneratePhraseTranslationRequest,
     GeneratePhraseTranslationResponse,
     GenerateReverseTranslationRequest,
@@ -24,6 +26,8 @@ __all__ = [
     "AnalyzedToken",
     "AddWordRequest",
     "AddWordResponse",
+    "DetectWordLanguageRequest",
+    "DetectWordLanguageResponse",
     "GeneratePhraseTranslationRequest",
     "GeneratePhraseTranslationResponse",
     "GenerateReverseTranslationRequest",

@@ -13,8 +13,9 @@ from app.nlp.adapter import NLPToken
 
 
 class FakeTranslationService:
-    def __init__(self, mapping: dict[str, str]):
+    def __init__(self, mapping: dict[str, str], detected_languages: dict[str, str] | None = None):
         self._mapping = mapping
+        self._detected_languages = detected_languages or {}
         self.calls: list[str] = []
 
     def translate_da_to_en(self, text: str) -> str | None:
@@ -24,6 +25,10 @@ class FakeTranslationService:
     def translate_en_to_da(self, text: str) -> str | None:
         self.calls.append(text)
         return self._mapping.get(text)
+
+    def detect_source_language(self, text: str) -> str | None:
+        self.calls.append(text)
+        return self._detected_languages.get(text)
 
 class FakeNLPAdapter:
     def tokenize(self, text: str) -> list[NLPToken]:
@@ -69,6 +74,7 @@ def test_wordbank_use_case_round_trip(tmp_path: Path) -> None:
 
     listing = use_case.list_lemmas()
     assert listing.items[0].lemma == "bog"
+    assert listing.items[0].display_lemma == "bog"
     assert listing.items[0].variation_count == 1
     assert listing.items[0].english_translation is None
 
@@ -133,6 +139,39 @@ def test_wordbank_use_case_includes_pos_and_morphology_when_nlp_available(tmp_pa
     ]
 
 
+def test_wordbank_list_lemmas_displays_verbs_with_at_prefix(tmp_path: Path) -> None:
+    class VerbListNLPAdapter:
+        def tokenize(self, text: str) -> list[NLPToken]:
+            return [
+                NLPToken(
+                    text=text,
+                    lemma=text.lower(),
+                    pos="VERB",
+                    morphology="VerbForm=Inf",
+                    is_punctuation=False,
+                )
+            ]
+
+        def lemma_candidates_for_token(self, token: str) -> list[str]:
+            return [token.lower()]
+
+        def lemma_for_token(self, token: str) -> str | None:
+            return token.lower()
+
+        def metadata(self) -> dict[str, str]:
+            return {"adapter": "verb-list-fake"}
+
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        nlp_adapter=VerbListNLPAdapter(),
+    )
+    use_case.add_word("laver", "lave")
+
+    listing = use_case.list_lemmas()
+    assert listing.items[0].lemma == "lave"
+    assert listing.items[0].display_lemma == "at lave"
+
+
 def test_wordbank_generate_translation_uses_surface_form_not_lemma(tmp_path: Path) -> None:
     use_case = WordbankUseCase(
         _db_path(tmp_path),
@@ -182,6 +221,50 @@ def test_wordbank_generate_reverse_translation_uses_en_to_da_provider(tmp_path: 
     assert generated.source_word == "house"
     assert generated.danish_translation == "hus"
 
+
+def test_wordbank_generate_reverse_translation_normalizes_provider_case(tmp_path: Path) -> None:
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        translation_service=FakeTranslationService({"mug": "Krus"}),
+    )
+
+    generated = use_case.generate_reverse_translation("Mug")
+    assert generated.status == "generated"
+    assert generated.source_word == "mug"
+    assert generated.danish_translation == "krus"
+
+
+def test_wordbank_detect_word_language_uses_provider_signal(tmp_path: Path) -> None:
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        translation_service=FakeTranslationService({}, detected_languages={"house": "EN"}),
+    )
+
+    detected = use_case.detect_word_language("House")
+    assert detected.source_word == "house"
+    assert detected.language == "en"
+    assert detected.confidence == 0.82
+
+
+def test_wordbank_detect_word_language_handles_danish_characters_without_provider(tmp_path: Path) -> None:
+    use_case = WordbankUseCase(_db_path(tmp_path), translation_service=FakeTranslationService({}))
+
+    detected = use_case.detect_word_language("børn")
+    assert detected.source_word == "børn"
+    assert detected.language == "da"
+    assert detected.confidence == 0.99
+
+
+def test_wordbank_detect_word_language_marks_short_homographs_as_ambiguous(tmp_path: Path) -> None:
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        translation_service=FakeTranslationService({}, detected_languages={"is": "EN"}),
+    )
+
+    detected = use_case.detect_word_language("is")
+    assert detected.source_word == "is"
+    assert detected.language == "ambiguous"
+    assert detected.confidence == 0.4
 
 def test_sentencebank_use_case_add_and_list(tmp_path: Path) -> None:
     use_case = SentencebankUseCase(

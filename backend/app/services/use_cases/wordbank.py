@@ -5,6 +5,7 @@ from typing import Literal
 
 from app.api.schemas.v1.wordbank import (
     AddWordResponse,
+    DetectWordLanguageResponse,
     GeneratePhraseTranslationResponse,
     GenerateReverseTranslationResponse,
     GenerateTranslationResponse,
@@ -21,6 +22,24 @@ from app.services.translation import TranslationService
 
 
 class WordbankUseCase:
+    _AMBIGUOUS_SHORT_WORDS = frozenset(
+        {
+            "an",
+            "at",
+            "de",
+            "den",
+            "det",
+            "en",
+            "for",
+            "gift",
+            "i",
+            "in",
+            "is",
+            "it",
+            "to",
+        }
+    )
+
     def __init__(
         self,
         db_path,
@@ -215,11 +234,85 @@ class WordbankUseCase:
         normalized_source = normalize_token(source_word)
         if not normalized_source:
             raise ValueError("source_word is required")
-        danish_translation = self._lookup_reverse_translation(normalized_source)
+        danish_translation_raw = self._lookup_reverse_translation(normalized_source)
+        danish_translation = normalize_token(danish_translation_raw) if danish_translation_raw else None
         return GenerateReverseTranslationResponse(
             status="generated" if danish_translation else "unavailable",
             source_word=normalized_source,
             danish_translation=danish_translation,
+        )
+
+    def detect_word_language(self, source_word: str) -> DetectWordLanguageResponse:
+        normalized_source = normalize_token(source_word)
+        if not normalized_source:
+            raise ValueError("source_word is required")
+
+        normalized_lower = normalized_source.lower()
+        if any(char in normalized_lower for char in ("æ", "ø", "å")):
+            return DetectWordLanguageResponse(
+                source_word=normalized_source,
+                language="da",
+                confidence=0.99,
+            )
+
+        if " " in normalized_source:
+            return DetectWordLanguageResponse(
+                source_word=normalized_source,
+                language="ambiguous",
+                confidence=0.25,
+            )
+
+        if not normalized_lower.isascii() or not normalized_lower.replace("-", "").replace("'", "").isalpha():
+            return DetectWordLanguageResponse(
+                source_word=normalized_source,
+                language="ambiguous",
+                confidence=0.25,
+            )
+
+        detected_source_language = self._lookup_detected_source_language(normalized_source)
+        if normalized_lower in self._AMBIGUOUS_SHORT_WORDS:
+            return DetectWordLanguageResponse(
+                source_word=normalized_source,
+                language="ambiguous",
+                confidence=0.4,
+            )
+
+        if len(normalized_lower) <= 2:
+            if detected_source_language in {"en", "da"}:
+                return DetectWordLanguageResponse(
+                    source_word=normalized_source,
+                    language=detected_source_language,
+                    confidence=0.45,
+                )
+            return DetectWordLanguageResponse(
+                source_word=normalized_source,
+                language="ambiguous",
+                confidence=0.4,
+            )
+
+        if detected_source_language in {"en", "da"}:
+            return DetectWordLanguageResponse(
+                source_word=normalized_source,
+                language=detected_source_language,
+                confidence=0.82,
+            )
+
+        fallback_english_like = bool(
+            normalized_lower
+            and normalized_lower[0].isalpha()
+            and any(char in "aeiouy" for char in normalized_lower)
+        )
+        if fallback_english_like:
+            return DetectWordLanguageResponse(
+                source_word=normalized_source,
+                language="en",
+                confidence=0.55,
+            )
+
+        return DetectWordLanguageResponse(
+            source_word=normalized_source,
+            language="ambiguous",
+            confidence=0.35,
         )
 
     def list_lemmas(self) -> LemmaListResponse:
@@ -244,6 +337,7 @@ class WordbankUseCase:
             items=[
                 LemmaSummary(
                     lemma=row["lemma"],
+                    display_lemma=self._display_lemma_for_list(row["lemma"]),
                     english_translation=row["english_translation"],
                     variation_count=int(row["variation_count"]),
                 )
@@ -351,6 +445,35 @@ class WordbankUseCase:
             return translate_en_to_da(source_word)
         except Exception:
             return None
+
+    def _lookup_detected_source_language(self, source_word: str) -> str | None:
+        if self._translation_service is None:
+            return None
+
+        detect_source_language = getattr(self._translation_service, "detect_source_language", None)
+        if not callable(detect_source_language):
+            return None
+
+        try:
+            provider_language = detect_source_language(source_word)
+        except Exception:
+            return None
+
+        if not provider_language:
+            return None
+
+        normalized = provider_language.strip().lower()
+        if normalized.startswith("en"):
+            return "en"
+        if normalized.startswith("da"):
+            return "da"
+        return None
+
+    def _display_lemma_for_list(self, lemma: str) -> str:
+        pos_tag, _morphology = self._extract_pos_and_morphology(lemma)
+        if pos_tag in {"VERB", "AUX"}:
+            return f"at {lemma}"
+        return lemma
 
     def reset_database(self) -> ResetDatabaseResponse:
         if self._db_path.exists():

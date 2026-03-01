@@ -32,6 +32,16 @@ class GenerateReverseTranslationResponse(BaseModel):
     danish_translation: str | None
 
 
+class DetectWordLanguageRequest(BaseModel):
+    source_word: str = Field(..., min_length=1)
+
+
+class DetectWordLanguageResponse(BaseModel):
+    source_word: str
+    language: Literal["en", "da", "ambiguous"]
+    confidence: float
+
+
 class GeneratePhraseTranslationRequest(BaseModel):
     source_text: str = Field(..., min_length=1)
 
@@ -52,6 +62,7 @@ class AddWordResponse(BaseModel):
 
 class LemmaSummary(BaseModel):
     lemma: str
+    display_lemma: str
     english_translation: str | None
     variation_count: int
 

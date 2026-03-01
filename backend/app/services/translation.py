@@ -14,6 +14,7 @@ class TranslationError(RuntimeError):
 class TranslationService(Protocol):
     def translate_da_to_en(self, text: str) -> str | None: ...
     def translate_en_to_da(self, text: str) -> str | None: ...
+    def detect_source_language(self, text: str) -> str | None: ...
 
 
 @dataclass
@@ -117,6 +118,32 @@ class DeepLTranslationService:
             source_code="EN",
             target_code="DA",
         )
+
+    def detect_source_language(self, text: str) -> str | None:
+        normalized = text.strip()
+        if not normalized:
+            return None
+
+        payload = {
+            "text": [normalized],
+            "target_lang": "DA",
+        }
+        headers = {"Authorization": f"DeepL-Auth-Key {self.api_key}"}
+        response = self._post_with_retry(payload=payload, headers=headers)
+
+        try:
+            body = response.json()
+        except ValueError as exc:
+            raise TranslationError("DeepL language detection response was not valid JSON.") from exc
+
+        entries = body.get("translations")
+        if not isinstance(entries, list) or not entries:
+            return None
+
+        first = entries[0]
+        detected = first.get("detected_source_language") if isinstance(first, dict) else None
+        cleaned = detected.strip().upper() if isinstance(detected, str) else ""
+        return cleaned or None
 
     def _translate_with_context(
         self,
