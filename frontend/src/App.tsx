@@ -379,19 +379,6 @@ function preferredPopoverSide(lineTop: number, lineBottom: number): "top" | "bot
 
 type NumberLabel = "Singular" | "Plural"
 
-function nounArticleFromMorphology(morphology: string | null): "en" | "et" | null {
-  if (!morphology) {
-    return null
-  }
-  if (/(^|\|)Gender=Com(\||$)/u.test(morphology)) {
-    return "en"
-  }
-  if (/(^|\|)Gender=Neut(\||$)/u.test(morphology)) {
-    return "et"
-  }
-  return null
-}
-
 function numberFromMorphology(morphology: string | null): NumberLabel | null {
   if (!morphology) {
     return null
@@ -524,21 +511,6 @@ function posBadgeClass(posTag: string | null): string {
   }
 
   return colorByPos[posTag] ?? "bg-muted text-muted-foreground border-transparent"
-}
-
-function lemmaLabelForPos(lemma: string, posTag: string | null, morphology: string | null): string {
-  if (posTag === "NOUN") {
-    const article = nounArticleFromMorphology(morphology)
-    return article ? `${lemma} (${article})` : lemma
-  }
-  if (posTag === "VERB" || posTag === "AUX") {
-    return `at ${lemma}`
-  }
-  return lemma
-}
-
-function shouldShowLemmaLabel(surface: string, lemmaLabel: string, posTag: string | null): boolean {
-  return posTag === "NOUN" || lemmaLabel !== surface
 }
 
 function secondaryTagsForPos(posTag: string | null, morphology: string | null): string[] {
@@ -1638,23 +1610,40 @@ function App() {
   )
   const activeSavedNoteId = activeSavedNote?.id ?? null
   const activeSavedNoteName = activeSavedNote?.name ?? null
-  const popoverLemmaLabel = useMemo(() => {
-    if (!popoverLemma) {
-      return null
-    }
-    return lemmaLabelForPos(popoverLemma, popoverDisplayToken?.pos_tag ?? null, popoverDisplayToken?.morphology ?? null)
-  }, [popoverDisplayToken?.morphology, popoverDisplayToken?.pos_tag, popoverLemma])
+  const popoverLemmaText = popoverLemma?.trim() ?? null
+  const popoverSurfaceText = popoverDisplayToken?.surface_token?.trim() ?? null
   const showPopoverLemma = Boolean(
-    popoverLemmaLabel &&
-    popoverDisplayToken &&
-    (popoverIsNoun || popoverLemmaLabel !== popoverDisplayToken.surface_token),
+    popoverLemmaText &&
+    popoverSurfaceText &&
+    popoverLemmaText.toLocaleLowerCase("da-DK") !== popoverSurfaceText.toLocaleLowerCase("da-DK"),
   )
-  const popoverSecondaryTags = useMemo(() => {
-    return secondaryTagsForPos(popoverDisplayToken?.pos_tag ?? null, popoverDisplayToken?.morphology ?? null)
-  }, [
-    popoverDisplayToken?.morphology,
-    popoverDisplayToken?.pos_tag,
-  ])
+  const popoverMetadataBadges = useMemo(() => {
+    if (!popoverDisplayToken) {
+      return []
+    }
+    return [
+      popoverDisplayToken.pos_tag
+        ? {
+          key: `popover-meta-pos-${popoverDisplayToken.pos_tag}`,
+          label: popoverDisplayToken.pos_tag,
+          className: posBadgeClass(popoverDisplayToken.pos_tag),
+        }
+        : null,
+      ...(popoverDisplayToken.pos_tag === "NOUN"
+        ? [determinerWordTypeFromMorphology(popoverDisplayToken.morphology)]
+        : []
+      ).filter((value): value is string => Boolean(value)).map((value) => ({
+        key: `popover-meta-wordtype-${value}`,
+        label: value,
+        className: "",
+      })),
+      ...secondaryTagsForPos(popoverDisplayToken.pos_tag, popoverDisplayToken.morphology).map((value) => ({
+        key: `popover-meta-tag-${value}`,
+        label: value,
+        className: "",
+      })),
+    ].filter((value): value is { key: string; label: string; className: string } => Boolean(value))
+  }, [popoverDisplayToken])
   const showTranslationSkeleton = isGeneratingTranslation || (
     (popoverIsNoun || popoverIsVerbLike) &&
     (!popoverTranslation || Boolean(generateTranslationError))
@@ -2657,14 +2646,30 @@ function App() {
     const variationForms = lemmaDetails?.surface_forms.filter(
       (form) => form.form.trim().toLocaleLowerCase("da-DK") !== normalizedSelectedLemma,
     ) ?? []
-    const lemmaCardLabel = lemmaDetails
-      ? lemmaLabelForPos(lemmaDetails.lemma, lemmaDetails.pos_tag, lemmaDetails.morphology)
-      : null
-    const showLemmaCardLabel = Boolean(
-      lemmaDetails &&
-      lemmaCardLabel &&
-      shouldShowLemmaLabel(lemmaDetails.lemma, lemmaCardLabel, lemmaDetails.pos_tag),
-    )
+    const lemmaMetadataBadges = lemmaDetails
+      ? [
+        lemmaDetails.pos_tag
+          ? {
+            key: `lemma-meta-pos-${lemmaDetails.pos_tag}`,
+            label: lemmaDetails.pos_tag,
+            className: posBadgeClass(lemmaDetails.pos_tag),
+          }
+          : null,
+        ...(lemmaDetails.pos_tag === "NOUN"
+          ? [determinerWordTypeFromMorphology(lemmaDetails.morphology)]
+          : []
+        ).filter((value): value is string => Boolean(value)).map((value) => ({
+          key: `lemma-meta-wordtype-${value}`,
+          label: value,
+          className: "",
+        })),
+        ...secondaryTagsForPos(lemmaDetails.pos_tag, lemmaDetails.morphology).map((value) => ({
+          key: `lemma-meta-tag-${value}`,
+          label: value,
+          className: "",
+        })),
+      ].filter((value): value is { key: string; label: string; className: string } => Boolean(value))
+      : []
 
     return (
       <div className="flex min-h-0 flex-1 flex-col gap-4">
@@ -2675,26 +2680,20 @@ function App() {
         )}
         {isLemmaDetailsLoading && showLemmaDetailsLoadingSkeleton ? (
           <div className="space-y-3">
-            <Card>
-              <CardContent className="space-y-3">
-                <div className="flex items-center justify-between gap-3">
-                  <Skeleton className="h-6 w-28" />
-                  <Skeleton className="h-4 w-20" />
-                </div>
-                <Skeleton className="h-4 w-32" />
-                <div className="flex flex-wrap gap-1.5">
-                  <Skeleton className="h-5 w-14 rounded-full" />
-                  <Skeleton className="h-5 w-[4.5rem] rounded-full" />
-                  <Skeleton className="h-5 w-16 rounded-full" />
-                </div>
-              </CardContent>
-            </Card>
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <Skeleton className="h-10 w-40" />
+                <Skeleton className="h-5 w-14 rounded-full" />
+                <Skeleton className="h-5 w-20 rounded-full" />
+                <Skeleton className="h-5 w-16 rounded-full" />
+              </div>
+              <Skeleton className="h-5 w-32" />
+            </div>
             <div className="grid gap-3 md:grid-cols-2">
               <Card>
                 <CardContent className="space-y-3">
                   <div className="flex items-center justify-between gap-3">
                     <Skeleton className="h-6 w-24" />
-                    <Skeleton className="h-4 w-16" />
                   </div>
                   <Skeleton className="h-4 w-28" />
                   <div className="flex flex-wrap gap-1.5">
@@ -2725,51 +2724,30 @@ function App() {
         ) : (
           <ScrollArea className="min-h-0 flex-1">
             <div className="space-y-3 pr-1">
-              <Card>
-                <CardContent className="space-y-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-lg font-bold leading-tight">{lemmaDetails.lemma}</p>
-                    {showLemmaCardLabel ? (
-                      <p className="text-muted-foreground text-right text-sm font-normal italic leading-tight">
-                        {lemmaCardLabel}
-                      </p>
-                    ) : null}
-                  </div>
-                  <p className="text-muted-foreground text-sm">
-                    {lemmaDetails.english_translation ?? "No translation available."}
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {lemmaDetails.pos_tag && (
-                      <Badge variant="secondary" className={posBadgeClass(lemmaDetails.pos_tag)}>
-                        {lemmaDetails.pos_tag}
-                      </Badge>
-                    )}
-                    {secondaryTagsForPos(lemmaDetails.pos_tag, lemmaDetails.morphology).map((tag) => (
-                      <Badge key={`lemma-tag-${tag}`} variant="secondary">
-                        {tag}
-                      </Badge>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+              <div>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                  <h2 className="text-4xl font-bold leading-tight">{lemmaDetails.lemma}</h2>
+                  {lemmaMetadataBadges.map((badge) => (
+                    <Badge key={badge.key} variant="secondary" className={`text-xs ${badge.className}`.trim()}>
+                      {badge.label}
+                    </Badge>
+                  ))}
+                </div>
+                <p className="text-muted-foreground mt-1 text-base">
+                  {lemmaDetails.english_translation ?? "No translation available."}
+                </p>
+              </div>
 
               {variationForms.length === 0 ? (
                 <p className="text-muted-foreground text-sm">No saved variations for this lemma.</p>
               ) : (
                 <div className="grid gap-3 md:grid-cols-2">
                   {variationForms.map((form) => {
-                    const lemmaLabel = lemmaLabelForPos(lemmaDetails.lemma, form.pos_tag, form.morphology)
-                    const showLemmaLabel = shouldShowLemmaLabel(form.form, lemmaLabel, form.pos_tag)
                     return (
                       <Card key={form.form}>
                         <CardContent className="space-y-3">
                           <div className="flex items-center justify-between gap-3">
                             <p className="text-lg font-bold leading-tight">{form.form}</p>
-                            {showLemmaLabel ? (
-                              <p className="text-muted-foreground text-right text-sm font-normal italic leading-tight">
-                                {lemmaLabel}
-                              </p>
-                            ) : null}
                           </div>
                           <p className="text-muted-foreground text-sm">
                             {form.english_translation ?? "No translation available."}
@@ -3007,27 +2985,29 @@ function App() {
               onOpenAutoFocus={(event) => {
                 event.preventDefault()
               }}
-              className="space-y-3"
+              className="w-fit max-w-[calc(100vw-1rem)] space-y-3"
             >
               {popoverDisplayToken && (
                 <>
                   <div className="space-y-1">
-                    <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-1.5">
                       {popoverDisplayToken.surface_token ? (
-                        <p className="text-lg font-bold leading-tight">{popoverDisplayToken.surface_token}</p>
+                        <div className="flex flex-wrap items-baseline gap-1.5">
+                          <p className="text-2xl font-bold leading-tight">{popoverDisplayToken.surface_token}</p>
+                          {showPopoverLemma ? (
+                            <p className="text-muted-foreground text-sm font-normal leading-tight">({popoverLemmaText})</p>
+                          ) : null}
+                        </div>
                       ) : (
                         <Skeleton data-testid="word-skeleton" className="h-7 w-28" />
                       )}
-                      {showPopoverLemma ? (
-                        <p className="text-muted-foreground text-right text-sm font-normal italic leading-tight">
-                          {popoverLemmaLabel}
-                        </p>
-                      ) : (popoverIsNoun || popoverIsVerbLike) && !popoverLemma ? (
-                        <Skeleton
-                          data-testid={popoverIsNoun ? "noun-lemma-skeleton" : "verb-lemma-skeleton"}
-                          className="h-4 w-20"
-                        />
-                      ) : null}
+                      <div className="flex shrink-0 flex-nowrap items-center gap-1">
+                        {popoverMetadataBadges.map((badge) => (
+                          <Badge key={badge.key} variant="secondary" className={`text-xs ${badge.className}`.trim()}>
+                            {badge.label}
+                          </Badge>
+                        ))}
+                      </div>
                     </div>
                     {showTranslationSkeleton ? (
                       <Skeleton
@@ -3041,19 +3021,7 @@ function App() {
                     ) : (
                       <p className="text-muted-foreground text-xs">No translation available.</p>
                     )}
-                    <div className="mt-2.5 flex items-center justify-between gap-2">
-                      <div className="flex flex-1 flex-wrap justify-start gap-1.5">
-                        {popoverDisplayToken.pos_tag && (
-                          <Badge variant="secondary" className={posBadgeClass(popoverDisplayToken.pos_tag)}>
-                            {popoverDisplayToken.pos_tag}
-                          </Badge>
-                        )}
-                        {popoverSecondaryTags.map((tag) => (
-                          <Badge key={tag} variant="secondary">
-                            {tag}
-                          </Badge>
-                        ))}
-                      </div>
+                    <div className="mt-2.5 flex items-center justify-end gap-2">
                       {popoverDisplayToken.classification === "known" ? (
                         <Tooltip>
                           <TooltipTrigger asChild>
