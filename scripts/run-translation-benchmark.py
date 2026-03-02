@@ -13,8 +13,6 @@ from benchmark_reporting import append_benchmark_report
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 FIXTURE_PATH = ROOT_DIR / "test-data" / "fixtures" / "translation" / "translation_words.da_en.v1.json"
-DEFAULT_DEEPL_API_KEY = "4f853833-6289-42af-86ca-3171a46e05d6:fx"
-
 
 @dataclass(frozen=True)
 class BenchmarkCase:
@@ -101,7 +99,7 @@ def _load_cases(path: Path) -> list[BenchmarkCase]:
 
 def run(*, max_failures: int) -> int:
     cases = _load_cases(FIXTURE_PATH)
-    deepl_api_key = os.getenv("DANOTE_DEEPL_API_KEY", DEFAULT_DEEPL_API_KEY).strip()
+    deepl_api_key = os.getenv("DANOTE_DEEPL_API_KEY", "").strip()
     if not deepl_api_key:
         raise RuntimeError("DANOTE_DEEPL_API_KEY is required to run the translation benchmark.")
     service = DeepLTranslationService(

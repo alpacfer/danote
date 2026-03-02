@@ -211,6 +211,12 @@ type HealthPayload = {
   apis?: Record<string, HealthApiStatusEntry>
 }
 
+type DeveloperApiKeysUpdateResponse = {
+  status: string
+  message: string
+  configured: Record<string, boolean>
+}
+
 type TokenFeedbackPayload = {
   raw_token: string
   predicted_status: string
@@ -1687,6 +1693,10 @@ function App() {
   const [selectedNlpModel, setSelectedNlpModel] = useState<NlpModelOption>(
     NLP_MODEL_OPTIONS[0],
   )
+  const [developerGeminiApiKey, setDeveloperGeminiApiKey] = useState("")
+  const [developerDeepLApiKey, setDeveloperDeepLApiKey] = useState("")
+  const [developerVerificationGeminiApiKey, setDeveloperVerificationGeminiApiKey] = useState("")
+  const [isSavingDeveloperApiKeys, setIsSavingDeveloperApiKeys] = useState(false)
   const [highlightPopover, setHighlightPopover] = useState<HighlightPopoverState>({
     open: false,
     left: 0,
@@ -3515,6 +3525,47 @@ function App() {
     )
   }
 
+
+  async function saveDeveloperApiKeys() {
+    setIsSavingDeveloperApiKeys(true)
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/developer/api-keys`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          gemini_api_key: developerGeminiApiKey,
+          deepl_api_key: developerDeepLApiKey,
+          word_verification_gemini_api_key: developerVerificationGeminiApiKey,
+        }),
+      })
+
+      if (!response.ok) {
+        const message = await extractErrorMessage(
+          response,
+          `Save API keys request failed with status ${response.status}`,
+        )
+        throw new Error(message)
+      }
+
+      const payload = (await response.json()) as DeveloperApiKeysUpdateResponse
+      toast.success(payload.message || "Runtime API keys updated.")
+
+      const healthResponse = await fetch(`${BACKEND_URL}/api/health`)
+      if (healthResponse.ok) {
+        const payload = (await healthResponse.json()) as HealthPayload
+        setHealthPayload(payload)
+        setStatus(payload.status === "ok" ? "connected" : payload.status === "degraded" ? "degraded" : "offline")
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not save API keys."
+      toast.error(message)
+    } finally {
+      setIsSavingDeveloperApiKeys(false)
+    }
+  }
+
   function renderDeveloperContent() {
     return (
       <Card>
@@ -3567,6 +3618,45 @@ function App() {
               Preferred model for local benchmarking. Backend default remains <code>da_dacy_small_trf-0.2.0</code> unless
               <code> DANOTE_NLP_MODEL</code> is set before startup.
             </p>
+          </div>
+          <div className="space-y-2">
+            <p className="text-sm font-medium">Runtime API keys</p>
+            <p className="text-muted-foreground text-xs">
+              Keys entered here apply immediately for this backend process and are not persisted to source code.
+            </p>
+            <div className="space-y-1">
+              <Label htmlFor="developer-gemini-key">Gemini API key</Label>
+              <Input
+                id="developer-gemini-key"
+                type="password"
+                value={developerGeminiApiKey}
+                onChange={(event) => setDeveloperGeminiApiKey(event.target.value)}
+                placeholder="Paste Gemini key"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="developer-deepl-key">DeepL API key</Label>
+              <Input
+                id="developer-deepl-key"
+                type="password"
+                value={developerDeepLApiKey}
+                onChange={(event) => setDeveloperDeepLApiKey(event.target.value)}
+                placeholder="Paste DeepL key"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="developer-verification-key">Word verification Gemini key</Label>
+              <Input
+                id="developer-verification-key"
+                type="password"
+                value={developerVerificationGeminiApiKey}
+                onChange={(event) => setDeveloperVerificationGeminiApiKey(event.target.value)}
+                placeholder="Paste Gemini key for verification"
+              />
+            </div>
+            <Button type="button" size="sm" onClick={() => { void saveDeveloperApiKeys() }} disabled={isSavingDeveloperApiKeys}>
+              {isSavingDeveloperApiKeys ? "Saving..." : "Apply runtime API keys"}
+            </Button>
           </div>
           <Button
             type="button"

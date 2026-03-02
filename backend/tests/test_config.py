@@ -24,3 +24,15 @@ def test_load_settings_defaults_to_deepl_with_gemini_flash_model_available(monke
     assert settings.translation_provider == "deepl"
     assert settings.translation_gemini_model == "gemini-3-flash-preview"
     assert settings.word_verification_enabled is True
+
+
+def test_load_settings_does_not_ship_default_api_keys(monkeypatch) -> None:
+    monkeypatch.delenv("DANOTE_GEMINI_API_KEY", raising=False)
+    monkeypatch.delenv("DANOTE_DEEPL_API_KEY", raising=False)
+    monkeypatch.delenv("DANOTE_WORD_VERIFICATION_GEMINI_API_KEY", raising=False)
+
+    settings = load_settings()
+
+    assert settings.translation_gemini_api_key is None
+    assert settings.translation_deepl_api_key is None
+    assert settings.word_verification_gemini_api_key is None
