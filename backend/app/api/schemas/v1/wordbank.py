@@ -42,6 +42,36 @@ class DetectWordLanguageResponse(BaseModel):
     confidence: float
 
 
+class ResolveQueryRequest(BaseModel):
+    query_text: str = Field(..., min_length=1)
+    include_translations: bool = True
+    include_language_detection: bool = True
+
+
+class ResolveQueryResponse(BaseModel):
+    class MatchedLemmaSummary(BaseModel):
+        lemma: str
+        english_translation: str | None
+        variation_count: int
+
+    query_surface: str
+    query_lemma: str | None
+    classification: Literal["known", "variation", "typo_likely", "uncertain", "new"]
+    matched_lemma: str | None
+    matched_lemma_summary: MatchedLemmaSummary | None = None
+    query_pos_tag: str | None
+    query_morphology: str | None
+    resolved_surface: str
+    resolved_lemma: str | None
+    da_to_en_translation: str | None
+    en_to_da_translation: str | None
+    en_to_da_lemma: str | None
+    en_to_da_pos_tag: str | None
+    en_to_da_morphology: str | None
+    query_language: Literal["en", "da", "ambiguous"] | None
+    query_language_confidence: float | None
+
+
 class GeneratePhraseTranslationRequest(BaseModel):
     source_text: str = Field(..., min_length=1)
 

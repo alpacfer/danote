@@ -311,6 +311,63 @@ def test_wordbank_detect_word_language_marks_short_homographs_as_ambiguous(tmp_p
     assert detected.language == "ambiguous"
     assert detected.confidence == 0.4
 
+def test_wordbank_resolve_query_returns_variation_match_summary(tmp_path: Path) -> None:
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        translation_service=FakeTranslationService({"bog": "book", "bogen": "the book"}),
+    )
+    use_case.add_word("Bogen", "bog")
+
+    resolved = use_case.resolve_query("Bogen")
+
+    assert resolved.query_surface == "bogen"
+    assert resolved.query_lemma == "bog"
+    assert resolved.classification == "known"
+    assert resolved.matched_lemma == "bog"
+    assert resolved.matched_lemma_summary is not None
+    assert resolved.matched_lemma_summary.lemma == "bog"
+    assert resolved.matched_lemma_summary.english_translation == "book"
+
+
+def test_wordbank_resolve_query_generates_translation_and_language_signals(tmp_path: Path) -> None:
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        translation_service=FakeTranslationService(
+            {"house": "hus"},
+            detected_languages={"house": "EN"},
+        ),
+    )
+
+    resolved = use_case.resolve_query("House")
+
+    assert resolved.query_surface == "house"
+    assert resolved.classification == "new"
+    assert resolved.en_to_da_translation == "hus"
+    assert resolved.resolved_surface == "hus"
+    assert resolved.resolved_lemma == "hus"
+    assert resolved.query_language == "en"
+    assert resolved.query_language_confidence == 0.82
+
+
+def test_wordbank_resolve_query_supports_optional_flags(tmp_path: Path) -> None:
+    translation_service = FakeTranslationService(
+        {"house": "hus"},
+        detected_languages={"house": "EN"},
+    )
+    use_case = WordbankUseCase(_db_path(tmp_path), translation_service=translation_service)
+
+    resolved = use_case.resolve_query(
+        "House",
+        include_translations=False,
+        include_language_detection=False,
+    )
+
+    assert resolved.en_to_da_translation is None
+    assert resolved.da_to_en_translation is None
+    assert resolved.query_language is None
+    assert resolved.query_language_confidence is None
+
+
 def test_sentencebank_use_case_add_and_list(tmp_path: Path) -> None:
     use_case = SentencebankUseCase(
         _db_path(tmp_path),
