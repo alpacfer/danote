@@ -103,9 +103,12 @@ class GeminiTTSService:
                 if not audio_payload:
                     return None
                 audio_bytes, mime_type = audio_payload
-                if mime_type in {"audio/wav", "audio/x-wav"}:
+                if self._is_wav_mime(mime_type) or self._looks_like_wav(audio_bytes):
                     return PronunciationAudio(audio_bytes=audio_bytes, mime_type="audio/wav")
-                if mime_type and mime_type.startswith("audio/") and mime_type not in {"audio/pcm", "audio/l16"}:
+                if self._is_pcm_like_mime(mime_type):
+                    wav_bytes = self._pcm_to_wav_bytes(audio_bytes)
+                    return PronunciationAudio(audio_bytes=wav_bytes, mime_type="audio/wav")
+                if mime_type and mime_type.startswith("audio/"):
                     return PronunciationAudio(audio_bytes=audio_bytes, mime_type=mime_type)
                 wav_bytes = self._pcm_to_wav_bytes(audio_bytes)
                 return PronunciationAudio(audio_bytes=wav_bytes, mime_type="audio/wav")
@@ -158,6 +161,24 @@ class GeminiTTSService:
                     except Exception:
                         continue
         return None
+
+    @staticmethod
+    def _is_wav_mime(mime_type: str | None) -> bool:
+        if not isinstance(mime_type, str):
+            return False
+        normalized = mime_type.strip().lower()
+        return normalized.startswith("audio/wav") or normalized.startswith("audio/x-wav")
+
+    @staticmethod
+    def _is_pcm_like_mime(mime_type: str | None) -> bool:
+        if not isinstance(mime_type, str):
+            return False
+        normalized = mime_type.strip().lower()
+        return normalized.startswith("audio/pcm") or normalized.startswith("audio/l16") or "codec=pcm" in normalized
+
+    @staticmethod
+    def _looks_like_wav(payload: bytes) -> bool:
+        return len(payload) >= 12 and payload[:4] == b"RIFF" and payload[8:12] == b"WAVE"
 
     @staticmethod
     def _pcm_to_wav_bytes(pcm_data: bytes, *, channels: int = 1, rate: int = 24000, sample_width: int = 2) -> bytes:

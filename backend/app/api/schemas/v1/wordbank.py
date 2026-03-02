@@ -97,11 +97,22 @@ class GeneratePhraseTranslationResponse(BaseModel):
 
 class AddWordResponse(BaseModel):
     class VerificationResult(BaseModel):
+        class SuggestedChanges(BaseModel):
+            lemma_pos_tag: str | None = None
+            lemma_morphology: str | None = None
+            surface_pos_tag: str | None = None
+            surface_morphology: str | None = None
+            lexeme_translation: str | None = None
+            surface_translation: str | None = None
+
         status: Literal["verified", "flagged", "error", "skipped", "queued"]
         provider: str | None = None
         reviewer_role: str | None = None
         message: str
         composed_word_count: int | None = None
+        problem: str | None = None
+        change_to_implement: str | None = None
+        suggested_changes: SuggestedChanges | None = None
 
     status: Literal["inserted", "exists"]
     stored_lemma: str
@@ -133,6 +144,28 @@ class GeneratePronunciationResponse(BaseModel):
     stored_lemma: str
     stored_surface_form: str | None
     pronunciation_form: str | None
+
+
+class ApplyVerificationChangesRequest(BaseModel):
+    class SuggestedChanges(BaseModel):
+        lemma_pos_tag: str | None = None
+        lemma_morphology: str | None = None
+        surface_pos_tag: str | None = None
+        surface_morphology: str | None = None
+        lexeme_translation: str | None = None
+        surface_translation: str | None = None
+
+    stored_lemma: str = Field(..., min_length=1)
+    stored_surface_form: str | None = None
+    suggested_changes: SuggestedChanges
+    provider: str | None = None
+
+
+class ApplyVerificationChangesResponse(BaseModel):
+    status: Literal["applied", "skipped"]
+    stored_lemma: str
+    stored_surface_form: str | None
+    applied_fields: list[str] = Field(default_factory=list)
 
 
 class LemmaSummary(BaseModel):

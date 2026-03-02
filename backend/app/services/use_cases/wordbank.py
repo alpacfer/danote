@@ -2,10 +2,13 @@ from __future__ import annotations
 
 import os
 import sqlite3
+import io
+import wave
 from typing import Literal
 
 from app.api.schemas.v1.wordbank import (
     AddWordResponse,
+    ApplyVerificationChangesResponse,
     DetectWordLanguageResponse,
     GeneratePronunciationResponse,
     GeneratePhraseTranslationResponse,
@@ -27,6 +30,38 @@ from app.services.token_classifier import LemmaAwareClassifier, normalize_token
 from app.services.translation import TranslationService
 from app.services.tts import PronunciationAudio, TTSService
 from app.services.verification import WordVerificationInput, WordVerificationService
+
+
+def _looks_like_wav(payload: bytes) -> bool:
+    return len(payload) >= 12 and payload[:4] == b"RIFF" and payload[8:12] == b"WAVE"
+
+
+def _pcm_to_wav_bytes(pcm_data: bytes, *, channels: int = 1, rate: int = 24000, sample_width: int = 2) -> bytes:
+    buffer = io.BytesIO()
+    with wave.open(buffer, "wb") as wav_file:
+        wav_file.setnchannels(channels)
+        wav_file.setsampwidth(sample_width)
+        wav_file.setframerate(rate)
+        wav_file.writeframes(pcm_data)
+    return buffer.getvalue()
+
+
+def _is_pcm_like_mime(mime_type: str | None) -> bool:
+    if not isinstance(mime_type, str):
+        return False
+    normalized = mime_type.strip().lower()
+    return normalized.startswith("audio/pcm") or normalized.startswith("audio/l16") or "codec=pcm" in normalized
+
+
+def _normalize_pronunciation_audio(audio: PronunciationAudio) -> PronunciationAudio:
+    normalized_mime = audio.mime_type.strip().lower() if isinstance(audio.mime_type, str) else ""
+    if _is_pcm_like_mime(normalized_mime):
+        return PronunciationAudio(audio_bytes=_pcm_to_wav_bytes(audio.audio_bytes), mime_type="audio/wav")
+    if _looks_like_wav(audio.audio_bytes):
+        return PronunciationAudio(audio_bytes=audio.audio_bytes, mime_type="audio/wav")
+    if normalized_mime:
+        return PronunciationAudio(audio_bytes=audio.audio_bytes, mime_type=normalized_mime)
+    return PronunciationAudio(audio_bytes=audio.audio_bytes, mime_type="audio/wav")
 
 
 def _normalize_action_value(value: str) -> str:
@@ -387,6 +422,136 @@ class WordbankUseCase:
             stored_lemma=normalized_lemma,
             stored_surface_form=normalized_surface,
             verification=verification,
+        )
+
+    def apply_verification_changes(
+        self,
+        *,
+        stored_lemma: str,
+        stored_surface_form: str | None,
+        suggested_changes: dict[str, str | None],
+        provider: str | None = None,
+    ) -> ApplyVerificationChangesResponse:
+        normalized_lemma = normalize_token(stored_lemma)
+        normalized_surface = normalize_token(stored_surface_form or "") or None
+        if not normalized_lemma:
+            raise ValueError("stored_lemma is required")
+
+        accepted_fields = (
+            "lemma_pos_tag",
+            "lemma_morphology",
+            "surface_pos_tag",
+            "surface_morphology",
+            "lexeme_translation",
+            "surface_translation",
+        )
+        normalized_changes: dict[str, str] = {}
+        for field in accepted_fields:
+            value = suggested_changes.get(field)
+            if not isinstance(value, str):
+                continue
+            cleaned = value.strip()
+            if cleaned:
+                normalized_changes[field] = cleaned
+
+        if not normalized_changes:
+            return ApplyVerificationChangesResponse(
+                status="skipped",
+                stored_lemma=normalized_lemma,
+                stored_surface_form=normalized_surface,
+                applied_fields=[],
+            )
+
+        needs_surface = any(
+            field in normalized_changes
+            for field in ("surface_pos_tag", "surface_morphology", "surface_translation")
+        )
+        if needs_surface and not normalized_surface:
+            raise ValueError("stored_surface_form is required for surface-level verification changes.")
+
+        provider_name = provider.strip().lower() if isinstance(provider, str) and provider.strip() else "verification"
+        applied_fields: list[str] = []
+
+        with get_connection(self._db_path) as conn:
+            lexeme_row = conn.execute(
+                """
+                SELECT id
+                FROM lexemes
+                WHERE lemma = ?
+                LIMIT 1
+                """,
+                (normalized_lemma,),
+            ).fetchone()
+            if lexeme_row is None:
+                raise LookupError(f"Lemma '{normalized_lemma}' was not found")
+            lexeme_id = int(lexeme_row["id"])
+
+            lexeme_updates: list[str] = []
+            lexeme_params: list[str | int] = []
+            if "lemma_pos_tag" in normalized_changes:
+                lexeme_updates.append("pos_tag = ?")
+                lexeme_params.append(normalized_changes["lemma_pos_tag"])
+                applied_fields.append("lemma_pos_tag")
+            if "lemma_morphology" in normalized_changes:
+                lexeme_updates.append("morphology = ?")
+                lexeme_params.append(normalized_changes["lemma_morphology"])
+                applied_fields.append("lemma_morphology")
+            if "lexeme_translation" in normalized_changes:
+                lexeme_updates.append("english_translation = ?")
+                lexeme_updates.append("translation_provider = ?")
+                lexeme_params.append(normalized_changes["lexeme_translation"])
+                lexeme_params.append(provider_name)
+                applied_fields.append("lexeme_translation")
+
+            if lexeme_updates:
+                conn.execute(
+                    f"UPDATE lexemes SET {', '.join(lexeme_updates)} WHERE id = ?",
+                    (*lexeme_params, lexeme_id),
+                )
+
+            if normalized_surface:
+                conn.execute(
+                    """
+                    INSERT OR IGNORE INTO surface_forms (lexeme_id, form, source)
+                    VALUES (?, ?, ?)
+                    """,
+                    (lexeme_id, normalized_surface, "manual"),
+                )
+
+                surface_updates: list[str] = []
+                surface_params: list[str | int] = []
+                if "surface_pos_tag" in normalized_changes:
+                    surface_updates.append("pos_tag = ?")
+                    surface_params.append(normalized_changes["surface_pos_tag"])
+                    applied_fields.append("surface_pos_tag")
+                if "surface_morphology" in normalized_changes:
+                    surface_updates.append("morphology = ?")
+                    surface_params.append(normalized_changes["surface_morphology"])
+                    applied_fields.append("surface_morphology")
+                if "surface_translation" in normalized_changes:
+                    surface_updates.append("english_translation = ?")
+                    surface_updates.append("translation_provider = ?")
+                    surface_params.append(normalized_changes["surface_translation"])
+                    surface_params.append(provider_name)
+                    applied_fields.append("surface_translation")
+
+                if surface_updates:
+                    conn.execute(
+                        f"""
+                        UPDATE surface_forms
+                        SET {", ".join(surface_updates)}
+                        WHERE lexeme_id = ? AND form = ?
+                        """,
+                        (*surface_params, lexeme_id, normalized_surface),
+                    )
+
+        self._invalidate_pos_cache(normalized_lemma, normalized_surface)
+
+        return ApplyVerificationChangesResponse(
+            status="applied" if applied_fields else "skipped",
+            stored_lemma=normalized_lemma,
+            stored_surface_form=normalized_surface,
+            applied_fields=applied_fields,
         )
 
     def generate_translation(self, surface_token: str, lemma_candidate: str | None) -> GenerateTranslationResponse:
@@ -817,6 +982,29 @@ class WordbankUseCase:
             audio_bytes = row["pronunciation_audio"]
             if isinstance(audio_bytes, bytes) and audio_bytes:
                 mime_type = row["pronunciation_mime_type"]
+                normalized_mime = mime_type.strip().lower() if isinstance(mime_type, str) and mime_type.strip() else ""
+                if _is_pcm_like_mime(normalized_mime):
+                    wav_bytes = _pcm_to_wav_bytes(audio_bytes)
+                    conn.execute(
+                        """
+                        UPDATE surface_forms
+                        SET pronunciation_audio = ?, pronunciation_mime_type = ?
+                        WHERE id = ?
+                        """,
+                        (wav_bytes, "audio/wav", int(row["id"])),
+                    )
+                    return PronunciationAudio(audio_bytes=wav_bytes, mime_type="audio/wav")
+                if _looks_like_wav(audio_bytes):
+                    if normalized_mime not in {"audio/wav", "audio/x-wav"}:
+                        conn.execute(
+                            """
+                            UPDATE surface_forms
+                            SET pronunciation_mime_type = ?
+                            WHERE id = ?
+                            """,
+                            ("audio/wav", int(row["id"])),
+                        )
+                    return PronunciationAudio(audio_bytes=audio_bytes, mime_type="audio/wav")
                 return PronunciationAudio(
                     audio_bytes=audio_bytes,
                     mime_type=mime_type if isinstance(mime_type, str) and mime_type.strip() else "audio/wav",
@@ -827,6 +1015,7 @@ class WordbankUseCase:
                 if self._tts_service is None:
                     raise RuntimeError("Text-to-speech is unavailable: configure DANOTE_TTS_GEMINI_API_KEY.")
                 raise LookupError(f"Pronunciation for '{normalized_form}' was not found")
+            generated = _normalize_pronunciation_audio(generated)
 
             conn.execute(
                 """
@@ -1015,6 +1204,7 @@ class WordbankUseCase:
         generated = self._lookup_pronunciation(form)
         if generated is None:
             return False
+        generated = _normalize_pronunciation_audio(generated)
 
         conn.execute(
             """
@@ -1180,6 +1370,11 @@ class WordbankUseCase:
                 reviewer_role=reviewer_name,
                 message=f"Verification task failed: {exc}",
                 composed_word_count=None,
+                problem=str(exc),
+                change_to_implement=(
+                    "Fix Gemini verification setup or provider errors, then run verification again."
+                ),
+                suggested_changes=None,
             )
 
         return AddWordResponse.VerificationResult(
@@ -1188,6 +1383,9 @@ class WordbankUseCase:
             reviewer_role=reviewer_name,
             message=verdict.message,
             composed_word_count=getattr(verdict, "composed_word_count", None),
+            problem=getattr(verdict, "problem", None),
+            change_to_implement=getattr(verdict, "change_to_implement", None),
+            suggested_changes=getattr(verdict, "suggested_changes", None),
         )
 
     def reset_database(self) -> ResetDatabaseResponse:

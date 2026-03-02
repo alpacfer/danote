@@ -254,6 +254,102 @@ def test_get_pronunciation_audio_returns_stored_audio(tmp_path, stub_nlp_adapter
     assert response.content == b"wav-bytes"
 
 
+def test_get_pronunciation_audio_normalizes_l16_to_wav(tmp_path, stub_nlp_adapter_factory) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    apply_migrations(db_path)
+    app = create_app(_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+
+    class StubTTSService:
+        def synthesize(self, text: str) -> PronunciationAudio | None:
+            if text == "katten":
+                return PronunciationAudio(
+                    audio_bytes=(b"\x00\x00" * 2400),
+                    mime_type="audio/l16;codec=pcm;rate=24000",
+                )
+            return None
+
+    with TestClient(app) as client:
+        client.app.state.tts_service = StubTTSService()
+        add_response = client.post(
+            "/api/wordbank/lexemes",
+            json={"surface_token": "Katten", "lemma_candidate": "kat"},
+        )
+        assert add_response.status_code == 200
+
+        response = client.get("/api/wordbank/pronunciation", params={"form": "katten"})
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("audio/wav")
+    assert response.content[:4] == b"RIFF"
+
+
+def test_apply_verification_changes_endpoint_updates_word_fields(tmp_path, stub_nlp_adapter_factory) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    apply_migrations(db_path)
+    app = create_app(_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+
+    with TestClient(app) as client:
+        add_response = client.post(
+            "/api/wordbank/lexemes",
+            json={"surface_token": "Bogen", "lemma_candidate": "bog"},
+        )
+        assert add_response.status_code == 200
+
+        apply_response = client.post(
+            "/api/wordbank/lexemes/apply-verification-changes",
+            json={
+                "stored_lemma": "bog",
+                "stored_surface_form": "bogen",
+                "provider": "gemini",
+                "suggested_changes": {
+                    "lemma_pos_tag": "NOUN",
+                    "lemma_morphology": "Gender=Com|Number=Sing",
+                    "surface_pos_tag": "NOUN",
+                    "surface_morphology": "Definite=Def|Number=Sing",
+                    "lexeme_translation": "book",
+                    "surface_translation": "the book",
+                },
+            },
+        )
+
+    assert apply_response.status_code == 200
+    payload = apply_response.json()
+    assert payload["status"] == "applied"
+    assert set(payload["applied_fields"]) == {
+        "lemma_pos_tag",
+        "lemma_morphology",
+        "surface_pos_tag",
+        "surface_morphology",
+        "lexeme_translation",
+        "surface_translation",
+    }
+
+    with get_connection(db_path) as conn:
+        lexeme_row = conn.execute(
+            "SELECT pos_tag, morphology, english_translation, translation_provider FROM lexemes WHERE lemma = ?",
+            ("bog",),
+        ).fetchone()
+        surface_row = conn.execute(
+            """
+            SELECT pos_tag, morphology, english_translation, translation_provider
+            FROM surface_forms
+            WHERE form = ?
+            """,
+            ("bogen",),
+        ).fetchone()
+
+    assert lexeme_row is not None
+    assert lexeme_row["pos_tag"] == "NOUN"
+    assert lexeme_row["morphology"] == "Gender=Com|Number=Sing"
+    assert lexeme_row["english_translation"] == "book"
+    assert lexeme_row["translation_provider"] == "gemini"
+    assert surface_row is not None
+    assert surface_row["pos_tag"] == "NOUN"
+    assert surface_row["morphology"] == "Definite=Def|Number=Sing"
+    assert surface_row["english_translation"] == "the book"
+    assert surface_row["translation_provider"] == "gemini"
+
+
 def test_add_word_does_not_block_on_pronunciation_for_new_surface_form(tmp_path, stub_nlp_adapter_factory) -> None:
     db_path = tmp_path / "danote.sqlite3"
     apply_migrations(db_path)

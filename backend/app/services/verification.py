@@ -31,6 +31,9 @@ class WordVerificationResult:
     verdict: Literal["verified", "flagged"]
     message: str
     composed_word_count: int | None = None
+    problem: str | None = None
+    change_to_implement: str | None = None
+    suggested_changes: dict[str, str | None] | None = None
 
 
 class WordVerificationService(Protocol):
@@ -91,9 +94,29 @@ class GeminiWordVerificationService:
         verdict = parsed.get("verdict")
         word_count_raw = parsed.get("word_count")
         word_count = int(word_count_raw) if isinstance(word_count_raw, int) else fallback_word_count
+        problem = parsed.get("problem") if isinstance(parsed.get("problem"), str) else None
+        change_to_implement = (
+            parsed.get("change_to_implement") if isinstance(parsed.get("change_to_implement"), str) else None
+        )
+        suggested_changes_raw = parsed.get("suggested_changes")
+        suggested_changes = (
+            suggested_changes_raw
+            if isinstance(suggested_changes_raw, dict)
+            else None
+        )
 
         if verdict == "incorrect":
-            return WordVerificationResult(verdict="flagged", message="incorrect", composed_word_count=word_count)
+            return WordVerificationResult(
+                verdict="flagged",
+                message="incorrect",
+                composed_word_count=word_count,
+                problem=problem or "Gemini flagged lexical inconsistency in lemma/surface/POS/morphology/translation.",
+                change_to_implement=(
+                    change_to_implement
+                    or "Update the stored entry so lemma, surface form, POS, morphology, and translations are coherent."
+                ),
+                suggested_changes=suggested_changes,
+            )
         return WordVerificationResult(verdict="verified", message="OK", composed_word_count=word_count)
 
     def _verification_prompt(self, payload: WordVerificationInput) -> str:
@@ -122,7 +145,17 @@ class GeminiWordVerificationService:
             "Verify lexical correctness: lemma/surface/POS/morphology/translation coherence.\n"
             "Also count if entry is composed of multiple words (e.g. 'lege plads' -> 2).\n"
             "JSON only:\n"
-            '{"verdict":"correct|incorrect","word_count":0}\n'
+            "{"
+            '"verdict":"correct|incorrect",'
+            '"word_count":0,'
+            '"problem":"...",'
+            '"change_to_implement":"...",'
+            '"suggested_changes":{"lemma_pos_tag":null,"lemma_morphology":null,"surface_pos_tag":null,'
+            '"surface_morphology":null,"lexeme_translation":null,"surface_translation":null}'
+            "}\n"
+            "Rules:\n"
+            "- If verdict=correct, keep problem/change_to_implement null and suggested_changes as {}.\n"
+            "- If verdict=incorrect, provide concrete change instructions and only include changed fields in suggested_changes.\n"
             f"Entry:\n{json.dumps(entry, ensure_ascii=False)}"
         )
 
@@ -150,7 +183,27 @@ class GeminiWordVerificationService:
         if verdict not in {"correct", "incorrect"}:
             verdict = "incorrect"
         word_count = word_count_value if isinstance(word_count_value, int) and word_count_value > 0 else None
-        return {"verdict": verdict, "word_count": word_count}
+        out: dict[str, object] = {"verdict": verdict, "word_count": word_count}
+        if isinstance(parsed.get("problem"), str):
+            out["problem"] = parsed["problem"]
+        if isinstance(parsed.get("change_to_implement"), str):
+            out["change_to_implement"] = parsed["change_to_implement"]
+        suggested_changes_raw = parsed.get("suggested_changes")
+        if isinstance(suggested_changes_raw, dict):
+            normalized_changes: dict[str, str | None] = {}
+            for key in (
+                "lemma_pos_tag",
+                "lemma_morphology",
+                "surface_pos_tag",
+                "surface_morphology",
+                "lexeme_translation",
+                "surface_translation",
+            ):
+                value = suggested_changes_raw.get(key)
+                if value is None or isinstance(value, str):
+                    normalized_changes[key] = value
+            out["suggested_changes"] = normalized_changes
+        return out
 
     def _infer_word_count(self, payload: WordVerificationInput) -> int:
         source_text = payload.stored_surface_form or payload.stored_lemma

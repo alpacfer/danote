@@ -9,6 +9,8 @@ from app.api.routes._use_case_factories import build_wordbank_use_case
 from app.api.schemas.v1.wordbank import (
     AddWordRequest,
     AddWordResponse,
+    ApplyVerificationChangesRequest,
+    ApplyVerificationChangesResponse,
     DetectWordLanguageRequest,
     DetectWordLanguageResponse,
     GeneratePronunciationRequest,
@@ -87,6 +89,32 @@ def generate_pronunciation(
             payload.stored_lemma,
             payload.stored_surface_form,
             force=payload.force,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except sqlite3.OperationalError as exc:
+        logger.exception("wordbank_db_operational_error")
+        raise HTTPException(
+            status_code=503,
+            detail=f"Database unavailable: {exc}",
+        ) from exc
+
+
+@router.post("/wordbank/lexemes/apply-verification-changes", response_model=ApplyVerificationChangesResponse)
+def apply_verification_changes(
+    payload: ApplyVerificationChangesRequest,
+    request: Request,
+) -> ApplyVerificationChangesResponse:
+    _require_db_ready(request)
+
+    try:
+        return build_wordbank_use_case(request).apply_verification_changes(
+            stored_lemma=payload.stored_lemma,
+            stored_surface_form=payload.stored_surface_form,
+            suggested_changes=payload.suggested_changes.model_dump(),
+            provider=payload.provider,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

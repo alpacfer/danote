@@ -268,6 +268,87 @@ def test_wordbank_use_case_force_regenerates_pronunciation(tmp_path: Path) -> No
     assert tts_service.calls == ["bogen", "bogen"]
 
 
+def test_wordbank_use_case_normalizes_l16_pronunciation_to_wav(tmp_path: Path) -> None:
+    db_path = _db_path(tmp_path)
+    use_case = WordbankUseCase(db_path)
+    use_case.add_word("Bogen", "bog")
+
+    class L16TTSService:
+        provider = "gemini_tts"
+        model = "gemini-2.5-flash-preview-tts"
+
+        def synthesize(self, text: str) -> PronunciationAudio | None:
+            if text != "bogen":
+                return None
+            return PronunciationAudio(
+                audio_bytes=(b"\x00\x00" * 2400),
+                mime_type="audio/l16;codec=pcm;rate=24000",
+            )
+
+    use_case = WordbankUseCase(db_path, tts_service=L16TTSService())
+    generated = use_case.generate_pronunciation_for_added_word("bog", "bogen", force=True)
+    audio = use_case.get_pronunciation_audio("bogen")
+
+    assert generated.status == "generated"
+    assert audio.mime_type == "audio/wav"
+    assert audio.audio_bytes[:4] == b"RIFF"
+
+
+def test_wordbank_use_case_applies_verification_changes(tmp_path: Path) -> None:
+    db_path = _db_path(tmp_path)
+    use_case = WordbankUseCase(db_path)
+    use_case.add_word("Bogen", "bog")
+
+    response = use_case.apply_verification_changes(
+        stored_lemma="bog",
+        stored_surface_form="bogen",
+        suggested_changes={
+            "lemma_pos_tag": "NOUN",
+            "lemma_morphology": "Gender=Com|Number=Sing",
+            "surface_pos_tag": "NOUN",
+            "surface_morphology": "Definite=Def|Number=Sing",
+            "lexeme_translation": "book",
+            "surface_translation": "the book",
+        },
+        provider="gemini",
+    )
+
+    assert response.status == "applied"
+    assert set(response.applied_fields) == {
+        "lemma_pos_tag",
+        "lemma_morphology",
+        "surface_pos_tag",
+        "surface_morphology",
+        "lexeme_translation",
+        "surface_translation",
+    }
+
+    with get_connection(db_path) as conn:
+        lexeme_row = conn.execute(
+            "SELECT pos_tag, morphology, english_translation, translation_provider FROM lexemes WHERE lemma = ?",
+            ("bog",),
+        ).fetchone()
+        surface_row = conn.execute(
+            """
+            SELECT pos_tag, morphology, english_translation, translation_provider
+            FROM surface_forms
+            WHERE form = ?
+            """,
+            ("bogen",),
+        ).fetchone()
+
+    assert lexeme_row is not None
+    assert lexeme_row["pos_tag"] == "NOUN"
+    assert lexeme_row["morphology"] == "Gender=Com|Number=Sing"
+    assert lexeme_row["english_translation"] == "book"
+    assert lexeme_row["translation_provider"] == "gemini"
+    assert surface_row is not None
+    assert surface_row["pos_tag"] == "NOUN"
+    assert surface_row["morphology"] == "Definite=Def|Number=Sing"
+    assert surface_row["english_translation"] == "the book"
+    assert surface_row["translation_provider"] == "gemini"
+
+
 def test_wordbank_list_lemmas_displays_verbs_with_at_prefix(tmp_path: Path) -> None:
     class VerbListNLPAdapter:
         def tokenize(self, text: str) -> list[NLPToken]:

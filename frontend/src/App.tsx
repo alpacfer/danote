@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Bell, BookOpen, Eye, Moon, NotebookPen, Plus, RefreshCw, Save, Settings, Sun, Volume2 } from "lucide-react"
+import { Bell, BookOpen, Eye, Info, Moon, NotebookPen, Plus, RefreshCw, Save, Settings, Sun, Volume2 } from "lucide-react"
 import { useTheme } from "next-themes"
 
 import { Badge } from "@/components/ui/badge"
@@ -119,6 +119,16 @@ type AddWordResponse = {
     reviewer_role: string | null
     message: string
     composed_word_count: number | null
+    problem?: string | null
+    change_to_implement?: string | null
+    suggested_changes?: {
+      lemma_pos_tag?: string | null
+      lemma_morphology?: string | null
+      surface_pos_tag?: string | null
+      surface_morphology?: string | null
+      lexeme_translation?: string | null
+      surface_translation?: string | null
+    } | null
   } | null
 }
 
@@ -131,6 +141,16 @@ type VerifyWordResponse = {
     reviewer_role: string | null
     message: string
     composed_word_count: number | null
+    problem?: string | null
+    change_to_implement?: string | null
+    suggested_changes?: {
+      lemma_pos_tag?: string | null
+      lemma_morphology?: string | null
+      surface_pos_tag?: string | null
+      surface_morphology?: string | null
+      lexeme_translation?: string | null
+      surface_translation?: string | null
+    } | null
   }
 }
 
@@ -139,6 +159,13 @@ type GeneratePronunciationResponse = {
   stored_lemma: string
   stored_surface_form: string | null
   pronunciation_form: string | null
+}
+
+type ApplyVerificationChangesResponse = {
+  status: "applied" | "skipped"
+  stored_lemma: string
+  stored_surface_form: string | null
+  applied_fields: string[]
 }
 
 type WordbankLemma = {
@@ -308,6 +335,31 @@ type AppNotification = {
   message: string
   createdAt: string
   read: boolean
+}
+
+type VerificationErrorDetail = {
+  provider: string
+  status: "flagged" | "error"
+  problem: string
+  changeToImplement: string
+  rawMessage: string
+  storedSurfaceForm: string | null
+  suggestedChanges?: {
+    lemmaPosTag?: string
+    lemmaMorphology?: string
+    surfacePosTag?: string
+    surfaceMorphology?: string
+    lexemeTranslation?: string
+    surfaceTranslation?: string
+  }
+  suggestedChangesPayload?: {
+    lemma_pos_tag?: string | null
+    lemma_morphology?: string | null
+    surface_pos_tag?: string | null
+    surface_morphology?: string | null
+    lexeme_translation?: string | null
+    surface_translation?: string | null
+  }
 }
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? "http://127.0.0.1:8000"
@@ -508,6 +560,134 @@ function normalizePhraseKey(value: string): string {
 
 function normalizeSearchWord(value: string): string {
   return normalizePhraseKey(value)
+}
+
+function isPlayableAudioContentType(contentType: string | null): boolean {
+  if (!contentType) {
+    return true
+  }
+  const normalized = contentType.toLocaleLowerCase()
+  return (
+    normalized.includes("audio/wav")
+    || normalized.includes("audio/x-wav")
+    || normalized.includes("audio/mpeg")
+    || normalized.includes("audio/mp3")
+    || normalized.includes("audio/ogg")
+    || normalized.includes("audio/webm")
+    || normalized.includes("audio/mp4")
+    || normalized.includes("audio/aac")
+    || normalized.includes("audio/flac")
+  )
+}
+
+function isUnsupportedAudioError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false
+  }
+  const normalized = error.message.toLocaleLowerCase()
+  return normalized.includes("no supported source was found")
+    || normalized.includes("notsupportederror")
+    || normalized.includes("unsupported pronunciation format")
+}
+
+function compactMessage(value: string | null | undefined): string {
+  return (value ?? "").replace(/\s+/gu, " ").trim()
+}
+
+function normalizeVerificationMessage(message: string | null | undefined): string {
+  const normalized = compactMessage(message)
+  if (!normalized) {
+    return ""
+  }
+  return normalized.replace(/^verification task failed:\s*/iu, "")
+}
+
+function buildVerificationErrorDetail(payload: {
+  provider: string | null | undefined
+  status: "flagged" | "error"
+  message: string | null | undefined
+  composedWordCount?: number | null
+  storedSurfaceForm?: string | null
+  problem?: string | null
+  changeToImplement?: string | null
+  suggestedChanges?: {
+    lemma_pos_tag?: string | null
+    lemma_morphology?: string | null
+    surface_pos_tag?: string | null
+    surface_morphology?: string | null
+    lexeme_translation?: string | null
+    surface_translation?: string | null
+  } | null
+}): VerificationErrorDetail {
+  const providerName = payload.provider?.trim() || "gemini"
+  const detail = normalizeVerificationMessage(payload.message)
+  const suggestedChanges = payload.suggestedChanges
+    ? {
+      lemmaPosTag: payload.suggestedChanges.lemma_pos_tag ?? undefined,
+      lemmaMorphology: payload.suggestedChanges.lemma_morphology ?? undefined,
+      surfacePosTag: payload.suggestedChanges.surface_pos_tag ?? undefined,
+      surfaceMorphology: payload.suggestedChanges.surface_morphology ?? undefined,
+      lexemeTranslation: payload.suggestedChanges.lexeme_translation ?? undefined,
+      surfaceTranslation: payload.suggestedChanges.surface_translation ?? undefined,
+    }
+    : undefined
+  const normalizedSurface = normalizeSearchWord(payload.storedSurfaceForm ?? "") || null
+  const explicitProblem = compactMessage(payload.problem)
+  const explicitChange = compactMessage(payload.changeToImplement)
+
+  if (payload.status === "flagged") {
+    const count = payload.composedWordCount ?? 0
+    const composedHint = count > 1 ? ` It appears to be treated as a composed word (${count} parts).` : ""
+    return {
+      provider: providerName,
+      status: "flagged",
+      problem: explicitProblem || (detail
+        ? `Gemini flagged this entry as incorrect: ${detail}.`
+        : `Gemini flagged this entry as incorrect.${composedHint}`),
+      changeToImplement: explicitChange || "Review lemma/surface form and translation, then update the entry to a valid Danish word form.",
+      rawMessage: detail || explicitProblem || "Gemini flagged the entry as incorrect.",
+      storedSurfaceForm: normalizedSurface,
+      suggestedChanges,
+      suggestedChangesPayload: payload.suggestedChanges ?? undefined,
+    }
+  }
+
+  if (/missing|required|api key|not configured/iu.test(detail)) {
+    return {
+      provider: providerName,
+      status: "error",
+      problem: explicitProblem || detail || "Gemini verification could not run because configuration is missing.",
+      changeToImplement: explicitChange || "Set the Gemini verification API key in Developer settings or backend env, then retry verification.",
+      rawMessage: detail || explicitProblem || "Missing Gemini verification configuration.",
+      storedSurfaceForm: normalizedSurface,
+      suggestedChanges,
+      suggestedChangesPayload: payload.suggestedChanges ?? undefined,
+    }
+  }
+
+  if (/quota|rate limit|429|too many requests/iu.test(detail)) {
+    return {
+      provider: providerName,
+      status: "error",
+      problem: explicitProblem || detail || "Gemini verification request was rate-limited.",
+      changeToImplement: explicitChange || "Retry verification after a short delay, or use an API key with higher quota.",
+      rawMessage: detail || explicitProblem || "Gemini verification request was rate-limited.",
+      storedSurfaceForm: normalizedSurface,
+      suggestedChanges,
+      suggestedChangesPayload: payload.suggestedChanges ?? undefined,
+    }
+  }
+
+  return {
+    provider: providerName,
+    status: "error",
+    problem: explicitProblem || detail || "Gemini verification failed unexpectedly.",
+    changeToImplement: explicitChange || "Check verification input and retry. If it persists, inspect backend logs for provider errors.",
+    rawMessage: detail || explicitProblem || "Gemini verification failed unexpectedly.",
+    storedSurfaceForm: normalizedSurface,
+    suggestedChanges,
+    suggestedChangesPayload: payload.suggestedChanges ?? undefined,
+  }
 }
 
 function isShortLetterWord(value: string): boolean {
@@ -1574,7 +1754,9 @@ function App() {
   const [isGeneratingPhraseTranslation, setIsGeneratingPhraseTranslation] = useState(false)
   const [generatePhraseTranslationError, setGeneratePhraseTranslationError] = useState<string | null>(null)
   const [isRegeneratingLemmaPronunciation, setIsRegeneratingLemmaPronunciation] = useState(false)
+  const [isApplyingVerificationChanges, setIsApplyingVerificationChanges] = useState(false)
   const [pronunciationLoadingByForm, setPronunciationLoadingByForm] = useState<Record<string, boolean>>({})
+  const [verificationErrorsByLemma, setVerificationErrorsByLemma] = useState<Record<string, VerificationErrorDetail>>({})
 
   const latestRequestIdRef = useRef(0)
   const activeControllerRef = useRef<AbortController | null>(null)
@@ -1665,6 +1847,13 @@ function App() {
     }
     return popoverDisplayToken.matched_lemma ?? popoverDisplayToken.lemma_candidate ?? null
   }, [popoverDisplayToken])
+  const selectedLemmaVerificationError = useMemo(() => {
+    const lemmaKey = normalizeSearchWord(lemmaDetails?.lemma ?? selectedLemma ?? "")
+    if (!lemmaKey) {
+      return null
+    }
+    return verificationErrorsByLemma[lemmaKey] ?? null
+  }, [lemmaDetails?.lemma, selectedLemma, verificationErrorsByLemma])
   const popoverPrimaryAction = (() => {
     if (!popoverDisplayToken) {
       return null
@@ -2265,33 +2454,56 @@ function App() {
 
     setPronunciationLoadingByForm((current) => ({ ...current, [normalizedForm]: true }))
     try {
-      let objectUrl = pronunciationUrlByFormRef.current.get(normalizedForm)
-      if (!objectUrl) {
-        const response = await fetch(
-          `${BACKEND_URL}/api/wordbank/pronunciation?form=${encodeURIComponent(normalizedForm)}`,
-        )
-        if (!response.ok) {
-          if (response.status === 404) {
-            toast.error(`No pronunciation is available yet for '${normalizedForm}'.`)
-            return
-          }
-          const message = await extractErrorMessage(
-            response,
-            `Pronunciation request failed with status ${response.status}`,
+      let didRepair = false
+      while (true) {
+        let objectUrl = pronunciationUrlByFormRef.current.get(normalizedForm)
+        if (!objectUrl) {
+          const response = await fetch(
+            `${BACKEND_URL}/api/wordbank/pronunciation?form=${encodeURIComponent(normalizedForm)}`,
           )
-          throw new Error(message)
-        }
-        const audioBlob = await response.blob()
-        objectUrl = URL.createObjectURL(audioBlob)
-        pronunciationUrlByFormRef.current.set(normalizedForm, objectUrl)
-      }
+          if (!response.ok) {
+            if (response.status === 404) {
+              toast.error(`No pronunciation is available yet for '${normalizedForm}'.`)
+              return
+            }
+            const message = await extractErrorMessage(
+              response,
+              `Pronunciation request failed with status ${response.status}`,
+            )
+            throw new Error(message)
+          }
 
-      if (activePronunciationAudioRef.current) {
-        activePronunciationAudioRef.current.pause()
+          const contentType = typeof response.headers?.get === "function"
+            ? response.headers.get("content-type")
+            : null
+          if (!isPlayableAudioContentType(contentType)) {
+            throw new Error(`Unsupported pronunciation format: ${contentType}`)
+          }
+          const audioBlob = await response.blob()
+          objectUrl = URL.createObjectURL(audioBlob)
+          pronunciationUrlByFormRef.current.set(normalizedForm, objectUrl)
+        }
+
+        if (activePronunciationAudioRef.current) {
+          activePronunciationAudioRef.current.pause()
+        }
+        const audio = new Audio(objectUrl)
+        activePronunciationAudioRef.current = audio
+        try {
+          await audio.play()
+          break
+        } catch (error) {
+          if (!didRepair && isUnsupportedAudioError(error)) {
+            didRepair = true
+            clearPronunciationCache(normalizedForm)
+            const selectedLemmaKey = normalizeSearchWord(lemmaDetails?.lemma ?? selectedLemma ?? normalizedForm)
+            const storedSurface = normalizedForm === selectedLemmaKey ? selectedLemmaKey : normalizedForm
+            await generatePronunciationInBackground(selectedLemmaKey, storedSurface, { force: true, notify: false })
+            continue
+          }
+          throw error
+        }
       }
-      const audio = new Audio(objectUrl)
-      activePronunciationAudioRef.current = audio
-      await audio.play()
     } catch (error) {
       const message = error instanceof Error ? error.message : "Could not play pronunciation."
       toast.error(message)
@@ -2687,6 +2899,7 @@ function App() {
       setSentences([])
       setLemmaDetails(null)
       setLemmaDetailsError(null)
+      setVerificationErrorsByLemma({})
       setWordbankRefreshTick((current) => current + 1)
       setSentencebankRefreshTick((current) => current + 1)
     } catch (error) {
@@ -2722,27 +2935,110 @@ function App() {
     setNotifications((current) => [nextNotification, ...current])
   }
 
-  function briefErrorInfo(message: string | null | undefined): string {
-    const normalized = (message ?? "").replace(/\s+/gu, " ").trim()
-    if (!normalized) {
-      return ""
+  function hasSuggestedVerificationChanges(detail: VerificationErrorDetail | null): boolean {
+    if (!detail?.suggestedChangesPayload) {
+      return false
     }
-    const withoutPrefix = normalized.replace(/^verification task failed:\s*/iu, "")
-    return withoutPrefix.length > 48 ? `${withoutPrefix.slice(0, 48).trim()}...` : withoutPrefix
+    return Object.values(detail.suggestedChangesPayload).some((value) => typeof value === "string" && value.trim().length > 0)
   }
 
-  function notifyWordVerification(storedLemma: string, verification: VerifyWordResponse["verification"]) {
+  async function applySelectedLemmaVerificationChanges() {
+    const lemma = normalizeSearchWord(lemmaDetails?.lemma ?? selectedLemma ?? "")
+    if (!lemma) {
+      return
+    }
+    const detail = verificationErrorsByLemma[lemma] ?? null
+    if (!detail || !hasSuggestedVerificationChanges(detail) || !detail.suggestedChangesPayload) {
+      return
+    }
+
+    setIsApplyingVerificationChanges(true)
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/wordbank/lexemes/apply-verification-changes`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          stored_lemma: lemma,
+          stored_surface_form: detail.storedSurfaceForm ?? lemma,
+          suggested_changes: detail.suggestedChangesPayload,
+          provider: detail.provider,
+        }),
+      })
+      if (!response.ok) {
+        const message = await extractErrorMessage(
+          response,
+          `Apply verification changes failed with status ${response.status}`,
+        )
+        throw new Error(message)
+      }
+
+      const payload = (await response.json()) as ApplyVerificationChangesResponse
+      if (payload.status === "applied") {
+        const count = payload.applied_fields.length
+        toast.success(
+          count > 0
+            ? `Applied ${count} Gemini change${count === 1 ? "" : "s"} for '${lemma}'.`
+            : `Applied Gemini changes for '${lemma}'.`,
+        )
+        setVerificationErrorsByLemma((current) => {
+          if (!Object.hasOwn(current, lemma)) {
+            return current
+          }
+          const next = { ...current }
+          delete next[lemma]
+          return next
+        })
+        setWordbankRefreshTick((current) => current + 1)
+      } else {
+        toast.error("No Gemini changes were applied.")
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not apply Gemini changes."
+      toast.error(message)
+    } finally {
+      setIsApplyingVerificationChanges(false)
+    }
+  }
+
+  function notifyWordVerification(
+    storedLemma: string,
+    storedSurfaceForm: string | null,
+    verification: VerifyWordResponse["verification"],
+  ) {
     if (!verification || verification.status === "skipped" || verification.status === "queued") {
       return
     }
 
     const isOk = verification.status === "verified"
-    const verdict = isOk ? "OK" : "ERROR"
-    const count = verification.composed_word_count ?? 0
-    const composition = count > 1 ? ` ${count}w` : ""
-    const detail = isOk ? "" : briefErrorInfo(verification.message)
-    void storedLemma
-    pushNotification(`${verdict}${composition}${detail ? ` ${detail}` : ""}`)
+    const lemmaKey = normalizeSearchWord(storedLemma)
+    if (isOk) {
+      setVerificationErrorsByLemma((current) => {
+        if (!Object.hasOwn(current, lemmaKey)) {
+          return current
+        }
+        const next = { ...current }
+        delete next[lemmaKey]
+        return next
+      })
+      pushNotification("OK")
+      return
+    }
+
+    const detail = buildVerificationErrorDetail({
+      provider: verification.provider,
+      status: verification.status === "flagged" ? "flagged" : "error",
+      message: verification.message,
+      composedWordCount: verification.composed_word_count,
+      storedSurfaceForm,
+      problem: verification.problem,
+      changeToImplement: verification.change_to_implement,
+      suggestedChanges: verification.suggested_changes,
+    })
+    setVerificationErrorsByLemma((current) => ({ ...current, [lemmaKey]: detail }))
+    const displayLemma = lemmaKey || storedLemma || "word"
+    pushNotification(`ERROR ${displayLemma}: ${detail.problem} Change: ${detail.changeToImplement}`)
   }
 
   async function verifyWordInBackground(storedLemma: string, storedSurfaceForm: string | null) {
@@ -2765,11 +3061,18 @@ function App() {
         throw new Error(message)
       }
       const payload = (await response.json()) as VerifyWordResponse
-      notifyWordVerification(payload.stored_lemma, payload.verification)
+      notifyWordVerification(payload.stored_lemma, payload.stored_surface_form, payload.verification)
     } catch (error) {
       const message = error instanceof Error ? error.message : null
-      const detail = briefErrorInfo(message)
-      pushNotification(`ERROR${detail ? ` ${detail}` : ""}`)
+      const lemmaKey = normalizeSearchWord(storedLemma)
+      const detail = buildVerificationErrorDetail({
+        provider: "gemini",
+        status: "error",
+        message,
+        storedSurfaceForm,
+      })
+      setVerificationErrorsByLemma((current) => ({ ...current, [lemmaKey]: detail }))
+      pushNotification(`ERROR ${lemmaKey || storedLemma}: ${detail.problem} Change: ${detail.changeToImplement}`)
     }
   }
 
@@ -3198,19 +3501,100 @@ function App() {
                       </Badge>
                     ))}
                   </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="shrink-0"
-                    disabled={isRegeneratingLemmaPronunciation}
-                    onClick={() => {
-                      void regenerateSelectedLemmaPronunciation()
-                    }}
-                  >
-                    <RefreshCw className={isRegeneratingLemmaPronunciation ? "animate-spin" : ""} />
-                    Regenerate Audio
-                  </Button>
+                  <ButtonGroup className="shrink-0">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={isRegeneratingLemmaPronunciation}
+                      onClick={() => {
+                        void regenerateSelectedLemmaPronunciation()
+                      }}
+                    >
+                      <RefreshCw className={isRegeneratingLemmaPronunciation ? "animate-spin" : ""} />
+                      Regenerate Audio
+                    </Button>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <span>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            aria-label="Show verification error info"
+                            disabled={!selectedLemmaVerificationError}
+                          >
+                            <Info className="size-4" />
+                          </Button>
+                        </span>
+                      </PopoverTrigger>
+                      <PopoverContent align="end" className="w-96 space-y-3">
+                        {!selectedLemmaVerificationError ? (
+                          <p className="text-muted-foreground text-sm">No verification errors for this word.</p>
+                        ) : (
+                          <>
+                            <div>
+                              <p className="text-sm font-semibold">Verification Error</p>
+                              <p className="text-muted-foreground text-xs">
+                                Provider: {selectedLemmaVerificationError.provider}
+                              </p>
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-muted-foreground text-[11px] font-semibold tracking-wide uppercase">
+                                Problem
+                              </p>
+                              <p className="text-sm">{selectedLemmaVerificationError.problem}</p>
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-muted-foreground text-[11px] font-semibold tracking-wide uppercase">
+                                Change to implement
+                              </p>
+                              <p className="text-sm">{selectedLemmaVerificationError.changeToImplement}</p>
+                            </div>
+                            {selectedLemmaVerificationError.suggestedChanges
+                              && Object.values(selectedLemmaVerificationError.suggestedChanges).some(Boolean) ? (
+                                <div className="space-y-1">
+                                  <p className="text-muted-foreground text-[11px] font-semibold tracking-wide uppercase">
+                                    Specific fields to change
+                                  </p>
+                                  <ul className="space-y-1 text-sm">
+                                    {selectedLemmaVerificationError.suggestedChanges.lemmaPosTag ? (
+                                      <li>Lemma POS: {selectedLemmaVerificationError.suggestedChanges.lemmaPosTag}</li>
+                                    ) : null}
+                                    {selectedLemmaVerificationError.suggestedChanges.lemmaMorphology ? (
+                                      <li>Lemma morphology: {selectedLemmaVerificationError.suggestedChanges.lemmaMorphology}</li>
+                                    ) : null}
+                                    {selectedLemmaVerificationError.suggestedChanges.surfacePosTag ? (
+                                      <li>Surface POS: {selectedLemmaVerificationError.suggestedChanges.surfacePosTag}</li>
+                                    ) : null}
+                                    {selectedLemmaVerificationError.suggestedChanges.surfaceMorphology ? (
+                                      <li>Surface morphology: {selectedLemmaVerificationError.suggestedChanges.surfaceMorphology}</li>
+                                    ) : null}
+                                    {selectedLemmaVerificationError.suggestedChanges.lexemeTranslation ? (
+                                      <li>Lemma translation: {selectedLemmaVerificationError.suggestedChanges.lexemeTranslation}</li>
+                                    ) : null}
+                                    {selectedLemmaVerificationError.suggestedChanges.surfaceTranslation ? (
+                                      <li>Surface translation: {selectedLemmaVerificationError.suggestedChanges.surfaceTranslation}</li>
+                                    ) : null}
+                                  </ul>
+                                </div>
+                              ) : null}
+                            <Button
+                              type="button"
+                              size="sm"
+                              className="w-full"
+                              disabled={!hasSuggestedVerificationChanges(selectedLemmaVerificationError) || isApplyingVerificationChanges}
+                              onClick={() => {
+                                void applySelectedLemmaVerificationChanges()
+                              }}
+                            >
+                              {isApplyingVerificationChanges ? "Applying..." : "Apply Gemini Changes"}
+                            </Button>
+                          </>
+                        )}
+                      </PopoverContent>
+                    </Popover>
+                  </ButtonGroup>
                 </div>
                 <p className="text-muted-foreground mt-1 text-base">
                   {lemmaDetails.english_translation ?? "No translation available."}
