@@ -49,7 +49,6 @@ def test_text_input_returns_token_results(analysis_client: TestClient) -> None:
     assert by_token["lide"]["classification"] == "known"
     assert by_token["bogen"]["classification"] == "variation"
     assert by_token["bogen"]["match_source"] == "lemma"
-    assert by_token["bogen"]["status"] == "variation"
 
 
 def test_punctuation_not_returned_as_normal_words(analysis_client: TestClient) -> None:
@@ -98,13 +97,14 @@ def test_response_matches_contract_schema_exactly(analysis_client: TestClient) -
         "suggestions",
         "confidence",
         "reason_tags",
-        "status",
-        "surface",
-        "normalized",
-        "lemma",
-        "pos_tag",
-        "morphology",
+        "word_actions",
     }
+
+    assert "status" not in token
+    assert "surface" not in token
+    assert "normalized" not in token
+    assert "lemma" not in token
+
 
 
 
