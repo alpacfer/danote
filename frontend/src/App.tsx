@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Bell, BookOpen, Eye, Moon, NotebookPen, Plus, Save, Settings, Sun } from "lucide-react"
+import { Bell, BookOpen, Eye, Moon, NotebookPen, Plus, RefreshCw, Save, Settings, Sun, Volume2 } from "lucide-react"
 import { useTheme } from "next-themes"
 
 import { Badge } from "@/components/ui/badge"
@@ -134,6 +134,13 @@ type VerifyWordResponse = {
   }
 }
 
+type GeneratePronunciationResponse = {
+  status: "generated" | "unavailable" | "skipped"
+  stored_lemma: string
+  stored_surface_form: string | null
+  pronunciation_form: string | null
+}
+
 type WordbankLemma = {
   lemma: string
   display_lemma?: string | null
@@ -155,6 +162,7 @@ type LemmaDetailsResponse = {
     english_translation: string | null
     pos_tag: string | null
     morphology: string | null
+    has_pronunciation?: boolean
   }>
 }
 
@@ -1565,6 +1573,8 @@ function App() {
   const [generateTranslationError, setGenerateTranslationError] = useState<string | null>(null)
   const [isGeneratingPhraseTranslation, setIsGeneratingPhraseTranslation] = useState(false)
   const [generatePhraseTranslationError, setGeneratePhraseTranslationError] = useState<string | null>(null)
+  const [isRegeneratingLemmaPronunciation, setIsRegeneratingLemmaPronunciation] = useState(false)
+  const [pronunciationLoadingByForm, setPronunciationLoadingByForm] = useState<Record<string, boolean>>({})
 
   const latestRequestIdRef = useRef(0)
   const activeControllerRef = useRef<AbortController | null>(null)
@@ -1572,6 +1582,8 @@ function App() {
   const phraseTranslationDelayTimeoutRef = useRef<number | null>(null)
   const lemmaDetailsLoadingDelayTimeoutRef = useRef<number | null>(null)
   const noteAutosaveTimeoutRef = useRef<number | null>(null)
+  const pronunciationUrlByFormRef = useRef<Map<string, string>>(new Map())
+  const activePronunciationAudioRef = useRef<HTMLAudioElement | null>(null)
   const analysisInput = useMemo(() => finalizedAnalysisText(noteText), [noteText])
   const noteHighlights = useMemo(
     () => mapAnalyzedTokensToHighlights(noteText, tokens),
@@ -1965,6 +1977,21 @@ function App() {
   }, [])
 
   useEffect(() => {
+    const pronunciationUrlByForm = pronunciationUrlByFormRef.current
+    return () => {
+      for (const url of pronunciationUrlByForm.values()) {
+        URL.revokeObjectURL(url)
+      }
+      pronunciationUrlByForm.clear()
+      const activeAudio = activePronunciationAudioRef.current
+      if (activeAudio) {
+        activeAudio.pause()
+        activePronunciationAudioRef.current = null
+      }
+    }
+  }, [])
+
+  useEffect(() => {
     let cancelled = false
     setIsWordbankLoading(true)
     setWordbankError(null)
@@ -2108,7 +2135,12 @@ function App() {
         lemmaDetailsLoadingDelayTimeoutRef.current = null
       }
     }
-  }, [activeSection, selectedLemma])
+  }, [activeSection, selectedLemma, wordbankRefreshTick])
+
+  useEffect(() => {
+    setPronunciationLoadingByForm({})
+    setIsRegeneratingLemmaPronunciation(false)
+  }, [selectedLemma])
 
   useEffect(() => {
     if (!highlightPopover.open) {
@@ -2207,6 +2239,72 @@ function App() {
         ? "Autosaved"
         : "Autosave off"
 
+  function clearPronunciationCache(form: string | null | undefined) {
+    const normalizedForm = normalizeSearchWord(form ?? "")
+    if (!normalizedForm) {
+      return
+    }
+    const objectUrl = pronunciationUrlByFormRef.current.get(normalizedForm)
+    if (!objectUrl) {
+      return
+    }
+    const activeAudio = activePronunciationAudioRef.current
+    if (activeAudio?.src === objectUrl) {
+      activeAudio.pause()
+      activePronunciationAudioRef.current = null
+    }
+    URL.revokeObjectURL(objectUrl)
+    pronunciationUrlByFormRef.current.delete(normalizedForm)
+  }
+
+  async function playPronunciation(form: string) {
+    const normalizedForm = normalizeSearchWord(form)
+    if (!normalizedForm) {
+      return
+    }
+
+    setPronunciationLoadingByForm((current) => ({ ...current, [normalizedForm]: true }))
+    try {
+      let objectUrl = pronunciationUrlByFormRef.current.get(normalizedForm)
+      if (!objectUrl) {
+        const response = await fetch(
+          `${BACKEND_URL}/api/wordbank/pronunciation?form=${encodeURIComponent(normalizedForm)}`,
+        )
+        if (!response.ok) {
+          if (response.status === 404) {
+            toast.error(`No pronunciation is available yet for '${normalizedForm}'.`)
+            return
+          }
+          const message = await extractErrorMessage(
+            response,
+            `Pronunciation request failed with status ${response.status}`,
+          )
+          throw new Error(message)
+        }
+        const audioBlob = await response.blob()
+        objectUrl = URL.createObjectURL(audioBlob)
+        pronunciationUrlByFormRef.current.set(normalizedForm, objectUrl)
+      }
+
+      if (activePronunciationAudioRef.current) {
+        activePronunciationAudioRef.current.pause()
+      }
+      const audio = new Audio(objectUrl)
+      activePronunciationAudioRef.current = audio
+      await audio.play()
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not play pronunciation."
+      toast.error(message)
+      void error
+    } finally {
+      setPronunciationLoadingByForm((current) => {
+        const next = { ...current }
+        delete next[normalizedForm]
+        return next
+      })
+    }
+  }
+
   async function addWordToWordbank(surfaceToken: string, lemmaCandidate: string | null): Promise<AddWordResponse> {
     const normalizedSurfaceToken = normalizeSearchWord(surfaceToken)
     const normalizedLemmaCandidate = lemmaCandidate ? normalizeSearchWord(lemmaCandidate) : null
@@ -2243,6 +2341,7 @@ function App() {
       const payload = await addWordToWordbank(requestSurface, requestLemma)
       toast.success(payload.message)
       void verifyWordInBackground(payload.stored_lemma, payload.stored_surface_form)
+      void generatePronunciationInBackground(payload.stored_lemma, payload.stored_surface_form)
       void postTokenFeedback({
         raw_token: token.surface_token,
         predicted_status: token.classification,
@@ -2275,6 +2374,7 @@ function App() {
       const payload = await addWordToWordbank(surfaceToken, lemmaCandidate)
       toast.success(payload.message)
       void verifyWordInBackground(payload.stored_lemma, payload.stored_surface_form)
+      void generatePronunciationInBackground(payload.stored_lemma, payload.stored_surface_form)
       void postTokenFeedback({
         raw_token: feedbackContext?.rawToken ?? surfaceToken,
         predicted_status: feedbackContext?.predictedStatus ?? "new",
@@ -2673,6 +2773,64 @@ function App() {
     }
   }
 
+  async function generatePronunciationInBackground(
+    storedLemma: string,
+    storedSurfaceForm: string | null,
+    options?: { force?: boolean; notify?: boolean },
+  ) {
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/wordbank/lexemes/pronunciation`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          stored_lemma: storedLemma,
+          stored_surface_form: storedSurfaceForm,
+          force: Boolean(options?.force),
+        }),
+      })
+      if (!response.ok) {
+        if (options?.notify) {
+          const message = await extractErrorMessage(
+            response,
+            `Pronunciation request failed with status ${response.status}`,
+          )
+          toast.error(message)
+        }
+        return
+      }
+      const payload = (await response.json()) as GeneratePronunciationResponse
+      clearPronunciationCache(payload.pronunciation_form)
+      if (payload.status === "generated") {
+        setWordbankRefreshTick((current) => current + 1)
+        if (options?.notify) {
+          toast.success(`Regenerated pronunciation for '${payload.pronunciation_form ?? storedLemma}'.`)
+        }
+      } else if (options?.notify) {
+        toast.error(`Could not regenerate pronunciation for '${payload.pronunciation_form ?? storedLemma}'.`)
+      }
+    } catch {
+      if (options?.notify) {
+        toast.error("Could not regenerate pronunciation.")
+      }
+      // Keep add flow instant; pronunciation generation is best effort.
+    }
+  }
+
+  async function regenerateSelectedLemmaPronunciation() {
+    const lemma = normalizeSearchWord(lemmaDetails?.lemma ?? selectedLemma ?? "")
+    if (!lemma) {
+      return
+    }
+    setIsRegeneratingLemmaPronunciation(true)
+    try {
+      await generatePronunciationInBackground(lemma, lemma, { force: true, notify: true })
+    } finally {
+      setIsRegeneratingLemmaPronunciation(false)
+    }
+  }
+
   function markAllNotificationsAsRead() {
     setNotifications((current) => current.map((notification) => ({ ...notification, read: true })))
   }
@@ -2908,6 +3066,19 @@ function App() {
     }
 
     const normalizedSelectedLemma = (lemmaDetails?.lemma ?? selectedLemma).trim().toLocaleLowerCase("da-DK")
+    const lemmaPronunciationForm = (() => {
+      if (!lemmaDetails) {
+        return null
+      }
+      const exactMatch = lemmaDetails.surface_forms.find(
+        (form) => form.form.trim().toLocaleLowerCase("da-DK") === normalizedSelectedLemma && form.has_pronunciation,
+      )
+      if (exactMatch) {
+        return exactMatch.form
+      }
+      const firstAvailable = lemmaDetails.surface_forms.find((form) => form.has_pronunciation)
+      return firstAvailable?.form ?? null
+    })()
     const variationForms = lemmaDetails?.surface_forms.filter(
       (form) => form.form.trim().toLocaleLowerCase("da-DK") !== normalizedSelectedLemma,
     ) ?? []
@@ -2990,13 +3161,56 @@ function App() {
           <ScrollArea className="min-h-0 flex-1">
             <div className="space-y-3 pr-1">
               <div>
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-                  <h2 className="mr-3 text-4xl font-bold leading-tight">{lemmaDetails.lemma}</h2>
-                  {lemmaMetadataBadges.map((badge) => (
-                    <Badge key={badge.key} variant="secondary" className={`text-xs ${badge.className}`.trim()}>
-                      {badge.label}
-                    </Badge>
-                  ))}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                    <h2 className="mr-3 text-4xl font-bold leading-tight">{lemmaDetails.lemma}</h2>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon-sm"
+                            aria-label={`Listen to ${lemmaDetails.lemma}`}
+                            disabled={
+                              !lemmaPronunciationForm
+                              || Boolean(pronunciationLoadingByForm[normalizeSearchWord(lemmaPronunciationForm)])
+                            }
+                            onClick={(event) => {
+                              event.currentTarget.blur()
+                              if (!lemmaPronunciationForm) {
+                                return
+                              }
+                              void playPronunciation(lemmaPronunciationForm)
+                            }}
+                          >
+                            <Volume2 />
+                          </Button>
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent side="right" sideOffset={6}>
+                        <p>Listen</p>
+                      </TooltipContent>
+                    </Tooltip>
+                    {lemmaMetadataBadges.map((badge) => (
+                      <Badge key={badge.key} variant="secondary" className={`text-xs ${badge.className}`.trim()}>
+                        {badge.label}
+                      </Badge>
+                    ))}
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0"
+                    disabled={isRegeneratingLemmaPronunciation}
+                    onClick={() => {
+                      void regenerateSelectedLemmaPronunciation()
+                    }}
+                  >
+                    <RefreshCw className={isRegeneratingLemmaPronunciation ? "animate-spin" : ""} />
+                    Regenerate Audio
+                  </Button>
                 </div>
                 <p className="text-muted-foreground mt-1 text-base">
                   {lemmaDetails.english_translation ?? "No translation available."}
@@ -3013,6 +3227,31 @@ function App() {
                         <CardContent className="space-y-3">
                           <div className="flex items-center justify-between gap-3">
                             <p className="text-lg font-bold leading-tight">{form.form}</p>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon-sm"
+                                    aria-label={`Listen to ${form.form}`}
+                                    disabled={
+                                      !form.has_pronunciation
+                                      || Boolean(pronunciationLoadingByForm[normalizeSearchWord(form.form)])
+                                    }
+                                    onClick={(event) => {
+                                      event.currentTarget.blur()
+                                      void playPronunciation(form.form)
+                                    }}
+                                  >
+                                    <Volume2 />
+                                  </Button>
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent side="right" sideOffset={6}>
+                                <p>Listen</p>
+                              </TooltipContent>
+                            </Tooltip>
                           </div>
                           <p className="text-muted-foreground text-sm">
                             {form.english_translation ?? "No translation available."}

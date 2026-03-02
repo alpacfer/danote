@@ -3,11 +3,12 @@ from __future__ import annotations
 from pathlib import Path
 
 from app.api.schemas.v1.wordbank import LemmaDetailsResponse
-from app.db.migrations import apply_migrations
+from app.db.migrations import apply_migrations, get_connection
 from app.services.use_cases.analyze import AnalyzeNoteUseCase, strip_inline_comments
 from app.services.use_cases.sentencebank import SentencebankUseCase
 from app.services.use_cases.wordbank import WordbankUseCase
 from app.nlp.adapter import NLPToken
+from app.services.tts import PronunciationAudio
 
 
 
@@ -67,6 +68,22 @@ class FakeVerificationService:
                 self.message = message
 
         return Result(self._verdict, self._message)
+
+
+class FakeTTSService:
+    provider = "gemini_tts"
+    model = "gemini-2.5-flash-preview-tts"
+
+    def __init__(self, mapping: dict[str, bytes]):
+        self._mapping = mapping
+        self.calls: list[str] = []
+
+    def synthesize(self, text: str) -> PronunciationAudio | None:
+        self.calls.append(text)
+        data = self._mapping.get(text)
+        if not data:
+            return None
+        return PronunciationAudio(audio_bytes=data, mime_type="audio/wav")
 
 
 def _db_path(tmp_path: Path) -> Path:
@@ -182,6 +199,73 @@ def test_wordbank_use_case_includes_pos_and_morphology_when_nlp_available(tmp_pa
             morphology="Gender=Com|Number=Sing",
         )
     ]
+
+
+def test_wordbank_use_case_stores_and_returns_surface_pronunciation(tmp_path: Path) -> None:
+    tts_service = FakeTTSService({"bogen": b"fake-wav-bytes"})
+    use_case = WordbankUseCase(_db_path(tmp_path), tts_service=tts_service)
+
+    use_case.add_word("Bogen", "bog")
+    pronunciation = use_case.get_pronunciation_audio("bogen")
+
+    assert pronunciation.mime_type == "audio/wav"
+    assert pronunciation.audio_bytes == b"fake-wav-bytes"
+    assert tts_service.calls == ["bogen"]
+
+
+def test_wordbank_use_case_generates_pronunciation_on_demand_for_existing_form(tmp_path: Path) -> None:
+    db_path = _db_path(tmp_path)
+    with get_connection(db_path) as conn:
+        conn.execute("INSERT INTO lexemes (lemma, source) VALUES (?, ?)", ("bog", "manual"))
+        lexeme_row = conn.execute("SELECT id FROM lexemes WHERE lemma = ?", ("bog",)).fetchone()
+        assert lexeme_row is not None
+        conn.execute(
+            "INSERT INTO surface_forms (lexeme_id, form, source) VALUES (?, ?, ?)",
+            (int(lexeme_row["id"]), "bogen", "manual"),
+        )
+
+    tts_service = FakeTTSService({"bogen": b"lazy-wav-bytes"})
+    use_case = WordbankUseCase(db_path, tts_service=tts_service)
+
+    pronunciation = use_case.get_pronunciation_audio("bogen")
+
+    assert pronunciation.mime_type == "audio/wav"
+    assert pronunciation.audio_bytes == b"lazy-wav-bytes"
+    assert tts_service.calls == ["bogen"]
+
+
+def test_wordbank_use_case_force_regenerates_pronunciation(tmp_path: Path) -> None:
+    db_path = _db_path(tmp_path)
+    use_case = WordbankUseCase(db_path)
+    use_case.add_word("Bogen", "bog")
+
+    class RotatingTTSService:
+        provider = "gemini_tts"
+        model = "gemini-2.5-flash-preview-tts"
+
+        def __init__(self) -> None:
+            self.calls: list[str] = []
+            self._counter = 0
+
+        def synthesize(self, text: str) -> PronunciationAudio | None:
+            self.calls.append(text)
+            self._counter += 1
+            return PronunciationAudio(
+                audio_bytes=f"wav-{self._counter}".encode("utf-8"),
+                mime_type="audio/wav",
+            )
+
+    tts_service = RotatingTTSService()
+    use_case = WordbankUseCase(db_path, tts_service=tts_service)
+
+    first = use_case.generate_pronunciation_for_added_word("bog", "bogen")
+    second = use_case.generate_pronunciation_for_added_word("bog", "bogen", force=True)
+    audio = use_case.get_pronunciation_audio("bogen")
+
+    assert first.status == "generated"
+    assert second.status == "generated"
+    assert audio.audio_bytes == b"wav-2"
+    assert tts_service.calls == ["bogen", "bogen"]
 
 
 def test_wordbank_list_lemmas_displays_verbs_with_at_prefix(tmp_path: Path) -> None:

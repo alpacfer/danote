@@ -14,6 +14,7 @@ from app.db.migrations import apply_migrations
 from app.core.logging import configure_logging
 from app.nlp.adapter import NLPAdapter
 from app.services.translation import DeepLTranslationService, GeminiTranslationService
+from app.services.tts import GeminiTTSService
 from app.services.typo.typo_engine import TypoEngine
 from app.services.verification import GeminiWordVerificationService
 
@@ -148,6 +149,34 @@ def create_app(
                 app.state.word_verification_service = None
         else:
             app.state.word_verification_service = None
+        app.state.tts_error = None
+        if app_settings.tts_enabled:
+            tts_provider = app_settings.tts_provider.strip().lower()
+            if tts_provider == "gemini":
+                if app_settings.tts_gemini_api_key:
+                    try:
+                        app.state.tts_service = GeminiTTSService(
+                            api_key=app_settings.tts_gemini_api_key,
+                            model=app_settings.tts_gemini_model,
+                            voice_name=app_settings.tts_gemini_voice_name,
+                        )
+                    except Exception:
+                        logger.exception("backend_tts_startup_failed")
+                        app.state.tts_error = "Failed to initialize Gemini TTS service."
+                        app.state.tts_service = None
+                else:
+                    logger.warning("backend_tts_startup_skipped_missing_gemini_key")
+                    app.state.tts_error = "Missing DANOTE_TTS_GEMINI_API_KEY."
+                    app.state.tts_service = None
+            else:
+                logger.warning(
+                    "backend_tts_startup_skipped_unknown_provider",
+                    extra={"tts_provider": tts_provider},
+                )
+                app.state.tts_error = f"Unknown TTS provider '{tts_provider}'."
+                app.state.tts_service = None
+        else:
+            app.state.tts_service = None
 
         startup_status = "ok" if app.state.db_ready and app.state.nlp_ready else "degraded"
         logger.info(
@@ -177,6 +206,18 @@ def create_app(
                     if app.state.word_verification_service
                     else None
                 ),
+                "tts_enabled": app_settings.tts_enabled,
+                "tts_error": app.state.tts_error,
+                "tts_provider": (
+                    getattr(app.state.tts_service, "provider", None)
+                    if app.state.tts_service
+                    else None
+                ),
+                "tts_model": (
+                    getattr(app.state.tts_service, "model", None)
+                    if app.state.tts_service
+                    else None
+                ),
             },
         )
         yield
@@ -188,6 +229,10 @@ def create_app(
         verification_close = getattr(verification_service, "close", None)
         if callable(verification_close):
             verification_close()
+        tts_service = getattr(app.state, "tts_service", None)
+        tts_close = getattr(tts_service, "close", None)
+        if callable(tts_close):
+            tts_close()
 
     app = FastAPI(title="Danote Backend", version="0.1.0", lifespan=lifespan)
     app.state.settings = app_settings
@@ -202,6 +247,8 @@ def create_app(
     app.state.runtime_api_keys = {}
     app.state.word_verification_service = None
     app.state.word_verification_error = None
+    app.state.tts_service = None
+    app.state.tts_error = None
     app.add_middleware(
         CORSMiddleware,
         allow_origins=list(app_settings.cors_origins),

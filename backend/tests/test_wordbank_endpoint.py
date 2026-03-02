@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 from app.core.config import Settings
 from app.db.migrations import apply_migrations, get_connection
 from app.main import create_app
+from app.services.tts import PronunciationAudio
 
 
 def _test_settings(db_path) -> Settings:
@@ -158,8 +159,8 @@ def test_get_lemma_details_returns_all_saved_variations(tmp_path, stub_nlp_adapt
     assert payload["lemma"] == "bog"
     assert payload["english_translation"] is None
     assert payload["surface_forms"] == [
-        {"form": "bogen", "english_translation": None, "pos_tag": None, "morphology": None},
-        {"form": "bogens", "english_translation": None, "pos_tag": None, "morphology": None},
+        {"form": "bogen", "english_translation": None, "pos_tag": None, "morphology": None, "has_pronunciation": False},
+        {"form": "bogens", "english_translation": None, "pos_tag": None, "morphology": None, "has_pronunciation": False},
     ]
 
 
@@ -225,6 +226,186 @@ def test_generate_translation_returns_generated_value(tmp_path, stub_nlp_adapter
         "lemma": "kat",
         "english_translation": "the cat",
     }
+
+
+def test_get_pronunciation_audio_returns_stored_audio(tmp_path, stub_nlp_adapter_factory) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    apply_migrations(db_path)
+    app = create_app(_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+
+    class StubTTSService:
+        def synthesize(self, text: str) -> PronunciationAudio | None:
+            if text == "katten":
+                return PronunciationAudio(audio_bytes=b"wav-bytes", mime_type="audio/wav")
+            return None
+
+    with TestClient(app) as client:
+        client.app.state.tts_service = StubTTSService()
+        add_response = client.post(
+            "/api/wordbank/lexemes",
+            json={"surface_token": "Katten", "lemma_candidate": "kat"},
+        )
+        assert add_response.status_code == 200
+
+        response = client.get("/api/wordbank/pronunciation", params={"form": "katten"})
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("audio/wav")
+    assert response.content == b"wav-bytes"
+
+
+def test_add_word_does_not_block_on_pronunciation_for_new_surface_form(tmp_path, stub_nlp_adapter_factory) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    apply_migrations(db_path)
+    app = create_app(_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+
+    class StubTTSService:
+        def __init__(self) -> None:
+            self.calls: list[str] = []
+
+        def synthesize(self, text: str) -> PronunciationAudio | None:
+            self.calls.append(text)
+            if text == "katten":
+                return PronunciationAudio(audio_bytes=b"wav-bytes", mime_type="audio/wav")
+            return None
+
+    stub_tts = StubTTSService()
+    with TestClient(app) as client:
+        client.app.state.tts_service = stub_tts
+        add_response = client.post(
+            "/api/wordbank/lexemes",
+            json={"surface_token": "Katten", "lemma_candidate": "kat"},
+        )
+        assert add_response.status_code == 200
+
+        details_response = client.get("/api/wordbank/lemmas/kat")
+
+    assert details_response.status_code == 200
+    payload = details_response.json()
+    assert payload["surface_forms"] == [
+        {
+            "form": "katten",
+            "english_translation": None,
+            "pos_tag": None,
+            "morphology": None,
+            "has_pronunciation": False,
+        }
+    ]
+    assert stub_tts.calls == []
+
+
+def test_generate_pronunciation_endpoint_generates_for_recently_added_word(tmp_path, stub_nlp_adapter_factory) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    apply_migrations(db_path)
+    app = create_app(_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+
+    class StubTTSService:
+        def __init__(self) -> None:
+            self.calls: list[str] = []
+
+        def synthesize(self, text: str) -> PronunciationAudio | None:
+            self.calls.append(text)
+            if text == "katten":
+                return PronunciationAudio(audio_bytes=b"wav-bytes", mime_type="audio/wav")
+            return None
+
+    stub_tts = StubTTSService()
+    with TestClient(app) as client:
+        client.app.state.tts_service = stub_tts
+        add_response = client.post(
+            "/api/wordbank/lexemes",
+            json={"surface_token": "Katten", "lemma_candidate": "kat"},
+        )
+        assert add_response.status_code == 200
+
+        pronunciation_response = client.post(
+            "/api/wordbank/lexemes/pronunciation",
+            json={"stored_lemma": "kat", "stored_surface_form": "katten"},
+        )
+        assert pronunciation_response.status_code == 200
+        assert pronunciation_response.json()["status"] == "generated"
+
+        details_response = client.get("/api/wordbank/lemmas/kat")
+
+    assert details_response.status_code == 200
+    payload = details_response.json()
+    assert payload["surface_forms"] == [
+        {
+            "form": "katten",
+            "english_translation": None,
+            "pos_tag": None,
+            "morphology": None,
+            "has_pronunciation": True,
+        }
+    ]
+    assert stub_tts.calls == ["katten"]
+
+
+def test_generate_pronunciation_endpoint_force_regenerates_existing_audio(tmp_path, stub_nlp_adapter_factory) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    apply_migrations(db_path)
+    app = create_app(_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+
+    class StubTTSService:
+        def __init__(self) -> None:
+            self.calls: list[str] = []
+            self._counter = 0
+
+        def synthesize(self, text: str) -> PronunciationAudio | None:
+            self.calls.append(text)
+            if text != "katten":
+                return None
+            self._counter += 1
+            return PronunciationAudio(audio_bytes=f"wav-{self._counter}".encode("utf-8"), mime_type="audio/wav")
+
+    stub_tts = StubTTSService()
+    with TestClient(app) as client:
+        client.app.state.tts_service = stub_tts
+        add_response = client.post(
+            "/api/wordbank/lexemes",
+            json={"surface_token": "Katten", "lemma_candidate": "kat"},
+        )
+        assert add_response.status_code == 200
+
+        first_response = client.post(
+            "/api/wordbank/lexemes/pronunciation",
+            json={"stored_lemma": "kat", "stored_surface_form": "katten"},
+        )
+        assert first_response.status_code == 200
+        assert first_response.json()["status"] == "generated"
+
+        second_response = client.post(
+            "/api/wordbank/lexemes/pronunciation",
+            json={"stored_lemma": "kat", "stored_surface_form": "katten", "force": True},
+        )
+        assert second_response.status_code == 200
+        assert second_response.json()["status"] == "generated"
+
+        audio_response = client.get("/api/wordbank/pronunciation", params={"form": "katten"})
+
+    assert audio_response.status_code == 200
+    assert audio_response.content == b"wav-2"
+    assert stub_tts.calls == ["katten", "katten"]
+
+
+def test_get_pronunciation_audio_returns_service_unavailable_when_tts_not_configured(
+    tmp_path,
+    stub_nlp_adapter_factory,
+) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    apply_migrations(db_path)
+    app = create_app(_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+
+    with TestClient(app) as client:
+        add_response = client.post(
+            "/api/wordbank/lexemes",
+            json={"surface_token": "Katten", "lemma_candidate": "kat"},
+        )
+        assert add_response.status_code == 200
+        response = client.get("/api/wordbank/pronunciation", params={"form": "katten"})
+
+    assert response.status_code == 503
+    assert "Text-to-speech is unavailable" in response.json()["detail"]
 
 
 def test_generate_translation_returns_unavailable_when_provider_has_none(tmp_path, stub_nlp_adapter_factory) -> None:

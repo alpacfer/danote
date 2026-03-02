@@ -530,6 +530,19 @@ function mockFetchImplementation(options?: {
       return responseOf(verifyWordResponse)
     }
 
+    if (url.endsWith("/api/wordbank/lexemes/pronunciation")) {
+      const body = JSON.parse(String(init?.body ?? "{}")) as {
+        stored_lemma?: string
+        stored_surface_form?: string | null
+      }
+      return responseOf({
+        status: "generated",
+        stored_lemma: body.stored_lemma ?? "kat",
+        stored_surface_form: body.stored_surface_form ?? "kat",
+        pronunciation_form: body.stored_surface_form ?? body.stored_lemma ?? null,
+      })
+    }
+
     if (url.endsWith("/api/wordbank/lemmas")) {
       if (!lemmasOk) {
         throw new Error("wordbank request failed")
@@ -1609,6 +1622,41 @@ describe("App shell", () => {
     expect(await screen.findByText(/^bog$/i)).toBeInTheDocument()
     expect(await screen.findByText(/^book$/i)).toBeInTheDocument()
     expect(screen.getByText(/^book's$/i)).toBeInTheDocument()
+  })
+
+  it("regenerates pronunciation from the word page action", async () => {
+    const fetchSpy = mockFetchImplementation({
+      lemmasResponse: {
+        items: [{ lemma: "bog", variation_count: 1 }],
+      },
+      lemmaDetailsResponse: {
+        lemma: "bog",
+        surface_forms: [{ form: "bogen", english_translation: "book", has_pronunciation: true }],
+      },
+    })
+
+    render(<App />)
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /bog/i }))
+
+    const regenerateButton = await screen.findByRole("button", { name: /regenerate audio/i })
+    fireEvent.click(regenerateButton)
+
+    await waitFor(() => {
+      expect(fetchSpy).toHaveBeenCalledWith(
+        expect.stringContaining("/api/wordbank/lexemes/pronunciation"),
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({
+            stored_lemma: "bog",
+            stored_surface_form: "bog",
+            force: true,
+          }),
+        }),
+      )
+    })
   })
 
   it("shows lesson notes in playground", async () => {

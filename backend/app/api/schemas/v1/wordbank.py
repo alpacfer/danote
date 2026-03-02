@@ -122,6 +122,19 @@ class VerifyWordResponse(BaseModel):
     verification: AddWordResponse.VerificationResult
 
 
+class GeneratePronunciationRequest(BaseModel):
+    stored_lemma: str = Field(..., min_length=1)
+    stored_surface_form: str | None = None
+    force: bool = False
+
+
+class GeneratePronunciationResponse(BaseModel):
+    status: Literal["generated", "unavailable", "skipped"]
+    stored_lemma: str
+    stored_surface_form: str | None
+    pronunciation_form: str | None
+
+
 class LemmaSummary(BaseModel):
     lemma: str
     display_lemma: str
@@ -142,6 +155,7 @@ class LemmaDetailsResponse(BaseModel):
         english_translation: str | None
         pos_tag: str | None = None
         morphology: str | None = None
+        has_pronunciation: bool = False
 
     lemma: str
     english_translation: str | None

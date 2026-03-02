@@ -4,6 +4,7 @@ from fastapi import FastAPI
 
 from app.api.schemas.v1 import DeveloperApiKeysUpdateRequest, DeveloperApiKeysUpdateResponse
 from app.services.translation import DeepLTranslationService, GeminiTranslationService
+from app.services.tts import GeminiTTSService
 from app.services.verification import GeminiWordVerificationService
 
 
@@ -27,6 +28,10 @@ class DeveloperUseCase:
         verification_close = getattr(verification_service, "close", None)
         if callable(verification_close):
             verification_close()
+        tts_service = getattr(self._app.state, "tts_service", None)
+        tts_close = getattr(tts_service, "close", None)
+        if callable(tts_close):
+            tts_close()
 
         settings = self._app.state.settings
         self._app.state.translation_error = None
@@ -74,6 +79,26 @@ class DeveloperUseCase:
                     self._app.state.word_verification_error = "Failed to initialize Gemini word verification service."
             else:
                 self._app.state.word_verification_error = "Missing DANOTE_WORD_VERIFICATION_GEMINI_API_KEY."
+
+        self._app.state.tts_error = None
+        self._app.state.tts_service = None
+        if settings.tts_enabled:
+            provider = settings.tts_provider.strip().lower()
+            if provider == "gemini":
+                tts_key = runtime_api_keys["gemini"] or settings.tts_gemini_api_key
+                if tts_key:
+                    try:
+                        self._app.state.tts_service = GeminiTTSService(
+                            api_key=tts_key,
+                            model=settings.tts_gemini_model,
+                            voice_name=settings.tts_gemini_voice_name,
+                        )
+                    except Exception:
+                        self._app.state.tts_error = "Failed to initialize Gemini TTS service."
+                else:
+                    self._app.state.tts_error = "Missing DANOTE_TTS_GEMINI_API_KEY."
+            else:
+                self._app.state.tts_error = f"Unknown TTS provider '{provider}'."
 
         return DeveloperApiKeysUpdateResponse(
             status="updated",

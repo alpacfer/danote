@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import os
+import sqlite3
 from typing import Literal
 
 from app.api.schemas.v1.wordbank import (
     AddWordResponse,
     DetectWordLanguageResponse,
+    GeneratePronunciationResponse,
     GeneratePhraseTranslationResponse,
     GenerateReverseTranslationResponse,
     GenerateTranslationResponse,
@@ -23,6 +25,7 @@ from app.nlp.token_filter import is_short_letter_word, is_wordlike_token
 from app.services.text_preprocessing import strip_inline_comments
 from app.services.token_classifier import LemmaAwareClassifier, normalize_token
 from app.services.translation import TranslationService
+from app.services.tts import PronunciationAudio, TTSService
 from app.services.verification import WordVerificationInput, WordVerificationService
 
 
@@ -149,12 +152,14 @@ class WordbankUseCase:
         translation_service: TranslationService | None = None,
         nlp_adapter: NLPAdapter | None = None,
         verification_service: WordVerificationService | None = None,
+        tts_service: TTSService | None = None,
     ):
         self._db_path = db_path
         self._typo_engine = typo_engine
         self._translation_service = translation_service
         self._nlp_adapter = nlp_adapter
         self._verification_service = verification_service
+        self._tts_service = tts_service
         self._pos_morph_cache: dict[str, tuple[str | None, str | None]] = {}
 
     def add_word(self, surface_token: str, lemma_candidate: str | None) -> AddWordResponse:
@@ -301,6 +306,70 @@ class WordbankUseCase:
             source="manual",
             message=message,
             verification=verification,
+        )
+
+    def generate_pronunciation_for_added_word(
+        self,
+        stored_lemma: str,
+        stored_surface_form: str | None,
+        *,
+        force: bool = False,
+    ) -> GeneratePronunciationResponse:
+        normalized_lemma = normalize_token(stored_lemma)
+        normalized_surface = normalize_token(stored_surface_form or "") or None
+        if not normalized_lemma:
+            raise ValueError("stored_lemma is required")
+
+        pronunciation_form = normalized_surface or normalized_lemma
+        if not pronunciation_form:
+            return GeneratePronunciationResponse(
+                status="skipped",
+                stored_lemma=normalized_lemma,
+                stored_surface_form=normalized_surface,
+                pronunciation_form=None,
+            )
+
+        if self._tts_service is None:
+            return GeneratePronunciationResponse(
+                status="unavailable",
+                stored_lemma=normalized_lemma,
+                stored_surface_form=normalized_surface,
+                pronunciation_form=pronunciation_form,
+            )
+
+        with get_connection(self._db_path) as conn:
+            lexeme_row = conn.execute(
+                "SELECT id FROM lexemes WHERE lemma = ? LIMIT 1",
+                (normalized_lemma,),
+            ).fetchone()
+            if lexeme_row is None:
+                raise LookupError(f"Lemma '{normalized_lemma}' was not found")
+            generated_now = self._ensure_surface_pronunciation(
+                conn=conn,
+                lexeme_id=int(lexeme_row["id"]),
+                form=pronunciation_form,
+                force=force,
+            )
+            row = conn.execute(
+                """
+                SELECT pronunciation_audio
+                FROM surface_forms
+                WHERE lexeme_id = ? AND form = ?
+                LIMIT 1
+                """,
+                (int(lexeme_row["id"]), pronunciation_form),
+            ).fetchone()
+
+        has_audio = bool(row is not None and isinstance(row["pronunciation_audio"], bytes) and row["pronunciation_audio"])
+        if force and not generated_now:
+            status: Literal["generated", "unavailable", "skipped"] = "unavailable"
+        else:
+            status = "generated" if has_audio else "unavailable"
+        return GeneratePronunciationResponse(
+            status=status,
+            stored_lemma=normalized_lemma,
+            stored_surface_form=normalized_surface,
+            pronunciation_form=pronunciation_form,
         )
 
     def verify_added_word(self, stored_lemma: str, stored_surface_form: str | None) -> VerifyWordResponse:
@@ -683,7 +752,8 @@ class WordbankUseCase:
                     form,
                     english_translation AS english_translation,
                     pos_tag,
-                    morphology
+                    morphology,
+                    CASE WHEN pronunciation_audio IS NOT NULL THEN 1 ELSE 0 END AS has_pronunciation
                 FROM surface_forms
                 WHERE lexeme_id = ?
                 ORDER BY form COLLATE NOCASE
@@ -713,6 +783,7 @@ class WordbankUseCase:
                     english_translation=row["english_translation"],
                     pos_tag=pos_tag,
                     morphology=morphology,
+                    has_pronunciation=bool(row["has_pronunciation"]),
                 )
             )
 
@@ -723,6 +794,59 @@ class WordbankUseCase:
             morphology=lemma_morphology,
             surface_forms=surface_forms,
         )
+
+    def get_pronunciation_audio(self, form: str) -> PronunciationAudio:
+        normalized_form = normalize_token(form)
+        if not normalized_form:
+            raise ValueError("form is required")
+
+        with get_connection(self._db_path) as conn:
+            row = conn.execute(
+                """
+                SELECT id, pronunciation_audio, pronunciation_mime_type
+                FROM surface_forms
+                WHERE form = ?
+                ORDER BY id DESC
+                LIMIT 1
+                """,
+                (normalized_form,),
+            ).fetchone()
+            if row is None:
+                raise LookupError(f"Pronunciation for '{normalized_form}' was not found")
+
+            audio_bytes = row["pronunciation_audio"]
+            if isinstance(audio_bytes, bytes) and audio_bytes:
+                mime_type = row["pronunciation_mime_type"]
+                return PronunciationAudio(
+                    audio_bytes=audio_bytes,
+                    mime_type=mime_type if isinstance(mime_type, str) and mime_type.strip() else "audio/wav",
+                )
+
+            generated = self._lookup_pronunciation(normalized_form)
+            if generated is None:
+                if self._tts_service is None:
+                    raise RuntimeError("Text-to-speech is unavailable: configure DANOTE_TTS_GEMINI_API_KEY.")
+                raise LookupError(f"Pronunciation for '{normalized_form}' was not found")
+
+            conn.execute(
+                """
+                UPDATE surface_forms
+                SET pronunciation_audio = ?,
+                    pronunciation_mime_type = ?,
+                    pronunciation_provider = ?,
+                    pronunciation_model = ?,
+                    pronunciation_generated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (
+                    generated.audio_bytes,
+                    generated.mime_type,
+                    self._tts_provider_name(),
+                    self._tts_model_name(),
+                    int(row["id"]),
+                ),
+            )
+            return generated
 
 
 
@@ -821,12 +945,97 @@ class WordbankUseCase:
                 return cleaned
         return "translation"
 
+    def _lookup_pronunciation(self, source_word: str) -> PronunciationAudio | None:
+        if self._tts_service is None:
+            return None
+
+        synthesize = getattr(self._tts_service, "synthesize", None)
+        if not callable(synthesize):
+            return None
+
+        try:
+            return synthesize(source_word)
+        except Exception:
+            return None
+
+    def _tts_provider_name(self) -> str:
+        provider = getattr(self._tts_service, "provider", None)
+        if isinstance(provider, str):
+            cleaned = provider.strip().lower()
+            if cleaned:
+                return cleaned
+        return "tts"
+
+    def _tts_model_name(self) -> str | None:
+        model = getattr(self._tts_service, "model", None)
+        if isinstance(model, str):
+            cleaned = model.strip()
+            if cleaned:
+                return cleaned
+        return None
+
     def _display_lemma_for_list(self, lemma: str, pos_tag: str | None) -> str:
         if pos_tag is None:
             pos_tag, _morphology = self._extract_pos_and_morphology(lemma)
         if pos_tag in {"VERB", "AUX"}:
             return f"at {lemma}"
         return lemma
+
+    def _ensure_surface_pronunciation(
+        self,
+        *,
+        conn: sqlite3.Connection,
+        lexeme_id: int,
+        form: str,
+        force: bool = False,
+    ) -> bool:
+        conn.execute(
+            """
+            INSERT OR IGNORE INTO surface_forms (lexeme_id, form, source)
+            VALUES (?, ?, ?)
+            """,
+            (lexeme_id, form, "manual"),
+        )
+        existing = conn.execute(
+            """
+            SELECT pronunciation_audio
+            FROM surface_forms
+            WHERE lexeme_id = ? AND form = ?
+            LIMIT 1
+            """,
+            (lexeme_id, form),
+        ).fetchone()
+        if existing is None:
+            return False
+
+        existing_audio = existing["pronunciation_audio"]
+        if not force and isinstance(existing_audio, bytes) and existing_audio:
+            return False
+
+        generated = self._lookup_pronunciation(form)
+        if generated is None:
+            return False
+
+        conn.execute(
+            """
+            UPDATE surface_forms
+            SET pronunciation_audio = ?,
+                pronunciation_mime_type = ?,
+                pronunciation_provider = ?,
+                pronunciation_model = ?,
+                pronunciation_generated_at = CURRENT_TIMESTAMP
+            WHERE lexeme_id = ? AND form = ?
+            """,
+            (
+                generated.audio_bytes,
+                generated.mime_type,
+                self._tts_provider_name(),
+                self._tts_model_name(),
+                lexeme_id,
+                form,
+            ),
+        )
+        return True
 
     def _invalidate_pos_cache(self, lemma: str, surface: str | None) -> None:
         self._pos_morph_cache.pop(lemma, None)

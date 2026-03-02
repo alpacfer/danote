@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import sqlite3
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request, Response
 
 from app.api.routes._use_case_factories import build_wordbank_use_case
 from app.api.schemas.v1.wordbank import (
@@ -11,6 +11,8 @@ from app.api.schemas.v1.wordbank import (
     AddWordResponse,
     DetectWordLanguageRequest,
     DetectWordLanguageResponse,
+    GeneratePronunciationRequest,
+    GeneratePronunciationResponse,
     GeneratePhraseTranslationRequest,
     GeneratePhraseTranslationResponse,
     GenerateReverseTranslationRequest,
@@ -65,6 +67,31 @@ def verify_added_word(payload: VerifyWordRequest, request: Request) -> VerifyWor
         return build_wordbank_use_case(request).verify_added_word(payload.stored_lemma, payload.stored_surface_form)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except sqlite3.OperationalError as exc:
+        logger.exception("wordbank_db_operational_error")
+        raise HTTPException(
+            status_code=503,
+            detail=f"Database unavailable: {exc}",
+        ) from exc
+
+
+@router.post("/wordbank/lexemes/pronunciation", response_model=GeneratePronunciationResponse)
+def generate_pronunciation(
+    payload: GeneratePronunciationRequest,
+    request: Request,
+) -> GeneratePronunciationResponse:
+    _require_db_ready(request)
+
+    try:
+        return build_wordbank_use_case(request).generate_pronunciation_for_added_word(
+            payload.stored_lemma,
+            payload.stored_surface_form,
+            force=payload.force,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
     except sqlite3.OperationalError as exc:
         logger.exception("wordbank_db_operational_error")
         raise HTTPException(
@@ -190,6 +217,27 @@ def get_lemma_details(lemma: str, request: Request) -> LemmaDetailsResponse:
         return build_wordbank_use_case(request).get_lemma_details(lemma)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except sqlite3.OperationalError as exc:
+        logger.exception("wordbank_db_operational_error")
+        raise HTTPException(
+            status_code=503,
+            detail=f"Database unavailable: {exc}",
+        ) from exc
+
+
+@router.get("/wordbank/pronunciation")
+def get_pronunciation_audio(request: Request, form: str = Query(..., min_length=1)) -> Response:
+    _require_db_ready(request)
+
+    try:
+        pronunciation = build_wordbank_use_case(request).get_pronunciation_audio(form)
+        return Response(content=pronunciation.audio_bytes, media_type=pronunciation.mime_type)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except sqlite3.OperationalError as exc:

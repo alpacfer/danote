@@ -30,6 +30,11 @@ class Settings:
     word_verification_enabled: bool = False
     word_verification_gemini_api_key: str | None = None
     word_verification_gemini_model: str = "gemini-3-flash-preview"
+    tts_enabled: bool = True
+    tts_provider: str = "gemini"
+    tts_gemini_api_key: str | None = None
+    tts_gemini_model: str = "gemini-2.5-flash-preview-tts"
+    tts_gemini_voice_name: str = "Kore"
 
 
 def load_settings() -> Settings:
@@ -69,4 +74,12 @@ def load_settings() -> Settings:
             "DANOTE_WORD_VERIFICATION_GEMINI_MODEL",
             os.getenv("DANOTE_GEMINI_MODEL", "gemini-3-flash-preview"),
         ),
+        tts_enabled=os.getenv("DANOTE_TTS_ENABLED", "1").lower() not in {"0", "false", "no"},
+        tts_provider=os.getenv("DANOTE_TTS_PROVIDER", "gemini"),
+        tts_gemini_api_key=os.getenv(
+            "DANOTE_TTS_GEMINI_API_KEY",
+            os.getenv("DANOTE_GEMINI_API_KEY"),
+        ),
+        tts_gemini_model=os.getenv("DANOTE_TTS_GEMINI_MODEL", "gemini-2.5-flash-preview-tts"),
+        tts_gemini_voice_name=os.getenv("DANOTE_TTS_GEMINI_VOICE_NAME", "Kore"),
     )

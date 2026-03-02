@@ -12,4 +12,5 @@ def build_wordbank_use_case(request: Request) -> WordbankUseCase:
         translation_service=getattr(request.app.state, "translation_service", None),
         nlp_adapter=getattr(request.app.state, "nlp_adapter", None),
         verification_service=getattr(request.app.state, "word_verification_service", None),
+        tts_service=getattr(request.app.state, "tts_service", None),
     )
