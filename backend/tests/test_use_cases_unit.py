@@ -510,3 +510,82 @@ def test_analyze_use_case_ignores_comment_text_after_hash(tmp_path: Path) -> Non
     tokens = use_case.execute("hej # ignore me\nverden")
     surfaces = [token.surface_token for token in tokens]
     assert surfaces == ["hej", "verden"]
+
+def test_wordbank_list_lemmas_uses_stored_pos_metadata_without_runtime_tokenization(tmp_path: Path) -> None:
+    class CountingNLPAdapter:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def tokenize(self, text: str) -> list[NLPToken]:
+            self.calls += 1
+            return [
+                NLPToken(
+                    text=text,
+                    lemma=text.lower(),
+                    pos="VERB",
+                    morphology="VerbForm=Inf",
+                    is_punctuation=False,
+                )
+            ]
+
+        def lemma_candidates_for_token(self, token: str) -> list[str]:
+            return [token.lower()]
+
+        def lemma_for_token(self, token: str) -> str | None:
+            return token.lower()
+
+        def metadata(self) -> dict[str, str]:
+            return {"adapter": "counting"}
+
+    adapter = CountingNLPAdapter()
+    use_case = WordbankUseCase(_db_path(tmp_path), nlp_adapter=adapter)
+
+    use_case.add_word("Laver", "lave")
+    calls_after_add = adapter.calls
+
+    listing = use_case.list_lemmas()
+
+    assert listing.items[0].display_lemma == "at lave"
+    assert adapter.calls == calls_after_add
+
+
+def test_wordbank_get_lemma_details_persists_extracted_pos_and_morphology_for_forms(tmp_path: Path) -> None:
+    class CountingNLPAdapter:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def tokenize(self, text: str) -> list[NLPToken]:
+            self.calls += 1
+            return [
+                NLPToken(
+                    text=text,
+                    lemma=text.lower(),
+                    pos="NOUN",
+                    morphology="Number=Sing",
+                    is_punctuation=False,
+                )
+            ]
+
+        def lemma_candidates_for_token(self, token: str) -> list[str]:
+            return [token.lower()]
+
+        def lemma_for_token(self, token: str) -> str | None:
+            return token.lower()
+
+        def metadata(self) -> dict[str, str]:
+            return {"adapter": "counting"}
+
+    adapter = CountingNLPAdapter()
+    use_case = WordbankUseCase(_db_path(tmp_path), nlp_adapter=adapter)
+
+    use_case.add_word("Bogen", "bog")
+    calls_after_add = adapter.calls
+
+    details_first = use_case.get_lemma_details("bog")
+    assert details_first.pos_tag == "NOUN"
+    assert details_first.surface_forms[0].pos_tag == "NOUN"
+
+    details_second = use_case.get_lemma_details("bog")
+    assert details_second.pos_tag == "NOUN"
+    assert details_second.surface_forms[0].morphology == "Number=Sing"
+    assert adapter.calls == calls_after_add
