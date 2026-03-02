@@ -145,6 +145,17 @@ function mockFetchImplementation(options?: {
     en_to_da_morphology: string | null
     query_language: "en" | "da" | "ambiguous" | null
     query_language_confidence: number | null
+    word_actions?: Array<{
+      action_type: "open_wordbank" | "add_as_new" | "add_variation"
+      surface: string
+      lemma: string
+      translation_label: string | null
+      direction: "da_to_en" | "en_to_da" | "variation" | "known"
+      direction_label: string | null
+      pos_tag: string | null
+      morphology: string | null
+      show_lemma: boolean
+    }>
   }
   resolveQueryHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
   translationHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
@@ -254,6 +265,19 @@ function mockFetchImplementation(options?: {
     en_to_da_morphology: null,
     query_language: null,
     query_language_confidence: null,
+    word_actions: [
+      {
+        action_type: "add_as_new",
+        surface: "kat",
+        lemma: "kat",
+        translation_label: "kat",
+        direction: "da_to_en",
+        direction_label: "Danish -> English",
+        pos_tag: null,
+        morphology: null,
+        show_lemma: false,
+      },
+    ],
   }
   const detectLanguageResponse = options?.detectLanguageResponse ?? {
     source_word: "house",
@@ -342,7 +366,10 @@ function mockFetchImplementation(options?: {
         return options.resolveQueryHandler(input, init)
       }
       if (options?.resolveQueryResponse) {
-        return responseOf(resolveQueryResponse)
+        return responseOf({
+        ...resolveQueryResponse,
+        word_actions: resolveQueryResponse.word_actions ?? buildWordActionsFromResolvePayload(resolveQueryResponse),
+      })
       }
 
       const body = JSON.parse(String(init?.body ?? "{}")) as { query_text?: string }
@@ -396,7 +423,7 @@ function mockFetchImplementation(options?: {
         confidence = detectedPayload.confidence ?? null
       }
 
-      return responseOf({
+      const responsePayload = {
         query_surface: querySurface,
         query_lemma: queryLemma,
         classification,
@@ -420,6 +447,10 @@ function mockFetchImplementation(options?: {
         en_to_da_morphology: null,
         query_language: language,
         query_language_confidence: confidence,
+      }
+      return responseOf({
+        ...responsePayload,
+        word_actions: buildWordActionsFromResolvePayload(responsePayload),
       })
     }
 

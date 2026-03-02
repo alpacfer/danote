@@ -15,6 +15,7 @@ from app.api.schemas.v1.wordbank import (
     ResetDatabaseResponse,
     ResolveQueryResponse,
     VerifyWordResponse,
+    WordActionSuggestion,
 )
 from app.db.migrations import apply_migrations, get_connection
 from app.nlp.adapter import NLPAdapter
@@ -22,6 +23,103 @@ from app.nlp.token_filter import is_wordlike_token
 from app.services.token_classifier import LemmaAwareClassifier, normalize_token
 from app.services.translation import TranslationService
 from app.services.verification import WordVerificationInput, WordVerificationService
+
+
+def _normalize_action_value(value: str) -> str:
+    return " ".join(value.strip().lower().split())
+
+
+def build_word_action_suggestions(
+    *,
+    classification: Literal["known", "variation", "typo_likely", "uncertain", "new"],
+    query_surface: str,
+    query_lemma: str | None,
+    query_pos_tag: str | None,
+    query_morphology: str | None,
+    matched_lemma: str | None,
+    da_to_en_translation: str | None,
+    en_to_da_translation: str | None,
+    en_to_da_lemma: str | None,
+    en_to_da_pos_tag: str | None,
+    en_to_da_morphology: str | None,
+    query_language: Literal["en", "da", "ambiguous"] | None,
+    query_language_confidence: float | None,
+) -> list[WordActionSuggestion]:
+    query_surface_clean = query_surface.strip()
+    query_lemma_clean = query_lemma.strip() if query_lemma else ""
+    actions: list[WordActionSuggestion] = []
+
+    if classification == "known":
+        known_lemma = matched_lemma or query_lemma_clean or query_surface_clean
+        if known_lemma:
+            actions.append(
+                WordActionSuggestion(
+                    action_type="open_wordbank",
+                    surface=query_surface_clean,
+                    lemma=known_lemma,
+                    direction="known",
+                    direction_label="Wordbank",
+                    pos_tag=query_pos_tag,
+                    morphology=query_morphology,
+                )
+            )
+        return actions
+
+    if classification == "variation" and matched_lemma:
+        if _normalize_action_value(query_surface_clean) != _normalize_action_value(matched_lemma):
+            actions.append(
+                WordActionSuggestion(
+                    action_type="add_variation",
+                    surface=query_surface_clean,
+                    lemma=matched_lemma,
+                    translation_label=query_surface_clean,
+                    direction="variation",
+                    direction_label="Variation",
+                    pos_tag=query_pos_tag,
+                    morphology=query_morphology,
+                )
+            )
+        return actions
+
+    if classification == "typo_likely" and not da_to_en_translation and not en_to_da_translation:
+        return []
+
+    if query_surface_clean:
+        lemma_value = query_lemma_clean or query_surface_clean
+        if da_to_en_translation or not en_to_da_translation:
+            actions.append(
+                WordActionSuggestion(
+                    action_type="add_as_new",
+                    surface=query_surface_clean,
+                    lemma=lemma_value,
+                    translation_label=da_to_en_translation or query_surface_clean,
+                    direction="da_to_en",
+                    direction_label="Danish -> English",
+                    pos_tag=query_pos_tag,
+                    morphology=query_morphology,
+                    show_lemma=_normalize_action_value(query_surface_clean) != _normalize_action_value(lemma_value),
+                )
+            )
+
+    if en_to_da_translation and not (query_language == "da" and (query_language_confidence or 0) >= 0.7):
+        is_duplicate = any(_normalize_action_value(item.surface) == _normalize_action_value(en_to_da_translation) for item in actions)
+        if not is_duplicate:
+            en_lemma = (en_to_da_lemma or en_to_da_translation).strip()
+            actions.append(
+                WordActionSuggestion(
+                    action_type="add_as_new",
+                    surface=en_to_da_translation,
+                    lemma=en_lemma,
+                    translation_label=en_to_da_translation,
+                    direction="en_to_da",
+                    direction_label="English -> Danish",
+                    pos_tag=en_to_da_pos_tag,
+                    morphology=en_to_da_morphology,
+                    show_lemma=_normalize_action_value(en_to_da_translation) != _normalize_action_value(en_lemma),
+                )
+            )
+
+    return actions
 
 
 class WordbankUseCase:
@@ -296,6 +394,22 @@ class WordbankUseCase:
             resolved_surface = en_to_da_translation
             resolved_lemma = en_to_da_translation
 
+        word_actions = build_word_action_suggestions(
+            classification=token.classification,
+            query_surface=token.normalized_token or normalized_query,
+            query_lemma=token.lemma_candidate,
+            query_pos_tag=query_pos_tag,
+            query_morphology=query_morphology,
+            matched_lemma=token.matched_lemma,
+            da_to_en_translation=da_to_en_translation,
+            en_to_da_translation=en_to_da_translation,
+            en_to_da_lemma=en_to_da_lemma,
+            en_to_da_pos_tag=en_to_da_pos_tag,
+            en_to_da_morphology=en_to_da_morphology,
+            query_language=query_language,
+            query_language_confidence=query_language_confidence,
+        )
+
         return ResolveQueryResponse(
             query_surface=token.normalized_token or normalized_query,
             query_lemma=token.lemma_candidate,
@@ -313,6 +427,7 @@ class WordbankUseCase:
             en_to_da_morphology=en_to_da_morphology,
             query_language=query_language,
             query_language_confidence=query_language_confidence,
+            word_actions=word_actions,
         )
 
     def generate_phrase_translation(self, source_text: str) -> GeneratePhraseTranslationResponse:

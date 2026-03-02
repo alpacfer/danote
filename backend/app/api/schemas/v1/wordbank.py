@@ -48,6 +48,18 @@ class ResolveQueryRequest(BaseModel):
     include_language_detection: bool = True
 
 
+class WordActionSuggestion(BaseModel):
+    action_type: Literal["open_wordbank", "add_as_new", "add_variation"]
+    surface: str
+    lemma: str
+    translation_label: str | None = None
+    direction: Literal["da_to_en", "en_to_da", "variation", "known"]
+    direction_label: str | None = None
+    pos_tag: str | None = None
+    morphology: str | None = None
+    show_lemma: bool = False
+
+
 class ResolveQueryResponse(BaseModel):
     class MatchedLemmaSummary(BaseModel):
         lemma: str
@@ -70,6 +82,7 @@ class ResolveQueryResponse(BaseModel):
     en_to_da_morphology: str | None
     query_language: Literal["en", "da", "ambiguous"] | None
     query_language_confidence: float | None
+    word_actions: list[WordActionSuggestion] = Field(default_factory=list)
 
 
 class GeneratePhraseTranslationRequest(BaseModel):

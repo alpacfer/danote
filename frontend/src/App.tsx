@@ -75,6 +75,18 @@ type TokenClassification = "known" | "variation" | "typo_likely" | "uncertain" |
 type AppSection = "playground" | "notes" | "wordbank" | "sentencebank" | "developer"
 type TokenAction = "add_as_new"
 
+type WordActionSuggestion = {
+  action_type: "open_wordbank" | "add_as_new" | "add_variation"
+  surface: string
+  lemma: string
+  translation_label: string | null
+  direction: "da_to_en" | "en_to_da" | "variation" | "known"
+  direction_label: string | null
+  pos_tag: string | null
+  morphology: string | null
+  show_lemma: boolean
+}
+
 type AnalyzedToken = {
   surface_token: string
   normalized_token: string
@@ -96,6 +108,7 @@ type AnalyzedToken = {
   surface: string
   normalized: string
   lemma: string | null
+  word_actions?: WordActionSuggestion[]
 }
 
 type AddWordResponse = {
@@ -182,6 +195,7 @@ type ResolveQueryResponse = {
   en_to_da_morphology: string | null
   query_language: "en" | "da" | "ambiguous" | null
   query_language_confidence: number | null
+  word_actions?: WordActionSuggestion[]
 }
 
 type GeneratePhraseTranslationResponse = {
@@ -258,6 +272,7 @@ type DiscoveredTokenMetadata = {
   pos_tag: string
   morphology: string | null
   lemma: string | null
+  word_actions?: WordActionSuggestion[]
 }
 
 type DiscoveredTokenMemory = {
@@ -689,6 +704,45 @@ function isLowConfidencePosTag(posTag: string | null): boolean {
   return !posTag || posTag === "X"
 }
 
+
+function fallbackWordActionsFromResolve(candidate: {
+  classification: TokenClassification
+  querySurface: string
+  queryLemma: string | null
+  queryPosTag: string | null
+  queryMorphology: string | null
+  matchedLemma: WordbankLemma | null
+  daToEnTranslation: string | null
+  enToDaTranslation: string | null
+  enToDaLemma: string | null
+  enToDaPosTag: string | null
+  enToDaMorphology: string | null
+  queryLanguage: "en" | "da" | "ambiguous" | null
+  queryLanguageConfidence: number | null
+  surface: string
+  lemma: string | null
+}): WordActionSuggestion[] {
+  const actions: WordActionSuggestion[] = []
+  if (candidate.classification === "known") {
+    const lemma = candidate.matchedLemma?.lemma ?? candidate.queryLemma ?? candidate.querySurface
+    return [{ action_type: "open_wordbank", surface: candidate.querySurface, lemma, translation_label: null, direction: "known", direction_label: "Wordbank", pos_tag: candidate.queryPosTag, morphology: candidate.queryMorphology, show_lemma: false }]
+  }
+  if (candidate.classification === "variation" && candidate.matchedLemma) {
+    return [{ action_type: "add_variation", surface: candidate.querySurface, lemma: candidate.matchedLemma.lemma, translation_label: candidate.querySurface, direction: "variation", direction_label: "Variation", pos_tag: candidate.queryPosTag, morphology: candidate.queryMorphology, show_lemma: false }]
+  }
+  if (candidate.classification === "typo_likely" && !candidate.daToEnTranslation && !candidate.enToDaTranslation) return []
+  const lemma = candidate.queryLemma ?? candidate.querySurface
+  if (candidate.daToEnTranslation || !candidate.enToDaTranslation) {
+    actions.push({ action_type: "add_as_new", surface: candidate.querySurface, lemma, translation_label: candidate.daToEnTranslation ?? candidate.querySurface, direction: "da_to_en", direction_label: "Danish -> English", pos_tag: candidate.queryPosTag, morphology: candidate.queryMorphology, show_lemma: candidate.querySurface !== lemma })
+  }
+  const derivedEnToDa = candidate.enToDaTranslation ?? (candidate.surface !== candidate.querySurface ? candidate.surface : null)
+  const derivedEnToDaLemma = candidate.enToDaLemma ?? candidate.lemma ?? derivedEnToDa
+  if (derivedEnToDa && !(candidate.queryLanguage === "da" && (candidate.queryLanguageConfidence ?? 0) >= 0.7)) {
+    actions.push({ action_type: "add_as_new", surface: derivedEnToDa, lemma: derivedEnToDaLemma ?? derivedEnToDa, translation_label: derivedEnToDa, direction: "en_to_da", direction_label: "English -> Danish", pos_tag: candidate.enToDaPosTag, morphology: candidate.enToDaMorphology, show_lemma: (derivedEnToDaLemma ?? derivedEnToDa) !== derivedEnToDa })
+  }
+  return actions
+}
+
 function translationKeysForToken(token: Pick<AnalyzedToken, "surface_token" | "normalized_token">): string[] {
   const keys = [
     token.normalized_token,
@@ -854,6 +908,7 @@ function AppSidebar({
     queryLanguage: "en" | "da" | "ambiguous" | null
     queryLanguageConfidence: number | null
     matchedLemma: WordbankLemma | null
+    wordActions: WordActionSuggestion[]
   } | null>(null)
   const trimmedQuery = normalizeSearchWord(searchQuery)
   const normalizedQuery = trimmedQuery
@@ -911,101 +966,15 @@ function AppSidebar({
     return [{ lemma: variationMatch.lemma, matchSurface: variationMatch.surface }, ...directMatches]
   }, [activeResolvedCandidate, matchingLemmas])
   const hasWordbankResults = wordbankResults.length > 0
-  const newWordOptions = useMemo(() => {
-    if (!activeResolvedCandidate || hasWordbankResults) {
+  const searchWordActions = useMemo(() => {
+    if (!activeResolvedCandidate) {
       return []
     }
-    if (
-      activeResolvedCandidate.classification === "typo_likely" &&
-      !activeResolvedCandidate.daToEnTranslation &&
-      !activeResolvedCandidate.enToDaTranslation
-    ) {
-      return []
-    }
-
-    const normalize = (value: string) => value.trim().toLocaleLowerCase("da-DK").replace(/\s+/gu, " ")
-    const querySurface = activeResolvedCandidate.querySurface.trim()
-    const queryLemma = activeResolvedCandidate.queryLemma?.trim() || querySurface
-    const queryPosTag = activeResolvedCandidate.queryPosTag
-    const queryMorphology = activeResolvedCandidate.queryMorphology
-    const enToDa = activeResolvedCandidate.enToDaTranslation?.trim() || null
-    const enToDaLemma = activeResolvedCandidate.enToDaLemma?.trim() || null
-    const enToDaPosTag = activeResolvedCandidate.enToDaPosTag
-    const enToDaMorphology = activeResolvedCandidate.enToDaMorphology
-    const daToEn = activeResolvedCandidate.daToEnTranslation?.trim() || null
-    const queryLanguage = activeResolvedCandidate.queryLanguage
-    const queryLanguageConfidence = activeResolvedCandidate.queryLanguageConfidence ?? 0
-    const options: Array<{
-      key: string
-      translationLabel: string
-      direction: "da_to_en" | "en_to_da"
-      directionLabel: string
-      queryLabel: string
-      surface: string
-      lemma: string
-      showLemma: boolean
-      posTag: string | null
-      morphology: string | null
-    }> = []
-
-    if (
-      querySurface &&
-      queryLemma &&
-      (daToEn || !enToDa)
-    ) {
-      options.push({
-        key: `add-danish-${querySurface}-${queryLemma}`,
-        translationLabel: daToEn || querySurface,
-        direction: "da_to_en",
-        directionLabel: "Danish -> English",
-        queryLabel: trimmedQuery,
-        surface: querySurface,
-        lemma: queryLemma,
-        showLemma: normalize(querySurface) !== normalize(queryLemma),
-        posTag: queryPosTag,
-        morphology: queryMorphology,
-      })
-    }
-
-    if (enToDa && !(queryLanguage === "da" && queryLanguageConfidence >= 0.7)) {
-      const isDuplicateSurface = options.some((option) => normalize(option.surface) === normalize(enToDa))
-      if (!isDuplicateSurface) {
-        options.push({
-          key: `add-english-${trimmedQuery}-${enToDa}`,
-          translationLabel: enToDa,
-          direction: "en_to_da",
-          directionLabel: "English -> Danish",
-          queryLabel: trimmedQuery,
-          surface: enToDa,
-          lemma: enToDaLemma || enToDa,
-          showLemma: normalize(enToDa) !== normalize(enToDaLemma || enToDa),
-          posTag: enToDaPosTag,
-          morphology: enToDaMorphology,
-        })
-      }
-    }
-
-    return options
-  }, [activeResolvedCandidate, hasWordbankResults, trimmedQuery])
-  const addVariationResult = useMemo(() => {
-    if (!activeResolvedCandidate?.matchedLemma) {
-      return null
-    }
-    if (activeResolvedCandidate.classification !== "variation") {
-      return null
-    }
-    const surface = activeResolvedCandidate.surface.trim()
-    const lemma = activeResolvedCandidate.matchedLemma.lemma.trim()
-    if (!surface || !lemma || surface.toLocaleLowerCase("da-DK") === lemma.toLocaleLowerCase("da-DK")) {
-      return null
-    }
-    return {
-      surface,
-      lemma,
-      posTag: activeResolvedCandidate.queryPosTag,
-      morphology: activeResolvedCandidate.queryMorphology,
-    }
+    const actions = activeResolvedCandidate.wordActions.length > 0 ? activeResolvedCandidate.wordActions : fallbackWordActionsFromResolve(activeResolvedCandidate)
+    return actions.filter((action) => action.action_type !== "open_wordbank")
   }, [activeResolvedCandidate])
+  const newWordOptions = useMemo(() => searchWordActions.filter((action) => action.action_type === "add_as_new"), [searchWordActions])
+  const addVariationResult = useMemo(() => searchWordActions.find((action) => action.action_type === "add_variation") ?? null, [searchWordActions])
   const hasWordbankSectionResults = hasWordbankResults || newWordOptions.length > 0
   const hasWordbankActions = newWordOptions.length > 0 || Boolean(addVariationResult)
   const hasNoteResults = matchingNotes.length > 0
@@ -1177,6 +1146,7 @@ function AppSidebar({
           queryLanguage: payload.query_language,
           queryLanguageConfidence: payload.query_language_confidence,
           matchedLemma,
+          wordActions: payload.word_actions ?? [],
         })
       } catch {
         if (!cancelled) {
@@ -1258,8 +1228,8 @@ function AppSidebar({
                 ))}
                 {newWordOptions.map((option) => (
                   <CommandItem
-                    key={option.key}
-                    value={`new-word-${option.surface} ${option.lemma} ${option.translationLabel} ${option.directionLabel} ${option.queryLabel}`}
+                    key={`${option.action_type}-${option.surface}-${option.lemma}-${option.direction}`}
+                    value={`new-word-${option.surface} ${option.lemma} ${option.translation_label ?? option.surface} ${option.direction_label ?? option.direction}`}
                     onSelect={() => {
                       void (async () => {
                         const addedLemma = await onAddWordFromSearch(option.surface, option.lemma)
@@ -1273,32 +1243,32 @@ function AppSidebar({
                   >
                     <div className="flex min-w-0 flex-col items-start gap-0.5">
                       {(() => {
-                        const normalizedTranslation = option.translationLabel.trim().toLocaleLowerCase("da-DK")
+                        const normalizedTranslation = (option.translation_label ?? option.surface).trim().toLocaleLowerCase("da-DK")
                         const normalizedLemma = option.lemma.trim().toLocaleLowerCase("da-DK")
                         const showInlineLemma = option.direction === "en_to_da" && normalizedTranslation !== normalizedLemma
                         return (
                           <>
                       <span className="flex items-baseline gap-2">
-                        <span className="font-medium">{option.translationLabel}</span>
+                        <span className="font-medium">{option.translation_label ?? option.surface}</span>
                         {showInlineLemma ? (
                           <span className="text-muted-foreground text-xs">({option.lemma})</span>
                         ) : null}
-                        <span className="text-muted-foreground text-xs">{option.directionLabel}</span>
+                        <span className="text-muted-foreground text-xs">{option.direction_label ?? option.direction}</span>
                       </span>
-                      {option.showLemma && !showInlineLemma ? (
+                      {option.show_lemma && !showInlineLemma ? (
                         <span className="text-muted-foreground text-xs">lemma: {option.lemma}</span>
                       ) : null}
                       <div className="mt-1 flex flex-wrap gap-1.5">
-                        {option.posTag ? (
+                        {option.pos_tag ? (
                           <Badge
                             variant="secondary"
-                            className={`border-border/60 text-xs border ${posBadgeClass(option.posTag)}`.trim()}
+                            className={`border-border/60 text-xs border ${posBadgeClass(option.pos_tag)}`.trim()}
                             data-testid="search-metadata-badge"
                           >
-                            {option.posTag}
+                            {option.pos_tag}
                           </Badge>
                         ) : null}
-                        {option.posTag === "NOUN" && determinerWordTypeFromMorphology(option.morphology) ? (
+                        {option.pos_tag === "NOUN" && determinerWordTypeFromMorphology(option.morphology) ? (
                           <Badge
                             variant="secondary"
                             className="border-border/60 text-xs border"
@@ -1307,9 +1277,9 @@ function AppSidebar({
                             {determinerWordTypeFromMorphology(option.morphology)}
                           </Badge>
                         ) : null}
-                        {secondaryTagsForPos(option.posTag, option.morphology).map((tag) => (
+                        {secondaryTagsForPos(option.pos_tag, option.morphology).map((tag) => (
                           <Badge
-                            key={`${option.key}-${tag}`}
+                            key={`${option.action_type}-${option.surface}-${option.lemma}-${tag}`}
                             variant="secondary"
                             className="border-border/60 text-xs border"
                             data-testid="search-metadata-badge"
@@ -1349,16 +1319,16 @@ function AppSidebar({
                       for lemma: {addVariationResult.lemma}
                     </span>
                     <div className="mt-1 flex flex-wrap gap-1.5">
-                      {addVariationResult.posTag ? (
+                      {addVariationResult.pos_tag ? (
                         <Badge
                           variant="secondary"
-                          className={`border-border/60 text-xs border ${posBadgeClass(addVariationResult.posTag)}`.trim()}
+                          className={`border-border/60 text-xs border ${posBadgeClass(addVariationResult.pos_tag)}`.trim()}
                           data-testid="search-metadata-badge"
                         >
-                          {addVariationResult.posTag}
+                          {addVariationResult.pos_tag}
                         </Badge>
                       ) : null}
-                      {addVariationResult.posTag === "NOUN" &&
+                      {addVariationResult.pos_tag === "NOUN" &&
                       determinerWordTypeFromMorphology(addVariationResult.morphology) ? (
                         <Badge
                           variant="secondary"
@@ -1368,7 +1338,7 @@ function AppSidebar({
                           {determinerWordTypeFromMorphology(addVariationResult.morphology)}
                         </Badge>
                         ) : null}
-                      {secondaryTagsForPos(addVariationResult.posTag, addVariationResult.morphology).map((tag) => (
+                      {secondaryTagsForPos(addVariationResult.pos_tag, addVariationResult.morphology).map((tag) => (
                         <Badge
                           key={`search-variation-${addVariationResult.surface}-${tag}`}
                           variant="secondary"
@@ -1652,6 +1622,26 @@ function App() {
     }
     return popoverDisplayToken.matched_lemma ?? popoverDisplayToken.lemma_candidate ?? popoverDisplayToken.lemma ?? null
   }, [popoverDisplayToken])
+  const popoverPrimaryAction = useMemo(() => {
+    if (!popoverDisplayToken) {
+      return null
+    }
+    const tokenActions = popoverDisplayToken.word_actions ?? []
+    if (tokenActions.length > 0) {
+      return tokenActions[0] ?? null
+    }
+    if (popoverDisplayToken.classification === "known") {
+      const lemma = popoverDisplayToken.matched_lemma ?? popoverDisplayToken.lemma_candidate ?? popoverDisplayToken.lemma
+      return lemma ? { action_type: "open_wordbank", surface: popoverDisplayToken.normalized_token, lemma, translation_label: null, direction: "known", direction_label: "Wordbank", pos_tag: popoverDisplayToken.pos_tag, morphology: popoverDisplayToken.morphology, show_lemma: false } : null
+    }
+    if (popoverDisplayToken.classification === "variation") {
+      const lemma = popoverDisplayToken.matched_lemma ?? popoverDisplayToken.lemma_candidate ?? popoverDisplayToken.lemma
+      return lemma ? { action_type: "add_variation", surface: popoverDisplayToken.normalized_token, lemma, translation_label: popoverDisplayToken.normalized_token, direction: "variation", direction_label: "Variation", pos_tag: popoverDisplayToken.pos_tag, morphology: popoverDisplayToken.morphology, show_lemma: false } : null
+    }
+    const lemma = popoverDisplayToken.lemma_candidate ?? popoverDisplayToken.normalized_token
+    return { action_type: "add_as_new", surface: popoverDisplayToken.normalized_token, lemma, translation_label: popoverDisplayToken.normalized_token, direction: "da_to_en", direction_label: "Danish -> English", pos_tag: popoverDisplayToken.pos_tag, morphology: popoverDisplayToken.morphology, show_lemma: popoverDisplayToken.normalized_token !== lemma }
+  }, [popoverDisplayToken])
+
   const popoverIsNoun = popoverDisplayToken?.pos_tag === "NOUN"
   const popoverIsVerbLike = popoverDisplayToken?.pos_tag === "VERB" || popoverDisplayToken?.pos_tag === "AUX"
   const unreadNotifications = useMemo(
@@ -2150,9 +2140,9 @@ function App() {
     return (await response.json()) as AddWordResponse
   }
 
-  async function addTokenToWordbank(token: AnalyzedToken) {
-    const requestSurface = token.normalized_token || token.surface_token
-    const requestLemma = token.lemma_candidate
+  async function addTokenToWordbank(token: AnalyzedToken, action?: WordActionSuggestion) {
+    const requestSurface = action?.surface ?? (token.normalized_token || token.surface_token)
+    const requestLemma = action?.lemma ?? token.lemma_candidate
     const loadingKey = addLoadingKey(token)
 
     setAddingTokens((current) => ({ ...current, [loadingKey]: true }))
@@ -2444,15 +2434,7 @@ function App() {
     }
   }, [])
 
-  function openKnownTokenInWordbank(token: AnalyzedToken) {
-    const lemma = token.matched_lemma ?? token.lemma_candidate ?? token.lemma
-    if (!lemma) {
-      return
-    }
-    setHighlightPopover((current) => ({ ...current, open: false, tokenIndex: null }))
-    setActiveSection("wordbank")
-    setSelectedLemma(lemma)
-  }
+
 
   async function postTokenFeedback(payload: TokenFeedbackPayload) {
     try {
@@ -3200,52 +3182,22 @@ function App() {
                       <p className="text-muted-foreground text-xs">No translation available.</p>
                     )}
                     <div className="mt-2.5 flex items-center justify-end gap-2">
-                      {popoverDisplayToken.classification === "known" ? (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span className="inline-flex">
-                              <Button
-                                type="button"
-                                variant="default"
-                                size="icon-sm"
-                                aria-label="Open in wordbank"
-                                disabled={!popoverLemma}
-                                onClick={() => {
-                                  openKnownTokenInWordbank(popoverDisplayToken)
-                                }}
-                              >
-                                <Eye />
-                              </Button>
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent side="right" sideOffset={6}>
-                            <p>Open in wordbank</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      ) : (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span className="inline-flex">
-                              <Button
-                                type="button"
-                                variant="default"
-                                size="icon-sm"
-                                aria-label={popoverDisplayToken.classification === "variation" ? "Add variation" : "Add to wordbank"}
-                                disabled={Boolean(addingTokens[addLoadingKey(popoverDisplayToken)])}
-                                onClick={() => {
-                                  void addTokenToWordbank(popoverDisplayToken)
-                                  setHighlightPopover((current) => ({ ...current, open: false, tokenIndex: null }))
-                                }}
-                              >
-                                <Plus />
-                              </Button>
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent side="right" sideOffset={6}>
-                            <p>{popoverDisplayToken.classification === "variation" ? "Add variation" : "Add to wordbank"}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      )}
+                      {popoverPrimaryAction?.action_type === "open_wordbank" ? (
+                        <Tooltip><TooltipTrigger asChild><span className="inline-flex">
+                          <Button type="button" variant="default" size="icon-sm" aria-label="Open in wordbank" disabled={!popoverPrimaryAction.lemma} onClick={() => {
+                            setHighlightPopover((current) => ({ ...current, open: false, tokenIndex: null }))
+                            setActiveSection("wordbank")
+                            setSelectedLemma(popoverPrimaryAction.lemma)
+                          }}><Eye /></Button>
+                        </span></TooltipTrigger><TooltipContent side="right" sideOffset={6}><p>Open in wordbank</p></TooltipContent></Tooltip>
+                      ) : popoverPrimaryAction ? (
+                        <Tooltip><TooltipTrigger asChild><span className="inline-flex">
+                          <Button type="button" variant="default" size="icon-sm" aria-label={popoverPrimaryAction.action_type === "add_variation" ? "Add variation" : "Add to wordbank"} disabled={Boolean(addingTokens[addLoadingKey(popoverDisplayToken)])} onClick={() => {
+                            void addTokenToWordbank(popoverDisplayToken, popoverPrimaryAction)
+                            setHighlightPopover((current) => ({ ...current, open: false, tokenIndex: null }))
+                          }}><Plus /></Button>
+                        </span></TooltipTrigger><TooltipContent side="right" sideOffset={6}><p>{popoverPrimaryAction.action_type === "add_variation" ? "Add variation" : "Add to wordbank"}</p></TooltipContent></Tooltip>
+                      ) : null}
                     </div>
                   </div>
                 </>

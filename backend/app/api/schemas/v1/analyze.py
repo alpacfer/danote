@@ -4,6 +4,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from app.api.schemas.v1.wordbank import WordActionSuggestion
+
 
 class AnalyzeRequest(BaseModel):
     text: str = Field(...)
@@ -22,6 +24,7 @@ class AnalyzedToken(BaseModel):
     suggestions: list[dict[str, object]] = Field(default_factory=list)
     confidence: float = 0.0
     reason_tags: list[str] = Field(default_factory=list)
+    word_actions: list[WordActionSuggestion] = Field(default_factory=list)
 
     # v1-friendly aliases
     status: Literal["known", "variation", "typo_likely", "uncertain", "new"]
