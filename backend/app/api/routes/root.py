@@ -21,8 +21,11 @@ def health(request: Request) -> HealthResponse:
     translation_service = getattr(request.app.state, "translation_service", None)
     active_provider_raw = str(getattr(translation_service, "provider", "") or "").strip().lower()
 
-    gemini_key_configured = bool(str(getattr(settings, "translation_gemini_api_key", "") or "").strip())
-    deepl_key_configured = bool(str(getattr(settings, "translation_deepl_api_key", "") or "").strip())
+    runtime_api_keys = getattr(request.app.state, "runtime_api_keys", {}) or {}
+    gemini_key = runtime_api_keys.get("gemini") or getattr(settings, "translation_gemini_api_key", "")
+    deepl_key = runtime_api_keys.get("deepl") or getattr(settings, "translation_deepl_api_key", "")
+    gemini_key_configured = bool(str(gemini_key or "").strip())
+    deepl_key_configured = bool(str(deepl_key or "").strip())
     translation_error = getattr(request.app.state, "translation_error", None)
     translation_component_status = (
         "disabled"

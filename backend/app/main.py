@@ -199,6 +199,7 @@ def create_app(
     app.state.typo_engine = None
     app.state.translation_service = None
     app.state.translation_error = None
+    app.state.runtime_api_keys = {}
     app.state.word_verification_service = None
     app.state.word_verification_error = None
     app.add_middleware(
