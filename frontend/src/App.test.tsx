@@ -124,6 +124,29 @@ function mockFetchImplementation(options?: {
     lemma: string
     english_translation: string | null
   }
+  resolveQueryResponse?: {
+    query_surface: string
+    query_lemma: string | null
+    classification: "known" | "variation" | "typo_likely" | "uncertain" | "new"
+    matched_lemma: string | null
+    matched_lemma_summary: {
+      lemma: string
+      english_translation: string | null
+      variation_count: number
+    } | null
+    query_pos_tag: string | null
+    query_morphology: string | null
+    resolved_surface: string
+    resolved_lemma: string | null
+    da_to_en_translation: string | null
+    en_to_da_translation: string | null
+    en_to_da_lemma: string | null
+    en_to_da_pos_tag: string | null
+    en_to_da_morphology: string | null
+    query_language: "en" | "da" | "ambiguous" | null
+    query_language_confidence: number | null
+  }
+  resolveQueryHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
   translationHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
   reverseTranslationResponse?: {
     status: "generated" | "unavailable"
@@ -214,6 +237,24 @@ function mockFetchImplementation(options?: {
     source_word: "house",
     danish_translation: null,
   }
+  const resolveQueryResponse = options?.resolveQueryResponse ?? {
+    query_surface: "kat",
+    query_lemma: "kat",
+    classification: "new" as const,
+    matched_lemma: null,
+    matched_lemma_summary: null,
+    query_pos_tag: null,
+    query_morphology: null,
+    resolved_surface: "kat",
+    resolved_lemma: "kat",
+    da_to_en_translation: null,
+    en_to_da_translation: null,
+    en_to_da_lemma: null,
+    en_to_da_pos_tag: null,
+    en_to_da_morphology: null,
+    query_language: null,
+    query_language_confidence: null,
+  }
   const detectLanguageResponse = options?.detectLanguageResponse ?? {
     source_word: "house",
     language: "ambiguous" as const,
@@ -293,6 +334,93 @@ function mockFetchImplementation(options?: {
 
     if (url.endsWith("/api/tokens/ignore")) {
       return responseOf({ status: "ignored" })
+    }
+
+
+    if (url.endsWith("/api/wordbank/resolve-query")) {
+      if (options?.resolveQueryHandler) {
+        return options.resolveQueryHandler(input, init)
+      }
+      if (options?.resolveQueryResponse) {
+        return responseOf(resolveQueryResponse)
+      }
+
+      const body = JSON.parse(String(init?.body ?? "{}")) as { query_text?: string }
+      const query = String(body.query_text ?? "").trim().toLocaleLowerCase("da-DK")
+
+      let token: AnalyzeToken | null = null
+      if (options?.analyzeHandler) {
+        const analyzed = await options.analyzeHandler(input, {
+          method: "POST",
+          body: JSON.stringify({ text: query }),
+        })
+        const analyzedPayload = (await analyzed.json()) as { tokens?: AnalyzeToken[] }
+        token = analyzedPayload.tokens?.[0] ?? null
+      } else {
+        token = analyzeTokens[0] ?? null
+      }
+
+      const querySurface = token?.normalized_token ?? query
+      const queryLemma = token?.lemma_candidate ?? token?.lemma ?? null
+      const classification = token?.classification ?? "new"
+
+      let daToEn = translationResponse.english_translation
+      if (options?.translationHandler) {
+        const translated = await options.translationHandler(input, {
+          method: "POST",
+          body: JSON.stringify({ surface_token: querySurface, lemma_candidate: queryLemma }),
+        })
+        const translatedPayload = (await translated.json()) as { english_translation?: string | null }
+        daToEn = translatedPayload.english_translation ?? null
+      }
+
+      let enToDa = reverseTranslationResponse.danish_translation
+      if (options?.reverseTranslationHandler) {
+        const reversed = await options.reverseTranslationHandler(input, {
+          method: "POST",
+          body: JSON.stringify({ source_word: query }),
+        })
+        const reversedPayload = (await reversed.json()) as { danish_translation?: string | null }
+        enToDa = reversedPayload.danish_translation ?? null
+      }
+
+      let language = detectLanguageResponse.language
+      let confidence = detectLanguageResponse.confidence
+      if (options?.detectLanguageHandler) {
+        const detected = await options.detectLanguageHandler(input, {
+          method: "POST",
+          body: JSON.stringify({ source_word: query }),
+        })
+        const detectedPayload = (await detected.json()) as { language?: "en" | "da" | "ambiguous"; confidence?: number }
+        language = detectedPayload.language ?? null
+        confidence = detectedPayload.confidence ?? null
+      }
+
+      return responseOf({
+        query_surface: querySurface,
+        query_lemma: queryLemma,
+        classification,
+        matched_lemma: token?.matched_lemma ?? null,
+        matched_lemma_summary: token?.matched_lemma
+          ? {
+            lemma: token.matched_lemma,
+            english_translation:
+              lemmasResponse.items.find((item) => item.lemma === token?.matched_lemma)?.english_translation ?? null,
+            variation_count: lemmasResponse.items.find((item) => item.lemma === token?.matched_lemma)?.variation_count ?? 0,
+          }
+          : null,
+        query_pos_tag: token?.pos_tag ?? null,
+        query_morphology: token?.morphology ?? null,
+        resolved_surface: querySurface,
+        resolved_lemma: queryLemma,
+        da_to_en_translation: daToEn,
+        en_to_da_translation: enToDa,
+        en_to_da_lemma: null,
+        en_to_da_pos_tag: null,
+        en_to_da_morphology: null,
+        query_language: language,
+        query_language_confidence: confidence,
+      })
     }
 
     if (url.endsWith("/api/wordbank/translation")) {
@@ -390,24 +518,23 @@ describe("App shell", () => {
           { lemma: "hus", variation_count: 1, english_translation: "house" },
         ],
       },
-      analyzeHandler: async (_input, init) => {
-        const payload = JSON.parse(String(init?.body ?? "{}")) as { text?: string }
-        if (payload.text === "bogen") {
-          return responseOf({
-            tokens: [
-              {
-                surface_token: "bogen",
-                normalized_token: "bogen",
-                lemma_candidate: "bog",
-                classification: "variation",
-                match_source: "lemma",
-                matched_lemma: "bog",
-                matched_surface_form: null,
-              },
-            ],
-          })
-        }
-        return responseOf({ tokens: [] })
+      resolveQueryResponse: {
+        query_surface: "bogen",
+        query_lemma: "bog",
+        classification: "variation",
+        matched_lemma: "bog",
+        matched_lemma_summary: { lemma: "bog", english_translation: "book", variation_count: 1 },
+        query_pos_tag: null,
+        query_morphology: null,
+        resolved_surface: "bogen",
+        resolved_lemma: "bog",
+        da_to_en_translation: null,
+        en_to_da_translation: null,
+        en_to_da_lemma: null,
+        en_to_da_pos_tag: null,
+        en_to_da_morphology: null,
+        query_language: "da",
+        query_language_confidence: 1,
       },
     })
     window.localStorage.setItem(
@@ -467,33 +594,24 @@ describe("App shell", () => {
   it("command search offers adding a generated new word when there is no match", async () => {
     const fetchSpy = mockFetchImplementation({
       lemmasResponse: { items: [] },
-      analyzeHandler: async (_input, init) => {
-        const payload = JSON.parse(String(init?.body ?? "{}")) as { text?: string }
-        if (payload.text === "snakker") {
-          return responseOf({
-            tokens: [
-              {
-                surface_token: "snakker",
-                normalized_token: "snakker",
-                lemma_candidate: "snakke",
-                pos_tag: "VERB",
-                classification: "new",
-                match_source: "none",
-                matched_lemma: null,
-                matched_surface_form: null,
-              },
-            ],
-          })
-        }
-        return responseOf({ tokens: [] })
+      resolveQueryResponse: {
+        query_surface: "snakker",
+        query_lemma: "snakke",
+        classification: "new",
+        matched_lemma: null,
+        matched_lemma_summary: null,
+        query_pos_tag: "VERB",
+        query_morphology: null,
+        resolved_surface: "snakker",
+        resolved_lemma: "snakke",
+        da_to_en_translation: "talks",
+        en_to_da_translation: null,
+        en_to_da_lemma: null,
+        en_to_da_pos_tag: null,
+        en_to_da_morphology: null,
+        query_language: "da",
+        query_language_confidence: 0.82,
       },
-      translationHandler: async () =>
-        responseOf({
-          status: "generated",
-          source_word: "snakker",
-          lemma: "snakke",
-          english_translation: "talks",
-        }),
       addWordResponse: {
         status: "inserted",
         stored_lemma: "snakke",
@@ -652,11 +770,11 @@ describe("App shell", () => {
     await waitFor(() => {
       expect(
         fetchSpy.mock.calls.some(([input, init]) => {
-          if (!String(input).endsWith("/api/wordbank/detect-language")) {
+          if (!String(input).endsWith("/api/wordbank/resolve-query")) {
             return false
           }
-          const body = JSON.parse(String(init?.body ?? "{}")) as { source_word?: string }
-          return body.source_word === "snakker"
+          const body = JSON.parse(String(init?.body ?? "{}")) as { query_text?: string }
+          return body.query_text?.toLocaleLowerCase("da-DK") === "snakker"
         }),
       ).toBe(true)
     })
@@ -724,11 +842,11 @@ describe("App shell", () => {
     await waitFor(() => {
       expect(
         fetchSpy.mock.calls.some(([input, init]) => {
-          if (!String(input).endsWith("/api/wordbank/reverse-translation")) {
+          if (!String(input).endsWith("/api/wordbank/resolve-query")) {
             return false
           }
-          const body = JSON.parse(String(init?.body ?? "{}")) as { source_word?: string }
-          return body.source_word === "house"
+          const body = JSON.parse(String(init?.body ?? "{}")) as { query_text?: string }
+          return body.query_text?.toLocaleLowerCase("da-DK") === "house"
         }),
       ).toBe(true)
       expect(
@@ -812,20 +930,11 @@ describe("App shell", () => {
     await waitFor(() => {
       expect(
         fetchSpy.mock.calls.some(([input, init]) => {
-          if (!String(input).endsWith("/api/analyze")) {
+          if (!String(input).endsWith("/api/wordbank/resolve-query")) {
             return false
           }
-          const body = JSON.parse(String(init?.body ?? "{}")) as { text?: string }
-          return body.text === "house"
-        }),
-      ).toBe(true)
-      expect(
-        fetchSpy.mock.calls.some(([input, init]) => {
-          if (!String(input).endsWith("/api/wordbank/reverse-translation")) {
-            return false
-          }
-          const body = JSON.parse(String(init?.body ?? "{}")) as { source_word?: string }
-          return body.source_word === "house"
+          const body = JSON.parse(String(init?.body ?? "{}")) as { query_text?: string }
+          return body.query_text?.toLocaleLowerCase("da-DK") === "house"
         }),
       ).toBe(true)
       expect(
@@ -899,56 +1008,23 @@ describe("App shell", () => {
   it("command search infers Danish lemma from translated surface form", async () => {
     mockFetchImplementation({
       lemmasResponse: { items: [] },
-      analyzeHandler: async (_input, init) => {
-        const payload = JSON.parse(String(init?.body ?? "{}")) as { text?: string }
-        if (payload.text === "lamps") {
-          return responseOf({
-            tokens: [
-              {
-                surface_token: "lamps",
-                normalized_token: "lamps",
-                lemma_candidate: "lamps",
-                classification: "new",
-                match_source: "none",
-                matched_lemma: null,
-                matched_surface_form: null,
-              },
-            ],
-          })
-        }
-        if (payload.text === "lamper") {
-          return responseOf({
-            tokens: [
-              {
-                surface_token: "lamper",
-                normalized_token: "lamper",
-                lemma_candidate: "lampe",
-                pos_tag: "NOUN",
-                classification: "new",
-                match_source: "none",
-                matched_lemma: null,
-                matched_surface_form: null,
-              },
-            ],
-          })
-        }
-        return responseOf({ tokens: [] })
-      },
-      translationResponse: {
-        status: "unavailable",
-        source_word: "lamps",
-        lemma: "lamps",
-        english_translation: null,
-      },
-      reverseTranslationResponse: {
-        status: "generated",
-        source_word: "lamps",
-        danish_translation: "lamper",
-      },
-      detectLanguageResponse: {
-        source_word: "lamps",
-        language: "en",
-        confidence: 0.9,
+      resolveQueryResponse: {
+        query_surface: "lamps",
+        query_lemma: "lamps",
+        classification: "new",
+        matched_lemma: null,
+        matched_lemma_summary: null,
+        query_pos_tag: null,
+        query_morphology: null,
+        resolved_surface: "lamper",
+        resolved_lemma: "lamper",
+        da_to_en_translation: null,
+        en_to_da_translation: "lamper",
+        en_to_da_lemma: "lampe",
+        en_to_da_pos_tag: "NOUN",
+        en_to_da_morphology: null,
+        query_language: "en",
+        query_language_confidence: 0.9,
       },
     })
 
@@ -1027,11 +1103,11 @@ describe("App shell", () => {
     await waitFor(() => {
       expect(
         fetchSpy.mock.calls.some(([input, init]) => {
-          if (!String(input).endsWith("/api/wordbank/reverse-translation")) {
+          if (!String(input).endsWith("/api/wordbank/resolve-query")) {
             return false
           }
-          const body = JSON.parse(String(init?.body ?? "{}")) as { source_word?: string }
-          return body.source_word === "water"
+          const body = JSON.parse(String(init?.body ?? "{}")) as { query_text?: string }
+          return body.query_text?.toLocaleLowerCase("da-DK") === "water"
         }),
       ).toBe(true)
       expect(

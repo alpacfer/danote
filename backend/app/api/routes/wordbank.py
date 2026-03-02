@@ -19,6 +19,8 @@ from app.api.schemas.v1.wordbank import (
     LemmaDetailsResponse,
     LemmaListResponse,
     ResetDatabaseResponse,
+    ResolveQueryRequest,
+    ResolveQueryResponse,
     VerifyWordRequest,
     VerifyWordResponse,
 )
@@ -124,6 +126,28 @@ def detect_word_language(
 
     try:
         return _wordbank_use_case(request).detect_word_language(payload.source_word)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except sqlite3.OperationalError as exc:
+        logger.exception("wordbank_db_operational_error")
+        raise HTTPException(
+            status_code=503,
+            detail=f"Database unavailable: {exc}",
+        ) from exc
+
+
+
+
+@router.post("/wordbank/resolve-query", response_model=ResolveQueryResponse)
+def resolve_query(payload: ResolveQueryRequest, request: Request) -> ResolveQueryResponse:
+    _require_db_ready(request)
+
+    try:
+        return _wordbank_use_case(request).resolve_query(
+            payload.query_text,
+            include_translations=payload.include_translations,
+            include_language_detection=payload.include_language_detection,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except sqlite3.OperationalError as exc:

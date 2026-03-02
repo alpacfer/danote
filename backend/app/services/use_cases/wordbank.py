@@ -13,12 +13,13 @@ from app.api.schemas.v1.wordbank import (
     LemmaListResponse,
     LemmaSummary,
     ResetDatabaseResponse,
+    ResolveQueryResponse,
     VerifyWordResponse,
 )
 from app.db.migrations import apply_migrations, get_connection
 from app.nlp.adapter import NLPAdapter
 from app.nlp.token_filter import is_wordlike_token
-from app.services.token_classifier import normalize_token
+from app.services.token_classifier import LemmaAwareClassifier, normalize_token
 from app.services.translation import TranslationService
 from app.services.verification import WordVerificationInput, WordVerificationService
 
@@ -206,6 +207,112 @@ class WordbankUseCase:
             source_word=normalized_surface,
             lemma=stored_lemma,
             english_translation=english_translation,
+        )
+
+
+    def resolve_query(
+        self,
+        query_text: str,
+        *,
+        include_translations: bool = True,
+        include_language_detection: bool = True,
+    ) -> ResolveQueryResponse:
+        normalized_query = normalize_token(query_text)
+        if not normalized_query:
+            raise ValueError("query_text is required")
+
+        classifier = LemmaAwareClassifier(
+            self._db_path,
+            nlp_adapter=self._nlp_adapter,
+            typo_engine=self._typo_engine,
+        )
+        token = classifier.classify(normalized_query)
+        query_pos_tag, query_morphology = self._extract_pos_and_morphology(normalized_query)
+
+        matched_lemma_summary: ResolveQueryResponse.MatchedLemmaSummary | None = None
+        if token.matched_lemma:
+            with get_connection(self._db_path) as conn:
+                lemma_row = conn.execute(
+                    """
+                    SELECT l.lemma, l.english_translation, COUNT(sf.id) AS variation_count
+                    FROM lexemes l
+                    LEFT JOIN surface_forms sf ON sf.lexeme_id = l.id
+                    WHERE l.lemma = ?
+                    GROUP BY l.id
+                    LIMIT 1
+                    """,
+                    (token.matched_lemma,),
+                ).fetchone()
+            if lemma_row is not None:
+                matched_lemma_summary = ResolveQueryResponse.MatchedLemmaSummary(
+                    lemma=lemma_row["lemma"],
+                    english_translation=lemma_row["english_translation"],
+                    variation_count=lemma_row["variation_count"],
+                )
+
+        resolved_surface = token.normalized_token or normalized_query
+        resolved_lemma = token.lemma_candidate
+        da_to_en_translation: str | None = None
+        en_to_da_translation: str | None = None
+        en_to_da_lemma: str | None = None
+        en_to_da_pos_tag: str | None = None
+        en_to_da_morphology: str | None = None
+        query_language: Literal["en", "da", "ambiguous"] | None = None
+        query_language_confidence: float | None = None
+
+        if include_translations:
+            translated = self._lookup_translation(normalized_query)
+            if translated:
+                normalized_translation = normalize_token(translated)
+                if self._normalize_comparable(normalized_translation) != self._normalize_comparable(normalized_query):
+                    da_to_en_translation = normalized_translation
+
+            reverse_translated = self._lookup_reverse_translation(normalized_query)
+            if reverse_translated:
+                normalized_reverse = normalize_token(reverse_translated)
+                if self._normalize_comparable(normalized_reverse) != self._normalize_comparable(normalized_query):
+                    en_to_da_translation = normalized_reverse
+
+            if en_to_da_translation:
+                en_to_da_pos_tag, en_to_da_morphology = self._extract_pos_and_morphology(en_to_da_translation)
+                translated_classification = classifier.classify(en_to_da_translation)
+                en_to_da_lemma = translated_classification.matched_lemma or translated_classification.lemma_candidate
+
+        if include_language_detection:
+            detected = self.detect_word_language(normalized_query)
+            query_language = detected.language
+            query_language_confidence = max(0.0, min(1.0, float(detected.confidence)))
+
+        if (
+            token.match_source == "none"
+            and en_to_da_translation
+            and (
+                query_language == "en"
+                or (query_language != "da" and self._is_likely_english_word(normalized_query))
+                or not resolved_lemma
+                or self._normalize_comparable(resolved_lemma) == self._normalize_comparable(normalized_query)
+            )
+        ):
+            resolved_surface = en_to_da_translation
+            resolved_lemma = en_to_da_translation
+
+        return ResolveQueryResponse(
+            query_surface=token.normalized_token or normalized_query,
+            query_lemma=token.lemma_candidate,
+            classification=token.classification,
+            matched_lemma=token.matched_lemma,
+            matched_lemma_summary=matched_lemma_summary,
+            query_pos_tag=query_pos_tag,
+            query_morphology=query_morphology,
+            resolved_surface=resolved_surface,
+            resolved_lemma=resolved_lemma,
+            da_to_en_translation=da_to_en_translation,
+            en_to_da_translation=en_to_da_translation,
+            en_to_da_lemma=en_to_da_lemma,
+            en_to_da_pos_tag=en_to_da_pos_tag,
+            en_to_da_morphology=en_to_da_morphology,
+            query_language=query_language,
+            query_language_confidence=query_language_confidence,
         )
 
     def generate_phrase_translation(self, source_text: str) -> GeneratePhraseTranslationResponse:
@@ -423,6 +530,21 @@ class WordbankUseCase:
             surface_forms=surface_forms,
         )
 
+
+
+    def _normalize_comparable(self, value: str) -> str:
+        return " ".join(value.strip().lower().split())
+
+    def _is_likely_english_word(self, value: str) -> bool:
+        normalized = value.strip().lower()
+        if not normalized or " " in normalized:
+            return False
+        if any(char in normalized for char in ("æ", "ø", "å")):
+            return False
+        allowed = set("abcdefghijklmnopqrstuvwxyz'-")
+        if any(char not in allowed for char in normalized):
+            return False
+        return any(char in "aeiouy" for char in normalized)
 
     def _extract_pos_and_morphology(self, value: str) -> tuple[str | None, str | None]:
         if self._nlp_adapter is None:
