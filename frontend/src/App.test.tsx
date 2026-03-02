@@ -263,7 +263,40 @@ function mockFetchImplementation(options?: {
       show_lemma: boolean
     }>
   }
-  resolveQueryHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+  enrichTokenResponse?: {
+    query_surface: string
+    query_lemma: string | null
+    classification: "known" | "variation" | "typo_likely" | "uncertain" | "new"
+    matched_lemma: string | null
+    matched_lemma_summary: {
+      lemma: string
+      english_translation: string | null
+      variation_count: number
+    } | null
+    query_pos_tag: string | null
+    query_morphology: string | null
+    resolved_surface: string
+    resolved_lemma: string | null
+    da_to_en_translation: string | null
+    en_to_da_translation: string | null
+    en_to_da_lemma: string | null
+    en_to_da_pos_tag: string | null
+    en_to_da_morphology: string | null
+    query_language: "en" | "da" | "ambiguous" | null
+    query_language_confidence: number | null
+    word_actions?: Array<{
+      action_type: "open_wordbank" | "add_as_new" | "add_variation"
+      surface: string
+      lemma: string
+      translation_label: string | null
+      direction: "da_to_en" | "en_to_da" | "variation" | "known"
+      direction_label: string | null
+      pos_tag: string | null
+      morphology: string | null
+      show_lemma: boolean
+    }>
+  }
+  enrichTokenHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
   translationHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
   reverseTranslationResponse?: {
     status: "generated" | "unavailable"
@@ -418,6 +451,69 @@ function mockFetchImplementation(options?: {
         throw new Error("analyze request failed")
       }
       return responseOf({ tokens: analyzeTokens })
+    }
+
+    if (url.endsWith("/api/analyze/enrich-token")) {
+      if (options?.enrichTokenHandler) {
+        return options.enrichTokenHandler(input, init)
+      }
+      if (options?.enrichTokenResponse) {
+        return responseOf(options.enrichTokenResponse)
+      }
+
+      const body = JSON.parse(String(init?.body ?? "{}")) as { token?: string }
+      const requestedToken = String(body.token ?? "").trim().toLocaleLowerCase("da-DK")
+      let token: AnalyzeToken | null = null
+      if (options?.analyzeHandler) {
+        const tryTexts = [`${requestedToken} `, requestedToken]
+        for (const textValue of tryTexts) {
+          const analyzed = await options.analyzeHandler(input, {
+            method: "POST",
+            body: JSON.stringify({ text: textValue }),
+          })
+          const analyzedPayload = (await analyzed.json()) as { tokens?: AnalyzeToken[] }
+          token = analyzedPayload.tokens?.find(
+            (candidate) => (candidate.normalized_token ?? candidate.surface_token ?? "").toLocaleLowerCase("da-DK") === requestedToken,
+          ) ?? analyzedPayload.tokens?.[0] ?? null
+          if (token) {
+            break
+          }
+        }
+      } else {
+        token = analyzeTokens.find(
+          (candidate) => (candidate.normalized_token ?? candidate.surface_token ?? "").toLocaleLowerCase("da-DK") === requestedToken,
+        ) ?? analyzeTokens[0] ?? null
+      }
+
+      const responsePayload: ResolveQueryPayload = {
+        query_surface: token?.normalized_token ?? requestedToken,
+        query_lemma: token?.lemma_candidate ?? null,
+        classification: token?.classification ?? "new",
+        matched_lemma: token?.matched_lemma ?? null,
+        matched_lemma_summary: token?.matched_lemma
+          ? {
+            lemma: token.matched_lemma,
+            english_translation:
+              lemmasResponse.items.find((item) => item.lemma === token?.matched_lemma)?.english_translation ?? null,
+            variation_count: lemmasResponse.items.find((item) => item.lemma === token?.matched_lemma)?.variation_count ?? 0,
+          }
+          : null,
+        query_pos_tag: token?.pos_tag ?? null,
+        query_morphology: token?.morphology ?? null,
+        resolved_surface: token?.normalized_token ?? requestedToken,
+        resolved_lemma: token?.lemma_candidate ?? null,
+        da_to_en_translation: token?.classification === "known" || token?.classification === "variation" ? translationResponse.english_translation : null,
+        en_to_da_translation: null,
+        en_to_da_lemma: null,
+        en_to_da_pos_tag: null,
+        en_to_da_morphology: null,
+        query_language: null,
+        query_language_confidence: null,
+      }
+      return responseOf({
+        ...responsePayload,
+        word_actions: buildWordActionsFromResolvePayload(responsePayload),
+      })
     }
 
     if (url.endsWith("/api/wordbank/lexemes")) {
@@ -941,6 +1037,78 @@ describe("App shell", () => {
           return body.query_text?.toLocaleLowerCase("da-DK") === "snakker"
         }),
       ).toBe(true)
+    })
+  })
+
+
+  it("command search debounces resolve requests and reuses cached results for repeated queries", async () => {
+    let resolveRequestCount = 0
+
+    const resolvePayload = {
+      query_surface: "house",
+      query_lemma: "house",
+      classification: "new" as const,
+      matched_lemma: null,
+      matched_lemma_summary: null,
+      query_pos_tag: null,
+      query_morphology: null,
+      resolved_surface: "house",
+      resolved_lemma: "house",
+      da_to_en_translation: null,
+      en_to_da_translation: "hus",
+      en_to_da_lemma: null,
+      en_to_da_pos_tag: null,
+      en_to_da_morphology: null,
+      query_language: "en" as const,
+      query_language_confidence: 0.9,
+      word_actions: [
+        {
+          action_type: "add_as_new" as const,
+          surface: "hus",
+          lemma: "hus",
+          translation_label: "hus",
+          direction: "en_to_da" as const,
+          direction_label: "English -> Danish",
+          pos_tag: null,
+          morphology: null,
+          show_lemma: false,
+        },
+      ],
+    }
+
+    mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      resolveQueryHandler: async () => {
+        resolveRequestCount += 1
+        return responseOf(resolvePayload)
+      },
+    })
+
+    render(<App />)
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    const commandDialog = await screen.findByRole("dialog")
+    const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
+
+    fireEvent.change(searchInput, { target: { value: "h" } })
+    fireEvent.change(searchInput, { target: { value: "ho" } })
+    fireEvent.change(searchInput, { target: { value: "house" } })
+
+
+    expect(await screen.findByText(/english -> danish/i)).toBeInTheDocument()
+    await waitFor(() => {
+      expect(resolveRequestCount).toBe(1)
+    })
+
+    fireEvent.change(searchInput, { target: { value: "home" } })
+    await waitFor(() => {
+      expect(resolveRequestCount).toBe(2)
+    })
+
+    fireEvent.change(searchInput, { target: { value: "house" } })
+    await waitFor(() => {
+      expect(resolveRequestCount).toBe(2)
     })
   })
 
@@ -1900,6 +2068,86 @@ describe("App shell", () => {
     expect(within(popoverContent as HTMLElement).queryByText(/^Morphology: /i)).not.toBeInTheDocument()
   })
 
+  it("re-opening the same highlighted token reuses popover enrich cache", async () => {
+    vi.useRealTimers()
+    let enrichCalls = 0
+
+    mockFetchImplementation({
+      analyzeTokens: [
+        {
+          surface_token: "katten",
+          normalized_token: "katten",
+          lemma_candidate: "kat",
+          classification: "variation",
+          match_source: "lemma",
+          matched_lemma: "kat",
+          matched_surface_form: null,
+          pos_tag: "NOUN",
+          morphology: "Gender=Com|Number=Sing|Definite=Def",
+        },
+      ],
+      enrichTokenHandler: async () => {
+        enrichCalls += 1
+        return responseOf({
+          query_surface: "katten",
+          query_lemma: "kat",
+          classification: "variation",
+          matched_lemma: "kat",
+          matched_lemma_summary: { lemma: "kat", english_translation: "cat", variation_count: 1 },
+          query_pos_tag: "NOUN",
+          query_morphology: "Gender=Com|Number=Sing|Definite=Def",
+          resolved_surface: "katten",
+          resolved_lemma: "kat",
+          da_to_en_translation: "cat",
+          en_to_da_translation: null,
+          en_to_da_lemma: null,
+          en_to_da_pos_tag: null,
+          en_to_da_morphology: null,
+          query_language: "da",
+          query_language_confidence: 0.99,
+          word_actions: [
+            {
+              action_type: "add_variation",
+              surface: "katten",
+              lemma: "kat",
+              translation_label: "katten",
+              direction: "variation",
+              direction_label: "Variation",
+              pos_tag: "NOUN",
+              morphology: "Gender=Com|Number=Sing|Definite=Def",
+              show_lemma: false,
+            },
+          ],
+        })
+      },
+    })
+
+    render(<App />)
+    screen.getByLabelText("backend-connection-status")
+
+    setNotesEditorText("katten ")
+    await waitFor(() => {
+      const mark = getNotesEditor().querySelector("mark[data-status='variation']")
+      expect(mark).toBeInTheDocument()
+    })
+
+    const mark = getNotesEditor().querySelector("mark[data-status='variation']")
+    fireEvent.click(mark as HTMLElement, { clientX: 160, clientY: 140 })
+    await screen.findByRole("button", { name: /add variation/i })
+    expect(enrichCalls).toBe(1)
+
+    setNotesEditorText("katten  ")
+    await waitFor(() => {
+      const nextMark = getNotesEditor().querySelector("mark[data-status='variation']")
+      expect(nextMark).toBeInTheDocument()
+    })
+
+    const nextMark = getNotesEditor().querySelector("mark[data-status='variation']")
+    fireEvent.click(nextMark as HTMLElement, { clientX: 160, clientY: 140 })
+    await screen.findByRole("button", { name: /add variation/i })
+    expect(enrichCalls).toBe(1)
+  })
+
   it("clicking a known word opens popover with wordbank action instead of add", async () => {
     vi.useRealTimers()
 
@@ -2585,6 +2833,37 @@ describe("App shell", () => {
     const addBodies: string[] = []
 
     mockFetchImplementation({
+      enrichTokenResponse: {
+        query_surface: "kat",
+        query_lemma: "kat",
+        classification: "new",
+        matched_lemma: null,
+        matched_lemma_summary: null,
+        query_pos_tag: null,
+        query_morphology: null,
+        resolved_surface: "kat",
+        resolved_lemma: "kat",
+        da_to_en_translation: null,
+        en_to_da_translation: null,
+        en_to_da_lemma: null,
+        en_to_da_pos_tag: null,
+        en_to_da_morphology: null,
+        query_language: null,
+        query_language_confidence: null,
+        word_actions: [
+          {
+            action_type: "add_as_new",
+            surface: "kat",
+            lemma: "kat",
+            translation_label: "kat",
+            direction: "da_to_en",
+            direction_label: "Danish -> English",
+            pos_tag: null,
+            morphology: null,
+            show_lemma: false,
+          },
+        ],
+      },
       analyzeHandler: async () => {
         analyzeCallCount += 1
         if (analyzeCallCount === 1) {

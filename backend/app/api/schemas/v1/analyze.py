@@ -29,3 +29,10 @@ class AnalyzedToken(BaseModel):
 
 class AnalyzeResponse(BaseModel):
     tokens: list[AnalyzedToken]
+
+
+class EnrichTokenRequest(BaseModel):
+    token: str = Field(..., min_length=1)
+    include_translations: bool = True
+    include_language_detection: bool = True
+

@@ -349,6 +349,15 @@ def test_wordbank_resolve_query_generates_translation_and_language_signals(tmp_p
     assert resolved.query_language_confidence == 0.82
 
 
+
+
+def test_wordbank_resolve_query_strips_inline_comments(tmp_path: Path) -> None:
+    use_case = WordbankUseCase(_db_path(tmp_path))
+
+    resolved = use_case.resolve_query("House # comment")
+
+    assert resolved.query_surface == "house"
+
 def test_wordbank_resolve_query_supports_optional_flags(tmp_path: Path) -> None:
     translation_service = FakeTranslationService(
         {"house": "hus"},
