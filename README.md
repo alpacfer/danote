@@ -53,8 +53,12 @@ It also auto-loads root-level `.env` and `.env.local` files when present.
 Example (`.env.local`):
 
 ```bash
-DANOTE_DEEPL_API_KEY=your-deepl-key
-DANOTE_GEMINI_API_KEY=your-gemini-key
+DANOTE_TRANSLATION_AZURE_API_KEY=your-translator-key
+DANOTE_TRANSLATION_AZURE_REGION=your-translator-region
+DANOTE_TTS_AZURE_API_KEY=your-speech-key
+DANOTE_TTS_AZURE_REGION=your-speech-region
+DANOTE_TTS_AZURE_VOICE_NAME=da-DK-ChristelNeural
+DANOTE_WORD_VERIFICATION_GEMINI_API_KEY=your-gemini-key
 ```
 
 One-command setup for the pinned DaCy model `da_dacy_small_trf-0.2.0`:

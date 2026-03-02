@@ -16,9 +16,10 @@ def test_health_route_returns_expected_shape(stub_nlp_adapter_factory) -> None:
     assert payload["components"]["database"] == "ok"
     assert payload["components"]["nlp"] == "ok"
     assert payload["components"]["translation"] in {"degraded", "ok", "disabled"}
+    assert payload["components"]["tts"] in {"degraded", "ok", "disabled"}
     assert payload["apis"]["backend"]["status"] == "ok"
-    assert "gemini" in payload["apis"]
-    assert "deepl" in payload["apis"]
+    assert "azure_translator" in payload["apis"]
+    assert "azure_speech" in payload["apis"]
 
 
 def test_cors_allows_configured_origin(tmp_path, stub_nlp_adapter_factory) -> None:

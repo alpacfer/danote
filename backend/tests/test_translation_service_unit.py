@@ -3,19 +3,19 @@ from __future__ import annotations
 import httpx
 import pytest
 
-from app.services.translation import DeepLTranslationService, TranslationError
+from app.services.translation import AzureTranslationService, TranslationError
 
 
 class _FakeResponse:
-    def __init__(self, payload: dict | None = None, *, raises: Exception | None = None):
-        self._payload = payload or {"translations": [{"text": "book"}]}
+    def __init__(self, payload: object | None = None, *, raises: Exception | None = None):
+        self._payload = payload if payload is not None else [{"translations": [{"text": "book"}]}]
         self._raises = raises
 
     def raise_for_status(self) -> None:
         if self._raises is not None:
             raise self._raises
 
-    def json(self) -> dict:
+    def json(self) -> object:
         return self._payload
 
 
@@ -49,30 +49,48 @@ class _FakeClient:
 
 
 def _http_status_error(status_code: int, *, retry_after: str | None = None) -> httpx.HTTPStatusError:
-    request = httpx.Request("POST", "https://api-free.deepl.com/v2/translate")
+    request = httpx.Request("POST", "https://api.cognitive.microsofttranslator.com/translate")
     headers = {"Retry-After": retry_after} if retry_after is not None else {}
     response = httpx.Response(status_code, request=request, headers=headers)
     return httpx.HTTPStatusError("status failure", request=request, response=response)
 
 
 def test_translation_service_returns_translated_text(monkeypatch) -> None:
-    service = DeepLTranslationService(api_key="test-key")
+    service = AzureTranslationService(api_key="test-key", region="westeurope")
     monkeypatch.setattr(service, "_ensure_client", lambda: _FakeClient(_FakeResponse()))
     assert service.translate_da_to_en("bog") == "book"
 
 
 def test_translation_service_can_translate_en_to_da(monkeypatch) -> None:
-    service = DeepLTranslationService(api_key="test-key")
-    fake_client = _FakeClient(_FakeResponse(payload={"translations": [{"text": "hus"}]}))
+    service = AzureTranslationService(api_key="test-key", region="westeurope")
+    fake_client = _FakeClient(_FakeResponse(payload=[{"translations": [{"text": "hus"}]}]))
     monkeypatch.setattr(service, "_ensure_client", lambda: fake_client)
     assert service.translate_en_to_da("house") == "hus"
-    request_json = fake_client.requests[0]["json"]
-    assert request_json["source_lang"] == "EN"
-    assert request_json["target_lang"] == "DA"
+    request_params = fake_client.requests[0]["params"]
+    assert request_params["from"] == "en"
+    assert request_params["to"] == "da"
+
+
+def test_translation_service_normalizes_response_to_lowercase(monkeypatch) -> None:
+    service = AzureTranslationService(api_key="test-key", region="westeurope")
+    monkeypatch.setattr(
+        service,
+        "_ensure_client",
+        lambda: _FakeClient(_FakeResponse(payload=[{"translations": [{"text": "The Book"}]}])),
+    )
+    assert service.translate_da_to_en("bog") == "the book"
+
+
+def test_translation_service_detects_source_language(monkeypatch) -> None:
+    service = AzureTranslationService(api_key="test-key", region="westeurope")
+    fake_client = _FakeClient(_FakeResponse(payload=[{"language": "en", "score": 1.0}]))
+    monkeypatch.setattr(service, "_ensure_client", lambda: fake_client)
+    assert service.detect_source_language("book") == "EN"
+    assert fake_client.requests[0]["params"]["api-version"] == "3.0"
 
 
 def test_translation_service_raises_on_transport_errors(monkeypatch) -> None:
-    service = DeepLTranslationService(api_key="test-key")
+    service = AzureTranslationService(api_key="test-key", region="westeurope", max_retries=0)
     monkeypatch.setattr(
         service,
         "_ensure_client",
@@ -83,11 +101,11 @@ def test_translation_service_raises_on_transport_errors(monkeypatch) -> None:
 
 
 def test_translation_service_retries_on_rate_limit_then_succeeds(monkeypatch) -> None:
-    service = DeepLTranslationService(api_key="test-key", max_retries=3)
+    service = AzureTranslationService(api_key="test-key", region="westeurope", max_retries=3)
     fake_client = _FakeClient(
         sequence=[
             _FakeResponse(raises=_http_status_error(429, retry_after="0")),
-            _FakeResponse(payload={"translations": [{"text": "book"}]}),
+            _FakeResponse(payload=[{"translations": [{"text": "book"}]}]),
         ]
     )
     monkeypatch.setattr(service, "_ensure_client", lambda: fake_client)
@@ -98,7 +116,7 @@ def test_translation_service_retries_on_rate_limit_then_succeeds(monkeypatch) ->
 
 
 def test_translation_service_does_not_retry_non_retryable_status(monkeypatch) -> None:
-    service = DeepLTranslationService(api_key="test-key", max_retries=3)
+    service = AzureTranslationService(api_key="test-key", region="westeurope", max_retries=3)
     fake_client = _FakeClient(sequence=[_FakeResponse(raises=_http_status_error(400))])
     monkeypatch.setattr(service, "_ensure_client", lambda: fake_client)
     monkeypatch.setattr("app.services.translation.time.sleep", lambda _seconds: None)
@@ -108,41 +126,10 @@ def test_translation_service_does_not_retry_non_retryable_status(monkeypatch) ->
     assert fake_client.calls == 1
 
 
-def test_translation_service_disambiguates_is_when_provider_echoes_identity(monkeypatch) -> None:
-    service = DeepLTranslationService(api_key="test-key", max_retries=0)
-    fake_client = _FakeClient(
-        sequence=[
-            _FakeResponse(payload={"translations": [{"text": "is"}]}),
-            _FakeResponse(payload={"translations": [{"text": "ice cream"}]}),
-        ]
+def test_translation_service_uses_configured_endpoint_override() -> None:
+    service = AzureTranslationService(
+        api_key="test-key",
+        region="westeurope",
+        endpoint="https://custom-translator.cognitiveservices.azure.com/",
     )
-    monkeypatch.setattr(service, "_ensure_client", lambda: fake_client)
-    assert service.translate_da_to_en("is") == "ice cream"
-    assert fake_client.calls == 2
-    assert fake_client.requests[1]["json"]["context"] != fake_client.requests[0]["json"]["context"]
-
-
-def test_translation_service_uses_fallback_when_disambiguation_response_is_still_identity(monkeypatch) -> None:
-    service = DeepLTranslationService(api_key="test-key", max_retries=0)
-    fake_client = _FakeClient(
-        sequence=[
-            _FakeResponse(payload={"translations": [{"text": "is"}]}),
-            _FakeResponse(payload={"translations": [{"text": "is"}]}),
-        ]
-    )
-    monkeypatch.setattr(service, "_ensure_client", lambda: fake_client)
-    assert service.translate_da_to_en("is") == "ice cream"
-    assert fake_client.calls == 2
-
-
-def test_translation_service_uses_fallback_if_disambiguation_call_fails(monkeypatch) -> None:
-    service = DeepLTranslationService(api_key="test-key", max_retries=0)
-    fake_client = _FakeClient(
-        sequence=[
-            _FakeResponse(payload={"translations": [{"text": "is"}]}),
-            httpx.ConnectError("transport failed"),
-        ]
-    )
-    monkeypatch.setattr(service, "_ensure_client", lambda: fake_client)
-    assert service.translate_da_to_en("is") == "ice cream"
-    assert fake_client.calls == 2
+    assert service.endpoint == "https://custom-translator.cognitiveservices.azure.com"

@@ -179,6 +179,18 @@ type LemmaListResponse = {
   items: WordbankLemma[]
 }
 
+type WordbankSearchItem = {
+  lemma: string
+  display_lemma: string
+  english_translation: string | null
+  variation_count: number
+  match_surface?: string | null
+}
+
+type WordbankSearchResponse = {
+  items: WordbankSearchItem[]
+}
+
 type LemmaDetailsResponse = {
   lemma: string
   english_translation: string | null
@@ -503,11 +515,11 @@ function humanizeApiName(name: string): string {
   if (name === "backend") {
     return "Backend API"
   }
-  if (name === "gemini") {
-    return "Gemini API"
+  if (name === "azure_translator") {
+    return "Azure Translator API"
   }
-  if (name === "deepl") {
-    return "DeepL API"
+  if (name === "azure_speech") {
+    return "Azure Speech API"
   }
   return name
 }
@@ -1065,6 +1077,8 @@ function AppSidebar({
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const resolveQueryCacheRef = useRef<Map<string, ResolveQueryResponse>>(new Map())
+  const wordbankSearchCacheRef = useRef<Map<string, Array<{ lemma: WordbankLemma; matchSurface: string | null }>>>(new Map())
+  const [searchApiMatches, setSearchApiMatches] = useState<Array<{ lemma: WordbankLemma; matchSurface: string | null }>>([])
   const [resolvedQueryCandidate, setResolvedQueryCandidate] = useState<{
     query: string
     surface: string
@@ -1116,6 +1130,64 @@ function AppSidebar({
     }
     return resolvedQueryCandidate
   }, [normalizedQuery, resolvedQueryCandidate])
+
+  useEffect(() => {
+    if (!normalizedQuery) {
+      setSearchApiMatches([])
+      return
+    }
+
+    const cached = wordbankSearchCacheRef.current.get(normalizedQuery)
+    if (cached) {
+      setSearchApiMatches(cached)
+      return
+    }
+
+    let cancelled = false
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(() => {
+      void (async () => {
+        try {
+          const response = await fetch(
+            `${BACKEND_URL}/api/wordbank/search?query=${encodeURIComponent(trimmedQuery)}&limit=8`,
+            { signal: controller.signal },
+          )
+          if (!response.ok) {
+            if (!cancelled) {
+              setSearchApiMatches([])
+            }
+            return
+          }
+          const payload = (await response.json()) as WordbankSearchResponse
+          if (cancelled) {
+            return
+          }
+          const mapped = (payload.items ?? []).map((item) => ({
+            lemma: {
+              lemma: item.lemma,
+              display_lemma: item.display_lemma,
+              english_translation: item.english_translation,
+              variation_count: item.variation_count,
+            },
+            matchSurface: item.match_surface ?? null,
+          }))
+          wordbankSearchCacheRef.current.set(normalizedQuery, mapped)
+          setSearchApiMatches(mapped)
+        } catch {
+          if (!cancelled) {
+            setSearchApiMatches([])
+          }
+        }
+      })()
+    }, SEARCH_RESOLVE_DEBOUNCE_MS)
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(timeoutId)
+      controller.abort()
+    }
+  }, [normalizedQuery, trimmedQuery])
+
   const wordbankResults = useMemo(() => {
     const variationMatch = activeResolvedCandidate?.matchedLemma
       ? {
@@ -1123,10 +1195,10 @@ function AppSidebar({
         surface: activeResolvedCandidate.surface,
       }
       : null
-    const directMatches = matchingLemmas.map((lemma) => ({
+    const directMatches = (searchApiMatches.length > 0 ? searchApiMatches : matchingLemmas.map((lemma) => ({
       lemma,
       matchSurface: null as string | null,
-    }))
+    }))).map((item) => ({ lemma: item.lemma, matchSurface: item.matchSurface ?? null }))
 
     if (!variationMatch) {
       return directMatches
@@ -1138,7 +1210,7 @@ function AppSidebar({
     }
 
     return [{ lemma: variationMatch.lemma, matchSurface: variationMatch.surface }, ...directMatches]
-  }, [activeResolvedCandidate, matchingLemmas])
+  }, [activeResolvedCandidate, matchingLemmas, searchApiMatches])
   const hasWordbankResults = wordbankResults.length > 0
   const searchWordActions = useMemo(() => {
     if (!activeResolvedCandidate) {
@@ -1725,8 +1797,12 @@ function App() {
   const [selectedNlpModel, setSelectedNlpModel] = useState<NlpModelOption>(
     NLP_MODEL_OPTIONS[0],
   )
-  const [developerGeminiApiKey, setDeveloperGeminiApiKey] = useState("")
-  const [developerDeepLApiKey, setDeveloperDeepLApiKey] = useState("")
+  const [developerTranslationAzureApiKey, setDeveloperTranslationAzureApiKey] = useState("")
+  const [developerTranslationAzureRegion, setDeveloperTranslationAzureRegion] = useState("")
+  const [developerTranslationAzureEndpoint, setDeveloperTranslationAzureEndpoint] = useState("")
+  const [developerTtsAzureApiKey, setDeveloperTtsAzureApiKey] = useState("")
+  const [developerTtsAzureRegion, setDeveloperTtsAzureRegion] = useState("")
+  const [developerTtsAzureEndpoint, setDeveloperTtsAzureEndpoint] = useState("")
   const [developerVerificationGeminiApiKey, setDeveloperVerificationGeminiApiKey] = useState("")
   const [isSavingDeveloperApiKeys, setIsSavingDeveloperApiKeys] = useState(false)
   const [highlightPopover, setHighlightPopover] = useState<HighlightPopoverState>({
@@ -1929,7 +2005,7 @@ function App() {
   }, [phrasePopover.selectedText, sentences])
   const apiStatusItems = useMemo(() => {
     const apis = healthPayload?.apis ?? {}
-    const priorityOrder = ["backend", "gemini", "deepl"]
+    const priorityOrder = ["backend", "azure_translator", "azure_speech"]
     const orderedNames = [
       ...priorityOrder.filter((name) => Object.hasOwn(apis, name)),
       ...Object.keys(apis).filter((name) => !priorityOrder.includes(name)).sort(),
@@ -4060,8 +4136,12 @@ function App() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          gemini_api_key: developerGeminiApiKey,
-          deepl_api_key: developerDeepLApiKey,
+          translation_azure_api_key: developerTranslationAzureApiKey,
+          translation_azure_region: developerTranslationAzureRegion,
+          translation_azure_endpoint: developerTranslationAzureEndpoint,
+          tts_azure_api_key: developerTtsAzureApiKey,
+          tts_azure_region: developerTtsAzureRegion,
+          tts_azure_endpoint: developerTtsAzureEndpoint,
           word_verification_gemini_api_key: developerVerificationGeminiApiKey,
         }),
       })
@@ -4150,23 +4230,59 @@ function App() {
               Keys entered here apply immediately for this backend process and are not persisted to source code.
             </p>
             <div className="space-y-1">
-              <Label htmlFor="developer-gemini-key">Gemini API key</Label>
+              <Label htmlFor="developer-translation-azure-key">Azure Translator API key</Label>
               <Input
-                id="developer-gemini-key"
+                id="developer-translation-azure-key"
                 type="password"
-                value={developerGeminiApiKey}
-                onChange={(event) => setDeveloperGeminiApiKey(event.target.value)}
-                placeholder="Paste Gemini key"
+                value={developerTranslationAzureApiKey}
+                onChange={(event) => setDeveloperTranslationAzureApiKey(event.target.value)}
+                placeholder="Paste Azure Translator key"
               />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="developer-deepl-key">DeepL API key</Label>
+              <Label htmlFor="developer-translation-azure-region">Azure Translator region</Label>
               <Input
-                id="developer-deepl-key"
+                id="developer-translation-azure-region"
+                value={developerTranslationAzureRegion}
+                onChange={(event) => setDeveloperTranslationAzureRegion(event.target.value)}
+                placeholder="e.g. westeurope"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="developer-translation-azure-endpoint">Azure Translator endpoint (optional)</Label>
+              <Input
+                id="developer-translation-azure-endpoint"
+                value={developerTranslationAzureEndpoint}
+                onChange={(event) => setDeveloperTranslationAzureEndpoint(event.target.value)}
+                placeholder="https://api.cognitive.microsofttranslator.com"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="developer-tts-azure-key">Azure Speech API key</Label>
+              <Input
+                id="developer-tts-azure-key"
                 type="password"
-                value={developerDeepLApiKey}
-                onChange={(event) => setDeveloperDeepLApiKey(event.target.value)}
-                placeholder="Paste DeepL key"
+                value={developerTtsAzureApiKey}
+                onChange={(event) => setDeveloperTtsAzureApiKey(event.target.value)}
+                placeholder="Paste Azure Speech key"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="developer-tts-azure-region">Azure Speech region</Label>
+              <Input
+                id="developer-tts-azure-region"
+                value={developerTtsAzureRegion}
+                onChange={(event) => setDeveloperTtsAzureRegion(event.target.value)}
+                placeholder="e.g. westeurope"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="developer-tts-azure-endpoint">Azure Speech endpoint (optional)</Label>
+              <Input
+                id="developer-tts-azure-endpoint"
+                value={developerTtsAzureEndpoint}
+                onChange={(event) => setDeveloperTtsAzureEndpoint(event.target.value)}
+                placeholder="https://<resource>.cognitiveservices.azure.com"
               />
             </div>
             <div className="space-y-1">

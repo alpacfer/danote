@@ -105,7 +105,13 @@ class SentencebankUseCase:
         if self._translation_service is None:
             return None
         try:
-            return self._translation_service.translate_da_to_en(source_text)
+            translated = self._translation_service.translate_da_to_en(source_text)
+            if not isinstance(translated, str):
+                return None
+            cleaned = " ".join(translated.strip().split())
+            if not cleaned:
+                return None
+            return cleaned.lower()
         except Exception:
             return None
 

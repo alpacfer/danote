@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from app.api.schemas.v1.wordbank import LemmaDetailsResponse
@@ -234,6 +235,25 @@ def test_wordbank_use_case_generates_pronunciation_on_demand_for_existing_form(t
     assert tts_service.calls == ["bogen"]
 
 
+def test_wordbank_use_case_generates_distinct_lemma_and_surface_pronunciation(tmp_path: Path) -> None:
+    db_path = _db_path(tmp_path)
+    use_case = WordbankUseCase(db_path)
+    use_case.add_word("Bogen", "bog")
+
+    tts_service = FakeTTSService({"bog": b"lemma-wav", "bogen": b"surface-wav"})
+    use_case = WordbankUseCase(db_path, tts_service=tts_service)
+
+    generated = use_case.generate_pronunciation_for_added_word("bog", "bogen")
+    lemma_audio = use_case.get_pronunciation_audio("bog")
+    surface_audio = use_case.get_pronunciation_audio("bogen")
+
+    assert generated.status == "generated"
+    assert generated.pronunciation_form == "bogen"
+    assert lemma_audio.audio_bytes == b"lemma-wav"
+    assert surface_audio.audio_bytes == b"surface-wav"
+    assert tts_service.calls == ["bog", "bogen"]
+
+
 def test_wordbank_use_case_force_regenerates_pronunciation(tmp_path: Path) -> None:
     db_path = _db_path(tmp_path)
     use_case = WordbankUseCase(db_path)
@@ -264,8 +284,8 @@ def test_wordbank_use_case_force_regenerates_pronunciation(tmp_path: Path) -> No
 
     assert first.status == "generated"
     assert second.status == "generated"
-    assert audio.audio_bytes == b"wav-2"
-    assert tts_service.calls == ["bogen", "bogen"]
+    assert audio.audio_bytes == b"wav-4"
+    assert tts_service.calls == ["bog", "bogen", "bog", "bogen"]
 
 
 def test_wordbank_use_case_normalizes_l16_pronunciation_to_wav(tmp_path: Path) -> None:
@@ -349,6 +369,37 @@ def test_wordbank_use_case_applies_verification_changes(tmp_path: Path) -> None:
     assert surface_row["translation_provider"] == "gemini"
 
 
+def test_wordbank_use_case_logs_gemini_applied_changes(tmp_path: Path) -> None:
+    db_path = _db_path(tmp_path)
+    use_case = WordbankUseCase(db_path)
+    use_case.add_word("Bogen", "bog")
+    log_path = tmp_path / "gemini-applied-changes.jsonl"
+
+    use_case = WordbankUseCase(db_path, gemini_changes_log_path=log_path)
+    response = use_case.apply_verification_changes(
+        stored_lemma="bog",
+        stored_surface_form="bogen",
+        suggested_changes={
+            "lemma_pos_tag": "NOUN",
+            "lexeme_translation": "Book",
+            "surface_translation": "The Book",
+        },
+        provider="gemini",
+    )
+
+    assert response.status == "applied"
+    assert log_path.exists()
+    lines = log_path.read_text(encoding="utf-8").strip().splitlines()
+    assert len(lines) == 1
+    payload = json.loads(lines[0])
+    assert payload["provider"] == "gemini"
+    assert payload["stored_lemma"] == "bog"
+    assert payload["stored_surface_form"] == "bogen"
+    assert payload["suggested_changes"]["lexeme_translation"] == "book"
+    assert payload["suggested_changes"]["surface_translation"] == "the book"
+    assert "timestamp_utc" in payload
+
+
 def test_wordbank_list_lemmas_displays_verbs_with_at_prefix(tmp_path: Path) -> None:
     class VerbListNLPAdapter:
         def tokenize(self, text: str) -> list[NLPToken]:
@@ -382,6 +433,18 @@ def test_wordbank_list_lemmas_displays_verbs_with_at_prefix(tmp_path: Path) -> N
     assert listing.items[0].display_lemma == "at lave"
 
 
+def test_wordbank_search_lemmas_matches_variations(tmp_path: Path) -> None:
+    use_case = WordbankUseCase(_db_path(tmp_path))
+    use_case.add_word("Bogens", "bog")
+    use_case.add_word("Huse", "hus")
+
+    result = use_case.search_lemmas("gens")
+
+    assert len(result.items) == 1
+    assert result.items[0].lemma == "bog"
+    assert result.items[0].match_surface == "bogens"
+
+
 def test_wordbank_generate_translation_uses_surface_form_not_lemma(tmp_path: Path) -> None:
     use_case = WordbankUseCase(
         _db_path(tmp_path),
@@ -399,6 +462,18 @@ def test_wordbank_generate_translation_uses_surface_form_not_lemma(tmp_path: Pat
     assert generated_b.source_word == "bogens"
     assert generated_b.lemma == "bog"
     assert generated_b.english_translation == "book's"
+
+
+def test_wordbank_translation_is_normalized_to_lowercase(tmp_path: Path) -> None:
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        translation_service=FakeTranslationService({"bogen": "The Book"}),
+    )
+
+    generated = use_case.generate_translation("Bogen", "bog")
+
+    assert generated.status == "generated"
+    assert generated.english_translation == "the book"
 
 
 def test_wordbank_phrase_translation_caches_by_normalized_phrase(tmp_path: Path) -> None:
@@ -614,6 +689,18 @@ def test_sentencebank_use_case_add_and_list(tmp_path: Path) -> None:
     assert inserted.english_translation == "i love danish"
     assert duplicate.status == "exists"
     assert listing.items[0].source_text == "Jeg elsker dansk"
+
+
+def test_sentencebank_translation_is_normalized_to_lowercase(tmp_path: Path) -> None:
+    use_case = SentencebankUseCase(
+        _db_path(tmp_path),
+        translation_service=FakeTranslationService({"Jeg elsker dansk": "I LOVE DANISH"}),
+    )
+
+    inserted = use_case.add_sentence("Jeg elsker dansk")
+
+    assert inserted.status == "inserted"
+    assert inserted.english_translation == "i love danish"
 
 
 

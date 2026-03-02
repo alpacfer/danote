@@ -22,19 +22,21 @@ class Settings:
     typo_enabled: bool = True
     typo_dictionary_path: Path | None = None
     translation_enabled: bool = True
-    translation_provider: str = "deepl"
-    translation_gemini_api_key: str | None = None
-    translation_gemini_model: str = "gemini-3-flash-preview"
-    translation_deepl_api_key: str | None = None
-    translation_deepl_api_url: str | None = None
+    translation_provider: str = "azure"
+    translation_azure_api_key: str | None = None
+    translation_azure_region: str | None = None
+    translation_azure_endpoint: str | None = None
+    translation_azure_api_version: str = "3.0"
     word_verification_enabled: bool = False
     word_verification_gemini_api_key: str | None = None
     word_verification_gemini_model: str = "gemini-3-flash-preview"
     tts_enabled: bool = True
-    tts_provider: str = "gemini"
-    tts_gemini_api_key: str | None = None
-    tts_gemini_model: str = "gemini-2.5-flash-preview-tts"
-    tts_gemini_voice_name: str = "Kore"
+    tts_provider: str = "azure"
+    tts_azure_api_key: str | None = None
+    tts_azure_region: str | None = None
+    tts_azure_endpoint: str | None = None
+    tts_azure_voice_name: str = "da-DK-ChristelNeural"
+    gemini_changes_log_path: Path = DATA_DIR / "gemini-applied-changes.jsonl"
 
 
 def load_settings() -> Settings:
@@ -59,11 +61,11 @@ def load_settings() -> Settings:
         else None,
         translation_enabled=os.getenv("DANOTE_TRANSLATION_ENABLED", "1").lower()
         not in {"0", "false", "no"},
-        translation_provider=os.getenv("DANOTE_TRANSLATION_PROVIDER", "deepl"),
-        translation_gemini_api_key=os.getenv("DANOTE_GEMINI_API_KEY"),
-        translation_gemini_model=os.getenv("DANOTE_GEMINI_MODEL", "gemini-3-flash-preview"),
-        translation_deepl_api_key=os.getenv("DANOTE_DEEPL_API_KEY"),
-        translation_deepl_api_url=os.getenv("DANOTE_DEEPL_API_URL"),
+        translation_provider=os.getenv("DANOTE_TRANSLATION_PROVIDER", "azure"),
+        translation_azure_api_key=os.getenv("DANOTE_TRANSLATION_AZURE_API_KEY"),
+        translation_azure_region=os.getenv("DANOTE_TRANSLATION_AZURE_REGION"),
+        translation_azure_endpoint=os.getenv("DANOTE_TRANSLATION_AZURE_ENDPOINT"),
+        translation_azure_api_version=os.getenv("DANOTE_TRANSLATION_AZURE_API_VERSION", "3.0"),
         word_verification_enabled=os.getenv("DANOTE_WORD_VERIFICATION_ENABLED", "1").lower()
         not in {"0", "false", "no"},
         word_verification_gemini_api_key=os.getenv(
@@ -75,11 +77,12 @@ def load_settings() -> Settings:
             os.getenv("DANOTE_GEMINI_MODEL", "gemini-3-flash-preview"),
         ),
         tts_enabled=os.getenv("DANOTE_TTS_ENABLED", "1").lower() not in {"0", "false", "no"},
-        tts_provider=os.getenv("DANOTE_TTS_PROVIDER", "gemini"),
-        tts_gemini_api_key=os.getenv(
-            "DANOTE_TTS_GEMINI_API_KEY",
-            os.getenv("DANOTE_GEMINI_API_KEY"),
+        tts_provider=os.getenv("DANOTE_TTS_PROVIDER", "azure"),
+        tts_azure_api_key=os.getenv("DANOTE_TTS_AZURE_API_KEY"),
+        tts_azure_region=os.getenv("DANOTE_TTS_AZURE_REGION"),
+        tts_azure_endpoint=os.getenv("DANOTE_TTS_AZURE_ENDPOINT"),
+        tts_azure_voice_name=os.getenv("DANOTE_TTS_AZURE_VOICE_NAME", "da-DK-ChristelNeural"),
+        gemini_changes_log_path=Path(
+            os.getenv("DANOTE_GEMINI_CHANGES_LOG_PATH", DATA_DIR / "gemini-applied-changes.jsonl")
         ),
-        tts_gemini_model=os.getenv("DANOTE_TTS_GEMINI_MODEL", "gemini-2.5-flash-preview-tts"),
-        tts_gemini_voice_name=os.getenv("DANOTE_TTS_GEMINI_VOICE_NAME", "Kore"),
     )

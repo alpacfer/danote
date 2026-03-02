@@ -25,6 +25,8 @@ from app.api.schemas.v1.wordbank import (
     ResetDatabaseResponse,
     VerifyWordRequest,
     VerifyWordResponse,
+    WordbankSearchItem,
+    WordbankSearchResponse,
     WordActionSuggestion,
 )
 
@@ -54,5 +56,7 @@ __all__ = [
     "ResetDatabaseResponse",
     "VerifyWordRequest",
     "VerifyWordResponse",
+    "WordbankSearchItem",
+    "WordbankSearchResponse",
     "WordActionSuggestion",
 ]

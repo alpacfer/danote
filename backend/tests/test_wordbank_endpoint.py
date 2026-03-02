@@ -144,6 +144,28 @@ def test_list_lemmas_returns_sorted_lemmas_with_variation_counts(tmp_path, stub_
     ]
 
 
+def test_search_lemmas_returns_variation_matches(tmp_path, stub_nlp_adapter_factory) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    apply_migrations(db_path)
+    app = create_app(_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+
+    with TestClient(app) as client:
+        client.post("/api/wordbank/lexemes", json={"surface_token": "bogens", "lemma_candidate": "bog"})
+        response = client.get("/api/wordbank/search", params={"query": "gens"})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["items"] == [
+        {
+            "lemma": "bog",
+            "display_lemma": "bog",
+            "english_translation": None,
+            "variation_count": 1,
+            "match_surface": "bogens",
+        }
+    ]
+
+
 def test_get_lemma_details_returns_all_saved_variations(tmp_path, stub_nlp_adapter_factory) -> None:
     db_path = tmp_path / "danote.sqlite3"
     apply_migrations(db_path)
@@ -434,7 +456,7 @@ def test_generate_pronunciation_endpoint_generates_for_recently_added_word(tmp_p
             "has_pronunciation": True,
         }
     ]
-    assert stub_tts.calls == ["katten"]
+    assert stub_tts.calls == ["kat", "katten"]
 
 
 def test_generate_pronunciation_endpoint_force_regenerates_existing_audio(tmp_path, stub_nlp_adapter_factory) -> None:
@@ -481,7 +503,7 @@ def test_generate_pronunciation_endpoint_force_regenerates_existing_audio(tmp_pa
 
     assert audio_response.status_code == 200
     assert audio_response.content == b"wav-2"
-    assert stub_tts.calls == ["katten", "katten"]
+    assert stub_tts.calls == ["kat", "katten", "kat", "katten"]
 
 
 def test_get_pronunciation_audio_returns_service_unavailable_when_tts_not_configured(

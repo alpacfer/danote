@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import json
+import logging
 import os
 import sqlite3
 import io
 import wave
+from datetime import UTC, datetime
+from pathlib import Path
 from typing import Literal
 
 from app.api.schemas.v1.wordbank import (
@@ -20,6 +24,8 @@ from app.api.schemas.v1.wordbank import (
     ResetDatabaseResponse,
     ResolveQueryResponse,
     VerifyWordResponse,
+    WordbankSearchItem,
+    WordbankSearchResponse,
     WordActionSuggestion,
 )
 from app.db.migrations import apply_migrations, get_connection
@@ -30,6 +36,8 @@ from app.services.token_classifier import LemmaAwareClassifier, normalize_token
 from app.services.translation import TranslationService
 from app.services.tts import PronunciationAudio, TTSService
 from app.services.verification import WordVerificationInput, WordVerificationService
+
+logger = logging.getLogger(__name__)
 
 
 def _looks_like_wav(payload: bytes) -> bool:
@@ -188,6 +196,7 @@ class WordbankUseCase:
         nlp_adapter: NLPAdapter | None = None,
         verification_service: WordVerificationService | None = None,
         tts_service: TTSService | None = None,
+        gemini_changes_log_path: Path | None = None,
     ):
         self._db_path = db_path
         self._typo_engine = typo_engine
@@ -195,6 +204,7 @@ class WordbankUseCase:
         self._nlp_adapter = nlp_adapter
         self._verification_service = verification_service
         self._tts_service = tts_service
+        self._gemini_changes_log_path = gemini_changes_log_path
         self._pos_morph_cache: dict[str, tuple[str | None, str | None]] = {}
 
     def add_word(self, surface_token: str, lemma_candidate: str | None) -> AddWordResponse:
@@ -356,6 +366,9 @@ class WordbankUseCase:
             raise ValueError("stored_lemma is required")
 
         pronunciation_form = normalized_surface or normalized_lemma
+        forms_to_generate = [normalized_lemma]
+        if normalized_surface and normalized_surface != normalized_lemma:
+            forms_to_generate.append(normalized_surface)
         if not pronunciation_form:
             return GeneratePronunciationResponse(
                 status="skipped",
@@ -379,12 +392,15 @@ class WordbankUseCase:
             ).fetchone()
             if lexeme_row is None:
                 raise LookupError(f"Lemma '{normalized_lemma}' was not found")
-            generated_now = self._ensure_surface_pronunciation(
-                conn=conn,
-                lexeme_id=int(lexeme_row["id"]),
-                form=pronunciation_form,
-                force=force,
-            )
+            generated_any = False
+            for form in forms_to_generate:
+                generated_now = self._ensure_surface_pronunciation(
+                    conn=conn,
+                    lexeme_id=int(lexeme_row["id"]),
+                    form=form,
+                    force=force,
+                )
+                generated_any = generated_any or generated_now
             row = conn.execute(
                 """
                 SELECT pronunciation_audio
@@ -396,7 +412,7 @@ class WordbankUseCase:
             ).fetchone()
 
         has_audio = bool(row is not None and isinstance(row["pronunciation_audio"], bytes) and row["pronunciation_audio"])
-        if force and not generated_now:
+        if force and not generated_any:
             status: Literal["generated", "unavailable", "skipped"] = "unavailable"
         else:
             status = "generated" if has_audio else "unavailable"
@@ -452,6 +468,10 @@ class WordbankUseCase:
                 continue
             cleaned = value.strip()
             if cleaned:
+                if field in {"lexeme_translation", "surface_translation"}:
+                    cleaned = self._normalize_translation_value(cleaned) or ""
+                    if not cleaned:
+                        continue
                 normalized_changes[field] = cleaned
 
         if not normalized_changes:
@@ -471,11 +491,13 @@ class WordbankUseCase:
 
         provider_name = provider.strip().lower() if isinstance(provider, str) and provider.strip() else "verification"
         applied_fields: list[str] = []
+        lexeme_before: dict[str, str | None] | None = None
+        surface_before: dict[str, str | None] | None = None
 
         with get_connection(self._db_path) as conn:
             lexeme_row = conn.execute(
                 """
-                SELECT id
+                SELECT id, pos_tag, morphology, english_translation, translation_provider
                 FROM lexemes
                 WHERE lemma = ?
                 LIMIT 1
@@ -485,6 +507,12 @@ class WordbankUseCase:
             if lexeme_row is None:
                 raise LookupError(f"Lemma '{normalized_lemma}' was not found")
             lexeme_id = int(lexeme_row["id"])
+            lexeme_before = {
+                "pos_tag": lexeme_row["pos_tag"],
+                "morphology": lexeme_row["morphology"],
+                "english_translation": lexeme_row["english_translation"],
+                "translation_provider": lexeme_row["translation_provider"],
+            }
 
             lexeme_updates: list[str] = []
             lexeme_params: list[str | int] = []
@@ -510,6 +538,22 @@ class WordbankUseCase:
                 )
 
             if normalized_surface:
+                surface_row = conn.execute(
+                    """
+                    SELECT pos_tag, morphology, english_translation, translation_provider
+                    FROM surface_forms
+                    WHERE lexeme_id = ? AND form = ?
+                    LIMIT 1
+                    """,
+                    (lexeme_id, normalized_surface),
+                ).fetchone()
+                if surface_row is not None:
+                    surface_before = {
+                        "pos_tag": surface_row["pos_tag"],
+                        "morphology": surface_row["morphology"],
+                        "english_translation": surface_row["english_translation"],
+                        "translation_provider": surface_row["translation_provider"],
+                    }
                 conn.execute(
                     """
                     INSERT OR IGNORE INTO surface_forms (lexeme_id, form, source)
@@ -546,6 +590,25 @@ class WordbankUseCase:
                     )
 
         self._invalidate_pos_cache(normalized_lemma, normalized_surface)
+        if applied_fields and provider_name == "gemini":
+            self._append_gemini_change_log(
+                {
+                    "timestamp_utc": datetime.now(UTC).isoformat(),
+                    "provider": provider_name,
+                    "stored_lemma": normalized_lemma,
+                    "stored_surface_form": normalized_surface,
+                    "applied_fields": applied_fields,
+                    "suggested_changes": {
+                        key: normalized_changes[key]
+                        for key in accepted_fields
+                        if key in normalized_changes
+                    },
+                    "before": {
+                        "lexeme": lexeme_before,
+                        "surface": surface_before,
+                    },
+                }
+            )
 
         return ApplyVerificationChangesResponse(
             status="applied" if applied_fields else "skipped",
@@ -888,6 +951,76 @@ class WordbankUseCase:
             ]
         )
 
+    def search_lemmas(self, query: str, *, limit: int = 8) -> WordbankSearchResponse:
+        normalized_query = normalize_token(query)
+        if not normalized_query:
+            raise ValueError("query is required")
+        if limit < 1:
+            raise ValueError("limit must be at least 1")
+
+        contains_pattern = f"%{normalized_query}%"
+        prefix_pattern = f"{normalized_query}%"
+        with get_connection(self._db_path) as conn:
+            rows = conn.execute(
+                """
+                SELECT
+                    l.lemma AS lemma,
+                    l.english_translation AS english_translation,
+                    l.pos_tag AS pos_tag,
+                    COUNT(sf_all.id) AS variation_count,
+                    MIN(sf_match.form) AS match_surface,
+                    MAX(
+                        CASE
+                            WHEN sf_match.form LIKE ? COLLATE NOCASE THEN 1
+                            ELSE 0
+                        END
+                    ) AS has_surface_prefix_match
+                FROM lexemes l
+                LEFT JOIN surface_forms sf_all ON sf_all.lexeme_id = l.id
+                LEFT JOIN surface_forms sf_match
+                    ON sf_match.lexeme_id = l.id
+                    AND sf_match.form LIKE ? COLLATE NOCASE
+                WHERE
+                    l.lemma LIKE ? COLLATE NOCASE
+                    OR COALESCE(l.english_translation, '') LIKE ? COLLATE NOCASE
+                    OR sf_match.id IS NOT NULL
+                GROUP BY l.id
+                ORDER BY
+                    CASE
+                        WHEN l.lemma = ? COLLATE NOCASE THEN 0
+                        WHEN l.lemma LIKE ? COLLATE NOCASE THEN 1
+                        WHEN has_surface_prefix_match = 1 THEN 2
+                        WHEN COALESCE(l.english_translation, '') LIKE ? COLLATE NOCASE THEN 3
+                        ELSE 4
+                    END,
+                    l.lemma COLLATE NOCASE
+                LIMIT ?
+                """,
+                (
+                    prefix_pattern,
+                    contains_pattern,
+                    contains_pattern,
+                    contains_pattern,
+                    normalized_query,
+                    prefix_pattern,
+                    prefix_pattern,
+                    limit,
+                ),
+            ).fetchall()
+
+        return WordbankSearchResponse(
+            items=[
+                WordbankSearchItem(
+                    lemma=row["lemma"],
+                    display_lemma=self._display_lemma_for_list(row["lemma"], row["pos_tag"]),
+                    english_translation=row["english_translation"],
+                    variation_count=int(row["variation_count"]),
+                    match_surface=row["match_surface"],
+                )
+                for row in rows
+            ]
+        )
+
     def get_lemma_details(self, lemma: str) -> LemmaDetailsResponse:
         normalized_lemma = normalize_token(lemma)
         if not normalized_lemma:
@@ -1013,7 +1146,9 @@ class WordbankUseCase:
             generated = self._lookup_pronunciation(normalized_form)
             if generated is None:
                 if self._tts_service is None:
-                    raise RuntimeError("Text-to-speech is unavailable: configure DANOTE_TTS_GEMINI_API_KEY.")
+                    raise RuntimeError(
+                        "Text-to-speech is unavailable: configure DANOTE_TTS_AZURE_API_KEY and DANOTE_TTS_AZURE_REGION."
+                    )
                 raise LookupError(f"Pronunciation for '{normalized_form}' was not found")
             generated = _normalize_pronunciation_audio(generated)
 
@@ -1086,7 +1221,8 @@ class WordbankUseCase:
             return None
 
         try:
-            return self._translation_service.translate_da_to_en(source_word)
+            translated = self._translation_service.translate_da_to_en(source_word)
+            return self._normalize_translation_value(translated)
         except Exception:
             return None
 
@@ -1099,7 +1235,8 @@ class WordbankUseCase:
             return None
 
         try:
-            return translate_en_to_da(source_word)
+            translated = translate_en_to_da(source_word)
+            return self._normalize_translation_value(translated)
         except Exception:
             return None
 
@@ -1170,6 +1307,29 @@ class WordbankUseCase:
             return f"at {lemma}"
         return lemma
 
+    @staticmethod
+    def _normalize_translation_value(value: str | None) -> str | None:
+        if not isinstance(value, str):
+            return None
+        cleaned = " ".join(value.strip().split())
+        if not cleaned:
+            return None
+        return cleaned.lower()
+
+    def _append_gemini_change_log(self, payload: dict[str, object]) -> None:
+        if self._gemini_changes_log_path is None:
+            return
+        try:
+            self._gemini_changes_log_path.parent.mkdir(parents=True, exist_ok=True)
+            with self._gemini_changes_log_path.open("a", encoding="utf-8") as handle:
+                handle.write(json.dumps(payload, ensure_ascii=True, sort_keys=True))
+                handle.write("\n")
+        except Exception:
+            logger.exception(
+                "wordbank_gemini_change_log_write_failed",
+                extra={"gemini_changes_log_path": str(self._gemini_changes_log_path)},
+            )
+
     def _ensure_surface_pronunciation(
         self,
         *,
@@ -1178,26 +1338,17 @@ class WordbankUseCase:
         form: str,
         force: bool = False,
     ) -> bool:
-        conn.execute(
-            """
-            INSERT OR IGNORE INTO surface_forms (lexeme_id, form, source)
-            VALUES (?, ?, ?)
-            """,
-            (lexeme_id, form, "manual"),
-        )
         existing = conn.execute(
             """
-            SELECT pronunciation_audio
+            SELECT id, pronunciation_audio
             FROM surface_forms
             WHERE lexeme_id = ? AND form = ?
             LIMIT 1
             """,
             (lexeme_id, form),
         ).fetchone()
-        if existing is None:
-            return False
 
-        existing_audio = existing["pronunciation_audio"]
+        existing_audio = existing["pronunciation_audio"] if existing is not None else None
         if not force and isinstance(existing_audio, bytes) and existing_audio:
             return False
 
@@ -1205,6 +1356,33 @@ class WordbankUseCase:
         if generated is None:
             return False
         generated = _normalize_pronunciation_audio(generated)
+
+        if existing is None:
+            conn.execute(
+                """
+                INSERT INTO surface_forms (
+                    lexeme_id,
+                    form,
+                    source,
+                    pronunciation_audio,
+                    pronunciation_mime_type,
+                    pronunciation_provider,
+                    pronunciation_model,
+                    pronunciation_generated_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                """,
+                (
+                    lexeme_id,
+                    form,
+                    "manual",
+                    generated.audio_bytes,
+                    generated.mime_type,
+                    self._tts_provider_name(),
+                    self._tts_model_name(),
+                ),
+            )
+            return True
 
         conn.execute(
             """
@@ -1214,15 +1392,14 @@ class WordbankUseCase:
                 pronunciation_provider = ?,
                 pronunciation_model = ?,
                 pronunciation_generated_at = CURRENT_TIMESTAMP
-            WHERE lexeme_id = ? AND form = ?
+            WHERE id = ?
             """,
             (
                 generated.audio_bytes,
                 generated.mime_type,
                 self._tts_provider_name(),
                 self._tts_model_name(),
-                lexeme_id,
-                form,
+                int(existing["id"]),
             ),
         )
         return True

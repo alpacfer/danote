@@ -236,6 +236,15 @@ function mockFetchImplementation(options?: {
       english_translation?: string | null
     }>
   }
+  searchWordbankResponse?: {
+    items: Array<{
+      lemma: string
+      display_lemma: string
+      variation_count: number
+      english_translation?: string | null
+      match_surface?: string | null
+    }>
+  }
   lemmaDetailsOk?: boolean
   lemmaDetailsResponse?: {
     lemma: string
@@ -361,8 +370,18 @@ function mockFetchImplementation(options?: {
     service: "backend",
     apis: {
       backend: { status: healthStatus === "ok" ? "ok" : "degraded", active: true, configured: true },
-      gemini: { status: "inactive", active: false, configured: false, message: "Provider 'gemini' is not selected." },
-      deepl: { status: "inactive", active: false, configured: false, message: "Provider 'deepl' is not selected." },
+      azure_translator: {
+        status: "inactive",
+        active: false,
+        configured: false,
+        message: "Provider 'azure' is not selected.",
+      },
+      azure_speech: {
+        status: "inactive",
+        active: false,
+        configured: false,
+        message: "Provider 'azure' is not selected.",
+      },
     },
   }
   const analyzeOk = options?.analyzeOk ?? true
@@ -401,6 +420,15 @@ function mockFetchImplementation(options?: {
   }
   const lemmasOk = options?.lemmasOk ?? true
   const lemmasResponse = options?.lemmasResponse ?? { items: [] }
+  const searchWordbankResponse = options?.searchWordbankResponse ?? {
+    items: lemmasResponse.items.map((item) => ({
+      lemma: item.lemma,
+      display_lemma: item.lemma,
+      english_translation: item.english_translation ?? null,
+      variation_count: item.variation_count,
+      match_surface: null,
+    })),
+  }
   const lemmaDetailsOk = options?.lemmaDetailsOk ?? true
   const lemmaDetailsResponse = options?.lemmaDetailsResponse ?? {
     lemma: "bog",
@@ -588,6 +616,21 @@ function mockFetchImplementation(options?: {
         throw new Error("wordbank request failed")
       }
       return responseOf(lemmasResponse)
+    }
+
+    if (url.includes("/api/wordbank/search?")) {
+      const parsed = new URL(url, "http://localhost")
+      const query = (parsed.searchParams.get("query") ?? "").trim().toLocaleLowerCase("da-DK")
+      if (!query) {
+        return responseOf({ items: [] })
+      }
+      const filtered = searchWordbankResponse.items.filter((item) => {
+        const lemma = item.lemma.trim().toLocaleLowerCase("da-DK")
+        const translation = (item.english_translation ?? "").trim().toLocaleLowerCase("da-DK")
+        const surface = (item.match_surface ?? "").trim().toLocaleLowerCase("da-DK")
+        return lemma.includes(query) || translation.includes(query) || surface.includes(query)
+      })
+      return responseOf({ items: filtered })
     }
 
     if (url.includes("/api/wordbank/lemmas/")) {
@@ -875,6 +918,36 @@ describe("App shell", () => {
 
     expect(await screen.findByRole("button", { name: /create new note/i })).toBeInTheDocument()
     expect(getNotesEditor()).toHaveTextContent(/jeg laeser en bog i dag/i)
+  })
+
+  it("command search finds lemmas by variation substring", async () => {
+    mockFetchImplementation({
+      lemmasResponse: {
+        items: [{ lemma: "bog", variation_count: 2, english_translation: "book" }],
+      },
+      searchWordbankResponse: {
+        items: [
+          {
+            lemma: "bog",
+            display_lemma: "bog",
+            variation_count: 2,
+            english_translation: "book",
+            match_surface: "bogens",
+          },
+        ],
+      },
+    })
+
+    render(<App />)
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    const commandDialog = await screen.findByRole("dialog")
+    const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
+    fireEvent.change(searchInput, { target: { value: "gens" } })
+
+    expect(await screen.findByText(/^book$/i)).toBeInTheDocument()
+    expect(await screen.findByText(/variation match: bogens/i)).toBeInTheDocument()
   })
 
   it("command search offers adding a generated new word when there is no match", async () => {
@@ -3183,8 +3256,13 @@ describe("App shell", () => {
         service: "backend",
         apis: {
           backend: { status: "ok", active: true, configured: true },
-          gemini: { status: "ok", active: true, configured: true },
-          deepl: { status: "inactive", active: false, configured: false, message: "Provider 'deepl' is not selected." },
+          azure_translator: { status: "ok", active: true, configured: true },
+          azure_speech: {
+            status: "inactive",
+            active: false,
+            configured: false,
+            message: "Provider 'azure' is not selected.",
+          },
         },
       },
     })
@@ -3201,8 +3279,8 @@ describe("App shell", () => {
     expect(screen.getByText(/backend default remains/i)).toBeInTheDocument()
     expect(screen.getByLabelText("api-status-list")).toBeInTheDocument()
     expect(screen.getByText("Backend API")).toBeInTheDocument()
-    expect(screen.getByText("Gemini API")).toBeInTheDocument()
-    expect(screen.getByText("DeepL API")).toBeInTheDocument()
+    expect(screen.getByText("Azure Translator API")).toBeInTheDocument()
+    expect(screen.getByText("Azure Speech API")).toBeInTheDocument()
   })
 
   it("deletes complete db from developer options", async () => {

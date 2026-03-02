@@ -28,6 +28,7 @@ from app.api.schemas.v1.wordbank import (
     ResolveQueryResponse,
     VerifyWordRequest,
     VerifyWordResponse,
+    WordbankSearchResponse,
 )
 
 router = APIRouter()
@@ -229,6 +230,26 @@ def list_lemmas(request: Request) -> LemmaListResponse:
 
     try:
         return build_wordbank_use_case(request).list_lemmas()
+    except sqlite3.OperationalError as exc:
+        logger.exception("wordbank_db_operational_error")
+        raise HTTPException(
+            status_code=503,
+            detail=f"Database unavailable: {exc}",
+        ) from exc
+
+
+@router.get("/wordbank/search", response_model=WordbankSearchResponse)
+def search_wordbank(
+    request: Request,
+    query: str = Query(..., min_length=1),
+    limit: int = Query(8, ge=1, le=50),
+) -> WordbankSearchResponse:
+    _require_db_ready(request)
+
+    try:
+        return build_wordbank_use_case(request).search_lemmas(query, limit=limit)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except sqlite3.OperationalError as exc:
         logger.exception("wordbank_db_operational_error")
         raise HTTPException(

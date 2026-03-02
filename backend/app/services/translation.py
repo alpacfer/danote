@@ -21,57 +21,40 @@ class TranslationService(Protocol):
 
 
 @dataclass
-class DeepLTranslationService:
-    """Danish->English translator backed by the DeepL API."""
+class AzureTranslationService:
+    """Danish/English translation service backed by Azure Translator."""
 
     api_key: str
-    source_code: str = "DA"
-    target_code: str = "EN-US"
-    context_template: str = (
-        "Dette er et dansk ord fra en elevnote. "
-        "Giv en fuld engelsk oversaettelse som frase. "
-        "For bestemt form brug artikel, fx \"the ...\"."
-    )
-    homograph_disambiguation_template: str = (
-        "Kildeteksten er dansk. "
-        "Ordet \"{word}\" er et dansk substantiv, ikke et engelsk verbum. "
-        "Giv den bedste naturlige engelske oversaettelse."
-    )
-    homograph_disambiguation_tokens: tuple[str, ...] = ("is",)
-    homograph_fallback_translations: dict[str, str] = field(
-        default_factory=lambda: {"is": "ice cream"}
-    )
-    base_url: str | None = None
+    region: str
+    endpoint: str | None = None
+    api_version: str = "3.0"
     timeout_seconds: float = 10.0
     max_retries: int = 5
     backoff_seconds: float = 0.5
     max_backoff_seconds: float = 8.0
     min_request_interval_seconds: float = 0.35
-    provider: str = field(default="deepl", init=False)
+    provider: str = field(default="azure_translator", init=False)
     _client: httpx.Client | None = field(default=None, init=False, repr=False, compare=False)
     _next_allowed_request_at: float = field(default=0.0, init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         normalized_key = self.api_key.strip()
+        normalized_region = self.region.strip()
+        normalized_version = self.api_version.strip()
         if not normalized_key:
-            raise TranslationError("DeepL API key is required for translation.")
+            raise TranslationError("Azure Translator API key is required for translation.")
+        if not normalized_region:
+            raise TranslationError("Azure Translator region is required for translation.")
+        if not normalized_version:
+            raise TranslationError("Azure Translator API version is required for translation.")
         self.api_key = normalized_key
-
-        if self.base_url is None:
-            self.base_url = "https://api-free.deepl.com" if normalized_key.endswith(":fx") else "https://api.deepl.com"
-
-        self.homograph_disambiguation_tokens = tuple(
-            token.strip().lower() for token in self.homograph_disambiguation_tokens if token.strip()
-        )
-        self.homograph_fallback_translations = {
-            self._normalize_for_compare(source): target.strip()
-            for source, target in self.homograph_fallback_translations.items()
-            if source.strip() and target.strip()
-        }
+        self.region = normalized_region
+        self.api_version = normalized_version
+        self.endpoint = self._normalize_endpoint(self.endpoint)
 
     def _ensure_client(self) -> httpx.Client:
         if self._client is None:
-            self._client = httpx.Client(base_url=self.base_url, timeout=self.timeout_seconds)
+            self._client = httpx.Client(base_url=self.endpoint, timeout=self.timeout_seconds)
         return self._client
 
     def close(self) -> None:
@@ -83,140 +66,98 @@ class DeepLTranslationService:
         normalized = text.strip()
         if not normalized:
             return None
-
-        cleaned = self._translate_with_context(
-            text=normalized,
-            context=self.context_template,
-            source_code=self.source_code,
-            target_code=self.target_code,
-        )
-        if cleaned is None:
-            return None
-
-        if self._should_disambiguate(source_text=normalized, translated_text=cleaned):
-            source_normalized = self._normalize_for_compare(normalized)
-            try:
-                disambiguated = self._translate_with_context(
-                    text=normalized,
-                    context=self.homograph_disambiguation_template.format(word=normalized),
-                    source_code=self.source_code,
-                    target_code=self.target_code,
-                )
-            except TranslationError:
-                disambiguated = None
-            if disambiguated and self._normalize_for_compare(disambiguated) != source_normalized:
-                return disambiguated
-            fallback = self.homograph_fallback_translations.get(source_normalized)
-            if fallback:
-                return fallback
-
-        return cleaned
+        return self._translate_text(text=normalized, source_code="da", target_code="en")
 
     def translate_en_to_da(self, text: str) -> str | None:
         normalized = text.strip()
         if not normalized:
             return None
-        return self._translate_with_context(
-            text=normalized,
-            context="Kildeteksten er engelsk. Giv den bedste naturlige danske oversaettelse.",
-            source_code="EN",
-            target_code="DA",
-        )
+        return self._translate_text(text=normalized, source_code="en", target_code="da")
 
     def detect_source_language(self, text: str) -> str | None:
         normalized = text.strip()
         if not normalized:
             return None
 
-        payload = {
-            "text": [normalized],
-            "target_lang": "DA",
-        }
-        headers = {"Authorization": f"DeepL-Auth-Key {self.api_key}"}
-        response = self._post_with_retry(payload=payload, headers=headers)
-
+        response = self._post_with_retry(
+            path="/detect",
+            params={"api-version": self.api_version},
+            payload=[{"Text": normalized}],
+        )
         try:
             body = response.json()
         except ValueError as exc:
-            raise TranslationError("DeepL language detection response was not valid JSON.") from exc
-
-        entries = body.get("translations")
-        if not isinstance(entries, list) or not entries:
+            raise TranslationError("Azure language detection response was not valid JSON.") from exc
+        if not isinstance(body, list) or not body:
             return None
-
-        first = entries[0]
-        detected = first.get("detected_source_language") if isinstance(first, dict) else None
-        cleaned = detected.strip().upper() if isinstance(detected, str) else ""
+        first = body[0]
+        language = first.get("language") if isinstance(first, dict) else None
+        cleaned = language.strip().upper() if isinstance(language, str) else ""
         return cleaned or None
 
-    def _translate_with_context(
-        self,
-        *,
-        text: str,
-        context: str,
-        source_code: str,
-        target_code: str,
-    ) -> str | None:
-        payload = {
-            "text": [text],
-            "source_lang": source_code,
-            "target_lang": target_code,
-            "context": context,
-        }
-
-        headers = {"Authorization": f"DeepL-Auth-Key {self.api_key}"}
-
-        response = self._post_with_retry(payload=payload, headers=headers)
-
-        try:
-            body = response.json()
-        except ValueError as exc:
-            raise TranslationError("DeepL translation response was not valid JSON.") from exc
-
-        entries = body.get("translations")
-        if not isinstance(entries, list) or not entries:
-            return None
-
-        first = entries[0]
-        translated = first.get("text") if isinstance(first, dict) else None
-
-        cleaned = translated.strip() if isinstance(translated, str) else ""
-        return cleaned or None
-
-    def _should_disambiguate(self, *, source_text: str, translated_text: str) -> bool:
-        source_normalized = self._normalize_for_compare(source_text)
-        translated_normalized = self._normalize_for_compare(translated_text)
-        return (
-            source_normalized == translated_normalized
-            and source_normalized in self.homograph_disambiguation_tokens
+    def _translate_text(self, *, text: str, source_code: str, target_code: str) -> str | None:
+        response = self._post_with_retry(
+            path="/translate",
+            params={
+                "api-version": self.api_version,
+                "from": source_code,
+                "to": target_code,
+            },
+            payload=[{"Text": text}],
         )
 
-    @staticmethod
-    def _normalize_for_compare(text: str) -> str:
-        return " ".join(text.strip().lower().split())
+        try:
+            body = response.json()
+        except ValueError as exc:
+            raise TranslationError("Azure translation response was not valid JSON.") from exc
+        if not isinstance(body, list) or not body:
+            return None
+        first = body[0]
+        translations = first.get("translations") if isinstance(first, dict) else None
+        if not isinstance(translations, list) or not translations:
+            return None
+        candidate = translations[0]
+        translated = candidate.get("text") if isinstance(candidate, dict) else None
+        cleaned = translated.strip() if isinstance(translated, str) else ""
+        if not cleaned:
+            return None
+        return cleaned.lower()
 
-    def _post_with_retry(self, *, payload: dict[str, object], headers: dict[str, str]) -> httpx.Response:
+    def _post_with_retry(
+        self,
+        *,
+        path: str,
+        params: dict[str, object],
+        payload: list[dict[str, str]],
+    ) -> httpx.Response:
         attempts = self.max_retries + 1
+        headers = {
+            "Ocp-Apim-Subscription-Key": self.api_key,
+            "Ocp-Apim-Subscription-Region": self.region,
+            "Content-Type": "application/json",
+        }
         for attempt in range(attempts):
             try:
                 self._enforce_request_interval()
-                response = self._ensure_client().post("/v2/translate", json=payload, headers=headers)
+                response = self._ensure_client().post(path, params=params, content=json.dumps(payload), headers=headers)
                 response.raise_for_status()
                 return response
             except httpx.HTTPStatusError as exc:
                 status_code = exc.response.status_code if exc.response is not None else 0
-                should_retry = status_code in {429, 500, 502, 503, 504}
+                should_retry = status_code in {408, 429, 500, 502, 503, 504}
                 if should_retry and attempt < self.max_retries:
                     self._sleep_before_retry(attempt=attempt, response=exc.response)
                     continue
-                raise TranslationError(f"DeepL translation request failed with status {status_code}.") from exc
+                raise TranslationError(
+                    f"Azure translation request failed with status {status_code}."
+                ) from exc
             except httpx.HTTPError as exc:
                 if attempt < self.max_retries:
                     self._sleep_before_retry(attempt=attempt, response=None)
                     continue
-                raise TranslationError(f"DeepL translation request failed: {exc}") from exc
+                raise TranslationError(f"Azure translation request failed: {exc}") from exc
 
-        raise TranslationError("DeepL translation request failed after retries.")
+        raise TranslationError("Azure translation request failed after retries.")
 
     def _sleep_before_retry(self, *, attempt: int, response: httpx.Response | None) -> None:
         retry_after = response.headers.get("Retry-After") if response is not None else None
@@ -240,108 +181,8 @@ class DeepLTranslationService:
             time.sleep(self._next_allowed_request_at - now)
         self._next_allowed_request_at = time.monotonic() + self.min_request_interval_seconds
 
-
-@dataclass
-class GeminiTranslationService:
-    """Danish/English translation service backed by Gemini Flash."""
-
-    api_key: str
-    model: str = "gemini-3-flash-preview"
-    timeout_seconds: float = 20.0
-    max_retries: int = 2
-    backoff_seconds: float = 0.5
-    provider: str = field(default="gemini", init=False)
-    _client: object | None = field(default=None, init=False, repr=False, compare=False)
-
-    def __post_init__(self) -> None:
-        normalized_key = self.api_key.strip()
-        normalized_model = self.model.strip()
-        if not normalized_key:
-            raise TranslationError("Gemini API key is required for translation.")
-        if not normalized_model:
-            raise TranslationError("Gemini model is required for translation.")
-        self.api_key = normalized_key
-        self.model = normalized_model
-
-    def _ensure_client(self) -> object:
-        if self._client is None:
-            try:
-                from google import genai  # type: ignore import-not-found
-            except ImportError as exc:
-                raise TranslationError("google-genai package is required for Gemini translation.") from exc
-            self._client = genai.Client(api_key=self.api_key)
-        return self._client
-
-    def close(self) -> None:
-        # google-genai does not require explicit close for default client transport.
-        self._client = None
-
-    def translate_da_to_en(self, text: str) -> str | None:
-        normalized = text.strip()
-        if not normalized:
-            return None
-        prompt = (
-            "Translate this Danish text to natural English.\n"
-            "Return only the translation text, with no explanation.\n"
-            f"Text: {normalized}"
-        )
-        return self._generate_text(prompt)
-
-    def translate_en_to_da(self, text: str) -> str | None:
-        normalized = text.strip()
-        if not normalized:
-            return None
-        prompt = (
-            "Translate this English text to natural Danish.\n"
-            "Return only the translation text, with no explanation.\n"
-            f"Text: {normalized}"
-        )
-        return self._generate_text(prompt)
-
-    def detect_source_language(self, text: str) -> str | None:
-        normalized = text.strip()
-        if not normalized:
-            return None
-        prompt = (
-            "Detect the language of this text.\n"
-            "Respond with JSON only in this exact schema: "
-            '{"language":"en|da|ambiguous"}\n'
-            f"Text: {normalized}"
-        )
-        raw = self._generate_text(prompt)
-        if not raw:
-            return None
-
-        try:
-            parsed = json.loads(raw)
-        except ValueError:
-            cleaned = raw.strip().lower()
-            if cleaned.startswith("en"):
-                return "EN"
-            if cleaned.startswith("da"):
-                return "DA"
-            return None
-
-        language = parsed.get("language") if isinstance(parsed, dict) else None
-        cleaned = language.strip().lower() if isinstance(language, str) else ""
-        if cleaned in {"en", "da"}:
-            return cleaned.upper()
-        return None
-
-    def _generate_text(self, prompt: str) -> str | None:
-        attempts = self.max_retries + 1
-        for attempt in range(attempts):
-            try:
-                client = self._ensure_client()
-                response = client.models.generate_content(model=self.model, contents=prompt)
-                text = getattr(response, "text", None)
-                cleaned = text.strip() if isinstance(text, str) else ""
-                return cleaned or None
-            except Exception as exc:
-                if attempt < self.max_retries:
-                    delay = self.backoff_seconds * (2**attempt)
-                    if delay > 0:
-                        time.sleep(delay)
-                    continue
-                raise TranslationError(f"Gemini translation request failed: {exc}") from exc
-        return None
+    @staticmethod
+    def _normalize_endpoint(endpoint: str | None) -> str:
+        if not isinstance(endpoint, str) or not endpoint.strip():
+            return "https://api.cognitive.microsofttranslator.com"
+        return endpoint.strip().rstrip("/")

@@ -13,8 +13,8 @@ from app.core.config import Settings, load_settings
 from app.db.migrations import apply_migrations
 from app.core.logging import configure_logging
 from app.nlp.adapter import NLPAdapter
-from app.services.translation import DeepLTranslationService, GeminiTranslationService
-from app.services.tts import GeminiTTSService
+from app.services.translation import AzureTranslationService
+from app.services.tts import AzureSpeechTTSService
 from app.services.typo.typo_engine import TypoEngine
 from app.services.verification import GeminiWordVerificationService
 
@@ -92,35 +92,24 @@ def create_app(
         app.state.translation_error = None
         if app_settings.translation_enabled:
             provider = app_settings.translation_provider.strip().lower()
-            if provider == "gemini":
-                if app_settings.translation_gemini_api_key:
+            if provider == "azure":
+                if app_settings.translation_azure_api_key and app_settings.translation_azure_region:
                     try:
-                        app.state.translation_service = GeminiTranslationService(
-                            api_key=app_settings.translation_gemini_api_key,
-                            model=app_settings.translation_gemini_model,
+                        app.state.translation_service = AzureTranslationService(
+                            api_key=app_settings.translation_azure_api_key,
+                            region=app_settings.translation_azure_region,
+                            endpoint=app_settings.translation_azure_endpoint,
+                            api_version=app_settings.translation_azure_api_version,
                         )
                     except Exception:
                         logger.exception("backend_translation_startup_failed")
-                        app.state.translation_error = "Failed to initialize Gemini translation service."
+                        app.state.translation_error = "Failed to initialize Azure translation service."
                         app.state.translation_service = None
                 else:
-                    logger.warning("backend_translation_startup_skipped_missing_gemini_key")
-                    app.state.translation_error = "Missing DANOTE_GEMINI_API_KEY."
-                    app.state.translation_service = None
-            elif provider == "deepl":
-                if app_settings.translation_deepl_api_key:
-                    try:
-                        app.state.translation_service = DeepLTranslationService(
-                            api_key=app_settings.translation_deepl_api_key,
-                            base_url=app_settings.translation_deepl_api_url,
-                        )
-                    except Exception:
-                        logger.exception("backend_translation_startup_failed")
-                        app.state.translation_error = "Failed to initialize DeepL translation service."
-                        app.state.translation_service = None
-                else:
-                    logger.warning("backend_translation_startup_skipped_missing_deepl_key")
-                    app.state.translation_error = "Missing DANOTE_DEEPL_API_KEY."
+                    logger.warning("backend_translation_startup_skipped_missing_azure_config")
+                    app.state.translation_error = (
+                        "Missing DANOTE_TRANSLATION_AZURE_API_KEY or DANOTE_TRANSLATION_AZURE_REGION."
+                    )
                     app.state.translation_service = None
             else:
                 logger.warning(
@@ -152,21 +141,22 @@ def create_app(
         app.state.tts_error = None
         if app_settings.tts_enabled:
             tts_provider = app_settings.tts_provider.strip().lower()
-            if tts_provider == "gemini":
-                if app_settings.tts_gemini_api_key:
+            if tts_provider == "azure":
+                if app_settings.tts_azure_api_key and app_settings.tts_azure_region:
                     try:
-                        app.state.tts_service = GeminiTTSService(
-                            api_key=app_settings.tts_gemini_api_key,
-                            model=app_settings.tts_gemini_model,
-                            voice_name=app_settings.tts_gemini_voice_name,
+                        app.state.tts_service = AzureSpeechTTSService(
+                            api_key=app_settings.tts_azure_api_key,
+                            region=app_settings.tts_azure_region,
+                            endpoint=app_settings.tts_azure_endpoint,
+                            voice_name=app_settings.tts_azure_voice_name,
                         )
                     except Exception:
                         logger.exception("backend_tts_startup_failed")
-                        app.state.tts_error = "Failed to initialize Gemini TTS service."
+                        app.state.tts_error = "Failed to initialize Azure Speech TTS service."
                         app.state.tts_service = None
                 else:
-                    logger.warning("backend_tts_startup_skipped_missing_gemini_key")
-                    app.state.tts_error = "Missing DANOTE_TTS_GEMINI_API_KEY."
+                    logger.warning("backend_tts_startup_skipped_missing_azure_config")
+                    app.state.tts_error = "Missing DANOTE_TTS_AZURE_API_KEY or DANOTE_TTS_AZURE_REGION."
                     app.state.tts_service = None
             else:
                 logger.warning(

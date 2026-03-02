@@ -179,6 +179,18 @@ class LemmaListResponse(BaseModel):
     items: list[LemmaSummary]
 
 
+class WordbankSearchItem(BaseModel):
+    lemma: str
+    display_lemma: str
+    english_translation: str | None
+    variation_count: int
+    match_surface: str | None = None
+
+
+class WordbankSearchResponse(BaseModel):
+    items: list[WordbankSearchItem]
+
+
 class LemmaDetailsResponse(BaseModel):
     pos_tag: str | None = None
     morphology: str | None = None

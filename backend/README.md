@@ -8,7 +8,8 @@ Python API service for danote.
 - ASGI server: Uvicorn
 - Config/logging: standard library modules (`os`, `pathlib`, `logging`)
 - Database driver: `sqlite3` from Python standard library
-- Translation: Gemini Flash (`google-genai`) by default, with optional DeepL fallback
+- Translation: Azure Translator Text API
+- Text-to-speech: Azure Speech SDK
 
 ## Database (Checkpoint 5)
 
@@ -110,10 +111,15 @@ From repo root, you can run a one-command setup for the pinned DaCy model:
 ```bash
 cd backend
 source .venv/bin/activate
-export DANOTE_TRANSLATION_PROVIDER="deepl"
-export DANOTE_GEMINI_API_KEY="your-gemini-key"
-export DANOTE_GEMINI_MODEL="gemini-3-flash-preview"
-export DANOTE_DEEPL_API_KEY="your-deepl-key"
+export DANOTE_TRANSLATION_PROVIDER="azure"
+export DANOTE_TRANSLATION_AZURE_API_KEY="your-translator-key"
+export DANOTE_TRANSLATION_AZURE_REGION="your-translator-region"
+export DANOTE_TTS_PROVIDER="azure"
+export DANOTE_TTS_AZURE_API_KEY="your-speech-key"
+export DANOTE_TTS_AZURE_REGION="your-speech-region"
+export DANOTE_TTS_AZURE_VOICE_NAME="da-DK-ChristelNeural"
+# optional audit log for "Apply Gemini changes" actions
+export DANOTE_GEMINI_CHANGES_LOG_PATH="backend/data/gemini-applied-changes.jsonl"
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 

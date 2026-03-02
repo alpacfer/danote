@@ -3,8 +3,8 @@ from __future__ import annotations
 from fastapi import FastAPI
 
 from app.api.schemas.v1 import DeveloperApiKeysUpdateRequest, DeveloperApiKeysUpdateResponse
-from app.services.translation import DeepLTranslationService, GeminiTranslationService
-from app.services.tts import GeminiTTSService
+from app.services.translation import AzureTranslationService
+from app.services.tts import AzureSpeechTTSService
 from app.services.verification import GeminiWordVerificationService
 
 
@@ -14,8 +14,12 @@ class DeveloperUseCase:
 
     def update_api_keys(self, payload: DeveloperApiKeysUpdateRequest) -> DeveloperApiKeysUpdateResponse:
         runtime_api_keys = {
-            "gemini": (payload.gemini_api_key or "").strip() or None,
-            "deepl": (payload.deepl_api_key or "").strip() or None,
+            "translation_azure_api_key": (payload.translation_azure_api_key or "").strip() or None,
+            "translation_azure_region": (payload.translation_azure_region or "").strip() or None,
+            "translation_azure_endpoint": (payload.translation_azure_endpoint or "").strip() or None,
+            "tts_azure_api_key": (payload.tts_azure_api_key or "").strip() or None,
+            "tts_azure_region": (payload.tts_azure_region or "").strip() or None,
+            "tts_azure_endpoint": (payload.tts_azure_endpoint or "").strip() or None,
             "word_verification_gemini": (payload.word_verification_gemini_api_key or "").strip() or None,
         }
         self._app.state.runtime_api_keys = runtime_api_keys
@@ -38,30 +42,26 @@ class DeveloperUseCase:
         self._app.state.translation_service = None
         if settings.translation_enabled:
             provider = settings.translation_provider.strip().lower()
-            if provider == "gemini":
-                gemini_key = runtime_api_keys["gemini"] or settings.translation_gemini_api_key
-                if gemini_key:
+            if provider == "azure":
+                azure_key = runtime_api_keys["translation_azure_api_key"] or settings.translation_azure_api_key
+                azure_region = runtime_api_keys["translation_azure_region"] or settings.translation_azure_region
+                azure_endpoint = (
+                    runtime_api_keys["translation_azure_endpoint"] or settings.translation_azure_endpoint
+                )
+                if azure_key and azure_region:
                     try:
-                        self._app.state.translation_service = GeminiTranslationService(
-                            api_key=gemini_key,
-                            model=settings.translation_gemini_model,
+                        self._app.state.translation_service = AzureTranslationService(
+                            api_key=azure_key,
+                            region=azure_region,
+                            endpoint=azure_endpoint,
+                            api_version=settings.translation_azure_api_version,
                         )
                     except Exception:
-                        self._app.state.translation_error = "Failed to initialize Gemini translation service."
+                        self._app.state.translation_error = "Failed to initialize Azure translation service."
                 else:
-                    self._app.state.translation_error = "Missing DANOTE_GEMINI_API_KEY."
-            elif provider == "deepl":
-                deepl_key = runtime_api_keys["deepl"] or settings.translation_deepl_api_key
-                if deepl_key:
-                    try:
-                        self._app.state.translation_service = DeepLTranslationService(
-                            api_key=deepl_key,
-                            base_url=settings.translation_deepl_api_url,
-                        )
-                    except Exception:
-                        self._app.state.translation_error = "Failed to initialize DeepL translation service."
-                else:
-                    self._app.state.translation_error = "Missing DANOTE_DEEPL_API_KEY."
+                    self._app.state.translation_error = (
+                        "Missing DANOTE_TRANSLATION_AZURE_API_KEY or DANOTE_TRANSLATION_AZURE_REGION."
+                    )
             else:
                 self._app.state.translation_error = f"Unknown translation provider '{provider}'."
 
@@ -84,19 +84,22 @@ class DeveloperUseCase:
         self._app.state.tts_service = None
         if settings.tts_enabled:
             provider = settings.tts_provider.strip().lower()
-            if provider == "gemini":
-                tts_key = runtime_api_keys["gemini"] or settings.tts_gemini_api_key
-                if tts_key:
+            if provider == "azure":
+                tts_key = runtime_api_keys["tts_azure_api_key"] or settings.tts_azure_api_key
+                tts_region = runtime_api_keys["tts_azure_region"] or settings.tts_azure_region
+                tts_endpoint = runtime_api_keys["tts_azure_endpoint"] or settings.tts_azure_endpoint
+                if tts_key and tts_region:
                     try:
-                        self._app.state.tts_service = GeminiTTSService(
+                        self._app.state.tts_service = AzureSpeechTTSService(
                             api_key=tts_key,
-                            model=settings.tts_gemini_model,
-                            voice_name=settings.tts_gemini_voice_name,
+                            region=tts_region,
+                            endpoint=tts_endpoint,
+                            voice_name=settings.tts_azure_voice_name,
                         )
                     except Exception:
-                        self._app.state.tts_error = "Failed to initialize Gemini TTS service."
+                        self._app.state.tts_error = "Failed to initialize Azure Speech TTS service."
                 else:
-                    self._app.state.tts_error = "Missing DANOTE_TTS_GEMINI_API_KEY."
+                    self._app.state.tts_error = "Missing DANOTE_TTS_AZURE_API_KEY or DANOTE_TTS_AZURE_REGION."
             else:
                 self._app.state.tts_error = f"Unknown TTS provider '{provider}'."
 
@@ -104,8 +107,14 @@ class DeveloperUseCase:
             status="updated",
             message="Runtime API keys updated.",
             configured={
-                "gemini": bool(runtime_api_keys["gemini"] or settings.translation_gemini_api_key),
-                "deepl": bool(runtime_api_keys["deepl"] or settings.translation_deepl_api_key),
+                "translation_azure": bool(
+                    (runtime_api_keys["translation_azure_api_key"] or settings.translation_azure_api_key)
+                    and (runtime_api_keys["translation_azure_region"] or settings.translation_azure_region)
+                ),
+                "tts_azure": bool(
+                    (runtime_api_keys["tts_azure_api_key"] or settings.tts_azure_api_key)
+                    and (runtime_api_keys["tts_azure_region"] or settings.tts_azure_region)
+                ),
                 "word_verification_gemini": bool(
                     runtime_api_keys["word_verification_gemini"] or settings.word_verification_gemini_api_key
                 ),
