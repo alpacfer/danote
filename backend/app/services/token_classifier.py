@@ -15,6 +15,7 @@ from app.services.typo.typo_engine import TypoEngine, TypoSuggestion
 
 Classification = Literal["known", "variation", "typo_likely", "uncertain", "new"]
 MatchSource = Literal["exact", "lemma", "none"]
+_SQLITE_IN_CLAUSE_BATCH_SIZE = 400
 
 
 @dataclass(frozen=True)
@@ -105,36 +106,41 @@ class LemmaAwareClassifier:
         self,
         conn,
         normalized_tokens: list[str],
-    ) -> tuple[dict[str, tuple[str, str]], set[str]]:
+    ) -> tuple[dict[str, list[tuple[str, str]]], set[str]]:
         if not normalized_tokens:
             return {}, set()
 
         unique_tokens = sorted(set(normalized_tokens))
-        placeholders = ", ".join("?" for _ in unique_tokens)
+        exact_surface_matches: dict[str, list[tuple[str, str]]] = {}
+        exact_lemma_matches: set[str] = set()
 
-        surface_rows = conn.execute(
-            f"""
-            SELECT sf.form, l.lemma
-            FROM surface_forms sf
-            JOIN lexemes l ON l.id = sf.lexeme_id
-            WHERE sf.form IN ({placeholders})
-            """,
-            tuple(unique_tokens),
-        ).fetchall()
-        exact_surface_matches = {
-            row["form"]: (row["lemma"], row["form"])
-            for row in surface_rows
-        }
+        for token_batch in _chunked(unique_tokens, _SQLITE_IN_CLAUSE_BATCH_SIZE):
+            placeholders = ", ".join("?" for _ in token_batch)
+            surface_rows = conn.execute(
+                f"""
+                SELECT sf.form, l.lemma
+                FROM surface_forms sf
+                JOIN lexemes l ON l.id = sf.lexeme_id
+                WHERE sf.form IN ({placeholders})
+                ORDER BY sf.form ASC,
+                         sf.seen_count DESC,
+                         sf.last_seen_at DESC,
+                         sf.id DESC
+                """,
+                tuple(token_batch),
+            ).fetchall()
+            for row in surface_rows:
+                exact_surface_matches.setdefault(row["form"], []).append((row["lemma"], row["form"]))
 
-        lemma_rows = conn.execute(
-            f"""
-            SELECT lemma
-            FROM lexemes
-            WHERE lemma IN ({placeholders})
-            """,
-            tuple(unique_tokens),
-        ).fetchall()
-        exact_lemma_matches = {row["lemma"] for row in lemma_rows}
+            lemma_rows = conn.execute(
+                f"""
+                SELECT lemma
+                FROM lexemes
+                WHERE lemma IN ({placeholders})
+                """,
+                tuple(token_batch),
+            ).fetchall()
+            exact_lemma_matches.update(row["lemma"] for row in lemma_rows)
         return exact_surface_matches, exact_lemma_matches
 
     def _prefetch_lemma_candidates(
@@ -145,23 +151,26 @@ class LemmaAwareClassifier:
         if not lemma_candidates:
             return set()
 
-        placeholders = ", ".join("?" for _ in lemma_candidates)
-        lemma_rows = conn.execute(
-            f"""
-            SELECT lemma
-            FROM lexemes
-            WHERE lemma IN ({placeholders})
-            """,
-            tuple(lemma_candidates),
-        ).fetchall()
-        return {normalize_candidate(row["lemma"]) for row in lemma_rows}
+        prefetched: set[str] = set()
+        for candidate_batch in _chunked(lemma_candidates, _SQLITE_IN_CLAUSE_BATCH_SIZE):
+            placeholders = ", ".join("?" for _ in candidate_batch)
+            lemma_rows = conn.execute(
+                f"""
+                SELECT lemma
+                FROM lexemes
+                WHERE lemma IN ({placeholders})
+                """,
+                tuple(candidate_batch),
+            ).fetchall()
+            prefetched.update(normalize_candidate(row["lemma"]) for row in lemma_rows)
+        return prefetched
 
     def _classify_with_connection(
         self,
         token: str,
         conn,
         sentence_start: bool = False,
-        exact_surface_matches: dict[str, tuple[str, str]] | None = None,
+        exact_surface_matches: dict[str, list[tuple[str, str]]] | None = None,
         exact_lemma_matches: set[str] | None = None,
         lemma_candidates_by_token: dict[str, list[str]] | None = None,
         prefetched_lemma_candidates: set[str] | None = None,
@@ -177,22 +186,29 @@ class LemmaAwareClassifier:
                 match_source="none",
             )
 
-        exact_match = exact_surface_matches.get(normalized) if exact_surface_matches is not None else None
-        if exact_match is None:
-            exact_row = conn.execute(
+        exact_matches = exact_surface_matches.get(normalized) if exact_surface_matches is not None else None
+        if exact_matches is None:
+            exact_rows = conn.execute(
                 """
                 SELECT l.lemma, sf.form
                 FROM surface_forms sf
                 JOIN lexemes l ON l.id = sf.lexeme_id
                 WHERE sf.form = ?
-                LIMIT 1
+                ORDER BY sf.seen_count DESC,
+                         sf.last_seen_at DESC,
+                         sf.id DESC
                 """,
                 (normalized,),
-            ).fetchone()
-            if exact_row is not None:
-                exact_match = (exact_row["lemma"], exact_row["form"])
+            ).fetchall()
+            exact_matches = [(row["lemma"], row["form"]) for row in exact_rows]
 
-        if exact_match is not None:
+        if exact_matches:
+            lemma_candidates = (
+                lemma_candidates_by_token.get(normalized, [])
+                if lemma_candidates_by_token is not None
+                else self._lemma_candidates_for_token(normalized)
+            )
+            exact_match = self._pick_best_exact_match(normalized, exact_matches, lemma_candidates)
             matched_lemma, matched_surface_form = exact_match
             return TokenClassification(
                 surface_token=token,
@@ -243,14 +259,14 @@ class LemmaAwareClassifier:
                 sentence_start=sentence_start,
             )
 
-        lexeme_set = (
-            {
-                normalize_candidate(candidate)
-                for candidate in lemma_candidates
-                if normalize_candidate(candidate) in prefetched_lemma_candidates
-            }
-            if prefetched_lemma_candidates is not None
-            else {
+        if prefetched_lemma_candidates is not None:
+            lexeme_set: set[str] = set()
+            for candidate in lemma_candidates:
+                normalized_candidate = normalize_candidate(candidate)
+                if normalized_candidate in prefetched_lemma_candidates:
+                    lexeme_set.add(normalized_candidate)
+        else:
+            lexeme_set = {
                 normalize_candidate(row["lemma"])
                 for row in conn.execute(
                     f"""
@@ -261,7 +277,6 @@ class LemmaAwareClassifier:
                     tuple(lemma_candidates),
                 ).fetchall()
             }
-        )
         matched_lemma = pick_best_candidate_in_lexicon(
             surface=normalized,
             tag=None,
@@ -354,6 +369,37 @@ class LemmaAwareClassifier:
             return []
         return [fallback]
 
+    def _pick_best_exact_match(
+        self,
+        surface: str,
+        exact_matches: list[tuple[str, str]],
+        lemma_candidates: list[str],
+    ) -> tuple[str, str]:
+        if len(exact_matches) == 1 or not lemma_candidates:
+            return exact_matches[0]
+
+        exact_lemmas = {normalize_candidate(match[0]) for match in exact_matches}
+        matched_lemma = pick_best_candidate_in_lexicon(
+            surface=surface,
+            tag=None,
+            primary_tag_candidates=lemma_candidates,
+            fallback_candidates=[],
+            lexeme_set=exact_lemmas,
+        )
+        if matched_lemma is None:
+            return exact_matches[0]
+
+        for lemma, form in exact_matches:
+            if normalize_candidate(lemma) == matched_lemma:
+                return (lemma, form)
+        return exact_matches[0]
+
 
 # Backward-compatible alias for prior checkpoints.
 ExactLookupClassifier = LemmaAwareClassifier
+
+
+def _chunked(values: list[str], size: int) -> list[list[str]]:
+    if size <= 0:
+        raise ValueError("Chunk size must be greater than zero")
+    return [values[index : index + size] for index in range(0, len(values), size)]

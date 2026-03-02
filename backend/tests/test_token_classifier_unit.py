@@ -100,7 +100,7 @@ def test_normalize_token_trims_collapses_whitespace_and_lowercases() -> None:
 
 def test_exact_match_priority_beats_lemma_match(monkeypatch) -> None:
     responses = {
-        ("surface", "bogen"): {"lemma": "bog", "form": "bogen"},
+        ("surface", "bogen"): [{"lemma": "bog", "form": "bogen"}],
     }
     monkeypatch.setattr(token_classifier, "get_connection", lambda _db_path: _DummyConn(responses))
     classifier = LemmaAwareClassifier(
@@ -130,6 +130,27 @@ def test_lemma_match_returns_variation(monkeypatch) -> None:
     assert result.match_source == "lemma"
     assert result.lemma_candidate == "bog"
     assert result.matched_lemma == "bog"
+
+
+def test_exact_match_with_multiple_lemmas_prefers_nlp_ranked_candidate(monkeypatch) -> None:
+    responses = {
+        ("surface", "førte"): [
+            {"lemma": "føre", "form": "førte"},
+            {"lemma": "føre sig", "form": "førte"},
+        ],
+    }
+    monkeypatch.setattr(token_classifier, "get_connection", lambda _db_path: _DummyConn(responses))
+    classifier = LemmaAwareClassifier(
+        Path("/tmp/does-not-matter.sqlite3"),
+        nlp_adapter=_StubNLPAdapter({"førte": ["føre sig", "føre"]}),
+    )
+
+    result = classifier.classify("førte")
+
+    assert result.classification == "known"
+    assert result.match_source == "exact"
+    assert result.lemma_candidate == "føre sig"
+    assert result.matched_lemma == "føre sig"
 
 
 def test_lemma_match_uses_best_db_candidate_from_ranked_list(monkeypatch) -> None:
@@ -217,3 +238,46 @@ def test_classify_many_prefetches_lemma_candidate_lookup_once(monkeypatch) -> No
 
     assert [result.classification for result in results] == ["variation", "new"]
     assert conn.executed_keys.count(("lexeme_many", ("bog", "kat"))) == 1
+
+
+def test_classify_many_chunks_prefetch_queries_for_large_inputs(monkeypatch) -> None:
+    batch_size = token_classifier._SQLITE_IN_CLAUSE_BATCH_SIZE
+    token_count = batch_size + 1
+    surfaces = [f"ord{i}" for i in range(token_count)]
+    responses = {
+        ("surface", tuple(surfaces[:batch_size])): [],
+        ("surface", tuple(surfaces[batch_size:])): [],
+        ("lexeme", tuple(surfaces[:batch_size])): [],
+        ("lexeme", tuple(surfaces[batch_size:])): [],
+        ("lexeme_many", tuple(surfaces[:batch_size])): [],
+        ("lexeme_many", tuple(surfaces[batch_size:])): [],
+    }
+
+    class CountingDummyConn(_DummyConn):
+        def execute(self, sql, params):
+            if "FROM surface_forms" in sql and "IN (" in sql:
+                key = ("surface", tuple(params))
+            elif "WHERE lemma IN" in sql:
+                key = ("lexeme_many", tuple(params))
+            else:
+                key = ("lexeme", params[0])
+            self.executed_keys.append(key)
+            self._result = self.responses.get(key)
+            return self
+
+    conn = CountingDummyConn(responses)
+    mapping = {surface: surface for surface in surfaces}
+    monkeypatch.setattr(token_classifier, "get_connection", lambda _db_path: conn)
+    classifier = LemmaAwareClassifier(
+        Path("/tmp/does-not-matter.sqlite3"),
+        nlp_adapter=_StubNLPAdapter(mapping),
+    )
+
+    results = classifier.classify_many(surfaces)
+
+    assert all(result.classification == "new" for result in results)
+    surface_queries = [entry for entry in conn.executed_keys if entry[0] == "surface"]
+    lemma_candidate_queries = [entry for entry in conn.executed_keys if entry[0] == "lexeme_many"]
+
+    assert len(surface_queries) == 2
+    assert len(lemma_candidate_queries) == 4
