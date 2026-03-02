@@ -156,3 +156,23 @@ def test_hash_comments_are_ignored_on_each_line(analysis_client: TestClient) -> 
     assert response.status_code == 200
     normalized = [item["normalized_token"] for item in response.json()["tokens"]]
     assert normalized == ["kan", "lide"]
+
+
+def test_enrich_token_returns_resolve_payload(analysis_client: TestClient) -> None:
+    response = analysis_client.post(
+        "/api/analyze/enrich-token",
+        json={"token": "bogen", "include_translations": False, "include_language_detection": False},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["query_surface"] == "bogen"
+    assert payload["classification"] in {"known", "variation", "new", "typo_likely", "uncertain"}
+    assert "word_actions" in payload
+
+
+def test_enrich_token_requires_db_ready(analysis_client: TestClient) -> None:
+    analysis_client.app.state.db_ready = False
+    response = analysis_client.post("/api/analyze/enrich-token", json={"token": "bogen"})
+    assert response.status_code == 503
+    analysis_client.app.state.db_ready = True

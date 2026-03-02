@@ -40,6 +40,7 @@ class _DummyConn:
     ):
         self.responses = responses
         self._result = None
+        self.executed_keys: list[tuple[str, str] | tuple[str, tuple[str, ...]]] = []
 
     def __enter__(self):
         return self
@@ -54,6 +55,7 @@ class _DummyConn:
             key = ("lexeme_many", tuple(params))
         else:
             key = ("lexeme", params[0])
+        self.executed_keys.append(key)
         self._result = self.responses.get(key)
         return self
 
@@ -183,3 +185,35 @@ def test_unknown_can_fallback_to_typo_engine(monkeypatch) -> None:
     assert result.match_source == "none"
     assert result.suggestions
     assert result.suggestions[0].value == "spiser"
+
+
+def test_classify_many_prefetches_lemma_candidate_lookup_once(monkeypatch) -> None:
+    responses = {
+        ("surface", ("bogen", "kat")): [],
+        ("lexeme", ("bogen", "kat")): [],
+        ("lexeme_many", ("bog", "kat")): [{"lemma": "bog"}],
+    }
+
+    class CountingDummyConn(_DummyConn):
+        def execute(self, sql, params):
+            if "FROM surface_forms" in sql and "IN (" in sql:
+                key = ("surface", tuple(params))
+            elif "WHERE lemma IN" in sql:
+                key = ("lexeme_many", tuple(params))
+            else:
+                key = ("lexeme", params[0])
+            self.executed_keys.append(key)
+            self._result = self.responses.get(key)
+            return self
+
+    conn = CountingDummyConn(responses)
+    monkeypatch.setattr(token_classifier, "get_connection", lambda _db_path: conn)
+    classifier = LemmaAwareClassifier(
+        Path("/tmp/does-not-matter.sqlite3"),
+        nlp_adapter=_StubNLPAdapter({"bogen": "bog", "kat": "kat"}),
+    )
+
+    results = classifier.classify_many(["bogen", "kat"])
+
+    assert [result.classification for result in results] == ["variation", "new"]
+    assert conn.executed_keys.count(("lexeme_many", ("bog", "kat"))) == 1

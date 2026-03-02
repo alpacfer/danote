@@ -20,6 +20,7 @@ from app.api.schemas.v1.wordbank import (
 from app.db.migrations import apply_migrations, get_connection
 from app.nlp.adapter import NLPAdapter
 from app.nlp.token_filter import is_wordlike_token
+from app.services.text_preprocessing import strip_inline_comments
 from app.services.token_classifier import LemmaAwareClassifier, normalize_token
 from app.services.translation import TranslationService
 from app.services.verification import WordVerificationInput, WordVerificationService
@@ -355,7 +356,8 @@ class WordbankUseCase:
         include_translations: bool = True,
         include_language_detection: bool = True,
     ) -> ResolveQueryResponse:
-        normalized_query = normalize_token(query_text)
+        query_without_comments = strip_inline_comments(query_text)
+        normalized_query = normalize_token(query_without_comments)
         if not normalized_query:
             raise ValueError("query_text is required")
 

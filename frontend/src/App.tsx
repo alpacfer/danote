@@ -304,6 +304,8 @@ type AppNotification = {
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? "http://127.0.0.1:8000"
 const ANALYZE_DEBOUNCE_MS = 450
+const SEARCH_RESOLVE_DEBOUNCE_MS = 220
+const POPOVER_ENRICH_CACHE_TTL_MS = 60_000
 const PHRASE_TRANSLATION_DELAY_MS = 1000
 const NLP_MODEL_OPTIONS = [
   "da_dacy_small_trf-0.2.0",
@@ -708,44 +710,6 @@ function isLowConfidencePosTag(posTag: string | null): boolean {
 }
 
 
-function fallbackWordActionsFromResolve(candidate: {
-  classification: TokenClassification
-  querySurface: string
-  queryLemma: string | null
-  queryPosTag: string | null
-  queryMorphology: string | null
-  matchedLemma: WordbankLemma | null
-  daToEnTranslation: string | null
-  enToDaTranslation: string | null
-  enToDaLemma: string | null
-  enToDaPosTag: string | null
-  enToDaMorphology: string | null
-  queryLanguage: "en" | "da" | "ambiguous" | null
-  queryLanguageConfidence: number | null
-  surface: string
-  lemma: string | null
-}): WordActionSuggestion[] {
-  const actions: WordActionSuggestion[] = []
-  if (candidate.classification === "known") {
-    const lemma = candidate.matchedLemma?.lemma ?? candidate.queryLemma ?? candidate.querySurface
-    return [{ action_type: "open_wordbank", surface: candidate.querySurface, lemma, translation_label: null, direction: "known", direction_label: "Wordbank", pos_tag: candidate.queryPosTag, morphology: candidate.queryMorphology, show_lemma: false }]
-  }
-  if (candidate.classification === "variation" && candidate.matchedLemma) {
-    return [{ action_type: "add_variation", surface: candidate.querySurface, lemma: candidate.matchedLemma.lemma, translation_label: candidate.querySurface, direction: "variation", direction_label: "Variation", pos_tag: candidate.queryPosTag, morphology: candidate.queryMorphology, show_lemma: false }]
-  }
-  if (candidate.classification === "typo_likely" && !candidate.daToEnTranslation && !candidate.enToDaTranslation) return []
-  const lemma = candidate.queryLemma ?? candidate.querySurface
-  if (candidate.daToEnTranslation || !candidate.enToDaTranslation) {
-    actions.push({ action_type: "add_as_new", surface: candidate.querySurface, lemma, translation_label: candidate.daToEnTranslation ?? candidate.querySurface, direction: "da_to_en", direction_label: "Danish -> English", pos_tag: candidate.queryPosTag, morphology: candidate.queryMorphology, show_lemma: candidate.querySurface !== lemma })
-  }
-  const derivedEnToDa = candidate.enToDaTranslation ?? (candidate.surface !== candidate.querySurface ? candidate.surface : null)
-  const derivedEnToDaLemma = candidate.enToDaLemma ?? derivedEnToDa
-  if (derivedEnToDa && !(candidate.queryLanguage === "da" && (candidate.queryLanguageConfidence ?? 0) >= 0.7)) {
-    actions.push({ action_type: "add_as_new", surface: derivedEnToDa, lemma: derivedEnToDaLemma ?? derivedEnToDa, translation_label: derivedEnToDa, direction: "en_to_da", direction_label: "English -> Danish", pos_tag: candidate.enToDaPosTag, morphology: candidate.enToDaMorphology, show_lemma: (derivedEnToDaLemma ?? derivedEnToDa) !== derivedEnToDa })
-  }
-  return actions
-}
-
 function translationKeysForToken(token: Pick<AnalyzedToken, "surface_token" | "normalized_token">): string[] {
   const keys = [
     token.normalized_token,
@@ -898,6 +862,7 @@ function AppSidebar({
 }: AppSidebarProps) {
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
+  const resolveQueryCacheRef = useRef<Map<string, ResolveQueryResponse>>(new Map())
   const [resolvedQueryCandidate, setResolvedQueryCandidate] = useState<{
     query: string
     surface: string
@@ -977,8 +942,7 @@ function AppSidebar({
     if (!activeResolvedCandidate) {
       return []
     }
-    const actions = activeResolvedCandidate.wordActions.length > 0 ? activeResolvedCandidate.wordActions : fallbackWordActionsFromResolve(activeResolvedCandidate)
-    return actions.filter((action) => action.action_type !== "open_wordbank")
+    return activeResolvedCandidate.wordActions.filter((action) => action.action_type !== "open_wordbank")
   }, [activeResolvedCandidate])
   const newWordOptions = useMemo(() => searchWordActions.filter((action) => action.action_type === "add_as_new"), [searchWordActions])
   const addVariationResult = useMemo(() => searchWordActions.find((action) => action.action_type === "add_variation") ?? null, [searchWordActions])
@@ -1099,71 +1063,110 @@ function AppSidebar({
       return
     }
 
+    const cachedPayload = resolveQueryCacheRef.current.get(normalizedQuery)
+    if (cachedPayload) {
+      const matchedLemma = cachedPayload.matched_lemma_summary
+        ? lemmas.find(
+          (lemma) =>
+            lemma.lemma.trim().toLocaleLowerCase("da-DK") ===
+            cachedPayload.matched_lemma_summary?.lemma.trim().toLocaleLowerCase("da-DK"),
+        ) ?? {
+          lemma: cachedPayload.matched_lemma_summary.lemma,
+          english_translation: cachedPayload.matched_lemma_summary.english_translation,
+          variation_count: cachedPayload.matched_lemma_summary.variation_count,
+        }
+        : null
+
+      setResolvedQueryCandidate({
+        query: normalizedQuery,
+        surface: cachedPayload.resolved_surface,
+        lemma: cachedPayload.resolved_lemma,
+        classification: cachedPayload.classification,
+        querySurface: cachedPayload.query_surface,
+        queryLemma: cachedPayload.query_lemma,
+        queryPosTag: cachedPayload.query_pos_tag,
+        queryMorphology: cachedPayload.query_morphology,
+        daToEnTranslation: cachedPayload.da_to_en_translation,
+        enToDaTranslation: cachedPayload.en_to_da_translation,
+        enToDaLemma: cachedPayload.en_to_da_lemma,
+        enToDaPosTag: cachedPayload.en_to_da_pos_tag,
+        enToDaMorphology: cachedPayload.en_to_da_morphology,
+        queryLanguage: cachedPayload.query_language,
+        queryLanguageConfidence: cachedPayload.query_language_confidence,
+        matchedLemma,
+        wordActions: cachedPayload.word_actions ?? [],
+      })
+      return
+    }
+
     const controller = new AbortController()
     let cancelled = false
-
-    void (async () => {
-      try {
-        const response = await fetch(`${BACKEND_URL}/api/wordbank/resolve-query`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            query_text: trimmedQuery,
-          }),
-          signal: controller.signal,
-        })
-        if (!response.ok) {
-          setResolvedQueryCandidate((current) => (current?.query === normalizedQuery ? null : current))
-          return
-        }
-
-        const payload = (await response.json()) as ResolveQueryResponse
-        if (cancelled) {
-          return
-        }
-
-        const matchedLemma = payload.matched_lemma_summary
-          ? lemmas.find(
-            (lemma) =>
-              lemma.lemma.trim().toLocaleLowerCase("da-DK") ===
-              payload.matched_lemma_summary?.lemma.trim().toLocaleLowerCase("da-DK"),
-          ) ?? {
-            lemma: payload.matched_lemma_summary.lemma,
-            english_translation: payload.matched_lemma_summary.english_translation,
-            variation_count: payload.matched_lemma_summary.variation_count,
+    const timeoutId = window.setTimeout(() => {
+      void (async () => {
+        try {
+          const response = await fetch(`${BACKEND_URL}/api/wordbank/resolve-query`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              query_text: trimmedQuery,
+            }),
+            signal: controller.signal,
+          })
+          if (!response.ok) {
+            setResolvedQueryCandidate((current) => (current?.query === normalizedQuery ? null : current))
+            return
           }
-          : null
 
-        setResolvedQueryCandidate({
-          query: normalizedQuery,
-          surface: payload.resolved_surface,
-          lemma: payload.resolved_lemma,
-          classification: payload.classification,
-          querySurface: payload.query_surface,
-          queryLemma: payload.query_lemma,
-          queryPosTag: payload.query_pos_tag,
-          queryMorphology: payload.query_morphology,
-          daToEnTranslation: payload.da_to_en_translation,
-          enToDaTranslation: payload.en_to_da_translation,
-          enToDaLemma: payload.en_to_da_lemma,
-          enToDaPosTag: payload.en_to_da_pos_tag,
-          enToDaMorphology: payload.en_to_da_morphology,
-          queryLanguage: payload.query_language,
-          queryLanguageConfidence: payload.query_language_confidence,
-          matchedLemma,
-          wordActions: payload.word_actions ?? [],
-        })
-      } catch {
-        if (!cancelled) {
-          setResolvedQueryCandidate((current) => (current?.query === normalizedQuery ? null : current))
+          const payload = (await response.json()) as ResolveQueryResponse
+          if (cancelled) {
+            return
+          }
+          resolveQueryCacheRef.current.set(normalizedQuery, payload)
+
+          const matchedLemma = payload.matched_lemma_summary
+            ? lemmas.find(
+              (lemma) =>
+                lemma.lemma.trim().toLocaleLowerCase("da-DK") ===
+                payload.matched_lemma_summary?.lemma.trim().toLocaleLowerCase("da-DK"),
+            ) ?? {
+              lemma: payload.matched_lemma_summary.lemma,
+              english_translation: payload.matched_lemma_summary.english_translation,
+              variation_count: payload.matched_lemma_summary.variation_count,
+            }
+            : null
+
+          setResolvedQueryCandidate({
+            query: normalizedQuery,
+            surface: payload.resolved_surface,
+            lemma: payload.resolved_lemma,
+            classification: payload.classification,
+            querySurface: payload.query_surface,
+            queryLemma: payload.query_lemma,
+            queryPosTag: payload.query_pos_tag,
+            queryMorphology: payload.query_morphology,
+            daToEnTranslation: payload.da_to_en_translation,
+            enToDaTranslation: payload.en_to_da_translation,
+            enToDaLemma: payload.en_to_da_lemma,
+            enToDaPosTag: payload.en_to_da_pos_tag,
+            enToDaMorphology: payload.en_to_da_morphology,
+            queryLanguage: payload.query_language,
+            queryLanguageConfidence: payload.query_language_confidence,
+            matchedLemma,
+            wordActions: payload.word_actions ?? [],
+          })
+        } catch {
+          if (!cancelled) {
+            setResolvedQueryCandidate((current) => (current?.query === normalizedQuery ? null : current))
+          }
         }
-      }
-    })()
+      })()
+    }, SEARCH_RESOLVE_DEBOUNCE_MS)
 
     return () => {
       cancelled = true
+      window.clearTimeout(timeoutId)
       controller.abort()
     }
   }, [lemmas, matchingLemmas, normalizedQuery, trimmedQuery])
@@ -1532,6 +1535,8 @@ function App() {
     side: "bottom",
     tokenIndex: null,
   })
+  const [popoverEnrichment, setPopoverEnrichment] = useState<ResolveQueryResponse | null>(null)
+  const popoverEnrichmentCacheRef = useRef<Map<string, { payload: ResolveQueryResponse; cachedAt: number }>>(new Map())
   const [phrasePopover, setPhrasePopover] = useState<PhrasePopoverState>({
     open: false,
     left: 0,
@@ -1634,25 +1639,13 @@ function App() {
     }
     return popoverDisplayToken.matched_lemma ?? popoverDisplayToken.lemma_candidate ?? null
   }, [popoverDisplayToken])
-  const popoverPrimaryAction = useMemo(() => {
+  const popoverPrimaryAction = (() => {
     if (!popoverDisplayToken) {
       return null
     }
-    const tokenActions = popoverDisplayToken.word_actions ?? []
-    if (tokenActions.length > 0) {
-      return tokenActions[0] ?? null
-    }
-    if (popoverDisplayToken.classification === "known") {
-      const lemma = popoverDisplayToken.matched_lemma ?? popoverDisplayToken.lemma_candidate
-      return lemma ? { action_type: "open_wordbank", surface: popoverDisplayToken.normalized_token, lemma, translation_label: null, direction: "known", direction_label: "Wordbank", pos_tag: popoverDisplayToken.pos_tag, morphology: popoverDisplayToken.morphology, show_lemma: false } : null
-    }
-    if (popoverDisplayToken.classification === "variation") {
-      const lemma = popoverDisplayToken.matched_lemma ?? popoverDisplayToken.lemma_candidate
-      return lemma ? { action_type: "add_variation", surface: popoverDisplayToken.normalized_token, lemma, translation_label: popoverDisplayToken.normalized_token, direction: "variation", direction_label: "Variation", pos_tag: popoverDisplayToken.pos_tag, morphology: popoverDisplayToken.morphology, show_lemma: false } : null
-    }
-    const lemma = popoverDisplayToken.lemma_candidate ?? popoverDisplayToken.normalized_token
-    return { action_type: "add_as_new", surface: popoverDisplayToken.normalized_token, lemma, translation_label: popoverDisplayToken.normalized_token, direction: "da_to_en", direction_label: "Danish -> English", pos_tag: popoverDisplayToken.pos_tag, morphology: popoverDisplayToken.morphology, show_lemma: popoverDisplayToken.normalized_token !== lemma }
-  }, [popoverDisplayToken])
+    const tokenActions = popoverEnrichment?.word_actions ?? popoverDisplayToken.word_actions ?? []
+    return tokenActions[0] ?? null
+  })()
 
   const popoverIsNoun = popoverDisplayToken?.pos_tag === "NOUN"
   const popoverIsVerbLike = popoverDisplayToken?.pos_tag === "VERB" || popoverDisplayToken?.pos_tag === "AUX"
@@ -2111,6 +2104,79 @@ function App() {
       setHighlightPopover((current) => ({ ...current, open: false, tokenIndex: null }))
     }
   }, [highlightPopover.open, highlightPopover.tokenIndex, tokens])
+
+  useEffect(() => {
+    if (!highlightPopover.open || !popoverDisplayToken) {
+      setPopoverEnrichment(null)
+      return
+    }
+
+    const tokenValue = normalizeSearchWord(popoverDisplayToken.normalized_token || popoverDisplayToken.surface_token)
+    if (!tokenValue) {
+      setPopoverEnrichment(null)
+      return
+    }
+
+    const cacheKey = normalizeWordKey(tokenValue)
+    const cached = popoverEnrichmentCacheRef.current.get(cacheKey)
+    if (cached && Date.now() - cached.cachedAt < POPOVER_ENRICH_CACHE_TTL_MS) {
+      setPopoverEnrichment(cached.payload)
+      if (cached.payload.da_to_en_translation) {
+        setGeneratedTranslationMap((current) => ({
+          ...current,
+          [cacheKey]: cached.payload.da_to_en_translation,
+        }))
+      }
+      return
+    }
+
+    let cancelled = false
+    const controller = new AbortController()
+
+    void (async () => {
+      try {
+        const response = await fetch(`${BACKEND_URL}/api/analyze/enrich-token`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            token: tokenValue,
+            include_translations: true,
+            include_language_detection: true,
+          }),
+          signal: controller.signal,
+        })
+        if (!response.ok) {
+          return
+        }
+
+        const payload = (await response.json()) as ResolveQueryResponse
+        if (cancelled) {
+          return
+        }
+        popoverEnrichmentCacheRef.current.set(cacheKey, {
+          payload,
+          cachedAt: Date.now(),
+        })
+        setPopoverEnrichment(payload)
+        if (payload.da_to_en_translation) {
+          setGeneratedTranslationMap((current) => ({
+            ...current,
+            [cacheKey]: payload.da_to_en_translation,
+          }))
+        }
+      } catch {
+        // ignore enrichment failures for popover fallback behavior
+      }
+    })()
+
+    return () => {
+      cancelled = true
+      controller.abort()
+    }
+  }, [highlightPopover.open, popoverDisplayToken])
+
 
   const badgeVariant =
     status === "connected"
