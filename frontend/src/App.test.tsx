@@ -44,6 +44,112 @@ type AnalyzeToken = {
   lemma?: string | null
 }
 
+type ResolveQueryPayload = {
+  query_surface: string
+  query_lemma: string | null
+  classification: "known" | "variation" | "typo_likely" | "uncertain" | "new"
+  matched_lemma: string | null
+  matched_lemma_summary: {
+    lemma: string
+    english_translation: string | null
+    variation_count: number
+  } | null
+  query_pos_tag: string | null
+  query_morphology: string | null
+  resolved_surface: string
+  resolved_lemma: string | null
+  da_to_en_translation: string | null
+  en_to_da_translation: string | null
+  en_to_da_lemma: string | null
+  en_to_da_pos_tag: string | null
+  en_to_da_morphology: string | null
+  query_language: "en" | "da" | "ambiguous" | null
+  query_language_confidence: number | null
+}
+
+function buildWordActionsFromResolvePayload(payload: ResolveQueryPayload) {
+  if (payload.classification === "known") {
+    const lemma = payload.matched_lemma_summary?.lemma ?? payload.query_lemma ?? payload.query_surface
+    return [
+      {
+        action_type: "open_wordbank" as const,
+        surface: payload.query_surface,
+        lemma,
+        translation_label: null,
+        direction: "known" as const,
+        direction_label: "Wordbank",
+        pos_tag: payload.query_pos_tag,
+        morphology: payload.query_morphology,
+        show_lemma: false,
+      },
+    ]
+  }
+
+  if (payload.classification === "variation" && payload.matched_lemma_summary) {
+    return [
+      {
+        action_type: "add_variation" as const,
+        surface: payload.query_surface,
+        lemma: payload.matched_lemma_summary.lemma,
+        translation_label: payload.query_surface,
+        direction: "variation" as const,
+        direction_label: "Variation",
+        pos_tag: payload.query_pos_tag,
+        morphology: payload.query_morphology,
+        show_lemma: false,
+      },
+    ]
+  }
+
+  const actions: Array<{
+    action_type: "add_as_new"
+    surface: string
+    lemma: string
+    translation_label: string | null
+    direction: "da_to_en" | "en_to_da"
+    direction_label: string
+    pos_tag: string | null
+    morphology: string | null
+    show_lemma: boolean
+  }> = []
+
+  if (payload.classification === "typo_likely" && !payload.da_to_en_translation && !payload.en_to_da_translation) {
+    return actions
+  }
+
+  const queryLemma = payload.query_lemma ?? payload.query_surface
+  if (payload.da_to_en_translation || !payload.en_to_da_translation) {
+    actions.push({
+      action_type: "add_as_new",
+      surface: payload.query_surface,
+      lemma: queryLemma,
+      translation_label: payload.da_to_en_translation ?? payload.query_surface,
+      direction: "da_to_en",
+      direction_label: "Danish -> English",
+      pos_tag: payload.query_pos_tag,
+      morphology: payload.query_morphology,
+      show_lemma: payload.query_surface !== queryLemma,
+    })
+  }
+
+  const enToDaLemma = payload.en_to_da_lemma ?? payload.en_to_da_translation
+  if (payload.en_to_da_translation && !(payload.query_language === "da" && (payload.query_language_confidence ?? 0) >= 0.7)) {
+    actions.push({
+      action_type: "add_as_new",
+      surface: payload.en_to_da_translation,
+      lemma: enToDaLemma ?? payload.en_to_da_translation,
+      translation_label: payload.en_to_da_translation,
+      direction: "en_to_da",
+      direction_label: "English -> Danish",
+      pos_tag: payload.en_to_da_pos_tag,
+      morphology: payload.en_to_da_morphology,
+      show_lemma: (enToDaLemma ?? payload.en_to_da_translation) !== payload.en_to_da_translation,
+    })
+  }
+
+  return actions
+}
+
 function responseOf(payload: unknown): Response {
   return {
     ok: true,
@@ -423,7 +529,7 @@ function mockFetchImplementation(options?: {
         confidence = detectedPayload.confidence ?? null
       }
 
-      const responsePayload = {
+      const responsePayload: ResolveQueryPayload = {
         query_surface: querySurface,
         query_lemma: queryLemma,
         classification,
@@ -841,35 +947,36 @@ describe("App shell", () => {
   it("command search translates likely english unknown words and offers adding translated danish word", async () => {
     const fetchSpy = mockFetchImplementation({
       lemmasResponse: { items: [] },
-      analyzeHandler: async (_input, init) => {
-        const payload = JSON.parse(String(init?.body ?? "{}")) as { text?: string }
-        if (payload.text === "house") {
-          return responseOf({
-            tokens: [
-              {
-                surface_token: "house",
-                normalized_token: "house",
-                lemma_candidate: "house",
-                classification: "new",
-                match_source: "none",
-                matched_lemma: null,
-                matched_surface_form: null,
-              },
-            ],
-          })
-        }
-        return responseOf({ tokens: [] })
-      },
-      translationResponse: {
-        status: "unavailable",
-        source_word: "house",
-        lemma: "house",
-        english_translation: null,
-      },
-      reverseTranslationResponse: {
-        status: "generated",
-        source_word: "house",
-        danish_translation: "hus",
+      resolveQueryResponse: {
+        query_surface: "house",
+        query_lemma: "house",
+        classification: "new",
+        matched_lemma: null,
+        matched_lemma_summary: null,
+        query_pos_tag: null,
+        query_morphology: null,
+        resolved_surface: "house",
+        resolved_lemma: "house",
+        da_to_en_translation: null,
+        en_to_da_translation: "hus",
+        en_to_da_lemma: null,
+        en_to_da_pos_tag: null,
+        en_to_da_morphology: null,
+        query_language: "en",
+        query_language_confidence: 0.9,
+        word_actions: [
+          {
+            action_type: "add_as_new",
+            surface: "hus",
+            lemma: "hus",
+            translation_label: "hus",
+            direction: "en_to_da",
+            direction_label: "English -> Danish",
+            pos_tag: null,
+            morphology: null,
+            show_lemma: false,
+          },
+        ],
       },
       addWordResponse: {
         status: "inserted",
@@ -925,40 +1032,36 @@ describe("App shell", () => {
   it("command search lowercases uppercase input before translation and add", async () => {
     const fetchSpy = mockFetchImplementation({
       lemmasResponse: { items: [] },
-      analyzeHandler: async (_input, init) => {
-        const payload = JSON.parse(String(init?.body ?? "{}")) as { text?: string }
-        if (payload.text === "house") {
-          return responseOf({
-            tokens: [
-              {
-                surface_token: "house",
-                normalized_token: "house",
-                lemma_candidate: "house",
-                classification: "new",
-                match_source: "none",
-                matched_lemma: null,
-                matched_surface_form: null,
-              },
-            ],
-          })
-        }
-        return responseOf({ tokens: [] })
-      },
-      translationResponse: {
-        status: "unavailable",
-        source_word: "house",
-        lemma: "house",
-        english_translation: null,
-      },
-      reverseTranslationResponse: {
-        status: "generated",
-        source_word: "house",
-        danish_translation: "hus",
-      },
-      detectLanguageResponse: {
-        source_word: "house",
-        language: "en",
-        confidence: 0.9,
+      resolveQueryResponse: {
+        query_surface: "house",
+        query_lemma: "house",
+        classification: "new",
+        matched_lemma: null,
+        matched_lemma_summary: null,
+        query_pos_tag: null,
+        query_morphology: null,
+        resolved_surface: "house",
+        resolved_lemma: "house",
+        da_to_en_translation: null,
+        en_to_da_translation: "hus",
+        en_to_da_lemma: null,
+        en_to_da_pos_tag: null,
+        en_to_da_morphology: null,
+        query_language: "en",
+        query_language_confidence: 0.9,
+        word_actions: [
+          {
+            action_type: "add_as_new",
+            surface: "hus",
+            lemma: "hus",
+            translation_label: "hus",
+            direction: "en_to_da",
+            direction_label: "English -> Danish",
+            pos_tag: null,
+            morphology: null,
+            show_lemma: false,
+          },
+        ],
       },
       addWordResponse: {
         status: "inserted",
@@ -1013,40 +1116,36 @@ describe("App shell", () => {
   it("command search lowercases reverse-translated Danish add option text", async () => {
     mockFetchImplementation({
       lemmasResponse: { items: [] },
-      analyzeHandler: async (_input, init) => {
-        const payload = JSON.parse(String(init?.body ?? "{}")) as { text?: string }
-        if (payload.text === "mug") {
-          return responseOf({
-            tokens: [
-              {
-                surface_token: "mug",
-                normalized_token: "mug",
-                lemma_candidate: "mug",
-                classification: "new",
-                match_source: "none",
-                matched_lemma: null,
-                matched_surface_form: null,
-              },
-            ],
-          })
-        }
-        return responseOf({ tokens: [] })
-      },
-      translationResponse: {
-        status: "unavailable",
-        source_word: "mug",
-        lemma: "mug",
-        english_translation: null,
-      },
-      reverseTranslationResponse: {
-        status: "generated",
-        source_word: "mug",
-        danish_translation: "Krus",
-      },
-      detectLanguageResponse: {
-        source_word: "mug",
-        language: "en",
-        confidence: 0.9,
+      resolveQueryResponse: {
+        query_surface: "mug",
+        query_lemma: "mug",
+        classification: "new",
+        matched_lemma: null,
+        matched_lemma_summary: null,
+        query_pos_tag: null,
+        query_morphology: null,
+        resolved_surface: "mug",
+        resolved_lemma: "mug",
+        da_to_en_translation: null,
+        en_to_da_translation: "krus",
+        en_to_da_lemma: null,
+        en_to_da_pos_tag: null,
+        en_to_da_morphology: null,
+        query_language: "en",
+        query_language_confidence: 0.9,
+        word_actions: [
+          {
+            action_type: "add_as_new",
+            surface: "krus",
+            lemma: "krus",
+            translation_label: "krus",
+            direction: "en_to_da",
+            direction_label: "English -> Danish",
+            pos_tag: null,
+            morphology: null,
+            show_lemma: false,
+          },
+        ],
       },
     })
 
@@ -1083,6 +1182,19 @@ describe("App shell", () => {
         en_to_da_morphology: null,
         query_language: "en",
         query_language_confidence: 0.9,
+        word_actions: [
+          {
+            action_type: "add_as_new",
+            surface: "lamper",
+            lemma: "lampe",
+            translation_label: "lamper",
+            direction: "en_to_da",
+            direction_label: "English -> Danish",
+            pos_tag: "NOUN",
+            morphology: null,
+            show_lemma: true,
+          },
+        ],
       },
     })
 
@@ -1102,35 +1214,23 @@ describe("App shell", () => {
   it("command search still reverse-translates likely english words when classifier marks typo_likely", async () => {
     const fetchSpy = mockFetchImplementation({
       lemmasResponse: { items: [] },
-      analyzeHandler: async (_input, init) => {
-        const payload = JSON.parse(String(init?.body ?? "{}")) as { text?: string }
-        if (payload.text === "water") {
-          return responseOf({
-            tokens: [
-              {
-                surface_token: "water",
-                normalized_token: "water",
-                lemma_candidate: "vater",
-                classification: "typo_likely",
-                match_source: "none",
-                matched_lemma: null,
-                matched_surface_form: null,
-              },
-            ],
-          })
-        }
-        return responseOf({ tokens: [] })
-      },
-      reverseTranslationResponse: {
-        status: "generated",
-        source_word: "water",
-        danish_translation: "vand",
-      },
-      translationResponse: {
-        status: "generated",
-        source_word: "water",
-        lemma: "vater",
-        english_translation: "water",
+      resolveQueryResponse: {
+        query_surface: "water",
+        query_lemma: "vater",
+        classification: "typo_likely",
+        matched_lemma: null,
+        matched_lemma_summary: null,
+        query_pos_tag: null,
+        query_morphology: null,
+        resolved_surface: "water",
+        resolved_lemma: "vater",
+        da_to_en_translation: "water",
+        en_to_da_translation: "vand",
+        en_to_da_lemma: null,
+        en_to_da_pos_tag: null,
+        en_to_da_morphology: null,
+        query_language: "en",
+        query_language_confidence: 0.9,
       },
       addWordResponse: {
         status: "inserted",
@@ -1186,35 +1286,47 @@ describe("App shell", () => {
   it("command search shows two add options when both translation directions are available", async () => {
     mockFetchImplementation({
       lemmasResponse: { items: [] },
-      analyzeHandler: async (_input, init) => {
-        const payload = JSON.parse(String(init?.body ?? "{}")) as { text?: string }
-        if (payload.text === "gift") {
-          return responseOf({
-            tokens: [
-              {
-                surface_token: "gift",
-                normalized_token: "gift",
-                lemma_candidate: "gift",
-                classification: "new",
-                match_source: "none",
-                matched_lemma: null,
-                matched_surface_form: null,
-              },
-            ],
-          })
-        }
-        return responseOf({ tokens: [] })
-      },
-      translationResponse: {
-        status: "generated",
-        source_word: "gift",
-        lemma: "gift",
-        english_translation: "poison",
-      },
-      reverseTranslationResponse: {
-        status: "generated",
-        source_word: "gift",
-        danish_translation: "gave",
+      resolveQueryResponse: {
+        query_surface: "gift",
+        query_lemma: "gift",
+        classification: "new",
+        matched_lemma: null,
+        matched_lemma_summary: null,
+        query_pos_tag: null,
+        query_morphology: null,
+        resolved_surface: "gift",
+        resolved_lemma: "gift",
+        da_to_en_translation: "poison",
+        en_to_da_translation: "gave",
+        en_to_da_lemma: null,
+        en_to_da_pos_tag: null,
+        en_to_da_morphology: null,
+        query_language: "ambiguous",
+        query_language_confidence: 0.4,
+        word_actions: [
+          {
+            action_type: "add_as_new",
+            surface: "gift",
+            lemma: "gift",
+            translation_label: "poison",
+            direction: "da_to_en",
+            direction_label: "Danish -> English",
+            pos_tag: null,
+            morphology: null,
+            show_lemma: false,
+          },
+          {
+            action_type: "add_as_new",
+            surface: "gave",
+            lemma: "gave",
+            translation_label: "gave",
+            direction: "en_to_da",
+            direction_label: "English -> Danish",
+            pos_tag: null,
+            morphology: null,
+            show_lemma: false,
+          },
+        ],
       },
     })
 
