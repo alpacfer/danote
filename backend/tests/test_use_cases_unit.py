@@ -358,6 +358,21 @@ def test_wordbank_resolve_query_strips_inline_comments(tmp_path: Path) -> None:
 
     assert resolved.query_surface == "house"
 
+def test_wordbank_resolve_query_skips_short_letter_words(tmp_path: Path) -> None:
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        translation_service=FakeTranslationService({"is": "ice"}, detected_languages={"is": "EN"}),
+    )
+
+    resolved = use_case.resolve_query("is")
+
+    assert resolved.query_surface == "is"
+    assert resolved.classification == "uncertain"
+    assert resolved.word_actions == []
+    assert resolved.da_to_en_translation is None
+    assert resolved.en_to_da_translation is None
+
+
 def test_wordbank_resolve_query_supports_optional_flags(tmp_path: Path) -> None:
     translation_service = FakeTranslationService(
         {"house": "hus"},
@@ -453,6 +468,18 @@ def test_analyze_use_case_propagates_pos_and_morphology(tmp_path: Path) -> None:
     assert tokens[1].surface_token == "bog"
     assert tokens[1].pos_tag == "NOUN"
     assert tokens[1].morphology == "Definite=Ind|Gender=Com"
+
+def test_analyze_use_case_skips_short_letter_words(tmp_path: Path) -> None:
+    use_case = AnalyzeNoteUseCase(
+        _db_path(tmp_path),
+        nlp_adapter=FakeNLPAdapter(),
+        typo_engine=None,
+    )
+
+    tokens = use_case.execute("i to hej bog")
+    surfaces = [token.surface_token for token in tokens]
+    assert surfaces == ["Hej", "bog"]
+
 
 def test_analyze_use_case_filters_non_word_tokens(tmp_path: Path) -> None:
     use_case = AnalyzeNoteUseCase(

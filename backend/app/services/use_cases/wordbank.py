@@ -19,7 +19,7 @@ from app.api.schemas.v1.wordbank import (
 )
 from app.db.migrations import apply_migrations, get_connection
 from app.nlp.adapter import NLPAdapter
-from app.nlp.token_filter import is_wordlike_token
+from app.nlp.token_filter import is_short_letter_word, is_wordlike_token
 from app.services.text_preprocessing import strip_inline_comments
 from app.services.token_classifier import LemmaAwareClassifier, normalize_token
 from app.services.translation import TranslationService
@@ -360,6 +360,27 @@ class WordbankUseCase:
         normalized_query = normalize_token(query_without_comments)
         if not normalized_query:
             raise ValueError("query_text is required")
+
+        if is_short_letter_word(normalized_query):
+            return ResolveQueryResponse(
+                query_surface=normalized_query,
+                query_lemma=None,
+                classification="uncertain",
+                matched_lemma=None,
+                matched_lemma_summary=None,
+                query_pos_tag=None,
+                query_morphology=None,
+                resolved_surface=normalized_query,
+                resolved_lemma=None,
+                da_to_en_translation=None,
+                en_to_da_translation=None,
+                en_to_da_lemma=None,
+                en_to_da_pos_tag=None,
+                en_to_da_morphology=None,
+                query_language=None,
+                query_language_confidence=None,
+                word_actions=[],
+            )
 
         classifier = LemmaAwareClassifier(
             self._db_path,

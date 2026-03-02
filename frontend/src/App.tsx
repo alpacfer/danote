@@ -502,6 +502,20 @@ function normalizeSearchWord(value: string): string {
   return normalizePhraseKey(value)
 }
 
+function isShortLetterWord(value: string): boolean {
+  const cleaned = value.trim()
+  if (!cleaned) {
+    return false
+  }
+
+  const letters = Array.from(cleaned).filter((character) => /\p{L}/u.test(character)).length
+  if (letters === 0 || letters >= 3) {
+    return false
+  }
+
+  return /^[\p{L}\-'’]+$/u.test(cleaned)
+}
+
 function hasMultipleWords(value: string): boolean {
   return value.split(/\s+/u).filter(Boolean).length >= 2
 }
@@ -1052,7 +1066,7 @@ function AppSidebar({
   }, [onSelectDeveloper, onSelectNotes, onSelectPlayground, onSelectSentencebank, onSelectWordbank])
 
   useEffect(() => {
-    if (!normalizedQuery || /\s/u.test(normalizedQuery)) {
+    if (!normalizedQuery || /\s/u.test(normalizedQuery) || isShortLetterWord(normalizedQuery)) {
       return
     }
 
