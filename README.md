@@ -48,6 +48,14 @@ cd <repo-root>
 ```
 
 This starts backend and frontend together, checks backend health, and stops both on `Ctrl+C`.
+It also auto-loads root-level `.env` and `.env.local` files when present.
+
+Example (`.env.local`):
+
+```bash
+DANOTE_DEEPL_API_KEY=your-deepl-key
+DANOTE_GEMINI_API_KEY=your-gemini-key
+```
 
 One-command setup for the pinned DaCy model `da_dacy_small_trf-0.2.0`:
 

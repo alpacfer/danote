@@ -5,6 +5,25 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BACKEND_DIR="$ROOT_DIR/backend"
 FRONTEND_DIR="$ROOT_DIR/frontend"
 
+log() {
+  printf '[run-project] %s\n' "$1"
+}
+
+load_env_files() {
+  local env_file
+  for env_file in "$ROOT_DIR/.env" "$ROOT_DIR/.env.local"; do
+    if [[ -f "$env_file" ]]; then
+      log "loading env file: ${env_file#$ROOT_DIR/}"
+      set -a
+      # shellcheck disable=SC1090
+      source "$env_file"
+      set +a
+    fi
+  done
+}
+
+load_env_files
+
 BACKEND_HOST="${BACKEND_HOST:-127.0.0.1}"
 BACKEND_PORT="${BACKEND_PORT:-8000}"
 FRONTEND_HOST="${FRONTEND_HOST:-127.0.0.1}"
@@ -17,10 +36,6 @@ DANOTE_DEEPL_API_KEY="${DANOTE_DEEPL_API_KEY:-}"
 
 BACKEND_PID=""
 FRONTEND_PID=""
-
-log() {
-  printf '[run-project] %s\n' "$1"
-}
 
 cleanup() {
   log "stopping services..."
