@@ -26,14 +26,6 @@ class AnalyzedToken(BaseModel):
     reason_tags: list[str] = Field(default_factory=list)
     word_actions: list[WordActionSuggestion] = Field(default_factory=list)
 
-    # v1-friendly aliases
-    status: Literal["known", "variation", "typo_likely", "uncertain", "new"]
-    surface: str
-    normalized: str
-    lemma: str | None
-    pos_tag: str | None = None
-    morphology: str | None = None
-
 
 class AnalyzeResponse(BaseModel):
     tokens: list[AnalyzedToken]

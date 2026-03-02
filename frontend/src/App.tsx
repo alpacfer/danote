@@ -94,7 +94,6 @@ type AnalyzedToken = {
   pos_tag: string | null
   morphology: string | null
   classification: TokenClassification
-  status: TokenClassification
   match_source: "exact" | "lemma" | "none"
   matched_lemma: string | null
   matched_surface_form: string | null
@@ -105,9 +104,6 @@ type AnalyzedToken = {
   }>
   confidence: number
   reason_tags: string[]
-  surface: string
-  normalized: string
-  lemma: string | null
   word_actions?: WordActionSuggestion[]
 }
 
@@ -1609,7 +1605,7 @@ function App() {
         ...popoverToken,
         morphology: popoverToken.morphology ?? rememberedForPos.morphology,
         lemma_candidate: popoverToken.lemma_candidate ?? rememberedForPos.lemma,
-        lemma: popoverToken.lemma ?? rememberedForPos.lemma,
+        lemma: rememberedForPos.lemma,
       }
     }
 
@@ -1618,7 +1614,7 @@ function App() {
       pos_tag: remembered.latest.pos_tag,
       morphology: popoverToken.morphology ?? remembered.latest.morphology,
       lemma_candidate: popoverToken.lemma_candidate ?? remembered.latest.lemma,
-      lemma: popoverToken.lemma ?? remembered.latest.lemma,
+      lemma: remembered.latest.lemma,
     }
   }, [discoveredTokenMetadata, popoverToken])
   const popoverTranslation = useMemo(() => {
@@ -1636,7 +1632,7 @@ function App() {
     if (!popoverDisplayToken) {
       return null
     }
-    return popoverDisplayToken.matched_lemma ?? popoverDisplayToken.lemma_candidate ?? popoverDisplayToken.lemma ?? null
+    return popoverDisplayToken.matched_lemma ?? popoverDisplayToken.lemma_candidate ?? null
   }, [popoverDisplayToken])
   const popoverPrimaryAction = useMemo(() => {
     if (!popoverDisplayToken) {
@@ -1647,11 +1643,11 @@ function App() {
       return tokenActions[0] ?? null
     }
     if (popoverDisplayToken.classification === "known") {
-      const lemma = popoverDisplayToken.matched_lemma ?? popoverDisplayToken.lemma_candidate ?? popoverDisplayToken.lemma
+      const lemma = popoverDisplayToken.matched_lemma ?? popoverDisplayToken.lemma_candidate
       return lemma ? { action_type: "open_wordbank", surface: popoverDisplayToken.normalized_token, lemma, translation_label: null, direction: "known", direction_label: "Wordbank", pos_tag: popoverDisplayToken.pos_tag, morphology: popoverDisplayToken.morphology, show_lemma: false } : null
     }
     if (popoverDisplayToken.classification === "variation") {
-      const lemma = popoverDisplayToken.matched_lemma ?? popoverDisplayToken.lemma_candidate ?? popoverDisplayToken.lemma
+      const lemma = popoverDisplayToken.matched_lemma ?? popoverDisplayToken.lemma_candidate
       return lemma ? { action_type: "add_variation", surface: popoverDisplayToken.normalized_token, lemma, translation_label: popoverDisplayToken.normalized_token, direction: "variation", direction_label: "Variation", pos_tag: popoverDisplayToken.pos_tag, morphology: popoverDisplayToken.morphology, show_lemma: false } : null
     }
     const lemma = popoverDisplayToken.lemma_candidate ?? popoverDisplayToken.normalized_token
@@ -1828,7 +1824,7 @@ function App() {
           continue
         }
         const key = normalizeWordKey(token.normalized_token || token.surface_token)
-        const lemma = token.matched_lemma ?? token.lemma_candidate ?? token.lemma ?? null
+        const lemma = token.matched_lemma ?? token.lemma_candidate ?? null
         const candidate: DiscoveredTokenMetadata = {
           pos_tag: token.pos_tag,
           morphology: token.morphology,
@@ -2222,7 +2218,7 @@ function App() {
   async function generateTranslationForToken(token: AnalyzedToken) {
     const sourceWord = normalizeSearchWord(token.normalized_token || token.surface_token)
     const requestSurface = normalizeSearchWord(token.normalized_token || token.surface_token)
-    const requestLemma = normalizeSearchWord(token.matched_lemma ?? token.lemma_candidate ?? token.lemma ?? "") || null
+    const requestLemma = normalizeSearchWord(token.matched_lemma ?? token.lemma_candidate ?? "") || null
     const tokenKeys = translationKeysForToken(token)
     const hasResolvedTranslation = tokenKeys.some((key) => {
       if (!Object.hasOwn(generatedTranslationMap, key)) {

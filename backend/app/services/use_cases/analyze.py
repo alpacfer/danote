@@ -87,10 +87,6 @@ class AnalyzeNoteUseCase:
                             query_language=None,
                             query_language_confidence=None,
                         ),
-                        status=result.classification,
-                        surface=result.surface_token,
-                        normalized=result.normalized_token,
-                        lemma=result.matched_lemma or result.lemma_candidate,
                     )
                 )
         except sqlite3.OperationalError:
