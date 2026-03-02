@@ -739,7 +739,7 @@ function fallbackWordActionsFromResolve(candidate: {
     actions.push({ action_type: "add_as_new", surface: candidate.querySurface, lemma, translation_label: candidate.daToEnTranslation ?? candidate.querySurface, direction: "da_to_en", direction_label: "Danish -> English", pos_tag: candidate.queryPosTag, morphology: candidate.queryMorphology, show_lemma: candidate.querySurface !== lemma })
   }
   const derivedEnToDa = candidate.enToDaTranslation ?? (candidate.surface !== candidate.querySurface ? candidate.surface : null)
-  const derivedEnToDaLemma = candidate.enToDaLemma ?? candidate.lemma ?? derivedEnToDa
+  const derivedEnToDaLemma = candidate.enToDaLemma ?? derivedEnToDa
   if (derivedEnToDa && !(candidate.queryLanguage === "da" && (candidate.queryLanguageConfidence ?? 0) >= 0.7)) {
     actions.push({ action_type: "add_as_new", surface: derivedEnToDa, lemma: derivedEnToDaLemma ?? derivedEnToDa, translation_label: derivedEnToDa, direction: "en_to_da", direction_label: "English -> Danish", pos_tag: candidate.enToDaPosTag, morphology: candidate.enToDaMorphology, show_lemma: (derivedEnToDaLemma ?? derivedEnToDa) !== derivedEnToDa })
   }
@@ -1236,7 +1236,7 @@ function AppSidebar({
                 {newWordOptions.map((option) => (
                   <CommandItem
                     key={`${option.action_type}-${option.surface}-${option.lemma}-${option.direction}`}
-                    value={`new-word-${option.surface} ${option.lemma} ${option.translation_label ?? option.surface} ${option.direction_label ?? option.direction}`}
+                    value={`new-word-${option.surface} ${option.lemma} ${option.translation_label ?? option.surface} ${option.direction_label ?? option.direction} ${normalizedQuery}`}
                     onSelect={() => {
                       void (async () => {
                         const addedLemma = await onAddWordFromSearch(option.surface, option.lemma, {
