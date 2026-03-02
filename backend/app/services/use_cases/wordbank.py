@@ -154,6 +154,7 @@ class WordbankUseCase:
         self._translation_service = translation_service
         self._nlp_adapter = nlp_adapter
         self._verification_service = verification_service
+        self._pos_morph_cache: dict[str, tuple[str | None, str | None]] = {}
 
     def add_word(self, surface_token: str, lemma_candidate: str | None) -> AddWordResponse:
         normalized_surface = normalize_token(surface_token)
@@ -167,19 +168,33 @@ class WordbankUseCase:
         inserted_surface_form = False
         lemma_translation = self._lookup_translation(stored_lemma)
         surface_translation = self._lookup_translation(normalized_surface) if normalized_surface else None
+        lemma_pos_tag, lemma_morphology = self._extract_pos_and_morphology(stored_lemma)
+        surface_pos_tag: str | None = None
+        surface_morphology: str | None = None
+        if normalized_surface:
+            surface_pos_tag, surface_morphology = self._extract_pos_and_morphology(normalized_surface)
         provider = self._translation_provider_name()
 
         with get_connection(self._db_path) as conn:
             cursor = conn.execute(
                 """
-                INSERT OR IGNORE INTO lexemes (lemma, source, english_translation, translation_provider)
-                VALUES (?, ?, ?, ?)
+                INSERT OR IGNORE INTO lexemes (
+                    lemma,
+                    source,
+                    english_translation,
+                    translation_provider,
+                    pos_tag,
+                    morphology
+                )
+                VALUES (?, ?, ?, ?, ?, ?)
                 """,
                 (
                     stored_lemma,
                     "manual",
                     lemma_translation,
                     provider if lemma_translation else None,
+                    lemma_pos_tag,
+                    lemma_morphology,
                 ),
             )
             inserted_lexeme = cursor.rowcount == 1
@@ -201,6 +216,16 @@ class WordbankUseCase:
                     (lemma_translation, provider, lexeme_row["id"]),
                 )
 
+            conn.execute(
+                """
+                UPDATE lexemes
+                SET pos_tag = COALESCE(pos_tag, ?),
+                    morphology = COALESCE(morphology, ?)
+                WHERE id = ?
+                """,
+                (lemma_pos_tag, lemma_morphology, lexeme_row["id"]),
+            )
+
             if normalized_surface:
                 cursor = conn.execute(
                     """
@@ -209,9 +234,11 @@ class WordbankUseCase:
                         form,
                         source,
                         english_translation,
-                        translation_provider
+                        translation_provider,
+                        pos_tag,
+                        morphology
                     )
-                    VALUES (?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         lexeme_row["id"],
@@ -219,6 +246,8 @@ class WordbankUseCase:
                         "manual",
                         surface_translation,
                         provider if surface_translation else None,
+                        surface_pos_tag,
+                        surface_morphology,
                     ),
                 )
                 inserted_surface_form = cursor.rowcount == 1
@@ -240,6 +269,17 @@ class WordbankUseCase:
                         """,
                         (surface_translation, provider, lexeme_row["id"], normalized_surface),
                     )
+                conn.execute(
+                    """
+                    UPDATE surface_forms
+                    SET pos_tag = COALESCE(pos_tag, ?),
+                        morphology = COALESCE(morphology, ?)
+                    WHERE lexeme_id = ? AND form = ?
+                    """,
+                    (surface_pos_tag, surface_morphology, lexeme_row["id"], normalized_surface),
+                )
+
+        self._invalidate_pos_cache(stored_lemma, normalized_surface)
 
         inserted = inserted_lexeme or inserted_surface_form
         if self._typo_engine is not None and inserted:
@@ -570,6 +610,7 @@ class WordbankUseCase:
                 SELECT
                     l.lemma,
                     l.english_translation AS english_translation,
+                    l.pos_tag AS pos_tag,
                     COUNT(sf.id) AS variation_count
                 FROM lexemes l
                 LEFT JOIN surface_forms sf ON sf.lexeme_id = l.id
@@ -582,7 +623,7 @@ class WordbankUseCase:
             items=[
                 LemmaSummary(
                     lemma=row["lemma"],
-                    display_lemma=self._display_lemma_for_list(row["lemma"]),
+                    display_lemma=self._display_lemma_for_list(row["lemma"], row["pos_tag"]),
                     english_translation=row["english_translation"],
                     variation_count=int(row["variation_count"]),
                 )
@@ -601,7 +642,9 @@ class WordbankUseCase:
                 SELECT
                     id,
                     lemma,
-                    english_translation AS english_translation
+                    english_translation AS english_translation,
+                    pos_tag,
+                    morphology
                 FROM lexemes
                 WHERE lemma = ?
                 """,
@@ -615,7 +658,9 @@ class WordbankUseCase:
                 """
                 SELECT
                     form,
-                    english_translation AS english_translation
+                    english_translation AS english_translation,
+                    pos_tag,
+                    morphology
                 FROM surface_forms
                 WHERE lexeme_id = ?
                 ORDER BY form COLLATE NOCASE
@@ -623,11 +668,22 @@ class WordbankUseCase:
                 (lexeme_row["id"],),
             ).fetchall()
 
-        lemma_pos_tag, lemma_morphology = self._extract_pos_and_morphology(lexeme_row["lemma"])
+        lemma_pos_tag = lexeme_row["pos_tag"]
+        lemma_morphology = lexeme_row["morphology"]
+        if lemma_pos_tag is None and lemma_morphology is None:
+            lemma_pos_tag, lemma_morphology = self._extract_pos_and_morphology(lexeme_row["lemma"])
+            self._store_lexeme_metadata(lexeme_row["id"], lemma_pos_tag, lemma_morphology)
 
         surface_forms: list[LemmaDetailsResponse.SurfaceFormDetails] = []
+        uncached_forms = [row["form"] for row in form_rows if row["pos_tag"] is None and row["morphology"] is None]
+        extracted_forms = self._extract_pos_and_morphology_batch(uncached_forms)
+
         for row in form_rows:
-            pos_tag, morphology = self._extract_pos_and_morphology(row["form"])
+            pos_tag = row["pos_tag"]
+            morphology = row["morphology"]
+            if pos_tag is None and morphology is None:
+                pos_tag, morphology = extracted_forms.get(row["form"], (None, None))
+                self._store_surface_form_metadata(lexeme_row["id"], row["form"], pos_tag, morphology)
             surface_forms.append(
                 LemmaDetailsResponse.SurfaceFormDetails(
                     form=row["form"],
@@ -661,8 +717,16 @@ class WordbankUseCase:
             return False
         return any(char in "aeiouy" for char in normalized)
 
+    def _extract_pos_and_morphology_batch(self, values: list[str]) -> dict[str, tuple[str | None, str | None]]:
+        return {value: self._extract_pos_and_morphology(value) for value in values}
+
     def _extract_pos_and_morphology(self, value: str) -> tuple[str | None, str | None]:
+        cached = self._pos_morph_cache.get(value)
+        if cached is not None:
+            return cached
+
         if self._nlp_adapter is None:
+            self._pos_morph_cache[value] = (None, None)
             return None, None
 
         for token in self._nlp_adapter.tokenize(value):
@@ -673,8 +737,11 @@ class WordbankUseCase:
                 continue
             if not is_wordlike_token(surface):
                 continue
-            return token.pos, token.morphology
+            extracted = (token.pos, token.morphology)
+            self._pos_morph_cache[value] = extracted
+            return extracted
 
+        self._pos_morph_cache[value] = (None, None)
         return None, None
 
 
@@ -731,11 +798,45 @@ class WordbankUseCase:
                 return cleaned
         return "translation"
 
-    def _display_lemma_for_list(self, lemma: str) -> str:
-        pos_tag, _morphology = self._extract_pos_and_morphology(lemma)
+    def _display_lemma_for_list(self, lemma: str, pos_tag: str | None) -> str:
+        if pos_tag is None:
+            pos_tag, _morphology = self._extract_pos_and_morphology(lemma)
         if pos_tag in {"VERB", "AUX"}:
             return f"at {lemma}"
         return lemma
+
+    def _invalidate_pos_cache(self, lemma: str, surface: str | None) -> None:
+        self._pos_morph_cache.pop(lemma, None)
+        if surface:
+            self._pos_morph_cache.pop(surface, None)
+
+    def _store_lexeme_metadata(self, lexeme_id: int, pos_tag: str | None, morphology: str | None) -> None:
+        with get_connection(self._db_path) as conn:
+            conn.execute(
+                """
+                UPDATE lexemes
+                SET pos_tag = ?, morphology = ?
+                WHERE id = ?
+                """,
+                (pos_tag, morphology, lexeme_id),
+            )
+
+    def _store_surface_form_metadata(
+        self,
+        lexeme_id: int,
+        form: str,
+        pos_tag: str | None,
+        morphology: str | None,
+    ) -> None:
+        with get_connection(self._db_path) as conn:
+            conn.execute(
+                """
+                UPDATE surface_forms
+                SET pos_tag = ?, morphology = ?
+                WHERE lexeme_id = ? AND form = ?
+                """,
+                (pos_tag, morphology, lexeme_id, form),
+            )
 
     def _queued_verification_result(self) -> AddWordResponse.VerificationResult:
         if self._verification_service is None:
