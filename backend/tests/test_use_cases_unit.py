@@ -368,6 +368,48 @@ def test_wordbank_resolve_query_supports_optional_flags(tmp_path: Path) -> None:
     assert resolved.query_language_confidence is None
 
 
+
+
+def test_wordbank_action_payload_is_consistent_between_resolve_query_and_analyze(tmp_path: Path) -> None:
+    class HouseNLPAdapter:
+        def tokenize(self, text: str) -> list[NLPToken]:
+            return [
+                NLPToken(
+                    text=text,
+                    lemma=text.lower(),
+                    pos="NOUN",
+                    morphology="Gender=Neut|Number=Sing",
+                    is_punctuation=False,
+                )
+            ]
+
+        def lemma_candidates_for_token(self, token: str) -> list[str]:
+            return [token.lower()]
+
+        def lemma_for_token(self, token: str) -> str | None:
+            return token.lower()
+
+        def metadata(self) -> dict[str, str]:
+            return {"adapter": "house-fake"}
+
+    nlp_adapter = HouseNLPAdapter()
+    db_path = _db_path(tmp_path)
+    use_case = WordbankUseCase(
+        db_path,
+        translation_service=FakeTranslationService({"house": "hus"}, detected_languages={"house": "EN"}),
+        nlp_adapter=nlp_adapter,
+    )
+    analyze_use_case = AnalyzeNoteUseCase(db_path, nlp_adapter=nlp_adapter)
+
+    resolved = use_case.resolve_query("House", include_translations=False, include_language_detection=False)
+    analyzed_tokens = analyze_use_case.execute("House")
+
+    assert len(analyzed_tokens) == 1
+    assert resolved.word_actions == analyzed_tokens[0].word_actions
+    assert [action.action_type for action in resolved.word_actions] == ["add_as_new"]
+    assert resolved.word_actions[0].surface == "house"
+    assert resolved.word_actions[0].lemma == "house"
+
 def test_sentencebank_use_case_add_and_list(tmp_path: Path) -> None:
     use_case = SentencebankUseCase(
         _db_path(tmp_path),
