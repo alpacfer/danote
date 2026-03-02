@@ -248,6 +248,13 @@ type TokenFeedbackPayload = {
   suggestions_shown: string[]
   user_action: TokenAction
   chosen_value?: string
+  source?: "playground" | "search"
+}
+
+type SearchFeedbackContext = {
+  rawToken: string
+  predictedStatus: TokenClassification
+  suggestionsShown: string[]
 }
 
 type HighlightPopoverState = {
@@ -765,7 +772,11 @@ type AppSidebarProps = {
   onSelectDeveloper: () => void
   onOpenWordbankLemma: (lemma: string) => void
   onOpenSavedNote: (noteId: string) => void
-  onAddWordFromSearch: (surfaceToken: string, lemmaCandidate: string | null) => Promise<string | null>
+  onAddWordFromSearch: (
+    surfaceToken: string,
+    lemmaCandidate: string | null,
+    feedbackContext?: SearchFeedbackContext,
+  ) => Promise<string | null>
 }
 
 function ThemeToggleButton() {
@@ -1232,7 +1243,11 @@ function AppSidebar({
                     value={`new-word-${option.surface} ${option.lemma} ${option.translation_label ?? option.surface} ${option.direction_label ?? option.direction}`}
                     onSelect={() => {
                       void (async () => {
-                        const addedLemma = await onAddWordFromSearch(option.surface, option.lemma)
+                        const addedLemma = await onAddWordFromSearch(option.surface, option.lemma, {
+                          rawToken: normalizedQuery,
+                          predictedStatus: activeResolvedCandidate?.classification ?? "new",
+                          suggestionsShown: newWordOptions.map((item) => item.translation_label ?? item.surface),
+                        })
                         if (addedLemma) {
                           setIsSearchOpen(false)
                           setSearchQuery("")
@@ -1300,10 +1315,11 @@ function AppSidebar({
                     value={`add-variation-${addVariationResult.surface} ${addVariationResult.lemma}`}
                     onSelect={() => {
                       void (async () => {
-                        const addedLemma = await onAddWordFromSearch(
-                          addVariationResult.surface,
-                          addVariationResult.lemma,
-                        )
+                        const addedLemma = await onAddWordFromSearch(addVariationResult.surface, addVariationResult.lemma, {
+                          rawToken: normalizedQuery,
+                          predictedStatus: activeResolvedCandidate?.classification ?? "variation",
+                          suggestionsShown: [addVariationResult.translation_label ?? addVariationResult.surface],
+                        })
                         if (addedLemma) {
                           setIsSearchOpen(false)
                           setSearchQuery("")
@@ -2157,6 +2173,7 @@ function App() {
         suggestions_shown: (token.suggestions ?? []).map((item) => item.value),
         user_action: "add_as_new",
         chosen_value: payload.stored_lemma,
+        source: "playground",
       })
       setAnalysisRefreshTick((current) => current + 1)
       setWordbankRefreshTick((current) => current + 1)
@@ -2173,11 +2190,23 @@ function App() {
     }
   }
 
-  async function addWordFromSearch(surfaceToken: string, lemmaCandidate: string | null): Promise<string | null> {
+  async function addWordFromSearch(
+    surfaceToken: string,
+    lemmaCandidate: string | null,
+    feedbackContext?: SearchFeedbackContext,
+  ): Promise<string | null> {
     try {
       const payload = await addWordToWordbank(surfaceToken, lemmaCandidate)
       toast.success(payload.message)
       void verifyWordInBackground(payload.stored_lemma, payload.stored_surface_form)
+      void postTokenFeedback({
+        raw_token: feedbackContext?.rawToken ?? surfaceToken,
+        predicted_status: feedbackContext?.predictedStatus ?? "new",
+        suggestions_shown: feedbackContext?.suggestionsShown ?? [],
+        user_action: "add_as_new",
+        chosen_value: payload.stored_lemma,
+        source: "search",
+      })
       setAnalysisRefreshTick((current) => current + 1)
       setWordbankRefreshTick((current) => current + 1)
       setActiveSection("wordbank")

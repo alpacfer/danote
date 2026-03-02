@@ -684,6 +684,33 @@ describe("App shell", () => {
         }),
       ).toBe(true)
     })
+
+    await waitFor(() => {
+      expect(
+        fetchSpy.mock.calls.some(([input, init]) => {
+          if (!String(input).endsWith("/api/tokens/feedback")) {
+            return false
+          }
+          const body = JSON.parse(String(init?.body ?? "{}")) as {
+            raw_token?: string
+            predicted_status?: string
+            suggestions_shown?: string[]
+            user_action?: string
+            chosen_value?: string
+            source?: string
+          }
+          return (
+            body.raw_token === "snakker"
+            && body.predicted_status === "new"
+            && Array.isArray(body.suggestions_shown)
+            && body.suggestions_shown.includes("talks")
+            && body.user_action === "add_as_new"
+            && body.chosen_value === "snakke"
+            && body.source === "search"
+          )
+        }),
+      ).toBe(true)
+    })
   })
 
   it("command search hides duplicate lemma and shows discovered morphology badges", async () => {
