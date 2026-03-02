@@ -4,7 +4,7 @@ import sqlite3
 
 from app.api.schemas.v1.analyze import AnalyzedToken
 from app.nlp.adapter import NLPAdapter
-from app.nlp.token_filter import is_wordlike_token
+from app.nlp.token_filter import is_short_letter_word, is_wordlike_token
 from app.services.text_preprocessing import strip_inline_comments
 from app.services.token_classifier import LemmaAwareClassifier
 from app.services.use_cases.wordbank import build_word_action_suggestions
@@ -32,6 +32,8 @@ class AnalyzeNoteUseCase:
             if nlp_token.is_punctuation:
                 continue
             if not is_wordlike_token(surface):
+                continue
+            if is_short_letter_word(surface):
                 continue
             token_metadata.append((surface, nlp_token.pos, nlp_token.morphology))
 
