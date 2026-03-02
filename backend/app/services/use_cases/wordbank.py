@@ -6,6 +6,7 @@ import os
 import sqlite3
 import io
 import wave
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
@@ -31,6 +32,7 @@ from app.api.schemas.v1.wordbank import (
 from app.db.migrations import apply_migrations, get_connection
 from app.nlp.adapter import NLPAdapter
 from app.nlp.token_filter import is_short_letter_word, is_wordlike_token
+from app.services.cor import COREntry, CORLexiconService
 from app.services.text_preprocessing import strip_inline_comments
 from app.services.token_classifier import LemmaAwareClassifier, normalize_token
 from app.services.translation import TranslationService
@@ -74,6 +76,15 @@ def _normalize_pronunciation_audio(audio: PronunciationAudio) -> PronunciationAu
 
 def _normalize_action_value(value: str) -> str:
     return " ".join(value.strip().lower().split())
+
+
+@dataclass(frozen=True)
+class _CORAddOption:
+    surface: str
+    lemma: str
+    pos_tag: str | None
+    morphology: str | None
+    translation_label: str | None
 
 
 def build_word_action_suggestions(
@@ -194,6 +205,7 @@ class WordbankUseCase:
         typo_engine=None,
         translation_service: TranslationService | None = None,
         nlp_adapter: NLPAdapter | None = None,
+        cor_lexicon_service: CORLexiconService | None = None,
         verification_service: WordVerificationService | None = None,
         tts_service: TTSService | None = None,
         gemini_changes_log_path: Path | None = None,
@@ -202,12 +214,20 @@ class WordbankUseCase:
         self._typo_engine = typo_engine
         self._translation_service = translation_service
         self._nlp_adapter = nlp_adapter
+        self._cor_lexicon_service = cor_lexicon_service
         self._verification_service = verification_service
         self._tts_service = tts_service
         self._gemini_changes_log_path = gemini_changes_log_path
-        self._pos_morph_cache: dict[str, tuple[str | None, str | None]] = {}
+        self._pos_morph_cache: dict[tuple[str, str | None], tuple[str | None, str | None]] = {}
 
-    def add_word(self, surface_token: str, lemma_candidate: str | None) -> AddWordResponse:
+    def add_word(
+        self,
+        surface_token: str,
+        lemma_candidate: str | None,
+        *,
+        pos_tag: str | None = None,
+        morphology: str | None = None,
+    ) -> AddWordResponse:
         normalized_surface = normalize_token(surface_token)
         normalized_lemma = normalize_token(lemma_candidate or "")
         stored_lemma = normalized_lemma or normalized_surface
@@ -215,15 +235,31 @@ class WordbankUseCase:
         if not stored_lemma:
             raise ValueError("surface_token or lemma_candidate is required")
 
+        selected_pos_tag = self._normalize_optional_pos_tag(pos_tag)
+        selected_morphology = self._normalize_optional_morphology(morphology)
         inserted_lexeme = False
         inserted_surface_form = False
         lemma_translation = self._lookup_translation(stored_lemma)
         surface_translation = self._lookup_translation(normalized_surface) if normalized_surface else None
-        lemma_pos_tag, lemma_morphology = self._extract_pos_and_morphology(stored_lemma)
+        lemma_pos_tag, lemma_morphology = self._extract_pos_and_morphology(
+            stored_lemma,
+            preferred_pos_tag=selected_pos_tag,
+        )
+        if selected_pos_tag is not None:
+            lemma_pos_tag = selected_pos_tag
+        if selected_morphology is not None:
+            lemma_morphology = selected_morphology
         surface_pos_tag: str | None = None
         surface_morphology: str | None = None
         if normalized_surface:
-            surface_pos_tag, surface_morphology = self._extract_pos_and_morphology(normalized_surface)
+            surface_pos_tag, surface_morphology = self._extract_pos_and_morphology(
+                normalized_surface,
+                preferred_pos_tag=selected_pos_tag,
+            )
+        if selected_pos_tag is not None:
+            surface_pos_tag = selected_pos_tag
+        if selected_morphology is not None:
+            surface_morphology = selected_morphology
         provider = self._translation_provider_name()
 
         with get_connection(self._db_path) as conn:
@@ -681,14 +717,35 @@ class WordbankUseCase:
 
         classifier = LemmaAwareClassifier(
             self._db_path,
-            nlp_adapter=self._nlp_adapter,
+            nlp_adapter=None,
             typo_engine=self._typo_engine,
         )
         token = classifier.classify(normalized_query)
-        query_pos_tag, query_morphology = self._extract_pos_and_morphology(normalized_query)
+        cor_add_options = self._build_cor_add_options(
+            normalized_query,
+            include_translations=include_translations,
+        )
+        preferred_pos_tag = cor_add_options[0].pos_tag if cor_add_options else None
+        query_pos_tag, query_morphology = self._extract_pos_and_morphology(
+            normalized_query,
+            preferred_pos_tag=preferred_pos_tag,
+        )
+
+        classification = token.classification
+        query_lemma = token.lemma_candidate
+        matched_lemma = token.matched_lemma
+        if cor_add_options and not query_lemma:
+            query_lemma = cor_add_options[0].lemma
+
+        if token.match_source == "none" and cor_add_options:
+            saved_lemma = self._find_saved_lemma([option.lemma for option in cor_add_options])
+            if saved_lemma:
+                classification = "variation"
+                matched_lemma = saved_lemma
+                query_lemma = query_lemma or saved_lemma
 
         matched_lemma_summary: ResolveQueryResponse.MatchedLemmaSummary | None = None
-        if token.matched_lemma:
+        if matched_lemma:
             with get_connection(self._db_path) as conn:
                 lemma_row = conn.execute(
                     """
@@ -699,7 +756,7 @@ class WordbankUseCase:
                     GROUP BY l.id
                     LIMIT 1
                     """,
-                    (token.matched_lemma,),
+                    (matched_lemma,),
                 ).fetchone()
             if lemma_row is not None:
                 matched_lemma_summary = ResolveQueryResponse.MatchedLemmaSummary(
@@ -709,7 +766,7 @@ class WordbankUseCase:
                 )
 
         resolved_surface = token.normalized_token or normalized_query
-        resolved_lemma = token.lemma_candidate
+        resolved_lemma = query_lemma
         da_to_en_translation: str | None = None
         en_to_da_translation: str | None = None
         en_to_da_lemma: str | None = None
@@ -724,6 +781,11 @@ class WordbankUseCase:
                 normalized_translation = normalize_token(translated)
                 if self._normalize_comparable(normalized_translation) != self._normalize_comparable(normalized_query):
                     da_to_en_translation = normalized_translation
+            if da_to_en_translation is None:
+                for option in cor_add_options:
+                    if option.translation_label:
+                        da_to_en_translation = option.translation_label
+                        break
 
             reverse_translated = self._lookup_reverse_translation(normalized_query)
             if reverse_translated:
@@ -740,9 +802,13 @@ class WordbankUseCase:
             detected = self.detect_word_language(normalized_query)
             query_language = detected.language
             query_language_confidence = max(0.0, min(1.0, float(detected.confidence)))
+        if cor_add_options:
+            query_language = "da"
+            query_language_confidence = max(float(query_language_confidence or 0.0), 0.95)
 
         if (
             token.match_source == "none"
+            and not cor_add_options
             and en_to_da_translation
             and (
                 query_language == "en"
@@ -755,12 +821,12 @@ class WordbankUseCase:
             resolved_lemma = en_to_da_translation
 
         word_actions = build_word_action_suggestions(
-            classification=token.classification,
+            classification=classification,
             query_surface=token.normalized_token or normalized_query,
-            query_lemma=token.lemma_candidate,
+            query_lemma=query_lemma,
             query_pos_tag=query_pos_tag,
             query_morphology=query_morphology,
-            matched_lemma=token.matched_lemma,
+            matched_lemma=matched_lemma,
             da_to_en_translation=da_to_en_translation,
             en_to_da_translation=en_to_da_translation,
             en_to_da_lemma=en_to_da_lemma,
@@ -769,12 +835,19 @@ class WordbankUseCase:
             query_language=query_language,
             query_language_confidence=query_language_confidence,
         )
+        word_actions = self._replace_danish_add_actions(
+            word_actions,
+            classification=classification,
+            matched_lemma=matched_lemma,
+            cor_add_options=cor_add_options,
+            fallback_translation=da_to_en_translation,
+        )
 
         return ResolveQueryResponse(
             query_surface=token.normalized_token or normalized_query,
-            query_lemma=token.lemma_candidate,
-            classification=token.classification,
-            matched_lemma=token.matched_lemma,
+            query_lemma=query_lemma,
+            classification=classification,
+            matched_lemma=matched_lemma,
             matched_lemma_summary=matched_lemma_summary,
             query_pos_tag=query_pos_tag,
             query_morphology=query_morphology,
@@ -875,6 +948,13 @@ class WordbankUseCase:
                 source_word=normalized_source,
                 language="ambiguous",
                 confidence=0.25,
+            )
+
+        if self._cor_entries_for_surface(normalized_source):
+            return DetectWordLanguageResponse(
+                source_word=normalized_source,
+                language="da",
+                confidence=0.95,
             )
 
         detected_source_language = self._lookup_detected_source_language(normalized_source)
@@ -1191,16 +1271,34 @@ class WordbankUseCase:
     def _extract_pos_and_morphology_batch(self, values: list[str]) -> dict[str, tuple[str | None, str | None]]:
         return {value: self._extract_pos_and_morphology(value) for value in values}
 
-    def _extract_pos_and_morphology(self, value: str) -> tuple[str | None, str | None]:
-        cached = self._pos_morph_cache.get(value)
+    def _extract_pos_and_morphology(
+        self,
+        value: str,
+        *,
+        preferred_pos_tag: str | None = None,
+    ) -> tuple[str | None, str | None]:
+        normalized_value = normalize_token(value)
+        normalized_preferred_pos = self._normalize_optional_pos_tag(preferred_pos_tag)
+        cache_key = (normalized_value, normalized_preferred_pos)
+        cached = self._pos_morph_cache.get(cache_key)
         if cached is not None:
             return cached
 
+        cor_entry = self._best_cor_entry(
+            self._cor_entries_for_surface(normalized_value),
+            normalized_surface=normalized_value,
+            preferred_pos_tag=normalized_preferred_pos,
+        )
+        if cor_entry is not None:
+            extracted = (cor_entry.pos_tag, cor_entry.morphology)
+            self._pos_morph_cache[cache_key] = extracted
+            return extracted
+
         if self._nlp_adapter is None:
-            self._pos_morph_cache[value] = (None, None)
+            self._pos_morph_cache[cache_key] = (None, None)
             return None, None
 
-        for token in self._nlp_adapter.tokenize(value):
+        for token in self._nlp_adapter.tokenize(normalized_value):
             surface = token.text
             if not surface.strip():
                 continue
@@ -1209,11 +1307,233 @@ class WordbankUseCase:
             if not is_wordlike_token(surface):
                 continue
             extracted = (token.pos, token.morphology)
-            self._pos_morph_cache[value] = extracted
+            self._pos_morph_cache[cache_key] = extracted
             return extracted
 
-        self._pos_morph_cache[value] = (None, None)
+        self._pos_morph_cache[cache_key] = (None, None)
         return None, None
+
+    @staticmethod
+    def _normalize_optional_pos_tag(value: str | None) -> str | None:
+        if not isinstance(value, str):
+            return None
+        cleaned = value.strip().upper()
+        if not cleaned:
+            return None
+        return cleaned
+
+    @staticmethod
+    def _normalize_optional_morphology(value: str | None) -> str | None:
+        if not isinstance(value, str):
+            return None
+        cleaned = value.strip()
+        if not cleaned:
+            return None
+        return cleaned
+
+    def _find_saved_lemma(self, candidates: list[str]) -> str | None:
+        normalized_candidates = []
+        seen: set[str] = set()
+        for candidate in candidates:
+            normalized = normalize_token(candidate)
+            if not normalized or normalized in seen:
+                continue
+            seen.add(normalized)
+            normalized_candidates.append(normalized)
+        if not normalized_candidates:
+            return None
+
+        placeholders = ", ".join("?" for _ in normalized_candidates)
+        with get_connection(self._db_path) as conn:
+            rows = conn.execute(
+                f"""
+                SELECT lemma
+                FROM lexemes
+                WHERE lemma IN ({placeholders})
+                ORDER BY lemma COLLATE NOCASE
+                """,
+                tuple(normalized_candidates),
+            ).fetchall()
+        saved = {row["lemma"] for row in rows}
+        for candidate in normalized_candidates:
+            if candidate in saved:
+                return candidate
+        return None
+
+    def _replace_danish_add_actions(
+        self,
+        actions: list[WordActionSuggestion],
+        *,
+        classification: Literal["known", "variation", "typo_likely", "uncertain", "new"],
+        matched_lemma: str | None,
+        cor_add_options: list[_CORAddOption],
+        fallback_translation: str | None,
+    ) -> list[WordActionSuggestion]:
+        if classification in {"known", "variation"} or matched_lemma:
+            return actions
+        if not cor_add_options:
+            return actions
+
+        existing_da_actions = [
+            action
+            for action in actions
+            if action.action_type == "add_as_new" and action.direction == "da_to_en"
+        ]
+        preserved_actions = [
+            action
+            for action in actions
+            if not (action.action_type == "add_as_new" and action.direction == "da_to_en")
+        ]
+        default_direction_label = (
+            existing_da_actions[0].direction_label
+            if existing_da_actions and existing_da_actions[0].direction_label
+            else "Danish -> English"
+        )
+
+        replaced_actions: list[WordActionSuggestion] = []
+        seen_keys: set[tuple[str, str, str | None, str | None]] = set()
+        for option in cor_add_options:
+            comparable_surface = _normalize_action_value(option.surface)
+            comparable_lemma = _normalize_action_value(option.lemma)
+            key = (comparable_surface, comparable_lemma, option.pos_tag, option.morphology)
+            if key in seen_keys:
+                continue
+            seen_keys.add(key)
+            label = option.translation_label or fallback_translation or option.surface
+            replaced_actions.append(
+                WordActionSuggestion(
+                    action_type="add_as_new",
+                    surface=option.surface,
+                    lemma=option.lemma,
+                    translation_label=label,
+                    direction="da_to_en",
+                    direction_label=default_direction_label,
+                    pos_tag=option.pos_tag,
+                    morphology=option.morphology,
+                    show_lemma=comparable_surface != comparable_lemma,
+                )
+            )
+
+        if not replaced_actions:
+            return actions
+        return replaced_actions + preserved_actions
+
+    def _build_cor_add_options(
+        self,
+        normalized_query: str,
+        *,
+        include_translations: bool,
+    ) -> list[_CORAddOption]:
+        if not normalized_query:
+            return []
+
+        entries = self._cor_entries_for_surface(normalized_query)
+        if not entries:
+            return []
+
+        # One add-option per POS, not per lemma+sense, so search UI presents a clean POS choice.
+        by_pos: dict[str | None, COREntry] = {}
+        for entry in entries:
+            if _normalize_action_value(entry.full_form) != _normalize_action_value(normalized_query):
+                continue
+            key = entry.pos_tag
+            current = by_pos.get(key)
+            if current is None:
+                by_pos[key] = entry
+                continue
+            if self._cor_entry_priority(entry, normalized_query) < self._cor_entry_priority(current, normalized_query):
+                by_pos[key] = entry
+
+        options: list[_CORAddOption] = []
+        for entry in sorted(
+            by_pos.values(),
+            key=lambda item: self._cor_entry_priority(item, normalized_query),
+        ):
+            translation_label = None
+            if include_translations:
+                translation_label = self._lookup_translation_for_cor_entry(entry, normalized_query)
+            options.append(
+                _CORAddOption(
+                    surface=normalized_query,
+                    lemma=entry.lemma,
+                    pos_tag=entry.pos_tag,
+                    morphology=entry.morphology,
+                    translation_label=translation_label,
+                )
+            )
+
+        return options
+
+    def _lookup_translation_for_cor_entry(self, entry: COREntry, normalized_query: str) -> str | None:
+        candidates: list[str] = []
+        if entry.pos_tag == "VERB":
+            infinitive_hint = f"at {entry.lemma}".strip()
+            candidates.append(infinitive_hint)
+        candidates.append(entry.lemma)
+        candidates.append(normalized_query)
+
+        seen: set[str] = set()
+        for candidate in candidates:
+            normalized_candidate = normalize_token(candidate)
+            if not normalized_candidate or normalized_candidate in seen:
+                continue
+            seen.add(normalized_candidate)
+            translated = self._lookup_translation(normalized_candidate)
+            if translated:
+                return translated
+        return None
+
+    def _cor_entries_for_surface(self, normalized_value: str) -> list[COREntry]:
+        if self._cor_lexicon_service is None:
+            return []
+        return self._cor_lexicon_service.lookup_full_form(normalized_value)
+
+    def _best_cor_entry(
+        self,
+        entries: list[COREntry],
+        *,
+        normalized_surface: str,
+        preferred_pos_tag: str | None,
+    ) -> COREntry | None:
+        if not entries:
+            return None
+        filtered = entries
+        if preferred_pos_tag:
+            preferred = [entry for entry in entries if entry.pos_tag == preferred_pos_tag]
+            if preferred:
+                filtered = preferred
+        return min(filtered, key=lambda entry: self._cor_entry_priority(entry, normalized_surface))
+
+    def _cor_entry_priority(self, entry: COREntry, normalized_surface: str) -> tuple[int, int, int, int, str, str]:
+        if entry.norm_status == "N":
+            norm_rank = 0
+        elif entry.norm_status == "K":
+            norm_rank = 1
+        elif entry.norm_status == "U":
+            norm_rank = 2
+        else:
+            norm_rank = 3
+        is_exact_surface = 0 if _normalize_action_value(entry.full_form) == _normalize_action_value(normalized_surface) else 1
+        lemma_matches_surface = 0 if _normalize_action_value(entry.lemma) == _normalize_action_value(normalized_surface) else 1
+        noun_number_rank = 2
+        if entry.pos_tag == "NOUN":
+            morphology = entry.morphology or ""
+            if "Number=Sing" in morphology:
+                noun_number_rank = 0
+            elif "Number=Plur" in morphology:
+                noun_number_rank = 1
+        has_pos = 0 if entry.pos_tag else 1
+        has_morph = 0 if entry.morphology else 1
+        return (
+            is_exact_surface,
+            norm_rank,
+            lemma_matches_surface,
+            noun_number_rank,
+            has_pos,
+            has_morph,
+            entry.lemma,
+            entry.cor_id,
+        )
 
 
     def _lookup_translation(self, source_word: str) -> str | None:
@@ -1405,9 +1725,12 @@ class WordbankUseCase:
         return True
 
     def _invalidate_pos_cache(self, lemma: str, surface: str | None) -> None:
-        self._pos_morph_cache.pop(lemma, None)
+        values = {normalize_token(lemma)}
         if surface:
-            self._pos_morph_cache.pop(surface, None)
+            values.add(normalize_token(surface))
+        keys_to_delete = [key for key in self._pos_morph_cache if key[0] in values]
+        for key in keys_to_delete:
+            self._pos_morph_cache.pop(key, None)
 
     def _store_lexeme_metadata(self, lexeme_id: int, pos_tag: str | None, morphology: str | None) -> None:
         with get_connection(self._db_path) as conn:

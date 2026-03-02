@@ -8,6 +8,8 @@ from pydantic import BaseModel, Field
 class AddWordRequest(BaseModel):
     surface_token: str = Field(..., min_length=1)
     lemma_candidate: str | None = None
+    pos_tag: str | None = None
+    morphology: str | None = None
 
 
 class GenerateTranslationRequest(BaseModel):

@@ -27,6 +27,8 @@ class Settings:
     translation_azure_region: str | None = None
     translation_azure_endpoint: str | None = None
     translation_azure_api_version: str = "3.0"
+    cor_lookup_enabled: bool = False
+    cor_lookup_timeout_seconds: float = 4.0
     word_verification_enabled: bool = False
     word_verification_gemini_api_key: str | None = None
     word_verification_gemini_model: str = "gemini-3-flash-preview"
@@ -66,6 +68,8 @@ def load_settings() -> Settings:
         translation_azure_region=os.getenv("DANOTE_TRANSLATION_AZURE_REGION"),
         translation_azure_endpoint=os.getenv("DANOTE_TRANSLATION_AZURE_ENDPOINT"),
         translation_azure_api_version=os.getenv("DANOTE_TRANSLATION_AZURE_API_VERSION", "3.0"),
+        cor_lookup_enabled=os.getenv("DANOTE_COR_LOOKUP_ENABLED", "1").lower() not in {"0", "false", "no"},
+        cor_lookup_timeout_seconds=float(os.getenv("DANOTE_COR_LOOKUP_TIMEOUT_SECONDS", "4.0")),
         word_verification_enabled=os.getenv("DANOTE_WORD_VERIFICATION_ENABLED", "1").lower()
         not in {"0", "false", "no"},
         word_verification_gemini_api_key=os.getenv(

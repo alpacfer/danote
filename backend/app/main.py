@@ -13,6 +13,7 @@ from app.core.config import Settings, load_settings
 from app.db.migrations import apply_migrations
 from app.core.logging import configure_logging
 from app.nlp.adapter import NLPAdapter
+from app.services.cor import CORLexiconService
 from app.services.translation import AzureTranslationService
 from app.services.tts import AzureSpeechTTSService
 from app.services.typo.typo_engine import TypoEngine
@@ -65,6 +66,17 @@ def create_app(
                 extra={"nlp_model": app_settings.nlp_model},
             )
         app.state.nlp_adapter = adapter
+        app.state.cor_lexicon_service = None
+        app.state.cor_lookup_error = None
+        if app_settings.cor_lookup_enabled:
+            try:
+                app.state.cor_lexicon_service = CORLexiconService(
+                    timeout_seconds=app_settings.cor_lookup_timeout_seconds
+                )
+            except Exception:
+                logger.exception("backend_cor_lookup_startup_failed")
+                app.state.cor_lookup_error = "Failed to initialize COR lookup service."
+                app.state.cor_lexicon_service = None
         typo_engine = None
         if app_settings.typo_enabled and app.state.db_ready:
             resources_path = Path(__file__).resolve().parents[1] / "resources" / "dictionaries"
@@ -208,9 +220,15 @@ def create_app(
                     if app.state.tts_service
                     else None
                 ),
+                "cor_lookup_enabled": app_settings.cor_lookup_enabled,
+                "cor_lookup_error": app.state.cor_lookup_error,
             },
         )
         yield
+        cor_lexicon_service = getattr(app.state, "cor_lexicon_service", None)
+        cor_close = getattr(cor_lexicon_service, "close", None)
+        if callable(cor_close):
+            cor_close()
         translation_service = getattr(app.state, "translation_service", None)
         close = getattr(translation_service, "close", None)
         if callable(close):
@@ -231,6 +249,8 @@ def create_app(
     app.state.nlp_ready = False
     app.state.nlp_error = None
     app.state.nlp_adapter = None
+    app.state.cor_lexicon_service = None
+    app.state.cor_lookup_error = None
     app.state.typo_engine = None
     app.state.translation_service = None
     app.state.translation_error = None

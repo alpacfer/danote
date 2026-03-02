@@ -8,6 +8,7 @@ from app.db.migrations import apply_migrations, get_connection
 from app.services.use_cases.analyze import AnalyzeNoteUseCase, strip_inline_comments
 from app.services.use_cases.sentencebank import SentencebankUseCase
 from app.services.use_cases.wordbank import WordbankUseCase
+from app.services.cor import COREntry
 from app.nlp.adapter import NLPToken
 from app.services.tts import PronunciationAudio
 
@@ -49,6 +50,14 @@ class FakeNLPAdapter:
 
     def metadata(self) -> dict[str, str]:
         return {"adapter": "fake"}
+
+
+class FakeCORLexiconService:
+    def __init__(self, mapping: dict[str, list[COREntry]]):
+        self._mapping = {key.lower(): value for key, value in mapping.items()}
+
+    def lookup_full_form(self, value: str) -> list[COREntry]:
+        return list(self._mapping.get(value.lower(), []))
 
 
 class FakeVerificationService:
@@ -587,6 +596,187 @@ def test_wordbank_resolve_query_generates_translation_and_language_signals(tmp_p
     assert resolved.resolved_lemma == "hus"
     assert resolved.query_language == "en"
     assert resolved.query_language_confidence == 0.82
+
+
+def test_wordbank_resolve_query_expands_new_word_actions_with_cor_pos_options(tmp_path: Path) -> None:
+    cor_service = FakeCORLexiconService(
+        {
+            "gift": [
+                COREntry(
+                    cor_id="COR.1",
+                    lemma="gift",
+                    full_form="gift",
+                    ordklasse="sb",
+                    grammatical_function="sb.fk.sg.ubest",
+                    glosse=None,
+                    norm_status="N",
+                    pos_tag="NOUN",
+                    morphology="Gender=Com|Number=Sing|Definite=Ind",
+                ),
+                COREntry(
+                    cor_id="COR.2",
+                    lemma="gifte",
+                    full_form="gift",
+                    ordklasse="vb",
+                    grammatical_function="vb.imp",
+                    glosse=None,
+                    norm_status="N",
+                    pos_tag="VERB",
+                    morphology="Mood=Imp|VerbForm=Fin",
+                ),
+            ]
+        }
+    )
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_lexicon_service=cor_service,
+        translation_service=FakeTranslationService(
+            {
+                "gift": "poison",
+                "at gifte": "marry",
+            }
+        ),
+    )
+
+    resolved = use_case.resolve_query("gift", include_language_detection=True)
+
+    assert resolved.classification == "new"
+    assert resolved.query_lemma == "gift"
+    assert resolved.query_language == "da"
+    assert (resolved.query_language_confidence or 0) >= 0.9
+    assert len(resolved.word_actions) == 2
+    assert [action.action_type for action in resolved.word_actions] == ["add_as_new", "add_as_new"]
+    assert [action.pos_tag for action in resolved.word_actions] == ["NOUN", "VERB"]
+    assert [action.lemma for action in resolved.word_actions] == ["gift", "gifte"]
+    assert [action.translation_label for action in resolved.word_actions] == ["poison", "marry"]
+
+
+def test_wordbank_resolve_query_returns_single_best_option_per_pos(tmp_path: Path) -> None:
+    cor_service = FakeCORLexiconService(
+        {
+            "lærer": [
+                COREntry(
+                    cor_id="COR.verb",
+                    lemma="lære",
+                    full_form="lærer",
+                    ordklasse="vb",
+                    grammatical_function="vb.prs.akt",
+                    glosse=None,
+                    norm_status="N",
+                    pos_tag="VERB",
+                    morphology="Tense=Pres|VerbForm=Fin|Voice=Act",
+                ),
+                COREntry(
+                    cor_id="COR.noun.pl",
+                    lemma="lære",
+                    full_form="lærer",
+                    ordklasse="sb",
+                    grammatical_function="sb.fk.pl.ubest",
+                    glosse=None,
+                    norm_status="N",
+                    pos_tag="NOUN",
+                    morphology="Gender=Com|Number=Plur|Definite=Ind",
+                ),
+                COREntry(
+                    cor_id="COR.noun.sg",
+                    lemma="lærer",
+                    full_form="lærer",
+                    ordklasse="sb",
+                    grammatical_function="sb.fk.sg.ubest",
+                    glosse=None,
+                    norm_status="N",
+                    pos_tag="NOUN",
+                    morphology="Gender=Com|Number=Sing|Definite=Ind",
+                ),
+            ]
+        }
+    )
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_lexicon_service=cor_service,
+        translation_service=FakeTranslationService(
+            {
+                "at lære": "to learn",
+                "lærer": "teacher",
+                "lære": "learn",
+            }
+        ),
+    )
+
+    resolved = use_case.resolve_query("lærer", include_language_detection=True)
+
+    assert len(resolved.word_actions) == 2
+    assert [action.pos_tag for action in resolved.word_actions] == ["NOUN", "VERB"]
+    assert [action.lemma for action in resolved.word_actions] == ["lærer", "lære"]
+    assert [action.translation_label for action in resolved.word_actions] == ["teacher", "to learn"]
+
+
+def test_wordbank_add_word_applies_selected_pos_and_morphology(tmp_path: Path) -> None:
+    use_case = WordbankUseCase(_db_path(tmp_path))
+
+    use_case.add_word(
+        "Gift",
+        "gifte",
+        pos_tag="verb",
+        morphology="Mood=Imp|VerbForm=Fin",
+    )
+
+    details = use_case.get_lemma_details("gifte")
+    assert details.pos_tag == "VERB"
+    assert details.morphology == "Mood=Imp|VerbForm=Fin"
+    assert details.surface_forms[0].pos_tag == "VERB"
+    assert details.surface_forms[0].morphology == "Mood=Imp|VerbForm=Fin"
+
+
+def test_wordbank_resolve_query_prefers_cor_metadata_over_runtime_nlp(tmp_path: Path) -> None:
+    class ContradictingNLPAdapter:
+        def tokenize(self, text: str) -> list[NLPToken]:
+            return [
+                NLPToken(
+                    text=text,
+                    lemma=text.lower(),
+                    pos="NOUN",
+                    morphology="Gender=Neut|Number=Sing",
+                    is_punctuation=False,
+                )
+            ]
+
+        def lemma_candidates_for_token(self, token: str) -> list[str]:
+            return [token.lower()]
+
+        def lemma_for_token(self, token: str) -> str | None:
+            return token.lower()
+
+        def metadata(self) -> dict[str, str]:
+            return {"adapter": "contradicting"}
+
+    cor_service = FakeCORLexiconService(
+        {
+            "løb": [
+                COREntry(
+                    cor_id="COR.3",
+                    lemma="løbe",
+                    full_form="løb",
+                    ordklasse="vb",
+                    grammatical_function="vb.præt.akt",
+                    glosse=None,
+                    norm_status="N",
+                    pos_tag="VERB",
+                    morphology="Tense=Past|VerbForm=Fin|Voice=Act",
+                )
+            ]
+        }
+    )
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        nlp_adapter=ContradictingNLPAdapter(),
+        cor_lexicon_service=cor_service,
+    )
+
+    resolved = use_case.resolve_query("løb", include_translations=False, include_language_detection=False)
+
+    assert resolved.query_pos_tag == "VERB"
+    assert resolved.query_morphology == "Tense=Past|VerbForm=Fin|Voice=Act"
 
 
 

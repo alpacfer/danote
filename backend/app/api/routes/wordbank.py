@@ -49,7 +49,12 @@ def add_word(payload: AddWordRequest, request: Request) -> AddWordResponse:
     _require_db_ready(request)
 
     try:
-        return build_wordbank_use_case(request).add_word(payload.surface_token, payload.lemma_candidate)
+        return build_wordbank_use_case(request).add_word(
+            payload.surface_token,
+            payload.lemma_candidate,
+            pos_tag=payload.pos_tag,
+            morphology=payload.morphology,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except RuntimeError as exc:

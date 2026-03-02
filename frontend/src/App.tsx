@@ -950,6 +950,10 @@ type AppSidebarProps = {
     surfaceToken: string,
     lemmaCandidate: string | null,
     feedbackContext?: SearchFeedbackContext,
+    metadata?: {
+      posTag?: string | null
+      morphology?: string | null
+    },
   ) => Promise<string | null>
 }
 
@@ -1132,18 +1136,30 @@ function AppSidebar({
   }, [normalizedQuery, resolvedQueryCandidate])
 
   useEffect(() => {
+    let cancelled = false
+    const commitSearchMatches = (nextMatches: Array<{ lemma: WordbankLemma; matchSurface: string | null }>) => {
+      window.setTimeout(() => {
+        if (!cancelled) {
+          setSearchApiMatches(nextMatches)
+        }
+      }, 0)
+    }
+
     if (!normalizedQuery) {
-      setSearchApiMatches([])
-      return
+      commitSearchMatches([])
+      return () => {
+        cancelled = true
+      }
     }
 
     const cached = wordbankSearchCacheRef.current.get(normalizedQuery)
     if (cached) {
-      setSearchApiMatches(cached)
-      return
+      commitSearchMatches(cached)
+      return () => {
+        cancelled = true
+      }
     }
 
-    let cancelled = false
     const controller = new AbortController()
     const timeoutId = window.setTimeout(() => {
       void (async () => {
@@ -1154,7 +1170,7 @@ function AppSidebar({
           )
           if (!response.ok) {
             if (!cancelled) {
-              setSearchApiMatches([])
+              commitSearchMatches([])
             }
             return
           }
@@ -1172,10 +1188,10 @@ function AppSidebar({
             matchSurface: item.match_surface ?? null,
           }))
           wordbankSearchCacheRef.current.set(normalizedQuery, mapped)
-          setSearchApiMatches(mapped)
+          commitSearchMatches(mapped)
         } catch {
           if (!cancelled) {
-            setSearchApiMatches([])
+            commitSearchMatches([])
           }
         }
       })()
@@ -1512,15 +1528,23 @@ function AppSidebar({
                 ))}
                 {newWordOptions.map((option) => (
                   <CommandItem
-                    key={`${option.action_type}-${option.surface}-${option.lemma}-${option.direction}`}
+                    key={`${option.action_type}-${option.surface}-${option.lemma}-${option.direction}-${option.pos_tag ?? ""}-${option.morphology ?? ""}`}
                     value={`new-word-${option.surface} ${option.lemma} ${option.translation_label ?? option.surface} ${option.direction_label ?? option.direction} ${normalizedQuery}`}
                     onSelect={() => {
                       void (async () => {
-                        const addedLemma = await onAddWordFromSearch(option.surface, option.lemma, {
-                          rawToken: normalizedQuery,
-                          predictedStatus: activeResolvedCandidate?.classification ?? "new",
-                          suggestionsShown: newWordOptions.map((item) => item.translation_label ?? item.surface),
-                        })
+                        const addedLemma = await onAddWordFromSearch(
+                          option.surface,
+                          option.lemma,
+                          {
+                            rawToken: normalizedQuery,
+                            predictedStatus: activeResolvedCandidate?.classification ?? "new",
+                            suggestionsShown: newWordOptions.map((item) => item.translation_label ?? item.surface),
+                          },
+                          {
+                            posTag: option.pos_tag,
+                            morphology: option.morphology,
+                          },
+                        )
                         if (addedLemma) {
                           setIsSearchOpen(false)
                           setSearchQuery("")
@@ -1588,11 +1612,19 @@ function AppSidebar({
                     value={`add-variation-${addVariationResult.surface} ${addVariationResult.lemma}`}
                     onSelect={() => {
                       void (async () => {
-                        const addedLemma = await onAddWordFromSearch(addVariationResult.surface, addVariationResult.lemma, {
-                          rawToken: normalizedQuery,
-                          predictedStatus: activeResolvedCandidate?.classification ?? "variation",
-                          suggestionsShown: [addVariationResult.translation_label ?? addVariationResult.surface],
-                        })
+                        const addedLemma = await onAddWordFromSearch(
+                          addVariationResult.surface,
+                          addVariationResult.lemma,
+                          {
+                            rawToken: normalizedQuery,
+                            predictedStatus: activeResolvedCandidate?.classification ?? "variation",
+                            suggestionsShown: [addVariationResult.translation_label ?? addVariationResult.surface],
+                          },
+                          {
+                            posTag: addVariationResult.pos_tag,
+                            morphology: addVariationResult.morphology,
+                          },
+                        )
                         if (addedLemma) {
                           setIsSearchOpen(false)
                           setSearchQuery("")
@@ -2593,18 +2625,31 @@ function App() {
     }
   }
 
-  async function addWordToWordbank(surfaceToken: string, lemmaCandidate: string | null): Promise<AddWordResponse> {
+  async function addWordToWordbank(
+    surfaceToken: string,
+    lemmaCandidate: string | null,
+    metadata?: {
+      posTag?: string | null
+      morphology?: string | null
+    },
+  ): Promise<AddWordResponse> {
     const normalizedSurfaceToken = normalizeSearchWord(surfaceToken)
     const normalizedLemmaCandidate = lemmaCandidate ? normalizeSearchWord(lemmaCandidate) : null
+    const normalizedPosTag = metadata?.posTag?.trim() || null
+    const normalizedMorphology = metadata?.morphology?.trim() || null
     const response = await fetch(`${BACKEND_URL}/api/wordbank/lexemes`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        surface_token: normalizedSurfaceToken,
-        lemma_candidate: normalizedLemmaCandidate,
-      }),
+      body: JSON.stringify(
+        {
+          surface_token: normalizedSurfaceToken,
+          lemma_candidate: normalizedLemmaCandidate,
+          ...(normalizedPosTag ? { pos_tag: normalizedPosTag } : {}),
+          ...(normalizedMorphology ? { morphology: normalizedMorphology } : {}),
+        },
+      ),
     })
 
     if (!response.ok) {
@@ -2626,7 +2671,10 @@ function App() {
     setAddingTokens((current) => ({ ...current, [loadingKey]: true }))
 
     try {
-      const payload = await addWordToWordbank(requestSurface, requestLemma)
+      const payload = await addWordToWordbank(requestSurface, requestLemma, {
+        posTag: action?.pos_tag,
+        morphology: action?.morphology,
+      })
       toast.success(payload.message)
       void verifyWordInBackground(payload.stored_lemma, payload.stored_surface_form)
       void generatePronunciationInBackground(payload.stored_lemma, payload.stored_surface_form)
@@ -2657,9 +2705,13 @@ function App() {
     surfaceToken: string,
     lemmaCandidate: string | null,
     feedbackContext?: SearchFeedbackContext,
+    metadata?: {
+      posTag?: string | null
+      morphology?: string | null
+    },
   ): Promise<string | null> {
     try {
-      const payload = await addWordToWordbank(surfaceToken, lemmaCandidate)
+      const payload = await addWordToWordbank(surfaceToken, lemmaCandidate, metadata)
       toast.success(payload.message)
       void verifyWordInBackground(payload.stored_lemma, payload.stored_surface_form)
       void generatePronunciationInBackground(payload.stored_lemma, payload.stored_surface_form)

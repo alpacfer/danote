@@ -47,6 +47,14 @@ Starter seed includes lexemes used by tests and prototype examples:
   - NLP pipeline is loaded during app startup
   - startup logs include loaded NLP adapter + model + package versions
 
+### COR Lexicon Search
+
+- Word search enrichment (`/api/wordbank/resolve-query`) uses COR (`ordregister.dk`) when enabled.
+- COR is used to infer lemma, POS, and morphology for Danish search terms, including multi-POS add options.
+- Runtime flags:
+  - `DANOTE_COR_LOOKUP_ENABLED=1` (default when using env-based `load_settings`)
+  - `DANOTE_COR_LOOKUP_TIMEOUT_SECONDS=4.0`
+
 ### NLP Model and Compatibility
 
 Default model (fixed):
