@@ -14,6 +14,7 @@ from app.db.migrations import apply_migrations
 from app.core.logging import configure_logging
 from app.nlp.adapter import NLPAdapter
 from app.services.cor import CORLexiconService
+from app.services.cor_local import CORLocalLexiconService
 from app.services.translation import AzureTranslationService
 from app.services.tts import AzureSpeechTTSService
 from app.services.typo.typo_engine import TypoEngine
@@ -68,6 +69,10 @@ def create_app(
         app.state.nlp_adapter = adapter
         app.state.cor_lexicon_service = None
         app.state.cor_lookup_error = None
+        app.state.cor_local_lexicon_service = CORLocalLexiconService(
+            db_path=app_settings.cor_local_db_path
+        )
+        app.state.cor_local_lookup_error = None
         if app_settings.cor_lookup_enabled:
             try:
                 app.state.cor_lexicon_service = CORLexiconService(
@@ -222,6 +227,8 @@ def create_app(
                 ),
                 "cor_lookup_enabled": app_settings.cor_lookup_enabled,
                 "cor_lookup_error": app.state.cor_lookup_error,
+                "cor_local_db_path": str(app_settings.cor_local_db_path),
+                "cor_local_lookup_error": app.state.cor_local_lookup_error,
             },
         )
         yield
@@ -251,6 +258,8 @@ def create_app(
     app.state.nlp_adapter = None
     app.state.cor_lexicon_service = None
     app.state.cor_lookup_error = None
+    app.state.cor_local_lexicon_service = None
+    app.state.cor_local_lookup_error = None
     app.state.typo_engine = None
     app.state.translation_service = None
     app.state.translation_error = None

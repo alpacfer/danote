@@ -193,6 +193,41 @@ class WordbankSearchResponse(BaseModel):
     items: list[WordbankSearchItem]
 
 
+class CORSearchVariant(BaseModel):
+    cor_id: str
+    form: str
+    lemma: str
+    gloss: str | None = None
+    gloss_translation: str | None = None
+    gram_raw: str
+    norm: str | None = None
+    lemma_idx: int
+    gram_code: int
+    variation: int
+    pos_tag: str | None = None
+    morphology: str | None = None
+    features: dict[str, str] = Field(default_factory=dict)
+    extra_tags: list[str] = Field(default_factory=list)
+    lemma_translation: str | None = None
+
+
+class CORSearchGroup(BaseModel):
+    lemma: str
+    gloss: str | None = None
+    pos_tag: str | None = None
+    variants: list[CORSearchVariant] = Field(default_factory=list)
+
+
+class CORSearchFormResponse(BaseModel):
+    form: str
+    groups: list[CORSearchGroup] = Field(default_factory=list)
+
+
+class CORLemmaParadigmResponse(BaseModel):
+    lemma_idx: int
+    variants: list[CORSearchVariant] = Field(default_factory=list)
+
+
 class LemmaDetailsResponse(BaseModel):
     pos_tag: str | None = None
     morphology: str | None = None
@@ -202,6 +237,11 @@ class LemmaDetailsResponse(BaseModel):
         english_translation: str | None
         pos_tag: str | None = None
         morphology: str | None = None
+        lemma: str | None = None
+        lemma_translation: str | None = None
+        gloss: str | None = None
+        gloss_translation: str | None = None
+        gram_raw: str | None = None
         has_pronunciation: bool = False
 
     lemma: str

@@ -42,3 +42,4 @@ coverage/
 # Local SQLite files
 *.sqlite
 *.sqlite3
+!backend/resources/dictionaries/cor.sqlite

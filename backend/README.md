@@ -49,11 +49,33 @@ Starter seed includes lexemes used by tests and prototype examples:
 
 ### COR Lexicon Search
 
-- Word search enrichment (`/api/wordbank/resolve-query`) uses COR (`ordregister.dk`) when enabled.
-- COR is used to infer lemma, POS, and morphology for Danish search terms, including multi-POS add options.
+- Command search uses a local COR SQLite file built from
+  `backend/resources/dictionaries/cor1.5.1.0.tsv`.
+- Command-search endpoints:
+  - `GET /api/wordbank/search/cor-form?form=<word>&limit=<n>`
+  - `GET /api/wordbank/search/cor-lemma/{lemma_idx}?limit=<n>`
+- Search endpoint behavior:
+  - Danish-only lookup
+  - no translation calls
+  - no DaCy dependency
+  - grouped analyses by `(lemma, gloss, pos)` with per-variant morphology metadata
+- `resolve-query` remains available for non-command-search flows.
 - Runtime flags:
   - `DANOTE_COR_LOOKUP_ENABLED=1` (default when using env-based `load_settings`)
   - `DANOTE_COR_LOOKUP_TIMEOUT_SECONDS=4.0`
+  - `DANOTE_COR_LOCAL_DB_PATH=backend/resources/dictionaries/cor.sqlite`
+
+Build/update local COR SQLite:
+
+```bash
+cd backend
+PYTHONPATH=. .venv/bin/python scripts/build_cor_sqlite.py \
+  --input resources/dictionaries/cor1.5.1.0.tsv \
+  --output resources/dictionaries/cor.sqlite
+```
+
+When a new COR TSV version arrives, rerun the build command and replace the
+shipped `cor.sqlite`.
 
 ### NLP Model and Compatibility
 

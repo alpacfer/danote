@@ -9,6 +9,7 @@ from app.services.use_cases.analyze import AnalyzeNoteUseCase, strip_inline_comm
 from app.services.use_cases.sentencebank import SentencebankUseCase
 from app.services.use_cases.wordbank import WordbankUseCase
 from app.services.cor import COREntry
+from app.services.cor_local import CORLocalEntry
 from app.nlp.adapter import NLPToken
 from app.services.tts import PronunciationAudio
 
@@ -58,6 +59,22 @@ class FakeCORLexiconService:
 
     def lookup_full_form(self, value: str) -> list[COREntry]:
         return list(self._mapping.get(value.lower(), []))
+
+
+class FakeCORLocalLexiconService:
+    def __init__(
+        self,
+        by_form: dict[str, list[CORLocalEntry]] | None = None,
+        by_lemma_idx: dict[int, list[CORLocalEntry]] | None = None,
+    ):
+        self._by_form = {key.lower(): value for key, value in (by_form or {}).items()}
+        self._by_lemma_idx = by_lemma_idx or {}
+
+    def lookup_form(self, value: str, limit: int = 100) -> list[CORLocalEntry]:
+        return list(self._by_form.get(value.lower(), []))[:limit]
+
+    def lookup_lemma(self, lemma_idx: int, limit: int = 1000) -> list[CORLocalEntry]:
+        return list(self._by_lemma_idx.get(lemma_idx, []))[:limit]
 
 
 class FakeVerificationService:
@@ -711,6 +728,263 @@ def test_wordbank_resolve_query_returns_single_best_option_per_pos(tmp_path: Pat
     assert [action.translation_label for action in resolved.word_actions] == ["teacher", "to learn"]
 
 
+def test_wordbank_search_cor_form_groups_variants_by_lemma_gloss_pos(tmp_path: Path) -> None:
+    local_cor = FakeCORLocalLexiconService(
+        by_form={
+            "lærer": [
+                CORLocalEntry(
+                    cor_id="COR.49032.110.01",
+                    lemma="lærer",
+                    gloss="teacher",
+                    gram_raw="sb.fk.sg.ubest",
+                    form="lærer",
+                    norm="N",
+                    lemma_idx=49032,
+                    gram_code=110,
+                    variation=1,
+                    pos_tag="NOUN",
+                    morphology="Gender=Com|Number=Sing|Definite=Ind",
+                    features={"Gender": "Com", "Number": "Sing", "Definite": "Ind"},
+                    extra_tags=[],
+                ),
+                CORLocalEntry(
+                    cor_id="COR.49032.112.01",
+                    lemma="lærer",
+                    gloss="teacher",
+                    gram_raw="sb.fk.pl.ubest",
+                    form="lærere",
+                    norm="N",
+                    lemma_idx=49032,
+                    gram_code=112,
+                    variation=1,
+                    pos_tag="NOUN",
+                    morphology="Gender=Com|Number=Plur|Definite=Ind",
+                    features={"Gender": "Com", "Number": "Plur", "Definite": "Ind"},
+                    extra_tags=[],
+                ),
+                CORLocalEntry(
+                    cor_id="COR.30686.203.01",
+                    lemma="lære",
+                    gloss="learn",
+                    gram_raw="vb.præs.akt",
+                    form="lærer",
+                    norm="N",
+                    lemma_idx=30686,
+                    gram_code=203,
+                    variation=1,
+                    pos_tag="VERB",
+                    morphology="Tense=Pres|VerbForm=Fin|Voice=Act",
+                    features={"Tense": "Pres", "VerbForm": "Fin", "Voice": "Act"},
+                    extra_tags=[],
+                ),
+            ]
+        }
+    )
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_local_lexicon_service=local_cor,
+        translation_service=FakeTranslationService(
+            {
+                "en lærer": "a teacher",
+                "at lære": "to learn",
+            }
+        ),
+    )
+
+    response = use_case.search_cor_form("LÆRER", limit=100)
+
+    assert response.form == "lærer"
+    assert len(response.groups) == 2
+    assert response.groups[0].lemma == "lærer"
+    assert response.groups[0].gloss == "teacher"
+    assert response.groups[0].pos_tag == "NOUN"
+    assert [variant.cor_id for variant in response.groups[0].variants] == [
+        "COR.49032.110.01",
+        "COR.49032.112.01",
+    ]
+    assert response.groups[0].variants[0].lemma_translation == "teacher"
+    assert response.groups[0].variants[1].lemma_translation == "teacher"
+    assert response.groups[1].lemma == "lære"
+    assert response.groups[1].pos_tag == "VERB"
+    assert response.groups[1].variants[0].lemma_translation == "to learn"
+
+
+def test_wordbank_search_cor_form_translates_comma_separated_gloss_parts(tmp_path: Path) -> None:
+    local_cor = FakeCORLocalLexiconService(
+        by_form={
+            "glas": [
+                CORLocalEntry(
+                    cor_id="COR.50306.120.01",
+                    lemma="glas",
+                    gloss="drikkeglas, brilleglas",
+                    gram_raw="sb.itk.sg.ubest",
+                    form="glas",
+                    norm="N",
+                    lemma_idx=50306,
+                    gram_code=120,
+                    variation=1,
+                    pos_tag="NOUN",
+                    morphology="Gender=Neut|Number=Sing|Definite=Ind",
+                    features={"Gender": "Neut", "Number": "Sing", "Definite": "Ind"},
+                    extra_tags=[],
+                ),
+            ]
+        }
+    )
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_local_lexicon_service=local_cor,
+        translation_service=FakeTranslationService(
+            {
+                "et glas": "a glass",
+                "drikkeglas": "drinking glass",
+                "brilleglas": "eyeglass lens",
+            }
+        ),
+    )
+
+    response = use_case.search_cor_form("glas", limit=100)
+
+    assert response.groups[0].variants[0].gloss_translation == "drinking glass, eyeglass lens"
+
+
+def test_wordbank_search_cor_form_consolidates_same_entry_with_multiple_grams(tmp_path: Path) -> None:
+    local_cor = FakeCORLocalLexiconService(
+        by_form={
+            "glas": [
+                CORLocalEntry(
+                    cor_id="COR.50306.120.01",
+                    lemma="glas",
+                    gloss="drikkeglas, brilleglas",
+                    gram_raw="sb.itk.sg.ubest",
+                    form="glas",
+                    norm="N",
+                    lemma_idx=50306,
+                    gram_code=120,
+                    variation=1,
+                    pos_tag="NOUN",
+                    morphology="Gender=Neut|Number=Sing|Definite=Ind",
+                    features={"Gender": "Neut", "Number": "Sing", "Definite": "Ind"},
+                    extra_tags=[],
+                ),
+                CORLocalEntry(
+                    cor_id="COR.50306.122.01",
+                    lemma="glas",
+                    gloss="drikkeglas, brilleglas",
+                    gram_raw="sb.itk.pl.ubest",
+                    form="glas",
+                    norm="N",
+                    lemma_idx=50306,
+                    gram_code=122,
+                    variation=1,
+                    pos_tag="NOUN",
+                    morphology="Gender=Neut|Number=Plur|Definite=Ind",
+                    features={"Gender": "Neut", "Number": "Plur", "Definite": "Ind"},
+                    extra_tags=[],
+                ),
+            ]
+        }
+    )
+    use_case = WordbankUseCase(_db_path(tmp_path), cor_local_lexicon_service=local_cor)
+
+    response = use_case.search_cor_form("glas", limit=100)
+
+    assert len(response.groups) == 1
+    assert len(response.groups[0].variants) == 1
+    assert response.groups[0].variants[0].gram_raw == "sb.itk.sg.ubest | sb.itk.pl.ubest"
+
+
+def test_wordbank_search_cor_form_prefers_glossed_entries_within_same_pos(tmp_path: Path) -> None:
+    local_cor = FakeCORLocalLexiconService(
+        by_form={
+            "glas": [
+                CORLocalEntry(
+                    cor_id="COR.50306.120.01",
+                    lemma="glas",
+                    gloss="drikkeglas, brilleglas",
+                    gram_raw="sb.itk.sg.ubest",
+                    form="glas",
+                    norm="N",
+                    lemma_idx=50306,
+                    gram_code=120,
+                    variation=1,
+                    pos_tag="NOUN",
+                    morphology="Gender=Neut|Number=Sing|Definite=Ind",
+                    features={"Gender": "Neut", "Number": "Sing", "Definite": "Ind"},
+                    extra_tags=[],
+                ),
+                CORLocalEntry(
+                    cor_id="COR.46180.120.01",
+                    lemma="glas",
+                    gloss=None,
+                    gram_raw="sb.itk.sg.ubest",
+                    form="glas",
+                    norm="N",
+                    lemma_idx=46180,
+                    gram_code=120,
+                    variation=1,
+                    pos_tag="NOUN",
+                    morphology="Gender=Neut|Number=Sing|Definite=Ind",
+                    features={"Gender": "Neut", "Number": "Sing", "Definite": "Ind"},
+                    extra_tags=[],
+                ),
+            ]
+        }
+    )
+    use_case = WordbankUseCase(_db_path(tmp_path), cor_local_lexicon_service=local_cor)
+
+    response = use_case.search_cor_form("glas", limit=100)
+
+    assert len(response.groups) == 1
+    assert len(response.groups[0].variants) == 1
+    assert response.groups[0].variants[0].gloss == "drikkeglas, brilleglas"
+
+
+def test_wordbank_search_cor_lemma_paradigm_returns_all_forms(tmp_path: Path) -> None:
+    local_cor = FakeCORLocalLexiconService(
+        by_lemma_idx={
+            49032: [
+                CORLocalEntry(
+                    cor_id="COR.49032.110.01",
+                    lemma="lærer",
+                    gloss="teacher",
+                    gram_raw="sb.fk.sg.ubest",
+                    form="lærer",
+                    norm="N",
+                    lemma_idx=49032,
+                    gram_code=110,
+                    variation=1,
+                    pos_tag="NOUN",
+                    morphology="Gender=Com|Number=Sing|Definite=Ind",
+                    features={"Gender": "Com", "Number": "Sing", "Definite": "Ind"},
+                    extra_tags=[],
+                ),
+                CORLocalEntry(
+                    cor_id="COR.49032.112.01",
+                    lemma="lærer",
+                    gloss="teacher",
+                    gram_raw="sb.fk.pl.ubest",
+                    form="lærere",
+                    norm="N",
+                    lemma_idx=49032,
+                    gram_code=112,
+                    variation=1,
+                    pos_tag="NOUN",
+                    morphology="Gender=Com|Number=Plur|Definite=Ind",
+                    features={"Gender": "Com", "Number": "Plur", "Definite": "Ind"},
+                    extra_tags=[],
+                ),
+            ]
+        }
+    )
+    use_case = WordbankUseCase(_db_path(tmp_path), cor_local_lexicon_service=local_cor)
+
+    response = use_case.search_cor_lemma_paradigm(49032, limit=1000)
+
+    assert response.lemma_idx == 49032
+    assert [variant.form for variant in response.variants] == ["lærer", "lærere"]
+
+
 def test_wordbank_add_word_applies_selected_pos_and_morphology(tmp_path: Path) -> None:
     use_case = WordbankUseCase(_db_path(tmp_path))
 
@@ -726,6 +1000,23 @@ def test_wordbank_add_word_applies_selected_pos_and_morphology(tmp_path: Path) -
     assert details.morphology == "Mood=Imp|VerbForm=Fin"
     assert details.surface_forms[0].pos_tag == "VERB"
     assert details.surface_forms[0].morphology == "Mood=Imp|VerbForm=Fin"
+
+
+def test_wordbank_add_word_stores_lemma_form_when_surface_differs(tmp_path: Path) -> None:
+    use_case = WordbankUseCase(_db_path(tmp_path))
+
+    use_case.add_word(
+        "lærer",
+        "lære",
+        pos_tag="VERB",
+        morphology="Tense=Pres|VerbForm=Fin|Voice=Act",
+    )
+
+    details = use_case.get_lemma_details("lære")
+    forms = {item.form: item for item in details.surface_forms}
+    assert "lærer" in forms
+    assert "lære" in forms
+    assert forms["lærer"].morphology == "Tense=Pres|VerbForm=Fin|Voice=Act"
 
 
 def test_wordbank_resolve_query_prefers_cor_metadata_over_runtime_nlp(tmp_path: Path) -> None:

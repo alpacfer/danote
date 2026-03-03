@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import sqlite3
+
 from fastapi.testclient import TestClient
 
 from app.core.config import Settings
@@ -8,7 +10,7 @@ from app.main import create_app
 from app.services.tts import PronunciationAudio
 
 
-def _test_settings(db_path) -> Settings:
+def _test_settings(db_path, *, cor_local_db_path=None) -> Settings:
     return Settings(
         environment="test",
         app_name="danote-backend-test",
@@ -17,7 +19,43 @@ def _test_settings(db_path) -> Settings:
         db_path=db_path,
         nlp_model="da_dacy_small_trf-0.2.0",
         translation_enabled=False,
+        cor_local_db_path=cor_local_db_path or (db_path.parent / "cor.sqlite"),
     )
+
+
+def _seed_cor_local_db(db_path) -> None:
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            """
+            CREATE TABLE cor_entries (
+                cor_id TEXT PRIMARY KEY,
+                lemma TEXT NOT NULL,
+                gloss TEXT,
+                gram TEXT NOT NULL,
+                form TEXT NOT NULL,
+                norm TEXT NOT NULL,
+                lemma_idx INTEGER NOT NULL,
+                gram_code INTEGER NOT NULL,
+                variation INTEGER NOT NULL
+            )
+            """
+        )
+        conn.execute("CREATE INDEX idx_cor_form ON cor_entries(form)")
+        conn.execute("CREATE INDEX idx_cor_form_lower ON cor_entries(lower(form))")
+        conn.execute("CREATE INDEX idx_cor_lemma_idx ON cor_entries(lemma_idx)")
+        conn.execute("CREATE INDEX idx_cor_lemma_gram ON cor_entries(lemma, gram)")
+        conn.executemany(
+            """
+            INSERT INTO cor_entries (
+                cor_id, lemma, gloss, gram, form, norm, lemma_idx, gram_code, variation
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                ("COR.49032.110.01", "lærer", "teacher", "sb.fk.sg.ubest", "lærer", "N", 49032, 110, 1),
+                ("COR.49032.112.01", "lærer", "teacher", "sb.fk.pl.ubest", "lærere", "N", 49032, 112, 1),
+                ("COR.30686.203.01", "lære", "learn", "vb.præs.akt", "lærer", "N", 30686, 203, 1),
+            ),
+        )
 
 
 def test_add_word_inserts_lemma_and_surface_form(tmp_path, stub_nlp_adapter_factory) -> None:
@@ -166,6 +204,73 @@ def test_search_lemmas_returns_variation_matches(tmp_path, stub_nlp_adapter_fact
     ]
 
 
+def test_search_cor_form_returns_grouped_variants(tmp_path, stub_nlp_adapter_factory) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    cor_db_path = tmp_path / "cor.sqlite"
+    apply_migrations(db_path)
+    _seed_cor_local_db(cor_db_path)
+    app = create_app(
+        _test_settings(db_path, cor_local_db_path=cor_db_path),
+        nlp_adapter_factory=stub_nlp_adapter_factory,
+    )
+
+    with TestClient(app) as client:
+        response = client.get("/api/wordbank/search/cor-form", params={"form": "LÆRER"})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["form"] == "lærer"
+    assert len(payload["groups"]) == 2
+    by_key = {(item["lemma"], item["pos_tag"]): item for item in payload["groups"]}
+    noun_group = by_key[("lærer", "NOUN")]
+    assert noun_group["gloss"] == "teacher"
+    assert [item["cor_id"] for item in noun_group["variants"]] == ["COR.49032.110.01"]
+    verb_group = by_key[("lære", "VERB")]
+    assert verb_group["gloss"] == "learn"
+
+
+def test_search_cor_lemma_returns_paradigm_forms(tmp_path, stub_nlp_adapter_factory) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    cor_db_path = tmp_path / "cor.sqlite"
+    apply_migrations(db_path)
+    _seed_cor_local_db(cor_db_path)
+    app = create_app(
+        _test_settings(db_path, cor_local_db_path=cor_db_path),
+        nlp_adapter_factory=stub_nlp_adapter_factory,
+    )
+
+    with TestClient(app) as client:
+        response = client.get("/api/wordbank/search/cor-lemma/49032", params={"limit": 1000})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["lemma_idx"] == 49032
+    assert [item["form"] for item in payload["variants"]] == ["lærer", "lærere"]
+
+
+def test_search_cor_form_works_when_nlp_is_unavailable(tmp_path) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    cor_db_path = tmp_path / "cor.sqlite"
+    apply_migrations(db_path)
+    _seed_cor_local_db(cor_db_path)
+
+    def failing_nlp_factory(_settings):
+        raise RuntimeError("NLP startup failed")
+
+    app = create_app(
+        _test_settings(db_path, cor_local_db_path=cor_db_path),
+        nlp_adapter_factory=failing_nlp_factory,
+    )
+
+    with TestClient(app) as client:
+        response = client.get("/api/wordbank/search/cor-form", params={"form": "lærer"})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["form"] == "lærer"
+    assert len(payload["groups"]) == 2
+
+
 def test_get_lemma_details_returns_all_saved_variations(tmp_path, stub_nlp_adapter_factory) -> None:
     db_path = tmp_path / "danote.sqlite3"
     apply_migrations(db_path)
@@ -180,10 +285,12 @@ def test_get_lemma_details_returns_all_saved_variations(tmp_path, stub_nlp_adapt
     payload = response.json()
     assert payload["lemma"] == "bog"
     assert payload["english_translation"] is None
-    assert payload["surface_forms"] == [
-        {"form": "bogen", "english_translation": None, "pos_tag": None, "morphology": None, "has_pronunciation": False},
-        {"form": "bogens", "english_translation": None, "pos_tag": None, "morphology": None, "has_pronunciation": False},
-    ]
+    assert [item["form"] for item in payload["surface_forms"]] == ["bog", "bogen", "bogens"]
+    by_form = {item["form"]: item for item in payload["surface_forms"]}
+    assert by_form["bog"]["english_translation"] is None
+    assert by_form["bogen"]["english_translation"] is None
+    assert by_form["bogens"]["english_translation"] is None
+    assert all(item["has_pronunciation"] is False for item in payload["surface_forms"])
 
 
 def test_get_lemma_details_returns_not_found_for_unknown_lemma(tmp_path, stub_nlp_adapter_factory) -> None:

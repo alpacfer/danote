@@ -245,6 +245,31 @@ function mockFetchImplementation(options?: {
       match_surface?: string | null
     }>
   }
+  corSearchFormResponse?: {
+    form: string
+    groups: Array<{
+      lemma: string
+      gloss?: string | null
+      pos_tag?: string | null
+      variants: Array<{
+        cor_id: string
+        form: string
+        lemma: string
+        gloss?: string | null
+        lemma_translation?: string | null
+        gram_raw: string
+        norm?: string | null
+        lemma_idx: number
+        gram_code: number
+        variation: number
+        pos_tag?: string | null
+        morphology?: string | null
+        features?: Record<string, string>
+        extra_tags?: string[]
+      }>
+    }>
+  }
+  corSearchFormHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
   lemmaDetailsOk?: boolean
   lemmaDetailsResponse?: {
     lemma: string
@@ -252,6 +277,14 @@ function mockFetchImplementation(options?: {
     surface_forms: Array<{
       form: string
       english_translation: string | null
+      has_pronunciation?: boolean
+      pos_tag?: string | null
+      morphology?: string | null
+      lemma?: string | null
+      lemma_translation?: string | null
+      gloss?: string | null
+      gloss_translation?: string | null
+      gram_raw?: string | null
     }>
   }
   resetDbOk?: boolean
@@ -299,6 +332,7 @@ function mockFetchImplementation(options?: {
       show_lemma: boolean
     }>
   }
+  resolveQueryHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
   enrichTokenResponse?: {
     query_surface: string
     query_lemma: string | null
@@ -428,6 +462,10 @@ function mockFetchImplementation(options?: {
       variation_count: item.variation_count,
       match_surface: null,
     })),
+  }
+  const corSearchFormResponse = options?.corSearchFormResponse ?? {
+    form: "kat",
+    groups: [],
   }
   const lemmaDetailsOk = options?.lemmaDetailsOk ?? true
   const lemmaDetailsResponse = options?.lemmaDetailsResponse ?? {
@@ -633,6 +671,21 @@ function mockFetchImplementation(options?: {
       return responseOf({ items: filtered })
     }
 
+    if (url.includes("/api/wordbank/search/cor-form?")) {
+      if (options?.corSearchFormHandler) {
+        return options.corSearchFormHandler(input, init)
+      }
+      const parsed = new URL(url, "http://localhost")
+      const form = (parsed.searchParams.get("form") ?? "").trim().toLocaleLowerCase("da-DK")
+      if (!form) {
+        return responseOf({ form: "", groups: [] })
+      }
+      if (form === corSearchFormResponse.form.toLocaleLowerCase("da-DK")) {
+        return responseOf(corSearchFormResponse)
+      }
+      return responseOf({ form, groups: [] })
+    }
+
     if (url.includes("/api/wordbank/lemmas/")) {
       if (!lemmaDetailsOk) {
         throw new Error("word details request failed")
@@ -717,8 +770,8 @@ function mockFetchImplementation(options?: {
           body: JSON.stringify({ source_word: query }),
         })
         const detectedPayload = (await detected.json()) as { language?: "en" | "da" | "ambiguous"; confidence?: number }
-        language = detectedPayload.language ?? null
-        confidence = detectedPayload.confidence ?? null
+        language = detectedPayload.language ?? detectLanguageResponse.language
+        confidence = detectedPayload.confidence ?? detectLanguageResponse.confidence
       }
 
       const responsePayload: ResolveQueryPayload = {
@@ -839,31 +892,24 @@ describe("App shell", () => {
     expect(screen.getByText(/i love danish/i)).toBeInTheDocument()
   })
 
-  it("command dialog search opens centered and resolves variation plus notes", async () => {
-    const fetchSpy = mockFetchImplementation({
+  it("command dialog search opens and supports wordbank + notes results", async () => {
+    mockFetchImplementation({
       lemmasResponse: {
         items: [
           { lemma: "bog", variation_count: 1, english_translation: "book" },
           { lemma: "hus", variation_count: 1, english_translation: "house" },
         ],
       },
-      resolveQueryResponse: {
-        query_surface: "bogen",
-        query_lemma: "bog",
-        classification: "variation",
-        matched_lemma: "bog",
-        matched_lemma_summary: { lemma: "bog", english_translation: "book", variation_count: 1 },
-        query_pos_tag: null,
-        query_morphology: null,
-        resolved_surface: "bogen",
-        resolved_lemma: "bog",
-        da_to_en_translation: null,
-        en_to_da_translation: null,
-        en_to_da_lemma: null,
-        en_to_da_pos_tag: null,
-        en_to_da_morphology: null,
-        query_language: "da",
-        query_language_confidence: 1,
+      searchWordbankResponse: {
+        items: [
+          {
+            lemma: "bog",
+            display_lemma: "bog",
+            variation_count: 2,
+            english_translation: "book",
+            match_surface: "bogens",
+          },
+        ],
       },
     })
     window.localStorage.setItem(
@@ -886,33 +932,13 @@ describe("App shell", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
-    expect(commandDialog).toBeInTheDocument()
     const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
-    fireEvent.change(searchInput, { target: { value: "bogen" } })
+    fireEvent.change(searchInput, { target: { value: "gens" } })
 
     expect(await screen.findByText(/^book$/i)).toBeInTheDocument()
-    expect(await screen.findByText(/variation match: bogen/i)).toBeInTheDocument()
-    const addVariationButton = await screen.findByText(/add variation "bogen"/i)
-    fireEvent.click(addVariationButton)
-    await waitFor(() => {
-      expect(
-        fetchSpy.mock.calls.some(([input, init]) => {
-          if (!String(input).endsWith("/api/wordbank/lexemes")) {
-            return false
-          }
-          const body = JSON.parse(String(init?.body ?? "{}")) as {
-            surface_token?: string
-            lemma_candidate?: string
-          }
-          return body.surface_token === "bogen" && body.lemma_candidate === "bog"
-        }),
-      ).toBe(true)
-    })
+    expect(await screen.findByText(/variation match: bogens/i)).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole("button", { name: /search/i }))
-    const commandDialogAgain = await screen.findByRole("dialog")
-    const searchInputAgain = within(commandDialogAgain).getByPlaceholderText(/search words and notes/i)
-    fireEvent.change(searchInputAgain, { target: { value: "bog" } })
+    fireEvent.change(searchInput, { target: { value: "bogen" } })
     const savedNoteResult = await screen.findByText(/bogen note/i)
     fireEvent.click(savedNoteResult)
 
@@ -920,63 +946,82 @@ describe("App shell", () => {
     expect(getNotesEditor()).toHaveTextContent(/jeg laeser en bog i dag/i)
   })
 
-  it("command search finds lemmas by variation substring", async () => {
-    mockFetchImplementation({
-      lemmasResponse: {
-        items: [{ lemma: "bog", variation_count: 2, english_translation: "book" }],
-      },
-      searchWordbankResponse: {
-        items: [
+  it("command search uses local COR endpoint, renders grouped variants, and adds selected variant", async () => {
+    const fetchSpy = mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      corSearchFormResponse: {
+        form: "lærer",
+        groups: [
           {
-            lemma: "bog",
-            display_lemma: "bog",
-            variation_count: 2,
-            english_translation: "book",
-            match_surface: "bogens",
+            lemma: "lærer",
+            gloss: "teacher",
+            pos_tag: "NOUN",
+            variants: [
+              {
+                cor_id: "COR.49032.110.01",
+                form: "lærer",
+                lemma: "lærer",
+                gloss: "teacher",
+                lemma_translation: "teacher",
+                gram_raw: "sb.fk.sg.ubest",
+                norm: "N",
+                lemma_idx: 49032,
+                gram_code: 110,
+                variation: 1,
+                pos_tag: "NOUN",
+                morphology: "Gender=Com|Number=Sing|Definite=Ind",
+                features: { Gender: "Com", Number: "Sing", Definite: "Ind" },
+                extra_tags: [],
+              },
+              {
+                cor_id: "COR.49032.112.01",
+                form: "lærere",
+                lemma: "lærer",
+                gloss: "teacher",
+                lemma_translation: "teacher",
+                gram_raw: "sb.fk.pl.ubest",
+                norm: "N",
+                lemma_idx: 49032,
+                gram_code: 112,
+                variation: 1,
+                pos_tag: "NOUN",
+                morphology: "Gender=Com|Number=Plur|Definite=Ind",
+                features: { Gender: "Com", Number: "Plur", Definite: "Ind" },
+                extra_tags: [],
+              },
+            ],
+          },
+          {
+            lemma: "lære",
+            gloss: "learn",
+            pos_tag: "VERB",
+            variants: [
+              {
+                cor_id: "COR.30686.203.01",
+                form: "lærer",
+                lemma: "lære",
+                gloss: "learn",
+                lemma_translation: "to learn",
+                gram_raw: "vb.præs.akt",
+                norm: "N",
+                lemma_idx: 30686,
+                gram_code: 203,
+                variation: 1,
+                pos_tag: "VERB",
+                morphology: "Tense=Pres|VerbForm=Fin|Voice=Act",
+                features: { Tense: "Pres", VerbForm: "Fin", Voice: "Act" },
+                extra_tags: [],
+              },
+            ],
           },
         ],
       },
-    })
-
-    render(<App />)
-    await screen.findByLabelText("backend-connection-status")
-
-    fireEvent.click(screen.getByRole("button", { name: /search/i }))
-    const commandDialog = await screen.findByRole("dialog")
-    const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
-    fireEvent.change(searchInput, { target: { value: "gens" } })
-
-    expect(await screen.findByText(/^book$/i)).toBeInTheDocument()
-    expect(await screen.findByText(/variation match: bogens/i)).toBeInTheDocument()
-  })
-
-  it("command search offers adding a generated new word when there is no match", async () => {
-    const fetchSpy = mockFetchImplementation({
-      lemmasResponse: { items: [] },
-      resolveQueryResponse: {
-        query_surface: "snakker",
-        query_lemma: "snakke",
-        classification: "new",
-        matched_lemma: null,
-        matched_lemma_summary: null,
-        query_pos_tag: "VERB",
-        query_morphology: null,
-        resolved_surface: "snakker",
-        resolved_lemma: "snakke",
-        da_to_en_translation: "talks",
-        en_to_da_translation: null,
-        en_to_da_lemma: null,
-        en_to_da_pos_tag: null,
-        en_to_da_morphology: null,
-        query_language: "da",
-        query_language_confidence: 0.82,
-      },
       addWordResponse: {
         status: "inserted",
-        stored_lemma: "snakke",
-        stored_surface_form: "snakker",
+        stored_lemma: "lære",
+        stored_surface_form: "lærer",
         source: "manual",
-        message: "Added 'snakke' to wordbank.",
+        message: "Added 'lære' to wordbank.",
       },
     })
 
@@ -986,17 +1031,30 @@ describe("App shell", () => {
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
     const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
-    fireEvent.change(searchInput, { target: { value: "snakker" } })
+    fireEvent.change(searchInput, { target: { value: "lærer" } })
 
-    expect(await screen.findByText(/^talks$/i)).toBeInTheDocument()
-    expect(await screen.findByText(/danish -> english/i)).toBeInTheDocument()
-    expect(await screen.findByText(/lemma: snakke/i)).toBeInTheDocument()
-    expect(await within(commandDialog).findByText(/^VERB$/i)).toBeInTheDocument()
+    expect((await within(commandDialog).findAllByText(/teacher/i)).length).toBeGreaterThan(0)
+    expect((await within(commandDialog).findAllByText(/learn/i)).length).toBeGreaterThan(0)
+    expect((await within(commandDialog).findAllByText(/^Noun$/i)).length).toBeGreaterThan(0)
+    expect((await within(commandDialog).findAllByText(/^Verb$/i)).length).toBeGreaterThan(0)
+    expect((await within(commandDialog).findAllByText(/^n-word$/i)).length).toBeGreaterThan(0)
+    expect((await within(commandDialog).findAllByText(/^Singular$/i)).length).toBeGreaterThan(0)
+    expect((await within(commandDialog).findAllByText(/^Present$/i)).length).toBeGreaterThan(0)
+    expect((await within(commandDialog).findAllByText(/^Indefinite$/i)).length).toBeGreaterThan(0)
+    expect((await within(commandDialog).findAllByText(/^Active$/i)).length).toBeGreaterThan(0)
+    const verbLemma = await within(commandDialog).findByText(/^at lære$/i, { selector: "em" })
+    expect(verbLemma).toBeInTheDocument()
+    expect(await within(commandDialog).findByText(/\(to learn\)/i)).toBeInTheDocument()
+    expect(screen.queryByText(/lære \(verb\)/i)).not.toBeInTheDocument()
     expect((await within(commandDialog).findAllByTestId("search-add-icon")).length).toBeGreaterThan(0)
+    expect(screen.queryByText(/english -> danish/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/danish -> english/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/add variation/i)).not.toBeInTheDocument()
 
-    const optionItem = within(commandDialog).getByText(/lemma: snakke/i).closest('[cmdk-item]')
-    expect(optionItem).toBeTruthy()
-    fireEvent.click(optionItem as HTMLElement)
+    const verbVariant = verbLemma.closest("[cmdk-item]")
+    expect(verbVariant).toBeTruthy()
+    expect(verbVariant).toHaveTextContent(/from\s+at lære/i)
+    fireEvent.click(verbVariant as HTMLElement)
 
     await waitFor(() => {
       expect(
@@ -1007,206 +1065,58 @@ describe("App shell", () => {
           const body = JSON.parse(String(init?.body ?? "{}")) as {
             surface_token?: string
             lemma_candidate?: string
-          }
-          return body.surface_token === "snakker" && body.lemma_candidate === "snakke"
-        }),
-      ).toBe(true)
-    })
-
-    await waitFor(() => {
-      expect(
-        fetchSpy.mock.calls.some(([input, init]) => {
-          if (!String(input).endsWith("/api/tokens/feedback")) {
-            return false
-          }
-          const body = JSON.parse(String(init?.body ?? "{}")) as {
-            raw_token?: string
-            predicted_status?: string
-            suggestions_shown?: string[]
-            user_action?: string
-            chosen_value?: string
-            source?: string
+            pos_tag?: string
+            morphology?: string
           }
           return (
-            body.raw_token === "snakker"
-            && body.predicted_status === "new"
-            && Array.isArray(body.suggestions_shown)
-            && body.suggestions_shown.includes("talks")
-            && body.user_action === "add_as_new"
-            && body.chosen_value === "snakke"
-            && body.source === "search"
+            body.surface_token === "lærer"
+            && body.lemma_candidate === "lære"
+            && body.pos_tag === "VERB"
+            && body.morphology === "Tense=Pres|VerbForm=Fin|Voice=Act"
           )
         }),
       ).toBe(true)
     })
+
+    expect(
+      fetchSpy.mock.calls.some(([input]) => String(input).endsWith("/api/wordbank/resolve-query")),
+    ).toBe(false)
   })
 
-  it("command search hides duplicate lemma and shows discovered morphology badges", async () => {
+  it("command search debounces local COR requests and caches repeated queries", async () => {
+    let corRequestCount = 0
     mockFetchImplementation({
       lemmasResponse: { items: [] },
-      analyzeHandler: async (_input, init) => {
-        const payload = JSON.parse(String(init?.body ?? "{}")) as { text?: string }
-        if (payload.text === "bog") {
-          return responseOf({
-            tokens: [
-              {
-                surface_token: "bog",
-                normalized_token: "bog",
-                lemma_candidate: "bog",
-                pos_tag: "NOUN",
-                morphology: "Gender=Com|Number=Sing",
-                classification: "new",
-                match_source: "none",
-                matched_lemma: null,
-                matched_surface_form: null,
-              },
-            ],
-          })
-        }
-        return responseOf({ tokens: [] })
-      },
-      translationResponse: {
-        status: "generated",
-        source_word: "bog",
-        lemma: "bog",
-        english_translation: "book",
-      },
-      reverseTranslationResponse: {
-        status: "unavailable",
-        source_word: "bog",
-        danish_translation: null,
-      },
-      detectLanguageResponse: {
-        source_word: "bog",
-        language: "da",
-        confidence: 0.95,
-      },
-    })
-
-    render(<App />)
-    await screen.findByLabelText("backend-connection-status")
-
-    fireEvent.click(screen.getByRole("button", { name: /search/i }))
-    const commandDialog = await screen.findByRole("dialog")
-    const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
-    fireEvent.change(searchInput, { target: { value: "bog" } })
-
-    expect(await screen.findByText(/^book$/i)).toBeInTheDocument()
-    expect(await screen.findByText(/danish -> english/i)).toBeInTheDocument()
-    expect(screen.queryByText(/lemma: bog/i)).not.toBeInTheDocument()
-    expect(screen.queryByText(/\(bog\)/i)).not.toBeInTheDocument()
-    expect(await within(commandDialog).findByText(/^NOUN$/i)).toBeInTheDocument()
-    expect(await within(commandDialog).findByText(/^n-word$/i)).toBeInTheDocument()
-    expect(await within(commandDialog).findByText(/^Singular$/i)).toBeInTheDocument()
-  })
-
-  it("command search uses detected Danish language to suppress english-to-danish add option", async () => {
-    const fetchSpy = mockFetchImplementation({
-      lemmasResponse: { items: [] },
-      analyzeHandler: async (_input, init) => {
-        const payload = JSON.parse(String(init?.body ?? "{}")) as { text?: string }
-        if (payload.text === "snakker") {
-          return responseOf({
-            tokens: [
-              {
-                surface_token: "snakker",
-                normalized_token: "snakker",
-                lemma_candidate: "snakke",
-                classification: "new",
-                match_source: "none",
-                matched_lemma: null,
-                matched_surface_form: null,
-              },
-            ],
-          })
-        }
-        return responseOf({ tokens: [] })
-      },
-      translationResponse: {
-        status: "generated",
-        source_word: "snakker",
-        lemma: "snakke",
-        english_translation: "talks",
-      },
-      reverseTranslationResponse: {
-        status: "generated",
-        source_word: "snakker",
-        danish_translation: "taler",
-      },
-      detectLanguageResponse: {
-        source_word: "snakker",
-        language: "da",
-        confidence: 0.95,
-      },
-    })
-
-    render(<App />)
-    await screen.findByLabelText("backend-connection-status")
-
-    fireEvent.click(screen.getByRole("button", { name: /search/i }))
-    const commandDialog = await screen.findByRole("dialog")
-    const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
-    fireEvent.change(searchInput, { target: { value: "snakker" } })
-
-    expect(await screen.findByText(/^talks$/i)).toBeInTheDocument()
-    expect(await screen.findByText(/danish -> english/i)).toBeInTheDocument()
-    expect(screen.queryByText(/english -> danish/i)).not.toBeInTheDocument()
-    expect(screen.queryByText(/^taler$/i)).not.toBeInTheDocument()
-
-    await waitFor(() => {
-      expect(
-        fetchSpy.mock.calls.some(([input, init]) => {
-          if (!String(input).endsWith("/api/wordbank/resolve-query")) {
-            return false
-          }
-          const body = JSON.parse(String(init?.body ?? "{}")) as { query_text?: string }
-          return body.query_text?.toLocaleLowerCase("da-DK") === "snakker"
-        }),
-      ).toBe(true)
-    })
-  })
-
-
-  it("command search debounces resolve requests and reuses cached results for repeated queries", async () => {
-    let resolveRequestCount = 0
-
-    const resolvePayload = {
-      query_surface: "house",
-      query_lemma: "house",
-      classification: "new" as const,
-      matched_lemma: null,
-      matched_lemma_summary: null,
-      query_pos_tag: null,
-      query_morphology: null,
-      resolved_surface: "house",
-      resolved_lemma: "house",
-      da_to_en_translation: null,
-      en_to_da_translation: "hus",
-      en_to_da_lemma: null,
-      en_to_da_pos_tag: null,
-      en_to_da_morphology: null,
-      query_language: "en" as const,
-      query_language_confidence: 0.9,
-      word_actions: [
-        {
-          action_type: "add_as_new" as const,
-          surface: "hus",
-          lemma: "hus",
-          translation_label: "hus",
-          direction: "en_to_da" as const,
-          direction_label: "English -> Danish",
-          pos_tag: null,
-          morphology: null,
-          show_lemma: false,
-        },
-      ],
-    }
-
-    mockFetchImplementation({
-      lemmasResponse: { items: [] },
-      resolveQueryHandler: async () => {
-        resolveRequestCount += 1
-        return responseOf(resolvePayload)
+      corSearchFormHandler: async (input) => {
+        corRequestCount += 1
+        const url = new URL(String(input), "http://localhost")
+        const form = (url.searchParams.get("form") ?? "").toLocaleLowerCase("da-DK")
+        return responseOf({
+          form,
+          groups: [
+            {
+              lemma: form || "house",
+              gloss: null,
+              pos_tag: "NOUN",
+              variants: [
+                {
+                  cor_id: `COR.${corRequestCount}.110.01`,
+                  form: form || "house",
+                  lemma: form || "house",
+                  gram_raw: "sb.fk.sg.ubest",
+                  norm: "N",
+                  lemma_idx: corRequestCount,
+                  gram_code: 110,
+                  variation: 1,
+                  pos_tag: "NOUN",
+                  morphology: "Gender=Com|Number=Sing|Definite=Ind",
+                  features: { Gender: "Com", Number: "Sing", Definite: "Ind" },
+                  extra_tags: [],
+                },
+              ],
+            },
+          ],
+        })
       },
     })
 
@@ -1221,426 +1131,19 @@ describe("App shell", () => {
     fireEvent.change(searchInput, { target: { value: "ho" } })
     fireEvent.change(searchInput, { target: { value: "house" } })
 
-
-    expect(await screen.findByText(/english -> danish/i)).toBeInTheDocument()
     await waitFor(() => {
-      expect(resolveRequestCount).toBe(1)
+      expect(corRequestCount).toBe(1)
     })
 
     fireEvent.change(searchInput, { target: { value: "home" } })
     await waitFor(() => {
-      expect(resolveRequestCount).toBe(2)
+      expect(corRequestCount).toBe(2)
     })
 
     fireEvent.change(searchInput, { target: { value: "house" } })
     await waitFor(() => {
-      expect(resolveRequestCount).toBe(2)
+      expect(corRequestCount).toBe(2)
     })
-  })
-
-  it("command search translates likely english unknown words and offers adding translated danish word", async () => {
-    const fetchSpy = mockFetchImplementation({
-      lemmasResponse: { items: [] },
-      resolveQueryResponse: {
-        query_surface: "house",
-        query_lemma: "house",
-        classification: "new",
-        matched_lemma: null,
-        matched_lemma_summary: null,
-        query_pos_tag: null,
-        query_morphology: null,
-        resolved_surface: "house",
-        resolved_lemma: "house",
-        da_to_en_translation: null,
-        en_to_da_translation: "hus",
-        en_to_da_lemma: null,
-        en_to_da_pos_tag: null,
-        en_to_da_morphology: null,
-        query_language: "en",
-        query_language_confidence: 0.9,
-        word_actions: [
-          {
-            action_type: "add_as_new",
-            surface: "hus",
-            lemma: "hus",
-            translation_label: "hus",
-            direction: "en_to_da",
-            direction_label: "English -> Danish",
-            pos_tag: null,
-            morphology: null,
-            show_lemma: false,
-          },
-        ],
-      },
-      addWordResponse: {
-        status: "inserted",
-        stored_lemma: "hus",
-        stored_surface_form: "hus",
-        source: "manual",
-        message: "Added 'hus' to wordbank.",
-      },
-    })
-
-    render(<App />)
-    await screen.findByLabelText("backend-connection-status")
-
-    fireEvent.click(screen.getByRole("button", { name: /search/i }))
-    const commandDialog = await screen.findByRole("dialog")
-    const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
-    fireEvent.change(searchInput, { target: { value: "house" } })
-
-    expect((await within(commandDialog).findAllByText(/\bhus\b/i)).length).toBeGreaterThan(0)
-    expect(await screen.findByText(/english -> danish/i)).toBeInTheDocument()
-    expect(screen.queryByText(/lemma: hus/i)).not.toBeInTheDocument()
-    expect((await within(commandDialog).findAllByTestId("search-add-icon")).length).toBeGreaterThan(0)
-
-    const optionItem = within(commandDialog).getByText(/\bhus\b/i).closest('[cmdk-item]')
-    expect(optionItem).toBeTruthy()
-    fireEvent.click(optionItem as HTMLElement)
-
-    await waitFor(() => {
-      expect(
-        fetchSpy.mock.calls.some(([input, init]) => {
-          if (!String(input).endsWith("/api/wordbank/resolve-query")) {
-            return false
-          }
-          const body = JSON.parse(String(init?.body ?? "{}")) as { query_text?: string }
-          return body.query_text?.toLocaleLowerCase("da-DK") === "house"
-        }),
-      ).toBe(true)
-      expect(
-        fetchSpy.mock.calls.some(([input, init]) => {
-          if (!String(input).endsWith("/api/wordbank/lexemes")) {
-            return false
-          }
-          const body = JSON.parse(String(init?.body ?? "{}")) as {
-            surface_token?: string
-            lemma_candidate?: string
-          }
-          return body.surface_token === "hus" && body.lemma_candidate === "hus"
-        }),
-      ).toBe(true)
-    })
-  })
-
-  it("command search lowercases uppercase input before translation and add", async () => {
-    const fetchSpy = mockFetchImplementation({
-      lemmasResponse: { items: [] },
-      resolveQueryResponse: {
-        query_surface: "house",
-        query_lemma: "house",
-        classification: "new",
-        matched_lemma: null,
-        matched_lemma_summary: null,
-        query_pos_tag: null,
-        query_morphology: null,
-        resolved_surface: "house",
-        resolved_lemma: "house",
-        da_to_en_translation: null,
-        en_to_da_translation: "hus",
-        en_to_da_lemma: null,
-        en_to_da_pos_tag: null,
-        en_to_da_morphology: null,
-        query_language: "en",
-        query_language_confidence: 0.9,
-        word_actions: [
-          {
-            action_type: "add_as_new",
-            surface: "hus",
-            lemma: "hus",
-            translation_label: "hus",
-            direction: "en_to_da",
-            direction_label: "English -> Danish",
-            pos_tag: null,
-            morphology: null,
-            show_lemma: false,
-          },
-        ],
-      },
-      addWordResponse: {
-        status: "inserted",
-        stored_lemma: "hus",
-        stored_surface_form: "hus",
-        source: "manual",
-        message: "Added 'hus' to wordbank.",
-      },
-    })
-
-    render(<App />)
-    await screen.findByLabelText("backend-connection-status")
-
-    fireEvent.click(screen.getByRole("button", { name: /search/i }))
-    const commandDialog = await screen.findByRole("dialog")
-    const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
-    fireEvent.change(searchInput, { target: { value: "House" } })
-
-    expect((await within(commandDialog).findAllByText(/\bhus\b/i)).length).toBeGreaterThan(0)
-    expect(await screen.findByText(/english -> danish/i)).toBeInTheDocument()
-    expect((await within(commandDialog).findAllByTestId("search-add-icon")).length).toBeGreaterThan(0)
-
-    const optionItem = within(commandDialog).getByText(/\bhus\b/i).closest('[cmdk-item]')
-    expect(optionItem).toBeTruthy()
-    fireEvent.click(optionItem as HTMLElement)
-
-    await waitFor(() => {
-      expect(
-        fetchSpy.mock.calls.some(([input, init]) => {
-          if (!String(input).endsWith("/api/wordbank/resolve-query")) {
-            return false
-          }
-          const body = JSON.parse(String(init?.body ?? "{}")) as { query_text?: string }
-          return body.query_text?.toLocaleLowerCase("da-DK") === "house"
-        }),
-      ).toBe(true)
-      expect(
-        fetchSpy.mock.calls.some(([input, init]) => {
-          if (!String(input).endsWith("/api/wordbank/lexemes")) {
-            return false
-          }
-          const body = JSON.parse(String(init?.body ?? "{}")) as {
-            surface_token?: string
-            lemma_candidate?: string
-          }
-          return body.surface_token === "hus" && body.lemma_candidate === "hus"
-        }),
-      ).toBe(true)
-    })
-  })
-
-  it("command search lowercases reverse-translated Danish add option text", async () => {
-    mockFetchImplementation({
-      lemmasResponse: { items: [] },
-      resolveQueryResponse: {
-        query_surface: "mug",
-        query_lemma: "mug",
-        classification: "new",
-        matched_lemma: null,
-        matched_lemma_summary: null,
-        query_pos_tag: null,
-        query_morphology: null,
-        resolved_surface: "mug",
-        resolved_lemma: "mug",
-        da_to_en_translation: null,
-        en_to_da_translation: "krus",
-        en_to_da_lemma: null,
-        en_to_da_pos_tag: null,
-        en_to_da_morphology: null,
-        query_language: "en",
-        query_language_confidence: 0.9,
-        word_actions: [
-          {
-            action_type: "add_as_new",
-            surface: "krus",
-            lemma: "krus",
-            translation_label: "krus",
-            direction: "en_to_da",
-            direction_label: "English -> Danish",
-            pos_tag: null,
-            morphology: null,
-            show_lemma: false,
-          },
-        ],
-      },
-    })
-
-    render(<App />)
-    await screen.findByLabelText("backend-connection-status")
-
-    fireEvent.click(screen.getByRole("button", { name: /search/i }))
-    const commandDialog = await screen.findByRole("dialog")
-    const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
-    fireEvent.change(searchInput, { target: { value: "mug" } })
-
-    expect((await within(commandDialog).findAllByText(/\bkrus\b/i)).length).toBeGreaterThan(0)
-    expect(await screen.findByText(/english -> danish/i)).toBeInTheDocument()
-    expect(screen.queryByText(/lemma: krus/i)).not.toBeInTheDocument()
-  })
-
-  it("command search infers Danish lemma from translated surface form", async () => {
-    mockFetchImplementation({
-      lemmasResponse: { items: [] },
-      resolveQueryResponse: {
-        query_surface: "lamps",
-        query_lemma: "lamps",
-        classification: "new",
-        matched_lemma: null,
-        matched_lemma_summary: null,
-        query_pos_tag: null,
-        query_morphology: null,
-        resolved_surface: "lamper",
-        resolved_lemma: "lamper",
-        da_to_en_translation: null,
-        en_to_da_translation: "lamper",
-        en_to_da_lemma: "lampe",
-        en_to_da_pos_tag: "NOUN",
-        en_to_da_morphology: null,
-        query_language: "en",
-        query_language_confidence: 0.9,
-        word_actions: [
-          {
-            action_type: "add_as_new",
-            surface: "lamper",
-            lemma: "lampe",
-            translation_label: "lamper",
-            direction: "en_to_da",
-            direction_label: "English -> Danish",
-            pos_tag: "NOUN",
-            morphology: null,
-            show_lemma: true,
-          },
-        ],
-      },
-    })
-
-    render(<App />)
-    await screen.findByLabelText("backend-connection-status")
-
-    fireEvent.click(screen.getByRole("button", { name: /search/i }))
-    const commandDialog = await screen.findByRole("dialog")
-    const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
-    fireEvent.change(searchInput, { target: { value: "lamps" } })
-
-    expect(await within(commandDialog).findByText(/\blamper\b/i)).toBeInTheDocument()
-    expect(await within(commandDialog).findByText(/\(lampe\)/i)).toBeInTheDocument()
-    expect(await within(commandDialog).findByText(/^NOUN$/i)).toBeInTheDocument()
-  })
-
-  it("command search still reverse-translates likely english words when classifier marks typo_likely", async () => {
-    const fetchSpy = mockFetchImplementation({
-      lemmasResponse: { items: [] },
-      resolveQueryResponse: {
-        query_surface: "water",
-        query_lemma: "vater",
-        classification: "typo_likely",
-        matched_lemma: null,
-        matched_lemma_summary: null,
-        query_pos_tag: null,
-        query_morphology: null,
-        resolved_surface: "water",
-        resolved_lemma: "vater",
-        da_to_en_translation: "water",
-        en_to_da_translation: "vand",
-        en_to_da_lemma: null,
-        en_to_da_pos_tag: null,
-        en_to_da_morphology: null,
-        query_language: "en",
-        query_language_confidence: 0.9,
-      },
-      addWordResponse: {
-        status: "inserted",
-        stored_lemma: "vand",
-        stored_surface_form: "vand",
-        source: "manual",
-        message: "Added 'vand' to wordbank.",
-      },
-    })
-
-    render(<App />)
-    await screen.findByLabelText("backend-connection-status")
-
-    fireEvent.click(screen.getByRole("button", { name: /search/i }))
-    const commandDialog = await screen.findByRole("dialog")
-    const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
-    fireEvent.change(searchInput, { target: { value: "water" } })
-
-    expect((await within(commandDialog).findAllByText(/\bvand\b/i)).length).toBeGreaterThan(0)
-    expect(await screen.findByText(/english -> danish/i)).toBeInTheDocument()
-    expect(screen.queryByText(/lemma: vand/i)).not.toBeInTheDocument()
-    expect((await within(commandDialog).findAllByTestId("search-add-icon")).length).toBeGreaterThan(0)
-
-    const optionItem = within(commandDialog).getByText(/\bvand\b/i).closest('[cmdk-item]')
-    expect(optionItem).toBeTruthy()
-    fireEvent.click(optionItem as HTMLElement)
-
-    await waitFor(() => {
-      expect(
-        fetchSpy.mock.calls.some(([input, init]) => {
-          if (!String(input).endsWith("/api/wordbank/resolve-query")) {
-            return false
-          }
-          const body = JSON.parse(String(init?.body ?? "{}")) as { query_text?: string }
-          return body.query_text?.toLocaleLowerCase("da-DK") === "water"
-        }),
-      ).toBe(true)
-      expect(
-        fetchSpy.mock.calls.some(([input, init]) => {
-          if (!String(input).endsWith("/api/wordbank/lexemes")) {
-            return false
-          }
-          const body = JSON.parse(String(init?.body ?? "{}")) as {
-            surface_token?: string
-            lemma_candidate?: string
-          }
-          return body.surface_token === "vand" && body.lemma_candidate === "vand"
-        }),
-      ).toBe(true)
-    })
-  })
-
-  it("command search shows two add options when both translation directions are available", async () => {
-    mockFetchImplementation({
-      lemmasResponse: { items: [] },
-      resolveQueryResponse: {
-        query_surface: "gift",
-        query_lemma: "gift",
-        classification: "new",
-        matched_lemma: null,
-        matched_lemma_summary: null,
-        query_pos_tag: null,
-        query_morphology: null,
-        resolved_surface: "gift",
-        resolved_lemma: "gift",
-        da_to_en_translation: "poison",
-        en_to_da_translation: "gave",
-        en_to_da_lemma: null,
-        en_to_da_pos_tag: null,
-        en_to_da_morphology: null,
-        query_language: "ambiguous",
-        query_language_confidence: 0.4,
-        word_actions: [
-          {
-            action_type: "add_as_new",
-            surface: "gift",
-            lemma: "gift",
-            translation_label: "poison",
-            direction: "da_to_en",
-            direction_label: "Danish -> English",
-            pos_tag: null,
-            morphology: null,
-            show_lemma: false,
-          },
-          {
-            action_type: "add_as_new",
-            surface: "gave",
-            lemma: "gave",
-            translation_label: "gave",
-            direction: "en_to_da",
-            direction_label: "English -> Danish",
-            pos_tag: null,
-            morphology: null,
-            show_lemma: false,
-          },
-        ],
-      },
-    })
-
-    render(<App />)
-    await screen.findByLabelText("backend-connection-status")
-
-    fireEvent.click(screen.getByRole("button", { name: /search/i }))
-    const commandDialog = await screen.findByRole("dialog")
-    const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
-    fireEvent.change(searchInput, { target: { value: "gift" } })
-
-    expect(await within(commandDialog).findByText(/\bpoison\b/i)).toBeInTheDocument()
-    expect((await within(commandDialog).findAllByText(/\bgave\b/i)).length).toBeGreaterThan(0)
-    expect(await screen.findByText(/danish -> english/i)).toBeInTheDocument()
-    expect(await screen.findByText(/english -> danish/i)).toBeInTheDocument()
-    expect(screen.queryByText(/lemma: gift/i)).not.toBeInTheDocument()
-    expect(screen.queryByText(/\(gift\)/i)).not.toBeInTheDocument()
-    expect(screen.queryByText(/lemma: gave/i)).not.toBeInTheDocument()
-    expect(screen.queryByText(/\(gave\)/i)).not.toBeInTheDocument()
-    expect((await within(commandDialog).findAllByTestId("search-add-icon")).length).toBe(2)
   })
 
   it("saves a named note with analysis and reopens it in playground", async () => {

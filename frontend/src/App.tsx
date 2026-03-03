@@ -191,6 +191,36 @@ type WordbankSearchResponse = {
   items: WordbankSearchItem[]
 }
 
+type CORSearchVariant = {
+  cor_id: string
+  form: string
+  lemma: string
+  gloss?: string | null
+  gloss_translation?: string | null
+  lemma_translation?: string | null
+  gram_raw: string
+  norm?: string | null
+  lemma_idx: number
+  gram_code: number
+  variation: number
+  pos_tag?: string | null
+  morphology?: string | null
+  features: Record<string, string>
+  extra_tags: string[]
+}
+
+type CORSearchGroup = {
+  lemma: string
+  gloss?: string | null
+  pos_tag?: string | null
+  variants: CORSearchVariant[]
+}
+
+type CORSearchFormResponse = {
+  form: string
+  groups: CORSearchGroup[]
+}
+
 type LemmaDetailsResponse = {
   lemma: string
   english_translation: string | null
@@ -201,6 +231,11 @@ type LemmaDetailsResponse = {
     english_translation: string | null
     pos_tag: string | null
     morphology: string | null
+    lemma?: string | null
+    lemma_translation?: string | null
+    gloss?: string | null
+    gloss_translation?: string | null
+    gram_raw?: string | null
     has_pronunciation?: boolean
   }>
 }
@@ -923,6 +958,198 @@ function isLowConfidencePosTag(posTag: string | null): boolean {
   return !posTag || posTag === "X"
 }
 
+const GRAM_POS_LABELS: Record<string, string> = {
+  sb: "Noun",
+  vb: "Verb",
+  adj: "Adjective",
+  adv: "Adverb",
+  pron: "Pronoun",
+  "præp": "Preposition",
+  konj: "Conjunction",
+  art: "Article",
+  prop: "Proper noun",
+  talord: "Numeral",
+  "udråbsord": "Interjection",
+  lydord: "Onomatopoeia",
+  fork: "Abbreviation",
+  flerord: "Multiword",
+  iflerord: "Multiword part",
+  "præfiks": "Prefix",
+  suffiks: "Suffix",
+  romertal: "Roman numeral",
+  "infmærke": "Infinitive marker",
+}
+
+const GRAM_FEATURE_LABELS: Record<string, string> = {
+  fk: "n-word",
+  itk: "t-word",
+  sg: "Singular",
+  pl: "Plural",
+  ubest: "Indefinite",
+  best: "Definite",
+  gen: "Genitive",
+  sms: "Compound form",
+  "præs": "Present",
+  "præt": "Past",
+  inf: "Infinitive",
+  imp: "Imperative",
+  akt: "Active",
+  pass: "Passive",
+  kompar: "Comparative",
+  superl: "Superlative",
+  adv: "Adverbial",
+}
+
+type CorSearchBadge = {
+  label: string
+  tone: "primary" | "secondary"
+}
+
+const COR_SECONDARY_BADGE_CLASS_BY_LABEL: Record<string, string> = {
+  "n-word": "bg-emerald-50 text-emerald-900 border-emerald-400 dark:bg-emerald-950/30 dark:text-emerald-200 dark:border-emerald-500",
+  "t-word": "bg-teal-50 text-teal-900 border-teal-400 dark:bg-teal-950/30 dark:text-teal-200 dark:border-teal-500",
+  Singular: "bg-sky-50 text-sky-900 border-sky-400 dark:bg-sky-950/30 dark:text-sky-200 dark:border-sky-500",
+  Plural: "bg-indigo-50 text-indigo-900 border-indigo-400 dark:bg-indigo-950/30 dark:text-indigo-200 dark:border-indigo-500",
+  Indefinite: "bg-amber-50 text-amber-900 border-amber-400 dark:bg-amber-950/30 dark:text-amber-200 dark:border-amber-500",
+  Definite: "bg-yellow-50 text-yellow-900 border-yellow-400 dark:bg-yellow-950/30 dark:text-yellow-200 dark:border-yellow-500",
+  Genitive: "bg-orange-50 text-orange-900 border-orange-400 dark:bg-orange-950/30 dark:text-orange-200 dark:border-orange-500",
+  "Compound form": "bg-slate-50 text-slate-900 border-slate-400 dark:bg-slate-900/40 dark:text-slate-200 dark:border-slate-500",
+  Present: "bg-cyan-50 text-cyan-900 border-cyan-400 dark:bg-cyan-950/30 dark:text-cyan-200 dark:border-cyan-500",
+  Past: "bg-violet-50 text-violet-900 border-violet-400 dark:bg-violet-950/30 dark:text-violet-200 dark:border-violet-500",
+  Infinitive: "bg-lime-50 text-lime-900 border-lime-400 dark:bg-lime-950/30 dark:text-lime-200 dark:border-lime-500",
+  Imperative: "bg-red-50 text-red-900 border-red-400 dark:bg-red-950/30 dark:text-red-200 dark:border-red-500",
+  Active: "bg-blue-50 text-blue-900 border-blue-400 dark:bg-blue-950/30 dark:text-blue-200 dark:border-blue-500",
+  Passive: "bg-fuchsia-50 text-fuchsia-900 border-fuchsia-400 dark:bg-fuchsia-950/30 dark:text-fuchsia-200 dark:border-fuchsia-500",
+  Comparative: "bg-pink-50 text-pink-900 border-pink-400 dark:bg-pink-950/30 dark:text-pink-200 dark:border-pink-500",
+  Superlative: "bg-rose-50 text-rose-900 border-rose-400 dark:bg-rose-950/30 dark:text-rose-200 dark:border-rose-500",
+  Adverbial: "bg-stone-50 text-stone-900 border-stone-400 dark:bg-stone-900/40 dark:text-stone-200 dark:border-stone-500",
+  "Perfect participle": "bg-purple-50 text-purple-900 border-purple-400 dark:bg-purple-950/30 dark:text-purple-200 dark:border-purple-500",
+}
+
+function corSecondaryBadgeClass(label: string): string {
+  return COR_SECONDARY_BADGE_CLASS_BY_LABEL[label] ?? "bg-muted text-muted-foreground border-muted-foreground/60"
+}
+
+function badgesFromGramRaw(gramRaw: string): CorSearchBadge[] {
+  const normalized = gramRaw.trim().toLocaleLowerCase("da-DK")
+  if (!normalized) {
+    return []
+  }
+  const grams = normalized.split("|").map((item) => item.trim()).filter(Boolean)
+  const labels: CorSearchBadge[] = []
+
+  for (const gram of grams) {
+    const rawChunks = gram.split(".").filter(Boolean)
+    const chunks: string[] = []
+    for (let index = 0; index < rawChunks.length; index += 1) {
+      const current = rawChunks[index]
+      const next = rawChunks[index + 1]
+      if (current === "perf" && next === "part") {
+        chunks.push("perf.part")
+        index += 1
+        continue
+      }
+      chunks.push(current)
+    }
+
+    for (let index = 0; index < chunks.length; index += 1) {
+      const chunk = chunks[index]
+      if (index === 0) {
+        const posLabel = GRAM_POS_LABELS[chunk]
+        if (posLabel) {
+          labels.push({ label: posLabel, tone: "primary" })
+        }
+        continue
+      }
+      if (chunk === "perf.part") {
+        labels.push({ label: "Perfect participle", tone: "secondary" })
+        continue
+      }
+      const feature = GRAM_FEATURE_LABELS[chunk]
+      if (feature) {
+        labels.push({ label: feature, tone: "secondary" })
+      }
+    }
+  }
+
+  return labels.filter((badge, index, array) => array.findIndex((candidate) => candidate.label === badge.label) === index)
+}
+
+function lemmaDisplayForVariant(variant: CORSearchVariant): string | null {
+  const lemma = variant.lemma.trim()
+  if (!lemma) {
+    return null
+  }
+  if ((variant.pos_tag ?? "").toUpperCase() === "VERB") {
+    return `at ${lemma}`
+  }
+  return lemma
+}
+
+function lemmaTranslationForVariant(variant: CORSearchVariant): string | null {
+  const value = variant.lemma_translation?.trim()
+  return value ? value : null
+}
+
+function glossDisplayForVariant(variant: CORSearchVariant): string | null {
+  const gloss = variant.gloss?.trim()
+  if (!gloss) {
+    return null
+  }
+  const translation = variant.gloss_translation?.trim()
+  if (!translation) {
+    return gloss
+  }
+  return `${gloss} (${translation})`
+}
+
+function lemmaDisplayForSavedForm(form: {
+  form: string
+  lemma?: string | null
+  pos_tag?: string | null
+}): string | null {
+  const lemma = form.lemma?.trim()
+  if (!lemma) {
+    return null
+  }
+  if ((form.pos_tag ?? "").toUpperCase() === "VERB") {
+    return `at ${lemma}`
+  }
+  return lemma
+}
+
+function glossDisplayForSavedForm(form: {
+  gloss?: string | null
+  gloss_translation?: string | null
+}): string | null {
+  const gloss = form.gloss?.trim()
+  if (!gloss) {
+    return null
+  }
+  const translation = form.gloss_translation?.trim()
+  if (!translation) {
+    return gloss
+  }
+  return `${gloss} (${translation})`
+}
+
+function badgesForSavedForm(form: {
+  pos_tag?: string | null
+  morphology?: string | null
+  gram_raw?: string | null
+}): CorSearchBadge[] {
+  if (form.gram_raw?.trim()) {
+    return badgesFromGramRaw(form.gram_raw)
+  }
+  return [
+    ...(form.pos_tag ? [{ label: form.pos_tag, tone: "primary" as const }] : []),
+    ...secondaryTagsForPos(form.pos_tag ?? null, form.morphology ?? null).map((tag) => ({
+      label: tag,
+      tone: "secondary" as const,
+    })),
+  ]
+}
+
 
 function translationKeysForToken(token: Pick<AnalyzedToken, "surface_token" | "normalized_token">): string[] {
   const keys = [
@@ -1080,27 +1307,12 @@ function AppSidebar({
 }: AppSidebarProps) {
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
-  const resolveQueryCacheRef = useRef<Map<string, ResolveQueryResponse>>(new Map())
+  const corFormSearchCacheRef = useRef<Map<string, CORSearchFormResponse>>(new Map())
   const wordbankSearchCacheRef = useRef<Map<string, Array<{ lemma: WordbankLemma; matchSurface: string | null }>>>(new Map())
   const [searchApiMatches, setSearchApiMatches] = useState<Array<{ lemma: WordbankLemma; matchSurface: string | null }>>([])
-  const [resolvedQueryCandidate, setResolvedQueryCandidate] = useState<{
+  const [corFormSearchResult, setCorFormSearchResult] = useState<{
     query: string
-    surface: string
-    lemma: string | null
-    classification: TokenClassification
-    querySurface: string
-    queryLemma: string | null
-    queryPosTag: string | null
-    queryMorphology: string | null
-    daToEnTranslation: string | null
-    enToDaTranslation: string | null
-    enToDaLemma: string | null
-    enToDaPosTag: string | null
-    enToDaMorphology: string | null
-    queryLanguage: "en" | "da" | "ambiguous" | null
-    queryLanguageConfidence: number | null
-    matchedLemma: WordbankLemma | null
-    wordActions: WordActionSuggestion[]
+    payload: CORSearchFormResponse
   } | null>(null)
   const trimmedQuery = normalizeSearchWord(searchQuery)
   const normalizedQuery = trimmedQuery
@@ -1128,12 +1340,12 @@ function AppSidebar({
       })
       .slice(0, 8)
   }, [normalizedQuery, savedNotes])
-  const activeResolvedCandidate = useMemo(() => {
-    if (!resolvedQueryCandidate || resolvedQueryCandidate.query !== normalizedQuery) {
+  const activeCorFormSearchResult = useMemo(() => {
+    if (!corFormSearchResult || corFormSearchResult.query !== normalizedQuery) {
       return null
     }
-    return resolvedQueryCandidate
-  }, [normalizedQuery, resolvedQueryCandidate])
+    return corFormSearchResult
+  }, [corFormSearchResult, normalizedQuery])
 
   useEffect(() => {
     let cancelled = false
@@ -1205,39 +1417,28 @@ function AppSidebar({
   }, [normalizedQuery, trimmedQuery])
 
   const wordbankResults = useMemo(() => {
-    const variationMatch = activeResolvedCandidate?.matchedLemma
-      ? {
-        lemma: activeResolvedCandidate.matchedLemma,
-        surface: activeResolvedCandidate.surface,
-      }
-      : null
-    const directMatches = (searchApiMatches.length > 0 ? searchApiMatches : matchingLemmas.map((lemma) => ({
+    return (searchApiMatches.length > 0 ? searchApiMatches : matchingLemmas.map((lemma) => ({
       lemma,
       matchSurface: null as string | null,
     }))).map((item) => ({ lemma: item.lemma, matchSurface: item.matchSurface ?? null }))
-
-    if (!variationMatch) {
-      return directMatches
-    }
-
-    const hasLemma = directMatches.some((item) => item.lemma.lemma === variationMatch.lemma.lemma)
-    if (hasLemma) {
-      return directMatches
-    }
-
-    return [{ lemma: variationMatch.lemma, matchSurface: variationMatch.surface }, ...directMatches]
-  }, [activeResolvedCandidate, matchingLemmas, searchApiMatches])
+  }, [matchingLemmas, searchApiMatches])
   const hasWordbankResults = wordbankResults.length > 0
-  const searchWordActions = useMemo(() => {
-    if (!activeResolvedCandidate) {
-      return []
-    }
-    return activeResolvedCandidate.wordActions.filter((action) => action.action_type !== "open_wordbank")
-  }, [activeResolvedCandidate])
-  const newWordOptions = useMemo(() => searchWordActions.filter((action) => action.action_type === "add_as_new"), [searchWordActions])
-  const addVariationResult = useMemo(() => searchWordActions.find((action) => action.action_type === "add_variation") ?? null, [searchWordActions])
-  const hasWordbankSectionResults = hasWordbankResults || newWordOptions.length > 0
-  const hasWordbankActions = newWordOptions.length > 0 || Boolean(addVariationResult)
+  const corSearchGroups = useMemo(
+    () => activeCorFormSearchResult?.payload.groups ?? [],
+    [activeCorFormSearchResult],
+  )
+  const corSearchVariants = useMemo(
+    () =>
+      corSearchGroups.flatMap((group) =>
+        (group.variants ?? []).map((variant) => ({
+          group,
+          variant,
+        }))
+      ),
+    [corSearchGroups],
+  )
+  const hasWordbankSectionResults = hasWordbankResults || corSearchVariants.length > 0
+  const hasWordbankActions = corSearchVariants.length > 0
   const hasNoteResults = matchingNotes.length > 0
   const pageItems = useMemo(
     () => [
@@ -1346,45 +1547,11 @@ function AppSidebar({
       return
     }
 
-    const alreadyDirectMatch = matchingLemmas.some(
-      (lemma) => lemma.lemma.trim().toLocaleLowerCase("da-DK") === normalizedQuery,
-    )
-    if (alreadyDirectMatch) {
-      return
-    }
-
-    const cachedPayload = resolveQueryCacheRef.current.get(normalizedQuery)
+    const cachedPayload = corFormSearchCacheRef.current.get(normalizedQuery)
     if (cachedPayload) {
-      const matchedLemma = cachedPayload.matched_lemma_summary
-        ? lemmas.find(
-          (lemma) =>
-            lemma.lemma.trim().toLocaleLowerCase("da-DK") ===
-            cachedPayload.matched_lemma_summary?.lemma.trim().toLocaleLowerCase("da-DK"),
-        ) ?? {
-          lemma: cachedPayload.matched_lemma_summary.lemma,
-          english_translation: cachedPayload.matched_lemma_summary.english_translation,
-          variation_count: cachedPayload.matched_lemma_summary.variation_count,
-        }
-        : null
-
-      setResolvedQueryCandidate({
+      setCorFormSearchResult({
         query: normalizedQuery,
-        surface: cachedPayload.resolved_surface,
-        lemma: cachedPayload.resolved_lemma,
-        classification: cachedPayload.classification,
-        querySurface: cachedPayload.query_surface,
-        queryLemma: cachedPayload.query_lemma,
-        queryPosTag: cachedPayload.query_pos_tag,
-        queryMorphology: cachedPayload.query_morphology,
-        daToEnTranslation: cachedPayload.da_to_en_translation,
-        enToDaTranslation: cachedPayload.en_to_da_translation,
-        enToDaLemma: cachedPayload.en_to_da_lemma,
-        enToDaPosTag: cachedPayload.en_to_da_pos_tag,
-        enToDaMorphology: cachedPayload.en_to_da_morphology,
-        queryLanguage: cachedPayload.query_language,
-        queryLanguageConfidence: cachedPayload.query_language_confidence,
-        matchedLemma,
-        wordActions: cachedPayload.word_actions ?? [],
+        payload: cachedPayload,
       })
       return
     }
@@ -1394,61 +1561,27 @@ function AppSidebar({
     const timeoutId = window.setTimeout(() => {
       void (async () => {
         try {
-          const response = await fetch(`${BACKEND_URL}/api/wordbank/resolve-query`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              query_text: trimmedQuery,
-            }),
-            signal: controller.signal,
-          })
+          const response = await fetch(
+            `${BACKEND_URL}/api/wordbank/search/cor-form?form=${encodeURIComponent(trimmedQuery)}&limit=100`,
+            { signal: controller.signal },
+          )
           if (!response.ok) {
-            setResolvedQueryCandidate((current) => (current?.query === normalizedQuery ? null : current))
+            setCorFormSearchResult((current) => (current?.query === normalizedQuery ? null : current))
             return
           }
 
-          const payload = (await response.json()) as ResolveQueryResponse
+          const payload = (await response.json()) as CORSearchFormResponse
           if (cancelled) {
             return
           }
-          resolveQueryCacheRef.current.set(normalizedQuery, payload)
-
-          const matchedLemma = payload.matched_lemma_summary
-            ? lemmas.find(
-              (lemma) =>
-                lemma.lemma.trim().toLocaleLowerCase("da-DK") ===
-                payload.matched_lemma_summary?.lemma.trim().toLocaleLowerCase("da-DK"),
-            ) ?? {
-              lemma: payload.matched_lemma_summary.lemma,
-              english_translation: payload.matched_lemma_summary.english_translation,
-              variation_count: payload.matched_lemma_summary.variation_count,
-            }
-            : null
-
-          setResolvedQueryCandidate({
+          corFormSearchCacheRef.current.set(normalizedQuery, payload)
+          setCorFormSearchResult({
             query: normalizedQuery,
-            surface: payload.resolved_surface,
-            lemma: payload.resolved_lemma,
-            classification: payload.classification,
-            querySurface: payload.query_surface,
-            queryLemma: payload.query_lemma,
-            queryPosTag: payload.query_pos_tag,
-            queryMorphology: payload.query_morphology,
-            daToEnTranslation: payload.da_to_en_translation,
-            enToDaTranslation: payload.en_to_da_translation,
-            enToDaLemma: payload.en_to_da_lemma,
-            enToDaPosTag: payload.en_to_da_pos_tag,
-            enToDaMorphology: payload.en_to_da_morphology,
-            queryLanguage: payload.query_language,
-            queryLanguageConfidence: payload.query_language_confidence,
-            matchedLemma,
-            wordActions: payload.word_actions ?? [],
+            payload,
           })
         } catch {
           if (!cancelled) {
-            setResolvedQueryCandidate((current) => (current?.query === normalizedQuery ? null : current))
+            setCorFormSearchResult((current) => (current?.query === normalizedQuery ? null : current))
           }
         }
       })()
@@ -1459,7 +1592,7 @@ function AppSidebar({
       window.clearTimeout(timeoutId)
       controller.abort()
     }
-  }, [lemmas, matchingLemmas, normalizedQuery, trimmedQuery])
+  }, [normalizedQuery, trimmedQuery])
 
   useEffect(() => {
     if (isSearchOpen) {
@@ -1492,7 +1625,7 @@ function AppSidebar({
             setIsSearchOpen(open)
           }}
           title="Search wordbank and notes"
-          description="Search saved words, variations, translations, and notes."
+          description="Search saved words, local COR analyses, and notes."
         >
           <CommandInput
             placeholder="Search words and notes..."
@@ -1526,152 +1659,69 @@ function AppSidebar({
                     ) : null}
                   </CommandItem>
                 ))}
-                {newWordOptions.map((option) => (
-                  <CommandItem
-                    key={`${option.action_type}-${option.surface}-${option.lemma}-${option.direction}-${option.pos_tag ?? ""}-${option.morphology ?? ""}`}
-                    value={`new-word-${option.surface} ${option.lemma} ${option.translation_label ?? option.surface} ${option.direction_label ?? option.direction} ${normalizedQuery}`}
-                    onSelect={() => {
-                      void (async () => {
-                        const addedLemma = await onAddWordFromSearch(
-                          option.surface,
-                          option.lemma,
-                          {
-                            rawToken: normalizedQuery,
-                            predictedStatus: activeResolvedCandidate?.classification ?? "new",
-                            suggestionsShown: newWordOptions.map((item) => item.translation_label ?? item.surface),
-                          },
-                          {
-                            posTag: option.pos_tag,
-                            morphology: option.morphology,
-                          },
-                        )
-                        if (addedLemma) {
-                          setIsSearchOpen(false)
-                          setSearchQuery("")
-                        }
-                      })()
-                    }}
-                    className="flex items-center justify-between gap-3"
+                {corSearchGroups.map((group, groupIndex) => (
+                  <div
+                    key={`cor-group-${group.lemma}-${group.gloss ?? ""}-${group.pos_tag ?? ""}-${groupIndex}`}
+                    className="mt-1 first:mt-0"
                   >
-                    <div className="flex min-w-0 flex-col items-start gap-0.5">
-                      {(() => {
-                        const normalizedTranslation = (option.translation_label ?? option.surface).trim().toLocaleLowerCase("da-DK")
-                        const normalizedLemma = option.lemma.trim().toLocaleLowerCase("da-DK")
-                        const showInlineLemma = option.direction === "en_to_da" && normalizedTranslation !== normalizedLemma
-                        return (
-                          <>
-                      <span className="flex items-baseline gap-2">
-                        <span className="font-medium">{option.translation_label ?? option.surface}</span>
-                        {showInlineLemma ? (
-                          <span className="text-muted-foreground text-xs">({option.lemma})</span>
-                        ) : null}
-                        <span className="text-muted-foreground text-xs">{option.direction_label ?? option.direction}</span>
-                      </span>
-                      {option.show_lemma && !showInlineLemma ? (
-                        <span className="text-muted-foreground text-xs">lemma: {option.lemma}</span>
-                      ) : null}
-                      <div className="mt-1 flex flex-wrap gap-1.5">
-                        {option.pos_tag ? (
-                          <Badge
-                            variant="secondary"
-                            className={`border-border/60 text-xs border ${posBadgeClass(option.pos_tag)}`.trim()}
-                            data-testid="search-metadata-badge"
-                          >
-                            {option.pos_tag}
-                          </Badge>
-                        ) : null}
-                        {option.pos_tag === "NOUN" && determinerWordTypeFromMorphology(option.morphology) ? (
-                          <Badge
-                            variant="secondary"
-                            className="border-border/60 text-xs border"
-                            data-testid="search-metadata-badge"
-                          >
-                            {determinerWordTypeFromMorphology(option.morphology)}
-                          </Badge>
-                        ) : null}
-                        {secondaryTagsForPos(option.pos_tag, option.morphology).map((tag) => (
-                          <Badge
-                            key={`${option.action_type}-${option.surface}-${option.lemma}-${tag}`}
-                            variant="secondary"
-                            className="border-border/60 text-xs border"
-                            data-testid="search-metadata-badge"
-                          >
-                            {tag}
-                          </Badge>
-                        ))}
-                      </div>
-                          </>
-                        )
-                      })()}
-                    </div>
-                    <Plus data-testid="search-add-icon" className="text-muted-foreground size-4 shrink-0" />
-                  </CommandItem>
+                    {(group.variants ?? []).map((variant) => (
+                      <CommandItem
+                        key={`cor-variant-${variant.cor_id}`}
+                        value={`cor-variant-${variant.form} ${variant.lemma} ${variant.gram_raw} ${variant.gloss ?? ""} ${variant.gloss_translation ?? ""} ${variant.lemma_translation ?? ""} ${normalizedQuery}`}
+                        onSelect={() => {
+                          void (async () => {
+                            const addedLemma = await onAddWordFromSearch(
+                              variant.form,
+                              variant.lemma,
+                              {
+                                rawToken: normalizedQuery,
+                                predictedStatus: "new",
+                                suggestionsShown: [`${variant.lemma}:${variant.gram_raw}`],
+                              },
+                              {
+                                posTag: variant.pos_tag ?? null,
+                                morphology: variant.morphology ?? null,
+                              },
+                            )
+                            if (addedLemma) {
+                              setIsSearchOpen(false)
+                              setSearchQuery("")
+                            }
+                          })()
+                        }}
+                        className="flex items-center justify-between gap-3"
+                      >
+                        <div className="flex min-w-0 flex-col items-start gap-0.5">
+                          <span>
+                            <strong className="font-semibold">{variant.form}</strong>
+                            {lemmaDisplayForVariant(variant) ? (
+                              <span className="text-muted-foreground text-xs">
+                                {" "}from <em>{lemmaDisplayForVariant(variant)}</em>
+                                {lemmaTranslationForVariant(variant) ? ` (${lemmaTranslationForVariant(variant)})` : ""}
+                              </span>
+                            ) : null}
+                          </span>
+                          {glossDisplayForVariant(variant) ? (
+                            <span className="text-muted-foreground text-xs">{glossDisplayForVariant(variant)}</span>
+                          ) : null}
+                          <div className="mt-1 flex flex-wrap gap-1.5">
+                            {badgesFromGramRaw(variant.gram_raw).map((badge) => (
+                              <Badge
+                                key={`cor-variant-${variant.cor_id}-gram-${badge.label}`}
+                                variant={badge.tone === "primary" ? "default" : "secondary"}
+                                className={`text-xs ${badge.tone === "primary" ? `border ${posBadgeClass(variant.pos_tag ?? null)}` : `border ${corSecondaryBadgeClass(badge.label)}`}`.trim()}
+                                data-testid="search-metadata-badge"
+                              >
+                                {badge.label}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                        <Plus data-testid="search-add-icon" className="text-muted-foreground size-4 shrink-0" />
+                      </CommandItem>
+                    ))}
+                  </div>
                 ))}
-                {addVariationResult ? (
-                  <CommandItem
-                    value={`add-variation-${addVariationResult.surface} ${addVariationResult.lemma}`}
-                    onSelect={() => {
-                      void (async () => {
-                        const addedLemma = await onAddWordFromSearch(
-                          addVariationResult.surface,
-                          addVariationResult.lemma,
-                          {
-                            rawToken: normalizedQuery,
-                            predictedStatus: activeResolvedCandidate?.classification ?? "variation",
-                            suggestionsShown: [addVariationResult.translation_label ?? addVariationResult.surface],
-                          },
-                          {
-                            posTag: addVariationResult.pos_tag,
-                            morphology: addVariationResult.morphology,
-                          },
-                        )
-                        if (addedLemma) {
-                          setIsSearchOpen(false)
-                          setSearchQuery("")
-                        }
-                      })()
-                    }}
-                    className="flex-col items-start gap-0.5"
-                  >
-                    <span className="font-medium">
-                      Add variation "{addVariationResult.surface}"
-                    </span>
-                    <span className="text-muted-foreground text-xs">
-                      for lemma: {addVariationResult.lemma}
-                    </span>
-                    <div className="mt-1 flex flex-wrap gap-1.5">
-                      {addVariationResult.pos_tag ? (
-                        <Badge
-                          variant="secondary"
-                          className={`border-border/60 text-xs border ${posBadgeClass(addVariationResult.pos_tag)}`.trim()}
-                          data-testid="search-metadata-badge"
-                        >
-                          {addVariationResult.pos_tag}
-                        </Badge>
-                      ) : null}
-                      {addVariationResult.pos_tag === "NOUN" &&
-                      determinerWordTypeFromMorphology(addVariationResult.morphology) ? (
-                        <Badge
-                          variant="secondary"
-                          className="border-border/60 text-xs border"
-                          data-testid="search-metadata-badge"
-                        >
-                          {determinerWordTypeFromMorphology(addVariationResult.morphology)}
-                        </Badge>
-                        ) : null}
-                      {secondaryTagsForPos(addVariationResult.pos_tag, addVariationResult.morphology).map((tag) => (
-                        <Badge
-                          key={`search-variation-${addVariationResult.surface}-${tag}`}
-                          variant="secondary"
-                          className="border-border/60 text-xs border"
-                          data-testid="search-metadata-badge"
-                        >
-                          {tag}
-                        </Badge>
-                      ))}
-                    </div>
-                  </CommandItem>
-                ) : null}
               </CommandGroup>
             ) : null}
             {(hasWordbankSectionResults || hasWordbankActions) && hasNoteResults ? <CommandSeparator /> : null}
@@ -1917,7 +1967,11 @@ function App() {
     }
 
     if (!isLowConfidencePosTag(popoverToken.pos_tag)) {
-      const rememberedForPos = remembered.byPos[popoverToken.pos_tag]
+      const tokenPos = popoverToken.pos_tag
+      if (!tokenPos) {
+        return popoverToken
+      }
+      const rememberedForPos = remembered.byPos[tokenPos]
       if (!rememberedForPos) {
         return popoverToken
       }
@@ -2005,7 +2059,7 @@ function App() {
       ...(popoverDisplayToken.pos_tag === "NOUN"
         ? [determinerWordTypeFromMorphology(popoverDisplayToken.morphology)]
         : []
-      ).filter((value): value is string => Boolean(value)).map((value) => ({
+      ).filter((value): value is DeterminerWordType => Boolean(value)).map((value) => ({
         key: `popover-meta-wordtype-${value}`,
         label: value,
         className: "",
@@ -2036,6 +2090,12 @@ function App() {
     return sentences.some((sentence) => normalizePhraseKey(sentence.source_text) === phraseKey)
   }, [phrasePopover.selectedText, sentences])
   const apiStatusItems = useMemo(() => {
+    type ApiStatusItem = {
+      name: string
+      label: string
+      status: ApiRuntimeStatus
+      message: string | null
+    }
     const apis = healthPayload?.apis ?? {}
     const priorityOrder = ["backend", "azure_translator", "azure_speech"]
     const orderedNames = [
@@ -2049,9 +2109,9 @@ function App() {
           name: "backend",
           label: "Backend API",
           status: status === "connected" ? "ok" : status === "degraded" ? "degraded" : "unknown",
-          message: null as string | null,
+          message: null,
         },
-      ]
+      ] satisfies ApiStatusItem[]
     }
 
     return orderedNames.map((name) => {
@@ -2062,7 +2122,7 @@ function App() {
         status: normalizeApiRuntimeStatus(entry.status),
         message: entry.message ?? null,
       }
-    })
+    }) satisfies ApiStatusItem[]
   }, [healthPayload, status])
 
   useEffect(() => {
@@ -2139,10 +2199,14 @@ function App() {
         if (isLowConfidencePosTag(token.pos_tag)) {
           continue
         }
+        const tokenPos = token.pos_tag
+        if (!tokenPos) {
+          continue
+        }
         const key = normalizeWordKey(token.normalized_token || token.surface_token)
         const lemma = token.matched_lemma ?? token.lemma_candidate ?? null
         const candidate: DiscoveredTokenMetadata = {
-          pos_tag: token.pos_tag,
+          pos_tag: tokenPos,
           morphology: token.morphology,
           lemma,
         }
@@ -3513,30 +3577,14 @@ function App() {
     const variationForms = lemmaDetails?.surface_forms.filter(
       (form) => form.form.trim().toLocaleLowerCase("da-DK") !== normalizedSelectedLemma,
     ) ?? []
-    const lemmaMetadataBadges = lemmaDetails
-      ? [
-        lemmaDetails.pos_tag
-          ? {
-            key: `lemma-meta-pos-${lemmaDetails.pos_tag}`,
-            label: lemmaDetails.pos_tag,
-            className: posBadgeClass(lemmaDetails.pos_tag),
-          }
-          : null,
-        ...(lemmaDetails.pos_tag === "NOUN"
-          ? [determinerWordTypeFromMorphology(lemmaDetails.morphology)]
-          : []
-        ).filter((value): value is string => Boolean(value)).map((value) => ({
-          key: `lemma-meta-wordtype-${value}`,
-          label: value,
-          className: "",
-        })),
-        ...secondaryTagsForPos(lemmaDetails.pos_tag, lemmaDetails.morphology).map((value) => ({
-          key: `lemma-meta-tag-${value}`,
-          label: value,
-          className: "",
-        })),
-      ].filter((value): value is { key: string; label: string; className: string } => Boolean(value))
-      : []
+    const lemmaSurfaceDetails = lemmaDetails?.surface_forms.find(
+      (form) => form.form.trim().toLocaleLowerCase("da-DK") === normalizedSelectedLemma,
+    ) ?? null
+    const lemmaBadges = badgesForSavedForm({
+      pos_tag: lemmaDetails?.pos_tag ?? null,
+      morphology: lemmaDetails?.morphology ?? null,
+      gram_raw: lemmaSurfaceDetails?.gram_raw ?? null,
+    })
 
     return (
       <div className="flex min-h-0 flex-1 flex-col gap-4">
@@ -3623,11 +3671,6 @@ function App() {
                         <p>Listen</p>
                       </TooltipContent>
                     </Tooltip>
-                    {lemmaMetadataBadges.map((badge) => (
-                      <Badge key={badge.key} variant="secondary" className={`text-xs ${badge.className}`.trim()}>
-                        {badge.label}
-                      </Badge>
-                    ))}
                   </div>
                   <ButtonGroup className="shrink-0">
                     <Button
@@ -3727,6 +3770,17 @@ function App() {
                 <p className="text-muted-foreground mt-1 text-base">
                   {lemmaDetails.english_translation ?? "No translation available."}
                 </p>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {lemmaBadges.map((badge) => (
+                    <Badge
+                      key={`lemma-badge-${badge.label}`}
+                      variant={badge.tone === "primary" ? "default" : "secondary"}
+                      className={`text-xs ${badge.tone === "primary" ? `border ${posBadgeClass(lemmaDetails.pos_tag)}` : `border ${corSecondaryBadgeClass(badge.label)}`}`.trim()}
+                    >
+                      {badge.label}
+                    </Badge>
+                  ))}
+                </div>
               </div>
 
               {variationForms.length === 0 ? (
@@ -3734,11 +3788,23 @@ function App() {
               ) : (
                 <div className="grid gap-3 md:grid-cols-2">
                   {variationForms.map((form) => {
+                    const formLemmaDisplay = lemmaDisplayForSavedForm(form)
+                    const formLemmaTranslation = form.lemma_translation?.trim() || null
+                    const formGlossDisplay = glossDisplayForSavedForm(form)
+                    const formBadges = badgesForSavedForm(form)
                     return (
                       <Card key={form.form}>
                         <CardContent className="space-y-3">
                           <div className="flex items-center justify-between gap-3">
-                            <p className="text-lg font-bold leading-tight">{form.form}</p>
+                            <p className="text-lg leading-tight">
+                              <strong className="font-bold">{form.form}</strong>
+                              {formLemmaDisplay ? (
+                                <span className="text-muted-foreground text-xs">
+                                  {" "}from <em>{formLemmaDisplay}</em>
+                                  {formLemmaTranslation ? ` (${formLemmaTranslation})` : ""}
+                                </span>
+                              ) : null}
+                            </p>
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <span>
@@ -3766,17 +3832,16 @@ function App() {
                             </Tooltip>
                           </div>
                           <p className="text-muted-foreground text-sm">
-                            {form.english_translation ?? "No translation available."}
+                            {formGlossDisplay ?? form.english_translation ?? "No translation available."}
                           </p>
                           <div className="flex flex-wrap gap-1.5">
-                            {form.pos_tag && (
-                              <Badge variant="secondary" className={posBadgeClass(form.pos_tag)}>
-                                {form.pos_tag}
-                              </Badge>
-                            )}
-                            {secondaryTagsForPos(form.pos_tag, form.morphology).map((tag) => (
-                              <Badge key={`${form.form}-${tag}`} variant="secondary">
-                                {tag}
+                            {formBadges.map((badge) => (
+                              <Badge
+                                key={`${form.form}-${badge.label}`}
+                                variant={badge.tone === "primary" ? "default" : "secondary"}
+                                className={`text-xs ${badge.tone === "primary" ? `border ${posBadgeClass(form.pos_tag)}` : `border ${corSecondaryBadgeClass(badge.label)}`}`.trim()}
+                              >
+                                {badge.label}
                               </Badge>
                             ))}
                           </div>

@@ -5,6 +5,7 @@ import logging
 import os
 import sqlite3
 import io
+import re
 import wave
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -14,6 +15,10 @@ from typing import Literal
 from app.api.schemas.v1.wordbank import (
     AddWordResponse,
     ApplyVerificationChangesResponse,
+    CORLemmaParadigmResponse,
+    CORSearchFormResponse,
+    CORSearchGroup,
+    CORSearchVariant,
     DetectWordLanguageResponse,
     GeneratePronunciationResponse,
     GeneratePhraseTranslationResponse,
@@ -33,6 +38,7 @@ from app.db.migrations import apply_migrations, get_connection
 from app.nlp.adapter import NLPAdapter
 from app.nlp.token_filter import is_short_letter_word, is_wordlike_token
 from app.services.cor import COREntry, CORLexiconService
+from app.services.cor_local import CORLocalEntry, CORLocalLexiconService
 from app.services.text_preprocessing import strip_inline_comments
 from app.services.token_classifier import LemmaAwareClassifier, normalize_token
 from app.services.translation import TranslationService
@@ -206,6 +212,7 @@ class WordbankUseCase:
         translation_service: TranslationService | None = None,
         nlp_adapter: NLPAdapter | None = None,
         cor_lexicon_service: CORLexiconService | None = None,
+        cor_local_lexicon_service: CORLocalLexiconService | None = None,
         verification_service: WordVerificationService | None = None,
         tts_service: TTSService | None = None,
         gemini_changes_log_path: Path | None = None,
@@ -215,6 +222,7 @@ class WordbankUseCase:
         self._translation_service = translation_service
         self._nlp_adapter = nlp_adapter
         self._cor_lexicon_service = cor_lexicon_service
+        self._cor_local_lexicon_service = cor_local_lexicon_service
         self._verification_service = verification_service
         self._tts_service = tts_service
         self._gemini_changes_log_path = gemini_changes_log_path
@@ -239,27 +247,29 @@ class WordbankUseCase:
         selected_morphology = self._normalize_optional_morphology(morphology)
         inserted_lexeme = False
         inserted_surface_form = False
+        inserted_lemma_surface_form = False
         lemma_translation = self._lookup_translation(stored_lemma)
         surface_translation = self._lookup_translation(normalized_surface) if normalized_surface else None
         lemma_pos_tag, lemma_morphology = self._extract_pos_and_morphology(
             stored_lemma,
             preferred_pos_tag=selected_pos_tag,
         )
-        if selected_pos_tag is not None:
+        if lemma_pos_tag is None and selected_pos_tag is not None:
             lemma_pos_tag = selected_pos_tag
-        if selected_morphology is not None:
+        if lemma_morphology is None and selected_morphology is not None:
             lemma_morphology = selected_morphology
         surface_pos_tag: str | None = None
         surface_morphology: str | None = None
         if normalized_surface:
-            surface_pos_tag, surface_morphology = self._extract_pos_and_morphology(
-                normalized_surface,
-                preferred_pos_tag=selected_pos_tag,
-            )
-        if selected_pos_tag is not None:
-            surface_pos_tag = selected_pos_tag
-        if selected_morphology is not None:
-            surface_morphology = selected_morphology
+            if selected_pos_tag is not None or selected_morphology is not None:
+                # Preserve search-selected analysis for the saved surface form.
+                surface_pos_tag = selected_pos_tag
+                surface_morphology = selected_morphology
+            else:
+                surface_pos_tag, surface_morphology = self._extract_pos_and_morphology(
+                    normalized_surface,
+                    preferred_pos_tag=selected_pos_tag,
+                )
         provider = self._translation_provider_name()
 
         with get_connection(self._db_path) as conn:
@@ -312,6 +322,59 @@ class WordbankUseCase:
                 """,
                 (lemma_pos_tag, lemma_morphology, lexeme_row["id"]),
             )
+
+            if normalized_surface and normalized_surface != stored_lemma:
+                cursor = conn.execute(
+                    """
+                    INSERT OR IGNORE INTO surface_forms (
+                        lexeme_id,
+                        form,
+                        source,
+                        english_translation,
+                        translation_provider,
+                        pos_tag,
+                        morphology
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        lexeme_row["id"],
+                        stored_lemma,
+                        "manual",
+                        lemma_translation,
+                        provider if lemma_translation else None,
+                        lemma_pos_tag,
+                        lemma_morphology,
+                    ),
+                )
+                inserted_lemma_surface_form = cursor.rowcount == 1
+                conn.execute(
+                    """
+                    UPDATE surface_forms
+                    SET seen_count = seen_count + 1,
+                        last_seen_at = CURRENT_TIMESTAMP
+                    WHERE lexeme_id = ? AND form = ?
+                    """,
+                    (lexeme_row["id"], stored_lemma),
+                )
+                if lemma_translation:
+                    conn.execute(
+                        """
+                        UPDATE surface_forms
+                        SET english_translation = ?, translation_provider = ?
+                        WHERE lexeme_id = ? AND form = ?
+                        """,
+                        (lemma_translation, provider, lexeme_row["id"], stored_lemma),
+                    )
+                conn.execute(
+                    """
+                    UPDATE surface_forms
+                    SET pos_tag = COALESCE(pos_tag, ?),
+                        morphology = COALESCE(morphology, ?)
+                    WHERE lexeme_id = ? AND form = ?
+                    """,
+                    (lemma_pos_tag, lemma_morphology, lexeme_row["id"], stored_lemma),
+                )
 
             if normalized_surface:
                 cursor = conn.execute(
@@ -368,7 +431,7 @@ class WordbankUseCase:
 
         self._invalidate_pos_cache(stored_lemma, normalized_surface)
 
-        inserted = inserted_lexeme or inserted_surface_form
+        inserted = inserted_lexeme or inserted_surface_form or inserted_lemma_surface_form
         if self._typo_engine is not None and inserted:
             self._typo_engine.add_user_lexeme(stored_lemma)
 
@@ -1101,6 +1164,96 @@ class WordbankUseCase:
             ]
         )
 
+    def search_cor_form(self, form: str, *, limit: int = 100) -> CORSearchFormResponse:
+        normalized_form = normalize_token(form)
+        if not normalized_form:
+            raise ValueError("form is required")
+        if limit < 1:
+            raise ValueError("limit must be at least 1")
+        if self._cor_local_lexicon_service is None:
+            raise RuntimeError("COR local lookup service is unavailable.")
+
+        try:
+            entries = self._cor_local_lexicon_service.lookup_form(normalized_form, limit=limit)
+        except FileNotFoundError as exc:
+            raise RuntimeError(
+                "COR local database is unavailable. Build backend/resources/dictionaries/cor.sqlite first."
+            ) from exc
+        entries = [entry for entry in entries if entry.norm == "N"]
+        entries = self._consolidate_cor_local_entries(entries)
+        entries = self._drop_glossless_when_gloss_exists(entries)
+
+        groups: list[CORSearchGroup] = []
+        lemma_translation_cache: dict[str, str | None] = {}
+        gloss_translation_cache: dict[str, str | None] = {}
+        grouped: dict[tuple[str, str | None, str | None], int] = {}
+        for entry in entries:
+            key = (entry.lemma, entry.gloss, entry.pos_tag)
+            group_index = grouped.get(key)
+            lemma_translation = self._lookup_translation_for_cor_local_entry(entry, lemma_translation_cache)
+            gloss_translation = self._lookup_translation_for_cor_gloss(entry.gloss, gloss_translation_cache)
+            if group_index is None:
+                groups.append(
+                    CORSearchGroup(
+                        lemma=entry.lemma,
+                        gloss=entry.gloss,
+                        pos_tag=entry.pos_tag,
+                        variants=[
+                            self._cor_local_variant(
+                                entry,
+                                lemma_translation=lemma_translation,
+                                gloss_translation=gloss_translation,
+                            )
+                        ],
+                    )
+                )
+                grouped[key] = len(groups) - 1
+                continue
+            groups[group_index].variants.append(
+                self._cor_local_variant(
+                    entry,
+                    lemma_translation=lemma_translation,
+                    gloss_translation=gloss_translation,
+                )
+            )
+
+        return CORSearchFormResponse(
+            form=normalized_form,
+            groups=groups,
+        )
+
+    def search_cor_lemma_paradigm(self, lemma_idx: int, *, limit: int = 1000) -> CORLemmaParadigmResponse:
+        if lemma_idx < 1:
+            raise ValueError("lemma_idx must be >= 1")
+        if limit < 1:
+            raise ValueError("limit must be at least 1")
+        if self._cor_local_lexicon_service is None:
+            raise RuntimeError("COR local lookup service is unavailable.")
+
+        try:
+            entries = self._cor_local_lexicon_service.lookup_lemma(lemma_idx, limit=limit)
+        except FileNotFoundError as exc:
+            raise RuntimeError(
+                "COR local database is unavailable. Build backend/resources/dictionaries/cor.sqlite first."
+            ) from exc
+        entries = [entry for entry in entries if entry.norm == "N"]
+        entries = self._consolidate_cor_local_entries(entries)
+        entries = self._drop_glossless_when_gloss_exists(entries)
+
+        lemma_translation_cache: dict[str, str | None] = {}
+        gloss_translation_cache: dict[str, str | None] = {}
+        return CORLemmaParadigmResponse(
+            lemma_idx=lemma_idx,
+            variants=[
+                self._cor_local_variant(
+                    entry,
+                    lemma_translation=self._lookup_translation_for_cor_local_entry(entry, lemma_translation_cache),
+                    gloss_translation=self._lookup_translation_for_cor_gloss(entry.gloss, gloss_translation_cache),
+                )
+                for entry in entries
+            ],
+        )
+
     def get_lemma_details(self, lemma: str) -> LemmaDetailsResponse:
         normalized_lemma = normalize_token(lemma)
         if not normalized_lemma:
@@ -1148,6 +1301,7 @@ class WordbankUseCase:
         surface_forms: list[LemmaDetailsResponse.SurfaceFormDetails] = []
         uncached_forms = [row["form"] for row in form_rows if row["pos_tag"] is None and row["morphology"] is None]
         extracted_forms = self._extract_pos_and_morphology_batch(uncached_forms)
+        gloss_translation_cache: dict[str, str | None] = {}
 
         for row in form_rows:
             pos_tag = row["pos_tag"]
@@ -1155,12 +1309,25 @@ class WordbankUseCase:
             if pos_tag is None and morphology is None:
                 pos_tag, morphology = extracted_forms.get(row["form"], (None, None))
                 self._store_surface_form_metadata(lexeme_row["id"], row["form"], pos_tag, morphology)
+            cor_local_entry = self._best_cor_local_entry_for_form(
+                form=row["form"],
+                lemma=lexeme_row["lemma"],
+                preferred_pos_tag=pos_tag,
+            )
+            gram_raw = cor_local_entry.gram_raw if cor_local_entry is not None else None
+            gloss = cor_local_entry.gloss if cor_local_entry is not None else None
+            gloss_translation = self._lookup_translation_for_cor_gloss(gloss, gloss_translation_cache)
             surface_forms.append(
                 LemmaDetailsResponse.SurfaceFormDetails(
                     form=row["form"],
                     english_translation=row["english_translation"],
                     pos_tag=pos_tag,
                     morphology=morphology,
+                    lemma=lexeme_row["lemma"],
+                    lemma_translation=lexeme_row["english_translation"],
+                    gloss=gloss,
+                    gloss_translation=gloss_translation,
+                    gram_raw=gram_raw,
                     has_pronunciation=bool(row["has_pronunciation"]),
                 )
             )
@@ -1487,6 +1654,253 @@ class WordbankUseCase:
         if self._cor_lexicon_service is None:
             return []
         return self._cor_lexicon_service.lookup_full_form(normalized_value)
+
+    def _best_cor_local_entry_for_form(
+        self,
+        *,
+        form: str,
+        lemma: str,
+        preferred_pos_tag: str | None,
+    ) -> CORLocalEntry | None:
+        if self._cor_local_lexicon_service is None:
+            return None
+        normalized_form = normalize_token(form)
+        normalized_lemma = normalize_token(lemma)
+        if not normalized_form or not normalized_lemma:
+            return None
+        try:
+            entries = self._cor_local_lexicon_service.lookup_form(normalized_form, limit=500)
+        except FileNotFoundError:
+            return None
+        if not entries:
+            return None
+        filtered = [entry for entry in entries if normalize_token(entry.lemma) == normalized_lemma and entry.norm == "N"]
+        if not filtered:
+            return None
+        if preferred_pos_tag:
+            preferred = [entry for entry in filtered if entry.pos_tag == preferred_pos_tag]
+            if preferred:
+                filtered = preferred
+        return filtered[0]
+
+    @staticmethod
+    def _consolidate_cor_local_entries(entries: list[CORLocalEntry]) -> list[CORLocalEntry]:
+        if len(entries) < 2:
+            return entries
+
+        consolidated: dict[tuple[str, str, str | None, str | None, str | None], CORLocalEntry] = {}
+        order: list[tuple[str, str, str | None, str | None, str | None]] = []
+        for entry in entries:
+            key = (entry.form, entry.lemma, entry.gloss, entry.pos_tag, entry.norm)
+            existing = consolidated.get(key)
+            if existing is None:
+                consolidated[key] = entry
+                order.append(key)
+                continue
+
+            grams: list[str] = []
+            for source in (existing.gram_raw, entry.gram_raw):
+                for gram in [part.strip() for part in source.split("|")]:
+                    if gram and gram not in grams:
+                        grams.append(gram)
+            merged_gram = " | ".join(grams)
+
+            merged_features = dict(existing.features)
+            for feature_key, feature_value in entry.features.items():
+                current = merged_features.get(feature_key)
+                if current is None:
+                    merged_features[feature_key] = feature_value
+                elif current != feature_value:
+                    merged_features.pop(feature_key, None)
+
+            merged_extra_tags = [*existing.extra_tags]
+            for tag in entry.extra_tags:
+                if tag not in merged_extra_tags:
+                    merged_extra_tags.append(tag)
+
+            consolidated[key] = CORLocalEntry(
+                cor_id=existing.cor_id,
+                lemma=existing.lemma,
+                gloss=existing.gloss,
+                gram_raw=merged_gram,
+                form=existing.form,
+                norm=existing.norm,
+                lemma_idx=existing.lemma_idx,
+                gram_code=existing.gram_code,
+                variation=existing.variation,
+                pos_tag=existing.pos_tag,
+                morphology=existing.morphology,
+                features=merged_features,
+                extra_tags=merged_extra_tags,
+            )
+
+        return [consolidated[item] for item in order]
+
+    @staticmethod
+    def _drop_glossless_when_gloss_exists(entries: list[CORLocalEntry]) -> list[CORLocalEntry]:
+        if len(entries) < 2:
+            return entries
+
+        has_gloss_by_form_pos: dict[tuple[str, str | None], bool] = {}
+        for entry in entries:
+            key = (entry.form, entry.pos_tag)
+            if entry.gloss and entry.gloss.strip():
+                has_gloss_by_form_pos[key] = True
+            else:
+                has_gloss_by_form_pos.setdefault(key, False)
+
+        filtered: list[CORLocalEntry] = []
+        for entry in entries:
+            key = (entry.form, entry.pos_tag)
+            if has_gloss_by_form_pos.get(key, False):
+                if entry.gloss and entry.gloss.strip():
+                    filtered.append(entry)
+                continue
+            filtered.append(entry)
+        return filtered
+
+    def _lookup_translation_for_cor_local_entry(
+        self,
+        entry: CORLocalEntry,
+        cache: dict[str, str | None] | None = None,
+    ) -> str | None:
+        if self._translation_service is None:
+            return None
+
+        frame_kind, frame_text = self._cor_translation_frame(entry)
+        if cache is not None and frame_text in cache:
+            translated = cache[frame_text]
+        else:
+            translated = self._lookup_translation(frame_text)
+            if cache is not None:
+                cache[frame_text] = translated
+        if not translated:
+            return None
+        return self._strip_cor_translation_frame(frame_kind, translated)
+
+    def _lookup_translation_for_cor_gloss(
+        self,
+        gloss: str | None,
+        cache: dict[str, str | None] | None = None,
+    ) -> str | None:
+        if self._translation_service is None:
+            return None
+        normalized_gloss = normalize_token(gloss or "")
+        if not normalized_gloss:
+            return None
+        if cache is not None and normalized_gloss in cache:
+            return cache[normalized_gloss]
+
+        translated = self._lookup_translation(normalized_gloss)
+        if translated and translated != normalized_gloss:
+            if cache is not None:
+                cache[normalized_gloss] = translated
+            return translated
+
+        parts = [normalize_token(part) for part in normalized_gloss.split(",")]
+        parts = [part for part in parts if part]
+        if len(parts) > 1:
+            translated_parts: list[str] = []
+            for part in parts:
+                part_translated = self._lookup_translation(part)
+                translated_parts.append(part_translated or part)
+            merged = ", ".join(translated_parts)
+            if cache is not None:
+                cache[normalized_gloss] = merged
+            return merged
+
+        if cache is not None:
+            cache[normalized_gloss] = translated
+        return translated
+
+    @staticmethod
+    def _cor_translation_frame(entry: CORLocalEntry) -> tuple[str, str]:
+        lemma = normalize_token(entry.lemma)
+        if not lemma:
+            return "raw", entry.lemma
+
+        gram = entry.gram_raw.lower()
+        pos_code = gram.split(".", 1)[0].strip()
+        if pos_code == "vb":
+            return "verb", f"at {lemma}"
+        if pos_code == "sb":
+            article = "et" if re.search(r"(^|\.)itk(\.|$)", gram) else "en"
+            return "noun", f"{article} {lemma}"
+        if pos_code == "adj":
+            return "adjective", f"en {lemma} ting"
+        if pos_code == "adv":
+            return "adverb", f"han gør det {lemma}"
+        if pos_code == "pron":
+            return "pronoun", f"{lemma} er her"
+        if pos_code == "præp":
+            return "preposition", f"{lemma} huset"
+        if pos_code == "konj":
+            return "conjunction", f"..., {lemma} jeg går"
+        if pos_code == "art":
+            return "article", f"{lemma} bog"
+        if pos_code == "prop":
+            return "proper_noun", f"navnet {lemma}"
+        if pos_code == "talord":
+            return "numeral", f"{lemma} bøger"
+        return "raw", lemma
+
+    @staticmethod
+    def _strip_cor_translation_frame(frame_kind: str, translated: str) -> str | None:
+        cleaned = normalize_token(translated)
+        if not cleaned:
+            return None
+        if frame_kind == "verb":
+            return cleaned
+
+        value = cleaned
+        if frame_kind == "noun":
+            value = re.sub(r"^(?:a|an|the)\s+", "", value, flags=re.IGNORECASE)
+        elif frame_kind == "adjective":
+            value = re.sub(r"^(?:a|an|the)\s+", "", value, flags=re.IGNORECASE)
+            value = re.sub(r"\s+things?$", "", value, flags=re.IGNORECASE)
+        elif frame_kind == "adverb":
+            value = re.sub(r"^(?:he|she|it)\s+does\s+it\s+", "", value, flags=re.IGNORECASE)
+        elif frame_kind == "pronoun":
+            value = re.sub(r"\s+is\s+here$", "", value, flags=re.IGNORECASE)
+        elif frame_kind == "preposition":
+            value = re.sub(r"\s+(?:the\s+)?house$", "", value, flags=re.IGNORECASE)
+        elif frame_kind == "conjunction":
+            value = re.sub(r"\s+i\s+go$", "", value, flags=re.IGNORECASE)
+            value = value.strip(" ,")
+        elif frame_kind == "article":
+            value = re.sub(r"\s+books?$", "", value, flags=re.IGNORECASE)
+        elif frame_kind == "proper_noun":
+            value = re.sub(r"^(?:the\s+)?name\s+", "", value, flags=re.IGNORECASE)
+        elif frame_kind == "numeral":
+            value = re.sub(r"\s+books?$", "", value, flags=re.IGNORECASE)
+
+        value = normalize_token(value)
+        return value or cleaned
+
+    @staticmethod
+    def _cor_local_variant(
+        entry: CORLocalEntry,
+        *,
+        lemma_translation: str | None = None,
+        gloss_translation: str | None = None,
+    ) -> CORSearchVariant:
+        return CORSearchVariant(
+            cor_id=entry.cor_id,
+            form=entry.form,
+            lemma=entry.lemma,
+            gloss=entry.gloss,
+            gloss_translation=gloss_translation,
+            gram_raw=entry.gram_raw,
+            norm=entry.norm,
+            lemma_idx=entry.lemma_idx,
+            gram_code=entry.gram_code,
+            variation=entry.variation,
+            pos_tag=entry.pos_tag,
+            morphology=entry.morphology,
+            features=entry.features,
+            extra_tags=entry.extra_tags,
+            lemma_translation=lemma_translation,
+        )
 
     def _best_cor_entry(
         self,

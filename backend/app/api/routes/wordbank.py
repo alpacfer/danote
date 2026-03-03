@@ -11,6 +11,8 @@ from app.api.schemas.v1.wordbank import (
     AddWordResponse,
     ApplyVerificationChangesRequest,
     ApplyVerificationChangesResponse,
+    CORLemmaParadigmResponse,
+    CORSearchFormResponse,
     DetectWordLanguageRequest,
     DetectWordLanguageResponse,
     GeneratePronunciationRequest,
@@ -255,6 +257,50 @@ def search_wordbank(
         return build_wordbank_use_case(request).search_lemmas(query, limit=limit)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except sqlite3.OperationalError as exc:
+        logger.exception("wordbank_db_operational_error")
+        raise HTTPException(
+            status_code=503,
+            detail=f"Database unavailable: {exc}",
+        ) from exc
+
+
+@router.get("/wordbank/search/cor-form", response_model=CORSearchFormResponse)
+def search_cor_form(
+    request: Request,
+    form: str = Query(..., min_length=1),
+    limit: int = Query(100, ge=1, le=500),
+) -> CORSearchFormResponse:
+    _require_db_ready(request)
+
+    try:
+        return build_wordbank_use_case(request).search_cor_form(form, limit=limit)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except sqlite3.OperationalError as exc:
+        logger.exception("wordbank_db_operational_error")
+        raise HTTPException(
+            status_code=503,
+            detail=f"Database unavailable: {exc}",
+        ) from exc
+
+
+@router.get("/wordbank/search/cor-lemma/{lemma_idx}", response_model=CORLemmaParadigmResponse)
+def search_cor_lemma_paradigm(
+    lemma_idx: int,
+    request: Request,
+    limit: int = Query(1000, ge=1, le=5000),
+) -> CORLemmaParadigmResponse:
+    _require_db_ready(request)
+
+    try:
+        return build_wordbank_use_case(request).search_cor_lemma_paradigm(lemma_idx, limit=limit)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     except sqlite3.OperationalError as exc:
         logger.exception("wordbank_db_operational_error")
         raise HTTPException(
