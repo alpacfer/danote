@@ -4,6 +4,7 @@ BACKEND_DIR := backend
 FRONTEND_DIR := frontend
 BACKEND_PY := $(BACKEND_DIR)/.venv/bin/python
 BACKEND_PYTEST := PYTHONPATH=. $(BACKEND_DIR)/.venv/bin/pytest
+export PATH := $(HOME)/.local/bin:$(PATH)
 
 help:
 	@echo "Available targets:"

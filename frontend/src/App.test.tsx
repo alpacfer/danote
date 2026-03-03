@@ -893,7 +893,7 @@ describe("App shell", () => {
   })
 
   it("command dialog search opens and supports wordbank + notes results", async () => {
-    mockFetchImplementation({
+    const fetchSpy = mockFetchImplementation({
       lemmasResponse: {
         items: [
           { lemma: "bog", variation_count: 1, english_translation: "book" },
@@ -908,6 +908,34 @@ describe("App shell", () => {
             variation_count: 2,
             english_translation: "book",
             match_surface: "bogens",
+          },
+        ],
+      },
+      corSearchFormResponse: {
+        form: "bogens",
+        groups: [
+          {
+            lemma: "bog",
+            gloss: "book",
+            pos_tag: "NOUN",
+            variants: [
+              {
+                cor_id: "COR.100.111.01",
+                form: "bogens",
+                lemma: "bog",
+                gloss: "book's",
+                lemma_translation: "book",
+                gram_raw: "sb.fk.sg.best.gen",
+                norm: "N",
+                lemma_idx: 100,
+                gram_code: 111,
+                variation: 1,
+                pos_tag: "NOUN",
+                morphology: "Gender=Com|Number=Sing|Definite=Def|Case=Gen",
+                features: { Gender: "Com", Number: "Sing", Definite: "Def", Case: "Gen" },
+                extra_tags: [],
+              },
+            ],
           },
         ],
       },
@@ -933,17 +961,166 @@ describe("App shell", () => {
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
     const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
-    fireEvent.change(searchInput, { target: { value: "gens" } })
+    fireEvent.change(searchInput, { target: { value: "bogens" } })
 
-    expect(await screen.findByText(/^book$/i)).toBeInTheDocument()
-    expect(await screen.findByText(/variation match: bogens/i)).toBeInTheDocument()
+    await waitFor(() => {
+      expect(within(commandDialog).queryAllByTestId("search-add-variation-label").length).toBeGreaterThan(0)
+    })
+    const variationLabel = within(commandDialog).queryAllByTestId("search-add-variation-label")[0]
+    expect(variationLabel).toBeTruthy()
+    expect(within(commandDialog).queryAllByTestId("search-add-icon").length).toBeGreaterThan(0)
 
-    fireEvent.change(searchInput, { target: { value: "bogen" } })
-    const savedNoteResult = await screen.findByText(/bogen note/i)
+    const variationItem = variationLabel?.closest("[cmdk-item]")
+    expect(variationItem).toBeTruthy()
+    fireEvent.click(variationItem as HTMLElement)
+    await waitFor(() => {
+      expect(
+        fetchSpy.mock.calls.some(([input, init]) => {
+          if (!String(input).endsWith("/api/wordbank/lexemes")) {
+            return false
+          }
+          const body = JSON.parse(String(init?.body ?? "{}")) as {
+            surface_token?: string
+            lemma_candidate?: string
+            pos_tag?: string
+            morphology?: string
+          }
+          return (
+            body.surface_token === "bogens"
+            && body.lemma_candidate === "bog"
+            && body.pos_tag === "NOUN"
+            && body.morphology === "Gender=Com|Number=Sing|Definite=Def|Case=Gen"
+          )
+        }),
+      ).toBe(true)
+    })
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    const reopenedDialog = await screen.findByRole("dialog")
+    const reopenedSearchInput = within(reopenedDialog).getByPlaceholderText(/search words and notes/i)
+    fireEvent.change(reopenedSearchInput, { target: { value: "bogen" } })
+    const savedNoteResult = await within(reopenedDialog).findByText(/bogen note/i)
     fireEvent.click(savedNoteResult)
 
     expect(await screen.findByRole("button", { name: /create new note/i })).toBeInTheDocument()
     expect(getNotesEditor()).toHaveTextContent(/jeg laeser en bog i dag/i)
+  })
+
+  it("command search shows saved lemma as top action with eye icon", async () => {
+    mockFetchImplementation({
+      lemmasResponse: {
+        items: [{ lemma: "bog", variation_count: 2, english_translation: "book" }],
+      },
+      searchWordbankResponse: {
+        items: [
+          {
+            lemma: "bog",
+            display_lemma: "bog",
+            variation_count: 2,
+            english_translation: "book",
+            match_surface: null,
+          },
+        ],
+      },
+    })
+
+    render(<App />)
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    const commandDialog = await screen.findByRole("dialog")
+    const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
+    fireEvent.change(searchInput, { target: { value: "bog" } })
+
+    expect(await within(commandDialog).findByText(/^bog$/i)).toBeInTheDocument()
+    expect(await within(commandDialog).findByTestId("search-open-icon")).toBeInTheDocument()
+    expect(within(commandDialog).queryByTestId("search-add-variation-label")).not.toBeInTheDocument()
+
+    fireEvent.click(await within(commandDialog).findByText(/^bog$/i))
+    expect(await screen.findByRole("heading", { name: /^bog$/i })).toBeInTheDocument()
+  })
+
+  it("does not show add cards when the exact searched form is already saved", async () => {
+    mockFetchImplementation({
+      lemmasResponse: {
+        items: [{ lemma: "lærer", variation_count: 1, english_translation: "teacher" }],
+      },
+      searchWordbankResponse: {
+        items: [
+          {
+            lemma: "lærer",
+            display_lemma: "lærer",
+            variation_count: 1,
+            english_translation: "teacher",
+            match_surface: null,
+          },
+        ],
+      },
+      corSearchFormResponse: {
+        form: "lærer",
+        groups: [
+          {
+            lemma: "lærer",
+            gloss: "teacher",
+            pos_tag: "NOUN",
+            variants: [
+              {
+                cor_id: "COR.49032.110.01",
+                form: "lærer",
+                lemma: "lærer",
+                gloss: "teacher",
+                lemma_translation: "teacher",
+                gram_raw: "sb.fk.sg.ubest",
+                norm: "N",
+                lemma_idx: 49032,
+                gram_code: 110,
+                variation: 1,
+                pos_tag: "NOUN",
+                morphology: "Gender=Com|Number=Sing|Definite=Ind",
+                features: { Gender: "Com", Number: "Sing", Definite: "Ind" },
+                extra_tags: [],
+              },
+            ],
+          },
+          {
+            lemma: "lære",
+            gloss: "learn",
+            pos_tag: "VERB",
+            variants: [
+              {
+                cor_id: "COR.30686.203.01",
+                form: "lærer",
+                lemma: "lære",
+                gloss: "learn",
+                lemma_translation: "to learn",
+                gram_raw: "vb.præs.akt",
+                norm: "N",
+                lemma_idx: 30686,
+                gram_code: 203,
+                variation: 1,
+                pos_tag: "VERB",
+                morphology: "Tense=Pres|VerbForm=Fin|Voice=Act",
+                features: { Tense: "Pres", VerbForm: "Fin", Voice: "Act" },
+                extra_tags: [],
+              },
+            ],
+          },
+        ],
+      },
+    })
+
+    render(<App />)
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    const commandDialog = await screen.findByRole("dialog")
+    const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
+    fireEvent.change(searchInput, { target: { value: "lærer" } })
+
+    expect(await within(commandDialog).findByText(/^lærer$/i)).toBeInTheDocument()
+    expect(await within(commandDialog).findByTestId("search-open-icon")).toBeInTheDocument()
+    expect(within(commandDialog).queryByTestId("search-add-variation-label")).not.toBeInTheDocument()
+    expect(within(commandDialog).queryAllByTestId("search-add-icon")).toHaveLength(0)
   })
 
   it("command search uses local COR endpoint, renders grouped variants, and adds selected variant", async () => {

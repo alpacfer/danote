@@ -1422,6 +1422,10 @@ function AppSidebar({
       matchSurface: null as string | null,
     }))).map((item) => ({ lemma: item.lemma, matchSurface: item.matchSurface ?? null }))
   }, [matchingLemmas, searchApiMatches])
+  const savedLemmaKeySet = useMemo(
+    () => new Set(lemmas.map((item) => normalizeSearchWord(item.lemma)).filter(Boolean)),
+    [lemmas],
+  )
   const hasWordbankResults = wordbankResults.length > 0
   const corSearchGroups = useMemo(
     () => activeCorFormSearchResult?.payload.groups ?? [],
@@ -1437,8 +1441,118 @@ function AppSidebar({
       ),
     [corSearchGroups],
   )
-  const hasWordbankSectionResults = hasWordbankResults || corSearchVariants.length > 0
-  const hasWordbankActions = corSearchVariants.length > 0
+  const linkedVariationBySavedLemma = useMemo(() => {
+    const linked = new Map<string, { group: CORSearchGroup; variant: CORSearchVariant }>()
+    if (!normalizedQuery || wordbankResults.length === 0 || corSearchVariants.length === 0) {
+      return linked
+    }
+
+    const savedLemmaKeys = new Set(wordbankResults.map(({ lemma }) => normalizeSearchWord(lemma.lemma)))
+    for (const candidate of corSearchVariants) {
+      const lemmaKey = normalizeSearchWord(candidate.variant.lemma)
+      if (!lemmaKey || !savedLemmaKeys.has(lemmaKey)) {
+        continue
+      }
+      const formKey = normalizeSearchWord(candidate.variant.form)
+      if (!formKey || formKey === lemmaKey) {
+        continue
+      }
+      if (formKey !== normalizedQuery) {
+        continue
+      }
+      const existing = linked.get(lemmaKey)
+      if (!existing) {
+        linked.set(lemmaKey, candidate)
+        continue
+      }
+      const existingFormKey = normalizeSearchWord(existing.variant.form)
+      if (formKey === normalizedQuery && existingFormKey !== normalizedQuery) {
+        linked.set(lemmaKey, candidate)
+      }
+    }
+    return linked
+  }, [corSearchVariants, normalizedQuery, wordbankResults])
+  const hasExactSavedWordbankMatch = useMemo(
+    () =>
+      wordbankResults.some(({ lemma, matchSurface }) => {
+        const lemmaKey = normalizeSearchWord(lemma.lemma)
+        const surfaceKey = normalizeSearchWord(matchSurface ?? "")
+        return lemmaKey === normalizedQuery || surfaceKey === normalizedQuery
+      }),
+    [normalizedQuery, wordbankResults],
+  )
+  const orderedWordbankResults = useMemo(() => {
+    return [...wordbankResults].sort((left, right) => {
+      const leftLemmaKey = normalizeSearchWord(left.lemma.lemma)
+      const rightLemmaKey = normalizeSearchWord(right.lemma.lemma)
+      const leftLinked = linkedVariationBySavedLemma.get(leftLemmaKey)?.variant ?? null
+      const rightLinked = linkedVariationBySavedLemma.get(rightLemmaKey)?.variant ?? null
+      const leftMatchSurface = normalizeSearchWord(left.matchSurface ?? "")
+      const rightMatchSurface = normalizeSearchWord(right.matchSurface ?? "")
+      const leftLinkedForm = normalizeSearchWord(leftLinked?.form ?? "")
+      const rightLinkedForm = normalizeSearchWord(rightLinked?.form ?? "")
+      const query = normalizedQuery
+
+      const score = (payload: {
+        lemmaKey: string
+        linkedForm: string
+        matchSurface: string
+      }): number => {
+        if (!query) {
+          return 0
+        }
+        if (payload.linkedForm && payload.linkedForm === query) {
+          return 400
+        }
+        if (payload.matchSurface && payload.matchSurface === query) {
+          return 360
+        }
+        if (payload.lemmaKey === query) {
+          return 320
+        }
+        if (payload.linkedForm && payload.linkedForm.includes(query)) {
+          return 280
+        }
+        if (payload.matchSurface && payload.matchSurface.includes(query)) {
+          return 240
+        }
+        if (payload.lemmaKey.startsWith(query)) {
+          return 200
+        }
+        return 0
+      }
+
+      const leftScore = score({
+        lemmaKey: leftLemmaKey,
+        linkedForm: leftLinkedForm,
+        matchSurface: leftMatchSurface,
+      })
+      const rightScore = score({
+        lemmaKey: rightLemmaKey,
+        linkedForm: rightLinkedForm,
+        matchSurface: rightMatchSurface,
+      })
+      if (leftScore !== rightScore) {
+        return rightScore - leftScore
+      }
+      return left.lemma.lemma.localeCompare(right.lemma.lemma, "da-DK")
+    })
+  }, [linkedVariationBySavedLemma, normalizedQuery, wordbankResults])
+  const corSearchVariantsToRender = useMemo(
+    () =>
+      corSearchVariants.filter((candidate) => {
+        const formKey = normalizeSearchWord(candidate.variant.form)
+        if (hasExactSavedWordbankMatch && formKey === normalizedQuery) {
+          return false
+        }
+        const lemmaKey = normalizeSearchWord(candidate.variant.lemma)
+        const linked = linkedVariationBySavedLemma.get(lemmaKey)
+        return !linked || linked.variant.cor_id !== candidate.variant.cor_id
+      }),
+    [corSearchVariants, hasExactSavedWordbankMatch, linkedVariationBySavedLemma, normalizedQuery],
+  )
+  const hasWordbankSectionResults = hasWordbankResults || corSearchVariantsToRender.length > 0
+  const hasWordbankActions = corSearchVariantsToRender.length > 0
   const hasNoteResults = matchingNotes.length > 0
   const pageItems = useMemo(
     () => [
@@ -1637,26 +1751,95 @@ function AppSidebar({
             {normalizedQuery && !hasAnyResults ? <CommandEmpty>No results found.</CommandEmpty> : null}
             {hasWordbankSectionResults ? (
               <CommandGroup heading="Wordbank">
-                {wordbankResults.map(({ lemma, matchSurface }) => (
+                {orderedWordbankResults.map(({ lemma, matchSurface }) => (
                   <CommandItem
                     key={`search-lemma-${lemma.lemma}`}
-                    value={`wordbank-${lemma.lemma} ${lemma.english_translation ?? ""} ${matchSurface ?? ""}`}
+                    value={`wordbank-${lemma.lemma} ${lemma.english_translation ?? ""} ${matchSurface ?? ""} ${linkedVariationBySavedLemma.get(normalizeSearchWord(lemma.lemma))?.variant.form ?? ""}`}
                     onSelect={() => {
+                      const linkedVariation = linkedVariationBySavedLemma.get(normalizeSearchWord(lemma.lemma))
+                      if (linkedVariation) {
+                        void (async () => {
+                          const addedLemma = await onAddWordFromSearch(
+                            linkedVariation.variant.form,
+                            linkedVariation.variant.lemma,
+                            {
+                              rawToken: normalizedQuery,
+                              predictedStatus: "variation",
+                              suggestionsShown: [`${linkedVariation.variant.lemma}:${linkedVariation.variant.gram_raw}`],
+                            },
+                            {
+                              posTag: linkedVariation.variant.pos_tag ?? null,
+                              morphology: linkedVariation.variant.morphology ?? null,
+                            },
+                          )
+                          if (addedLemma) {
+                            setIsSearchOpen(false)
+                            setSearchQuery("")
+                          }
+                        })()
+                        return
+                      }
                       onOpenWordbankLemma(lemma.lemma)
                       setIsSearchOpen(false)
                       setSearchQuery("")
                     }}
-                    className="flex-col items-start gap-0.5"
+                    className="flex items-center justify-between gap-3"
                   >
-                    <span className="font-medium">{lemma.lemma}</span>
-                    <span className="text-muted-foreground text-xs">
-                      {lemma.english_translation?.trim() || "No translation available."}
-                    </span>
-                    {matchSurface ? (
-                      <span className="text-muted-foreground text-[11px]">
-                        Variation match: {matchSurface}
+                    <div className="flex min-w-0 flex-col items-start gap-0.5">
+                      {(() => {
+                        const linkedVariation = linkedVariationBySavedLemma.get(normalizeSearchWord(lemma.lemma))?.variant ?? null
+                        const displayTitle = linkedVariation?.form?.trim()
+                          || lemma.display_lemma?.trim()
+                          || lemma.lemma
+                        const linkedLemmaDisplay = linkedVariation ? lemmaDisplayForVariant(linkedVariation) : null
+                        const linkedLemmaTranslation = linkedVariation ? lemmaTranslationForVariant(linkedVariation) : null
+                        const detailLine = linkedVariation
+                          ? (glossDisplayForVariant(linkedVariation) ?? (lemma.english_translation?.trim() || "No translation available."))
+                          : (lemma.english_translation?.trim() || "No translation available.")
+                        const badges = linkedVariation ? badgesFromGramRaw(linkedVariation.gram_raw) : []
+                        return (
+                          <>
+                            <span>
+                              <strong className="font-semibold">{displayTitle}</strong>
+                              {linkedLemmaDisplay ? (
+                                <span className="text-muted-foreground text-xs">
+                                  {" "}from <em>{linkedLemmaDisplay}</em>
+                                  {linkedLemmaTranslation ? ` (${linkedLemmaTranslation})` : ""}
+                                </span>
+                              ) : null}
+                            </span>
+                            <span className="text-muted-foreground text-xs">{detailLine}</span>
+                            {matchSurface && !linkedVariation ? (
+                              <span className="text-muted-foreground text-[11px]">
+                                Variation match: {matchSurface}
+                              </span>
+                            ) : null}
+                            {badges.length > 0 ? (
+                              <div className="mt-1 flex flex-wrap gap-1.5">
+                                {badges.map((badge) => (
+                                  <Badge
+                                    key={`search-wordbank-${lemma.lemma}-badge-${badge.label}`}
+                                    variant={badge.tone === "primary" ? "default" : "secondary"}
+                                    className={`text-xs ${badge.tone === "primary" ? `border ${posBadgeClass(linkedVariation?.pos_tag ?? null)}` : `border ${corSecondaryBadgeClass(badge.label)}`}`.trim()}
+                                    data-testid="search-metadata-badge"
+                                  >
+                                    {badge.label}
+                                  </Badge>
+                                ))}
+                              </div>
+                            ) : null}
+                          </>
+                        )
+                      })()}
+                    </div>
+                    {linkedVariationBySavedLemma.get(normalizeSearchWord(lemma.lemma)) ? (
+                      <span className="text-muted-foreground flex items-center gap-1 text-xs font-semibold">
+                        <span data-testid="search-add-variation-label">variation</span>
+                        <Plus data-testid="search-add-icon" className="size-4 shrink-0" />
                       </span>
-                    ) : null}
+                    ) : (
+                      <Eye data-testid="search-open-icon" className="text-muted-foreground size-4 shrink-0" />
+                    )}
                   </CommandItem>
                 ))}
                 {corSearchGroups.map((group, groupIndex) => (
@@ -1664,7 +1847,12 @@ function AppSidebar({
                     key={`cor-group-${group.lemma}-${group.gloss ?? ""}-${group.pos_tag ?? ""}-${groupIndex}`}
                     className="mt-1 first:mt-0"
                   >
-                    {(group.variants ?? []).map((variant) => (
+                    {corSearchVariantsToRender
+                      .filter((item) => item.group === group)
+                      .map(({ variant }) => {
+                        const isVariationCandidate = normalizeSearchWord(variant.form) !== normalizeSearchWord(variant.lemma)
+                        const isVariationAdd = isVariationCandidate && savedLemmaKeySet.has(normalizeSearchWord(variant.lemma))
+                        return (
                       <CommandItem
                         key={`cor-variant-${variant.cor_id}`}
                         value={`cor-variant-${variant.form} ${variant.lemma} ${variant.gram_raw} ${variant.gloss ?? ""} ${variant.gloss_translation ?? ""} ${variant.lemma_translation ?? ""} ${normalizedQuery}`}
@@ -1675,7 +1863,7 @@ function AppSidebar({
                               variant.lemma,
                               {
                                 rawToken: normalizedQuery,
-                                predictedStatus: "new",
+                                predictedStatus: isVariationAdd ? "variation" : "new",
                                 suggestionsShown: [`${variant.lemma}:${variant.gram_raw}`],
                               },
                               {
@@ -1717,9 +1905,17 @@ function AppSidebar({
                             ))}
                           </div>
                         </div>
-                        <Plus data-testid="search-add-icon" className="text-muted-foreground size-4 shrink-0" />
+                        {isVariationAdd ? (
+                          <span className="text-muted-foreground flex items-center gap-1 text-xs font-semibold">
+                            <span data-testid="search-add-variation-label">variation</span>
+                            <Plus data-testid="search-add-icon" className="size-4 shrink-0" />
+                          </span>
+                        ) : (
+                          <Plus data-testid="search-add-icon" className="text-muted-foreground size-4 shrink-0" />
+                        )}
                       </CommandItem>
-                    ))}
+                        )
+                      })}
                   </div>
                 ))}
               </CommandGroup>
