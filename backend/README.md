@@ -122,6 +122,18 @@ pip install --upgrade pip
 pip install -r requirements.lock.txt
 ```
 
+Search-only setup (for command-search flow investigation, no DaCy model):
+
+```bash
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.search.txt
+# skip NLP startup entirely for search-only investigations
+export DANOTE_NLP_ENABLED=0
+```
+
 If your Linux image is missing `python3-venv` / `python3-pip`, use `uv` (no sudo required):
 
 ```bash

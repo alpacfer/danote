@@ -1316,18 +1316,6 @@ function AppSidebar({
   } | null>(null)
   const trimmedQuery = normalizeSearchWord(searchQuery)
   const normalizedQuery = trimmedQuery
-  const matchingLemmas = useMemo(() => {
-    if (!normalizedQuery) {
-      return []
-    }
-    return lemmas
-      .filter((lemma) => {
-        const lemmaValue = lemma.lemma.trim().toLocaleLowerCase("da-DK")
-        const translationValue = lemma.english_translation?.trim().toLocaleLowerCase("da-DK") ?? ""
-        return lemmaValue.includes(normalizedQuery) || translationValue.includes(normalizedQuery)
-      })
-      .slice(0, 8)
-  }, [lemmas, normalizedQuery])
   const matchingNotes = useMemo(() => {
     if (!normalizedQuery) {
       return []
@@ -1371,6 +1359,9 @@ function AppSidebar({
         cancelled = true
       }
     }
+
+    // Clear stale matches from a previous query while a new debounced request is pending.
+    commitSearchMatches([])
 
     const controller = new AbortController()
     const timeoutId = window.setTimeout(() => {
@@ -1416,12 +1407,10 @@ function AppSidebar({
     }
   }, [normalizedQuery, trimmedQuery])
 
-  const wordbankResults = useMemo(() => {
-    return (searchApiMatches.length > 0 ? searchApiMatches : matchingLemmas.map((lemma) => ({
-      lemma,
-      matchSurface: null as string | null,
-    }))).map((item) => ({ lemma: item.lemma, matchSurface: item.matchSurface ?? null }))
-  }, [matchingLemmas, searchApiMatches])
+  const wordbankResults = useMemo(
+    () => searchApiMatches.map((item) => ({ lemma: item.lemma, matchSurface: item.matchSurface ?? null })),
+    [searchApiMatches],
+  )
   const savedLemmaKeySet = useMemo(
     () => new Set(lemmas.map((item) => normalizeSearchWord(item.lemma)).filter(Boolean)),
     [lemmas],

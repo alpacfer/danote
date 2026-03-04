@@ -55,17 +55,21 @@ def create_app(
             )
 
         adapter: NLPAdapter | None = None
-        try:
-            adapter = nlp_adapter_factory(app_settings)
-            app.state.nlp_ready = True
-            app.state.nlp_error = None
-        except Exception as exc:
+        app.state.nlp_error = None
+        app.state.nlp_enabled = app_settings.nlp_enabled
+        if app_settings.nlp_enabled:
+            try:
+                adapter = nlp_adapter_factory(app_settings)
+                app.state.nlp_ready = True
+            except Exception as exc:
+                app.state.nlp_ready = False
+                app.state.nlp_error = str(exc)
+                logger.exception(
+                    "backend_nlp_startup_failed",
+                    extra={"nlp_model": app_settings.nlp_model},
+                )
+        else:
             app.state.nlp_ready = False
-            app.state.nlp_error = str(exc)
-            logger.exception(
-                "backend_nlp_startup_failed",
-                extra={"nlp_model": app_settings.nlp_model},
-            )
         app.state.nlp_adapter = adapter
         app.state.cor_lexicon_service = None
         app.state.cor_lookup_error = None
@@ -185,7 +189,8 @@ def create_app(
         else:
             app.state.tts_service = None
 
-        startup_status = "ok" if app.state.db_ready and app.state.nlp_ready else "degraded"
+        nlp_requirement_met = (not app_settings.nlp_enabled) or app.state.nlp_ready
+        startup_status = "ok" if app.state.db_ready and nlp_requirement_met else "degraded"
         logger.info(
             "backend_startup",
             extra={
