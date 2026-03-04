@@ -1,4 +1,4 @@
-.PHONY: help setup-backend setup-frontend setup lint lint-backend test test-backend-unit test-backend-medium test-backend-slow test-frontend docs-smoke agent-verify dev
+.PHONY: help setup-backend setup-backend-search setup-frontend setup lint lint-backend test test-backend-unit test-backend-medium test-backend-slow test-frontend docs-smoke agent-verify dev
 
 BACKEND_DIR := backend
 FRONTEND_DIR := frontend
@@ -9,6 +9,7 @@ export PATH := $(HOME)/.local/bin:$(PATH)
 help:
 	@echo "Available targets:"
 	@echo "  setup-backend       Create backend venv and install requirements.lock.txt"
+	@echo "  setup-backend-search Create backend venv and install search-only requirements (no DaCy)"
 	@echo "  setup-frontend      Install frontend dependencies"
 	@echo "  setup               Run setup-backend and setup-frontend"
 	@echo "  lint                Run frontend lint and backend lint checks"
@@ -25,6 +26,11 @@ setup-backend:
 	cd $(BACKEND_DIR) && python3 -m venv .venv
 	$(BACKEND_PY) -m pip install --upgrade pip
 	$(BACKEND_PY) -m pip install -r $(BACKEND_DIR)/requirements.lock.txt
+
+setup-backend-search:
+	cd $(BACKEND_DIR) && python3 -m venv .venv
+	$(BACKEND_PY) -m pip install --upgrade pip
+	$(BACKEND_PY) -m pip install -r $(BACKEND_DIR)/requirements.search.txt
 
 setup-frontend:
 	cd $(FRONTEND_DIR) && npm ci

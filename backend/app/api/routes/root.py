@@ -14,8 +14,9 @@ def api_root() -> dict[str, str]:
 def health(request: Request) -> HealthResponse:
     settings = request.app.state.settings
     db_ready = bool(getattr(request.app.state, "db_ready", False))
+    nlp_enabled = bool(getattr(settings, "nlp_enabled", True))
     nlp_ready = bool(getattr(request.app.state, "nlp_ready", False))
-    status = "ok" if db_ready and nlp_ready else "degraded"
+    status = "ok" if db_ready and ((not nlp_enabled) or nlp_ready) else "degraded"
     translation_enabled = bool(getattr(settings, "translation_enabled", False))
     translation_service = getattr(request.app.state, "translation_service", None)
     translation_provider_selected = str(getattr(settings, "translation_provider", "") or "").strip().lower()
@@ -103,7 +104,7 @@ def health(request: Request) -> HealthResponse:
         "service": "backend",
         "components": {
             "database": "ok" if db_ready else "degraded",
-            "nlp": "ok" if nlp_ready else "degraded",
+            "nlp": "disabled" if not nlp_enabled else ("ok" if nlp_ready else "degraded"),
             "translation": translation_component_status,
             "tts": tts_component_status,
         },

@@ -1040,6 +1040,35 @@ describe("App shell", () => {
     expect(await screen.findByRole("heading", { name: /^bog$/i })).toBeInTheDocument()
   })
 
+  it("command search does not use legacy local lemma fallback when API search returns no matches", async () => {
+    mockFetchImplementation({
+      lemmasResponse: {
+        items: [{ lemma: "bog", variation_count: 2, english_translation: "book" }],
+      },
+      searchWordbankResponse: {
+        items: [],
+      },
+      corSearchFormResponse: {
+        form: "bog",
+        groups: [],
+      },
+    })
+
+    render(<App />)
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    const commandDialog = await screen.findByRole("dialog")
+    const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
+    fireEvent.change(searchInput, { target: { value: "bog" } })
+
+    await waitFor(() => {
+      expect(within(commandDialog).queryByText(/^bog$/i)).not.toBeInTheDocument()
+      expect(within(commandDialog).queryByTestId("search-open-icon")).not.toBeInTheDocument()
+      expect(within(commandDialog).queryByTestId("search-add-icon")).not.toBeInTheDocument()
+    })
+  })
+
   it("does not show add cards when the exact searched form is already saved", async () => {
     mockFetchImplementation({
       lemmasResponse: {
