@@ -187,6 +187,8 @@ class WordbankSearchItem(BaseModel):
     english_translation: str | None
     variation_count: int
     match_surface: str | None = None
+    pos_tag: str | None = None
+    morphology: str | None = None
 
 
 class WordbankSearchResponse(BaseModel):

@@ -1,0 +1,64 @@
+import { Card, CardContent } from "@/components/ui/card"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Skeleton } from "@/components/ui/skeleton"
+import { type SentencebankSentence } from "@/app/core"
+
+export type SentencebankSectionProps = {
+  sentencebankError: string | null
+  isSentencebankLoading: boolean
+  sentences: SentencebankSentence[]
+}
+
+export function SentencebankSection({
+  sentencebankError,
+  isSentencebankLoading,
+  sentences,
+}: SentencebankSectionProps) {
+  if (sentencebankError) {
+    return (
+      <p className="text-destructive text-sm" role="alert">
+        {sentencebankError}
+      </p>
+    )
+  }
+
+  if (isSentencebankLoading && sentences.length === 0) {
+    return (
+      <div className="space-y-3">
+        <Card>
+          <CardContent className="space-y-2">
+            <Skeleton className="h-5 w-48" />
+            <Skeleton className="h-4 w-32" />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="space-y-2">
+            <Skeleton className="h-5 w-56" />
+            <Skeleton className="h-4 w-36" />
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  if (sentences.length === 0) {
+    return <p className="text-muted-foreground text-sm">No saved sentences yet. Select a sentence in Playground to add one.</p>
+  }
+
+  return (
+    <ScrollArea className="min-h-0 flex-1">
+      <div className="space-y-3 pr-1">
+        {sentences.map((sentence) => (
+          <Card key={sentence.id}>
+            <CardContent className="space-y-2">
+              <p className="text-base font-medium leading-relaxed max-w-[70ch] break-words">{sentence.source_text}</p>
+              <p className="text-muted-foreground text-sm max-w-[70ch] break-words">
+                {sentence.english_translation?.trim() || "No translation available."}
+              </p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </ScrollArea>
+  )
+}

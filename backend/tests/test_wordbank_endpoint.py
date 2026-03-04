@@ -198,8 +198,42 @@ def test_search_lemmas_returns_variation_matches(tmp_path, stub_nlp_adapter_fact
             "lemma": "bog",
             "display_lemma": "bog",
             "english_translation": None,
-            "variation_count": 1,
+            "variation_count": 2,
             "match_surface": "bogens",
+            "pos_tag": None,
+            "morphology": None,
+        }
+    ]
+
+
+def test_search_lemmas_prefers_matched_surface_metadata(tmp_path, stub_nlp_adapter_factory) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    apply_migrations(db_path)
+    app = create_app(_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+
+    with TestClient(app) as client:
+        client.post(
+            "/api/wordbank/lexemes",
+            json={
+                "surface_token": "ulykker",
+                "lemma_candidate": "ulykke",
+                "pos_tag": "NOUN",
+                "morphology": "Gender=Com|Number=Plur|Definite=Ind",
+            },
+        )
+        response = client.get("/api/wordbank/search", params={"query": "ulykker"})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["items"] == [
+        {
+            "lemma": "ulykke",
+            "display_lemma": "ulykke",
+            "english_translation": None,
+            "variation_count": 2,
+            "match_surface": "ulykker",
+            "pos_tag": "NOUN",
+            "morphology": "Gender=Com|Number=Plur|Definite=Ind",
         }
     ]
 

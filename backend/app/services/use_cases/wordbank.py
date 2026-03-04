@@ -1106,40 +1106,122 @@ class WordbankUseCase:
         with get_connection(self._db_path) as conn:
             rows = conn.execute(
                 """
+                WITH search_candidates AS (
+                    SELECT
+                        l.id AS lexeme_id,
+                        l.lemma AS lemma,
+                        l.english_translation AS english_translation,
+                        l.pos_tag AS pos_tag,
+                        l.morphology AS morphology,
+                        (
+                            SELECT COUNT(*)
+                            FROM surface_forms sf_all
+                            WHERE sf_all.lexeme_id = l.id
+                        ) AS variation_count,
+                        (
+                            SELECT sf_match.form
+                            FROM surface_forms sf_match
+                            WHERE
+                                sf_match.lexeme_id = l.id
+                                AND sf_match.form LIKE ? COLLATE NOCASE
+                            ORDER BY
+                                CASE
+                                    WHEN sf_match.form = ? COLLATE NOCASE THEN 0
+                                    WHEN sf_match.form LIKE ? COLLATE NOCASE THEN 1
+                                    ELSE 2
+                                END,
+                                sf_match.form COLLATE NOCASE
+                            LIMIT 1
+                        ) AS match_surface,
+                        (
+                            SELECT sf_match.pos_tag
+                            FROM surface_forms sf_match
+                            WHERE
+                                sf_match.lexeme_id = l.id
+                                AND sf_match.form LIKE ? COLLATE NOCASE
+                            ORDER BY
+                                CASE
+                                    WHEN sf_match.form = ? COLLATE NOCASE THEN 0
+                                    WHEN sf_match.form LIKE ? COLLATE NOCASE THEN 1
+                                    ELSE 2
+                                END,
+                                sf_match.form COLLATE NOCASE
+                            LIMIT 1
+                        ) AS match_surface_pos_tag,
+                        (
+                            SELECT sf_match.morphology
+                            FROM surface_forms sf_match
+                            WHERE
+                                sf_match.lexeme_id = l.id
+                                AND sf_match.form LIKE ? COLLATE NOCASE
+                            ORDER BY
+                                CASE
+                                    WHEN sf_match.form = ? COLLATE NOCASE THEN 0
+                                    WHEN sf_match.form LIKE ? COLLATE NOCASE THEN 1
+                                    ELSE 2
+                                END,
+                                sf_match.form COLLATE NOCASE
+                            LIMIT 1
+                        ) AS match_surface_morphology,
+                        EXISTS(
+                            SELECT 1
+                            FROM surface_forms sf_exact
+                            WHERE
+                                sf_exact.lexeme_id = l.id
+                                AND sf_exact.form = ? COLLATE NOCASE
+                        ) AS has_surface_exact_match,
+                        EXISTS(
+                            SELECT 1
+                            FROM surface_forms sf_prefix
+                            WHERE
+                                sf_prefix.lexeme_id = l.id
+                                AND sf_prefix.form LIKE ? COLLATE NOCASE
+                        ) AS has_surface_prefix_match
+                    FROM lexemes l
+                    WHERE
+                        l.lemma LIKE ? COLLATE NOCASE
+                        OR COALESCE(l.english_translation, '') LIKE ? COLLATE NOCASE
+                        OR EXISTS(
+                            SELECT 1
+                            FROM surface_forms sf_contains
+                            WHERE
+                                sf_contains.lexeme_id = l.id
+                                AND sf_contains.form LIKE ? COLLATE NOCASE
+                        )
+                )
                 SELECT
-                    l.lemma AS lemma,
-                    l.english_translation AS english_translation,
-                    l.pos_tag AS pos_tag,
-                    COUNT(sf_all.id) AS variation_count,
-                    MIN(sf_match.form) AS match_surface,
-                    MAX(
-                        CASE
-                            WHEN sf_match.form LIKE ? COLLATE NOCASE THEN 1
-                            ELSE 0
-                        END
-                    ) AS has_surface_prefix_match
-                FROM lexemes l
-                LEFT JOIN surface_forms sf_all ON sf_all.lexeme_id = l.id
-                LEFT JOIN surface_forms sf_match
-                    ON sf_match.lexeme_id = l.id
-                    AND sf_match.form LIKE ? COLLATE NOCASE
-                WHERE
-                    l.lemma LIKE ? COLLATE NOCASE
-                    OR COALESCE(l.english_translation, '') LIKE ? COLLATE NOCASE
-                    OR sf_match.id IS NOT NULL
-                GROUP BY l.id
+                    lemma,
+                    english_translation,
+                    COALESCE(match_surface_pos_tag, pos_tag) AS pos_tag,
+                    COALESCE(match_surface_morphology, morphology) AS morphology,
+                    variation_count,
+                    match_surface,
+                    has_surface_exact_match,
+                    has_surface_prefix_match
+                FROM search_candidates
                 ORDER BY
                     CASE
-                        WHEN l.lemma = ? COLLATE NOCASE THEN 0
-                        WHEN l.lemma LIKE ? COLLATE NOCASE THEN 1
-                        WHEN has_surface_prefix_match = 1 THEN 2
-                        WHEN COALESCE(l.english_translation, '') LIKE ? COLLATE NOCASE THEN 3
-                        ELSE 4
+                        WHEN lemma = ? COLLATE NOCASE THEN 0
+                        WHEN has_surface_exact_match = 1 THEN 1
+                        WHEN lemma LIKE ? COLLATE NOCASE THEN 2
+                        WHEN has_surface_prefix_match = 1 THEN 3
+                        WHEN COALESCE(english_translation, '') LIKE ? COLLATE NOCASE THEN 4
+                        ELSE 5
                     END,
-                    l.lemma COLLATE NOCASE
+                    lemma COLLATE NOCASE
                 LIMIT ?
                 """,
                 (
+                    contains_pattern,
+                    normalized_query,
+                    prefix_pattern,
+                    contains_pattern,
+                    normalized_query,
+                    prefix_pattern,
+                    contains_pattern,
+                    normalized_query,
+                    prefix_pattern,
+                    normalized_query,
                     prefix_pattern,
                     contains_pattern,
                     contains_pattern,
@@ -1159,6 +1241,8 @@ class WordbankUseCase:
                     english_translation=row["english_translation"],
                     variation_count=int(row["variation_count"]),
                     match_surface=row["match_surface"],
+                    pos_tag=row["pos_tag"],
+                    morphology=row["morphology"],
                 )
                 for row in rows
             ]

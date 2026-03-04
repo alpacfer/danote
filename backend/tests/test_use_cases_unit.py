@@ -131,15 +131,23 @@ def test_wordbank_use_case_round_trip(tmp_path: Path) -> None:
     assert details.lemma == "bog"
     assert details.surface_forms == [
         LemmaDetailsResponse.SurfaceFormDetails(
+            form="bog",
+            english_translation=None,
+            lemma="bog",
+            lemma_translation=None,
+        ),
+        LemmaDetailsResponse.SurfaceFormDetails(
             form="bogen",
             english_translation=None,
+            lemma="bog",
+            lemma_translation=None,
         )
     ]
 
     listing = use_case.list_lemmas()
     assert listing.items[0].lemma == "bog"
     assert listing.items[0].display_lemma == "bog"
-    assert listing.items[0].variation_count == 1
+    assert listing.items[0].variation_count == 2
     assert listing.items[0].english_translation is None
 
 
@@ -155,8 +163,16 @@ def test_wordbank_use_case_stores_deepl_translations_for_lemma_and_surface(tmp_p
     assert details.english_translation == "book"
     assert details.surface_forms == [
         LemmaDetailsResponse.SurfaceFormDetails(
+            form="bog",
+            english_translation="book",
+            lemma="bog",
+            lemma_translation="book",
+        ),
+        LemmaDetailsResponse.SurfaceFormDetails(
             form="bogen",
             english_translation="the book",
+            lemma="bog",
+            lemma_translation="book",
         )
     ]
 
@@ -220,10 +236,20 @@ def test_wordbank_use_case_includes_pos_and_morphology_when_nlp_available(tmp_pa
     assert details.morphology == "Gender=Com|Number=Sing"
     assert details.surface_forms == [
         LemmaDetailsResponse.SurfaceFormDetails(
+            form="bog",
+            english_translation=None,
+            pos_tag="NOUN",
+            morphology="Gender=Com|Number=Sing",
+            lemma="bog",
+            lemma_translation=None,
+        ),
+        LemmaDetailsResponse.SurfaceFormDetails(
             form="bogen",
             english_translation=None,
             pos_tag="NOUN",
             morphology="Gender=Com|Number=Sing",
+            lemma="bog",
+            lemma_translation=None,
         )
     ]
 
@@ -469,6 +495,52 @@ def test_wordbank_search_lemmas_matches_variations(tmp_path: Path) -> None:
     assert len(result.items) == 1
     assert result.items[0].lemma == "bog"
     assert result.items[0].match_surface == "bogens"
+
+
+def test_wordbank_search_lemmas_uses_matched_surface_metadata(tmp_path: Path) -> None:
+    use_case = WordbankUseCase(_db_path(tmp_path))
+    use_case.add_word(
+        "Ulykker",
+        "ulykke",
+        pos_tag="NOUN",
+        morphology="Gender=Com|Number=Plur|Definite=Ind",
+    )
+
+    result = use_case.search_lemmas("ulykker")
+
+    assert len(result.items) == 1
+    assert result.items[0].lemma == "ulykke"
+    assert result.items[0].match_surface == "ulykker"
+    assert result.items[0].pos_tag == "NOUN"
+    assert result.items[0].morphology == "Gender=Com|Number=Plur|Definite=Ind"
+
+
+def test_wordbank_search_lemmas_prefers_exact_surface_match_and_stable_variation_count(tmp_path: Path) -> None:
+    use_case = WordbankUseCase(_db_path(tmp_path))
+    use_case.add_word("abc", "lemma")
+    use_case.add_word("aabc", "lemma")
+    use_case.add_word("abcx", "lemma")
+
+    result = use_case.search_lemmas("abc")
+
+    assert len(result.items) == 1
+    assert result.items[0].lemma == "lemma"
+    assert result.items[0].match_surface == "abc"
+    assert result.items[0].variation_count == 4
+
+
+def test_wordbank_search_lemmas_prioritizes_exact_surface_match_over_prefix_lemmas(tmp_path: Path) -> None:
+    use_case = WordbankUseCase(_db_path(tmp_path))
+    use_case.add_word("abc", "target")
+    for index in range(10):
+        token = f"abcx{index}"
+        use_case.add_word(token, token)
+
+    result = use_case.search_lemmas("abc", limit=8)
+
+    assert len(result.items) == 8
+    assert result.items[0].lemma == "target"
+    assert result.items[0].match_surface == "abc"
 
 
 def test_wordbank_generate_translation_uses_surface_form_not_lemma(tmp_path: Path) -> None:
