@@ -1,28 +1,24 @@
-import { type Dispatch, type SetStateAction, useEffect, useMemo, useRef, useState } from "react"
+import { type Dispatch, type SetStateAction, useState } from "react"
 
 import {
   addLoadingKey,
-  buildVerificationErrorDetail,
   hasMultipleWords,
-  isPlayableAudioContentType,
-  isUnsupportedAudioError,
   normalizePhraseKey,
   normalizeSearchWord,
   type AddSentenceResponse,
   type AddWordResponse,
   type AnalyzedToken,
   type AppSection,
-  type ApplyVerificationChangesResponse,
-  type GeneratePronunciationResponse,
   type LemmaDetailsResponse,
   type SearchFeedbackContext,
   type SentencebankSentence,
   type TokenFeedbackPayload,
-  type VerifyWordResponse,
-  type VerificationErrorDetail,
   type WordActionSuggestion,
 } from "@/app/core"
 import { toast } from "sonner"
+
+import { usePronunciationWorkflow } from "./wordbank/use-pronunciation-workflow"
+import { useVerificationWorkflow } from "./wordbank/use-verification-workflow"
 
 type UseWordbankWorkflowsParams = {
   backendUrl: string
@@ -57,178 +53,36 @@ export function useWordbankWorkflows({
 }: UseWordbankWorkflowsParams) {
   const [addingTokens, setAddingTokens] = useState<Record<string, boolean>>({})
   const [isSavingSentence, setIsSavingSentence] = useState(false)
-  const [pronunciationLoadingByForm, setPronunciationLoadingByForm] = useState<Record<string, boolean>>({})
-  const [isRegeneratingLemmaPronunciation, setIsRegeneratingLemmaPronunciation] = useState(false)
-  const [isApplyingVerificationChanges, setIsApplyingVerificationChanges] = useState(false)
-  const [verificationErrorsByLemma, setVerificationErrorsByLemma] = useState<Record<string, VerificationErrorDetail>>({})
 
-  const pronunciationUrlByFormRef = useRef<Map<string, string>>(new Map())
-  const activePronunciationAudioRef = useRef<HTMLAudioElement | null>(null)
+  const {
+    pronunciationLoadingByForm,
+    isRegeneratingLemmaPronunciation,
+    generatePronunciationInBackground,
+    playPronunciation,
+    regenerateSelectedLemmaPronunciation,
+  } = usePronunciationWorkflow({
+    backendUrl,
+    extractErrorMessage,
+    selectedLemma,
+    lemmaDetails,
+    setWordbankRefreshTick,
+  })
 
-  const selectedLemmaVerificationError = useMemo(() => {
-    const lemmaKey = normalizeSearchWord(lemmaDetails?.lemma ?? selectedLemma ?? "")
-    if (!lemmaKey) {
-      return null
-    }
-    return verificationErrorsByLemma[lemmaKey] ?? null
-  }, [lemmaDetails?.lemma, selectedLemma, verificationErrorsByLemma])
-
-  useEffect(() => {
-    const pronunciationUrlByForm = pronunciationUrlByFormRef.current
-    return () => {
-      for (const url of pronunciationUrlByForm.values()) {
-        URL.revokeObjectURL(url)
-      }
-      pronunciationUrlByForm.clear()
-      const activeAudio = activePronunciationAudioRef.current
-      if (activeAudio) {
-        activeAudio.pause()
-        activePronunciationAudioRef.current = null
-      }
-    }
-  }, [])
-
-  useEffect(() => {
-    setPronunciationLoadingByForm({})
-    setIsRegeneratingLemmaPronunciation(false)
-  }, [selectedLemma])
-
-  function clearPronunciationCache(form: string | null | undefined) {
-    const normalizedForm = normalizeSearchWord(form ?? "")
-    if (!normalizedForm) {
-      return
-    }
-    const objectUrl = pronunciationUrlByFormRef.current.get(normalizedForm)
-    if (!objectUrl) {
-      return
-    }
-    const activeAudio = activePronunciationAudioRef.current
-    if (activeAudio?.src === objectUrl) {
-      activeAudio.pause()
-      activePronunciationAudioRef.current = null
-    }
-    URL.revokeObjectURL(objectUrl)
-    pronunciationUrlByFormRef.current.delete(normalizedForm)
-  }
-
-  async function generatePronunciationInBackground(
-    storedLemma: string,
-    storedSurfaceForm: string | null,
-    options?: { force?: boolean; notify?: boolean },
-  ) {
-    try {
-      const response = await fetch(`${backendUrl}/api/wordbank/lexemes/pronunciation`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          stored_lemma: storedLemma,
-          stored_surface_form: storedSurfaceForm,
-          force: Boolean(options?.force),
-        }),
-      })
-      if (!response.ok) {
-        if (options?.notify) {
-          const message = await extractErrorMessage(
-            response,
-            `Pronunciation request failed with status ${response.status}`,
-          )
-          toast.error(message)
-        }
-        return
-      }
-      const payload = (await response.json()) as GeneratePronunciationResponse
-      clearPronunciationCache(payload.pronunciation_form)
-      if (payload.status === "generated") {
-        setWordbankRefreshTick((current) => current + 1)
-        if (options?.notify) {
-          toast.success(`Regenerated pronunciation for '${payload.pronunciation_form ?? storedLemma}'.`)
-        }
-      } else if (options?.notify) {
-        toast.error(`Could not regenerate pronunciation for '${payload.pronunciation_form ?? storedLemma}'.`)
-      }
-    } catch {
-      if (options?.notify) {
-        toast.error("Could not regenerate pronunciation.")
-      }
-      // Keep add flow instant; pronunciation generation is best effort.
-    }
-  }
-
-  function notifyWordVerification(
-    storedLemma: string,
-    storedSurfaceForm: string | null,
-    verification: VerifyWordResponse["verification"],
-  ) {
-    if (!verification || verification.status === "skipped" || verification.status === "queued") {
-      return
-    }
-
-    const isOk = verification.status === "verified"
-    const lemmaKey = normalizeSearchWord(storedLemma)
-    if (isOk) {
-      setVerificationErrorsByLemma((current) => {
-        if (!Object.hasOwn(current, lemmaKey)) {
-          return current
-        }
-        const next = { ...current }
-        delete next[lemmaKey]
-        return next
-      })
-      pushNotification("OK")
-      return
-    }
-
-    const detail = buildVerificationErrorDetail({
-      provider: verification.provider,
-      status: verification.status === "flagged" ? "flagged" : "error",
-      message: verification.message,
-      composedWordCount: verification.composed_word_count,
-      storedSurfaceForm,
-      problem: verification.problem,
-      changeToImplement: verification.change_to_implement,
-      suggestedChanges: verification.suggested_changes,
-    })
-    setVerificationErrorsByLemma((current) => ({ ...current, [lemmaKey]: detail }))
-    const displayLemma = lemmaKey || storedLemma || "word"
-    pushNotification(`ERROR ${displayLemma}: ${detail.problem} Change: ${detail.changeToImplement}`)
-  }
-
-  async function verifyWordInBackground(storedLemma: string, storedSurfaceForm: string | null) {
-    try {
-      const response = await fetch(`${backendUrl}/api/wordbank/lexemes/verify`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          stored_lemma: storedLemma,
-          stored_surface_form: storedSurfaceForm,
-        }),
-      })
-      if (!response.ok) {
-        const message = await extractErrorMessage(
-          response,
-          `Verify word request failed with status ${response.status}`,
-        )
-        throw new Error(message)
-      }
-      const payload = (await response.json()) as VerifyWordResponse
-      notifyWordVerification(payload.stored_lemma, payload.stored_surface_form, payload.verification)
-    } catch (error) {
-      const message = error instanceof Error ? error.message : null
-      const lemmaKey = normalizeSearchWord(storedLemma)
-      const detail = buildVerificationErrorDetail({
-        provider: "gemini",
-        status: "error",
-        message,
-        storedSurfaceForm,
-      })
-      setVerificationErrorsByLemma((current) => ({ ...current, [lemmaKey]: detail }))
-      pushNotification(`ERROR ${lemmaKey || storedLemma}: ${detail.problem} Change: ${detail.changeToImplement}`)
-    }
-  }
+  const {
+    isApplyingVerificationChanges,
+    selectedLemmaVerificationError,
+    hasSuggestedVerificationChanges,
+    verifyWordInBackground,
+    applySelectedLemmaVerificationChanges,
+    clearVerificationErrors,
+  } = useVerificationWorkflow({
+    backendUrl,
+    extractErrorMessage,
+    selectedLemma,
+    lemmaDetails,
+    setWordbankRefreshTick,
+    pushNotification,
+  })
 
   async function addWordToWordbank(
     surfaceToken: string,
@@ -380,161 +234,6 @@ export function useWordbankWorkflows({
     } finally {
       setIsSavingSentence(false)
     }
-  }
-
-  async function playPronunciation(form: string) {
-    const normalizedForm = normalizeSearchWord(form)
-    if (!normalizedForm) {
-      return
-    }
-
-    setPronunciationLoadingByForm((current) => ({ ...current, [normalizedForm]: true }))
-    try {
-      let didRepair = false
-      while (true) {
-        let objectUrl = pronunciationUrlByFormRef.current.get(normalizedForm)
-        if (!objectUrl) {
-          const response = await fetch(
-            `${backendUrl}/api/wordbank/pronunciation?form=${encodeURIComponent(normalizedForm)}`,
-          )
-          if (!response.ok) {
-            if (response.status === 404) {
-              toast.error(`No pronunciation is available yet for '${normalizedForm}'.`)
-              return
-            }
-            const message = await extractErrorMessage(
-              response,
-              `Pronunciation request failed with status ${response.status}`,
-            )
-            throw new Error(message)
-          }
-
-          const contentType = typeof response.headers?.get === "function"
-            ? response.headers.get("content-type")
-            : null
-          if (!isPlayableAudioContentType(contentType)) {
-            throw new Error(`Unsupported pronunciation format: ${contentType}`)
-          }
-          const audioBlob = await response.blob()
-          objectUrl = URL.createObjectURL(audioBlob)
-          pronunciationUrlByFormRef.current.set(normalizedForm, objectUrl)
-        }
-
-        if (activePronunciationAudioRef.current) {
-          activePronunciationAudioRef.current.pause()
-        }
-        const audio = new Audio(objectUrl)
-        activePronunciationAudioRef.current = audio
-        try {
-          await audio.play()
-          break
-        } catch (error) {
-          if (!didRepair && isUnsupportedAudioError(error)) {
-            didRepair = true
-            clearPronunciationCache(normalizedForm)
-            const selectedLemmaKey = normalizeSearchWord(lemmaDetails?.lemma ?? selectedLemma ?? normalizedForm)
-            const storedSurface = normalizedForm === selectedLemmaKey ? selectedLemmaKey : normalizedForm
-            await generatePronunciationInBackground(selectedLemmaKey, storedSurface, { force: true, notify: false })
-            continue
-          }
-          throw error
-        }
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Could not play pronunciation."
-      toast.error(message)
-      void error
-    } finally {
-      setPronunciationLoadingByForm((current) => {
-        const next = { ...current }
-        delete next[normalizedForm]
-        return next
-      })
-    }
-  }
-
-  async function regenerateSelectedLemmaPronunciation() {
-    const lemma = normalizeSearchWord(lemmaDetails?.lemma ?? selectedLemma ?? "")
-    if (!lemma) {
-      return
-    }
-    setIsRegeneratingLemmaPronunciation(true)
-    try {
-      await generatePronunciationInBackground(lemma, lemma, { force: true, notify: true })
-    } finally {
-      setIsRegeneratingLemmaPronunciation(false)
-    }
-  }
-
-  function hasSuggestedVerificationChanges(detail: VerificationErrorDetail | null): boolean {
-    if (!detail?.suggestedChangesPayload) {
-      return false
-    }
-    return Object.values(detail.suggestedChangesPayload).some((value) => typeof value === "string" && value.trim().length > 0)
-  }
-
-  async function applySelectedLemmaVerificationChanges() {
-    const lemma = normalizeSearchWord(lemmaDetails?.lemma ?? selectedLemma ?? "")
-    if (!lemma) {
-      return
-    }
-    const detail = verificationErrorsByLemma[lemma] ?? null
-    if (!detail || !hasSuggestedVerificationChanges(detail) || !detail.suggestedChangesPayload) {
-      return
-    }
-
-    setIsApplyingVerificationChanges(true)
-    try {
-      const response = await fetch(`${backendUrl}/api/wordbank/lexemes/apply-verification-changes`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          stored_lemma: lemma,
-          stored_surface_form: detail.storedSurfaceForm ?? lemma,
-          suggested_changes: detail.suggestedChangesPayload,
-          provider: detail.provider,
-        }),
-      })
-      if (!response.ok) {
-        const message = await extractErrorMessage(
-          response,
-          `Apply verification changes failed with status ${response.status}`,
-        )
-        throw new Error(message)
-      }
-
-      const payload = (await response.json()) as ApplyVerificationChangesResponse
-      if (payload.status === "applied") {
-        const count = payload.applied_fields.length
-        toast.success(
-          count > 0
-            ? `Applied ${count} Gemini change${count === 1 ? "" : "s"} for '${lemma}'.`
-            : `Applied Gemini changes for '${lemma}'.`,
-        )
-        setVerificationErrorsByLemma((current) => {
-          if (!Object.hasOwn(current, lemma)) {
-            return current
-          }
-          const next = { ...current }
-          delete next[lemma]
-          return next
-        })
-        setWordbankRefreshTick((current) => current + 1)
-      } else {
-        toast.error("No Gemini changes were applied.")
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Could not apply Gemini changes."
-      toast.error(message)
-    } finally {
-      setIsApplyingVerificationChanges(false)
-    }
-  }
-
-  function clearVerificationErrors() {
-    setVerificationErrorsByLemma({})
   }
 
   return {
