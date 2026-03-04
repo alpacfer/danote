@@ -1,40 +1,34 @@
-import { useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 
 import { AppBreadcrumb, AppSidebar } from "@/app/chrome"
 import {
-  DeveloperSection,
-  NotesSection,
   PlaygroundHeaderActions,
-  PlaygroundSection,
-  SentencebankSection,
-  WordbankSection,
 } from "@/app/sections"
+import { SectionContent } from "@/app/layout/section-content"
 import {
   useAnalysis,
   useBackendHealth,
   useDiscoveredTokenMetadata,
   useLexiconData,
+  useNoteAutosave,
   useNoteWorkspace,
   useNotificationCenter,
   useNotesPersistence,
   usePlaygroundPopovers,
+  useSyncDiscoveredTokenMemory,
   useWordbankWorkflows,
 } from "@/app/hooks"
 import {
   BACKEND_URL,
   NLP_MODEL_OPTIONS,
-  NOTE_AUTOSAVE_DEBOUNCE_MS,
   humanizeApiName,
-  isLowConfidencePosTag,
   normalizeApiRuntimeStatus,
-  normalizeWordKey,
   type ApiStatusItem,
   type AppSection,
   type DeveloperApiKeysUpdateResponse,
   type HealthPayload,
   type NlpModelOption,
   type ResetDatabaseResponse,
-  type SavedNote,
   type TokenFeedbackPayload,
   type WordbankLemma,
 } from "@/app/core"
@@ -289,111 +283,21 @@ function App() {
     }) satisfies ApiStatusItem[]
   }, [healthPayload, status])
 
-  useEffect(() => {
-    if (!activeSavedNoteId || !activeSavedNoteName) {
-      if (noteAutosaveTimeoutRef.current !== null) {
-        window.clearTimeout(noteAutosaveTimeoutRef.current)
-        noteAutosaveTimeoutRef.current = null
-      }
-      setAutosaveStatus("off")
-      return
-    }
-
-    setAutosaveStatus("saving")
-    if (noteAutosaveTimeoutRef.current !== null) {
-      window.clearTimeout(noteAutosaveTimeoutRef.current)
-    }
-    noteAutosaveTimeoutRef.current = window.setTimeout(() => {
-      noteAutosaveTimeoutRef.current = null
-      const savedAt = new Date().toISOString()
-      const nextNote: SavedNote = {
-        id: activeSavedNoteId,
-        name: activeSavedNoteName,
-        text: noteText,
-        tokens: [...tokens],
-        discoveredTokenMetadata: { ...discoveredTokenMetadata },
-        generatedTranslationMap: { ...generatedTranslationMap },
-        savedAt,
-      }
-
-      setSavedNotes((current) => {
-        const existingIndex = current.findIndex((note) => note.id === activeSavedNoteId)
-        if (existingIndex === -1) {
-          return [nextNote, ...current]
-        }
-        const next = [...current]
-        next[existingIndex] = nextNote
-        return next
-      })
-      setAutosaveStatus("saved")
-    }, NOTE_AUTOSAVE_DEBOUNCE_MS)
-
-    return () => {
-      if (noteAutosaveTimeoutRef.current !== null) {
-        window.clearTimeout(noteAutosaveTimeoutRef.current)
-        noteAutosaveTimeoutRef.current = null
-      }
-    }
-  }, [
+  useNoteAutosave({
     activeSavedNoteId,
     activeSavedNoteName,
+    noteText,
+    tokens,
     discoveredTokenMetadata,
     generatedTranslationMap,
-    noteText,
     noteAutosaveTimeoutRef,
     setAutosaveStatus,
     setSavedNotes,
+  })
+  useSyncDiscoveredTokenMemory({
     tokens,
-  ])
-
-  useEffect(() => {
-    if (tokens.length === 0) {
-      return
-    }
-
-    setDiscoveredTokenMetadata((current) => {
-      let changed = false
-      const next = { ...current }
-      for (const token of tokens) {
-        if (isLowConfidencePosTag(token.pos_tag)) {
-          continue
-        }
-        const tokenPos = token.pos_tag
-        if (!tokenPos) {
-          continue
-        }
-        const key = normalizeWordKey(token.normalized_token || token.surface_token)
-        const lemma = token.matched_lemma ?? token.lemma_candidate ?? null
-        const candidate = {
-          pos_tag: tokenPos,
-          morphology: token.morphology,
-          lemma,
-        }
-        const existing = next[key]
-        const existingForPos = existing?.byPos[candidate.pos_tag]
-
-        if (
-          !existing ||
-          !existingForPos ||
-          existingForPos.morphology !== candidate.morphology ||
-          existingForPos.lemma !== candidate.lemma ||
-          existing.latest.pos_tag !== candidate.pos_tag ||
-          existing.latest.morphology !== candidate.morphology ||
-          existing.latest.lemma !== candidate.lemma
-        ) {
-          next[key] = {
-            latest: candidate,
-            byPos: {
-              ...(existing?.byPos ?? {}),
-              [candidate.pos_tag]: candidate,
-            },
-          }
-          changed = true
-        }
-      }
-      return changed ? next : current
-    })
-  }, [setDiscoveredTokenMetadata, tokens])
+    setDiscoveredTokenMetadata,
+  })
 
   const badgeVariant =
     status === "connected"
@@ -409,6 +313,137 @@ function App() {
       : autosaveStatus === "saved"
         ? "Autosaved"
         : "Autosave off"
+
+  const playgroundSectionProps = {
+    isSaveDialogOpen,
+    saveDialogMode,
+    noteNameDraft,
+    duplicateNameConflictNoteId,
+    onSaveDialogOpenChange: handleSaveDialogOpenChange,
+    onNoteNameDraftChange: handleNoteNameDraftChange,
+    onSaveDialogSubmit: handleSaveDialogSubmit,
+    onResolveDuplicateName: resolveDuplicateNameConflict,
+    phrasePopover,
+    onPhrasePopoverOpenChange: handlePhrasePopoverOpenChange,
+    isGeneratingPhraseTranslation,
+    phraseTranslation,
+    generatePhraseTranslationError,
+    isSavingSentence,
+    isSelectedPhraseSaved,
+    onAddSentenceFromPhrase: () => {
+      void addSentenceToSentencebank(phrasePopover.selectedText)
+    },
+    highlightPopover,
+    onHighlightPopoverOpenChange: handleHighlightPopoverOpenChange,
+    popoverDisplayToken,
+    showPopoverLemma,
+    popoverLemmaText,
+    popoverMetadataBadges,
+    showTranslationSkeleton,
+    popoverIsNoun,
+    popoverIsVerbLike,
+    generateTranslationError,
+    popoverTranslation,
+    popoverPrimaryAction,
+    addingTokens,
+    onOpenWordbankFromPopover: () => {
+      if (!popoverPrimaryAction?.lemma) {
+        return
+      }
+      closeHighlightPopover()
+      setActiveSection("wordbank")
+      setSelectedLemma(popoverPrimaryAction.lemma)
+    },
+    onAddTokenFromPopover: () => {
+      if (!popoverDisplayToken || !popoverPrimaryAction) {
+        return
+      }
+      void addTokenToWordbank(popoverDisplayToken, popoverPrimaryAction)
+      closeHighlightPopover()
+    },
+    noteText,
+    noteHighlights,
+    analysisError,
+    onNoteTextChange: (nextText: string) => {
+      setNoteText(nextText)
+      clearPlaygroundTransientState()
+    },
+    onHighlightClick: ({ tokenIndex, left, lineTop, lineBottom }: {
+      tokenIndex: number
+      left: number
+      lineTop: number
+      lineBottom: number
+    }) => {
+      openHighlightPopover(tokenIndex, left, lineTop, lineBottom)
+    },
+    onTextSelectionSettled: handleEditorSelection,
+  }
+  const notesSectionProps = {
+    savedNotes,
+    onOpenSavedNote: openSavedNoteInPlayground,
+  }
+  const wordbankSectionProps = {
+    selectedLemma,
+    wordbankError,
+    isWordbankLoading,
+    lemmas,
+    groupedWordbankLemmas,
+    onSelectLemma: setSelectedLemma,
+    lemmaDetails,
+    lemmaDetailsError,
+    isLemmaDetailsLoading,
+    showLemmaDetailsLoadingSkeleton,
+    pronunciationLoadingByForm,
+    onPlayPronunciation: (form: string) => {
+      void playPronunciation(form)
+    },
+    isRegeneratingLemmaPronunciation,
+    onRegenerateSelectedLemmaPronunciation: () => {
+      void regenerateSelectedLemmaPronunciation()
+    },
+    selectedLemmaVerificationError,
+    hasSuggestedVerificationChanges,
+    isApplyingVerificationChanges,
+    onApplySelectedLemmaVerificationChanges: () => {
+      void applySelectedLemmaVerificationChanges()
+    },
+  }
+  const sentencebankSectionProps = {
+    sentencebankError,
+    isSentencebankLoading,
+    sentences,
+  }
+  const developerSectionProps = {
+    badgeVariant,
+    status,
+    backendUrl: BACKEND_URL,
+    apiStatusItems,
+    selectedNlpModel,
+    nlpModelOptions: NLP_MODEL_OPTIONS,
+    developerTranslationAzureApiKey,
+    developerTranslationAzureRegion,
+    developerTranslationAzureEndpoint,
+    developerTtsAzureApiKey,
+    developerTtsAzureRegion,
+    developerTtsAzureEndpoint,
+    developerVerificationGeminiApiKey,
+    isSavingDeveloperApiKeys,
+    isResettingDatabase,
+    onSelectedNlpModelChange: setSelectedNlpModel,
+    onDeveloperTranslationAzureApiKeyChange: setDeveloperTranslationAzureApiKey,
+    onDeveloperTranslationAzureRegionChange: setDeveloperTranslationAzureRegion,
+    onDeveloperTranslationAzureEndpointChange: setDeveloperTranslationAzureEndpoint,
+    onDeveloperTtsAzureApiKeyChange: setDeveloperTtsAzureApiKey,
+    onDeveloperTtsAzureRegionChange: setDeveloperTtsAzureRegion,
+    onDeveloperTtsAzureEndpointChange: setDeveloperTtsAzureEndpoint,
+    onDeveloperVerificationGeminiApiKeyChange: setDeveloperVerificationGeminiApiKey,
+    onSaveDeveloperApiKeys: () => {
+      void saveDeveloperApiKeys()
+    },
+    onResetDatabase: () => {
+      void resetDatabase()
+    },
+  }
   async function postTokenFeedback(payload: TokenFeedbackPayload) {
     try {
       await fetch(`${BACKEND_URL}/api/tokens/feedback`, {
@@ -582,145 +617,14 @@ function App() {
                 />
               ) : null}
             </div>
-            {activeSection === "playground"
-              ? (
-	                <PlaygroundSection
-	                  isSaveDialogOpen={isSaveDialogOpen}
-	                  saveDialogMode={saveDialogMode}
-	                  noteNameDraft={noteNameDraft}
-	                  duplicateNameConflictNoteId={duplicateNameConflictNoteId}
-	                  onSaveDialogOpenChange={handleSaveDialogOpenChange}
-	                  onNoteNameDraftChange={handleNoteNameDraftChange}
-	                  onSaveDialogSubmit={handleSaveDialogSubmit}
-	                  onResolveDuplicateName={resolveDuplicateNameConflict}
-	                  phrasePopover={phrasePopover}
-	                  onPhrasePopoverOpenChange={handlePhrasePopoverOpenChange}
-	                  isGeneratingPhraseTranslation={isGeneratingPhraseTranslation}
-	                  phraseTranslation={phraseTranslation}
-	                  generatePhraseTranslationError={generatePhraseTranslationError}
-                  isSavingSentence={isSavingSentence}
-                  isSelectedPhraseSaved={isSelectedPhraseSaved}
-	                  onAddSentenceFromPhrase={() => {
-	                    void addSentenceToSentencebank(phrasePopover.selectedText)
-	                  }}
-	                  highlightPopover={highlightPopover}
-	                  onHighlightPopoverOpenChange={handleHighlightPopoverOpenChange}
-                  popoverDisplayToken={popoverDisplayToken}
-                  showPopoverLemma={showPopoverLemma}
-                  popoverLemmaText={popoverLemmaText}
-                  popoverMetadataBadges={popoverMetadataBadges}
-                  showTranslationSkeleton={showTranslationSkeleton}
-                  popoverIsNoun={popoverIsNoun}
-                  popoverIsVerbLike={popoverIsVerbLike}
-                  generateTranslationError={generateTranslationError}
-                  popoverTranslation={popoverTranslation}
-                  popoverPrimaryAction={popoverPrimaryAction}
-                  addingTokens={addingTokens}
-	                  onOpenWordbankFromPopover={() => {
-	                    if (!popoverPrimaryAction?.lemma) {
-	                      return
-	                    }
-	                    closeHighlightPopover()
-	                    setActiveSection("wordbank")
-	                    setSelectedLemma(popoverPrimaryAction.lemma)
-	                  }}
-                  onAddTokenFromPopover={() => {
-	                    if (!popoverDisplayToken || !popoverPrimaryAction) {
-	                      return
-	                    }
-	                    void addTokenToWordbank(popoverDisplayToken, popoverPrimaryAction)
-	                    closeHighlightPopover()
-	                  }}
-                  noteText={noteText}
-                  noteHighlights={noteHighlights}
-                  analysisError={analysisError}
-	                  onNoteTextChange={(nextText) => {
-	                    setNoteText(nextText)
-	                    clearPlaygroundTransientState()
-	                  }}
-                  onHighlightClick={({ tokenIndex, left, lineTop, lineBottom }) => {
-                    openHighlightPopover(tokenIndex, left, lineTop, lineBottom)
-                  }}
-                  onTextSelectionSettled={handleEditorSelection}
-                />
-              )
-              : activeSection === "notes"
-                ? (
-                  <NotesSection
-                    savedNotes={savedNotes}
-                    onOpenSavedNote={openSavedNoteInPlayground}
-                  />
-                )
-              : activeSection === "wordbank"
-                ? (
-                  <WordbankSection
-                    selectedLemma={selectedLemma}
-                    wordbankError={wordbankError}
-                    isWordbankLoading={isWordbankLoading}
-                    lemmas={lemmas}
-                    groupedWordbankLemmas={groupedWordbankLemmas}
-                    onSelectLemma={setSelectedLemma}
-                    lemmaDetails={lemmaDetails}
-                    lemmaDetailsError={lemmaDetailsError}
-                    isLemmaDetailsLoading={isLemmaDetailsLoading}
-                    showLemmaDetailsLoadingSkeleton={showLemmaDetailsLoadingSkeleton}
-                    pronunciationLoadingByForm={pronunciationLoadingByForm}
-                    onPlayPronunciation={(form) => {
-                      void playPronunciation(form)
-                    }}
-                    isRegeneratingLemmaPronunciation={isRegeneratingLemmaPronunciation}
-                    onRegenerateSelectedLemmaPronunciation={() => {
-                      void regenerateSelectedLemmaPronunciation()
-                    }}
-                    selectedLemmaVerificationError={selectedLemmaVerificationError}
-                    hasSuggestedVerificationChanges={hasSuggestedVerificationChanges}
-                    isApplyingVerificationChanges={isApplyingVerificationChanges}
-                    onApplySelectedLemmaVerificationChanges={() => {
-                      void applySelectedLemmaVerificationChanges()
-                    }}
-                  />
-                )
-                : activeSection === "sentencebank"
-                  ? (
-                    <SentencebankSection
-                      sentencebankError={sentencebankError}
-                      isSentencebankLoading={isSentencebankLoading}
-                      sentences={sentences}
-                    />
-                  )
-                  : (
-                    <DeveloperSection
-                      badgeVariant={badgeVariant}
-                      status={status}
-                      backendUrl={BACKEND_URL}
-                      apiStatusItems={apiStatusItems}
-                      selectedNlpModel={selectedNlpModel}
-                      nlpModelOptions={NLP_MODEL_OPTIONS}
-                      developerTranslationAzureApiKey={developerTranslationAzureApiKey}
-                      developerTranslationAzureRegion={developerTranslationAzureRegion}
-                      developerTranslationAzureEndpoint={developerTranslationAzureEndpoint}
-                      developerTtsAzureApiKey={developerTtsAzureApiKey}
-                      developerTtsAzureRegion={developerTtsAzureRegion}
-                      developerTtsAzureEndpoint={developerTtsAzureEndpoint}
-                      developerVerificationGeminiApiKey={developerVerificationGeminiApiKey}
-                      isSavingDeveloperApiKeys={isSavingDeveloperApiKeys}
-                      isResettingDatabase={isResettingDatabase}
-                      onSelectedNlpModelChange={setSelectedNlpModel}
-                      onDeveloperTranslationAzureApiKeyChange={setDeveloperTranslationAzureApiKey}
-                      onDeveloperTranslationAzureRegionChange={setDeveloperTranslationAzureRegion}
-                      onDeveloperTranslationAzureEndpointChange={setDeveloperTranslationAzureEndpoint}
-                      onDeveloperTtsAzureApiKeyChange={setDeveloperTtsAzureApiKey}
-                      onDeveloperTtsAzureRegionChange={setDeveloperTtsAzureRegion}
-                      onDeveloperTtsAzureEndpointChange={setDeveloperTtsAzureEndpoint}
-                      onDeveloperVerificationGeminiApiKeyChange={setDeveloperVerificationGeminiApiKey}
-                      onSaveDeveloperApiKeys={() => {
-                        void saveDeveloperApiKeys()
-                      }}
-                      onResetDatabase={() => {
-                        void resetDatabase()
-                      }}
-                    />
-                  )}
+            <SectionContent
+              activeSection={activeSection}
+              playgroundProps={playgroundSectionProps}
+              notesProps={notesSectionProps}
+              wordbankProps={wordbankSectionProps}
+              sentencebankProps={sentencebankSectionProps}
+              developerProps={developerSectionProps}
+            />
           </div>
         </main>
       </SidebarInset>
