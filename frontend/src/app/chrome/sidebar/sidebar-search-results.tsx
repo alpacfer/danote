@@ -1,0 +1,153 @@
+import { type LucideIcon } from "lucide-react"
+
+import {
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+  CommandList,
+  CommandSeparator,
+  CommandShortcut,
+} from "@/components/ui/command"
+import {
+  previewText,
+  type CORSearchGroup,
+  type CORSearchVariant,
+  type SavedNote,
+  type SearchFeedbackContext,
+  type WordbankLemma,
+} from "@/app/core"
+
+import { SidebarCorResults } from "@/app/chrome/sidebar/sidebar-cor-results"
+import { SidebarWordbankResults } from "@/app/chrome/sidebar/sidebar-wordbank-results"
+
+type WordbankResult = {
+  lemma: WordbankLemma
+  matchSurface: string | null
+}
+
+type PageItem = {
+  key: string
+  label: string
+  shortcut: string
+  icon: LucideIcon
+  onSelect: () => void
+}
+
+export type SidebarSearchResultsState = {
+  normalizedQuery: string
+  hasAnyResults: boolean
+  hasWordbankSectionResults: boolean
+  hasWordbankActions: boolean
+  hasNoteResults: boolean
+  hasPageResults: boolean
+}
+
+export type SidebarSearchResultsData = {
+  orderedWordbankResults: WordbankResult[]
+  displayVariantBySavedLemma: Map<string, { group: CORSearchGroup; variant: CORSearchVariant }>
+  addVariationBySavedLemma: Map<string, { group: CORSearchGroup; variant: CORSearchVariant }>
+  exactSavedVariationLemmaKeySet: Set<string>
+  orderedCorSearchGroups: CORSearchGroup[]
+  corSearchVariantsToRender: Array<{ group: CORSearchGroup; variant: CORSearchVariant }>
+  savedLemmaKeySet: Set<string>
+  matchingNotes: SavedNote[]
+  matchingPageItems: PageItem[]
+  wordbankItemValue: (lemma: WordbankLemma) => string
+  corVariantItemValue: (variant: CORSearchVariant) => string
+}
+
+export type SidebarSearchResultsActions = {
+  onOpenSavedNote: (noteId: string) => void
+  onOpenWordbankLemma: (lemma: string) => void
+  onAddWordFromSearch: (
+    surfaceToken: string,
+    lemmaCandidate: string | null,
+    feedbackContext?: SearchFeedbackContext,
+    metadata?: {
+      posTag?: string | null
+      morphology?: string | null
+    },
+  ) => Promise<string | null>
+  onCloseSearch: () => void
+}
+
+type SidebarSearchResultsProps = {
+  state: SidebarSearchResultsState
+  data: SidebarSearchResultsData
+  actions: SidebarSearchResultsActions
+}
+
+export function SidebarSearchResults({ state, data, actions }: SidebarSearchResultsProps) {
+  return (
+    <CommandList>
+      {state.normalizedQuery && !state.hasAnyResults ? <CommandEmpty>No results found.</CommandEmpty> : null}
+      {state.hasWordbankSectionResults ? (
+        <CommandGroup heading="Wordbank">
+          <SidebarWordbankResults
+            orderedWordbankResults={data.orderedWordbankResults}
+            displayVariantBySavedLemma={data.displayVariantBySavedLemma}
+            addVariationBySavedLemma={data.addVariationBySavedLemma}
+            exactSavedVariationLemmaKeySet={data.exactSavedVariationLemmaKeySet}
+            normalizedQuery={state.normalizedQuery}
+            wordbankItemValue={data.wordbankItemValue}
+            onAddWordFromSearch={actions.onAddWordFromSearch}
+            onOpenWordbankLemma={actions.onOpenWordbankLemma}
+            onCloseSearch={actions.onCloseSearch}
+          />
+          <SidebarCorResults
+            orderedCorSearchGroups={data.orderedCorSearchGroups}
+            corSearchVariantsToRender={data.corSearchVariantsToRender}
+            savedLemmaKeySet={data.savedLemmaKeySet}
+            normalizedQuery={state.normalizedQuery}
+            corVariantItemValue={data.corVariantItemValue}
+            onAddWordFromSearch={actions.onAddWordFromSearch}
+            onCloseSearch={actions.onCloseSearch}
+          />
+        </CommandGroup>
+      ) : null}
+      {(state.hasWordbankSectionResults || state.hasWordbankActions) && state.hasNoteResults ? <CommandSeparator /> : null}
+      {state.hasNoteResults ? (
+        <CommandGroup heading="Notes">
+          {data.matchingNotes.map((note) => (
+            <CommandItem
+              key={`search-note-${note.id}`}
+              value={`note-${note.id}`}
+              onSelect={() => {
+                actions.onOpenSavedNote(note.id)
+                actions.onCloseSearch()
+              }}
+              className="flex-col items-start gap-0.5"
+            >
+              <span className="font-medium">{note.name}</span>
+              <span className="text-muted-foreground line-clamp-2 text-xs">
+                {previewText(note.text, 80)}
+              </span>
+            </CommandItem>
+          ))}
+        </CommandGroup>
+      ) : null}
+      {(state.hasWordbankSectionResults || state.hasWordbankActions || state.hasNoteResults) && state.hasPageResults ? <CommandSeparator /> : null}
+      {state.hasPageResults ? (
+        <CommandGroup heading="Pages">
+          {data.matchingPageItems.map((item) => {
+            const Icon = item.icon
+            return (
+              <CommandItem
+                key={item.key}
+                value={item.key}
+                onSelect={() => {
+                  item.onSelect()
+                  actions.onCloseSearch()
+                }}
+              >
+                <Icon />
+                <span>{item.label}</span>
+                <CommandShortcut>{item.shortcut}</CommandShortcut>
+              </CommandItem>
+            )
+          })}
+        </CommandGroup>
+      ) : null}
+    </CommandList>
+  )
+}

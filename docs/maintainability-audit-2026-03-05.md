@@ -1,6 +1,6 @@
 # Maintainability audit (non-test code)
 
-Date: 2026-03-05 (updated after secondary-candidate notes-editor split)
+Date: 2026-03-05 (updated after sidebar ranking/search hook extraction)
 Scope: application and script code only (test files excluded)
 
 ## Method
@@ -14,7 +14,7 @@ Scope: application and script code only (test files excluded)
 
 - ✅ Completed item 1: `frontend/src/app/chrome.tsx` was split into focused modules and a thin barrel.
 - ✅ Completed item 2: `frontend/src/App.tsx` was reduced and orchestration moved into dedicated hooks.
-- ✅ Completed item 3 (frontend side): `frontend/src/app/chrome/sidebar/app-sidebar.tsx` extracted search and hotkey orchestration into `use-sidebar-search.ts` and `use-sidebar-hotkeys.ts`.
+- ✅ Completed item 3 (frontend side): `frontend/src/app/chrome/sidebar/app-sidebar.tsx` extracted search/hotkey orchestration and moved search result rendering into `sidebar-search-results.tsx`, `sidebar-wordbank-results.tsx`, and `sidebar-cor-results.tsx` with grouped state/data/action props.
 - ✅ Secondary candidate progressed: `frontend/src/components/notes-editor.tsx` moved selection/highlight-click behavior into `notes-editor-selection.ts` and `notes-editor-highlight-click.ts` and dropped from 488 -> 434 lines.
 - 🟡 Backend wordbank package split exists, but `backend/app/services/use_cases/wordbank/core.py` remains very large and is still the top maintainability risk.
 
@@ -36,16 +36,14 @@ Scope: application and script code only (test files excluded)
 **Outcome expected**
 - Lower change blast radius for backend edits and clearer ownership per workflow area.
 
-### 2) `frontend/src/app/chrome/sidebar/app-sidebar.tsx` (766 lines)
+### 2) `frontend/src/app/chrome/sidebar/app-sidebar.tsx` (290 lines)
 
 **Why it hurts maintainability now**
-- Search and hotkeys were extracted, but rendering and ranking composition remain large.
-- File still exceeds hard-size threshold for touched TSX files.
+- Core responsibilities are now split across sidebar hooks/components; `app-sidebar.tsx` is primarily composition/layout.
+- Remaining follow-up is polish-level extraction (optional), not hard-limit driven.
 
 **Recommended next split**
-- `frontend/src/app/chrome/sidebar/sidebar-search-results.tsx` (result sections/groups rendering)
-- `frontend/src/app/chrome/sidebar/sidebar-wordbank-results.tsx` (wordbank result row rendering)
-- `frontend/src/app/chrome/sidebar/sidebar-cor-results.tsx` (COR grouped variant rendering)
+- optional: extract navigation menu rows into a tiny presentational component if sidebar chrome grows
 - keep `app-sidebar.tsx` as composition/layout shell
 
 **Outcome expected**
@@ -68,6 +66,7 @@ Scope: application and script code only (test files excluded)
 
 ## Secondary candidates
 
+- `frontend/src/app/chrome/sidebar/use-sidebar-search-ranking.ts` (218): at soft upper bound for hook size; split scoring helpers if additional ranking branches are added.
 - `frontend/src/App.tsx` (440): remains under hard limit; continue composition-only discipline.
 - `frontend/src/components/notes-editor.tsx` (434): improved but still above target, so only add logic via helper extraction.
 - `frontend/src/app/sections/wordbank-section.tsx` (424): pre-emptive split before crossing 450.
