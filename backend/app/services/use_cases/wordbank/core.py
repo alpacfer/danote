@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import sqlite3
+import re
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
@@ -39,13 +40,6 @@ from app.services.text_preprocessing import strip_inline_comments
 from app.services.token_classifier import LemmaAwareClassifier, normalize_token
 from app.services.translation import TranslationService
 from app.services.tts import PronunciationAudio, TTSService
-from app.services.use_cases.wordbank.mappers import (
-    cor_entry_priority,
-    cor_translation_frame,
-    normalize_comparable,
-    normalize_translation_value,
-    strip_cor_translation_frame,
-)
 from app.services.use_cases.wordbank.shared import (
     _CORAddOption,
     _is_pcm_like_mime,
@@ -1380,7 +1374,7 @@ class WordbankUseCase:
 
 
     def _normalize_comparable(self, value: str) -> str:
-        return normalize_comparable(value)
+        return " ".join(value.strip().lower().split())
 
     def _is_likely_english_word(self, value: str) -> bool:
         normalized = value.strip().lower()
@@ -1773,11 +1767,67 @@ class WordbankUseCase:
 
     @staticmethod
     def _cor_translation_frame(entry: CORLocalEntry) -> tuple[str, str]:
-        return cor_translation_frame(entry)
+        lemma = normalize_token(entry.lemma)
+        if not lemma:
+            return "raw", entry.lemma
+
+        gram = entry.gram_raw.lower()
+        pos_code = gram.split(".", 1)[0].strip()
+        if pos_code == "vb":
+            return "verb", f"at {lemma}"
+        if pos_code == "sb":
+            article = "et" if re.search(r"(^|\.)itk(\.|$)", gram) else "en"
+            return "noun", f"{article} {lemma}"
+        if pos_code == "adj":
+            return "adjective", f"en {lemma} ting"
+        if pos_code == "adv":
+            return "adverb", f"han gør det {lemma}"
+        if pos_code == "pron":
+            return "pronoun", f"{lemma} er her"
+        if pos_code == "præp":
+            return "preposition", f"{lemma} huset"
+        if pos_code == "konj":
+            return "conjunction", f"..., {lemma} jeg går"
+        if pos_code == "art":
+            return "article", f"{lemma} bog"
+        if pos_code == "prop":
+            return "proper_noun", f"navnet {lemma}"
+        if pos_code == "talord":
+            return "numeral", f"{lemma} bøger"
+        return "raw", lemma
 
     @staticmethod
     def _strip_cor_translation_frame(frame_kind: str, translated: str) -> str | None:
-        return strip_cor_translation_frame(frame_kind, translated)
+        cleaned = normalize_token(translated)
+        if not cleaned:
+            return None
+        if frame_kind == "verb":
+            return cleaned
+
+        value = cleaned
+        if frame_kind == "noun":
+            value = re.sub(r"^(?:a|an|the)\s+", "", value, flags=re.IGNORECASE)
+        elif frame_kind == "adjective":
+            value = re.sub(r"^(?:a|an|the)\s+", "", value, flags=re.IGNORECASE)
+            value = re.sub(r"\s+things?$", "", value, flags=re.IGNORECASE)
+        elif frame_kind == "adverb":
+            value = re.sub(r"^(?:he|she|it)\s+does\s+it\s+", "", value, flags=re.IGNORECASE)
+        elif frame_kind == "pronoun":
+            value = re.sub(r"\s+is\s+here$", "", value, flags=re.IGNORECASE)
+        elif frame_kind == "preposition":
+            value = re.sub(r"\s+(?:the\s+)?house$", "", value, flags=re.IGNORECASE)
+        elif frame_kind == "conjunction":
+            value = re.sub(r"\s+i\s+go$", "", value, flags=re.IGNORECASE)
+            value = value.strip(" ,")
+        elif frame_kind == "article":
+            value = re.sub(r"\s+books?$", "", value, flags=re.IGNORECASE)
+        elif frame_kind == "proper_noun":
+            value = re.sub(r"^(?:the\s+)?name\s+", "", value, flags=re.IGNORECASE)
+        elif frame_kind == "numeral":
+            value = re.sub(r"\s+books?$", "", value, flags=re.IGNORECASE)
+
+        value = normalize_token(value)
+        return value or cleaned
 
     @staticmethod
     def _cor_local_variant(
@@ -1821,7 +1871,35 @@ class WordbankUseCase:
         return min(filtered, key=lambda entry: self._cor_entry_priority(entry, normalized_surface))
 
     def _cor_entry_priority(self, entry: COREntry, normalized_surface: str) -> tuple[int, int, int, int, str, str]:
-        return cor_entry_priority(entry, normalized_surface)
+        if entry.norm_status == "N":
+            norm_rank = 0
+        elif entry.norm_status == "K":
+            norm_rank = 1
+        elif entry.norm_status == "U":
+            norm_rank = 2
+        else:
+            norm_rank = 3
+        is_exact_surface = 0 if _normalize_action_value(entry.full_form) == _normalize_action_value(normalized_surface) else 1
+        lemma_matches_surface = 0 if _normalize_action_value(entry.lemma) == _normalize_action_value(normalized_surface) else 1
+        noun_number_rank = 2
+        if entry.pos_tag == "NOUN":
+            morphology = entry.morphology or ""
+            if "Number=Sing" in morphology:
+                noun_number_rank = 0
+            elif "Number=Plur" in morphology:
+                noun_number_rank = 1
+        has_pos = 0 if entry.pos_tag else 1
+        has_morph = 0 if entry.morphology else 1
+        return (
+            is_exact_surface,
+            norm_rank,
+            lemma_matches_surface,
+            noun_number_rank,
+            has_pos,
+            has_morph,
+            entry.lemma,
+            entry.cor_id,
+        )
 
 
     def _lookup_translation(self, source_word: str) -> str | None:
@@ -1917,7 +1995,12 @@ class WordbankUseCase:
 
     @staticmethod
     def _normalize_translation_value(value: str | None) -> str | None:
-        return normalize_translation_value(value)
+        if not isinstance(value, str):
+            return None
+        cleaned = " ".join(value.strip().split())
+        if not cleaned:
+            return None
+        return cleaned.lower()
 
     def _append_gemini_change_log(self, payload: dict[str, object]) -> None:
         if self._gemini_changes_log_path is None:
