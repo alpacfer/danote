@@ -4,10 +4,6 @@ import json
 import logging
 import os
 import sqlite3
-import io
-import re
-import wave
-from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
@@ -43,147 +39,25 @@ from app.services.text_preprocessing import strip_inline_comments
 from app.services.token_classifier import LemmaAwareClassifier, normalize_token
 from app.services.translation import TranslationService
 from app.services.tts import PronunciationAudio, TTSService
+from app.services.use_cases.wordbank.mappers import (
+    cor_entry_priority,
+    cor_translation_frame,
+    normalize_comparable,
+    normalize_translation_value,
+    strip_cor_translation_frame,
+)
+from app.services.use_cases.wordbank.shared import (
+    _CORAddOption,
+    _is_pcm_like_mime,
+    _looks_like_wav,
+    _normalize_action_value,
+    _normalize_pronunciation_audio,
+    _pcm_to_wav_bytes,
+    build_word_action_suggestions,
+)
 from app.services.verification import WordVerificationInput, WordVerificationService
 
 logger = logging.getLogger(__name__)
-
-
-def _looks_like_wav(payload: bytes) -> bool:
-    return len(payload) >= 12 and payload[:4] == b"RIFF" and payload[8:12] == b"WAVE"
-
-
-def _pcm_to_wav_bytes(pcm_data: bytes, *, channels: int = 1, rate: int = 24000, sample_width: int = 2) -> bytes:
-    buffer = io.BytesIO()
-    with wave.open(buffer, "wb") as wav_file:
-        wav_file.setnchannels(channels)
-        wav_file.setsampwidth(sample_width)
-        wav_file.setframerate(rate)
-        wav_file.writeframes(pcm_data)
-    return buffer.getvalue()
-
-
-def _is_pcm_like_mime(mime_type: str | None) -> bool:
-    if not isinstance(mime_type, str):
-        return False
-    normalized = mime_type.strip().lower()
-    return normalized.startswith("audio/pcm") or normalized.startswith("audio/l16") or "codec=pcm" in normalized
-
-
-def _normalize_pronunciation_audio(audio: PronunciationAudio) -> PronunciationAudio:
-    normalized_mime = audio.mime_type.strip().lower() if isinstance(audio.mime_type, str) else ""
-    if _is_pcm_like_mime(normalized_mime):
-        return PronunciationAudio(audio_bytes=_pcm_to_wav_bytes(audio.audio_bytes), mime_type="audio/wav")
-    if _looks_like_wav(audio.audio_bytes):
-        return PronunciationAudio(audio_bytes=audio.audio_bytes, mime_type="audio/wav")
-    if normalized_mime:
-        return PronunciationAudio(audio_bytes=audio.audio_bytes, mime_type=normalized_mime)
-    return PronunciationAudio(audio_bytes=audio.audio_bytes, mime_type="audio/wav")
-
-
-def _normalize_action_value(value: str) -> str:
-    return " ".join(value.strip().lower().split())
-
-
-@dataclass(frozen=True)
-class _CORAddOption:
-    surface: str
-    lemma: str
-    pos_tag: str | None
-    morphology: str | None
-    translation_label: str | None
-
-
-def build_word_action_suggestions(
-    *,
-    classification: Literal["known", "variation", "typo_likely", "uncertain", "new"],
-    query_surface: str,
-    query_lemma: str | None,
-    query_pos_tag: str | None,
-    query_morphology: str | None,
-    matched_lemma: str | None,
-    da_to_en_translation: str | None,
-    en_to_da_translation: str | None,
-    en_to_da_lemma: str | None,
-    en_to_da_pos_tag: str | None,
-    en_to_da_morphology: str | None,
-    query_language: Literal["en", "da", "ambiguous"] | None,
-    query_language_confidence: float | None,
-) -> list[WordActionSuggestion]:
-    query_surface_clean = query_surface.strip()
-    query_lemma_clean = query_lemma.strip() if query_lemma else ""
-    actions: list[WordActionSuggestion] = []
-
-    if classification == "known":
-        known_lemma = matched_lemma or query_lemma_clean or query_surface_clean
-        if known_lemma:
-            actions.append(
-                WordActionSuggestion(
-                    action_type="open_wordbank",
-                    surface=query_surface_clean,
-                    lemma=known_lemma,
-                    direction="known",
-                    direction_label="Wordbank",
-                    pos_tag=query_pos_tag,
-                    morphology=query_morphology,
-                )
-            )
-        return actions
-
-    if classification == "variation" and matched_lemma:
-        if _normalize_action_value(query_surface_clean) != _normalize_action_value(matched_lemma):
-            actions.append(
-                WordActionSuggestion(
-                    action_type="add_variation",
-                    surface=query_surface_clean,
-                    lemma=matched_lemma,
-                    translation_label=query_surface_clean,
-                    direction="variation",
-                    direction_label="Variation",
-                    pos_tag=query_pos_tag,
-                    morphology=query_morphology,
-                )
-            )
-        return actions
-
-    if classification == "typo_likely" and not da_to_en_translation and not en_to_da_translation:
-        return []
-
-    if query_surface_clean:
-        lemma_value = query_lemma_clean or query_surface_clean
-        if da_to_en_translation or not en_to_da_translation:
-            actions.append(
-                WordActionSuggestion(
-                    action_type="add_as_new",
-                    surface=query_surface_clean,
-                    lemma=lemma_value,
-                    translation_label=da_to_en_translation or query_surface_clean,
-                    direction="da_to_en",
-                    direction_label="Danish -> English",
-                    pos_tag=query_pos_tag,
-                    morphology=query_morphology,
-                    show_lemma=_normalize_action_value(query_surface_clean) != _normalize_action_value(lemma_value),
-                )
-            )
-
-    if en_to_da_translation and not (query_language == "da" and (query_language_confidence or 0) >= 0.7):
-        is_duplicate = any(_normalize_action_value(item.surface) == _normalize_action_value(en_to_da_translation) for item in actions)
-        if not is_duplicate:
-            en_lemma = (en_to_da_lemma or en_to_da_translation).strip()
-            actions.append(
-                WordActionSuggestion(
-                    action_type="add_as_new",
-                    surface=en_to_da_translation,
-                    lemma=en_lemma,
-                    translation_label=en_to_da_translation,
-                    direction="en_to_da",
-                    direction_label="English -> Danish",
-                    pos_tag=en_to_da_pos_tag,
-                    morphology=en_to_da_morphology,
-                    show_lemma=_normalize_action_value(en_to_da_translation) != _normalize_action_value(en_lemma),
-                )
-            )
-
-    return actions
 
 
 class WordbankUseCase:
@@ -1506,7 +1380,7 @@ class WordbankUseCase:
 
 
     def _normalize_comparable(self, value: str) -> str:
-        return " ".join(value.strip().lower().split())
+        return normalize_comparable(value)
 
     def _is_likely_english_word(self, value: str) -> bool:
         normalized = value.strip().lower()
@@ -1899,67 +1773,11 @@ class WordbankUseCase:
 
     @staticmethod
     def _cor_translation_frame(entry: CORLocalEntry) -> tuple[str, str]:
-        lemma = normalize_token(entry.lemma)
-        if not lemma:
-            return "raw", entry.lemma
-
-        gram = entry.gram_raw.lower()
-        pos_code = gram.split(".", 1)[0].strip()
-        if pos_code == "vb":
-            return "verb", f"at {lemma}"
-        if pos_code == "sb":
-            article = "et" if re.search(r"(^|\.)itk(\.|$)", gram) else "en"
-            return "noun", f"{article} {lemma}"
-        if pos_code == "adj":
-            return "adjective", f"en {lemma} ting"
-        if pos_code == "adv":
-            return "adverb", f"han gør det {lemma}"
-        if pos_code == "pron":
-            return "pronoun", f"{lemma} er her"
-        if pos_code == "præp":
-            return "preposition", f"{lemma} huset"
-        if pos_code == "konj":
-            return "conjunction", f"..., {lemma} jeg går"
-        if pos_code == "art":
-            return "article", f"{lemma} bog"
-        if pos_code == "prop":
-            return "proper_noun", f"navnet {lemma}"
-        if pos_code == "talord":
-            return "numeral", f"{lemma} bøger"
-        return "raw", lemma
+        return cor_translation_frame(entry)
 
     @staticmethod
     def _strip_cor_translation_frame(frame_kind: str, translated: str) -> str | None:
-        cleaned = normalize_token(translated)
-        if not cleaned:
-            return None
-        if frame_kind == "verb":
-            return cleaned
-
-        value = cleaned
-        if frame_kind == "noun":
-            value = re.sub(r"^(?:a|an|the)\s+", "", value, flags=re.IGNORECASE)
-        elif frame_kind == "adjective":
-            value = re.sub(r"^(?:a|an|the)\s+", "", value, flags=re.IGNORECASE)
-            value = re.sub(r"\s+things?$", "", value, flags=re.IGNORECASE)
-        elif frame_kind == "adverb":
-            value = re.sub(r"^(?:he|she|it)\s+does\s+it\s+", "", value, flags=re.IGNORECASE)
-        elif frame_kind == "pronoun":
-            value = re.sub(r"\s+is\s+here$", "", value, flags=re.IGNORECASE)
-        elif frame_kind == "preposition":
-            value = re.sub(r"\s+(?:the\s+)?house$", "", value, flags=re.IGNORECASE)
-        elif frame_kind == "conjunction":
-            value = re.sub(r"\s+i\s+go$", "", value, flags=re.IGNORECASE)
-            value = value.strip(" ,")
-        elif frame_kind == "article":
-            value = re.sub(r"\s+books?$", "", value, flags=re.IGNORECASE)
-        elif frame_kind == "proper_noun":
-            value = re.sub(r"^(?:the\s+)?name\s+", "", value, flags=re.IGNORECASE)
-        elif frame_kind == "numeral":
-            value = re.sub(r"\s+books?$", "", value, flags=re.IGNORECASE)
-
-        value = normalize_token(value)
-        return value or cleaned
+        return strip_cor_translation_frame(frame_kind, translated)
 
     @staticmethod
     def _cor_local_variant(
@@ -2003,35 +1821,7 @@ class WordbankUseCase:
         return min(filtered, key=lambda entry: self._cor_entry_priority(entry, normalized_surface))
 
     def _cor_entry_priority(self, entry: COREntry, normalized_surface: str) -> tuple[int, int, int, int, str, str]:
-        if entry.norm_status == "N":
-            norm_rank = 0
-        elif entry.norm_status == "K":
-            norm_rank = 1
-        elif entry.norm_status == "U":
-            norm_rank = 2
-        else:
-            norm_rank = 3
-        is_exact_surface = 0 if _normalize_action_value(entry.full_form) == _normalize_action_value(normalized_surface) else 1
-        lemma_matches_surface = 0 if _normalize_action_value(entry.lemma) == _normalize_action_value(normalized_surface) else 1
-        noun_number_rank = 2
-        if entry.pos_tag == "NOUN":
-            morphology = entry.morphology or ""
-            if "Number=Sing" in morphology:
-                noun_number_rank = 0
-            elif "Number=Plur" in morphology:
-                noun_number_rank = 1
-        has_pos = 0 if entry.pos_tag else 1
-        has_morph = 0 if entry.morphology else 1
-        return (
-            is_exact_surface,
-            norm_rank,
-            lemma_matches_surface,
-            noun_number_rank,
-            has_pos,
-            has_morph,
-            entry.lemma,
-            entry.cor_id,
-        )
+        return cor_entry_priority(entry, normalized_surface)
 
 
     def _lookup_translation(self, source_word: str) -> str | None:
@@ -2127,12 +1917,7 @@ class WordbankUseCase:
 
     @staticmethod
     def _normalize_translation_value(value: str | None) -> str | None:
-        if not isinstance(value, str):
-            return None
-        cleaned = " ".join(value.strip().split())
-        if not cleaned:
-            return None
-        return cleaned.lower()
+        return normalize_translation_value(value)
 
     def _append_gemini_change_log(self, payload: dict[str, object]) -> None:
         if self._gemini_changes_log_path is None:

@@ -1,10 +1,11 @@
 import { useEditor, EditorContent, type Editor as TiptapEditor } from "@tiptap/react"
 import type { JSONContent } from "@tiptap/core"
-import { TextSelection } from "@tiptap/pm/state"
 import Highlight from "@tiptap/extension-highlight"
 import StarterKit from "@tiptap/starter-kit"
 import { useEffect, useMemo, useRef } from "react"
 
+import { handleHighlightMarkClick } from "@/components/notes-editor-highlight-click"
+import { clearSelectionTimeout, scheduleSelectionSettled, type NotesEditorSelectionPayload } from "@/components/notes-editor-selection"
 import { cn } from "@/lib/utils"
 import type { HighlightClassification, HighlightSpan } from "@/lib/token-highlights"
 
@@ -22,12 +23,7 @@ type NotesEditorProps = {
     lineTop: number
     lineBottom: number
   }) => void
-  onTextSelectionSettled?: (payload: {
-    selectedText: string
-    left: number
-    lineTop: number
-    lineBottom: number
-  } | null) => void
+  onTextSelectionSettled?: (payload: NotesEditorSelectionPayload | null) => void
 }
 
 type HighlightMarkAttributes = {
@@ -294,41 +290,11 @@ export function NotesEditor({
     editorProps: {
       handleDOMEvents: {
         click: (view, event) => {
-          const eventTarget = event.target
-          const targetElement =
-            eventTarget instanceof Element ? eventTarget : eventTarget instanceof Node ? eventTarget.parentElement : null
-          const mark = targetElement?.closest("mark.clickable-word[data-token-index]")
-          if (!mark) {
-            return false
-          }
-
-          const tokenIndexValue = mark.getAttribute("data-token-index")
-          const tokenIndex = Number.parseInt(tokenIndexValue ?? "", 10)
-          if (Number.isNaN(tokenIndex)) {
-            return false
-          }
-
-          let clickPosition: { pos: number; inside: number } | null = null
-          const root = view.root as Document | ShadowRoot
-          if ("elementFromPoint" in root && typeof root.elementFromPoint === "function") {
-            clickPosition = view.posAtCoords({ left: event.clientX, top: event.clientY })
-          }
-          if (clickPosition) {
-            const transaction = view.state.tr.setSelection(
-              TextSelection.create(view.state.doc, clickPosition.pos),
-            )
-            view.dispatch(transaction)
-          }
-          view.focus()
-
-          const markRect = mark.getBoundingClientRect()
-          onHighlightClick?.({
-            tokenIndex,
-            left: markRect.left,
-            lineTop: markRect.top,
-            lineBottom: markRect.bottom,
+          return handleHighlightMarkClick({
+            view,
+            event,
+            onHighlightClick,
           })
-          return false
         },
       },
       attributes: {
@@ -355,10 +321,7 @@ export function NotesEditor({
     onSelectionUpdate: ({ editor: currentEditor }) => {
       const hasSelection = !currentEditor.state.selection.empty
 
-      if (selectionTimeoutRef.current !== null) {
-        window.clearTimeout(selectionTimeoutRef.current)
-        selectionTimeoutRef.current = null
-      }
+      selectionTimeoutRef.current = clearSelectionTimeout(selectionTimeoutRef.current)
 
       if (!onTextSelectionSettled) {
         return
@@ -372,38 +335,21 @@ export function NotesEditor({
       const from = currentEditor.state.selection.from
       const to = currentEditor.state.selection.to
 
-      selectionTimeoutRef.current = window.setTimeout(() => {
-        selectionTimeoutRef.current = null
-
-        const activeSelection = currentEditor.state.selection
-        if (activeSelection.empty || activeSelection.from !== from || activeSelection.to !== to) {
-          return
-        }
-
-        const selectedText = currentEditor.state.doc.textBetween(from, to, " ", " ").replace(/\s+/gu, " ").trim()
-        if (!selectedText) {
-          onTextSelectionSettled(null)
-          return
-        }
-
-        const fromCoords = currentEditor.view.coordsAtPos(from)
-        const toCoords = currentEditor.view.coordsAtPos(to)
-
-        onTextSelectionSettled({
-          selectedText,
-          left: Math.min(fromCoords.left, toCoords.left),
-          lineTop: Math.min(fromCoords.top, toCoords.top),
-          lineBottom: Math.max(fromCoords.bottom, toCoords.bottom),
-        })
-      }, 180)
+      selectionTimeoutRef.current = scheduleSelectionSettled({
+        editor: currentEditor,
+        from,
+        to,
+        onTextSelectionSettled,
+        onTimeoutConsumed: () => {
+          selectionTimeoutRef.current = null
+        },
+      })
     },
   })
 
   useEffect(() => {
     return () => {
-      if (selectionTimeoutRef.current !== null) {
-        window.clearTimeout(selectionTimeoutRef.current)
-      }
+      selectionTimeoutRef.current = clearSelectionTimeout(selectionTimeoutRef.current)
     }
   }, [])
 

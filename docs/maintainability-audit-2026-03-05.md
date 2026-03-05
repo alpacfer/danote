@@ -1,80 +1,86 @@
 # Maintainability audit (non-test code)
 
-Date: 2026-03-05
+Date: 2026-03-05 (updated after secondary-candidate notes-editor split)
 Scope: application and script code only (test files excluded)
 
 ## Method
 
-- Measured line counts for non-test `*.ts`, `*.tsx`, `*.py`, `*.md`, `*.sh`, `*.css` files.
+- Re-ran line counts for non-test `*.ts`, `*.tsx`, `*.py`, `*.md`, `*.sh`, `*.css` files.
 - Compared large files against repository guardrails in `AGENTS.md`:
   - target <= 300 lines for production `*.ts`/`*.tsx`
   - hard refactor trigger when a touched file exceeds 450 lines and receives non-trivial changes.
 
-## Highest-impact candidates
+## Progress since initial audit
 
-### 1) `frontend/src/app/chrome.tsx` (1097 lines)
+- ✅ Completed item 1: `frontend/src/app/chrome.tsx` was split into focused modules and a thin barrel.
+- ✅ Completed item 2: `frontend/src/App.tsx` was reduced and orchestration moved into dedicated hooks.
+- ✅ Completed item 3 (frontend side): `frontend/src/app/chrome/sidebar/app-sidebar.tsx` extracted search and hotkey orchestration into `use-sidebar-search.ts` and `use-sidebar-hotkeys.ts`.
+- ✅ Secondary candidate progressed: `frontend/src/components/notes-editor.tsx` moved selection/highlight-click behavior into `notes-editor-selection.ts` and `notes-editor-highlight-click.ts` and dropped from 488 -> 434 lines.
+- 🟡 Backend wordbank package split exists, but `backend/app/services/use_cases/wordbank/core.py` remains very large and is still the top maintainability risk.
 
-**Why it hurts maintainability**
-- Mixes reusable UI components (`ThemeToggleButton`, `AppBreadcrumb`) with a very large `AppSidebar` orchestration surface.
-- Sidebar command/search behavior, async query logic, caching, and rendering all coexist in one file.
+## Current highest-impact priorities
 
-**Recommended split**
-- `frontend/src/app/chrome/app-breadcrumb.tsx`
-- `frontend/src/app/chrome/theme-toggle-button.tsx`
-- `frontend/src/app/chrome/sidebar/app-sidebar.tsx` (render-only composition)
-- `frontend/src/app/chrome/sidebar/use-sidebar-search.ts` (fetch/debounce/cache + derived matches)
-- `frontend/src/app/chrome/sidebar/sidebar-search-results.tsx` (result list rendering)
+### 1) `backend/app/services/use_cases/wordbank/core.py` (2184 lines)
 
-**Outcome expected**
-- Smaller review units, easier ownership boundaries, and lower regression risk around search behavior.
+**Why it hurts maintainability now**
+- The package boundary exists, but most orchestration still lives in a single workflow file.
+- Commands, queries, pronunciation IO, verification orchestration, and persistence logic remain co-located.
 
-### 2) `frontend/src/App.tsx` (635 lines)
-
-**Why it hurts maintainability**
-- Root composition file also owns many domain-specific state variables and orchestration concerns.
-- Includes developer settings, note workspace control flow, wordbank workflows, and section routing in one component.
-
-**Recommended split**
-- `frontend/src/app/providers/app-state-provider.tsx` for shared app-level state.
-- `frontend/src/app/hooks/use-developer-settings.ts` for API key/model/reset behavior.
-- `frontend/src/app/hooks/use-section-navigation.ts` for section/selection transitions.
-- Keep `App.tsx` as thin shell that composes providers + layout.
+**Recommended next split**
+- `backend/app/services/use_cases/wordbank/commands.py` (mutations: add/update/delete/apply changes)
+- `backend/app/services/use_cases/wordbank/queries.py` (list/details/search/read-only paths)
+- `backend/app/services/use_cases/wordbank/pronunciation.py` (audio generation + normalization persistence)
+- `backend/app/services/use_cases/wordbank/verification.py` (verification workflow + result mapping)
+- keep `wordbank/__init__.py` stable as the public import surface
 
 **Outcome expected**
-- `App.tsx` becomes a high-level composition file (closer to guardrail intent) and easier to reason about.
+- Lower change blast radius for backend edits and clearer ownership per workflow area.
 
-### 3) `backend/app/services/use_cases/wordbank.py` (2399 lines)
+### 2) `frontend/src/app/chrome/sidebar/app-sidebar.tsx` (766 lines)
 
-**Why it hurts maintainability**
-- Central use-case file likely aggregates too many workflows (lookup, add/update/delete, pronunciation, verification, search helpers).
-- Hard to navigate and difficult to run focused edits without incidental coupling.
+**Why it hurts maintainability now**
+- Search and hotkeys were extracted, but rendering and ranking composition remain large.
+- File still exceeds hard-size threshold for touched TSX files.
 
-**Recommended split (by workflow)**
-- `backend/app/services/use_cases/wordbank/commands.py` (mutations)
-- `backend/app/services/use_cases/wordbank/queries.py` (read/list/search)
-- `backend/app/services/use_cases/wordbank/pronunciation.py`
-- `backend/app/services/use_cases/wordbank/verification.py`
-- `backend/app/services/use_cases/wordbank/mappers.py` (DTO/domain mapping helpers)
-- keep `__init__.py` as stable public surface
+**Recommended next split**
+- `frontend/src/app/chrome/sidebar/sidebar-search-results.tsx` (result sections/groups rendering)
+- `frontend/src/app/chrome/sidebar/sidebar-wordbank-results.tsx` (wordbank result row rendering)
+- `frontend/src/app/chrome/sidebar/sidebar-cor-results.tsx` (COR grouped variant rendering)
+- keep `app-sidebar.tsx` as composition/layout shell
 
 **Outcome expected**
-- More discoverable domain boundaries and lower cognitive load for backend changes.
+- Smaller UI units, easier targeted tests, and less regression risk in result ordering logic.
+
+### 3) `frontend/src/components/ui/sidebar.tsx` (723 lines)
+
+**Why it hurts maintainability now**
+- Many primitives and provider/hook concerns are bundled in one UI module.
+- Future feature additions risk cross-cutting changes and churn.
+
+**Recommended next split**
+- `frontend/src/components/ui/sidebar-provider.tsx`
+- `frontend/src/components/ui/sidebar-rail.tsx`
+- `frontend/src/components/ui/sidebar-menu.tsx`
+- `frontend/src/components/ui/sidebar-hooks.ts`
+
+**Outcome expected**
+- Cleaner primitive ownership and easier incremental UI changes.
 
 ## Secondary candidates
 
-- `frontend/src/components/ui/sidebar.tsx` (723): shared UI primitive can be split into structural pieces (`provider`, `rail`, `menu`, `hooks`) if further feature work is needed.
-- `frontend/src/components/notes-editor.tsx` (488): close to hard trigger; extract keyboard shortcut handling and selection helpers.
-- `frontend/src/app/sections/wordbank-section.tsx` (424): pre-emptive split into presentational subcomponents before it crosses 450.
-- `backend/app/services/token_classifier.py` (405): extract classifier rules/config tables into dedicated modules to reduce branching density.
-- `backend/app/api/routes/wordbank.py` (371): route file is still acceptable, but it should remain thin as use-case module split progresses.
+- `frontend/src/App.tsx` (440): remains under hard limit; continue composition-only discipline.
+- `frontend/src/components/notes-editor.tsx` (434): improved but still above target, so only add logic via helper extraction.
+- `frontend/src/app/sections/wordbank-section.tsx` (424): pre-emptive split before crossing 450.
+- `backend/app/services/token_classifier.py` (405): extract classifier rule/config tables to reduce branching complexity.
+- `backend/app/api/routes/wordbank.py` (371): keep transport-only and avoid orchestration growth.
 
-## Suggested implementation order
+## Suggested implementation order (updated)
 
-1. Frontend low-risk split: `chrome.tsx` into focused modules with no behavior changes.
-2. Frontend app-shell split: reduce `App.tsx` to composition + provider wiring.
-3. Backend major split: carve `wordbank.py` into workflow modules behind same public API.
+1. Continue backend split of `wordbank/core.py` into workflow modules behind existing package API.
+2. Finish sidebar rendering split (`app-sidebar.tsx` -> result-focused presentational modules).
+3. Split `components/ui/sidebar.tsx` primitives before further sidebar feature growth.
 
 ## Notes
 
-- These recommendations intentionally exclude test files from ranking, as requested.
-- Prioritize behavior-preserving refactors plus snapshot/interaction coverage for the split areas.
+- Recommendations intentionally exclude test files from ranking.
+- Prefer behavior-preserving refactors and targeted coverage where behavior moves across module boundaries.
