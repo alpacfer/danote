@@ -6,8 +6,6 @@ import {
   isShortLetterWord,
   normalizeSearchWord,
   type CORSearchFormResponse,
-  type CORSearchGroup,
-  type CORSearchVariant,
   type SavedNote,
   type WordbankLemma,
   type WordbankSearchResponse,
@@ -182,11 +180,6 @@ export function useSidebarSearch({
     }
   }, [normalizedQuery, trimmedQuery, wordbankCacheVersion])
 
-  const wordbankResults = useMemo(
-    () => searchApiMatches.map((item) => ({ lemma: item.lemma, matchSurface: item.matchSurface ?? null })),
-    [searchApiMatches],
-  )
-
   const activeCorFormSearchResult = useMemo(() => {
     if (!corFormSearchResult || corFormSearchResult.query !== normalizedQuery) {
       return null
@@ -194,21 +187,12 @@ export function useSidebarSearch({
     return corFormSearchResult
   }, [corFormSearchResult, normalizedQuery])
 
-  const corSearchGroups: CORSearchGroup[] = useMemo(
-    () => activeCorFormSearchResult?.payload.groups ?? [],
-    [activeCorFormSearchResult],
-  )
-
-  const corSearchVariants = useMemo<Array<{ group: CORSearchGroup; variant: CORSearchVariant }>>(
-    () =>
-      corSearchGroups.flatMap((group) =>
-        (group.variants ?? []).map((variant) => ({
-          group,
-          variant,
-        })),
-      ),
-    [corSearchGroups],
-  )
-
-  return { searchQuery, setSearchQuery, normalizedQuery, matchingNotes, wordbankResults, corSearchGroups, corSearchVariants }
+  return {
+    searchQuery,
+    setSearchQuery,
+    normalizedQuery,
+    matchingNotes,
+    searchApiMatches,
+    activeCorFormSearchResult,
+  }
 }
