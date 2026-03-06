@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import logging
 import sqlite3
+from collections.abc import Callable
+from typing import TypeVar
 
 from fastapi import APIRouter, HTTPException, Query, Request, Response
 
@@ -35,6 +37,7 @@ from app.api.schemas.v1.wordbank import (
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+T = TypeVar("T")
 
 
 def _require_db_ready(request: Request) -> None:
@@ -45,44 +48,57 @@ def _require_db_ready(request: Request) -> None:
         )
 
 
-
-@router.post("/wordbank/lexemes", response_model=AddWordResponse)
-def add_word(payload: AddWordRequest, request: Request) -> AddWordResponse:
+def _run_wordbank_operation(
+    request: Request,
+    operation: Callable[[], T],
+    *,
+    include_lookup_error: bool = False,
+    include_runtime_error: bool = False,
+) -> T:
     _require_db_ready(request)
-
     try:
-        return build_wordbank_use_case(request).add_word(
-            payload.surface_token,
-            payload.lemma_candidate,
-            pos_tag=payload.pos_tag,
-            morphology=payload.morphology,
-        )
+        return operation()
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except LookupError as exc:
+        if include_lookup_error:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise
     except RuntimeError as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        if include_runtime_error:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise
     except sqlite3.OperationalError as exc:
         logger.exception("wordbank_db_operational_error")
         raise HTTPException(
             status_code=503,
             detail=f"Database unavailable: {exc}",
         ) from exc
+
+
+
+@router.post("/wordbank/lexemes", response_model=AddWordResponse)
+def add_word(payload: AddWordRequest, request: Request) -> AddWordResponse:
+    return _run_wordbank_operation(
+        request,
+        lambda: (
+            build_wordbank_use_case(request).add_word(
+                payload.surface_token,
+                payload.lemma_candidate,
+                pos_tag=payload.pos_tag,
+                morphology=payload.morphology,
+            )
+        ),
+        include_runtime_error=True,
+    )
 
 
 @router.post("/wordbank/lexemes/verify", response_model=VerifyWordResponse)
 def verify_added_word(payload: VerifyWordRequest, request: Request) -> VerifyWordResponse:
-    _require_db_ready(request)
-
-    try:
-        return build_wordbank_use_case(request).verify_added_word(payload.stored_lemma, payload.stored_surface_form)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except sqlite3.OperationalError as exc:
-        logger.exception("wordbank_db_operational_error")
-        raise HTTPException(
-            status_code=503,
-            detail=f"Database unavailable: {exc}",
-        ) from exc
+    return _run_wordbank_operation(
+        request,
+        lambda: build_wordbank_use_case(request).verify_added_word(payload.stored_lemma, payload.stored_surface_form),
+    )
 
 
 @router.post("/wordbank/lexemes/pronunciation", response_model=GeneratePronunciationResponse)
@@ -90,24 +106,17 @@ def generate_pronunciation(
     payload: GeneratePronunciationRequest,
     request: Request,
 ) -> GeneratePronunciationResponse:
-    _require_db_ready(request)
-
-    try:
-        return build_wordbank_use_case(request).generate_pronunciation_for_added_word(
-            payload.stored_lemma,
-            payload.stored_surface_form,
-            force=payload.force,
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except sqlite3.OperationalError as exc:
-        logger.exception("wordbank_db_operational_error")
-        raise HTTPException(
-            status_code=503,
-            detail=f"Database unavailable: {exc}",
-        ) from exc
+    return _run_wordbank_operation(
+        request,
+        lambda: (
+            build_wordbank_use_case(request).generate_pronunciation_for_added_word(
+                payload.stored_lemma,
+                payload.stored_surface_form,
+                force=payload.force,
+            )
+        ),
+        include_lookup_error=True,
+    )
 
 
 @router.post("/wordbank/lexemes/apply-verification-changes", response_model=ApplyVerificationChangesResponse)
@@ -115,41 +124,26 @@ def apply_verification_changes(
     payload: ApplyVerificationChangesRequest,
     request: Request,
 ) -> ApplyVerificationChangesResponse:
-    _require_db_ready(request)
-
-    try:
-        return build_wordbank_use_case(request).apply_verification_changes(
-            stored_lemma=payload.stored_lemma,
-            stored_surface_form=payload.stored_surface_form,
-            suggested_changes=payload.suggested_changes.model_dump(),
-            provider=payload.provider,
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except sqlite3.OperationalError as exc:
-        logger.exception("wordbank_db_operational_error")
-        raise HTTPException(
-            status_code=503,
-            detail=f"Database unavailable: {exc}",
-        ) from exc
+    return _run_wordbank_operation(
+        request,
+        lambda: (
+            build_wordbank_use_case(request).apply_verification_changes(
+                stored_lemma=payload.stored_lemma,
+                stored_surface_form=payload.stored_surface_form,
+                suggested_changes=payload.suggested_changes.model_dump(),
+                provider=payload.provider,
+            )
+        ),
+        include_lookup_error=True,
+    )
 
 
 @router.post("/wordbank/translation", response_model=GenerateTranslationResponse)
 def generate_translation(payload: GenerateTranslationRequest, request: Request) -> GenerateTranslationResponse:
-    _require_db_ready(request)
-
-    try:
-        return build_wordbank_use_case(request).generate_translation(payload.surface_token, payload.lemma_candidate)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except sqlite3.OperationalError as exc:
-        logger.exception("wordbank_db_operational_error")
-        raise HTTPException(
-            status_code=503,
-            detail=f"Database unavailable: {exc}",
-        ) from exc
+    return _run_wordbank_operation(
+        request,
+        lambda: build_wordbank_use_case(request).generate_translation(payload.surface_token, payload.lemma_candidate),
+    )
 
 
 @router.post("/wordbank/reverse-translation", response_model=GenerateReverseTranslationResponse)
@@ -157,18 +151,10 @@ def generate_reverse_translation(
     payload: GenerateReverseTranslationRequest,
     request: Request,
 ) -> GenerateReverseTranslationResponse:
-    _require_db_ready(request)
-
-    try:
-        return build_wordbank_use_case(request).generate_reverse_translation(payload.source_word)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except sqlite3.OperationalError as exc:
-        logger.exception("wordbank_db_operational_error")
-        raise HTTPException(
-            status_code=503,
-            detail=f"Database unavailable: {exc}",
-        ) from exc
+    return _run_wordbank_operation(
+        request,
+        lambda: build_wordbank_use_case(request).generate_reverse_translation(payload.source_word),
+    )
 
 
 @router.post("/wordbank/detect-language", response_model=DetectWordLanguageResponse)
@@ -176,40 +162,26 @@ def detect_word_language(
     payload: DetectWordLanguageRequest,
     request: Request,
 ) -> DetectWordLanguageResponse:
-    _require_db_ready(request)
-
-    try:
-        return build_wordbank_use_case(request).detect_word_language(payload.source_word)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except sqlite3.OperationalError as exc:
-        logger.exception("wordbank_db_operational_error")
-        raise HTTPException(
-            status_code=503,
-            detail=f"Database unavailable: {exc}",
-        ) from exc
+    return _run_wordbank_operation(
+        request,
+        lambda: build_wordbank_use_case(request).detect_word_language(payload.source_word),
+    )
 
 
 
 
 @router.post("/wordbank/resolve-query", response_model=ResolveQueryResponse)
 def resolve_query(payload: ResolveQueryRequest, request: Request) -> ResolveQueryResponse:
-    _require_db_ready(request)
-
-    try:
-        return build_wordbank_use_case(request).resolve_query(
-            payload.query_text,
-            include_translations=payload.include_translations,
-            include_language_detection=payload.include_language_detection,
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except sqlite3.OperationalError as exc:
-        logger.exception("wordbank_db_operational_error")
-        raise HTTPException(
-            status_code=503,
-            detail=f"Database unavailable: {exc}",
-        ) from exc
+    return _run_wordbank_operation(
+        request,
+        lambda: (
+            build_wordbank_use_case(request).resolve_query(
+                payload.query_text,
+                include_translations=payload.include_translations,
+                include_language_detection=payload.include_language_detection,
+            )
+        ),
+    )
 
 
 @router.post("/wordbank/phrase-translation", response_model=GeneratePhraseTranslationResponse)

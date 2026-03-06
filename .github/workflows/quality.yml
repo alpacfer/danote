@@ -34,6 +34,9 @@ jobs:
       - name: Lint
         run: make lint
 
+      - name: Maintainability budgets
+        run: make maintainability-check
+
       - name: Fast tests
         run: make test
 

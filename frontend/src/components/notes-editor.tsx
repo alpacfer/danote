@@ -1,13 +1,14 @@
-import { useEditor, EditorContent, type Editor as TiptapEditor } from "@tiptap/react"
-import type { JSONContent } from "@tiptap/core"
+import { useEditor, EditorContent } from "@tiptap/react"
 import Highlight from "@tiptap/extension-highlight"
 import StarterKit from "@tiptap/starter-kit"
 import { useEffect, useMemo, useRef } from "react"
 
+import { applyHighlights } from "@/components/notes-editor-highlights"
 import { handleHighlightMarkClick } from "@/components/notes-editor-highlight-click"
 import { clearSelectionTimeout, scheduleSelectionSettled, type NotesEditorSelectionPayload } from "@/components/notes-editor-selection"
+import { fromEditorText, normalizeInputText, toEditorContent } from "@/components/notes-editor-text"
 import { cn } from "@/lib/utils"
-import type { HighlightClassification, HighlightSpan } from "@/lib/token-highlights"
+import type { HighlightSpan } from "@/lib/token-highlights"
 
 type NotesEditorProps = {
   value: string
@@ -24,13 +25,6 @@ type NotesEditorProps = {
     lineBottom: number
   }) => void
   onTextSelectionSettled?: (payload: NotesEditorSelectionPayload | null) => void
-}
-
-type HighlightMarkAttributes = {
-  color: string
-  status: HighlightClassification | null
-  tokenIndex: number | null
-  comment: "true" | null
 }
 
 const ClassificationHighlight = Highlight.extend({
@@ -78,180 +72,7 @@ const ClassificationHighlight = Highlight.extend({
   },
 })
 
-const HIGHLIGHT_COLOR_MAP: Record<HighlightClassification, string> = {
-  known: "transparent",
-  new: "var(--danote-highlight-new)",
-  variation: "var(--danote-highlight-variation)",
-  typo_likely: "transparent",
-}
-
 const TEST_MODE = import.meta.env.MODE === "test"
-
-function toEditorContent(text: string): JSONContent {
-  const paragraphContent: JSONContent[] = []
-  const lines = text.split("\n")
-
-  for (let index = 0; index < lines.length; index += 1) {
-    const line = lines[index]
-    if (line.length > 0) {
-      paragraphContent.push({ type: "text", text: line })
-    }
-    if (index < lines.length - 1) {
-      paragraphContent.push({ type: "hardBreak" })
-    }
-  }
-
-  return {
-    type: "doc",
-    content: [
-      {
-        type: "paragraph",
-        content: paragraphContent.length > 0 ? paragraphContent : undefined,
-      },
-    ],
-  }
-}
-
-function fromEditorText(editor: TiptapEditor): string {
-  return editor.getText({ blockSeparator: "\n" })
-}
-
-function normalizeInputText(value: string): string {
-  return value.replace(/\u00a0/gu, " ").replace(/\u200b/gu, "")
-}
-
-type CharacterPositionMap = {
-  charToPos: number[]
-}
-
-function buildCharacterPositionMap(editor: TiptapEditor): CharacterPositionMap {
-  const charToPos: number[] = []
-  let offset = 0
-  let seenTextBlock = false
-
-  editor.state.doc.descendants((node, pos) => {
-    if (node.isTextblock) {
-      if (seenTextBlock) {
-        // `getText({ blockSeparator: "\\n" })` inserts a newline between text blocks.
-        offset += 1
-      }
-      seenTextBlock = true
-      return
-    }
-
-    if (node.isText) {
-      const textValue = node.text ?? ""
-      const length = textValue.length
-      for (let index = 0; index < length; index += 1) {
-        charToPos[offset + index] = pos + index
-      }
-      offset += length
-      return
-    }
-
-    if (node.type.name === "hardBreak") {
-      offset += 1
-    }
-  })
-
-  return { charToPos }
-}
-
-function resolveRangeToPositions(
-  positionMap: CharacterPositionMap,
-  fromOffset: number,
-  toOffset: number,
-): { from: number; to: number } | null {
-  if (toOffset <= fromOffset) {
-    return null
-  }
-
-  const from = positionMap.charToPos[fromOffset]
-  const endCharPos = positionMap.charToPos[toOffset - 1]
-  if (typeof from !== "number" || typeof endCharPos !== "number") {
-    return null
-  }
-
-  return { from, to: endCharPos + 1 }
-}
-
-function commentRangesFromText(text: string): Array<{ from: number; to: number }> {
-  if (!text || !text.includes("#")) {
-    return []
-  }
-
-  const ranges: Array<{ from: number; to: number }> = []
-  const lines = text.split("\n")
-  let lineStartOffset = 0
-
-  for (const line of lines) {
-    const commentStart = line.indexOf("#")
-    if (commentStart >= 0) {
-      const from = lineStartOffset + commentStart
-      const to = lineStartOffset + line.length
-      if (to > from) {
-        ranges.push({ from, to })
-      }
-    }
-    lineStartOffset += line.length + 1
-  }
-
-  return ranges
-}
-
-function applyHighlights(editor: TiptapEditor, highlights: HighlightSpan[]) {
-  const markType = editor.state.schema.marks.highlight
-  if (!markType) {
-    return
-  }
-
-  const { doc } = editor.state
-  const positionMap = buildCharacterPositionMap(editor)
-  let transaction = editor.state.tr
-
-  doc.descendants((node, pos) => {
-    if (!node.isText) {
-      return
-    }
-    transaction = transaction.removeMark(pos, pos + node.nodeSize, markType)
-  })
-
-  for (const highlight of highlights) {
-    const range = resolveRangeToPositions(positionMap, highlight.from, highlight.to)
-    if (!range) {
-      continue
-    }
-    const isInteractiveHighlight = highlight.classification !== "typo_likely"
-
-    const attributes: HighlightMarkAttributes = {
-      color: HIGHLIGHT_COLOR_MAP[highlight.classification],
-      status: highlight.classification,
-      tokenIndex: isInteractiveHighlight ? highlight.tokenIndex : null,
-      comment: null,
-    }
-
-    transaction = transaction.addMark(range.from, range.to, markType.create(attributes))
-  }
-
-  const editorText = fromEditorText(editor)
-  for (const commentRange of commentRangesFromText(editorText)) {
-    const range = resolveRangeToPositions(positionMap, commentRange.from, commentRange.to)
-    if (!range) {
-      continue
-    }
-
-    const attributes: HighlightMarkAttributes = {
-      color: "transparent",
-      status: null,
-      tokenIndex: null,
-      comment: "true",
-    }
-    transaction = transaction.addMark(range.from, range.to, markType.create(attributes))
-  }
-
-  transaction = transaction.setMeta("addToHistory", false)
-  editor.view.dispatch(transaction)
-}
 
 export function NotesEditor({
   value,

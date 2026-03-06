@@ -18,6 +18,7 @@ Language-learning note-taking web app (Danish-first) with a browser frontend and
 cd <repo-root>
 make setup
 make lint
+make maintainability-check
 make test
 ```
 

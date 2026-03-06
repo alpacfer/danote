@@ -23,7 +23,7 @@ type WordbankProps = ComponentProps<typeof WordbankSection>
 type SentencebankProps = ComponentProps<typeof SentencebankSection>
 type DeveloperProps = ComponentProps<typeof DeveloperSection>
 
-type UseAppSectionPropsParams = {
+export type UseAppSectionPropsParams = {
   autosaveStatus: "off" | "saving" | "saved"
   playgroundProps: PlaygroundProps
   savedNotes: NotesProps["savedNotes"]

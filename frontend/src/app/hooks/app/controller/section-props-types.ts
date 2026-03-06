@@ -1,0 +1,58 @@
+import type { UseAppSectionPropsParams } from "@/app/hooks/app/use-app-section-props"
+
+export type PlaygroundContext = {
+  autosaveStatus: UseAppSectionPropsParams["autosaveStatus"]
+  playgroundProps: UseAppSectionPropsParams["playgroundProps"]
+  savedNotes: UseAppSectionPropsParams["savedNotes"]
+  openSavedNoteInPlayground: UseAppSectionPropsParams["openSavedNoteInPlayground"]
+}
+
+export type WordbankContext = {
+  selectedLemma: UseAppSectionPropsParams["selectedLemma"]
+  wordbankError: UseAppSectionPropsParams["wordbankError"]
+  isWordbankLoading: UseAppSectionPropsParams["isWordbankLoading"]
+  lemmas: UseAppSectionPropsParams["lemmas"]
+  groupedWordbankLemmas: UseAppSectionPropsParams["groupedWordbankLemmas"]
+  setSelectedLemma: UseAppSectionPropsParams["setSelectedLemma"]
+  lemmaDetails: UseAppSectionPropsParams["lemmaDetails"]
+  lemmaDetailsError: UseAppSectionPropsParams["lemmaDetailsError"]
+  isLemmaDetailsLoading: UseAppSectionPropsParams["isLemmaDetailsLoading"]
+  showLemmaDetailsLoadingSkeleton: UseAppSectionPropsParams["showLemmaDetailsLoadingSkeleton"]
+  pronunciationLoadingByForm: UseAppSectionPropsParams["pronunciationLoadingByForm"]
+  playPronunciation: UseAppSectionPropsParams["playPronunciation"]
+  isRegeneratingLemmaPronunciation: UseAppSectionPropsParams["isRegeneratingLemmaPronunciation"]
+  regenerateSelectedLemmaPronunciation: UseAppSectionPropsParams["regenerateSelectedLemmaPronunciation"]
+  selectedLemmaVerificationError: UseAppSectionPropsParams["selectedLemmaVerificationError"]
+  hasSuggestedVerificationChanges: UseAppSectionPropsParams["hasSuggestedVerificationChanges"]
+  isApplyingVerificationChanges: UseAppSectionPropsParams["isApplyingVerificationChanges"]
+  applySelectedLemmaVerificationChanges: UseAppSectionPropsParams["applySelectedLemmaVerificationChanges"]
+  sentencebankError: UseAppSectionPropsParams["sentencebankError"]
+  isSentencebankLoading: UseAppSectionPropsParams["isSentencebankLoading"]
+  sentences: UseAppSectionPropsParams["sentences"]
+}
+
+export type DeveloperContext = {
+  status: UseAppSectionPropsParams["status"]
+  backendUrl: UseAppSectionPropsParams["backendUrl"]
+  apiStatusItems: UseAppSectionPropsParams["apiStatusItems"]
+  selectedNlpModel: UseAppSectionPropsParams["selectedNlpModel"]
+  developerTranslationAzureApiKey: UseAppSectionPropsParams["developerTranslationAzureApiKey"]
+  developerTranslationAzureRegion: UseAppSectionPropsParams["developerTranslationAzureRegion"]
+  developerTranslationAzureEndpoint: UseAppSectionPropsParams["developerTranslationAzureEndpoint"]
+  developerTtsAzureApiKey: UseAppSectionPropsParams["developerTtsAzureApiKey"]
+  developerTtsAzureRegion: UseAppSectionPropsParams["developerTtsAzureRegion"]
+  developerTtsAzureEndpoint: UseAppSectionPropsParams["developerTtsAzureEndpoint"]
+  developerVerificationGeminiApiKey: UseAppSectionPropsParams["developerVerificationGeminiApiKey"]
+  isSavingDeveloperApiKeys: UseAppSectionPropsParams["isSavingDeveloperApiKeys"]
+  isResettingDatabase: UseAppSectionPropsParams["isResettingDatabase"]
+  setSelectedNlpModel: UseAppSectionPropsParams["setSelectedNlpModel"]
+  setDeveloperTranslationAzureApiKey: UseAppSectionPropsParams["setDeveloperTranslationAzureApiKey"]
+  setDeveloperTranslationAzureRegion: UseAppSectionPropsParams["setDeveloperTranslationAzureRegion"]
+  setDeveloperTranslationAzureEndpoint: UseAppSectionPropsParams["setDeveloperTranslationAzureEndpoint"]
+  setDeveloperTtsAzureApiKey: UseAppSectionPropsParams["setDeveloperTtsAzureApiKey"]
+  setDeveloperTtsAzureRegion: UseAppSectionPropsParams["setDeveloperTtsAzureRegion"]
+  setDeveloperTtsAzureEndpoint: UseAppSectionPropsParams["setDeveloperTtsAzureEndpoint"]
+  setDeveloperVerificationGeminiApiKey: UseAppSectionPropsParams["setDeveloperVerificationGeminiApiKey"]
+  saveDeveloperApiKeys: UseAppSectionPropsParams["saveDeveloperApiKeys"]
+  resetDatabase: UseAppSectionPropsParams["resetDatabase"]
+}

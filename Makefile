@@ -1,4 +1,4 @@
-.PHONY: help setup-backend setup-backend-search setup-frontend setup lint lint-backend test test-backend-unit test-backend-medium test-backend-slow test-frontend docs-smoke agent-verify dev
+.PHONY: help setup-backend setup-backend-search setup-frontend setup lint lint-backend maintainability-check test test-backend-unit test-backend-medium test-backend-slow test-frontend docs-smoke agent-verify dev
 
 BACKEND_DIR := backend
 FRONTEND_DIR := frontend
@@ -13,6 +13,7 @@ help:
 	@echo "  setup-frontend      Install frontend dependencies"
 	@echo "  setup               Run setup-backend and setup-frontend"
 	@echo "  lint                Run frontend lint and backend lint checks"
+	@echo "  maintainability-check Run file size budget guardrails"
 	@echo "  test-backend-unit   Run fast backend unit tests"
 	@echo "  test-backend-medium Run backend medium integration tests"
 	@echo "  test-backend-slow   Run backend slow regression fixture tests"
@@ -40,6 +41,9 @@ setup: setup-backend setup-frontend
 lint:
 	cd $(FRONTEND_DIR) && npm run lint
 	$(MAKE) lint-backend
+
+maintainability-check:
+	./scripts/check-maintainability-budgets.sh
 
 lint-backend:
 	PYTHONPATH=$(BACKEND_DIR) python3 -m compileall -q $(BACKEND_DIR)/app

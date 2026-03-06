@@ -22,6 +22,7 @@ Run this exact sequence for deterministic confidence:
 
 ```bash
 make lint
+make maintainability-check
 make test
 make docs-smoke
 ```
