@@ -1,4 +1,4 @@
-import { fireEvent, getNotesEditor, mockFetchImplementation, renderApp, responseOf, screen, seedSavedNotes, waitFor, within } from "@/test/app-test-helpers"
+import { act, fireEvent, getNotesEditor, mockFetchImplementation, renderApp, responseOf, screen, seedSavedNotes, toast, vi, waitFor, within } from "@/test/app-test-helpers"
 
 describe("App shell and search", () => {
   it("renders header, lesson notes card, and backend status badge", async () => {
@@ -137,11 +137,11 @@ describe("App shell and search", () => {
     const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
     fireEvent.change(searchInput, { target: { value: "bog" } })
 
-    expect(await within(commandDialog).findByText(/^bog$/i)).toBeInTheDocument()
+    expect(await within(commandDialog).findByText(/^bog$/i, { selector: "strong" })).toBeInTheDocument()
     expect(await within(commandDialog).findByTestId("search-open-icon")).toBeInTheDocument()
     expect(within(commandDialog).queryByTestId("search-add-variation-label")).not.toBeInTheDocument()
 
-    fireEvent.click(await within(commandDialog).findByText(/^bog$/i))
+    fireEvent.click(await within(commandDialog).findByText(/^bog$/i, { selector: "strong" }))
     expect(await screen.findByRole("heading", { name: /^bog$/i })).toBeInTheDocument()
   })
 
@@ -211,6 +211,112 @@ describe("App shell and search", () => {
         fetchSpy.mock.calls.filter(([input]) => String(input).includes("/api/wordbank/search?")),
       ).toHaveLength(1)
     })
+  })
+
+  it("shows a translation skeleton for saved-word search results until translation resolves", async () => {
+    let resolveTranslation: ((response: Response) => void) | null = null
+    mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      searchWordbankResponse: {
+        items: [
+          {
+            lemma: "kat",
+            display_lemma: "kat",
+            variation_count: 1,
+            english_translation: null,
+            match_surface: null,
+          },
+        ],
+      },
+      corSearchFormResponse: {
+        form: "kat",
+        groups: [],
+      },
+      translationHandler: async () => await new Promise<Response>((resolve) => {
+        resolveTranslation = resolve
+      }),
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    const commandDialog = await screen.findByRole("dialog")
+    const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
+    fireEvent.change(searchInput, { target: { value: "kat" } })
+
+    expect(await within(commandDialog).findByTestId("search-translation-skeleton")).toBeInTheDocument()
+
+    await act(async () => {
+      resolveTranslation?.(responseOf({
+        status: "generated",
+        source_word: "kat",
+        lemma: "kat",
+        english_translation: "cat",
+      }))
+    })
+
+    expect(await within(commandDialog).findByText(/^cat$/i)).toBeInTheDocument()
+  })
+
+  it("shows a translation skeleton for COR search results until translation resolves", async () => {
+    let resolveTranslation: ((response: Response) => void) | null = null
+    mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      searchWordbankResponse: { items: [] },
+      corSearchFormResponse: {
+        form: "kattens",
+        groups: [
+          {
+            lemma: "kat",
+            gloss: null,
+            pos_tag: "NOUN",
+            variants: [
+              {
+                cor_id: "COR.777.111.01",
+                form: "kattens",
+                lemma: "kat",
+                gloss: null,
+                lemma_translation: null,
+                gram_raw: "sb.fk.sg.best.gen",
+                norm: "N",
+                lemma_idx: 777,
+                gram_code: 111,
+                variation: 1,
+                pos_tag: "NOUN",
+                morphology: "Gender=Com|Number=Sing|Definite=Def|Case=Gen",
+                features: { Gender: "Com", Number: "Sing", Definite: "Def", Case: "Gen" },
+                extra_tags: [],
+              },
+            ],
+          },
+        ],
+      },
+      translationHandler: async () => await new Promise<Response>((resolve) => {
+        resolveTranslation = resolve
+      }),
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    const commandDialog = await screen.findByRole("dialog")
+    const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
+    fireEvent.change(searchInput, { target: { value: "kattens" } })
+
+    expect(await within(commandDialog).findByTestId("search-translation-skeleton")).toBeInTheDocument()
+
+    await act(async () => {
+      resolveTranslation?.(responseOf({
+        status: "generated",
+        source_word: "kattens",
+        lemma: "kat",
+        english_translation: "the cat's",
+      }))
+    })
+
+    expect(await within(commandDialog).findByText(/the cat's/i)).toBeInTheDocument()
   })
 
   it("keeps showing other add alternatives when an exact saved form exists", async () => {
@@ -380,7 +486,7 @@ describe("App shell and search", () => {
     expect(await within(commandDialog).findByText(/^boge$/i, { selector: "em" })).toBeInTheDocument()
   })
 
-  it("shows standard saved-lemma row with badges and no variation-match fallback text", async () => {
+  it("shows standard saved-lemma row with consistent from-lemma text and badges", async () => {
     mockFetchImplementation({
       lemmasResponse: {
         items: [{ lemma: "sigtbarhed", variation_count: 1, english_translation: "visibility" }],
@@ -436,13 +542,14 @@ describe("App shell and search", () => {
     const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
     fireEvent.change(searchInput, { target: { value: "sigtbarhed" } })
 
-    expect(await within(commandDialog).findByText(/^sigtbarhed$/i)).toBeInTheDocument()
     expect(await within(commandDialog).findByTestId("search-open-icon")).toBeInTheDocument()
-    expect(within(commandDialog).queryByText(/variation match:/i)).not.toBeInTheDocument()
+    expect(await within(commandDialog).findByRole("option", { name: /sigtbarhed/i })).toBeInTheDocument()
+    expect(within(commandDialog).getByText(/\bfrom\b/i)).toBeInTheDocument()
+    expect(within(commandDialog).getByText(/^sigtbarhed$/i, { selector: "em" })).toBeInTheDocument()
     expect((await within(commandDialog).findAllByTestId("search-metadata-badge")).length).toBeGreaterThan(0)
   })
 
-  it("renders prefix matches in standard search-row design without variation-match fallback", async () => {
+  it("renders prefix matches with the same from-lemma text design", async () => {
     mockFetchImplementation({
       lemmasResponse: {
         items: [{ lemma: "sigtbarhed", variation_count: 1, english_translation: "visibility" }],
@@ -474,9 +581,10 @@ describe("App shell and search", () => {
     const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
     fireEvent.change(searchInput, { target: { value: "sigtbar" } })
 
-    expect(await within(commandDialog).findByText(/^sigtbarhed$/i)).toBeInTheDocument()
+    expect(await within(commandDialog).findByText(/^sigtbarhed$/i, { selector: "strong" })).toBeInTheDocument()
     expect(await within(commandDialog).findByTestId("search-open-icon")).toBeInTheDocument()
-    expect(within(commandDialog).queryByText(/variation match:/i)).not.toBeInTheDocument()
+    expect(within(commandDialog).getByText(/\bfrom\b/i)).toBeInTheDocument()
+    expect(within(commandDialog).getByText(/^sigtbarhed$/i, { selector: "em" })).toBeInTheDocument()
     expect((await within(commandDialog).findAllByTestId("search-metadata-badge")).length).toBeGreaterThan(0)
   })
 
@@ -821,7 +929,7 @@ describe("App shell and search", () => {
     const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
 
     fireEvent.change(searchInput, { target: { value: "ulykk" } })
-    expect(await within(commandDialog).findByText(/^ulykke$/i)).toBeInTheDocument()
+    expect(await within(commandDialog).findByText(/^ulykke$/i, { selector: "strong" })).toBeInTheDocument()
     expect(await within(commandDialog).findByText(/^Noun$/i)).toBeInTheDocument()
     expect(await within(commandDialog).findByText(/^n-word$/i)).toBeInTheDocument()
     expect(await within(commandDialog).findByText(/^Plural$/i)).toBeInTheDocument()
@@ -1296,6 +1404,112 @@ describe("App shell and search", () => {
     fireEvent.change(searchInput, { target: { value: "house" } })
     await waitFor(() => {
       expect(corRequestCount).toBe(2)
+    })
+  })
+
+  it("shows a backend connectivity message when adding from search hits a network failure", async () => {
+    mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      corSearchFormResponse: {
+        form: "lærer",
+        groups: [
+          {
+            lemma: "lære",
+            gloss: "learn",
+            pos_tag: "VERB",
+            variants: [
+              {
+                cor_id: "COR.49032.210.01",
+                form: "lærer",
+                lemma: "lære",
+                gloss: "learn",
+                lemma_translation: "to learn",
+                gram_raw: "vb.prs.akt",
+                norm: "V",
+                lemma_idx: 49032,
+                gram_code: 210,
+                variation: 1,
+                pos_tag: "VERB",
+                morphology: "Tense=Pres|VerbForm=Fin|Voice=Act",
+                features: { Tense: "Pres", VerbForm: "Fin", Voice: "Act" },
+                extra_tags: [],
+              },
+            ],
+          },
+        ],
+      },
+      addWordHandler: async () => {
+        throw new TypeError("Failed to fetch")
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    const commandDialog = await screen.findByRole("dialog")
+    const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
+    fireEvent.change(searchInput, { target: { value: "lærer" } })
+
+    fireEvent.click(await within(commandDialog).findByText(/^lærer$/i))
+
+    await waitFor(() => {
+      expect(vi.mocked(toast.error)).toHaveBeenCalledWith(
+        "Could not add word to wordbank. Could not reach the backend at http://127.0.0.1:8000. Check that it is running and try again.",
+      )
+    })
+  })
+
+  it("shows backend error details when adding from search returns an API error", async () => {
+    mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      corSearchFormResponse: {
+        form: "lærer",
+        groups: [
+          {
+            lemma: "lære",
+            gloss: "learn",
+            pos_tag: "VERB",
+            variants: [
+              {
+                cor_id: "COR.49032.210.01",
+                form: "lærer",
+                lemma: "lære",
+                gloss: "learn",
+                lemma_translation: "to learn",
+                gram_raw: "vb.prs.akt",
+                norm: "V",
+                lemma_idx: 49032,
+                gram_code: 210,
+                variation: 1,
+                pos_tag: "VERB",
+                morphology: "Tense=Pres|VerbForm=Fin|Voice=Act",
+                features: { Tense: "Pres", VerbForm: "Fin", Voice: "Act" },
+                extra_tags: [],
+              },
+            ],
+          },
+        ],
+      },
+      addWordHandler: async () => ({
+        ok: false,
+        status: 409,
+        json: async () => ({ detail: "The word 'lærer' is already saved as a variation." }),
+      } as Response),
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    const commandDialog = await screen.findByRole("dialog")
+    const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
+    fireEvent.change(searchInput, { target: { value: "lærer" } })
+
+    fireEvent.click(await within(commandDialog).findByText(/^lærer$/i))
+
+    await waitFor(() => {
+      expect(vi.mocked(toast.error)).toHaveBeenCalledWith("The word 'lærer' is already saved as a variation.")
     })
   })
 

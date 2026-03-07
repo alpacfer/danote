@@ -2,6 +2,7 @@ import { Eye, Plus } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { CommandItem } from "@/components/ui/command"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   badgesForSavedForm,
   badgesFromGramRaw,
@@ -29,6 +30,8 @@ type SidebarWordbankResultsProps = {
   exactSavedVariationLemmaKeySet: Set<string>
   normalizedQuery: string
   wordbankItemValue: (lemma: WordbankLemma) => string
+  getWordbankTranslation: (lemma: WordbankLemma, displayVariant: CORSearchVariant | null) => string | null
+  isWordbankTranslationLoading: (lemma: WordbankLemma, displayVariant: CORSearchVariant | null) => boolean
   onAddWordFromSearch: (
     surfaceToken: string,
     lemmaCandidate: string | null,
@@ -49,6 +52,8 @@ export function SidebarWordbankResults({
   exactSavedVariationLemmaKeySet,
   normalizedQuery,
   wordbankItemValue,
+  getWordbankTranslation,
+  isWordbankTranslationLoading,
   onAddWordFromSearch,
   onOpenWordbankLemma,
   onCloseSearch,
@@ -93,18 +98,17 @@ export function SidebarWordbankResults({
             {(() => {
               const displayVariant = displayVariantBySavedLemma.get(normalizeSearchWord(lemma.lemma))?.variant ?? null
               const displayTitle = displayVariant?.form?.trim() || lemma.display_lemma?.trim() || lemma.lemma
-              const displayVariantFormKey = normalizeSearchWord(displayVariant?.form ?? "")
-              const displayVariantLemmaKey = normalizeSearchWord(displayVariant?.lemma ?? "")
-              const showLinkedLemma = Boolean(
-                displayVariant && displayVariantLemmaKey && displayVariantFormKey && displayVariantLemmaKey !== displayVariantFormKey,
-              )
-              const linkedLemmaDisplay = showLinkedLemma && displayVariant ? lemmaDisplayForVariant(displayVariant) : null
-              const linkedLemmaTranslation = showLinkedLemma && displayVariant
-                ? lemmaTranslationForVariant(displayVariant)
-                : null
+              const linkedLemmaDisplay = displayVariant
+                ? (lemmaDisplayForVariant(displayVariant) ?? lemma.display_lemma?.trim() ?? lemma.lemma)
+                : (lemma.display_lemma?.trim() || lemma.lemma)
+              const linkedLemmaTranslation = displayVariant
+                ? (lemmaTranslationForVariant(displayVariant) ?? lemma.english_translation ?? null)
+                : (lemma.english_translation ?? null)
+              const translation = getWordbankTranslation(lemma, displayVariant)
+              const isTranslationLoading = isWordbankTranslationLoading(lemma, displayVariant)
               const detailLine = displayVariant
-                ? (glossDisplayForVariant(displayVariant) ?? (lemma.english_translation?.trim() || "No translation available."))
-                : (lemma.english_translation?.trim() || "No translation available.")
+                ? (glossDisplayForVariant(displayVariant) ?? translation)
+                : translation
               const badges = displayVariant
                 ? badgesFromGramRaw(displayVariant.gram_raw)
                 : badgesForSavedForm({
@@ -123,7 +127,13 @@ export function SidebarWordbankResults({
                       </span>
                     ) : null}
                   </span>
-                  <span className="text-muted-foreground text-xs">{detailLine}</span>
+                  {detailLine ? (
+                    <span className="text-muted-foreground text-xs leading-4">{detailLine}</span>
+                  ) : isTranslationLoading ? (
+                    <Skeleton data-testid="search-translation-skeleton" className="h-4 w-24" />
+                  ) : (
+                    <span className="text-muted-foreground text-xs leading-4">No translation available.</span>
+                  )}
                   {badges.length > 0 ? (
                     <div className="mt-1 flex flex-wrap gap-1.5">
                       {badges.map((badge) => (

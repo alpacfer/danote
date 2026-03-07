@@ -2,6 +2,7 @@ import { Plus } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { CommandItem } from "@/components/ui/command"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   badgesFromGramRaw,
   corSecondaryBadgeClass,
@@ -26,6 +27,8 @@ type SidebarCorResultsProps = {
   savedLemmaKeySet: Set<string>
   normalizedQuery: string
   corVariantItemValue: (variant: CORSearchVariant) => string
+  getCorVariantTranslation: (variant: CORSearchVariant) => string | null
+  isCorVariantTranslationLoading: (variant: CORSearchVariant) => boolean
   onAddWordFromSearch: (
     surfaceToken: string,
     lemmaCandidate: string | null,
@@ -44,6 +47,8 @@ export function SidebarCorResults({
   savedLemmaKeySet,
   normalizedQuery,
   corVariantItemValue,
+  getCorVariantTranslation,
+  isCorVariantTranslationLoading,
   onAddWordFromSearch,
   onCloseSearch,
 }: SidebarCorResultsProps) {
@@ -59,6 +64,8 @@ export function SidebarCorResults({
             .map(({ variant }) => {
               const isVariationCandidate = normalizeSearchWord(variant.form) !== normalizeSearchWord(variant.lemma)
               const isVariationAdd = isVariationCandidate && savedLemmaKeySet.has(normalizeSearchWord(variant.lemma))
+              const translation = getCorVariantTranslation(variant)
+              const isTranslationLoading = isCorVariantTranslationLoading(variant)
               return (
                 <CommandItem
                   key={`cor-variant-${variant.cor_id}`}
@@ -95,21 +102,27 @@ export function SidebarCorResults({
                         </span>
                       ) : null}
                     </span>
-                    {glossDisplayForVariant(variant) ? (
-                      <span className="text-muted-foreground text-xs">{glossDisplayForVariant(variant)}</span>
+                    {glossDisplayForVariant(variant) || translation ? (
+                      <span className="text-muted-foreground text-xs leading-4">{glossDisplayForVariant(variant) ?? translation}</span>
+                    ) : isTranslationLoading ? (
+                      <Skeleton data-testid="search-translation-skeleton" className="h-4 w-24" />
+                    ) : (
+                      <span className="text-muted-foreground text-xs leading-4">No translation available.</span>
+                    )}
+                    {badgesFromGramRaw(variant.gram_raw).length > 0 ? (
+                      <div className="mt-1 flex flex-wrap gap-1.5">
+                        {badgesFromGramRaw(variant.gram_raw).map((badge) => (
+                          <Badge
+                            key={`cor-variant-${variant.cor_id}-gram-${badge.label}`}
+                            variant={badge.tone === "primary" ? "default" : "secondary"}
+                            className={`text-xs ${badge.tone === "primary" ? `border ${posBadgeClass(variant.pos_tag ?? null)}` : `border ${corSecondaryBadgeClass(badge.label)}`}`.trim()}
+                            data-testid="search-metadata-badge"
+                          >
+                            {badge.label}
+                          </Badge>
+                        ))}
+                      </div>
                     ) : null}
-                    <div className="mt-1 flex flex-wrap gap-1.5">
-                      {badgesFromGramRaw(variant.gram_raw).map((badge) => (
-                        <Badge
-                          key={`cor-variant-${variant.cor_id}-gram-${badge.label}`}
-                          variant={badge.tone === "primary" ? "default" : "secondary"}
-                          className={`text-xs ${badge.tone === "primary" ? `border ${posBadgeClass(variant.pos_tag ?? null)}` : `border ${corSecondaryBadgeClass(badge.label)}`}`.trim()}
-                          data-testid="search-metadata-badge"
-                        >
-                          {badge.label}
-                        </Badge>
-                      ))}
-                    </div>
                   </div>
                   {isVariationAdd ? (
                     <span className="text-muted-foreground flex items-center gap-1 text-xs font-semibold">

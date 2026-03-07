@@ -11,6 +11,7 @@ import {
 import { useSidebarHotkeys } from "@/app/chrome/sidebar/use-sidebar-hotkeys"
 import { useSidebarSearch } from "@/app/chrome/sidebar/use-sidebar-search"
 import { useSidebarSearchRanking } from "@/app/chrome/sidebar/use-sidebar-search-ranking"
+import { useSidebarSearchTranslations } from "@/app/chrome/sidebar/use-sidebar-search-translations"
 import {
   BACKEND_URL,
   createApiClient,
@@ -140,6 +141,17 @@ export function AppSidebar({
     activeCorFormSearchResult,
   })
 
+  const {
+    getWordbankTranslation,
+    isWordbankTranslationLoading,
+    getCorVariantTranslation,
+    isCorVariantTranslationLoading,
+  } = useSidebarSearchTranslations({
+    orderedWordbankResults,
+    displayVariantBySavedLemma,
+    corSearchVariantsToRender,
+  })
+
   const matchingPageItems = useMemo(() => {
     const pageItems = [
       { key: "page-playground", label: "Playground", shortcut: "Alt+P", icon: NotebookPen, onSelect: onSelectPlayground },
@@ -215,6 +227,10 @@ export function AppSidebar({
     matchingPageItems,
     wordbankItemValue: (lemma: WordbankLemma) => `wordbank-${normalizeSearchWord(lemma.lemma)}`,
     corVariantItemValue: (variant: CORSearchVariant) => `cor-variant-${variant.cor_id}`,
+    getWordbankTranslation,
+    isWordbankTranslationLoading,
+    getCorVariantTranslation,
+    isCorVariantTranslationLoading,
   }
 
   const searchResultActions: SidebarSearchResultsActions = {
