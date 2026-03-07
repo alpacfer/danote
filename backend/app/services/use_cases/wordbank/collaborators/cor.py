@@ -1,0 +1,128 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+from app.api.schemas.v1.wordbank import (
+    CORLemmaParadigmResponse,
+    CORSearchFormResponse,
+    ResolveQueryResponse,
+)
+from app.services.cor import COREntry, CORLexiconService
+from app.services.cor_local import CORLocalEntry, CORLocalLexiconService
+from app.services.use_cases.wordbank.collaborators.cor_local import (
+    best_cor_local_entry_for_form,
+    lookup_translation_for_cor_gloss,
+    search_cor_form,
+    search_cor_lemma_paradigm,
+)
+from app.services.use_cases.wordbank.collaborators.cor_resolution import resolve_query
+from app.services.use_cases.wordbank.collaborators.nlp import NLPCollaborator
+from app.services.use_cases.wordbank.collaborators.translation import TranslationCollaborator
+from app.services.use_cases.wordbank.shared import _cor_entry_priority
+
+
+class CorResolutionCollaborator:
+    """Owns COR dictionary lookup, query resolution, and COR-local search."""
+
+    def __init__(
+        self,
+        cor_lexicon_service: CORLexiconService | None,
+        cor_local_lexicon_service: CORLocalLexiconService | None,
+        db_path: Path,
+        translation: TranslationCollaborator,
+        nlp: NLPCollaborator,
+    ) -> None:
+        self._cor_lexicon_service = cor_lexicon_service
+        self._cor_local_lexicon_service = cor_local_lexicon_service
+        self._db_path = db_path
+        self._translation = translation
+        self._nlp = nlp
+
+    # ------------------------------------------------------------------
+    # Public API — query resolution
+    # ------------------------------------------------------------------
+
+    def resolve_query(
+        self,
+        query_text: str,
+        *,
+        include_translations: bool = True,
+        include_language_detection: bool = True,
+    ) -> ResolveQueryResponse:
+        return resolve_query(
+            db_path=self._db_path,
+            translation=self._translation,
+            nlp=self._nlp,
+            cor_entries_lookup=self.cor_entries_for_surface,
+            query_text=query_text,
+            include_translations=include_translations,
+            include_language_detection=include_language_detection,
+        )
+
+    # ------------------------------------------------------------------
+    # Public API — COR local search
+    # ------------------------------------------------------------------
+
+    def search_cor_form(self, form: str, *, limit: int = 100) -> CORSearchFormResponse:
+        return search_cor_form(
+            self._cor_local_lexicon_service,
+            self._translation,
+            form,
+            limit=limit,
+        )
+
+    def search_cor_lemma_paradigm(
+        self, lemma_idx: int, *, limit: int = 1000
+    ) -> CORLemmaParadigmResponse:
+        return search_cor_lemma_paradigm(
+            self._cor_local_lexicon_service,
+            self._translation,
+            lemma_idx,
+            limit=limit,
+        )
+
+    # ------------------------------------------------------------------
+    # Public helpers used by WordbankUseCase directly
+    # ------------------------------------------------------------------
+
+    def cor_entries_for_surface(self, normalized_value: str) -> list[COREntry]:
+        if self._cor_lexicon_service is None:
+            return []
+        return self._cor_lexicon_service.lookup_full_form(normalized_value)
+
+    def best_cor_entry(
+        self,
+        entries: list[COREntry],
+        *,
+        normalized_surface: str,
+        preferred_pos_tag: str | None,
+    ) -> COREntry | None:
+        if not entries:
+            return None
+        filtered = entries
+        if preferred_pos_tag:
+            preferred = [e for e in entries if e.pos_tag == preferred_pos_tag]
+            if preferred:
+                filtered = preferred
+        return min(filtered, key=lambda e: _cor_entry_priority(e, normalized_surface))
+
+    def best_cor_local_entry_for_form(
+        self,
+        *,
+        form: str,
+        lemma: str,
+        preferred_pos_tag: str | None,
+    ) -> CORLocalEntry | None:
+        return best_cor_local_entry_for_form(
+            self._cor_local_lexicon_service,
+            form=form,
+            lemma=lemma,
+            preferred_pos_tag=preferred_pos_tag,
+        )
+
+    def lookup_translation_for_cor_gloss(
+        self,
+        gloss: str | None,
+        cache: dict[str, str | None] | None = None,
+    ) -> str | None:
+        return lookup_translation_for_cor_gloss(self._translation, gloss, cache)

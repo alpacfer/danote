@@ -19,7 +19,7 @@ while IFS= read -r file; do
     echo "[WARN] ts/tsx soft limit >300: $file ($lines)"
     warn_count=$((warn_count + 1))
   fi
-done < <(rg --files frontend/src | rg -v '(\.test\.|\.spec\.|/__tests__/|components/ui/vendor/sidebar\.tsx$)' | rg '\.(ts|tsx)$')
+done < <(rg --files frontend/src | rg -v '(/test/|\.test\.|\.spec\.|/__tests__/|components/ui/vendor/sidebar\.tsx$)' | rg '\.(ts|tsx)$')
 
 while IFS= read -r file; do
   [[ -z "$file" ]] && continue
@@ -28,7 +28,7 @@ while IFS= read -r file; do
     echo "[WARN] tsx component target >200: $file ($lines)"
     warn_count=$((warn_count + 1))
   fi
-done < <(rg --files frontend/src | rg -v '(\.test\.|\.spec\.|/__tests__/|components/ui/vendor/sidebar\.tsx$)' | rg '\.tsx$')
+done < <(rg --files frontend/src | rg -v '(/test/|\.test\.|\.spec\.|/__tests__/|components/ui/vendor/sidebar\.tsx$)' | rg '\.tsx$')
 
 while IFS= read -r file; do
   [[ -z "$file" ]] && continue

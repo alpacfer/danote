@@ -1,14 +1,51 @@
 from __future__ import annotations
 
-import re
+from collections.abc import Callable
+from pathlib import Path
 
-from app.api.schemas.v1.wordbank import DetectWordLanguageResponse, GeneratePhraseTranslationResponse, GenerateReverseTranslationResponse, GenerateTranslationResponse
+from app.api.schemas.v1.wordbank import (
+    DetectWordLanguageResponse,
+    GeneratePhraseTranslationResponse,
+    GenerateReverseTranslationResponse,
+    GenerateTranslationResponse,
+)
 from app.db.migrations import get_connection
 from app.services.token_classifier import normalize_token
+from app.services.translation import TranslationService
 
 
-class WordbankTranslationDetectionMixin:
-    def generate_translation(self, surface_token: str, lemma_candidate: str | None) -> GenerateTranslationResponse:
+class TranslationCollaborator:
+    """Handles DA↔EN translation, language detection, and related DB writes."""
+
+    _AMBIGUOUS_SHORT_WORDS = frozenset(
+        {
+            "an",
+            "at",
+            "de",
+            "den",
+            "det",
+            "en",
+            "for",
+            "gift",
+            "i",
+            "in",
+            "is",
+            "it",
+            "to",
+        }
+    )
+
+    def __init__(self, translation_service: TranslationService | None, db_path: Path) -> None:
+        self._translation_service = translation_service
+        self._db_path = db_path
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+
+    def generate_translation(
+        self, surface_token: str, lemma_candidate: str | None
+    ) -> GenerateTranslationResponse:
         normalized_surface = normalize_token(surface_token)
         normalized_lemma = normalize_token(lemma_candidate or "")
         stored_lemma = normalized_lemma or normalized_surface
@@ -16,8 +53,8 @@ class WordbankTranslationDetectionMixin:
         if not normalized_surface:
             raise ValueError("surface_token or lemma_candidate is required")
 
-        english_translation = self._lookup_translation(normalized_surface)
-        provider = self._translation_provider_name()
+        english_translation = self.lookup_translation(normalized_surface)
+        provider = self.provider_name()
         if english_translation:
             with get_connection(self._db_path) as conn:
                 conn.execute(
@@ -35,9 +72,6 @@ class WordbankTranslationDetectionMixin:
             lemma=stored_lemma,
             english_translation=english_translation,
         )
-
-
-
 
     def generate_phrase_translation(self, source_text: str) -> GeneratePhraseTranslationResponse:
         normalized_source_text = normalize_token(source_text)
@@ -63,8 +97,8 @@ class WordbankTranslationDetectionMixin:
                     english_translation=cached_translation,
                 )
 
-            english_translation = self._lookup_translation(normalized_source_text)
-            provider = self._translation_provider_name()
+            english_translation = self.lookup_translation(normalized_source_text)
+            provider = self.provider_name()
             conn.execute(
                 """
                 INSERT INTO phrase_translations (
@@ -87,23 +121,31 @@ class WordbankTranslationDetectionMixin:
             english_translation=english_translation,
         )
 
-
-
     def generate_reverse_translation(self, source_word: str) -> GenerateReverseTranslationResponse:
         normalized_source = normalize_token(source_word)
         if not normalized_source:
             raise ValueError("source_word is required")
         danish_translation_raw = self._lookup_reverse_translation(normalized_source)
-        danish_translation = normalize_token(danish_translation_raw) if danish_translation_raw else None
+        danish_translation = (
+            normalize_token(danish_translation_raw) if danish_translation_raw else None
+        )
         return GenerateReverseTranslationResponse(
             status="generated" if danish_translation else "unavailable",
             source_word=normalized_source,
             danish_translation=danish_translation,
         )
 
+    def detect_word_language(
+        self,
+        source_word: str,
+        *,
+        cor_entries_lookup: Callable[[str], list] | None = None,
+    ) -> DetectWordLanguageResponse:
+        """Detect whether source_word is Danish, English, or ambiguous.
 
-
-    def detect_word_language(self, source_word: str) -> DetectWordLanguageResponse:
+        cor_entries_lookup: optional callable(normalized_token) -> list[COREntry].
+        When provided, a non-empty result signals the word is Danish.
+        """
         normalized_source = normalize_token(source_word)
         if not normalized_source:
             raise ValueError("source_word is required")
@@ -130,7 +172,7 @@ class WordbankTranslationDetectionMixin:
                 confidence=0.25,
             )
 
-        if self._cor_entries_for_surface(normalized_source):
+        if cor_entries_lookup is not None and cor_entries_lookup(normalized_source):
             return DetectWordLanguageResponse(
                 source_word=normalized_source,
                 language="da",
@@ -183,14 +225,27 @@ class WordbankTranslationDetectionMixin:
             confidence=0.35,
         )
 
+    def lookup_translation(self, source_word: str) -> str | None:
+        if self._translation_service is None:
+            return None
+        try:
+            translated = self._translation_service.translate_da_to_en(source_word)
+            return self.normalize_translation_value(translated)
+        except Exception:
+            return None
 
+    def provider_name(self) -> str:
+        provider = getattr(self._translation_service, "provider", None)
+        if isinstance(provider, str):
+            cleaned = provider.strip().lower()
+            if cleaned:
+                return cleaned
+        return "translation"
 
-    def _normalize_comparable(self, value: str) -> str:
+    def normalize_comparable(self, value: str) -> str:
         return " ".join(value.strip().lower().split())
 
-
-
-    def _is_likely_english_word(self, value: str) -> bool:
+    def is_likely_english_word(self, value: str) -> bool:
         normalized = value.strip().lower()
         if not normalized or " " in normalized:
             return False
@@ -201,76 +256,49 @@ class WordbankTranslationDetectionMixin:
             return False
         return any(char in "aeiouy" for char in normalized)
 
-
-
-    def _lookup_translation(self, source_word: str) -> str | None:
-        if self._translation_service is None:
-            return None
-
-        try:
-            translated = self._translation_service.translate_da_to_en(source_word)
-            return self._normalize_translation_value(translated)
-        except Exception:
-            return None
-
-
-
-    def _lookup_reverse_translation(self, source_word: str) -> str | None:
-        if self._translation_service is None:
-            return None
-
-        translate_en_to_da = getattr(self._translation_service, "translate_en_to_da", None)
-        if not callable(translate_en_to_da):
-            return None
-
-        try:
-            translated = translate_en_to_da(source_word)
-            return self._normalize_translation_value(translated)
-        except Exception:
-            return None
-
-
-
-    def _lookup_detected_source_language(self, source_word: str) -> str | None:
-        if self._translation_service is None:
-            return None
-
-        detect_source_language = getattr(self._translation_service, "detect_source_language", None)
-        if not callable(detect_source_language):
-            return None
-
-        try:
-            provider_language = detect_source_language(source_word)
-        except Exception:
-            return None
-
-        if not provider_language:
-            return None
-
-        normalized = provider_language.strip().lower()
-        if normalized.startswith("en"):
-            return "en"
-        if normalized.startswith("da"):
-            return "da"
-        return None
-
-
-
-    def _translation_provider_name(self) -> str:
-        provider = getattr(self._translation_service, "provider", None)
-        if isinstance(provider, str):
-            cleaned = provider.strip().lower()
-            if cleaned:
-                return cleaned
-        return "translation"
-
-
+    def lookup_reverse_translation(self, source_word: str) -> str | None:
+        return self._lookup_reverse_translation(source_word)
 
     @staticmethod
-    def _normalize_translation_value(value: str | None) -> str | None:
+    def normalize_translation_value(value: str | None) -> str | None:
         if not isinstance(value, str):
             return None
         cleaned = " ".join(value.strip().split())
         if not cleaned:
             return None
         return cleaned.lower()
+
+    # ------------------------------------------------------------------
+    # Private helpers
+    # ------------------------------------------------------------------
+
+    def _lookup_reverse_translation(self, source_word: str) -> str | None:
+        if self._translation_service is None:
+            return None
+        translate_en_to_da = getattr(self._translation_service, "translate_en_to_da", None)
+        if not callable(translate_en_to_da):
+            return None
+        try:
+            translated = translate_en_to_da(source_word)
+            return self.normalize_translation_value(translated)
+        except Exception:
+            return None
+
+    def _lookup_detected_source_language(self, source_word: str) -> str | None:
+        if self._translation_service is None:
+            return None
+        detect_source_language = getattr(self._translation_service, "detect_source_language", None)
+        if not callable(detect_source_language):
+            return None
+        try:
+            provider_language = detect_source_language(source_word)
+        except Exception:
+            return None
+        if not provider_language:
+            return None
+        normalized = provider_language.strip().lower()
+        if normalized.startswith("en"):
+            return "en"
+        if normalized.startswith("da"):
+            return "da"
+        return None

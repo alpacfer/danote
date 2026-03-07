@@ -45,6 +45,39 @@ def _normalize_action_value(value: str) -> str:
     return " ".join(value.strip().lower().split())
 
 
+def _cor_entry_priority(entry: object, normalized_surface: str) -> tuple:
+    """Scoring key for selecting the best COREntry from a list.
+
+    Lower is better. Used by both NLPCollaborator and CorResolutionCollaborator.
+    """
+    norm_status = getattr(entry, "norm_status", None)
+    if norm_status == "N":
+        norm_rank = 0
+    elif norm_status == "K":
+        norm_rank = 1
+    elif norm_status == "U":
+        norm_rank = 2
+    else:
+        norm_rank = 3
+    full_form = getattr(entry, "full_form", "") or ""
+    lemma = getattr(entry, "lemma", "") or ""
+    pos_tag = getattr(entry, "pos_tag", None)
+    morphology = getattr(entry, "morphology", None)
+    cor_id = getattr(entry, "cor_id", "")
+    is_exact_surface = 0 if _normalize_action_value(full_form) == _normalize_action_value(normalized_surface) else 1
+    lemma_matches_surface = 0 if _normalize_action_value(lemma) == _normalize_action_value(normalized_surface) else 1
+    noun_number_rank = 2
+    if pos_tag == "NOUN":
+        morph_str = morphology or ""
+        if "Number=Sing" in morph_str:
+            noun_number_rank = 0
+        elif "Number=Plur" in morph_str:
+            noun_number_rank = 1
+    has_pos = 0 if pos_tag else 1
+    has_morph = 0 if morphology else 1
+    return (is_exact_surface, norm_rank, lemma_matches_surface, noun_number_rank, has_pos, has_morph, lemma, cor_id)
+
+
 @dataclass(frozen=True)
 class _CORAddOption:
     surface: str
