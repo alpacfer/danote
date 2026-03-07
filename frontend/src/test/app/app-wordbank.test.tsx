@@ -32,6 +32,28 @@ describe("App wordbank", () => {
     expect(screen.getByText(/^book's$/i)).toBeInTheDocument()
   }, 10_000)
 
+  it("defers loading the full wordbank list until the wordbank section opens", async () => {
+    const fetchSpy = mockFetchImplementation({
+      lemmasResponse: {
+        items: [{ lemma: "bog", variation_count: 1 }],
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    expect(
+      fetchSpy.mock.calls.filter(([input]) => String(input).endsWith("/api/wordbank/lemmas")),
+    ).toHaveLength(0)
+
+    fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
+
+    await screen.findByRole("button", { name: /bog/i })
+    expect(
+      fetchSpy.mock.calls.filter(([input]) => String(input).endsWith("/api/wordbank/lemmas")),
+    ).toHaveLength(1)
+  })
+
   it("regenerates pronunciation from the word page action", async () => {
     const fetchSpy = mockFetchImplementation({
       lemmasResponse: {

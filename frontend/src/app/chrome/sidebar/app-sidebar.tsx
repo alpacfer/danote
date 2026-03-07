@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { BookOpen, NotebookPen, Settings } from "lucide-react"
 
 import { ThemeToggleButton } from "@/app/chrome/theme-toggle-button"
@@ -12,6 +12,8 @@ import { useSidebarHotkeys } from "@/app/chrome/sidebar/use-sidebar-hotkeys"
 import { useSidebarSearch } from "@/app/chrome/sidebar/use-sidebar-search"
 import { useSidebarSearchRanking } from "@/app/chrome/sidebar/use-sidebar-search-ranking"
 import {
+  BACKEND_URL,
+  createApiClient,
   normalizeSearchWord,
   type AppSection,
   type CORSearchVariant,
@@ -73,6 +75,8 @@ export function AppSidebar({
 }: AppSidebarProps) {
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [commandSelectionOverride, setCommandSelectionOverride] = useState("")
+  const [searchSidebarLemmas, setSearchSidebarLemmas] = useState<WordbankLemma[]>([])
+  const apiClient = useMemo(() => createApiClient({ backendUrl: BACKEND_URL }), [])
 
   const {
     searchQuery,
@@ -85,6 +89,30 @@ export function AppSidebar({
     savedNotes,
     wordbankCacheVersion,
   })
+
+  useEffect(() => {
+    if (lemmas.length > 0 || !isSearchOpen || searchSidebarLemmas.length > 0) {
+      return
+    }
+
+    let cancelled = false
+    void (async () => {
+      try {
+        const payload = await apiClient.tryGetJson<{ items?: WordbankLemma[] }>("/api/wordbank/lemmas")
+        if (!cancelled) {
+          setSearchSidebarLemmas(payload?.items ?? [])
+        }
+      } catch {
+        if (!cancelled) {
+          setSearchSidebarLemmas([])
+        }
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [apiClient, isSearchOpen, lemmas.length, searchSidebarLemmas.length])
 
   useSidebarHotkeys({
     onToggleSearch: () => setIsSearchOpen((current) => !current),
@@ -106,7 +134,7 @@ export function AppSidebar({
     hasWordbankSectionResults,
     hasWordbankActions,
   } = useSidebarSearchRanking({
-    lemmas,
+    lemmas: lemmas.length > 0 ? lemmas : searchSidebarLemmas,
     normalizedQuery,
     searchApiMatches,
     activeCorFormSearchResult,

@@ -174,6 +174,45 @@ describe("App shell and search", () => {
     })
   })
 
+  it("command search skips wordbank API calls for one-character queries", async () => {
+    const fetchSpy = mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      searchWordbankResponse: {
+        items: [
+          {
+            lemma: "sol",
+            display_lemma: "sol",
+            variation_count: 1,
+            english_translation: "sun",
+            match_surface: null,
+          },
+        ],
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    const commandDialog = await screen.findByRole("dialog")
+    const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
+    fireEvent.change(searchInput, { target: { value: "s" } })
+
+    await waitFor(() => {
+      expect(
+        fetchSpy.mock.calls.filter(([input]) => String(input).includes("/api/wordbank/search?")),
+      ).toHaveLength(0)
+    })
+
+    fireEvent.change(searchInput, { target: { value: "so" } })
+
+    await waitFor(() => {
+      expect(
+        fetchSpy.mock.calls.filter(([input]) => String(input).includes("/api/wordbank/search?")),
+      ).toHaveLength(1)
+    })
+  })
+
   it("keeps showing other add alternatives when an exact saved form exists", async () => {
     mockFetchImplementation({
       lemmasResponse: {
@@ -1027,7 +1066,7 @@ describe("App shell and search", () => {
         ],
       },
       corSearchFormResponse: {
-        form: "s",
+        form: "si",
         groups: [],
       },
     })
@@ -1038,7 +1077,7 @@ describe("App shell and search", () => {
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
     const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
-    fireEvent.change(searchInput, { target: { value: "s" } })
+    fireEvent.change(searchInput, { target: { value: "si" } })
 
     await waitFor(() => {
       expect(within(commandDialog).getAllByRole("option").length).toBeGreaterThan(2)
@@ -1052,7 +1091,7 @@ describe("App shell and search", () => {
       expect(options[0]).toHaveAttribute("data-selected", "false")
     })
 
-    fireEvent.change(searchInput, { target: { value: "si" } })
+    fireEvent.change(searchInput, { target: { value: "sid" } })
 
     await waitFor(() => {
       const options = within(commandDialog).getAllByRole("option")

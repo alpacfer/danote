@@ -4,6 +4,7 @@ from fastapi.testclient import TestClient
 
 from app.core.config import Settings
 from app.db.migrations import apply_migrations
+from app.db.repositories import WordbankRepository
 from app.main import create_app
 
 
@@ -22,6 +23,25 @@ def _test_settings(db_path) -> Settings:
 def test_wordbank_routes_meet_smoke_latency_budget(tmp_path, stub_nlp_adapter_factory) -> None:
     db_path = tmp_path / "danote.sqlite3"
     apply_migrations(db_path)
+    repository = WordbankRepository(db_path)
+    for index in range(2_000):
+        lemma = f"lemma{index:04d}"
+        lexeme_id, _ = repository.insert_or_load_lexeme(
+            stored_lemma=lemma,
+            translation=f"translation {index:04d}",
+            provider="stub",
+            pos_tag="NOUN",
+            morphology="Number=Sing",
+        )
+        for variation in range(3):
+            repository.insert_or_update_surface_form(
+                lexeme_id=lexeme_id,
+                form=lemma if variation == 0 else f"{lemma}-form{variation}",
+                translation=None,
+                provider="stub",
+                pos_tag="NOUN",
+                morphology="Number=Sing",
+            )
     app = create_app(_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
 
     with TestClient(app) as client:
@@ -31,7 +51,7 @@ def test_wordbank_routes_meet_smoke_latency_budget(tmp_path, stub_nlp_adapter_fa
         budgets_ms = {
             "/api/wordbank/lemmas": 400.0,
             "/api/wordbank/lemmas/bog": 400.0,
-            "/api/wordbank/search?query=bog&limit=8": 400.0,
+            "/api/wordbank/search?query=bog&limit=8": 200.0,
             "/api/wordbank/resolve-query": 700.0,
         }
 

@@ -37,14 +37,24 @@ export function useLexiconData({
   const [lemmaDetailsError, setLemmaDetailsError] = useState<string | null>(null)
   const [isLemmaDetailsLoading, setIsLemmaDetailsLoading] = useState(false)
   const [showLemmaDetailsLoadingSkeleton, setShowLemmaDetailsLoadingSkeleton] = useState(false)
+  const [hasLoadedWordbank, setHasLoadedWordbank] = useState(false)
 
   const lemmaDetailsLoadingDelayTimeoutRef = useRef<number | null>(null)
+  const lastLoadedWordbankTickRef = useRef<number | null>(null)
   const apiClient = useMemo(
     () => createApiClient({ backendUrl, extractErrorMessage }),
     [backendUrl, extractErrorMessage],
   )
 
   useEffect(() => {
+    const shouldLoadWordbank = activeSection === "wordbank" || Boolean(selectedLemma) || hasLoadedWordbank
+    const alreadyLoadedCurrentTick =
+      hasLoadedWordbank && lastLoadedWordbankTickRef.current === wordbankRefreshTick
+    if (!shouldLoadWordbank || alreadyLoadedCurrentTick) {
+      setIsWordbankLoading(false)
+      return
+    }
+
     let cancelled = false
     setIsWordbankLoading(true)
     setWordbankError(null)
@@ -57,6 +67,8 @@ export function useLexiconData({
         )
         if (!cancelled) {
           setLemmas(payload.items ?? [])
+          setHasLoadedWordbank(true)
+          lastLoadedWordbankTickRef.current = wordbankRefreshTick
         }
       } catch (error) {
         if (!cancelled) {
@@ -74,7 +86,7 @@ export function useLexiconData({
     return () => {
       cancelled = true
     }
-  }, [apiClient, wordbankRefreshTick])
+  }, [activeSection, apiClient, hasLoadedWordbank, selectedLemma, wordbankRefreshTick])
 
   useEffect(() => {
     let cancelled = false

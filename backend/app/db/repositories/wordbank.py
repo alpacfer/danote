@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from app.db.repositories.wordbank_search import search_lemmas as search_wordbank_rows
 from app.db.sqlite import get_connection, timed_db_operation
 
 
@@ -73,137 +74,8 @@ class WordbankRepository:
         ]
 
     def search_lemmas(self, normalized_query: str, *, limit: int) -> list[WordbankSearchRow]:
-        contains_pattern = f"%{normalized_query}%"
-        prefix_pattern = f"{normalized_query}%"
         with timed_db_operation("wordbank.search_lemmas"), get_connection(self._db_path, read_only=True) as conn:
-            rows = conn.execute(
-                """
-                WITH search_candidates AS (
-                    SELECT
-                        l.id AS lexeme_id,
-                        l.lemma AS lemma,
-                        l.english_translation AS english_translation,
-                        l.pos_tag AS pos_tag,
-                        l.morphology AS morphology,
-                        (
-                            SELECT COUNT(*)
-                            FROM surface_forms sf_all
-                            WHERE sf_all.lexeme_id = l.id
-                        ) AS variation_count,
-                        (
-                            SELECT sf_match.form
-                            FROM surface_forms sf_match
-                            WHERE
-                                sf_match.lexeme_id = l.id
-                                AND sf_match.form LIKE ? COLLATE NOCASE
-                            ORDER BY
-                                CASE
-                                    WHEN sf_match.form = ? COLLATE NOCASE THEN 0
-                                    WHEN sf_match.form LIKE ? COLLATE NOCASE THEN 1
-                                    ELSE 2
-                                END,
-                                sf_match.form COLLATE NOCASE
-                            LIMIT 1
-                        ) AS match_surface,
-                        (
-                            SELECT sf_match.pos_tag
-                            FROM surface_forms sf_match
-                            WHERE
-                                sf_match.lexeme_id = l.id
-                                AND sf_match.form LIKE ? COLLATE NOCASE
-                            ORDER BY
-                                CASE
-                                    WHEN sf_match.form = ? COLLATE NOCASE THEN 0
-                                    WHEN sf_match.form LIKE ? COLLATE NOCASE THEN 1
-                                    ELSE 2
-                                END,
-                                sf_match.form COLLATE NOCASE
-                            LIMIT 1
-                        ) AS match_surface_pos_tag,
-                        (
-                            SELECT sf_match.morphology
-                            FROM surface_forms sf_match
-                            WHERE
-                                sf_match.lexeme_id = l.id
-                                AND sf_match.form LIKE ? COLLATE NOCASE
-                            ORDER BY
-                                CASE
-                                    WHEN sf_match.form = ? COLLATE NOCASE THEN 0
-                                    WHEN sf_match.form LIKE ? COLLATE NOCASE THEN 1
-                                    ELSE 2
-                                END,
-                                sf_match.form COLLATE NOCASE
-                            LIMIT 1
-                        ) AS match_surface_morphology,
-                        EXISTS(
-                            SELECT 1
-                            FROM surface_forms sf_exact
-                            WHERE
-                                sf_exact.lexeme_id = l.id
-                                AND sf_exact.form = ? COLLATE NOCASE
-                        ) AS has_surface_exact_match,
-                        EXISTS(
-                            SELECT 1
-                            FROM surface_forms sf_prefix
-                            WHERE
-                                sf_prefix.lexeme_id = l.id
-                                AND sf_prefix.form LIKE ? COLLATE NOCASE
-                        ) AS has_surface_prefix_match
-                    FROM lexemes l
-                    WHERE
-                        l.lemma LIKE ? COLLATE NOCASE
-                        OR COALESCE(l.english_translation, '') LIKE ? COLLATE NOCASE
-                        OR EXISTS(
-                            SELECT 1
-                            FROM surface_forms sf_contains
-                            WHERE
-                                sf_contains.lexeme_id = l.id
-                                AND sf_contains.form LIKE ? COLLATE NOCASE
-                        )
-                )
-                SELECT
-                    lemma,
-                    english_translation,
-                    COALESCE(match_surface_pos_tag, pos_tag) AS pos_tag,
-                    COALESCE(match_surface_morphology, morphology) AS morphology,
-                    variation_count,
-                    match_surface,
-                    has_surface_exact_match,
-                    has_surface_prefix_match
-                FROM search_candidates
-                ORDER BY
-                    CASE
-                        WHEN lemma = ? COLLATE NOCASE THEN 0
-                        WHEN has_surface_exact_match = 1 THEN 1
-                        WHEN lemma LIKE ? COLLATE NOCASE THEN 2
-                        WHEN has_surface_prefix_match = 1 THEN 3
-                        WHEN COALESCE(english_translation, '') LIKE ? COLLATE NOCASE THEN 4
-                        ELSE 5
-                    END,
-                    lemma COLLATE NOCASE
-                LIMIT ?
-                """,
-                (
-                    contains_pattern,
-                    normalized_query,
-                    prefix_pattern,
-                    contains_pattern,
-                    normalized_query,
-                    prefix_pattern,
-                    contains_pattern,
-                    normalized_query,
-                    prefix_pattern,
-                    normalized_query,
-                    prefix_pattern,
-                    contains_pattern,
-                    contains_pattern,
-                    contains_pattern,
-                    normalized_query,
-                    prefix_pattern,
-                    prefix_pattern,
-                    limit,
-                ),
-            ).fetchall()
+            rows = search_wordbank_rows(conn, normalized_query, limit=limit)
 
         return [
             WordbankSearchRow(

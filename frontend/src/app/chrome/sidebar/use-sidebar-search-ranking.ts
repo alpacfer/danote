@@ -87,8 +87,13 @@ export function useSidebarSearchRanking({
     [searchApiMatches],
   )
   const savedLemmaKeySet = useMemo(
-    () => new Set(lemmas.map((item) => normalizeSearchWord(item.lemma)).filter(Boolean)),
-    [lemmas],
+    () =>
+      new Set(
+        [...lemmas.map((item) => item.lemma), ...searchApiMatches.map((item) => item.lemma.lemma)]
+          .map((item) => normalizeSearchWord(item))
+          .filter(Boolean),
+      ),
+    [lemmas, searchApiMatches],
   )
   const corSearchGroups = useMemo(
     () => activeCorFormSearchResult?.payload.groups ?? [],

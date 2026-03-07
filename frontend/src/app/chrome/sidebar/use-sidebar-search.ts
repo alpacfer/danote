@@ -67,7 +67,7 @@ export function useSidebarSearch({
       }, 0)
     }
 
-    if (!normalizedQuery) {
+    if (!normalizedQuery || normalizedQuery.length < 2) {
       commitSearchMatches([])
       return () => {
         cancelled = true
