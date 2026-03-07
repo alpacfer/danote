@@ -102,6 +102,8 @@ export type WordbankLemma = {
   display_lemma?: string | null
   english_translation: string | null
   variation_count: number
+  pos_tag?: string | null
+  morphology?: string | null
 }
 
 export type LemmaListResponse = {

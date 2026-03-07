@@ -42,6 +42,18 @@ while IFS= read -r file; do
   fi
 done < <(rg --files backend/app/services/use_cases | rg -v '(/tests?/|\.test\.|\.spec\.|/__tests__/)' | rg '\.py$')
 
+while IFS= read -r file; do
+  [[ -z "$file" ]] && continue
+  lines=$(wc -l < "$file")
+  if (( lines > 350 )); then
+    echo "[FAIL] backend app boundary hard limit >350: $file ($lines)"
+    fail_count=$((fail_count + 1))
+  elif (( lines > 250 )); then
+    echo "[WARN] backend app boundary soft limit >250: $file ($lines)"
+    warn_count=$((warn_count + 1))
+  fi
+done < <(rg --files backend/app/api/routes backend/app/bootstrap backend/app/core | rg '\.py$')
+
 echo "[maintainability] warnings=$warn_count failures=$fail_count"
 
 if (( fail_count > 0 )); then

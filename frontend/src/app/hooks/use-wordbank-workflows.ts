@@ -1,7 +1,8 @@
-import { type Dispatch, type SetStateAction, useState } from "react"
+import { type Dispatch, type SetStateAction, useMemo, useState } from "react"
 
 import {
   addLoadingKey,
+  createApiClient,
   hasMultipleWords,
   normalizePhraseKey,
   normalizeSearchWord,
@@ -53,6 +54,10 @@ export function useWordbankWorkflows({
 }: UseWordbankWorkflowsParams) {
   const [addingTokens, setAddingTokens] = useState<Record<string, boolean>>({})
   const [isSavingSentence, setIsSavingSentence] = useState(false)
+  const apiClient = useMemo(
+    () => createApiClient({ backendUrl, extractErrorMessage }),
+    [backendUrl, extractErrorMessage],
+  )
 
   const {
     pronunciationLoadingByForm,
@@ -96,30 +101,16 @@ export function useWordbankWorkflows({
     const normalizedLemmaCandidate = lemmaCandidate ? normalizeSearchWord(lemmaCandidate) : null
     const normalizedPosTag = metadata?.posTag?.trim() || null
     const normalizedMorphology = metadata?.morphology?.trim() || null
-    const response = await fetch(`${backendUrl}/api/wordbank/lexemes`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
+    return apiClient.postJson<AddWordResponse>(
+      "/api/wordbank/lexemes",
+      {
+        surface_token: normalizedSurfaceToken,
+        lemma_candidate: normalizedLemmaCandidate,
+        ...(normalizedPosTag ? { pos_tag: normalizedPosTag } : {}),
+        ...(normalizedMorphology ? { morphology: normalizedMorphology } : {}),
       },
-      body: JSON.stringify(
-        {
-          surface_token: normalizedSurfaceToken,
-          lemma_candidate: normalizedLemmaCandidate,
-          ...(normalizedPosTag ? { pos_tag: normalizedPosTag } : {}),
-          ...(normalizedMorphology ? { morphology: normalizedMorphology } : {}),
-        },
-      ),
-    })
-
-    if (!response.ok) {
-      const message = await extractErrorMessage(
-        response,
-        `Add word request failed with status ${response.status}`,
-      )
-      throw new Error(message)
-    }
-
-    return (await response.json()) as AddWordResponse
+      "Could not add word to wordbank.",
+    )
   }
 
   async function addTokenToWordbank(token: AnalyzedToken, action?: WordActionSuggestion) {
@@ -206,24 +197,13 @@ export function useWordbankWorkflows({
 
     setIsSavingSentence(true)
     try {
-      const response = await fetch(`${backendUrl}/api/sentencebank/sentences`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
+      const payload = await apiClient.postJson<AddSentenceResponse>(
+        "/api/sentencebank/sentences",
+        {
           source_text: normalizedSelection,
-        }),
-      })
-      if (!response.ok) {
-        const message = await extractErrorMessage(
-          response,
-          `Save sentence request failed with status ${response.status}`,
-        )
-        throw new Error(message)
-      }
-
-      const payload = (await response.json()) as AddSentenceResponse
+        },
+        "Could not save sentence.",
+      )
       toast.success(payload.message)
       setSentencebankRefreshTick((current) => current + 1)
       onSentenceSaved?.()

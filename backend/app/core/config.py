@@ -1,9 +1,8 @@
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from pathlib import Path
-import os
-
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 DATA_DIR = BASE_DIR / "data"
@@ -45,6 +44,7 @@ class Settings:
 
 def load_settings() -> Settings:
     db_path = Path(os.getenv("DANOTE_DB_PATH", DATA_DIR / "danote.sqlite3"))
+    typo_dictionary_path = os.getenv("DANOTE_TYPO_DICTIONARY_PATH")
     raw_cors_origins = os.getenv("DANOTE_CORS_ORIGINS", "")
     parsed_cors_origins = tuple(
         origin.strip()
@@ -61,9 +61,7 @@ def load_settings() -> Settings:
         nlp_enabled=os.getenv("DANOTE_NLP_ENABLED", "1").lower() not in {"0", "false", "no"},
         cors_origins=parsed_cors_origins or DEFAULT_CORS_ORIGINS,
         typo_enabled=os.getenv("DANOTE_TYPO_ENABLED", "1").lower() not in {"0", "false", "no"},
-        typo_dictionary_path=Path(os.getenv("DANOTE_TYPO_DICTIONARY_PATH"))
-        if os.getenv("DANOTE_TYPO_DICTIONARY_PATH")
-        else None,
+        typo_dictionary_path=Path(typo_dictionary_path) if typo_dictionary_path else None,
         translation_enabled=os.getenv("DANOTE_TRANSLATION_ENABLED", "1").lower()
         not in {"0", "false", "no"},
         translation_provider=os.getenv("DANOTE_TRANSLATION_PROVIDER", "azure"),

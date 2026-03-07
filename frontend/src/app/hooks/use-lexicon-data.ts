@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 
 import {
   type AppSection,
+  createApiClient,
   type LemmaDetailsResponse,
   type LemmaListResponse,
   type SentenceListResponse,
@@ -38,6 +39,10 @@ export function useLexiconData({
   const [showLemmaDetailsLoadingSkeleton, setShowLemmaDetailsLoadingSkeleton] = useState(false)
 
   const lemmaDetailsLoadingDelayTimeoutRef = useRef<number | null>(null)
+  const apiClient = useMemo(
+    () => createApiClient({ backendUrl, extractErrorMessage }),
+    [backendUrl, extractErrorMessage],
+  )
 
   useEffect(() => {
     let cancelled = false
@@ -46,16 +51,10 @@ export function useLexiconData({
 
     void (async () => {
       try {
-        const response = await fetch(`${backendUrl}/api/wordbank/lemmas`)
-        if (!response.ok) {
-          const message = await extractErrorMessage(
-            response,
-            `Wordbank request failed with status ${response.status}`,
-          )
-          throw new Error(message)
-        }
-
-        const payload = (await response.json()) as LemmaListResponse
+        const payload = await apiClient.getJson<LemmaListResponse>(
+          "/api/wordbank/lemmas",
+          "Could not load wordbank.",
+        )
         if (!cancelled) {
           setLemmas(payload.items ?? [])
         }
@@ -75,7 +74,7 @@ export function useLexiconData({
     return () => {
       cancelled = true
     }
-  }, [backendUrl, extractErrorMessage, wordbankRefreshTick])
+  }, [apiClient, wordbankRefreshTick])
 
   useEffect(() => {
     let cancelled = false
@@ -84,16 +83,10 @@ export function useLexiconData({
 
     void (async () => {
       try {
-        const response = await fetch(`${backendUrl}/api/sentencebank/sentences`)
-        if (!response.ok) {
-          const message = await extractErrorMessage(
-            response,
-            `Sentencebank request failed with status ${response.status}`,
-          )
-          throw new Error(message)
-        }
-
-        const payload = (await response.json()) as SentenceListResponse
+        const payload = await apiClient.getJson<SentenceListResponse>(
+          "/api/sentencebank/sentences",
+          "Could not load sentencebank.",
+        )
         if (!cancelled) {
           setSentences(payload.items ?? [])
         }
@@ -113,7 +106,7 @@ export function useLexiconData({
     return () => {
       cancelled = true
     }
-  }, [backendUrl, extractErrorMessage, sentencebankRefreshTick])
+  }, [apiClient, sentencebankRefreshTick])
 
   useEffect(() => {
     if (activeSection !== "wordbank" || !selectedLemma) {
@@ -140,18 +133,10 @@ export function useLexiconData({
 
     void (async () => {
       try {
-        const response = await fetch(
-          `${backendUrl}/api/wordbank/lemmas/${encodeURIComponent(selectedLemma)}`,
+        const payload = await apiClient.getJson<LemmaDetailsResponse>(
+          `/api/wordbank/lemmas/${encodeURIComponent(selectedLemma)}`,
+          "Could not load lemma details.",
         )
-        if (!response.ok) {
-          const message = await extractErrorMessage(
-            response,
-            `Word details request failed with status ${response.status}`,
-          )
-          throw new Error(message)
-        }
-
-        const payload = (await response.json()) as LemmaDetailsResponse
         if (!cancelled) {
           setLemmaDetails(payload)
         }
@@ -180,7 +165,7 @@ export function useLexiconData({
         lemmaDetailsLoadingDelayTimeoutRef.current = null
       }
     }
-  }, [activeSection, backendUrl, extractErrorMessage, selectedLemma, wordbankRefreshTick])
+  }, [activeSection, apiClient, selectedLemma, wordbankRefreshTick])
 
   return {
     lemmas,

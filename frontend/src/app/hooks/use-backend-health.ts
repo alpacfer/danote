@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 
 import {
+  createApiClient,
   type ConnectionStatus,
   type HealthPayload,
 } from "@/app/core"
@@ -15,12 +16,12 @@ export function useBackendHealth({ backendUrl }: UseBackendHealthParams) {
 
   useEffect(() => {
     let cancelled = false
+    const apiClient = createApiClient({ backendUrl })
 
     async function checkHealth() {
       try {
-        const response = await fetch(`${backendUrl}/api/health`)
-        if (!cancelled && response.ok) {
-          const payload = (await response.json()) as HealthPayload
+        const payload = await apiClient.tryGetJson<HealthPayload>("/api/health")
+        if (!cancelled && payload) {
           setHealthPayload(payload)
           if (payload.status === "ok") {
             setStatus("connected")

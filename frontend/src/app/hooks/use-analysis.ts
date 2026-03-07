@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 
 import {
   ANALYZE_DEBOUNCE_MS,
+  createApiClient,
   finalizedAnalysisText,
   type AnalyzedToken,
 } from "@/app/core"
@@ -30,13 +31,21 @@ export function useAnalysis({
     () => mapAnalyzedTokensToHighlights(noteText, tokens),
     [noteText, tokens],
   )
+  const apiClient = useMemo(
+    () => createApiClient({ backendUrl, extractErrorMessage }),
+    [backendUrl, extractErrorMessage],
+  )
 
   useEffect(() => {
     if (!analysisInput) {
       activeControllerRef.current?.abort()
-      setAnalysisError(null)
-      setTokens([])
-      return
+      const clearId = window.setTimeout(() => {
+        setAnalysisError(null)
+        setTokens([])
+      }, 0)
+      return () => {
+        window.clearTimeout(clearId)
+      }
     }
 
     const timeoutId = window.setTimeout(async () => {
@@ -49,24 +58,15 @@ export function useAnalysis({
 
       setAnalysisError(null)
       try {
-        const response = await fetch(`${backendUrl}/api/analyze`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
+        const payload = await apiClient.postJson<{ tokens: AnalyzedToken[] }>(
+          "/api/analyze",
+          { text: analysisInput },
+          "Could not analyze notes.",
+          {
+            signal: controller.signal,
           },
-          body: JSON.stringify({ text: analysisInput }),
-          signal: controller.signal,
-        })
+        )
 
-        if (!response.ok) {
-          const message = await extractErrorMessage(
-            response,
-            `Analyze request failed with status ${response.status}`,
-          )
-          throw new Error(message)
-        }
-
-        const payload = (await response.json()) as { tokens: AnalyzedToken[] }
         if (requestId === latestRequestIdRef.current) {
           setTokens(payload.tokens ?? [])
         }
@@ -85,7 +85,7 @@ export function useAnalysis({
     return () => {
       window.clearTimeout(timeoutId)
     }
-  }, [analysisInput, analysisRefreshTick, backendUrl, extractErrorMessage])
+  }, [analysisInput, analysisRefreshTick, apiClient])
 
   useEffect(() => {
     return () => {

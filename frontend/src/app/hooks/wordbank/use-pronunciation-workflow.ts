@@ -1,6 +1,8 @@
-import { type Dispatch, type SetStateAction, useEffect, useRef, useState } from "react"
+import { type Dispatch, type SetStateAction, useEffect, useMemo, useRef, useState } from "react"
 
 import {
+  ApiRequestError,
+  createApiClient,
   isPlayableAudioContentType,
   isUnsupportedAudioError,
   normalizeSearchWord,
@@ -26,6 +28,10 @@ export function usePronunciationWorkflow({
 }: UsePronunciationWorkflowParams) {
   const [pronunciationLoadingByForm, setPronunciationLoadingByForm] = useState<Record<string, boolean>>({})
   const [isRegeneratingLemmaPronunciation, setIsRegeneratingLemmaPronunciation] = useState(false)
+  const apiClient = useMemo(
+    () => createApiClient({ backendUrl, extractErrorMessage }),
+    [backendUrl, extractErrorMessage],
+  )
 
   const pronunciationUrlByFormRef = useRef<Map<string, string>>(new Map())
   const activePronunciationAudioRef = useRef<HTMLAudioElement | null>(null)
@@ -74,28 +80,15 @@ export function usePronunciationWorkflow({
     options?: { force?: boolean; notify?: boolean },
   ) {
     try {
-      const response = await fetch(`${backendUrl}/api/wordbank/lexemes/pronunciation`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
+      const payload = await apiClient.postJson<GeneratePronunciationResponse>(
+        "/api/wordbank/lexemes/pronunciation",
+        {
           stored_lemma: storedLemma,
           stored_surface_form: storedSurfaceForm,
           force: Boolean(options?.force),
-        }),
-      })
-      if (!response.ok) {
-        if (options?.notify) {
-          const message = await extractErrorMessage(
-            response,
-            `Pronunciation request failed with status ${response.status}`,
-          )
-          toast.error(message)
-        }
-        return
-      }
-      const payload = (await response.json()) as GeneratePronunciationResponse
+        },
+        "Could not regenerate pronunciation.",
+      )
       clearPronunciationCache(payload.pronunciation_form)
       if (payload.status === "generated") {
         setWordbankRefreshTick((current) => current + 1)
@@ -125,19 +118,18 @@ export function usePronunciationWorkflow({
       while (true) {
         let objectUrl = pronunciationUrlByFormRef.current.get(normalizedForm)
         if (!objectUrl) {
-          const response = await fetch(
-            `${backendUrl}/api/wordbank/pronunciation?form=${encodeURIComponent(normalizedForm)}`,
-          )
-          if (!response.ok) {
-            if (response.status === 404) {
+          let response: Response
+          try {
+            response = await apiClient.getBlob(
+              `/api/wordbank/pronunciation?form=${encodeURIComponent(normalizedForm)}`,
+              "Could not load pronunciation.",
+            )
+          } catch (error) {
+            if (error instanceof ApiRequestError && error.status === 404) {
               toast.error(`No pronunciation is available yet for '${normalizedForm}'.`)
               return
             }
-            const message = await extractErrorMessage(
-              response,
-              `Pronunciation request failed with status ${response.status}`,
-            )
-            throw new Error(message)
+            throw error
           }
 
           const contentType = typeof response.headers?.get === "function"

@@ -2,6 +2,7 @@ import { type Dispatch, type SetStateAction, useMemo, useState } from "react"
 
 import {
   buildVerificationErrorDetail,
+  createApiClient,
   normalizeSearchWord,
   type ApplyVerificationChangesResponse,
   type LemmaDetailsResponse,
@@ -29,6 +30,10 @@ export function useVerificationWorkflow({
 }: UseVerificationWorkflowParams) {
   const [isApplyingVerificationChanges, setIsApplyingVerificationChanges] = useState(false)
   const [verificationErrorsByLemma, setVerificationErrorsByLemma] = useState<Record<string, VerificationErrorDetail>>({})
+  const apiClient = useMemo(
+    () => createApiClient({ backendUrl, extractErrorMessage }),
+    [backendUrl, extractErrorMessage],
+  )
 
   const selectedLemmaVerificationError = useMemo(() => {
     const lemmaKey = normalizeSearchWord(lemmaDetails?.lemma ?? selectedLemma ?? "")
@@ -86,24 +91,14 @@ export function useVerificationWorkflow({
 
   async function verifyWordInBackground(storedLemma: string, storedSurfaceForm: string | null) {
     try {
-      const response = await fetch(`${backendUrl}/api/wordbank/lexemes/verify`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
+      const payload = await apiClient.postJson<VerifyWordResponse>(
+        "/api/wordbank/lexemes/verify",
+        {
           stored_lemma: storedLemma,
           stored_surface_form: storedSurfaceForm,
-        }),
-      })
-      if (!response.ok) {
-        const message = await extractErrorMessage(
-          response,
-          `Verify word request failed with status ${response.status}`,
-        )
-        throw new Error(message)
-      }
-      const payload = (await response.json()) as VerifyWordResponse
+        },
+        "Could not verify word.",
+      )
       notifyWordVerification(payload.stored_lemma, payload.stored_surface_form, payload.verification)
     } catch (error) {
       const message = error instanceof Error ? error.message : null
@@ -131,27 +126,16 @@ export function useVerificationWorkflow({
 
     setIsApplyingVerificationChanges(true)
     try {
-      const response = await fetch(`${backendUrl}/api/wordbank/lexemes/apply-verification-changes`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
+      const payload = await apiClient.postJson<ApplyVerificationChangesResponse>(
+        "/api/wordbank/lexemes/apply-verification-changes",
+        {
           stored_lemma: lemma,
           stored_surface_form: detail.storedSurfaceForm ?? lemma,
           suggested_changes: detail.suggestedChangesPayload,
           provider: detail.provider,
-        }),
-      })
-      if (!response.ok) {
-        const message = await extractErrorMessage(
-          response,
-          `Apply verification changes failed with status ${response.status}`,
-        )
-        throw new Error(message)
-      }
-
-      const payload = (await response.json()) as ApplyVerificationChangesResponse
+        },
+        "Could not apply Gemini changes.",
+      )
       if (payload.status === "applied") {
         const count = payload.applied_fields.length
         toast.success(

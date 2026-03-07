@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 
 import {
   PHRASE_TRANSLATION_DELAY_MS,
+  createApiClient,
   normalizePhraseKey,
   normalizeSearchWord,
   normalizeWordKey,
@@ -28,6 +29,10 @@ export function usePlaygroundTranslations({
 
   const phraseTranslationRequestKeyRef = useRef<string | null>(null)
   const phraseTranslationDelayTimeoutRef = useRef<number | null>(null)
+  const apiClient = useMemo(
+    () => createApiClient({ backendUrl, extractErrorMessage }),
+    [backendUrl, extractErrorMessage],
+  )
 
   const clearPhraseTranslationDelay = useCallback(() => {
     if (phraseTranslationDelayTimeoutRef.current !== null) {
@@ -70,25 +75,14 @@ export function usePlaygroundTranslations({
       let payload: GenerateTranslationResponse | null = null
       let translation: string | null = null
       for (let attempt = 0; attempt < 2; attempt += 1) {
-        const response = await fetch(`${backendUrl}/api/wordbank/translation`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
+        const nextPayload = await apiClient.postJson<GenerateTranslationResponse>(
+          "/api/wordbank/translation",
+          {
             surface_token: requestSurface,
             lemma_candidate: requestLemma,
-          }),
-        })
-        if (!response.ok) {
-          const message = await extractErrorMessage(
-            response,
-            `Translation request failed with status ${response.status}`,
-          )
-          throw new Error(message)
-        }
-
-        const nextPayload = (await response.json()) as GenerateTranslationResponse
+          },
+          "Could not generate translation.",
+        )
         const nextTranslation = nextPayload.english_translation?.trim() || null
         payload = nextPayload
         translation = nextTranslation
@@ -140,24 +134,13 @@ export function usePlaygroundTranslations({
       phraseTranslationDelayTimeoutRef.current = null
       void (async () => {
         try {
-          const response = await fetch(`${backendUrl}/api/wordbank/phrase-translation`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
+          const payload = await apiClient.postJson<GeneratePhraseTranslationResponse>(
+            "/api/wordbank/phrase-translation",
+            {
               source_text: selectedText,
-            }),
-          })
-          if (!response.ok) {
-            const message = await extractErrorMessage(
-              response,
-              `Phrase translation request failed with status ${response.status}`,
-            )
-            throw new Error(message)
-          }
-
-          const payload = (await response.json()) as GeneratePhraseTranslationResponse
+            },
+            "Could not generate phrase translation.",
+          )
           const responseKey = normalizePhraseKey(payload.source_text || selectedText)
           const translation = payload.english_translation?.trim() || null
 

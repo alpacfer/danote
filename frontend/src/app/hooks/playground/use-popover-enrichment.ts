@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react"
 
 import {
   POPOVER_ENRICH_CACHE_TTL_MS,
+  createApiClient,
   normalizeSearchWord,
   normalizeWordKey,
   type AnalyzedToken,
@@ -22,6 +23,7 @@ export function usePopoverEnrichment({
   rememberTranslation,
 }: UsePopoverEnrichmentParams) {
   const [enrichmentCacheByKey, setEnrichmentCacheByKey] = useState<Record<string, { payload: ResolveQueryResponse; cachedAt: number }>>({})
+  const apiClient = useMemo(() => createApiClient({ backendUrl }), [backendUrl])
   const tokenValue = useMemo(
     () => normalizeSearchWord(popoverDisplayToken?.normalized_token || popoverDisplayToken?.surface_token || ""),
     [popoverDisplayToken],
@@ -51,23 +53,16 @@ export function usePopoverEnrichment({
 
     void (async () => {
       try {
-        const response = await fetch(`${backendUrl}/api/analyze/enrich-token`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
+        const payload = await apiClient.postJson<ResolveQueryResponse>(
+          "/api/analyze/enrich-token",
+          {
             token: tokenValue,
             include_translations: true,
             include_language_detection: true,
-          }),
-          signal: controller.signal,
-        })
-        if (!response.ok) {
-          return
-        }
-
-        const payload = (await response.json()) as ResolveQueryResponse
+          },
+          "Could not enrich token.",
+          { signal: controller.signal },
+        )
         if (cancelled) {
           return
         }
@@ -96,7 +91,7 @@ export function usePopoverEnrichment({
       cancelled = true
       controller.abort()
     }
-  }, [backendUrl, cacheKey, enrichmentCacheByKey, isHighlightPopoverOpen, rememberTranslation, tokenValue])
+  }, [apiClient, cacheKey, enrichmentCacheByKey, isHighlightPopoverOpen, rememberTranslation, tokenValue])
 
   return {
     popoverEnrichment,

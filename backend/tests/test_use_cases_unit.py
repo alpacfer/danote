@@ -151,6 +151,25 @@ def test_wordbank_use_case_round_trip(tmp_path: Path) -> None:
     assert listing.items[0].english_translation is None
 
 
+def test_wordbank_use_case_facade_delegates_across_extracted_workflows(tmp_path: Path) -> None:
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        translation_service=FakeTranslationService({"bog": "book", "bogen": "the book"}),
+    )
+
+    added = use_case.add_word("Bogen", "bog")
+    listing = use_case.list_lemmas()
+    search = use_case.search_lemmas("bog")
+    details = use_case.get_lemma_details("bog")
+
+    assert added.status == "inserted"
+    assert listing.items[0].lemma == "bog"
+    assert search.items[0].lemma == "bog"
+    assert details.lemma == "bog"
+    assert details.english_translation == "book"
+    assert details.surface_forms[1].english_translation == "the book"
+
+
 def test_wordbank_use_case_stores_deepl_translations_for_lemma_and_surface(tmp_path: Path) -> None:
     use_case = WordbankUseCase(
         _db_path(tmp_path),

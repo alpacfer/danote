@@ -1,4 +1,4 @@
-import type { TokenFeedbackPayload } from "@/app/core"
+import { createApiClient, type TokenFeedbackPayload } from "@/app/core"
 
 export async function extractErrorMessage(response: Response, fallback: string): Promise<string> {
   try {
@@ -14,11 +14,8 @@ export async function extractErrorMessage(response: Response, fallback: string):
 
 export async function postTokenFeedback(backendUrl: string, payload: TokenFeedbackPayload) {
   try {
-    await fetch(`${backendUrl}/api/tokens/feedback`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    })
+    const apiClient = createApiClient({ backendUrl })
+    await apiClient.postJson("/api/tokens/feedback", payload, "Could not send token feedback.")
   } catch {
     // Feedback logging is best-effort in v1.
   }

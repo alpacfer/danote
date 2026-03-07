@@ -1,6 +1,7 @@
-import { useState } from "react"
+import { useMemo, useState } from "react"
 
 import {
+  createApiClient,
   NLP_MODEL_OPTIONS,
   type ConnectionStatus,
   type DeveloperApiKeysUpdateResponse,
@@ -38,6 +39,10 @@ export function useDeveloperSettings({
   const [developerTtsAzureEndpoint, setDeveloperTtsAzureEndpoint] = useState("")
   const [developerVerificationGeminiApiKey, setDeveloperVerificationGeminiApiKey] = useState("")
   const [isSavingDeveloperApiKeys, setIsSavingDeveloperApiKeys] = useState(false)
+  const apiClient = useMemo(
+    () => createApiClient({ backendUrl, extractErrorMessage }),
+    [backendUrl, extractErrorMessage],
+  )
 
   async function resetDatabase() {
     const shouldReset = window.confirm(
@@ -49,18 +54,10 @@ export function useDeveloperSettings({
 
     setIsResettingDatabase(true)
     try {
-      const response = await fetch(`${backendUrl}/api/wordbank/database`, {
-        method: "DELETE",
-      })
-      if (!response.ok) {
-        const message = await extractErrorMessage(
-          response,
-          `Reset database request failed with status ${response.status}`,
-        )
-        throw new Error(message)
-      }
-
-      const payload = (await response.json()) as ResetDatabaseResponse
+      const payload = await apiClient.deleteJson<ResetDatabaseResponse>(
+        "/api/wordbank/database",
+        "Could not reset database.",
+      )
       onNotifySuccess(payload.message)
       onDatabaseReset()
     } catch (error) {
@@ -74,12 +71,9 @@ export function useDeveloperSettings({
   async function saveDeveloperApiKeys() {
     setIsSavingDeveloperApiKeys(true)
     try {
-      const response = await fetch(`${backendUrl}/api/developer/api-keys`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
+      const payload = await apiClient.postJson<DeveloperApiKeysUpdateResponse>(
+        "/api/developer/api-keys",
+        {
           translation_azure_api_key: developerTranslationAzureApiKey,
           translation_azure_region: developerTranslationAzureRegion,
           translation_azure_endpoint: developerTranslationAzureEndpoint,
@@ -87,23 +81,13 @@ export function useDeveloperSettings({
           tts_azure_region: developerTtsAzureRegion,
           tts_azure_endpoint: developerTtsAzureEndpoint,
           word_verification_gemini_api_key: developerVerificationGeminiApiKey,
-        }),
-      })
-
-      if (!response.ok) {
-        const message = await extractErrorMessage(
-          response,
-          `Save API keys request failed with status ${response.status}`,
-        )
-        throw new Error(message)
-      }
-
-      const payload = (await response.json()) as DeveloperApiKeysUpdateResponse
+        },
+        "Could not save API keys.",
+      )
       onNotifySuccess(payload.message || "Runtime API keys updated.")
 
-      const healthResponse = await fetch(`${backendUrl}/api/health`)
-      if (healthResponse.ok) {
-        const healthPayload = (await healthResponse.json()) as HealthPayload
+      const healthPayload = await apiClient.tryGetJson<HealthPayload>("/api/health")
+      if (healthPayload) {
         setHealthPayload(healthPayload)
         setStatus(
           healthPayload.status === "ok"

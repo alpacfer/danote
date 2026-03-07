@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Request
 
+from app.api.routes._runtime import get_runtime_state
 from app.api.schemas.v1 import HealthResponse
 
 router = APIRouter()
@@ -12,17 +13,19 @@ def api_root() -> dict[str, str]:
 
 @router.get("/health", response_model=HealthResponse)
 def health(request: Request) -> HealthResponse:
-    settings = request.app.state.settings
-    db_ready = bool(getattr(request.app.state, "db_ready", False))
+    runtime = get_runtime_state(request)
+    settings = runtime.settings
+    services = runtime.services
+    db_ready = runtime.db_ready
     nlp_enabled = bool(getattr(settings, "nlp_enabled", True))
-    nlp_ready = bool(getattr(request.app.state, "nlp_ready", False))
+    nlp_ready = runtime.nlp_ready
     status = "ok" if db_ready and ((not nlp_enabled) or nlp_ready) else "degraded"
     translation_enabled = bool(getattr(settings, "translation_enabled", False))
-    translation_service = getattr(request.app.state, "translation_service", None)
+    translation_service = services.translation_service
     translation_provider_selected = str(getattr(settings, "translation_provider", "") or "").strip().lower()
     active_translation_provider = str(getattr(translation_service, "provider", "") or "").strip().lower()
 
-    runtime_api_keys = getattr(request.app.state, "runtime_api_keys", {}) or {}
+    runtime_api_keys = runtime.runtime_api_keys or {}
     translator_key = runtime_api_keys.get("translation_azure_api_key") or getattr(
         settings, "translation_azure_api_key", ""
     )
@@ -30,7 +33,7 @@ def health(request: Request) -> HealthResponse:
         settings, "translation_azure_region", ""
     )
     translator_key_configured = bool(str(translator_key or "").strip() and str(translator_region or "").strip())
-    translation_error = getattr(request.app.state, "translation_error", None)
+    translation_error = runtime.translation_error
     translation_component_status = (
         "disabled"
         if not translation_enabled
@@ -38,13 +41,13 @@ def health(request: Request) -> HealthResponse:
     )
 
     tts_enabled = bool(getattr(settings, "tts_enabled", False))
-    tts_service = getattr(request.app.state, "tts_service", None)
+    tts_service = services.tts_service
     tts_provider_selected = str(getattr(settings, "tts_provider", "") or "").strip().lower()
     active_tts_provider = str(getattr(tts_service, "provider", "") or "").strip().lower()
     tts_key = runtime_api_keys.get("tts_azure_api_key") or getattr(settings, "tts_azure_api_key", "")
     tts_region = runtime_api_keys.get("tts_azure_region") or getattr(settings, "tts_azure_region", "")
     tts_key_configured = bool(str(tts_key or "").strip() and str(tts_region or "").strip())
-    tts_error = getattr(request.app.state, "tts_error", None)
+    tts_error = runtime.tts_error
     tts_component_status = "disabled" if not tts_enabled else "ok" if tts_service is not None else "degraded"
 
     def _provider_status(
@@ -142,8 +145,8 @@ def health(request: Request) -> HealthResponse:
         },
     }
 
-    db_error = getattr(request.app.state, "db_error", None)
-    nlp_error = getattr(request.app.state, "nlp_error", None)
+    db_error = runtime.db_error
+    nlp_error = runtime.nlp_error
     if db_error:
         payload["db_error"] = str(db_error)
     if nlp_error:

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import {
   BACKEND_URL,
   SEARCH_RESOLVE_DEBOUNCE_MS,
+  createApiClient,
   isShortLetterWord,
   normalizeSearchWord,
   type CORSearchFormResponse,
@@ -26,6 +27,7 @@ export function useSidebarSearch({
   const wordbankSearchCacheRef = useRef<Map<string, SearchMatch[]>>(new Map())
   const [searchApiMatches, setSearchApiMatches] = useState<SearchMatch[]>([])
   const [corFormSearchResult, setCorFormSearchResult] = useState<{ query: string; payload: CORSearchFormResponse } | null>(null)
+  const apiClient = useMemo(() => createApiClient({ backendUrl: BACKEND_URL }), [])
 
   const normalizedQuery = normalizeSearchWord(searchQuery)
   const trimmedQuery = normalizedQuery
@@ -86,17 +88,16 @@ export function useSidebarSearch({
     const timeoutId = window.setTimeout(() => {
       void (async () => {
         try {
-          const response = await fetch(
-            `${BACKEND_URL}/api/wordbank/search?query=${encodeURIComponent(trimmedQuery)}&limit=8`,
+          const payload = await apiClient.tryGetJson<WordbankSearchResponse>(
+            `/api/wordbank/search?query=${encodeURIComponent(trimmedQuery)}&limit=8`,
             { signal: controller.signal },
           )
-          if (!response.ok) {
+          if (!payload) {
             if (!cancelled) {
               commitSearchMatches([])
             }
             return
           }
-          const payload = (await response.json()) as WordbankSearchResponse
           if (cancelled) {
             return
           }
@@ -126,7 +127,7 @@ export function useSidebarSearch({
       window.clearTimeout(timeoutId)
       controller.abort()
     }
-  }, [normalizedQuery, trimmedQuery, wordbankCacheVersion])
+  }, [apiClient, normalizedQuery, trimmedQuery, wordbankCacheVersion])
 
   useEffect(() => {
     if (!normalizedQuery || /\s/u.test(normalizedQuery) || isShortLetterWord(normalizedQuery)) {
@@ -147,16 +148,14 @@ export function useSidebarSearch({
     const timeoutId = window.setTimeout(() => {
       void (async () => {
         try {
-          const response = await fetch(
-            `${BACKEND_URL}/api/wordbank/search/cor-form?form=${encodeURIComponent(trimmedQuery)}&limit=100`,
+          const payload = await apiClient.tryGetJson<CORSearchFormResponse>(
+            `/api/wordbank/search/cor-form?form=${encodeURIComponent(trimmedQuery)}&limit=100`,
             { signal: controller.signal },
           )
-          if (!response.ok) {
+          if (!payload) {
             setCorFormSearchResult((current) => (current?.query === normalizedQuery ? null : current))
             return
           }
-
-          const payload = (await response.json()) as CORSearchFormResponse
           if (cancelled) {
             return
           }
@@ -178,7 +177,7 @@ export function useSidebarSearch({
       window.clearTimeout(timeoutId)
       controller.abort()
     }
-  }, [normalizedQuery, trimmedQuery, wordbankCacheVersion])
+  }, [apiClient, normalizedQuery, trimmedQuery, wordbankCacheVersion])
 
   const activeCorFormSearchResult = useMemo(() => {
     if (!corFormSearchResult || corFormSearchResult.query !== normalizedQuery) {

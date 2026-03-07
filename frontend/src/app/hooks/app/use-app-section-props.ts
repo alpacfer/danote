@@ -43,7 +43,7 @@ export type UseAppSectionPropsParams = {
   isRegeneratingLemmaPronunciation: boolean
   regenerateSelectedLemmaPronunciation: () => Promise<void>
   selectedLemmaVerificationError: WordbankProps["selectedLemmaVerificationError"]
-  hasSuggestedVerificationChanges: boolean
+  hasSuggestedVerificationChanges: WordbankProps["hasSuggestedVerificationChanges"]
   isApplyingVerificationChanges: boolean
   applySelectedLemmaVerificationChanges: () => Promise<void>
   sentencebankError: SentencebankProps["sentencebankError"]

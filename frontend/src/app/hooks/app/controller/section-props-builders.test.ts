@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest"
 
+import { NLP_MODEL_OPTIONS } from "@/app/core"
 import { buildDeveloperSectionProps } from "@/app/hooks/app/controller/build-developer-section-props"
 import { buildPlaygroundSectionProps } from "@/app/hooks/app/controller/build-playground-section-props"
 import { buildWordbankSectionProps } from "@/app/hooks/app/controller/build-wordbank-section-props"
@@ -44,7 +45,7 @@ describe("section props builders", () => {
       isRegeneratingLemmaPronunciation: false,
       regenerateSelectedLemmaPronunciation: regenerate,
       selectedLemmaVerificationError: null,
-      hasSuggestedVerificationChanges: false,
+      hasSuggestedVerificationChanges: () => false,
       isApplyingVerificationChanges: false,
       applySelectedLemmaVerificationChanges: apply,
       sentencebankError: null,
@@ -69,7 +70,7 @@ describe("section props builders", () => {
       status: "connected",
       backendUrl: "http://127.0.0.1:8000",
       apiStatusItems: [],
-      selectedNlpModel: "none",
+      selectedNlpModel: NLP_MODEL_OPTIONS[0],
       developerTranslationAzureApiKey: "",
       developerTranslationAzureRegion: "",
       developerTranslationAzureEndpoint: "",

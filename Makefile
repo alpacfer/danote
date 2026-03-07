@@ -1,4 +1,4 @@
-.PHONY: help setup-backend setup-backend-search setup-frontend setup lint lint-backend maintainability-check test test-backend-unit test-backend-medium test-backend-slow test-frontend docs-smoke agent-verify dev
+.PHONY: help setup-backend setup-backend-search setup-frontend setup lint lint-backend maintainability-check test test-backend-unit test-backend-medium test-backend-slow test-backend-perf test-frontend docs-smoke agent-verify dev
 
 BACKEND_DIR := backend
 FRONTEND_DIR := frontend
@@ -17,6 +17,7 @@ help:
 	@echo "  test-backend-unit   Run fast backend unit tests"
 	@echo "  test-backend-medium Run backend medium integration tests"
 	@echo "  test-backend-slow   Run backend slow regression fixture tests"
+	@echo "  test-backend-perf   Run backend performance smoke checks"
 	@echo "  test-frontend       Run frontend tests"
 	@echo "  test                Run backend + frontend tests"
 	@echo "  docs-smoke          Run command smoke checks used by documentation"
@@ -46,21 +47,21 @@ maintainability-check:
 	./scripts/check-maintainability-budgets.sh
 
 lint-backend:
-	PYTHONPATH=$(BACKEND_DIR) python3 -m compileall -q $(BACKEND_DIR)/app
-	@if python3 -c "import ruff" >/dev/null 2>&1; then \
-		python3 -m ruff check $(BACKEND_DIR)/app/services/use_cases $(BACKEND_DIR)/app/api/schemas $(BACKEND_DIR)/app/api/routes/analyze.py $(BACKEND_DIR)/app/api/routes/wordbank.py; \
-	else \
-		echo "[lint-backend] ruff not installed; skipping ruff check"; \
-	fi
+	cd $(BACKEND_DIR) && .venv/bin/python -m compileall -q app
+	cd $(BACKEND_DIR) && .venv/bin/python -m ruff check app/bootstrap app/core app/db app/api/routes/_runtime.py app/api/routes/_use_case_factories.py app/api/routes/root.py app/api/routes/analyze.py app/api/routes/sentencebank.py app/api/routes/wordbank.py app/main.py
+	cd $(BACKEND_DIR) && PYTHONPATH=. .venv/bin/python -m mypy app/bootstrap app/core app/db app/api/routes/_runtime.py app/api/routes/_use_case_factories.py
 
 test-backend-unit:
-	cd $(BACKEND_DIR) && PYTHONPATH=. .venv/bin/pytest -q tests/test_typo_engine_unit.py tests/test_token_classifier_unit.py tests/test_token_filter_unit.py tests/test_cor_local_builder_unit.py tests/test_cor_local_service_unit.py tests/test_use_cases_unit.py
+	cd $(BACKEND_DIR) && PYTHONPATH=. .venv/bin/pytest -q tests/test_typo_engine_unit.py tests/test_token_classifier_unit.py tests/test_token_filter_unit.py tests/test_cor_local_builder_unit.py tests/test_cor_local_service_unit.py tests/test_use_cases_unit.py tests/test_runtime_state_unit.py tests/test_repositories_unit.py
 
 test-backend-medium:
 	cd $(BACKEND_DIR) && PYTHONPATH=. .venv/bin/pytest -q tests/test_reliability.py tests/test_wordbank_endpoint.py
 
 test-backend-slow:
 	cd $(BACKEND_DIR) && PYTHONPATH=. .venv/bin/pytest -q tests/test_regression_fixtures.py
+
+test-backend-perf:
+	cd $(BACKEND_DIR) && PYTHONPATH=. .venv/bin/pytest -q tests/test_wordbank_performance_smoke.py
 
 test-frontend:
 	cd $(FRONTEND_DIR) && npm test -- --run

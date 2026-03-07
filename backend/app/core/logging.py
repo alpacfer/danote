@@ -33,7 +33,7 @@ class JsonFormatter(logging.Formatter):
         extras = {
             key: value for key, value in record.__dict__.items() if key not in standard
         }
-        payload = {
+        payload: dict[str, object] = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "level": record.levelname,
             "logger": record.name,

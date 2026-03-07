@@ -7,7 +7,7 @@ from app.api.schemas.v1.sentencebank import (
     SentenceListResponse,
     SentenceSummary,
 )
-from app.db.migrations import get_connection
+from app.db.repositories import SentencebankRepository
 from app.services.token_classifier import normalize_token
 from app.services.translation import TranslationService
 
@@ -22,7 +22,7 @@ class SentencebankUseCase:
         db_path,
         translation_service: TranslationService | None = None,
     ):
-        self._db_path = db_path
+        self._repository = SentencebankRepository(db_path)
         self._translation_service = translation_service
 
     def add_sentence(self, source_text: str) -> AddSentenceResponse:
@@ -31,45 +31,23 @@ class SentencebankUseCase:
         if not normalized_source_text or not normalized_key:
             raise ValueError("source_text is required")
 
-        with get_connection(self._db_path) as conn:
-            existing = conn.execute(
-                """
-                SELECT source_sentence, english_translation
-                FROM sentence_bank
-                WHERE normalized_sentence = ?
-                LIMIT 1
-                """,
-                (normalized_key,),
-            ).fetchone()
-            if existing is not None:
-                stored_sentence = str(existing["source_sentence"])
-                return AddSentenceResponse(
-                    status="exists",
-                    source_text=stored_sentence,
-                    english_translation=existing["english_translation"],
-                    message=f'"{stored_sentence}" is already in sentencebank.',
-                )
-
-            english_translation = self._lookup_translation(normalized_source_text)
-            provider = self._translation_provider_name()
-
-            conn.execute(
-                """
-                INSERT INTO sentence_bank (
-                    source_sentence,
-                    normalized_sentence,
-                    english_translation,
-                    translation_provider
-                )
-                VALUES (?, ?, ?, ?)
-                """,
-                (
-                    normalized_source_text,
-                    normalized_key,
-                    english_translation,
-                    provider if english_translation else None,
-                ),
+        existing = self._repository.find_by_normalized_sentence(normalized_key)
+        if existing is not None:
+            return AddSentenceResponse(
+                status="exists",
+                source_text=existing.source_text,
+                english_translation=existing.english_translation,
+                message=f'"{existing.source_text}" is already in sentencebank.',
             )
+
+        english_translation = self._lookup_translation(normalized_source_text)
+        provider = self._translation_provider_name()
+        self._repository.insert_sentence(
+            source_text=normalized_source_text,
+            normalized_sentence=normalized_key,
+            english_translation=english_translation,
+            translation_provider=provider if english_translation else None,
+        )
 
         status: Literal["inserted", "exists"] = "inserted"
         return AddSentenceResponse(
@@ -80,22 +58,15 @@ class SentencebankUseCase:
         )
 
     def list_sentences(self) -> SentenceListResponse:
-        with get_connection(self._db_path) as conn:
-            rows = conn.execute(
-                """
-                SELECT id, source_sentence, english_translation, created_at
-                FROM sentence_bank
-                ORDER BY datetime(created_at) DESC, id DESC
-                """
-            ).fetchall()
+        rows = self._repository.list_sentences()
 
         return SentenceListResponse(
             items=[
                 SentenceSummary(
-                    id=int(row["id"]),
-                    source_text=str(row["source_sentence"]),
-                    english_translation=row["english_translation"],
-                    created_at=str(row["created_at"]),
+                    id=row.id,
+                    source_text=row.source_text,
+                    english_translation=row.english_translation,
+                    created_at=row.created_at,
                 )
                 for row in rows
             ]
