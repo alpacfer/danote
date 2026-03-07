@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
+from app.core.app_state import get_runtime_state
 from app.core.config import Settings
 from app.main import create_app
 
@@ -25,7 +26,7 @@ def test_backend_startup_loads_nlp_pipeline_and_exposes_metadata(tmp_path) -> No
         response = client.get("/api/health")
         assert response.status_code == 200
 
-    metadata = app.state.nlp_adapter.metadata()
+    metadata = get_runtime_state(app).services.nlp_adapter.metadata()
     assert metadata["model"] == MODEL
     assert "spacy" in metadata
     assert "dacy" in metadata

@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 
+from app.core.app_state import set_runtime_field
 from app.core.config import Settings
 from app.db.migrations import apply_migrations
 from app.db.seed import seed_starter_data
@@ -172,7 +173,7 @@ def test_enrich_token_returns_resolve_payload(analysis_client: TestClient) -> No
 
 
 def test_enrich_token_requires_db_ready(analysis_client: TestClient) -> None:
-    analysis_client.app.state.db_ready = False
+    set_runtime_field(analysis_client.app, "db_ready", False)
     response = analysis_client.post("/api/analyze/enrich-token", json={"token": "bogen"})
     assert response.status_code == 503
-    analysis_client.app.state.db_ready = True
+    set_runtime_field(analysis_client.app, "db_ready", True)

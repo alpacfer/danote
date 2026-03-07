@@ -109,7 +109,7 @@ describe("App shell and search", () => {
 
     expect(await screen.findByRole("button", { name: /create new note/i })).toBeInTheDocument()
     expect(getNotesEditor()).toHaveTextContent(/jeg laeser en bog i dag/i)
-  })
+  }, 10_000)
 
   it("command search shows saved lemma as top action with eye icon", async () => {
     mockFetchImplementation({

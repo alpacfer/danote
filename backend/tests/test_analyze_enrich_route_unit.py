@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from fastapi import FastAPI
 import pytest
 from fastapi.testclient import TestClient
 
 from app.api.routes import analyze as analyze_routes
+from app.core.app_state import init_app_state, set_runtime_field
+from app.core.config import Settings
 
 
 class _FakeWordbankUseCase:
@@ -58,7 +62,18 @@ def _build_test_client(
 ) -> TestClient:
     app = FastAPI()
     app.include_router(analyze_routes.router, prefix="/api")
-    app.state.db_ready = db_ready
+    init_app_state(
+        app,
+        Settings(
+            environment="test",
+            app_name="danote-backend-test",
+            host="127.0.0.1",
+            port=8001,
+            db_path=Path("/tmp/danote-test.sqlite3"),
+            nlp_model="stub",
+        ),
+    )
+    set_runtime_field(app, "db_ready", db_ready)
 
     def _fake_factory(_request):
         return fake_use_case

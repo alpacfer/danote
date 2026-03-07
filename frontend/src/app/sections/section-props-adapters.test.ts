@@ -1,30 +1,53 @@
 import { describe, expect, it, vi } from "vitest"
 
 import { NLP_MODEL_OPTIONS } from "@/app/core"
-import { buildDeveloperSectionProps } from "@/app/hooks/app/controller/build-developer-section-props"
-import { buildPlaygroundSectionProps } from "@/app/hooks/app/controller/build-playground-section-props"
-import { buildWordbankSectionProps } from "@/app/hooks/app/controller/build-wordbank-section-props"
+import { buildDeveloperSectionProps } from "@/app/sections/developer-section-props"
+import { buildNotesSectionProps } from "@/app/sections/notes-section-props"
+import { buildPlaygroundSectionProps } from "@/app/sections/playground-section-props"
+import { buildSentencebankSectionProps } from "@/app/sections/sentencebank-section-props"
+import { buildWordbankSectionProps } from "@/app/sections/wordbank-section-props"
 
-describe("section props builders", () => {
-  it("builds playground section context without altering references", () => {
+describe("section prop adapters", () => {
+  it("preserves playground props by reference", () => {
     const playgroundProps = { noteText: "hej" }
-    const savedNotes = [{ id: "1", name: "note", text: "hej", updatedAt: "now", tokens: [], discoveredTokenMetadata: {}, generatedTranslationMap: {} }]
-    const onOpenSavedNote = vi.fn()
 
     const result = buildPlaygroundSectionProps({
-      autosaveStatus: "saved",
       playgroundProps: playgroundProps as never,
+    })
+
+    expect(result).toBe(playgroundProps)
+  })
+
+  it("maps notes props to the section contract", () => {
+    const savedNotes = [{ id: "1", name: "note", text: "hej", savedAt: "now", tokens: [], discoveredTokenMetadata: {}, generatedTranslationMap: {} }]
+    const onOpenSavedNote = vi.fn()
+
+    const result = buildNotesSectionProps({
       savedNotes: savedNotes as never,
       openSavedNoteInPlayground: onOpenSavedNote as never,
     })
 
-    expect(result.autosaveStatus).toBe("saved")
-    expect(result.playgroundProps).toBe(playgroundProps)
     expect(result.savedNotes).toBe(savedNotes)
-    expect(result.openSavedNoteInPlayground).toBe(onOpenSavedNote)
+    expect(result.onOpenSavedNote).toBe(onOpenSavedNote)
   })
 
-  it("builds wordbank section context with expected keys", async () => {
+  it("maps sentencebank props without alteration", () => {
+    const sentences = [{ id: "1", source_text: "Hej", english_translation: "Hi" }]
+
+    const result = buildSentencebankSectionProps({
+      sentencebankError: null,
+      isSentencebankLoading: false,
+      sentences: sentences as never,
+    })
+
+    expect(result).toEqual({
+      sentencebankError: null,
+      isSentencebankLoading: false,
+      sentences,
+    })
+  })
+
+  it("builds wordbank props with safe async wrappers", async () => {
     const playPronunciation = vi.fn(async () => undefined)
     const regenerate = vi.fn(async () => undefined)
     const apply = vi.fn(async () => undefined)
@@ -48,21 +71,20 @@ describe("section props builders", () => {
       hasSuggestedVerificationChanges: () => false,
       isApplyingVerificationChanges: false,
       applySelectedLemmaVerificationChanges: apply,
-      sentencebankError: null,
-      isSentencebankLoading: false,
-      sentences: [],
     })
 
-    await result.playPronunciation("bog")
-    await result.regenerateSelectedLemmaPronunciation()
-    await result.applySelectedLemmaVerificationChanges()
+    result.onPlayPronunciation("bog")
+    result.onRegenerateSelectedLemmaPronunciation()
+    result.onApplySelectedLemmaVerificationChanges()
+
+    await Promise.resolve()
 
     expect(playPronunciation).toHaveBeenCalledWith("bog")
-    expect(regenerate).toHaveBeenCalled()
-    expect(apply).toHaveBeenCalled()
+    expect(regenerate).toHaveBeenCalledTimes(1)
+    expect(apply).toHaveBeenCalledTimes(1)
   })
 
-  it("builds developer section context preserving callbacks", async () => {
+  it("builds developer props and preserves callbacks", async () => {
     const saveDeveloperApiKeys = vi.fn(async () => undefined)
     const resetDatabase = vi.fn(async () => undefined)
 
@@ -92,9 +114,11 @@ describe("section props builders", () => {
       resetDatabase,
     })
 
-    await result.saveDeveloperApiKeys()
-    await result.resetDatabase()
+    result.onSaveDeveloperApiKeys()
+    result.onResetDatabase()
+    await Promise.resolve()
 
+    expect(result.badgeVariant).toBe("secondary")
     expect(saveDeveloperApiKeys).toHaveBeenCalledTimes(1)
     expect(resetDatabase).toHaveBeenCalledTimes(1)
   })

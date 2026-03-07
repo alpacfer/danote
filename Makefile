@@ -40,6 +40,7 @@ setup-frontend:
 setup: setup-backend setup-frontend
 
 lint:
+	$(MAKE) maintainability-check
 	cd $(FRONTEND_DIR) && npm run lint
 	$(MAKE) lint-backend
 
@@ -52,7 +53,7 @@ lint-backend:
 	cd $(BACKEND_DIR) && PYTHONPATH=. .venv/bin/python -m mypy app/bootstrap app/core app/db app/api/routes/_runtime.py app/api/routes/_use_case_factories.py
 
 test-backend-unit:
-	cd $(BACKEND_DIR) && PYTHONPATH=. .venv/bin/pytest -q tests/test_typo_engine_unit.py tests/test_token_classifier_unit.py tests/test_token_filter_unit.py tests/test_cor_local_builder_unit.py tests/test_cor_local_service_unit.py tests/test_use_cases_unit.py tests/test_runtime_state_unit.py tests/test_repositories_unit.py
+	cd $(BACKEND_DIR) && PYTHONPATH=. .venv/bin/pytest -q tests/test_typo_engine_unit.py tests/test_token_classifier_unit.py tests/test_token_filter_unit.py tests/test_cor_local_builder_unit.py tests/test_cor_local_service_unit.py tests/test_use_cases_unit.py tests/test_runtime_state_unit.py tests/test_runtime_bootstrap_unit.py tests/test_repositories_unit.py
 
 test-backend-medium:
 	cd $(BACKEND_DIR) && PYTHONPATH=. .venv/bin/pytest -q tests/test_reliability.py tests/test_wordbank_endpoint.py

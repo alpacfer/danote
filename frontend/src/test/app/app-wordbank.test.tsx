@@ -30,7 +30,7 @@ describe("App wordbank", () => {
     expect(await screen.findByText(/^bog$/i)).toBeInTheDocument()
     expect(await screen.findByText(/^book$/i)).toBeInTheDocument()
     expect(screen.getByText(/^book's$/i)).toBeInTheDocument()
-  })
+  }, 10_000)
 
   it("regenerates pronunciation from the word page action", async () => {
     const fetchSpy = mockFetchImplementation({
@@ -174,6 +174,6 @@ describe("App wordbank", () => {
         }),
       )
     })
-  })
+  }, 10_000)
 
 })

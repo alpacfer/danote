@@ -1,15 +1,15 @@
-import type { UseAppSectionPropsParams } from "@/app/hooks/app/use-app-section-props"
+import type { PlaygroundSectionProps } from "@/app/sections/playground-section"
 
 type BuildPlaygroundPropsArgs = {
   isSaveDialogOpen: boolean
-  saveDialogMode: UseAppSectionPropsParams["playgroundProps"]["saveDialogMode"]
+  saveDialogMode: PlaygroundSectionProps["saveDialogMode"]
   noteNameDraft: string
   duplicateNameConflictNoteId: string | null
   handleSaveDialogOpenChange: (open: boolean) => void
   handleNoteNameDraftChange: (value: string) => void
   handleSaveDialogSubmit: () => void
   resolveDuplicateNameConflict: () => void
-  phrasePopover: UseAppSectionPropsParams["playgroundProps"]["phrasePopover"]
+  phrasePopover: PlaygroundSectionProps["phrasePopover"]
   handlePhrasePopoverOpenChange: (open: boolean) => void
   isGeneratingPhraseTranslation: boolean
   phraseTranslation: string | null
@@ -17,35 +17,35 @@ type BuildPlaygroundPropsArgs = {
   isSavingSentence: boolean
   isSelectedPhraseSaved: boolean
   addSentenceToSentencebank: (text: string) => Promise<void>
-  highlightPopover: UseAppSectionPropsParams["playgroundProps"]["highlightPopover"]
+  highlightPopover: PlaygroundSectionProps["highlightPopover"]
   handleHighlightPopoverOpenChange: (open: boolean) => void
-  popoverDisplayToken: UseAppSectionPropsParams["playgroundProps"]["popoverDisplayToken"]
+  popoverDisplayToken: PlaygroundSectionProps["popoverDisplayToken"]
   showPopoverLemma: boolean
   popoverLemmaText: string | null
-  popoverMetadataBadges: UseAppSectionPropsParams["playgroundProps"]["popoverMetadataBadges"]
+  popoverMetadataBadges: PlaygroundSectionProps["popoverMetadataBadges"]
   showTranslationSkeleton: boolean
   popoverIsNoun: boolean
   popoverIsVerbLike: boolean
   generateTranslationError: string | null
   popoverTranslation: string | null
-  popoverPrimaryAction: UseAppSectionPropsParams["playgroundProps"]["popoverPrimaryAction"]
+  popoverPrimaryAction: PlaygroundSectionProps["popoverPrimaryAction"]
   addingTokens: Record<string, boolean>
   closeHighlightPopover: () => void
   openWordbankLemma: (lemma: string) => void
   addTokenToWordbank: (
-    token: NonNullable<UseAppSectionPropsParams["playgroundProps"]["popoverDisplayToken"]>,
-    action: NonNullable<UseAppSectionPropsParams["playgroundProps"]["popoverPrimaryAction"]>,
+    token: NonNullable<PlaygroundSectionProps["popoverDisplayToken"]>,
+    action: NonNullable<PlaygroundSectionProps["popoverPrimaryAction"]>,
   ) => Promise<void>
   noteText: string
-  noteHighlights: UseAppSectionPropsParams["playgroundProps"]["noteHighlights"]
+  noteHighlights: PlaygroundSectionProps["noteHighlights"]
   analysisError: string | null
   setNoteText: (value: string) => void
   clearPlaygroundTransientState: () => void
   openHighlightPopover: (tokenIndex: number, left: number, lineTop: number, lineBottom: number) => void
-  handleEditorSelection: UseAppSectionPropsParams["playgroundProps"]["onTextSelectionSettled"]
+  handleEditorSelection: PlaygroundSectionProps["onTextSelectionSettled"]
 }
 
-export function buildPlaygroundProps(args: BuildPlaygroundPropsArgs): UseAppSectionPropsParams["playgroundProps"] {
+export function buildPlaygroundProps(args: BuildPlaygroundPropsArgs): PlaygroundSectionProps {
   return {
     isSaveDialogOpen: args.isSaveDialogOpen,
     saveDialogMode: args.saveDialogMode,

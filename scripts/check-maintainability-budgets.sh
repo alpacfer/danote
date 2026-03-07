@@ -54,6 +54,31 @@ while IFS= read -r file; do
   fi
 done < <(rg --files backend/app/api/routes backend/app/bootstrap backend/app/core | rg '\.py$')
 
+echo "[maintainability] scanning architecture boundaries"
+
+backend_route_violations="$(rg -n '^(from|import) app\.(db|nlp|services\.)' backend/app/api/routes --glob '*.py' | rg -v 'app\.services\.use_cases' || true)"
+if [[ -n "$backend_route_violations" ]]; then
+  echo "[FAIL] backend routes must stay transport-only and avoid direct db/nlp/provider imports:"
+  echo "$backend_route_violations"
+  fail_count=$((fail_count + 1))
+fi
+
+frontend_section_violations="$(rg -n '(@/app/core/api-client|@/app/core/api-runtime|\bfetch\()' frontend/src/app/sections --glob '*.{ts,tsx}' || true)"
+if [[ -n "$frontend_section_violations" ]]; then
+  echo "[FAIL] frontend sections must not call transport directly:"
+  echo "$frontend_section_violations"
+  fail_count=$((fail_count + 1))
+fi
+
+while IFS= read -r file; do
+  [[ -z "$file" ]] && continue
+  lines=$(wc -l < "$file")
+  if (( lines > 220 )); then
+    echo "[FAIL] app-controller orchestration hard limit >220: $file ($lines)"
+    fail_count=$((fail_count + 1))
+  fi
+done < <(rg --files frontend/src/app/hooks/app/controller | rg '\.(ts|tsx)$')
+
 echo "[maintainability] warnings=$warn_count failures=$fail_count"
 
 if (( fail_count > 0 )); then

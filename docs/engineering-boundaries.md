@@ -5,6 +5,7 @@ danote keeps orchestration and runtime wiring separate on purpose. New code shou
 - Routes are transport adapters only. They validate input, invoke a use case, and translate failures to HTTP.
 - `app/bootstrap/` owns app creation, startup wiring, shutdown, and request-level observability.
 - `app/core/` owns typed runtime state, configuration, and shared application primitives.
+- Access backend runtime state through `app.core.app_state` helpers; do not read or write legacy `app.state.*` service fields directly.
 - `app/db/` owns SQLite connection policy, repositories, and migration primitives.
 - `app/services/use_cases/` owns workflows and application behavior.
 - Provider-specific integrations stay in focused services/collaborators and should not leak network or DB details into routes.
@@ -15,6 +16,7 @@ Refactor triggers:
 - If a use case opens raw SQLite connections in multiple places, extract or extend a repository first.
 - If startup or health logic grows by provider, add or update a bootstrap helper instead of expanding `main.py`.
 - If a frontend hook starts mixing transport, error parsing, and UI state, move transport into `app/core/api-client.ts`.
+- If UI prop mapping is only for one section, keep the adapter close to that section instead of adding generic app-controller plumbing.
 
 File-size defaults:
 

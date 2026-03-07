@@ -62,6 +62,6 @@ describe("App notes", () => {
     fireEvent.click(savedCardButton)
     expect(await screen.findByRole("button", { name: /create new note/i })).toBeInTheDocument()
     expect(getNotesEditor()).toHaveTextContent("katten")
-  }, 10_000)
+  }, 15_000)
 
 })

@@ -4,6 +4,7 @@ import sqlite3
 
 from fastapi.testclient import TestClient
 
+from app.core.app_state import set_service_field
 from app.core.config import Settings
 from app.db.migrations import apply_migrations, get_connection
 from app.main import create_app
@@ -114,7 +115,7 @@ def test_add_word_includes_verification_result_when_service_is_available(tmp_pat
             return Result()
 
     with TestClient(app) as client:
-        client.app.state.word_verification_service = StubVerificationService()
+        set_service_field(client.app, "word_verification_service", StubVerificationService())
         response = client.post(
             "/api/wordbank/lexemes",
             json={"surface_token": "Bogen", "lemma_candidate": "bog"},
@@ -127,7 +128,7 @@ def test_add_word_includes_verification_result_when_service_is_available(tmp_pat
     assert payload["verification"]["reviewer_role"] == "Professional Danish Language Expert"
 
     with TestClient(app) as client:
-        client.app.state.word_verification_service = StubVerificationService()
+        set_service_field(client.app, "word_verification_service", StubVerificationService())
         verify_response = client.post(
             "/api/wordbank/lexemes/verify",
             json={"stored_lemma": "bog", "stored_surface_form": "bogen"},
@@ -375,7 +376,7 @@ def test_generate_translation_returns_generated_value(tmp_path, stub_nlp_adapter
             return None
 
     with TestClient(app) as client:
-        client.app.state.translation_service = StubTranslationService()
+        set_service_field(client.app, "translation_service", StubTranslationService())
         response = client.post(
             "/api/wordbank/translation",
             json={"surface_token": "katten", "lemma_candidate": "kat"},
@@ -403,7 +404,7 @@ def test_get_pronunciation_audio_returns_stored_audio(tmp_path, stub_nlp_adapter
             return None
 
     with TestClient(app) as client:
-        client.app.state.tts_service = StubTTSService()
+        set_service_field(client.app, "tts_service", StubTTSService())
         add_response = client.post(
             "/api/wordbank/lexemes",
             json={"surface_token": "Katten", "lemma_candidate": "kat"},
@@ -432,7 +433,7 @@ def test_get_pronunciation_audio_normalizes_l16_to_wav(tmp_path, stub_nlp_adapte
             return None
 
     with TestClient(app) as client:
-        client.app.state.tts_service = StubTTSService()
+        set_service_field(client.app, "tts_service", StubTTSService())
         add_response = client.post(
             "/api/wordbank/lexemes",
             json={"surface_token": "Katten", "lemma_candidate": "kat"},
@@ -530,7 +531,7 @@ def test_add_word_does_not_block_on_pronunciation_for_new_surface_form(tmp_path,
 
     stub_tts = StubTTSService()
     with TestClient(app) as client:
-        client.app.state.tts_service = stub_tts
+        set_service_field(client.app, "tts_service", stub_tts)
         add_response = client.post(
             "/api/wordbank/lexemes",
             json={"surface_token": "Katten", "lemma_candidate": "kat"},
@@ -570,7 +571,7 @@ def test_generate_pronunciation_endpoint_generates_for_recently_added_word(tmp_p
 
     stub_tts = StubTTSService()
     with TestClient(app) as client:
-        client.app.state.tts_service = stub_tts
+        set_service_field(client.app, "tts_service", stub_tts)
         add_response = client.post(
             "/api/wordbank/lexemes",
             json={"surface_token": "Katten", "lemma_candidate": "kat"},
@@ -619,7 +620,7 @@ def test_generate_pronunciation_endpoint_force_regenerates_existing_audio(tmp_pa
 
     stub_tts = StubTTSService()
     with TestClient(app) as client:
-        client.app.state.tts_service = stub_tts
+        set_service_field(client.app, "tts_service", stub_tts)
         add_response = client.post(
             "/api/wordbank/lexemes",
             json={"surface_token": "Katten", "lemma_candidate": "kat"},
@@ -703,7 +704,7 @@ def test_generate_reverse_translation_returns_generated_value(tmp_path, stub_nlp
             return None
 
     with TestClient(app) as client:
-        client.app.state.translation_service = StubTranslationService()
+        set_service_field(client.app, "translation_service", StubTranslationService())
         response = client.post(
             "/api/wordbank/reverse-translation",
             json={"source_word": "House"},
@@ -733,7 +734,7 @@ def test_generate_reverse_translation_normalizes_provider_case(tmp_path, stub_nl
             return None
 
     with TestClient(app) as client:
-        client.app.state.translation_service = StubTranslationService()
+        set_service_field(client.app, "translation_service", StubTranslationService())
         response = client.post(
             "/api/wordbank/reverse-translation",
             json={"source_word": "Mug"},
@@ -765,7 +766,7 @@ def test_detect_word_language_returns_provider_detected_english(tmp_path, stub_n
             return None
 
     with TestClient(app) as client:
-        client.app.state.translation_service = StubTranslationService()
+        set_service_field(client.app, "translation_service", StubTranslationService())
         response = client.post(
             "/api/wordbank/detect-language",
             json={"source_word": "House"},
@@ -818,7 +819,7 @@ def test_generate_phrase_translation_returns_cached_value_without_second_provide
 
     stub_service = StubTranslationService()
     with TestClient(app) as client:
-        client.app.state.translation_service = stub_service
+        set_service_field(client.app, "translation_service", stub_service)
         first_response = client.post(
             "/api/wordbank/phrase-translation",
             json={"source_text": "Jeg kan godt lide det"},
@@ -855,7 +856,7 @@ def test_add_sentence_inserts_and_returns_translation_from_provider(tmp_path, st
             return None
 
     with TestClient(app) as client:
-        client.app.state.translation_service = StubTranslationService()
+        set_service_field(client.app, "translation_service", StubTranslationService())
         response = client.post(
             "/api/sentencebank/sentences",
             json={"source_text": "Jeg elsker kaffe"},
