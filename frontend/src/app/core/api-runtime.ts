@@ -47,6 +47,9 @@ export function humanizeApiName(name: string): string {
   if (name === "azure_translator") {
     return "Azure Translator API"
   }
+  if (name === "deepl_translator") {
+    return "DeepL API"
+  }
   if (name === "azure_speech") {
     return "Azure Speech API"
   }

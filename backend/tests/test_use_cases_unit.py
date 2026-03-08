@@ -38,6 +38,9 @@ class FakeTranslationService:
             raise RuntimeError("azure unavailable")
         return self._mapping.get(text)
 
+    def translate_da_to_en_batch(self, texts: list[str]) -> list[str | None]:
+        return [self.translate_da_to_en(t) for t in texts]
+
     def translate_en_to_da(self, text: str) -> str | None:
         self.calls.append(text)
         return self._mapping.get(text)
@@ -817,15 +820,16 @@ def test_wordbank_resolve_query_expands_new_word_actions_with_cor_pos_options(tm
             ]
         }
     )
+    translation_service = FakeTranslationService(
+        {
+            "en gift": "a poison",
+            "at gifte": "marry",
+        }
+    )
     use_case = WordbankUseCase(
         _db_path(tmp_path),
         cor_lexicon_service=cor_service,
-        translation_service=FakeTranslationService(
-            {
-                "gift": "poison",
-                "at gifte": "marry",
-            }
-        ),
+        translation_service=translation_service,
     )
 
     resolved = use_case.resolve_query("gift", include_language_detection=True)
@@ -839,6 +843,8 @@ def test_wordbank_resolve_query_expands_new_word_actions_with_cor_pos_options(tm
     assert [action.pos_tag for action in resolved.word_actions] == ["NOUN", "VERB"]
     assert [action.lemma for action in resolved.word_actions] == ["gift", "gifte"]
     assert [action.translation_label for action in resolved.word_actions] == ["poison", "marry"]
+    assert "en gift" in translation_service.calls
+    assert "at gifte" in translation_service.calls
 
 
 def test_wordbank_resolve_query_returns_single_best_option_per_pos(tmp_path: Path) -> None:
@@ -886,9 +892,8 @@ def test_wordbank_resolve_query_returns_single_best_option_per_pos(tmp_path: Pat
         cor_lexicon_service=cor_service,
         translation_service=FakeTranslationService(
             {
+                "en lærer": "a teacher",
                 "at lære": "to learn",
-                "lærer": "teacher",
-                "lære": "learn",
             }
         ),
     )
@@ -899,6 +904,40 @@ def test_wordbank_resolve_query_returns_single_best_option_per_pos(tmp_path: Pat
     assert [action.pos_tag for action in resolved.word_actions] == ["NOUN", "VERB"]
     assert [action.lemma for action in resolved.word_actions] == ["lærer", "lære"]
     assert [action.translation_label for action in resolved.word_actions] == ["teacher", "to learn"]
+
+
+def test_wordbank_resolve_query_uses_framed_azure_for_non_verb_pos(tmp_path: Path) -> None:
+    cor_service = FakeCORLexiconService(
+        {
+            "klar": [
+                COREntry(
+                    cor_id="COR.adj",
+                    lemma="klar",
+                    full_form="klar",
+                    ordklasse="adj",
+                    grammatical_function="adj.pos",
+                    glosse=None,
+                    norm_status="N",
+                    pos_tag="ADJ",
+                    morphology="Degree=Pos",
+                )
+            ]
+        }
+    )
+    translation_service = FakeTranslationService({"en klar ting": "clear"})
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_lexicon_service=cor_service,
+        translation_service=translation_service,
+    )
+
+    resolved = use_case.resolve_query("klar", include_language_detection=False)
+
+    assert len(resolved.word_actions) == 1
+    assert resolved.word_actions[0].lemma == "klar"
+    assert resolved.word_actions[0].pos_tag == "ADJ"
+    assert resolved.word_actions[0].translation_label == "clear"
+    assert "en klar ting" in translation_service.calls
 
 
 def test_wordbank_search_cor_form_groups_variants_by_lemma_gloss_pos(tmp_path: Path) -> None:
@@ -959,7 +998,7 @@ def test_wordbank_search_cor_form_groups_variants_by_lemma_gloss_pos(tmp_path: P
         translation_service=FakeTranslationService(
             {
                 "en lærer": "a teacher",
-                "at lære": "to learn",
+                "at lære": "learn",
             }
         ),
     )
@@ -980,6 +1019,64 @@ def test_wordbank_search_cor_form_groups_variants_by_lemma_gloss_pos(tmp_path: P
     assert response.groups[1].lemma == "lære"
     assert response.groups[1].pos_tag == "VERB"
     assert response.groups[1].variants[0].lemma_translation == "to learn"
+
+
+def test_wordbank_search_cor_form_uses_frame_identity_for_homograph_lemma_translations(tmp_path: Path) -> None:
+    local_cor = FakeCORLocalLexiconService(
+        by_form={
+            "lærer": [
+                CORLocalEntry(
+                    cor_id="COR.100.203.01",
+                    lemma="lære",
+                    gloss=None,
+                    gram_raw="vb.præs.akt",
+                    form="lærer",
+                    norm="N",
+                    lemma_idx=100,
+                    gram_code=203,
+                    variation=1,
+                    pos_tag="VERB",
+                    morphology="Tense=Pres|VerbForm=Fin|Voice=Act",
+                    features={"Tense": "Pres", "VerbForm": "Fin", "Voice": "Act"},
+                    extra_tags=[],
+                ),
+                CORLocalEntry(
+                    cor_id="COR.200.110.01",
+                    lemma="lære",
+                    gloss=None,
+                    gram_raw="sb.fk.sg.ubest",
+                    form="lærer",
+                    norm="N",
+                    lemma_idx=200,
+                    gram_code=110,
+                    variation=1,
+                    pos_tag="NOUN",
+                    morphology="Gender=Com|Number=Sing|Definite=Ind",
+                    features={"Gender": "Com", "Number": "Sing", "Definite": "Ind"},
+                    extra_tags=[],
+                ),
+            ]
+        }
+    )
+    translation_service = FakeTranslationService(
+        {
+            "at lære": "learn",
+            "en lære": "a doctrine",
+        }
+    )
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_local_lexicon_service=local_cor,
+        translation_service=translation_service,
+    )
+
+    response = use_case.search_cor_form("lærer", limit=100)
+    by_pos = {group.pos_tag: group.variants[0].lemma_translation for group in response.groups}
+
+    assert by_pos["VERB"] == "to learn"
+    assert by_pos["NOUN"] == "doctrine"
+    assert "at lære" in translation_service.calls
+    assert "en lære" in translation_service.calls
 
 
 def test_wordbank_search_cor_form_prefers_azure_for_non_gloss_lemma_translations(tmp_path: Path) -> None:
@@ -1042,7 +1139,7 @@ def test_wordbank_search_cor_form_uses_gemini_for_glossed_lemma_translations(tmp
             ]
         }
     )
-    gemini_translation = FakeGeminiWordTranslationService({("bogen", "bog", "book"): "the book"})
+    gemini_translation = FakeGeminiWordTranslationService({("bogen", "bog", "book"): "book"})
     use_case = WordbankUseCase(
         _db_path(tmp_path),
         cor_local_lexicon_service=local_cor,
@@ -1052,10 +1149,46 @@ def test_wordbank_search_cor_form_uses_gemini_for_glossed_lemma_translations(tmp
 
     response = use_case.search_cor_form("bogen", limit=100)
 
-    assert response.groups[0].variants[0].lemma_translation == "the book"
+    assert response.groups[0].variants[0].lemma_translation == "book"
     assert response.groups[0].variants[0].gloss_translation == "book"
     assert gemini_translation.batch_calls == [[("bogen", "bog", "book")]]
     assert gemini_translation.calls == []
+
+
+def test_wordbank_search_cor_form_keeps_noun_articles_when_provider_returns_them(tmp_path: Path) -> None:
+    local_cor = FakeCORLocalLexiconService(
+        by_form={
+            "bogen": [
+                CORLocalEntry(
+                    cor_id="COR.123.111.01",
+                    lemma="bog",
+                    gloss="book",
+                    gram_raw="sb.fk.sg.best",
+                    form="bogen",
+                    norm="N",
+                    lemma_idx=123,
+                    gram_code=111,
+                    variation=1,
+                    pos_tag="NOUN",
+                    morphology="Gender=Com|Number=Sing|Definite=Def",
+                    features={"Gender": "Com", "Number": "Sing", "Definite": "Def"},
+                    extra_tags=[],
+                ),
+            ]
+        }
+    )
+    gemini_translation = FakeGeminiWordTranslationService({("bogen", "bog", "book"): "the book"})
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_local_lexicon_service=local_cor,
+        translation_service=FakeTranslationService({"bog": "book", "book": "book"}),
+        gemini_word_translation_service=gemini_translation,
+    )
+
+    response = use_case.search_cor_form("bogen", limit=100)
+
+    assert response.groups[0].variants[0].lemma_translation == "the book"
+    assert response.groups[0].variants[0].gloss_translation == "book"
 
 
 def test_wordbank_search_cor_form_retries_missing_batch_items_with_single_calls(tmp_path: Path) -> None:
@@ -1081,7 +1214,7 @@ def test_wordbank_search_cor_form_retries_missing_batch_items_with_single_calls(
         }
     )
     gemini_translation = FakeGeminiWordTranslationService(
-        {("bogen", "bog", "book"): "the book"},
+        {("bogen", "bog", "book"): "book"},
         batch_overrides={("bogen", "bog", "book"): None},
     )
     use_case = WordbankUseCase(
@@ -1093,7 +1226,7 @@ def test_wordbank_search_cor_form_retries_missing_batch_items_with_single_calls(
 
     response = use_case.search_cor_form("bogen", limit=100)
 
-    assert response.groups[0].variants[0].lemma_translation == "the book"
+    assert response.groups[0].variants[0].lemma_translation == "book"
     assert response.groups[0].variants[0].gloss_translation == "book"
     assert gemini_translation.batch_calls == [[("bogen", "bog", "book")]]
     assert gemini_translation.calls == [("bogen", "bog", "book")]
@@ -1121,17 +1254,17 @@ def test_wordbank_search_cor_form_uses_gemini_when_azure_echoes_lemma(tmp_path: 
             ]
         }
     )
-    gemini_translation = FakeGeminiWordTranslationService({("bogen", "bog", None): "the book"})
+    gemini_translation = FakeGeminiWordTranslationService({("bogen", "bog", None): "book"})
     use_case = WordbankUseCase(
         _db_path(tmp_path),
         cor_local_lexicon_service=local_cor,
-        translation_service=FakeTranslationService({"en bog": "a bog"}),
+        translation_service=FakeTranslationService({"en bog": "en bog"}),
         gemini_word_translation_service=gemini_translation,
     )
 
     response = use_case.search_cor_form("bogen", limit=100)
 
-    assert response.groups[0].variants[0].lemma_translation == "the book"
+    assert response.groups[0].variants[0].lemma_translation == "book"
     assert response.groups[0].variants[0].gloss_translation is None
     assert gemini_translation.batch_calls == [[("bogen", "bog", None)]]
     assert gemini_translation.calls == []
@@ -1202,7 +1335,7 @@ def test_wordbank_search_cor_form_forces_verb_gemini_results_to_infinitive(tmp_p
 
     response = use_case.search_cor_form("morer", limit=100)
 
-    assert response.groups[0].variants[0].lemma_translation == "to more"
+    assert response.groups[0].variants[0].lemma_translation == "to amuse"
     assert response.groups[0].variants[0].gloss_translation == "amuse"
 
 
@@ -1238,7 +1371,7 @@ def test_wordbank_search_cor_form_uses_gemini_when_azure_echoes_verb_frame(tmp_p
 
     response = use_case.search_cor_form("morer", limit=100)
 
-    assert response.groups[0].variants[0].lemma_translation == "to more"
+    assert response.groups[0].variants[0].lemma_translation == "to amuse"
     assert gemini_translation.batch_calls == [[("morer", "more", "amuse")]]
 
 

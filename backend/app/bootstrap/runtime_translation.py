@@ -6,6 +6,7 @@ from fastapi import FastAPI
 
 from app.core.app_state import get_runtime_state, set_runtime_field, set_service_field
 from app.core.config import Settings
+from app.services.deepl_translation import DeepLTranslationService
 from app.services.translation import AzureTranslationService
 
 logger = logging.getLogger(__name__)
@@ -25,8 +26,8 @@ def initialize_translation(
     if not settings.translation_enabled:
         return
 
-    provider = settings.translation_provider.strip().lower()
-    if provider != "azure":
+    provider = _selected_provider(settings, overrides)
+    if provider not in {"azure", "deepl"}:
         logger.warning(
             "backend_translation_startup_skipped_unknown_provider",
             extra={"translation_provider": provider},
@@ -34,10 +35,40 @@ def initialize_translation(
         set_runtime_field(app, "translation_error", f"Unknown translation provider '{provider}'.")
         return
 
+    if provider == "azure":
+        _initialize_azure(app, settings, overrides)
+        return
+    _initialize_deepl(app, settings, overrides)
+
+
+def _override_or_setting(
+    overrides: RuntimeApiKeyOverrides | None,
+    field_name: str,
+    setting_value: str | None,
+) -> str | None:
+    if overrides and field_name in overrides and overrides[field_name]:
+        return overrides[field_name]
+    return setting_value
+
+
+def _selected_provider(
+    settings: Settings,
+    overrides: RuntimeApiKeyOverrides | None,
+) -> str:
+    override_provider = _override_or_setting(overrides, "translation_provider", None)
+    if override_provider:
+        return override_provider.strip().lower()
+    return settings.translation_provider.strip().lower()
+
+
+def _initialize_azure(
+    app: FastAPI,
+    settings: Settings,
+    overrides: RuntimeApiKeyOverrides | None,
+) -> None:
     azure_key = _override_or_setting(overrides, "translation_azure_api_key", settings.translation_azure_api_key)
     azure_region = _override_or_setting(overrides, "translation_azure_region", settings.translation_azure_region)
     azure_endpoint = _override_or_setting(overrides, "translation_azure_endpoint", settings.translation_azure_endpoint)
-
     if azure_key and azure_region:
         try:
             set_service_field(
@@ -62,14 +93,33 @@ def initialize_translation(
         )
 
 
-def _override_or_setting(
+def _initialize_deepl(
+    app: FastAPI,
+    settings: Settings,
     overrides: RuntimeApiKeyOverrides | None,
-    field_name: str,
-    setting_value: str | None,
-) -> str | None:
-    if overrides and field_name in overrides and overrides[field_name]:
-        return overrides[field_name]
-    return setting_value
+) -> None:
+    deepl_key = _override_or_setting(overrides, "translation_deepl_api_key", settings.translation_deepl_api_key)
+    deepl_endpoint = _override_or_setting(overrides, "translation_deepl_endpoint", settings.translation_deepl_endpoint)
+    if deepl_key:
+        try:
+            set_service_field(
+                app,
+                "translation_service",
+                DeepLTranslationService(
+                    api_key=deepl_key,
+                    endpoint=deepl_endpoint,
+                ),
+            )
+        except Exception:
+            logger.exception("backend_translation_startup_failed")
+            set_runtime_field(app, "translation_error", "Failed to initialize DeepL translation service.")
+    else:
+        logger.warning("backend_translation_startup_skipped_missing_deepl_config")
+        set_runtime_field(
+            app,
+            "translation_error",
+            "Missing DANOTE_TRANSLATION_DEEPL_API_KEY.",
+        )
 
 
 def _close_service(service: object | None) -> None:

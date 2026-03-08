@@ -4,10 +4,13 @@ from pydantic import BaseModel
 
 
 class DeveloperApiKeysUpdateRequest(BaseModel):
+    translation_provider: str | None = None
     gemini_api_key: str | None = None
     translation_azure_api_key: str | None = None
     translation_azure_region: str | None = None
     translation_azure_endpoint: str | None = None
+    translation_deepl_api_key: str | None = None
+    translation_deepl_endpoint: str | None = None
     tts_azure_api_key: str | None = None
     tts_azure_region: str | None = None
     tts_azure_endpoint: str | None = None

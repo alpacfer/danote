@@ -23,11 +23,13 @@ class Settings:
     typo_enabled: bool = True
     typo_dictionary_path: Path | None = None
     translation_enabled: bool = True
-    translation_provider: str = "azure"
+    translation_provider: str = "deepl"
     translation_azure_api_key: str | None = None
     translation_azure_region: str | None = None
     translation_azure_endpoint: str | None = None
     translation_azure_api_version: str = "3.0"
+    translation_deepl_api_key: str | None = None
+    translation_deepl_endpoint: str | None = None
     gemini_api_key: str | None = None
     gemini_model: str = "gemini-3.1-flash-lite-preview"
     cor_lookup_enabled: bool = False
@@ -68,11 +70,13 @@ def load_settings(*, env_file: Path | None = None) -> Settings:
         typo_dictionary_path=Path(typo_dictionary_path) if typo_dictionary_path else None,
         translation_enabled=_required_env("DANOTE_TRANSLATION_ENABLED", env_values, "1").lower()
         not in {"0", "false", "no"},
-        translation_provider=_required_env("DANOTE_TRANSLATION_PROVIDER", env_values, "azure"),
+        translation_provider=_required_env("DANOTE_TRANSLATION_PROVIDER", env_values, "deepl"),
         translation_azure_api_key=_optional_env("DANOTE_TRANSLATION_AZURE_API_KEY", env_values),
         translation_azure_region=_optional_env("DANOTE_TRANSLATION_AZURE_REGION", env_values),
         translation_azure_endpoint=_optional_env("DANOTE_TRANSLATION_AZURE_ENDPOINT", env_values),
         translation_azure_api_version=_required_env("DANOTE_TRANSLATION_AZURE_API_VERSION", env_values, "3.0"),
+        translation_deepl_api_key=_optional_env("DANOTE_TRANSLATION_DEEPL_API_KEY", env_values),
+        translation_deepl_endpoint=_optional_env("DANOTE_TRANSLATION_DEEPL_ENDPOINT", env_values),
         gemini_api_key=_required_or_optional_env(
             "DANOTE_GEMINI_API_KEY",
             env_values,

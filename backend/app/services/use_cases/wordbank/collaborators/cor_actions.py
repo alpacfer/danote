@@ -7,6 +7,10 @@ from app.api.schemas.v1.wordbank import WordActionSuggestion
 from app.db.migrations import get_connection
 from app.services.cor import COREntry
 from app.services.token_classifier import normalize_token
+from app.services.use_cases.wordbank.collaborators.cor_azure_frames import (
+    azure_framed_translation_for_comparison,
+    cor_entry_azure_frame,
+)
 from app.services.use_cases.wordbank.collaborators.translation import TranslationCollaborator
 from app.services.use_cases.wordbank.shared import (
     _CORAddOption,
@@ -171,9 +175,8 @@ def lookup_translation_for_cor_entry(
     if contextual.translation:
         return contextual.translation
 
-    candidates: list[str] = []
-    if entry.pos_tag == "VERB":
-        candidates.append(f"at {entry.lemma}".strip())
+    frame = cor_entry_azure_frame(entry)
+    candidates: list[str] = [frame.text]
     candidates.append(entry.lemma)
     candidates.append(normalized_query)
 
@@ -185,5 +188,9 @@ def lookup_translation_for_cor_entry(
         seen.add(normalized_candidate)
         translated = translation.lookup_translation(normalized_candidate)
         if translated:
+            if normalized_candidate == normalize_token(frame.text):
+                framed = azure_framed_translation_for_comparison(frame, translated)
+                if framed:
+                    return framed
             return translated
     return None

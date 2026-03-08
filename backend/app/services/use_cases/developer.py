@@ -23,10 +23,13 @@ class DeveloperUseCase:
     def update_api_keys(self, payload: DeveloperApiKeysUpdateRequest) -> DeveloperApiKeysUpdateResponse:
         runtime = get_runtime_state(self._app)
         runtime_api_keys: RuntimeApiKeyOverrides = {
+            "translation_provider": (payload.translation_provider or "").strip().lower() or None,
             "gemini_api_key": (payload.gemini_api_key or "").strip() or None,
             "translation_azure_api_key": (payload.translation_azure_api_key or "").strip() or None,
             "translation_azure_region": (payload.translation_azure_region or "").strip() or None,
             "translation_azure_endpoint": (payload.translation_azure_endpoint or "").strip() or None,
+            "translation_deepl_api_key": (payload.translation_deepl_api_key or "").strip() or None,
+            "translation_deepl_endpoint": (payload.translation_deepl_endpoint or "").strip() or None,
             "tts_azure_api_key": (payload.tts_azure_api_key or "").strip() or None,
             "tts_azure_region": (payload.tts_azure_region or "").strip() or None,
             "tts_azure_endpoint": (payload.tts_azure_endpoint or "").strip() or None,
@@ -47,6 +50,9 @@ class DeveloperUseCase:
                 "translation_azure": bool(
                     (runtime_api_keys["translation_azure_api_key"] or settings.translation_azure_api_key)
                     and (runtime_api_keys["translation_azure_region"] or settings.translation_azure_region)
+                ),
+                "translation_deepl": bool(
+                    runtime_api_keys["translation_deepl_api_key"] or settings.translation_deepl_api_key
                 ),
                 "tts_azure": bool(
                     (runtime_api_keys["tts_azure_api_key"] or settings.tts_azure_api_key)
@@ -110,11 +116,12 @@ class DeveloperUseCase:
         runtime = get_runtime_state(self._app)
         service = runtime.services.translation_service
         probe_input = "bogen"
+        provider_label = self._translation_provider_label(getattr(service, "provider", None))
         if service is None:
             return self._missing_service_probe_response(
                 probe_input=probe_input,
                 error_message=runtime.translation_error,
-                fallback_message="Azure translation is unavailable.",
+                fallback_message="Translation service is unavailable.",
             )
 
         try:
@@ -130,7 +137,7 @@ class DeveloperUseCase:
             return self._error_probe_response(
                 probe_input=probe_input,
                 provider=getattr(service, "provider", None),
-                message="Azure Translator returned no translation for the probe input.",
+                message=f"{provider_label} returned no translation for the probe input.",
             )
 
         return DeveloperServiceProbeResponse(
@@ -138,7 +145,7 @@ class DeveloperUseCase:
             probe_input=probe_input,
             provider=getattr(service, "provider", None),
             result_text=result_text,
-            message="Azure Translator probe completed successfully.",
+            message=f"{provider_label} probe completed successfully.",
         )
 
     def run_tts_probe(self) -> DeveloperServiceProbeResponse:
@@ -207,3 +214,11 @@ class DeveloperUseCase:
             result_text=None,
             message=message,
         )
+
+    def _translation_provider_label(self, provider: str | None) -> str:
+        normalized = (provider or "").strip().lower()
+        if normalized == "azure_translator":
+            return "Azure Translator"
+        if normalized == "deepl_translator":
+            return "DeepL Translator"
+        return "Translation service"

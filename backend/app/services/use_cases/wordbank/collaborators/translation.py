@@ -263,6 +263,21 @@ class TranslationCollaborator:
             raise RuntimeError("Azure translation is unavailable.") from exc
         return self.normalize_translation_value(translated)
 
+    def lookup_translation_batch_strict(self, texts: list[str]) -> dict[str, str | None]:
+        if self._translation_service is None:
+            raise RuntimeError("Azure translation is unavailable.")
+        unique = list(dict.fromkeys(texts))
+        if not unique:
+            return {}
+        try:
+            raw_results = self._translation_service.translate_da_to_en_batch(unique)
+        except Exception as exc:
+            raise RuntimeError("Azure translation is unavailable.") from exc
+        return {
+            text: self.normalize_translation_value(result)
+            for text, result in zip(unique, raw_results, strict=False)
+        }
+
     def lookup_word_translation(self, source_word: str, lemma: str | None = None) -> TranslationLookupResult:
         normalized_source = normalize_token(source_word)
         normalized_lemma = normalize_token(lemma or "") or normalized_source

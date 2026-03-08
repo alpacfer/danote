@@ -140,22 +140,22 @@ class GeminiFlashLiteWordTranslationService:
         )
         if has_dictionary_context:
             task_instruction = (
-                "You translate Danish words into the exact English word or short phrase that matches the supplied "
+                "You translate Danish lemmas into the exact English lemma or short phrase that matches the supplied "
                 "dictionary context.\n"
-                "Use the morphology, gloss, and lemma to choose the exact inflected English output.\n"
+                "Translate lemma_da, and use surface_form_da, morphology, and gloss only for sense disambiguation.\n"
             )
         else:
             task_instruction = (
-                "You translate a single Danish word into the exact English word or short phrase.\n"
-                "Use the lemma and surface form to choose the right English translation.\n"
+                "You translate a single Danish lemma into the exact English lemma or short phrase.\n"
+                "Translate lemma_da, and use surface_form_da only as optional context.\n"
             )
         return (
             task_instruction
             + "Return JSON only: {\"translation\":\"...\"}\n"
             + "Rules:\n"
             + "- Output only the English translation.\n"
-            + "- Preserve inflection when morphology requires it.\n"
-            + "- Keep articles or function words only when needed for the exact form.\n"
+            + "- Translate lemma_da, not surface_form_da.\n"
+            + "- Return a lemma-level translation; avoid adding articles/function words unless part of the lemma meaning.\n"
             + "- Do not explain your reasoning.\n"
             + f"Context:\n{json.dumps(context, ensure_ascii=False)}"
         )
@@ -165,16 +165,17 @@ class GeminiFlashLiteWordTranslationService:
         items: list[BatchContextualWordTranslationRequestItem],
     ) -> str:
         return (
-            "You translate Danish words into the exact English word or short phrase that matches the supplied "
+            "You translate Danish lemmas into the exact English lemma or short phrase that matches the supplied "
             "dictionary context.\n"
+            "For every item, translate lemma and use surface_form, morphology, and gloss only for sense disambiguation.\n"
             "Return JSON only with this exact shape: "
             "{\"items\":[{\"id\":\"0\",\"translation\":\"...\"}]}\n"
             "Rules:\n"
             "- Return exactly one item for every input id.\n"
             "- Copy each id exactly.\n"
             "- Output only the English translation.\n"
-            "- Preserve inflection when morphology requires it.\n"
-            "- Keep articles or function words only when needed for the exact form.\n"
+            "- Translate lemma, not surface_form.\n"
+            "- Return lemma-level translations; avoid adding articles/function words unless part of the lemma meaning.\n"
             "- Do not explain your reasoning.\n"
             f"Items:\n{json.dumps([asdict(item) for item in items], ensure_ascii=False)}"
         )

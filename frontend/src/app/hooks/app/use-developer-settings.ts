@@ -12,6 +12,19 @@ import {
   type ResetDatabaseResponse,
 } from "@/app/core"
 
+type TranslationProviderOption = "deepl" | "azure"
+
+function translatorApiStatusKey(provider: string | null | undefined): string {
+  const normalized = (provider ?? "").trim().toLocaleLowerCase("en-US")
+  if (normalized === "azure" || normalized === "azure_translator") {
+    return "azure_translator"
+  }
+  if (normalized === "deepl" || normalized === "deepl_translator") {
+    return "deepl_translator"
+  }
+  return "deepl_translator"
+}
+
 type UseDeveloperSettingsParams = {
   backendUrl: string
   extractErrorMessage: (response: Response, fallback: string) => Promise<string>
@@ -39,9 +52,12 @@ export function useDeveloperSettings({
 }: UseDeveloperSettingsParams) {
   const [isResettingDatabase, setIsResettingDatabase] = useState(false)
   const [selectedNlpModel, setSelectedNlpModel] = useState<NlpModelOption>(NLP_MODEL_OPTIONS[0])
+  const [translationProvider, setTranslationProvider] = useState<TranslationProviderOption>("deepl")
   const [developerTranslationAzureApiKey, setDeveloperTranslationAzureApiKey] = useState("")
   const [developerTranslationAzureRegion, setDeveloperTranslationAzureRegion] = useState("")
   const [developerTranslationAzureEndpoint, setDeveloperTranslationAzureEndpoint] = useState("")
+  const [developerTranslationDeeplApiKey, setDeveloperTranslationDeeplApiKey] = useState("")
+  const [developerTranslationDeeplEndpoint, setDeveloperTranslationDeeplEndpoint] = useState("")
   const [developerTtsAzureApiKey, setDeveloperTtsAzureApiKey] = useState("")
   const [developerTtsAzureRegion, setDeveloperTtsAzureRegion] = useState("")
   const [developerTtsAzureEndpoint, setDeveloperTtsAzureEndpoint] = useState("")
@@ -88,10 +104,13 @@ export function useDeveloperSettings({
       const payload = await apiClient.postJson<DeveloperApiKeysUpdateResponse>(
         "/api/developer/api-keys",
         {
+          translation_provider: translationProvider,
           gemini_api_key: developerGeminiApiKey,
           translation_azure_api_key: developerTranslationAzureApiKey,
           translation_azure_region: developerTranslationAzureRegion,
           translation_azure_endpoint: developerTranslationAzureEndpoint,
+          translation_deepl_api_key: developerTranslationDeeplApiKey,
+          translation_deepl_endpoint: developerTranslationDeeplEndpoint,
           tts_azure_api_key: developerTtsAzureApiKey,
           tts_azure_region: developerTtsAzureRegion,
           tts_azure_endpoint: developerTtsAzureEndpoint,
@@ -166,17 +185,20 @@ export function useDeveloperSettings({
       const payload = await apiClient.postJson<DeveloperServiceProbeResponse>(
         "/api/developer/translation-probe",
         {},
-        "Could not test Azure Translator.",
+        "Could not test translator.",
       )
       setTranslationProbeResult(payload)
-      setApiProbeStatuses((current) => ({ ...current, azure_translator: payload }))
+      setApiProbeStatuses((current) => ({
+        ...current,
+        [translatorApiStatusKey(payload.provider ?? translationProvider)]: payload,
+      }))
       if (payload.status === "ok") {
-        onNotifySuccess(payload.message || "Azure Translator probe completed successfully.")
+        onNotifySuccess(payload.message || "Translator probe completed successfully.")
       } else {
-        onNotifyError(payload.message || "Azure Translator probe failed.")
+        onNotifyError(payload.message || "Translator probe failed.")
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Could not test Azure Translator."
+      const message = error instanceof Error ? error.message : "Could not test translator."
       const failurePayload = {
         status: "error",
         probe_input: "bogen",
@@ -185,7 +207,10 @@ export function useDeveloperSettings({
         message,
       } satisfies DeveloperServiceProbeResponse
       setTranslationProbeResult(failurePayload)
-      setApiProbeStatuses((current) => ({ ...current, azure_translator: failurePayload }))
+      setApiProbeStatuses((current) => ({
+        ...current,
+        [translatorApiStatusKey(translationProvider)]: failurePayload,
+      }))
       onNotifyError(message)
     } finally {
       setIsTestingTranslation(false)
@@ -228,12 +253,18 @@ export function useDeveloperSettings({
     isResettingDatabase,
     selectedNlpModel,
     setSelectedNlpModel,
+    translationProvider,
+    setTranslationProvider,
     developerTranslationAzureApiKey,
     setDeveloperTranslationAzureApiKey,
     developerTranslationAzureRegion,
     setDeveloperTranslationAzureRegion,
     developerTranslationAzureEndpoint,
     setDeveloperTranslationAzureEndpoint,
+    developerTranslationDeeplApiKey,
+    setDeveloperTranslationDeeplApiKey,
+    developerTranslationDeeplEndpoint,
+    setDeveloperTranslationDeeplEndpoint,
     developerTtsAzureApiKey,
     setDeveloperTtsAzureApiKey,
     developerTtsAzureRegion,

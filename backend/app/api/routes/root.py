@@ -22,17 +22,23 @@ def health(request: Request) -> HealthResponse:
     status = "ok" if db_ready and ((not nlp_enabled) or nlp_ready) else "degraded"
     translation_enabled = bool(getattr(settings, "translation_enabled", False))
     translation_service = services.translation_service
-    translation_provider_selected = str(getattr(settings, "translation_provider", "") or "").strip().lower()
+    runtime_api_keys = runtime.runtime_api_keys or {}
+    translation_provider_selected = str(
+        runtime_api_keys.get("translation_provider") or getattr(settings, "translation_provider", "") or ""
+    ).strip().lower()
     active_translation_provider = str(getattr(translation_service, "provider", "") or "").strip().lower()
 
-    runtime_api_keys = runtime.runtime_api_keys or {}
     translator_key = runtime_api_keys.get("translation_azure_api_key") or getattr(
         settings, "translation_azure_api_key", ""
     )
     translator_region = runtime_api_keys.get("translation_azure_region") or getattr(
         settings, "translation_azure_region", ""
     )
-    translator_key_configured = bool(str(translator_key or "").strip() and str(translator_region or "").strip())
+    azure_translator_key_configured = bool(str(translator_key or "").strip() and str(translator_region or "").strip())
+    deepl_translator_key = runtime_api_keys.get("translation_deepl_api_key") or getattr(
+        settings, "translation_deepl_api_key", ""
+    )
+    deepl_translator_key_configured = bool(str(deepl_translator_key or "").strip())
     translation_error = runtime.translation_error
     translation_component_status = (
         "disabled"
@@ -130,11 +136,23 @@ def health(request: Request) -> HealthResponse:
                 active_provider=active_translation_provider,
                 active_provider_names={"azure_translator"},
                 service_enabled=translation_enabled,
-                key_configured=translator_key_configured,
+                key_configured=azure_translator_key_configured,
                 service=translation_service,
                 error=translation_error,
                 disabled_message="Translation is disabled.",
                 missing_key_message="Missing DANOTE_TRANSLATION_AZURE_API_KEY or DANOTE_TRANSLATION_AZURE_REGION.",
+            ),
+            "deepl_translator": _provider_status(
+                provider_name="deepl",
+                selected_provider=translation_provider_selected,
+                active_provider=active_translation_provider,
+                active_provider_names={"deepl_translator"},
+                service_enabled=translation_enabled,
+                key_configured=deepl_translator_key_configured,
+                service=translation_service,
+                error=translation_error,
+                disabled_message="Translation is disabled.",
+                missing_key_message="Missing DANOTE_TRANSLATION_DEEPL_API_KEY.",
             ),
             "azure_speech": _provider_status(
                 provider_name="azure",

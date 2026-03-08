@@ -14,8 +14,8 @@ def test_developer_api_keys_endpoint_updates_runtime_health(stub_nlp_adapter_fac
             "/api/developer/api-keys",
             json={
                 "gemini_api_key": "gemini-key",
-                "translation_azure_api_key": "translator-key",
-                "translation_azure_region": "westeurope",
+                "translation_provider": "deepl",
+                "translation_deepl_api_key": "deepl-key",
                 "tts_azure_api_key": "speech-key",
                 "tts_azure_region": "westeurope",
                 "word_verification_gemini_api_key": "",
@@ -25,13 +25,13 @@ def test_developer_api_keys_endpoint_updates_runtime_health(stub_nlp_adapter_fac
         payload = response.json()
         assert payload["status"] == "updated"
         assert payload["configured"]["gemini"] is True
-        assert payload["configured"]["translation_azure"] is True
+        assert payload["configured"]["translation_deepl"] is True
         assert payload["configured"]["tts_azure"] is True
 
         health = client.get("/api/health")
         assert health.status_code == 200
         health_payload = health.json()
-        assert health_payload["apis"]["azure_translator"]["configured"] is True
+        assert health_payload["apis"]["deepl_translator"]["configured"] is True
         assert health_payload["apis"]["azure_speech"]["configured"] is True
         assert health_payload["apis"]["gemini"]["configured"] is True
 

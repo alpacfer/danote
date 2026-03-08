@@ -8,9 +8,12 @@ export type DeveloperSectionAdapterArgs = {
   backendUrl: ComponentProps<typeof DeveloperSection>["backendUrl"]
   apiStatusItems: ComponentProps<typeof DeveloperSection>["apiStatusItems"]
   selectedNlpModel: ComponentProps<typeof DeveloperSection>["selectedNlpModel"]
+  translationProvider: ComponentProps<typeof DeveloperSection>["translationProvider"]
   developerTranslationAzureApiKey: ComponentProps<typeof DeveloperSection>["developerTranslationAzureApiKey"]
   developerTranslationAzureRegion: ComponentProps<typeof DeveloperSection>["developerTranslationAzureRegion"]
   developerTranslationAzureEndpoint: ComponentProps<typeof DeveloperSection>["developerTranslationAzureEndpoint"]
+  developerTranslationDeeplApiKey: ComponentProps<typeof DeveloperSection>["developerTranslationDeeplApiKey"]
+  developerTranslationDeeplEndpoint: ComponentProps<typeof DeveloperSection>["developerTranslationDeeplEndpoint"]
   developerTtsAzureApiKey: ComponentProps<typeof DeveloperSection>["developerTtsAzureApiKey"]
   developerTtsAzureRegion: ComponentProps<typeof DeveloperSection>["developerTtsAzureRegion"]
   developerTtsAzureEndpoint: ComponentProps<typeof DeveloperSection>["developerTtsAzureEndpoint"]
@@ -24,9 +27,12 @@ export type DeveloperSectionAdapterArgs = {
   geminiProbeResult: ComponentProps<typeof DeveloperSection>["geminiProbeResult"]
   isResettingDatabase: ComponentProps<typeof DeveloperSection>["isResettingDatabase"]
   setSelectedNlpModel: (model: ComponentProps<typeof DeveloperSection>["selectedNlpModel"]) => void
+  setTranslationProvider: (provider: ComponentProps<typeof DeveloperSection>["translationProvider"]) => void
   setDeveloperTranslationAzureApiKey: (value: string) => void
   setDeveloperTranslationAzureRegion: (value: string) => void
   setDeveloperTranslationAzureEndpoint: (value: string) => void
+  setDeveloperTranslationDeeplApiKey: (value: string) => void
+  setDeveloperTranslationDeeplEndpoint: (value: string) => void
   setDeveloperTtsAzureApiKey: (value: string) => void
   setDeveloperTtsAzureRegion: (value: string) => void
   setDeveloperTtsAzureEndpoint: (value: string) => void
@@ -58,9 +64,13 @@ export function buildDeveloperSectionProps(
     apiStatusItems: args.apiStatusItems,
     selectedNlpModel: args.selectedNlpModel,
     nlpModelOptions: NLP_MODEL_OPTIONS,
+    translationProvider: args.translationProvider,
+    translationProviderOptions: ["deepl", "azure"] as const,
     developerTranslationAzureApiKey: args.developerTranslationAzureApiKey,
     developerTranslationAzureRegion: args.developerTranslationAzureRegion,
     developerTranslationAzureEndpoint: args.developerTranslationAzureEndpoint,
+    developerTranslationDeeplApiKey: args.developerTranslationDeeplApiKey,
+    developerTranslationDeeplEndpoint: args.developerTranslationDeeplEndpoint,
     developerTtsAzureApiKey: args.developerTtsAzureApiKey,
     developerTtsAzureRegion: args.developerTtsAzureRegion,
     developerTtsAzureEndpoint: args.developerTtsAzureEndpoint,
@@ -74,9 +84,12 @@ export function buildDeveloperSectionProps(
     geminiProbeResult: args.geminiProbeResult,
     isResettingDatabase: args.isResettingDatabase,
     onSelectedNlpModelChange: args.setSelectedNlpModel,
+    onTranslationProviderChange: args.setTranslationProvider,
     onDeveloperTranslationAzureApiKeyChange: args.setDeveloperTranslationAzureApiKey,
     onDeveloperTranslationAzureRegionChange: args.setDeveloperTranslationAzureRegion,
     onDeveloperTranslationAzureEndpointChange: args.setDeveloperTranslationAzureEndpoint,
+    onDeveloperTranslationDeeplApiKeyChange: args.setDeveloperTranslationDeeplApiKey,
+    onDeveloperTranslationDeeplEndpointChange: args.setDeveloperTranslationDeeplEndpoint,
     onDeveloperTtsAzureApiKeyChange: args.setDeveloperTtsAzureApiKey,
     onDeveloperTtsAzureRegionChange: args.setDeveloperTtsAzureRegion,
     onDeveloperTtsAzureEndpointChange: args.setDeveloperTtsAzureEndpoint,

@@ -44,6 +44,7 @@ def test_initialize_translation_uses_runtime_overrides(monkeypatch, tmp_path: Pa
     app = FastAPI()
     settings = _settings(
         tmp_path,
+        translation_provider="azure",
         translation_enabled=True,
         translation_azure_api_key=None,
         translation_azure_region=None,
@@ -78,6 +79,43 @@ def test_initialize_translation_uses_runtime_overrides(monkeypatch, tmp_path: Pa
     assert runtime.services.translation_service is not None
     assert runtime.services.translation_service.api_key == "runtime-key"
     assert runtime.services.translation_service.region == "westeurope"
+
+
+def test_initialize_translation_deepl_uses_runtime_overrides(monkeypatch, tmp_path: Path) -> None:
+    app = FastAPI()
+    settings = _settings(
+        tmp_path,
+        translation_provider="deepl",
+        translation_enabled=True,
+        translation_deepl_api_key=None,
+    )
+    init_app_state(app, settings)
+
+    class StubDeepLTranslationService:
+        provider = "deepl_translator"
+
+        def __init__(self, api_key: str, endpoint: str | None):
+            self.api_key = api_key
+            self.endpoint = endpoint
+
+        def close(self) -> None:
+            return None
+
+    monkeypatch.setattr("app.bootstrap.runtime_translation.DeepLTranslationService", StubDeepLTranslationService)
+
+    initialize_translation(
+        app,
+        settings,
+        {
+            "translation_provider": "deepl",
+            "translation_deepl_api_key": "runtime-deepl-key",
+        },
+    )
+
+    runtime = get_runtime_state(app)
+    assert runtime.translation_error is None
+    assert runtime.services.translation_service is not None
+    assert runtime.services.translation_service.api_key == "runtime-deepl-key"
 
 
 def test_initialize_tts_disabled_leaves_service_unset(tmp_path: Path) -> None:

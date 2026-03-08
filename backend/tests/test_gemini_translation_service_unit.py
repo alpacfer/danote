@@ -83,7 +83,8 @@ def test_gemini_word_translation_service_supports_minimal_non_gloss_prompt(monke
 
     assert translated == "more"
     prompt = fake_client.models.calls[0]["contents"]
-    assert "single Danish word" in str(prompt)
+    assert "single Danish lemma" in str(prompt)
+    assert "Translate lemma_da, not surface_form_da." in str(prompt)
 
 
 def test_gemini_word_translation_service_parses_structured_batch_response(monkeypatch) -> None:

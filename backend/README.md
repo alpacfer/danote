@@ -8,7 +8,7 @@ Python API service for danote.
 - ASGI server: Uvicorn
 - Config/logging: standard library modules (`os`, `pathlib`, `logging`)
 - Database driver: `sqlite3` from Python standard library
-- Translation: Azure Translator Text API
+- Translation: DeepL API (default) or Azure Translator Text API
 - Text-to-speech: Azure Speech SDK
 
 ## Database (Checkpoint 5)
@@ -153,9 +153,10 @@ From repo root, you can run a one-command setup for the pinned DaCy model:
 ```bash
 cd backend
 source .venv/bin/activate
-export DANOTE_TRANSLATION_PROVIDER="azure"
-export DANOTE_TRANSLATION_AZURE_API_KEY="your-translator-key"
-export DANOTE_TRANSLATION_AZURE_REGION="your-translator-region"
+export DANOTE_TRANSLATION_PROVIDER="deepl"
+export DANOTE_TRANSLATION_DEEPL_API_KEY="your-deepl-key"
+# optional DeepL endpoint override (defaults to api.deepl.com / api-free.deepl.com)
+# export DANOTE_TRANSLATION_DEEPL_ENDPOINT="https://api-free.deepl.com"
 export DANOTE_TTS_PROVIDER="azure"
 export DANOTE_TTS_AZURE_API_KEY="your-speech-key"
 export DANOTE_TTS_AZURE_REGION="your-speech-region"

@@ -16,6 +16,7 @@ class TranslationService(Protocol):
     provider: str
 
     def translate_da_to_en(self, text: str) -> str | None: ...
+    def translate_da_to_en_batch(self, texts: list[str]) -> list[str | None]: ...
     def translate_en_to_da(self, text: str) -> str | None: ...
     def detect_source_language(self, text: str) -> str | None: ...
 
@@ -67,6 +68,39 @@ class AzureTranslationService:
         if not normalized:
             return None
         return self._translate_text(text=normalized, source_code="da", target_code="en")
+
+    def translate_da_to_en_batch(self, texts: list[str]) -> list[str | None]:
+        normalized = [t.strip() for t in texts]
+        if not normalized or all(not t for t in normalized):
+            return [None] * len(texts)
+        response = self._post_with_retry(
+            path="/translate",
+            params={
+                "api-version": self.api_version,
+                "from": "da",
+                "to": "en",
+            },
+            payload=[{"Text": t or ""} for t in normalized],
+        )
+        try:
+            body = response.json()
+        except ValueError as exc:
+            raise TranslationError("Azure batch translation response was not valid JSON.") from exc
+        if not isinstance(body, list):
+            return [None] * len(texts)
+        results: list[str | None] = []
+        for item in body:
+            translations = item.get("translations") if isinstance(item, dict) else None
+            if not isinstance(translations, list) or not translations:
+                results.append(None)
+                continue
+            candidate = translations[0]
+            translated = candidate.get("text") if isinstance(candidate, dict) else None
+            cleaned = translated.strip() if isinstance(translated, str) else ""
+            results.append(cleaned.lower() if cleaned else None)
+        while len(results) < len(texts):
+            results.append(None)
+        return results
 
     def translate_en_to_da(self, text: str) -> str | None:
         normalized = text.strip()

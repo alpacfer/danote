@@ -41,7 +41,7 @@ export function useApiStatusItems(
 ) {
   return useMemo(() => {
     const apis = healthPayload?.apis ?? {}
-    const priorityOrder = ["backend", "azure_translator", "azure_speech", "gemini"]
+    const priorityOrder = ["backend", "deepl_translator", "azure_translator", "azure_speech", "gemini"]
     const orderedNames = [
       ...priorityOrder.filter((name) => Object.hasOwn(apis, name)),
       ...priorityOrder.filter((name) => !Object.hasOwn(apis, name) && apiProbeStatuses[name]),

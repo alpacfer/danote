@@ -435,6 +435,12 @@ export function mockFetchImplementation(options?: {
     service: "backend",
     apis: {
       backend: { status: healthStatus === "ok" ? "ok" : "degraded", active: true, configured: true },
+      deepl_translator: {
+        status: "inactive",
+        active: false,
+        configured: false,
+        message: "Provider 'deepl' is not selected.",
+      },
       azure_translator: {
         status: "inactive",
         active: false,
@@ -518,6 +524,7 @@ export function mockFetchImplementation(options?: {
     configured: {
       gemini: true,
       translation_azure: false,
+      translation_deepl: true,
       tts_azure: false,
       word_verification_gemini: true,
     },
@@ -533,8 +540,8 @@ export function mockFetchImplementation(options?: {
     status: "ok",
     probe_input: "bogen",
     result_text: "the book",
-    provider: "azure_translator",
-    message: "Azure Translator probe completed successfully.",
+    provider: "deepl_translator",
+    message: "DeepL Translator probe completed successfully.",
   }
   const speechProbeResponse = options?.speechProbeResponse ?? {
     status: "ok",

@@ -16,8 +16,10 @@ def test_load_settings_parses_cors_origins_from_env(monkeypatch, tmp_path: Path)
     assert settings.cors_origins == ("http://127.0.0.1:4173", "http://localhost:5173")
 
 
-def test_load_settings_defaults_to_azure_provider(monkeypatch, tmp_path: Path) -> None:
+def test_load_settings_defaults_to_deepl_provider(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.delenv("DANOTE_TRANSLATION_PROVIDER", raising=False)
+    monkeypatch.delenv("DANOTE_TRANSLATION_DEEPL_API_KEY", raising=False)
+    monkeypatch.delenv("DANOTE_TRANSLATION_DEEPL_ENDPOINT", raising=False)
     monkeypatch.delenv("DANOTE_TRANSLATION_AZURE_API_VERSION", raising=False)
     monkeypatch.delenv("DANOTE_TTS_PROVIDER", raising=False)
     monkeypatch.delenv("DANOTE_TTS_AZURE_VOICE_NAME", raising=False)
@@ -26,8 +28,10 @@ def test_load_settings_defaults_to_azure_provider(monkeypatch, tmp_path: Path) -
 
     settings = load_settings(env_file=tmp_path / "missing.env")
 
-    assert settings.translation_provider == "azure"
+    assert settings.translation_provider == "deepl"
     assert settings.translation_azure_api_version == "3.0"
+    assert settings.translation_deepl_api_key is None
+    assert settings.translation_deepl_endpoint is None
     assert settings.gemini_model == "gemini-3.1-flash-lite-preview"
     assert settings.tts_provider == "azure"
     assert settings.tts_azure_voice_name == "da-DK-ChristelNeural"
@@ -35,6 +39,8 @@ def test_load_settings_defaults_to_azure_provider(monkeypatch, tmp_path: Path) -
 
 
 def test_load_settings_does_not_ship_default_api_keys(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.delenv("DANOTE_TRANSLATION_DEEPL_API_KEY", raising=False)
+    monkeypatch.delenv("DANOTE_TRANSLATION_DEEPL_ENDPOINT", raising=False)
     monkeypatch.delenv("DANOTE_TRANSLATION_AZURE_API_KEY", raising=False)
     monkeypatch.delenv("DANOTE_TRANSLATION_AZURE_REGION", raising=False)
     monkeypatch.delenv("DANOTE_TTS_AZURE_API_KEY", raising=False)
@@ -44,6 +50,8 @@ def test_load_settings_does_not_ship_default_api_keys(monkeypatch, tmp_path: Pat
 
     settings = load_settings(env_file=tmp_path / "missing.env")
 
+    assert settings.translation_deepl_api_key is None
+    assert settings.translation_deepl_endpoint is None
     assert settings.translation_azure_api_key is None
     assert settings.translation_azure_region is None
     assert settings.tts_azure_api_key is None
@@ -73,6 +81,8 @@ def test_load_settings_reads_api_keys_from_env_local(monkeypatch, tmp_path: Path
             [
                 "DANOTE_TRANSLATION_AZURE_API_KEY=translator-key",
                 "DANOTE_TRANSLATION_AZURE_REGION=westeurope",
+                "DANOTE_TRANSLATION_DEEPL_API_KEY=deepl-key",
+                "DANOTE_TRANSLATION_DEEPL_ENDPOINT=https://api-free.deepl.com",
                 "DANOTE_TTS_AZURE_API_KEY=speech-key",
                 "DANOTE_TTS_AZURE_REGION=westeurope",
                 "DANOTE_GEMINI_API_KEY=gemini-key",
@@ -80,6 +90,8 @@ def test_load_settings_reads_api_keys_from_env_local(monkeypatch, tmp_path: Path
         ),
         encoding="utf-8",
     )
+    monkeypatch.delenv("DANOTE_TRANSLATION_DEEPL_API_KEY", raising=False)
+    monkeypatch.delenv("DANOTE_TRANSLATION_DEEPL_ENDPOINT", raising=False)
     monkeypatch.delenv("DANOTE_TRANSLATION_AZURE_API_KEY", raising=False)
     monkeypatch.delenv("DANOTE_TRANSLATION_AZURE_REGION", raising=False)
     monkeypatch.delenv("DANOTE_TTS_AZURE_API_KEY", raising=False)
@@ -88,6 +100,8 @@ def test_load_settings_reads_api_keys_from_env_local(monkeypatch, tmp_path: Path
 
     settings = load_settings(env_file=env_file)
 
+    assert settings.translation_deepl_api_key == "deepl-key"
+    assert settings.translation_deepl_endpoint == "https://api-free.deepl.com"
     assert settings.translation_azure_api_key == "translator-key"
     assert settings.translation_azure_region == "westeurope"
     assert settings.tts_azure_api_key == "speech-key"

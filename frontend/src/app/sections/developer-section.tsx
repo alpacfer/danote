@@ -27,9 +27,13 @@ export type DeveloperSectionProps = {
   apiStatusItems: ApiStatusItem[]
   selectedNlpModel: NlpModelOption
   nlpModelOptions: readonly NlpModelOption[]
+  translationProvider: "deepl" | "azure"
+  translationProviderOptions: readonly ("deepl" | "azure")[]
   developerTranslationAzureApiKey: string
   developerTranslationAzureRegion: string
   developerTranslationAzureEndpoint: string
+  developerTranslationDeeplApiKey: string
+  developerTranslationDeeplEndpoint: string
   developerTtsAzureApiKey: string
   developerTtsAzureRegion: string
   developerTtsAzureEndpoint: string
@@ -43,9 +47,12 @@ export type DeveloperSectionProps = {
   geminiProbeResult: DeveloperServiceProbeResponse | null
   isResettingDatabase: boolean
   onSelectedNlpModelChange: (value: NlpModelOption) => void
+  onTranslationProviderChange: (value: "deepl" | "azure") => void
   onDeveloperTranslationAzureApiKeyChange: (value: string) => void
   onDeveloperTranslationAzureRegionChange: (value: string) => void
   onDeveloperTranslationAzureEndpointChange: (value: string) => void
+  onDeveloperTranslationDeeplApiKeyChange: (value: string) => void
+  onDeveloperTranslationDeeplEndpointChange: (value: string) => void
   onDeveloperTtsAzureApiKeyChange: (value: string) => void
   onDeveloperTtsAzureRegionChange: (value: string) => void
   onDeveloperTtsAzureEndpointChange: (value: string) => void
@@ -64,9 +71,13 @@ export function DeveloperSection({
   apiStatusItems,
   selectedNlpModel,
   nlpModelOptions,
+  translationProvider,
+  translationProviderOptions,
   developerTranslationAzureApiKey,
   developerTranslationAzureRegion,
   developerTranslationAzureEndpoint,
+  developerTranslationDeeplApiKey,
+  developerTranslationDeeplEndpoint,
   developerTtsAzureApiKey,
   developerTtsAzureRegion,
   developerTtsAzureEndpoint,
@@ -80,9 +91,12 @@ export function DeveloperSection({
   geminiProbeResult,
   isResettingDatabase,
   onSelectedNlpModelChange,
+  onTranslationProviderChange,
   onDeveloperTranslationAzureApiKeyChange,
   onDeveloperTranslationAzureRegionChange,
   onDeveloperTranslationAzureEndpointChange,
+  onDeveloperTranslationDeeplApiKeyChange,
+  onDeveloperTranslationDeeplEndpointChange,
   onDeveloperTtsAzureApiKeyChange,
   onDeveloperTtsAzureRegionChange,
   onDeveloperTtsAzureEndpointChange,
@@ -151,33 +165,77 @@ export function DeveloperSection({
             Keys entered here apply immediately for this backend process and are not persisted to source code.
           </p>
           <div className="space-y-1">
-            <Label htmlFor="developer-translation-azure-key">Azure Translator API key</Label>
-            <Input
-              id="developer-translation-azure-key"
-              type="password"
-              value={developerTranslationAzureApiKey}
-              onChange={(event) => onDeveloperTranslationAzureApiKeyChange(event.target.value)}
-              placeholder="Paste Azure Translator key"
-            />
+            <Label htmlFor="developer-translation-provider">Translator provider</Label>
+            <Select
+              value={translationProvider}
+              onValueChange={(value) => onTranslationProviderChange(value as "deepl" | "azure")}
+            >
+              <SelectTrigger id="developer-translation-provider" aria-label="Translator provider picker" className="w-full max-w-sm">
+                <SelectValue placeholder="Select provider" />
+              </SelectTrigger>
+              <SelectContent>
+                {translationProviderOptions.map((provider) => (
+                  <SelectItem key={provider} value={provider}>
+                    {provider === "deepl" ? "DeepL" : "Azure Translator"}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-          <div className="space-y-1">
-            <Label htmlFor="developer-translation-azure-region">Azure Translator region</Label>
-            <Input
-              id="developer-translation-azure-region"
-              value={developerTranslationAzureRegion}
-              onChange={(event) => onDeveloperTranslationAzureRegionChange(event.target.value)}
-              placeholder="e.g. westeurope"
-            />
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="developer-translation-azure-endpoint">Azure Translator endpoint (optional)</Label>
-            <Input
-              id="developer-translation-azure-endpoint"
-              value={developerTranslationAzureEndpoint}
-              onChange={(event) => onDeveloperTranslationAzureEndpointChange(event.target.value)}
-              placeholder="https://api.cognitive.microsofttranslator.com"
-            />
-          </div>
+          {translationProvider === "deepl" ? (
+            <>
+              <div className="space-y-1">
+                <Label htmlFor="developer-translation-deepl-key">DeepL API key</Label>
+                <Input
+                  id="developer-translation-deepl-key"
+                  type="password"
+                  value={developerTranslationDeeplApiKey}
+                  onChange={(event) => onDeveloperTranslationDeeplApiKeyChange(event.target.value)}
+                  placeholder="Paste DeepL key"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="developer-translation-deepl-endpoint">DeepL endpoint (optional)</Label>
+                <Input
+                  id="developer-translation-deepl-endpoint"
+                  value={developerTranslationDeeplEndpoint}
+                  onChange={(event) => onDeveloperTranslationDeeplEndpointChange(event.target.value)}
+                  placeholder="https://api-free.deepl.com"
+                />
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="space-y-1">
+                <Label htmlFor="developer-translation-azure-key">Azure Translator API key</Label>
+                <Input
+                  id="developer-translation-azure-key"
+                  type="password"
+                  value={developerTranslationAzureApiKey}
+                  onChange={(event) => onDeveloperTranslationAzureApiKeyChange(event.target.value)}
+                  placeholder="Paste Azure Translator key"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="developer-translation-azure-region">Azure Translator region</Label>
+                <Input
+                  id="developer-translation-azure-region"
+                  value={developerTranslationAzureRegion}
+                  onChange={(event) => onDeveloperTranslationAzureRegionChange(event.target.value)}
+                  placeholder="e.g. westeurope"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="developer-translation-azure-endpoint">Azure Translator endpoint (optional)</Label>
+                <Input
+                  id="developer-translation-azure-endpoint"
+                  value={developerTranslationAzureEndpoint}
+                  onChange={(event) => onDeveloperTranslationAzureEndpointChange(event.target.value)}
+                  placeholder="https://api.cognitive.microsofttranslator.com"
+                />
+              </div>
+            </>
+          )}
           <div className="space-y-2">
             <Button
               type="button"
@@ -186,7 +244,9 @@ export function DeveloperSection({
               onClick={onRunTranslationProbe}
               disabled={isTestingTranslation}
             >
-              {isTestingTranslation ? "Testing Azure Translator..." : "Test Azure Translator"}
+              {isTestingTranslation
+                ? `Testing ${translationProvider === "deepl" ? "DeepL" : "Azure Translator"}...`
+                : `Test ${translationProvider === "deepl" ? "DeepL" : "Azure Translator"}`}
             </Button>
             <DeveloperProbeResult ariaLabel="translation-probe-result" result={translationProbeResult} />
           </div>

@@ -18,6 +18,7 @@ def test_health_route_returns_expected_shape(stub_nlp_adapter_factory) -> None:
     assert payload["components"]["translation"] in {"degraded", "ok", "disabled"}
     assert payload["components"]["tts"] in {"degraded", "ok", "disabled"}
     assert payload["apis"]["backend"]["status"] == "ok"
+    assert "deepl_translator" in payload["apis"]
     assert "azure_translator" in payload["apis"]
     assert "azure_speech" in payload["apis"]
 

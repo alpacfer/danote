@@ -84,13 +84,14 @@ describe("App system state", () => {
     expect(screen.getByLabelText("api-status-list")).toHaveTextContent(/^ok$|ok/i)
   })
 
-  it("tests Azure Translator and Speech from developer options and updates API status", async () => {
+  it("tests DeepL and Speech from developer options and updates API status", async () => {
     mockFetchImplementation({
       healthResponse: {
         status: "ok",
         service: "backend",
         apis: {
           backend: { status: "ok", active: true, configured: true },
+          deepl_translator: { status: "inactive", active: false, configured: false, message: "Not checked yet." },
           azure_translator: { status: "inactive", active: false, configured: false, message: "Not checked yet." },
           azure_speech: { status: "inactive", active: false, configured: false, message: "Not checked yet." },
           gemini: { status: "inactive", active: false, configured: false, message: "Not checked yet." },
@@ -100,8 +101,8 @@ describe("App system state", () => {
         status: "ok",
         probe_input: "bogen",
         result_text: "the book",
-        provider: "azure_translator",
-        message: "Azure Translator probe completed successfully.",
+        provider: "deepl_translator",
+        message: "DeepL Translator probe completed successfully.",
       },
       speechProbeResponse: {
         status: "error",
@@ -116,16 +117,16 @@ describe("App system state", () => {
     await screen.findByLabelText("backend-connection-status")
 
     fireEvent.click(screen.getByRole("button", { name: /developer/i }))
-    fireEvent.click(screen.getByRole("button", { name: /test azure translator/i }))
+    fireEvent.click(screen.getByRole("button", { name: /test deepl/i }))
     fireEvent.click(screen.getByRole("button", { name: /test azure speech/i }))
 
     expect(await screen.findByLabelText("translation-probe-result")).toHaveTextContent(/the book/i)
     expect(await screen.findByLabelText("speech-probe-result")).toHaveTextContent(/probe failed/i)
-    expect(vi.mocked(toast.success)).toHaveBeenCalledWith("Azure Translator probe completed successfully.")
+    expect(vi.mocked(toast.success)).toHaveBeenCalledWith("DeepL Translator probe completed successfully.")
     expect(vi.mocked(toast.error)).toHaveBeenCalledWith("Azure Speech probe failed.")
-    expect(screen.getByLabelText("api-status-list")).toHaveTextContent("Azure Translator API")
+    expect(screen.getByLabelText("api-status-list")).toHaveTextContent("DeepL API")
     expect(screen.getByLabelText("api-status-list")).toHaveTextContent("Azure Speech API")
-    expect(screen.getByLabelText("api-status-list")).toHaveTextContent(/Azure Translator probe completed successfully./i)
+    expect(screen.getByLabelText("api-status-list")).toHaveTextContent(/DeepL Translator probe completed successfully./i)
     expect(screen.getByLabelText("api-status-list")).toHaveTextContent(/Azure Speech probe failed./i)
   })
 
