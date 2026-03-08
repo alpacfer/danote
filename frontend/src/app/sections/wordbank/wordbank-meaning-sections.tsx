@@ -1,5 +1,12 @@
 import type { LemmaDetailsResponse } from "@/app/core"
-import { badgesForSavedForm, corSecondaryBadgeClass, normalizeSearchWord, posBadgeClass } from "@/app/core"
+import {
+  badgesForSavedForm,
+  corSecondaryBadgeClass,
+  lemmaTranslationWithGloss,
+  normalizeSearchWord,
+  posBadgeClass,
+  posBorderLeftClass,
+} from "@/app/core"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -27,12 +34,15 @@ export function WordbankMeaningSections({
 
   return (
     <div className="space-y-3">
-      {meaningSections.map((section) => {
+      {meaningSections.map((section, index) => {
         const sectionBadges = badgesForSavedForm({
           pos_tag: section.pos_tag ?? null,
           morphology: section.morphology ?? null,
         })
-        const sectionTranslation = section.english_translation?.trim() || section.gloss?.trim() || "No translation available."
+        const sectionTranslation = lemmaTranslationWithGloss(
+          section.english_translation ?? null,
+          section.gloss ?? null,
+        )
         const isSelected = selectedMeaningId === section.id
         return (
           <Card
@@ -45,8 +55,13 @@ export function WordbankMeaningSections({
             <CardContent className="space-y-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="space-y-1">
-                  <p className="text-lg leading-tight font-bold">{lemma}</p>
-                  <p className="text-muted-foreground text-sm">{sectionTranslation}</p>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary" className="text-xs tabular-nums">{index + 1}</Badge>
+                    <p className="text-lg leading-tight font-bold">{lemma}</p>
+                  </div>
+                  {sectionTranslation ? (
+                    <p className="text-muted-foreground text-sm">{sectionTranslation}</p>
+                  ) : null}
                 </div>
                 <div className="flex shrink-0 flex-wrap justify-end gap-1.5">
                   {sectionBadges.map((badge) => (
@@ -60,39 +75,59 @@ export function WordbankMeaningSections({
                   ))}
                 </div>
               </div>
-              {section.surface_forms.length === 0 ? (
-                <p className="text-muted-foreground text-sm">No saved variations for this meaning yet.</p>
-              ) : (
+              {section.surface_forms.length > 0 ? (
                 <div className="space-y-2">
-                  {section.surface_forms.map((form) => (
-                    <div key={`${section.id}-${form.form}`} className="flex items-center justify-between gap-3 border-t pt-2 first:border-t-0 first:pt-0">
-                      <div className="min-w-0">
-                        <p className="text-base font-semibold leading-tight">{form.form}</p>
+                  {section.surface_forms.map((form) => {
+                    const formBadges = badgesForSavedForm(form)
+
+                    return (
+                      <div
+                        key={`${section.id}-${form.form}`}
+                        className={`rounded-md border border-border/70 border-l-2 p-3 ${posBorderLeftClass(form.pos_tag ?? section.pos_tag ?? null)}`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 space-y-1">
+                            <p className="text-base font-semibold leading-tight">{form.form}</p>
+                            {formBadges.length > 0 ? (
+                              <div className="flex flex-wrap gap-1.5">
+                                {formBadges.map((badge) => (
+                                  <Badge
+                                    key={`${section.id}-${form.form}-badge-${badge.label}`}
+                                    variant={badge.tone === "primary" ? "default" : "secondary"}
+                                    className={`text-xs ${badge.tone === "primary" ? `border ${posBadgeClass(form.pos_tag ?? section.pos_tag ?? null)}` : `border ${corSecondaryBadgeClass(badge.label)}`}`.trim()}
+                                  >
+                                    {badge.label}
+                                  </Badge>
+                                ))}
+                              </div>
+                            ) : null}
+                          </div>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="icon-sm"
+                                  aria-label={`Listen to ${form.form}`}
+                                  disabled={!form.has_pronunciation || Boolean(pronunciationLoadingByForm[normalizeSearchWord(form.form)])}
+                                  onClick={(event) => {
+                                    event.currentTarget.blur()
+                                    onPlayPronunciation(form.form)
+                                  }}
+                                >
+                                  <Volume2 />
+                                </Button>
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent side="right" sideOffset={6}><p>Listen</p></TooltipContent>
+                          </Tooltip>
+                        </div>
                       </div>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="icon-sm"
-                              aria-label={`Listen to ${form.form}`}
-                              disabled={!form.has_pronunciation || Boolean(pronunciationLoadingByForm[normalizeSearchWord(form.form)])}
-                              onClick={(event) => {
-                                event.currentTarget.blur()
-                                onPlayPronunciation(form.form)
-                              }}
-                            >
-                              <Volume2 />
-                            </Button>
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent side="right" sideOffset={6}><p>Listen</p></TooltipContent>
-                      </Tooltip>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
-              )}
+              ) : null}
             </CardContent>
           </Card>
         )

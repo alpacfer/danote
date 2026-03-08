@@ -79,7 +79,87 @@ describe("App wordbank", () => {
     expect(screen.getAllByText(/^n-word$/i)).toHaveLength(1)
   })
 
-  it("verb word pages keep flat variation layout", async () => {
+  it("meaning-section surface forms show badges without rendering surface translations", async () => {
+    mockFetchImplementation({
+      lemmasResponse: {
+        items: [{ lemma: "lærer", variation_count: 1 }],
+      },
+      lemmaDetailsResponse: {
+        lemma: "lærer",
+        english_translation: "teacher",
+        is_sectioned: true,
+        meaning_sections: [
+          {
+            id: 1,
+            meaning_key: "teacher",
+            gloss: "teacher",
+            english_translation: "teacher",
+            pos_tag: "NOUN",
+            morphology: "Gender=Com|Number=Sing|Definite=Ind",
+            surface_forms: [
+              {
+                form: "lærere",
+                english_translation: null,
+                gloss: "teacher",
+                gloss_translation: "teacher",
+                pos_tag: "NOUN",
+                morphology: "Gender=Com|Number=Plur|Definite=Ind",
+                gram_raw: "sb.fk.pl.ubest",
+                has_pronunciation: false,
+              },
+            ],
+          },
+        ],
+        surface_forms: [],
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+    fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /lærer/i }))
+
+    expect(await screen.findByRole("heading", { name: /^lærer$/i })).toBeInTheDocument()
+    expect(screen.queryByTestId("wordbank-lemma-header-badges")).not.toBeInTheDocument()
+    expect(screen.getByText(/^lærere$/i)).toBeInTheDocument()
+    expect(screen.getAllByText(/^teacher$/i)).toHaveLength(1)
+    expect(screen.getByText(/^Plural$/i)).toBeInTheDocument()
+  })
+
+  it("meaning-section translation combines lemma translation with gloss when they differ", async () => {
+    mockFetchImplementation({
+      lemmasResponse: {
+        items: [{ lemma: "bog", variation_count: 0 }],
+      },
+      lemmaDetailsResponse: {
+        lemma: "bog",
+        english_translation: null,
+        is_sectioned: true,
+        meaning_sections: [
+          {
+            id: 1,
+            meaning_key: "for-reading",
+            gloss: "for reading",
+            english_translation: "book",
+            pos_tag: "NOUN",
+            morphology: "Gender=Com|Number=Sing|Definite=Ind",
+            surface_forms: [],
+          },
+        ],
+        surface_forms: [],
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+    fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /bog/i }))
+
+    expect(await screen.findByRole("heading", { name: /^bog$/i })).toBeInTheDocument()
+    expect(screen.getByText(/^book, for reading$/i)).toBeInTheDocument()
+  })
+
+  it("verb word pages keep flat variation layout without surface translations", async () => {
     mockFetchImplementation({
       lemmasResponse: {
         items: [{ lemma: "lære", variation_count: 1 }],
@@ -100,7 +180,32 @@ describe("App wordbank", () => {
     fireEvent.click(await screen.findByRole("button", { name: /lære/i }))
 
     expect(await screen.findByText(/^learn$/i)).toBeInTheDocument()
-    expect(screen.getByText(/^learns$/i)).toBeInTheDocument()
+    expect(screen.getByText(/^lærer$/i)).toBeInTheDocument()
+    expect(screen.queryByText(/^learns$/i)).not.toBeInTheDocument()
+  })
+
+  it("does not render an empty-variation message when there are no saved variations", async () => {
+    mockFetchImplementation({
+      lemmasResponse: {
+        items: [{ lemma: "lære", variation_count: 0 }],
+      },
+      lemmaDetailsResponse: {
+        lemma: "lære",
+        english_translation: "learn",
+        is_sectioned: false,
+        pos_tag: "VERB",
+        morphology: "VerbForm=Inf",
+        surface_forms: [],
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+    fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /lære/i }))
+
+    expect(await screen.findByRole("heading", { name: /^lære$/i })).toBeInTheDocument()
+    expect(screen.queryByText(/no saved variations for this lemma/i)).not.toBeInTheDocument()
   })
 
   it("defers loading the full wordbank list until the wordbank section opens", async () => {

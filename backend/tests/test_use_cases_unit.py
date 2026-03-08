@@ -373,6 +373,13 @@ def test_wordbank_sectioned_add_prefers_cor_lemma_translation_and_skips_variatio
         morphology="Gender=Com|Number=Plur|Definite=Ind",
         gram_raw="sb.fk.pl.ubest",
     )
+    translation_service = FakeTranslationService({"en lærer": "a teacher"})
+    gemini_translation = FakeGeminiWordTranslationService(
+        {
+            ("lærer", "lærer", "teacher"): "apprenticeship",
+            ("lærere", "lærer", "teacher"): "teachers",
+        }
+    )
     use_case = WordbankUseCase(
         db_path,
         cor_local_lexicon_service=FakeCORLocalLexiconService(
@@ -384,13 +391,8 @@ def test_wordbank_sectioned_add_prefers_cor_lemma_translation_and_skips_variatio
                 49032: [noun_lemma, noun_plural],
             },
         ),
-        translation_service=FakeTranslationService({"en lærer": "a teacher"}),
-        gemini_word_translation_service=FakeGeminiWordTranslationService(
-            {
-                ("lærer", "lærer", "teacher"): "apprenticeship",
-                ("lærere", "lærer", "teacher"): "teachers",
-            }
-        ),
+        translation_service=translation_service,
+        gemini_word_translation_service=gemini_translation,
     )
 
     added = use_case.add_word(
@@ -401,6 +403,9 @@ def test_wordbank_sectioned_add_prefers_cor_lemma_translation_and_skips_variatio
         morphology="Gender=Com|Number=Plur|Definite=Ind",
     )
 
+    calls_after_add = list(translation_service.calls)
+    gemini_calls_after_add = list(gemini_translation.calls)
+    gemini_batch_calls_after_add = [list(batch) for batch in gemini_translation.batch_calls]
     details = use_case.get_lemma_details("lærer")
     assert added.meaning is not None
     assert details.is_sectioned is True
@@ -416,9 +421,13 @@ def test_wordbank_sectioned_add_prefers_cor_lemma_translation_and_skips_variatio
             lemma="lærer",
             lemma_translation="teacher",
             gloss="teacher",
+            gloss_translation="teacher",
             gram_raw="sb.fk.pl.ubest",
         )
     ]
+    assert translation_service.calls == calls_after_add
+    assert gemini_translation.calls == gemini_calls_after_add
+    assert gemini_translation.batch_calls == gemini_batch_calls_after_add
 
     with get_connection(db_path) as conn:
         surface_row = conn.execute(

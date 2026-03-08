@@ -60,18 +60,25 @@ export function WordbankListView({
               <section key={group.letter} className="space-y-2">
                 <h3 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">{group.letter}</h3>
                 <div className="flex flex-wrap gap-2">
-                  {group.items.map((lemma) => (
-                    <Button
-                      key={lemma.lemma}
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="w-auto"
-                      onClick={() => onSelectLemma(lemma.lemma)}
-                    >
-                      {lemma.display_lemma?.trim() || lemma.lemma}
-                    </Button>
-                  ))}
+                  {group.items.map((lemma) => {
+                    const displayWord = lemma.display_lemma?.trim() || lemma.lemma
+                    const showCount = lemma.variation_count > 1
+                    return (
+                      <Button
+                        key={lemma.lemma}
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="w-auto"
+                        onClick={() => onSelectLemma(lemma.lemma)}
+                      >
+                        {displayWord}
+                        {showCount ? (
+                          <span className="text-muted-foreground font-normal"> · {lemma.variation_count}</span>
+                        ) : null}
+                      </Button>
+                    )
+                  })}
                 </div>
               </section>
             ))}

@@ -58,7 +58,7 @@ export function WordbankLemmaHeader({
     : (selectedMeaningSection?.english_translation ?? lemmaDetails.english_translation)
   const headerPosTag = selectedMeaningSection?.pos_tag ?? lemmaDetails.pos_tag
   const headerMorphology = selectedMeaningSection?.morphology ?? lemmaDetails.morphology
-  const headerBadges = showSupplementaryMetadata || Boolean(selectedMeaningSection)
+  const headerBadges = showSupplementaryMetadata
     ? badgesForSavedForm({
       pos_tag: headerPosTag ?? null,
       morphology: headerMorphology ?? null,
@@ -171,7 +171,7 @@ export function WordbankLemmaHeader({
             <p className="text-muted-foreground mt-1 text-base">{headerTranslation}</p>
           ) : null}
           {headerBadges.length > 0 ? (
-            <div className="mt-2 flex flex-wrap gap-1.5">
+            <div data-testid="wordbank-lemma-header-badges" className="mt-2 flex flex-wrap gap-1.5">
               {headerBadges.map((badge) => (
                 <Badge
                   key={`lemma-badge-${badge.label}`}

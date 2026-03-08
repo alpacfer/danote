@@ -2,10 +2,11 @@ import type { LemmaDetailsResponse } from "@/app/core"
 import {
   badgesForSavedForm,
   corSecondaryBadgeClass,
-  glossDisplayForSavedForm,
   lemmaDisplayForSavedForm,
+  lemmaTranslationWithGloss,
   normalizeSearchWord,
   posBadgeClass,
+  posBorderLeftClass,
 } from "@/app/core"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -25,18 +26,20 @@ export function WordbankVariationGrid({
   onPlayPronunciation,
 }: WordbankVariationGridProps) {
   if (variationForms.length === 0) {
-    return <p className="text-muted-foreground text-sm">No saved variations for this lemma.</p>
+    return null
   }
 
   return (
     <div className="grid gap-3 md:grid-cols-2">
       {variationForms.map((form) => {
         const formLemmaDisplay = lemmaDisplayForSavedForm(form)
-        const formLemmaTranslation = form.lemma_translation?.trim() || null
-        const formGlossDisplay = glossDisplayForSavedForm(form)
+        const formLemmaTranslation = lemmaTranslationWithGloss(
+          form.lemma_translation ?? null,
+          form.gloss_translation ?? form.gloss ?? null,
+        )
         const formBadges = badgesForSavedForm(form)
         return (
-          <Card key={form.form}>
+          <Card key={form.form} className={`border-l-2 rounded-l-none ${posBorderLeftClass(form.pos_tag)}`}>
             <CardContent className="space-y-3">
               <div className="flex items-center justify-between gap-3">
                 <p className="text-lg leading-tight">
@@ -69,9 +72,6 @@ export function WordbankVariationGrid({
                   <TooltipContent side="right" sideOffset={6}><p>Listen</p></TooltipContent>
                 </Tooltip>
               </div>
-              <p className="text-muted-foreground text-sm">
-                {formGlossDisplay ?? form.english_translation ?? "No translation available."}
-              </p>
               <div className="flex flex-wrap gap-1.5">
                 {formBadges.map((badge) => (
                   <Badge

@@ -60,6 +60,7 @@ class SurfaceFormRecord:
     english_translation: str | None
     pos_tag: str | None
     morphology: str | None
+    cor_id: str | None
     meaning_id: int | None
     has_pronunciation: bool
 
@@ -187,6 +188,13 @@ class WordbankRepository:
                     english_translation,
                     pos_tag,
                     morphology,
+                    (
+                        SELECT sfcv.cor_id
+                        FROM surface_form_cor_variants sfcv
+                        WHERE sfcv.surface_form_id = surface_forms.id
+                        ORDER BY sfcv.id ASC
+                        LIMIT 1
+                    ) AS cor_id,
                     meaning_id,
                     CASE WHEN pronunciation_audio IS NOT NULL THEN 1 ELSE 0 END AS has_pronunciation
                 FROM surface_forms
@@ -210,6 +218,13 @@ class WordbankRepository:
                     english_translation,
                     pos_tag,
                     morphology,
+                    (
+                        SELECT sfcv.cor_id
+                        FROM surface_form_cor_variants sfcv
+                        WHERE sfcv.surface_form_id = surface_forms.id
+                        ORDER BY sfcv.id ASC
+                        LIMIT 1
+                    ) AS cor_id,
                     meaning_id,
                     CASE WHEN pronunciation_audio IS NOT NULL THEN 1 ELSE 0 END AS has_pronunciation
                 FROM surface_forms
@@ -233,6 +248,7 @@ class WordbankRepository:
                     sf.english_translation,
                     sf.pos_tag,
                     sf.morphology,
+                    sfcv.cor_id,
                     sf.meaning_id,
                     CASE WHEN sf.pronunciation_audio IS NOT NULL THEN 1 ELSE 0 END AS has_pronunciation
                 FROM surface_form_cor_variants sfcv
@@ -430,6 +446,13 @@ class WordbankRepository:
                         english_translation,
                         pos_tag,
                         morphology,
+                        (
+                            SELECT sfcv.cor_id
+                            FROM surface_form_cor_variants sfcv
+                            WHERE sfcv.surface_form_id = surface_forms.id
+                            ORDER BY sfcv.id ASC
+                            LIMIT 1
+                        ) AS cor_id,
                         meaning_id,
                         CASE WHEN pronunciation_audio IS NOT NULL THEN 1 ELSE 0 END AS has_pronunciation
                     FROM surface_forms
@@ -462,6 +485,13 @@ class WordbankRepository:
                         english_translation,
                         pos_tag,
                         morphology,
+                        (
+                            SELECT sfcv.cor_id
+                            FROM surface_form_cor_variants sfcv
+                            WHERE sfcv.surface_form_id = surface_forms.id
+                            ORDER BY sfcv.id ASC
+                            LIMIT 1
+                        ) AS cor_id,
                         meaning_id,
                         CASE WHEN pronunciation_audio IS NOT NULL THEN 1 ELSE 0 END AS has_pronunciation
                     FROM surface_forms
@@ -646,6 +676,7 @@ def _surface_form_from_row(row) -> SurfaceFormRecord:
         english_translation=row["english_translation"],
         pos_tag=row["pos_tag"],
         morphology=row["morphology"],
+        cor_id=row["cor_id"],
         meaning_id=int(row["meaning_id"]) if row["meaning_id"] is not None else None,
         has_pronunciation=bool(row["has_pronunciation"]),
     )
@@ -674,6 +705,13 @@ def _select_surface_form_row(conn, *, lexeme_id: int, meaning_id: int | None, fo
                 english_translation,
                 pos_tag,
                 morphology,
+                (
+                    SELECT sfcv.cor_id
+                    FROM surface_form_cor_variants sfcv
+                    WHERE sfcv.surface_form_id = surface_forms.id
+                    ORDER BY sfcv.id ASC
+                    LIMIT 1
+                ) AS cor_id,
                 meaning_id,
                 CASE WHEN pronunciation_audio IS NOT NULL THEN 1 ELSE 0 END AS has_pronunciation
             FROM surface_forms
@@ -691,6 +729,13 @@ def _select_surface_form_row(conn, *, lexeme_id: int, meaning_id: int | None, fo
             english_translation,
             pos_tag,
             morphology,
+            (
+                SELECT sfcv.cor_id
+                FROM surface_form_cor_variants sfcv
+                WHERE sfcv.surface_form_id = surface_forms.id
+                ORDER BY sfcv.id ASC
+                LIMIT 1
+            ) AS cor_id,
             meaning_id,
             CASE WHEN pronunciation_audio IS NOT NULL THEN 1 ELSE 0 END AS has_pronunciation
         FROM surface_forms

@@ -40,10 +40,6 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
         if row.pos_tag is None and row.morphology is None
     ]
     extracted_forms = runtime.nlp.extract_pos_and_morphology_batch(uncached_forms)
-    gloss_translation_cache: dict[
-        tuple[str, str, str | None, str | None, str, str | None, str | None],
-        str | None,
-    ] = {}
     detailed_forms: list[tuple[int | None, LemmaDetailsResponse.SurfaceFormDetails]] = []
 
     for row in form_rows:
@@ -59,32 +55,30 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
             )
         meaning = meaning_by_id.get(row.meaning_id) if row.meaning_id is not None else None
         cor_local_entry = (
-            runtime.cor.best_cor_local_entry_for_form(
-                form=row.form,
-                lemma=lexeme.lemma,
-                preferred_pos_tag=pos_tag,
-                preferred_lemma_idx=meaning.cor_lemma_idx if meaning is not None else None,
-            )
-            if meaning is not None
-            else runtime.cor.best_cor_local_entry_for_form(
-                form=row.form,
-                lemma=lexeme.lemma,
-                preferred_pos_tag=pos_tag,
-            )
-        )
-        gloss = cor_local_entry.gloss if cor_local_entry is not None else None
-        gloss_translation = (
-            runtime.cor.lookup_translation_for_cor_gloss(
-                entry=cor_local_entry,
-                lemma_translation=(
-                    meaning.english_translation
-                    if meaning is not None
-                    else lexeme.english_translation
-                ),
-                cache=gloss_translation_cache,
-            )
-            if cor_local_entry is not None
+            runtime.cor.cor_local_entry_for_cor_id(cor_id=row.cor_id)
+            if row.cor_id is not None
             else None
+        )
+        if cor_local_entry is None:
+            cor_local_entry = (
+                runtime.cor.best_cor_local_entry_for_form(
+                    form=row.form,
+                    lemma=lexeme.lemma,
+                    preferred_pos_tag=pos_tag,
+                    preferred_lemma_idx=meaning.cor_lemma_idx if meaning is not None else None,
+                )
+                if meaning is not None
+                else runtime.cor.best_cor_local_entry_for_form(
+                    form=row.form,
+                    lemma=lexeme.lemma,
+                    preferred_pos_tag=pos_tag,
+                )
+            )
+        gloss = cor_local_entry.gloss if cor_local_entry is not None else None
+        lemma_translation = (
+            meaning.english_translation
+            if meaning is not None
+            else lexeme.english_translation
         )
         detailed_forms.append(
             (
@@ -95,13 +89,9 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
                     pos_tag=pos_tag,
                     morphology=morphology,
                     lemma=lexeme.lemma,
-                    lemma_translation=(
-                        meaning.english_translation
-                        if meaning is not None
-                        else lexeme.english_translation
-                    ),
+                    lemma_translation=lemma_translation,
                     gloss=gloss,
-                    gloss_translation=gloss_translation,
+                    gloss_translation=lemma_translation if cor_local_entry is not None else None,
                     gram_raw=cor_local_entry.gram_raw if cor_local_entry is not None else None,
                     has_pronunciation=row.has_pronunciation,
                 ),

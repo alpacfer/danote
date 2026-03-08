@@ -161,6 +161,26 @@ export function lemmaTranslationForVariant(variant: CORSearchVariant): string | 
   return value ? value : null
 }
 
+function normalizedGlossPart(value: string | null | undefined): string | null {
+  const trimmed = value?.trim()
+  return trimmed ? trimmed : null
+}
+
+export function lemmaTranslationWithGloss(
+  lemmaTranslation: string | null | undefined,
+  glossTranslation: string | null | undefined,
+): string | null {
+  const normalizedLemmaTranslation = normalizedGlossPart(lemmaTranslation)
+  const normalizedGlossTranslation = normalizedGlossPart(glossTranslation)
+  if (normalizedLemmaTranslation && normalizedGlossTranslation) {
+    if (normalizedLemmaTranslation.localeCompare(normalizedGlossTranslation, "en", { sensitivity: "base" }) === 0) {
+      return normalizedLemmaTranslation
+    }
+    return `${normalizedLemmaTranslation}, ${normalizedGlossTranslation}`
+  }
+  return normalizedLemmaTranslation ?? normalizedGlossTranslation ?? null
+}
+
 export function glossDisplayForVariant(variant: CORSearchVariant): string | null {
   const translation = variant.gloss_translation?.trim()
   return translation || null
@@ -184,16 +204,18 @@ export function lemmaDisplayForSavedForm(form: {
 export function glossDisplayForSavedForm(form: {
   gloss?: string | null
   gloss_translation?: string | null
+  english_translation?: string | null
 }): string | null {
-  const gloss = form.gloss?.trim()
-  if (!gloss) {
-    return null
-  }
   const translation = form.gloss_translation?.trim()
-  if (!translation) {
-    return gloss
+  if (translation) {
+    return translation
   }
-  return `${gloss} (${translation})`
+  const englishTranslation = form.english_translation?.trim()
+  if (englishTranslation) {
+    return englishTranslation
+  }
+  const gloss = form.gloss?.trim()
+  return gloss || null
 }
 
 export function badgesForSavedForm(form: {

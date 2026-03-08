@@ -150,3 +150,26 @@ export function secondaryTagsForPos(posTag: string | null, morphology: string | 
 export function isLowConfidencePosTag(posTag: string | null): boolean {
   return !posTag || posTag === "X"
 }
+
+export function posBorderLeftClass(posTag: string | null): string {
+  const borderByPos: Record<string, string> = {
+    ADJ:   "border-l-pink-400 dark:border-l-pink-500",
+    ADP:   "border-l-cyan-400 dark:border-l-cyan-500",
+    ADV:   "border-l-indigo-400 dark:border-l-indigo-500",
+    AUX:   "border-l-sky-400 dark:border-l-sky-500",
+    CCONJ: "border-l-lime-400 dark:border-l-lime-500",
+    DET:   "border-l-amber-400 dark:border-l-amber-500",
+    INTJ:  "border-l-orange-400 dark:border-l-orange-500",
+    NOUN:  "border-l-emerald-400 dark:border-l-emerald-500",
+    NUM:   "border-l-violet-400 dark:border-l-violet-500",
+    PART:  "border-l-zinc-400 dark:border-l-zinc-500",
+    PRON:  "border-l-teal-400 dark:border-l-teal-500",
+    PROPN: "border-l-fuchsia-400 dark:border-l-fuchsia-500",
+    PUNCT: "border-l-slate-400 dark:border-l-slate-500",
+    SCONJ: "border-l-yellow-400 dark:border-l-yellow-500",
+    SYM:   "border-l-stone-400 dark:border-l-stone-500",
+    VERB:  "border-l-blue-400 dark:border-l-blue-500",
+    X:     "border-l-gray-400 dark:border-l-gray-500",
+  }
+  return borderByPos[posTag ?? ""] ?? "border-l-border"
+}

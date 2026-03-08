@@ -1604,7 +1604,7 @@ describe("App shell and search", () => {
     ).toBe(false)
   })
 
-  it("opening a newly added sectioned word hides duplicate header translation and surface translations", async () => {
+  it("opening a newly added sectioned word keeps translation on the lemma and badges on the surface row only", async () => {
     mockFetchImplementation({
       lemmasResponse: { items: [] },
       searchWordbankResponse: { items: [] },
@@ -1661,7 +1661,18 @@ describe("App shell and search", () => {
             english_translation: "teacher",
             pos_tag: "NOUN",
             morphology: "Gender=Com|Number=Sing|Definite=Ind",
-            surface_forms: [{ form: "lærere", english_translation: null, has_pronunciation: false }],
+            surface_forms: [
+              {
+                form: "lærere",
+                english_translation: null,
+                gloss: "teacher",
+                gloss_translation: "teacher",
+                pos_tag: "NOUN",
+                morphology: "Gender=Com|Number=Plur|Definite=Ind",
+                gram_raw: "sb.fk.pl.ubest",
+                has_pronunciation: false,
+              },
+            ],
           },
         ],
         surface_forms: [],
@@ -1683,7 +1694,9 @@ describe("App shell and search", () => {
     })
     expect(await screen.findByRole("heading", { name: /^lærer$/i })).toBeInTheDocument()
     expect(screen.getByText(/^lærere$/i)).toBeInTheDocument()
+    expect(screen.queryByTestId("wordbank-lemma-header-badges")).not.toBeInTheDocument()
     expect(screen.getAllByText(/^teacher$/i)).toHaveLength(1)
+    expect(screen.getByText(/^Plural$/i)).toBeInTheDocument()
     expect(screen.queryByText(/^No translation available\.$/i)).not.toBeInTheDocument()
   })
 
