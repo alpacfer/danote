@@ -4,7 +4,9 @@ from dataclasses import dataclass
 from typing import Literal
 
 from app.api.schemas.v1.wordbank import AddWordResponse
+from app.services.gemini_translation import ContextualWordTranslationInput
 from app.services.token_classifier import normalize_token
+from app.services.use_cases.wordbank.collaborators.translation import TranslationLookupResult
 from app.services.use_cases.wordbank.runtime import WordbankRuntime
 
 
@@ -25,6 +27,21 @@ class _WordMetadata:
 
 
 @dataclass(frozen=True, slots=True)
+class _ContextualTranslationTarget:
+    id: Literal["lemma", "surface"]
+    surface_form: str
+    lemma: str
+    preferred_pos_tag: str | None
+    preferred_morphology: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class _TranslationSelection:
+    lemma: TranslationLookupResult
+    surface: TranslationLookupResult
+
+
+@dataclass(frozen=True, slots=True)
 class _AddWordWriteResult:
     inserted_lexeme: bool
     inserted_surface_form: bool
@@ -33,6 +50,9 @@ class _AddWordWriteResult:
     @property
     def inserted_any(self) -> bool:
         return self.inserted_lexeme or self.inserted_surface_form or self.inserted_lemma_surface_form
+
+
+_NO_TRANSLATION = TranslationLookupResult(translation=None, provider=None)
 
 
 def add_word(
@@ -44,8 +64,9 @@ def add_word(
     morphology: str | None = None,
 ) -> AddWordResponse:
     inputs = _normalize_add_word_inputs(runtime, surface_token, lemma_candidate, pos_tag, morphology)
-    lemma_metadata = _build_lemma_metadata(runtime, inputs)
-    surface_metadata = _build_surface_metadata(runtime, inputs)
+    translations = _lookup_word_translations(runtime, inputs)
+    lemma_metadata = _build_lemma_metadata(runtime, inputs, translations.lemma)
+    surface_metadata = _build_surface_metadata(runtime, inputs, translations.surface)
     lexeme_id, inserted_lexeme = runtime.repository.insert_or_load_lexeme(
         stored_lemma=inputs.stored_lemma,
         translation=lemma_metadata.translation,
@@ -114,8 +135,11 @@ def _normalize_add_word_inputs(
     )
 
 
-def _build_lemma_metadata(runtime: WordbankRuntime, inputs: _AddWordInputs) -> _WordMetadata:
-    translation_result = runtime.translation.lookup_word_translation(inputs.stored_lemma, inputs.stored_lemma)
+def _build_lemma_metadata(
+    runtime: WordbankRuntime,
+    inputs: _AddWordInputs,
+    translation_result: TranslationLookupResult,
+) -> _WordMetadata:
     pos_tag, morphology = runtime.nlp.extract_pos_and_morphology(
         inputs.stored_lemma,
         preferred_pos_tag=inputs.selected_pos_tag,
@@ -132,13 +156,13 @@ def _build_lemma_metadata(runtime: WordbankRuntime, inputs: _AddWordInputs) -> _
     )
 
 
-def _build_surface_metadata(runtime: WordbankRuntime, inputs: _AddWordInputs) -> _WordMetadata:
+def _build_surface_metadata(
+    runtime: WordbankRuntime,
+    inputs: _AddWordInputs,
+    translation_result: TranslationLookupResult,
+) -> _WordMetadata:
     if not inputs.normalized_surface:
         return _WordMetadata(translation=None, provider=None, pos_tag=None, morphology=None)
-    translation_result = runtime.translation.lookup_word_translation(
-        inputs.normalized_surface,
-        inputs.stored_lemma,
-    )
     if inputs.selected_pos_tag is not None or inputs.selected_morphology is not None:
         return _WordMetadata(
             translation=translation_result.translation,
@@ -211,4 +235,122 @@ def _insert_or_update_surface_form(
         provider=provider,
         pos_tag=metadata.pos_tag,
         morphology=metadata.morphology,
+    )
+
+
+def _lookup_word_translations(
+    runtime: WordbankRuntime,
+    inputs: _AddWordInputs,
+) -> _TranslationSelection:
+    targets: list[_ContextualTranslationTarget] = [
+        _ContextualTranslationTarget(
+            id="lemma",
+            surface_form=inputs.stored_lemma,
+            lemma=inputs.stored_lemma,
+            preferred_pos_tag=inputs.selected_pos_tag,
+            preferred_morphology=inputs.selected_morphology,
+        )
+    ]
+    if inputs.normalized_surface:
+        targets.append(
+            _ContextualTranslationTarget(
+                id="surface",
+                surface_form=inputs.normalized_surface,
+                lemma=inputs.stored_lemma,
+                preferred_pos_tag=inputs.selected_pos_tag,
+                preferred_morphology=inputs.selected_morphology,
+            )
+        )
+
+    contextual_results = _batch_lookup_contextual_translations(runtime, targets)
+    resolved: dict[str, TranslationLookupResult] = {}
+    for target in targets:
+        contextual = contextual_results.get(target.id, _NO_TRANSLATION)
+        resolved[target.id] = _resolve_translation_with_fallback(runtime, target, contextual)
+
+    return _TranslationSelection(
+        lemma=resolved.get("lemma", _NO_TRANSLATION),
+        surface=resolved.get("surface", _NO_TRANSLATION),
+    )
+
+
+def _batch_lookup_contextual_translations(
+    runtime: WordbankRuntime,
+    targets: list[_ContextualTranslationTarget],
+) -> dict[str, TranslationLookupResult]:
+    if not targets:
+        return {}
+
+    payloads_by_key: dict[
+        tuple[str, str, str | None, str | None, str | None, str | None, str | None],
+        ContextualWordTranslationInput,
+    ] = {}
+    target_key_by_id: dict[str, tuple[str, str, str | None, str | None, str | None, str | None, str | None]] = {}
+    for target in targets:
+        payload = _build_contextual_payload(runtime, target)
+        cache_key = runtime.translation.contextual_translation_cache_key(payload)
+        target_key_by_id[target.id] = cache_key
+        if cache_key not in payloads_by_key:
+            payloads_by_key[cache_key] = payload
+
+    payloads = list(payloads_by_key.values())
+    contextual_results = runtime.translation.batch_lookup_contextual_word_translations(payloads)
+    result_by_key: dict[
+        tuple[str, str, str | None, str | None, str | None, str | None, str | None],
+        TranslationLookupResult,
+    ] = {}
+    for key, result in zip(payloads_by_key.keys(), contextual_results, strict=False):
+        result_by_key[key] = result
+
+    by_target: dict[str, TranslationLookupResult] = {}
+    for target_id, cache_key in target_key_by_id.items():
+        by_target[target_id] = result_by_key.get(cache_key, _NO_TRANSLATION)
+    return by_target
+
+
+def _build_contextual_payload(
+    runtime: WordbankRuntime,
+    target: _ContextualTranslationTarget,
+) -> ContextualWordTranslationInput:
+    cor_entry = runtime.cor.best_cor_local_entry_for_form(
+        form=target.surface_form,
+        lemma=target.lemma,
+        preferred_pos_tag=target.preferred_pos_tag,
+    )
+    if cor_entry is None:
+        return ContextualWordTranslationInput(
+            surface_form=target.surface_form,
+            lemma=target.lemma,
+            pos_tag=target.preferred_pos_tag,
+            morphology=target.preferred_morphology,
+            gloss=None,
+        )
+    return ContextualWordTranslationInput(
+        surface_form=target.surface_form,
+        lemma=target.lemma,
+        pos_tag=target.preferred_pos_tag or cor_entry.pos_tag,
+        morphology=target.preferred_morphology or cor_entry.morphology,
+        gloss=normalize_token(cor_entry.gloss or "") or None,
+    )
+
+
+def _resolve_translation_with_fallback(
+    runtime: WordbankRuntime,
+    target: _ContextualTranslationTarget,
+    contextual: TranslationLookupResult,
+) -> TranslationLookupResult:
+    if contextual.translation:
+        return contextual
+
+    translated = runtime.translation.lookup_translation(target.surface_form)
+    if (
+        translated
+        and " " not in target.surface_form
+        and runtime.translation.normalize_comparable(translated)
+        == runtime.translation.normalize_comparable(target.surface_form)
+    ):
+        return _NO_TRANSLATION
+    return TranslationLookupResult(
+        translation=translated,
+        provider=runtime.translation.provider_name() if translated else None,
     )

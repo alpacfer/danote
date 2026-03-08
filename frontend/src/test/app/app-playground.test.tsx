@@ -631,7 +631,7 @@ describe("App playground", () => {
     expect(within(popoverContent as HTMLElement).getByTestId("noun-translation-skeleton")).toBeInTheDocument()
   })
 
-  it("retries noun translation once when first response is unavailable", async () => {
+  it("does not retry noun translation when first response is unavailable", async () => {
     vi.useRealTimers()
     let translationCalls = 0
 
@@ -651,19 +651,11 @@ describe("App playground", () => {
       ],
       translationHandler: async () => {
         translationCalls += 1
-        if (translationCalls === 1) {
-          return responseOf({
-            status: "unavailable",
-            source_word: "hus",
-            lemma: "hus",
-            english_translation: null,
-          })
-        }
         return responseOf({
-          status: "generated",
+          status: "unavailable",
           source_word: "hus",
           lemma: "hus",
-          english_translation: "house",
+          english_translation: null,
         })
       },
     })
@@ -681,8 +673,11 @@ describe("App playground", () => {
     expect(mark).toBeInTheDocument()
     fireEvent.click(mark as HTMLElement, { clientX: 180, clientY: 160 })
 
-    expect(await screen.findByText(/^house$/i)).toBeInTheDocument()
-    expect(translationCalls).toBe(2)
+    const addButton = await screen.findByRole("button", { name: /add to wordbank/i })
+    const popoverContent = addButton.closest('[data-slot="popover-content"]')
+    expect(popoverContent).not.toBeNull()
+    expect(within(popoverContent as HTMLElement).queryByText(/^house$/i)).not.toBeInTheDocument()
+    expect(translationCalls).toBe(1)
   })
 
   it("verb popover shows infinitive subtitle and present form in the title", async () => {
@@ -1072,7 +1067,7 @@ describe("App playground", () => {
   })
 
   it("adjective popover shows gender and number with translation", async () => {
-    mockFetchImplementation({
+    const fetchSpy = mockFetchImplementation({
       analyzeTokens: [
         {
           surface_token: "stor",
@@ -1110,6 +1105,10 @@ describe("App playground", () => {
     expect(await screen.findByText(/^Common$/i)).toBeInTheDocument()
     expect(await screen.findByText(/^Plural$/i)).toBeInTheDocument()
     expect(await screen.findByText(/^big$/i)).toBeInTheDocument()
+    const translationCalls = fetchSpy.mock.calls.filter(([input]) =>
+      String(input).endsWith("/api/wordbank/translation"),
+    )
+    expect(translationCalls).toHaveLength(1)
   })
 
   it("aux popover follows verb layout and shows translation", async () => {

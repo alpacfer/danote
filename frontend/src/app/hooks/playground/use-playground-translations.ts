@@ -72,28 +72,15 @@ export function usePlaygroundTranslations({
     setIsGeneratingTranslation(true)
     setGenerateTranslationError(null)
     try {
-      let payload: GenerateTranslationResponse | null = null
-      let translation: string | null = null
-      for (let attempt = 0; attempt < 2; attempt += 1) {
-        const nextPayload = await apiClient.postJson<GenerateTranslationResponse>(
-          "/api/wordbank/translation",
-          {
-            surface_token: requestSurface,
-            lemma_candidate: requestLemma,
-          },
-          "Could not generate translation.",
-        )
-        const nextTranslation = nextPayload.english_translation?.trim() || null
-        payload = nextPayload
-        translation = nextTranslation
-        if (nextTranslation) {
-          break
-        }
-      }
-
-      if (!payload) {
-        return
-      }
+      const payload = await apiClient.postJson<GenerateTranslationResponse>(
+        "/api/wordbank/translation",
+        {
+          surface_token: requestSurface,
+          lemma_candidate: requestLemma,
+        },
+        "Could not generate translation.",
+      )
+      const translation = payload.english_translation?.trim() || null
 
       const responseKey = normalizeWordKey(payload.source_word || sourceWord)
 

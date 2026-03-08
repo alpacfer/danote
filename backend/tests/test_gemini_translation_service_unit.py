@@ -33,6 +33,17 @@ class _FakeClient:
         self.models = _FakeModels(sequence)
 
 
+def _schema_to_dict(schema: object) -> dict[str, object]:
+    if isinstance(schema, dict):
+        return schema
+    dump = getattr(schema, "model_dump", None)
+    if callable(dump):
+        dumped = dump(exclude_none=True)
+        if isinstance(dumped, dict):
+            return dumped
+    return {}
+
+
 def test_gemini_word_translation_service_parses_json_response(monkeypatch) -> None:
     service = GeminiFlashLiteWordTranslationService(api_key="test-key")
     fake_client = _FakeClient([_FakeResponse('{"translation":"the book"}')])
@@ -115,6 +126,22 @@ def test_gemini_word_translation_service_parses_structured_batch_response(monkey
     assert fake_client.models.calls[0]["config"] is not None
 
 
+def test_gemini_word_translation_service_uses_nullable_batch_schema() -> None:
+    service = GeminiFlashLiteWordTranslationService(api_key="test-key")
+
+    config = service._batch_response_config(item_count=2)
+    schema = _schema_to_dict(getattr(config, "response_schema", {}))
+    translation_schema = (
+        schema.get("properties", {})
+        .get("items", {})
+        .get("items", {})
+        .get("properties", {})
+        .get("translation", {})
+    )
+    assert str(translation_schema.get("type", "")).upper().endswith("STRING")
+    assert translation_schema.get("nullable") is True
+
+
 def test_gemini_word_translation_service_parses_fenced_batch_json_response(monkeypatch) -> None:
     service = GeminiFlashLiteWordTranslationService(api_key="test-key")
     monkeypatch.setattr(
@@ -158,6 +185,42 @@ def test_gemini_word_translation_service_retries_then_raises(monkeypatch) -> Non
         )
 
 
+def test_gemini_word_translation_service_does_not_retry_on_validation_errors(monkeypatch) -> None:
+    service = GeminiFlashLiteWordTranslationService(api_key="test-key", max_retries=1)
+    fake_client = _FakeClient([ValueError("schema validation failed"), _FakeResponse('{"translation":"book"}')])
+    monkeypatch.setattr(service, "_ensure_client", lambda: fake_client)
+    monkeypatch.setattr("app.services.gemini_translation.time.sleep", lambda _seconds: None)
+
+    with pytest.raises(GeminiTranslationError):
+        service.translate_word(
+            ContextualWordTranslationInput(
+                surface_form="bogen",
+                lemma="bog",
+                gloss="book",
+            )
+        )
+
+    assert len(fake_client.models.calls) == 1
+
+
+def test_gemini_word_translation_service_retries_on_transient_errors(monkeypatch) -> None:
+    service = GeminiFlashLiteWordTranslationService(api_key="test-key", max_retries=1)
+    fake_client = _FakeClient([RuntimeError("429 rate limit"), _FakeResponse('{"translation":"book"}')])
+    monkeypatch.setattr(service, "_ensure_client", lambda: fake_client)
+    monkeypatch.setattr("app.services.gemini_translation.time.sleep", lambda _seconds: None)
+
+    translated = service.translate_word(
+        ContextualWordTranslationInput(
+            surface_form="bogen",
+            lemma="bog",
+            gloss="book",
+        )
+    )
+
+    assert translated == "book"
+    assert len(fake_client.models.calls) == 2
+
+
 def test_gemini_word_translation_service_batch_retries_then_raises(monkeypatch) -> None:
     service = GeminiFlashLiteWordTranslationService(api_key="test-key", max_retries=1)
     monkeypatch.setattr(
@@ -177,3 +240,31 @@ def test_gemini_word_translation_service_batch_retries_then_raises(monkeypatch) 
                 )
             ]
         )
+
+
+def test_gemini_word_translation_service_sets_client_timeout(monkeypatch) -> None:
+    from google import genai
+
+    captured: dict[str, object] = {}
+
+    class _StubClient:
+        def __init__(self, *, api_key: str, http_options):
+            captured["api_key"] = api_key
+            captured["http_options"] = http_options
+            self.models = _FakeModels([_FakeResponse('{"translation":"book"}')])
+
+    monkeypatch.setattr(genai, "Client", _StubClient)
+    service = GeminiFlashLiteWordTranslationService(api_key="test-key", timeout_seconds=7.5)
+
+    translated = service.translate_word(
+        ContextualWordTranslationInput(
+            surface_form="bogen",
+            lemma="bog",
+            gloss="book",
+        )
+    )
+
+    timeout = getattr(captured.get("http_options"), "timeout", None)
+    assert translated == "book"
+    assert captured["api_key"] == "test-key"
+    assert timeout == 8

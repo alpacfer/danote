@@ -293,12 +293,6 @@ class TranslationCollaborator:
             and " " not in normalized_source
             and self.normalize_comparable(translated) == self.normalize_comparable(normalized_source)
         ):
-            fallback = self.lookup_contextual_word_translation(
-                surface_form=normalized_source,
-                lemma=normalized_lemma,
-            )
-            if fallback.translation:
-                return fallback
             return TranslationLookupResult(translation=None, provider=None)
         return TranslationLookupResult(
             translation=translated,
@@ -424,7 +418,8 @@ class TranslationCollaborator:
             translated = [None] * len(payloads)
 
         results: list[TranslationLookupResult] = []
-        for payload, value in zip(payloads, translated, strict=False):
+        for index, payload in enumerate(payloads):
+            value = translated[index] if index < len(translated) else None
             normalized = self.normalize_translation_value(value)
             if cache is not None:
                 cache[self.contextual_translation_cache_key(payload)] = normalized
@@ -435,12 +430,6 @@ class TranslationCollaborator:
                 )
             )
 
-        if len(results) < len(payloads):
-            missing_count = len(payloads) - len(results)
-            results.extend(
-                TranslationLookupResult(translation=None, provider=self.contextual_provider_name())
-                for _ in range(missing_count)
-            )
         return results
 
     def lookup_contextual_word_translation_from_payload(

@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import json
+import math
 from dataclasses import asdict, dataclass, field
 import time
 from typing import Protocol
+
 
 class GeminiTranslationError(RuntimeError):
     """Raised when Gemini word translation cannot be completed."""
@@ -82,7 +84,11 @@ class GeminiFlashLiteWordTranslationService:
                 raise GeminiTranslationError(
                     "google-genai package is required for Gemini word translation."
                 ) from exc
-            self._client = genai.Client(api_key=self.api_key)
+            genai_types = self._genai_types()
+            self._client = genai.Client(
+                api_key=self.api_key,
+                http_options=genai_types.HttpOptions(timeout=max(1, math.ceil(self.timeout_seconds))),
+            )
         return self._client
 
     def close(self) -> None:
@@ -115,7 +121,7 @@ class GeminiFlashLiteWordTranslationService:
         prompt = self._batch_translation_prompt(request_items)
         response = self._generate_content(
             prompt,
-            config=self._batch_response_config(),
+            config=self._batch_response_config(item_count=len(request_items)),
         )
         parsed = self._parse_batch_translations(response, expected_ids=[item.id for item in request_items])
         by_id = {item.id: item.translation for item in parsed.items}
@@ -180,25 +186,43 @@ class GeminiFlashLiteWordTranslationService:
             f"Items:\n{json.dumps([asdict(item) for item in items], ensure_ascii=False)}"
         )
 
-    def _batch_response_config(self):
-        try:
-            from google.genai import types as genai_types  # type: ignore import-not-found
-        except ImportError as exc:
-            raise GeminiTranslationError(
-                "google-genai package is required for Gemini word translation."
-            ) from exc
+    def _single_response_config(self) -> object:
+        genai_types = self._genai_types()
         return genai_types.GenerateContentConfig(
             response_mime_type="application/json",
             response_schema={
-                "type": "object",
+                "type": "OBJECT",
+                "properties": {
+                    "translation": {
+                        "type": "STRING",
+                        "nullable": True,
+                    },
+                },
+                "required": ["translation"],
+            },
+            temperature=0,
+            max_output_tokens=64,
+            thinking_config=genai_types.ThinkingConfig(thinking_budget=0),
+        )
+
+    def _batch_response_config(self, *, item_count: int) -> object:
+        genai_types = self._genai_types()
+        max_output_tokens = min(2048, max(128, item_count * 48))
+        return genai_types.GenerateContentConfig(
+            response_mime_type="application/json",
+            response_schema={
+                "type": "OBJECT",
                 "properties": {
                     "items": {
-                        "type": "array",
+                        "type": "ARRAY",
                         "items": {
-                            "type": "object",
+                            "type": "OBJECT",
                             "properties": {
-                                "id": {"type": "string"},
-                                "translation": {"type": ["string", "null"]},
+                                "id": {"type": "STRING"},
+                                "translation": {
+                                    "type": "STRING",
+                                    "nullable": True,
+                                },
                             },
                             "required": ["id", "translation"],
                         },
@@ -206,10 +230,16 @@ class GeminiFlashLiteWordTranslationService:
                 },
                 "required": ["items"],
             },
+            temperature=0,
+            max_output_tokens=max_output_tokens,
+            thinking_config=genai_types.ThinkingConfig(thinking_budget=0),
         )
 
     def _generate_text(self, prompt: str) -> str | None:
-        response = self._generate_content(prompt)
+        response = self._generate_content(
+            prompt,
+            config=self._single_response_config(),
+        )
         text = getattr(response, "text", None)
         cleaned = text.strip() if isinstance(text, str) else ""
         return cleaned or None
@@ -225,13 +255,58 @@ class GeminiFlashLiteWordTranslationService:
                     config=config,
                 )
             except Exception as exc:
-                if attempt < self.max_retries:
+                if attempt < self.max_retries and self._is_retryable_exception(exc):
                     delay = self.backoff_seconds * (2**attempt)
                     if delay > 0:
                         time.sleep(delay)
                     continue
                 raise GeminiTranslationError(f"Gemini word translation request failed: {exc}") from exc
         raise GeminiTranslationError("Gemini word translation request failed after retries.")
+
+    def _genai_types(self):
+        try:
+            from google.genai import types as genai_types  # type: ignore import-not-found
+        except ImportError as exc:
+            raise GeminiTranslationError(
+                "google-genai package is required for Gemini word translation."
+            ) from exc
+        return genai_types
+
+    @staticmethod
+    def _is_retryable_exception(exc: Exception) -> bool:
+        # Retry only transient transport/rate-limit failures, not local config/validation errors.
+        if isinstance(exc, (ImportError, ModuleNotFoundError, ValueError, TypeError, AttributeError)):
+            return False
+        status_code = GeminiFlashLiteWordTranslationService._exception_status_code(exc)
+        if isinstance(status_code, int):
+            return status_code in {408, 429, 500, 502, 503, 504}
+        message = str(exc).lower()
+        return any(
+            token in message
+            for token in (
+                "timeout",
+                "timed out",
+                "connection reset",
+                "connection aborted",
+                "temporarily unavailable",
+                "service unavailable",
+                "rate limit",
+                "429",
+            )
+        )
+
+    @staticmethod
+    def _exception_status_code(exc: Exception) -> int | None:
+        for candidate in (exc, getattr(exc, "response", None), getattr(exc, "cause", None)):
+            if candidate is None:
+                continue
+            status_code = getattr(candidate, "status_code", None)
+            if isinstance(status_code, int):
+                return status_code
+            code = getattr(candidate, "code", None)
+            if isinstance(code, int):
+                return code
+        return None
 
     def _parse_translation(self, raw: str | None) -> str | None:
         if not raw:

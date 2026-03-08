@@ -236,7 +236,7 @@ def lookup_translation_for_cor_gloss(
         lemma_translation,
         None,
     )
-    if cache is not None and fallback_cache_key in cache:
+    if cache is not None and fallback_cache_key in cache and cache[fallback_cache_key] is not None:
         return cache[fallback_cache_key]
 
     def _lookup(text: str) -> str | None:
@@ -337,7 +337,7 @@ def _prime_cor_form_contextual_translations(
     requests_by_key = _collect_gemini_batch_requests(entries, translation, cache, lemma_cache)
     if not requests_by_key:
         return
-    _run_gemini_batch_with_retries(translation, list(requests_by_key.values()), cache)
+    _run_gemini_batch(translation, list(requests_by_key.values()), cache)
 
 
 def _prime_azure_lemma_translations(
@@ -399,7 +399,7 @@ def _collect_gemini_batch_requests(
     return requests_by_key
 
 
-def _run_gemini_batch_with_retries(
+def _run_gemini_batch(
     translation: TranslationCollaborator,
     requests: list[_BatchContextualRequest],
     cache: dict[_ContextualCacheKey, str | None],
@@ -409,23 +409,18 @@ def _run_gemini_batch_with_retries(
         [request.payload for request in requests],
         cache=cache,
     )
-    retry_single_count = 0
-    for request, result in zip(requests, batch_results, strict=False):
-        if result.translation is not None:
-            continue
-        retry_single_count += 1
-        cache.pop(request.cache_key, None)
-        translation.lookup_contextual_word_translation_from_payload(
-            request.payload,
-            cache=cache,
-        )
+    unresolved_count = sum(
+        1
+        for request, result in zip(requests, batch_results, strict=False)
+        if result.translation is None and cache.get(request.cache_key) is None
+    )
 
     logger.info(
         "wordbank_cor_form_batch_translations",
         extra={
             "batch_size": len(requests),
             "batch_latency_seconds": round(time.perf_counter() - started_at, 4),
-            "retry_single_count": retry_single_count,
+            "unresolved_count": unresolved_count,
         },
     )
 

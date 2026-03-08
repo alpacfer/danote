@@ -6,6 +6,7 @@ from typing import Literal
 from app.api.schemas.v1.wordbank import WordActionSuggestion
 from app.db.migrations import get_connection
 from app.services.cor import COREntry
+from app.services.gemini_translation import ContextualWordTranslationInput
 from app.services.token_classifier import normalize_token
 from app.services.use_cases.wordbank.collaborators.cor_azure_frames import (
     azure_framed_translation_for_comparison,
@@ -136,17 +137,20 @@ def build_cor_add_options(
             by_pos[key] = entry
 
     options: list[_CORAddOption] = []
-    for entry in sorted(
+    sorted_entries = sorted(
         by_pos.values(),
         key=lambda item: _cor_entry_priority(item, normalized_query),
-    ):
-        translation_label = None
-        if include_translations:
-            translation_label = lookup_translation_for_cor_entry(
-                translation,
-                entry,
-                normalized_query,
-            )
+    )
+    translation_labels: list[str | None] = []
+    if include_translations:
+        translation_labels = _lookup_translation_labels_for_cor_entries(
+            translation,
+            sorted_entries,
+            normalized_query,
+        )
+
+    for index, entry in enumerate(sorted_entries):
+        translation_label = translation_labels[index] if index < len(translation_labels) else None
         options.append(
             _CORAddOption(
                 surface=normalized_query,
@@ -160,21 +164,46 @@ def build_cor_add_options(
     return options
 
 
+def _lookup_translation_labels_for_cor_entries(
+    translation: TranslationCollaborator,
+    entries: list[COREntry],
+    normalized_query: str,
+) -> list[str | None]:
+    if not entries:
+        return []
+    payloads = [
+        ContextualWordTranslationInput(
+            surface_form=normalized_query,
+            lemma=entry.lemma,
+            pos_tag=entry.pos_tag,
+            morphology=entry.morphology,
+            gloss=normalize_token(entry.glosse or "") or None,
+        )
+        for entry in entries
+    ]
+    contextual_results = translation.batch_lookup_contextual_word_translations(payloads)
+    labels: list[str | None] = []
+    for entry, contextual in zip(entries, contextual_results, strict=False):
+        if contextual.translation:
+            labels.append(contextual.translation)
+            continue
+        labels.append(
+            lookup_translation_for_cor_entry(
+                translation,
+                entry,
+                normalized_query,
+            )
+        )
+    if len(labels) < len(entries):
+        labels.extend([None] * (len(entries) - len(labels)))
+    return labels
+
+
 def lookup_translation_for_cor_entry(
     translation: TranslationCollaborator,
     entry: COREntry,
     normalized_query: str,
 ) -> str | None:
-    contextual = translation.lookup_contextual_word_translation(
-        surface_form=normalized_query,
-        lemma=entry.lemma,
-        pos_tag=entry.pos_tag,
-        morphology=entry.morphology,
-        gloss=normalize_token(entry.glosse or ""),
-    )
-    if contextual.translation:
-        return contextual.translation
-
     frame = cor_entry_azure_frame(entry)
     candidates: list[str] = [frame.text]
     candidates.append(entry.lemma)
