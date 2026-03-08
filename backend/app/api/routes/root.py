@@ -39,6 +39,12 @@ def health(request: Request) -> HealthResponse:
         if not translation_enabled
         else "ok" if translation_service is not None else "degraded"
     )
+    gemini_key = runtime_api_keys.get("gemini_api_key") or getattr(settings, "gemini_api_key", "")
+    gemini_key_configured = bool(str(gemini_key or "").strip())
+    gemini_word_translation_service = services.gemini_word_translation_service
+    gemini_word_translation_error = runtime.gemini_word_translation_error
+    gemini_verification_service = services.word_verification_service
+    gemini_verification_error = runtime.word_verification_error
 
     tts_enabled = bool(getattr(settings, "tts_enabled", False))
     tts_service = services.tts_service
@@ -142,6 +148,20 @@ def health(request: Request) -> HealthResponse:
                 disabled_message="Text-to-speech is disabled.",
                 missing_key_message="Missing DANOTE_TTS_AZURE_API_KEY or DANOTE_TTS_AZURE_REGION.",
             ),
+            "gemini": {
+                "status": (
+                    "ok"
+                    if gemini_word_translation_service is not None or gemini_verification_service is not None
+                    else "missing_key" if not gemini_key_configured else "degraded"
+                ),
+                "active": gemini_word_translation_service is not None or gemini_verification_service is not None,
+                "configured": gemini_key_configured,
+                "message": (
+                    None
+                    if gemini_word_translation_service is not None or gemini_verification_service is not None
+                    else gemini_word_translation_error or gemini_verification_error or "Missing DANOTE_GEMINI_API_KEY."
+                ),
+            },
         },
     }
 

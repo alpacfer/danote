@@ -260,6 +260,16 @@ export type DeveloperApiKeysUpdateResponse = {
   configured: Record<string, boolean>
 }
 
+export type DeveloperServiceProbeResponse = {
+  status: string
+  probe_input: string
+  result_text: string | null
+  provider: string | null
+  message: string
+}
+
+export type GeminiProbeResponse = DeveloperServiceProbeResponse
+
 export type TokenFeedbackPayload = {
   raw_token: string
   predicted_status: string

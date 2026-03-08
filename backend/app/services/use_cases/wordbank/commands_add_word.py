@@ -19,6 +19,7 @@ class _AddWordInputs:
 @dataclass(frozen=True, slots=True)
 class _WordMetadata:
     translation: str | None
+    provider: str | None
     pos_tag: str | None
     morphology: str | None
 
@@ -45,12 +46,10 @@ def add_word(
     inputs = _normalize_add_word_inputs(runtime, surface_token, lemma_candidate, pos_tag, morphology)
     lemma_metadata = _build_lemma_metadata(runtime, inputs)
     surface_metadata = _build_surface_metadata(runtime, inputs)
-    provider = runtime.translation.provider_name()
-
     lexeme_id, inserted_lexeme = runtime.repository.insert_or_load_lexeme(
         stored_lemma=inputs.stored_lemma,
         translation=lemma_metadata.translation,
-        provider=provider,
+        provider=lemma_metadata.provider,
         pos_tag=lemma_metadata.pos_tag,
         morphology=lemma_metadata.morphology,
     )
@@ -59,14 +58,14 @@ def add_word(
         lexeme_id=lexeme_id,
         inputs=inputs,
         metadata=lemma_metadata,
-        provider=provider,
+        provider=lemma_metadata.provider,
     )
     inserted_surface_form = _sync_surface_form(
         runtime,
         lexeme_id=lexeme_id,
         inputs=inputs,
         metadata=surface_metadata,
-        provider=provider,
+        provider=surface_metadata.provider,
     )
 
     runtime.nlp.invalidate_pos_cache(inputs.stored_lemma, inputs.normalized_surface or None)
@@ -116,7 +115,7 @@ def _normalize_add_word_inputs(
 
 
 def _build_lemma_metadata(runtime: WordbankRuntime, inputs: _AddWordInputs) -> _WordMetadata:
-    translation = runtime.translation.lookup_translation(inputs.stored_lemma)
+    translation_result = runtime.translation.lookup_word_translation(inputs.stored_lemma, inputs.stored_lemma)
     pos_tag, morphology = runtime.nlp.extract_pos_and_morphology(
         inputs.stored_lemma,
         preferred_pos_tag=inputs.selected_pos_tag,
@@ -125,16 +124,25 @@ def _build_lemma_metadata(runtime: WordbankRuntime, inputs: _AddWordInputs) -> _
         pos_tag = inputs.selected_pos_tag
     if morphology is None and inputs.selected_morphology is not None:
         morphology = inputs.selected_morphology
-    return _WordMetadata(translation=translation, pos_tag=pos_tag, morphology=morphology)
+    return _WordMetadata(
+        translation=translation_result.translation,
+        provider=translation_result.provider,
+        pos_tag=pos_tag,
+        morphology=morphology,
+    )
 
 
 def _build_surface_metadata(runtime: WordbankRuntime, inputs: _AddWordInputs) -> _WordMetadata:
     if not inputs.normalized_surface:
-        return _WordMetadata(translation=None, pos_tag=None, morphology=None)
-    translation = runtime.translation.lookup_translation(inputs.normalized_surface)
+        return _WordMetadata(translation=None, provider=None, pos_tag=None, morphology=None)
+    translation_result = runtime.translation.lookup_word_translation(
+        inputs.normalized_surface,
+        inputs.stored_lemma,
+    )
     if inputs.selected_pos_tag is not None or inputs.selected_morphology is not None:
         return _WordMetadata(
-            translation=translation,
+            translation=translation_result.translation,
+            provider=translation_result.provider,
             pos_tag=inputs.selected_pos_tag,
             morphology=inputs.selected_morphology,
         )
@@ -142,7 +150,12 @@ def _build_surface_metadata(runtime: WordbankRuntime, inputs: _AddWordInputs) ->
         inputs.normalized_surface,
         preferred_pos_tag=inputs.selected_pos_tag,
     )
-    return _WordMetadata(translation=translation, pos_tag=pos_tag, morphology=morphology)
+    return _WordMetadata(
+        translation=translation_result.translation,
+        provider=translation_result.provider,
+        pos_tag=pos_tag,
+        morphology=morphology,
+    )
 
 
 def _sync_lemma_surface_form(

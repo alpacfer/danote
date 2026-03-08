@@ -5,6 +5,7 @@ from pathlib import Path
 from fastapi import FastAPI
 
 from app.bootstrap.runtime import build_startup_steps
+from app.bootstrap.runtime_gemini_word_translation import initialize_gemini_word_translation
 from app.bootstrap.runtime_translation import initialize_translation
 from app.bootstrap.runtime_tts import initialize_tts
 from app.bootstrap.runtime_word_verification import initialize_word_verification
@@ -33,6 +34,7 @@ def test_build_startup_steps_registers_expected_sequence(stub_nlp_adapter_factor
         "cor",
         "typo",
         "translation",
+        "gemini_word_translation",
         "word_verification",
         "tts",
     ]
@@ -90,6 +92,35 @@ def test_initialize_tts_disabled_leaves_service_unset(tmp_path: Path) -> None:
     assert runtime.services.tts_service is None
 
 
+def test_initialize_gemini_word_translation_uses_shared_gemini_settings(monkeypatch, tmp_path: Path) -> None:
+    app = FastAPI()
+    settings = _settings(tmp_path, gemini_api_key="shared-key", gemini_model="gemini-3.1-flash-lite-preview")
+    init_app_state(app, settings)
+
+    class StubGeminiWordTranslationService:
+        provider = "gemini_word_translation"
+
+        def __init__(self, api_key: str, model: str):
+            self.api_key = api_key
+            self.model = model
+
+        def close(self) -> None:
+            return None
+
+    monkeypatch.setattr(
+        "app.bootstrap.runtime_gemini_word_translation.GeminiFlashLiteWordTranslationService",
+        StubGeminiWordTranslationService,
+    )
+
+    initialize_gemini_word_translation(app, settings)
+
+    runtime = get_runtime_state(app)
+    assert runtime.gemini_word_translation_error is None
+    assert runtime.services.gemini_word_translation_service is not None
+    assert runtime.services.gemini_word_translation_service.api_key == "shared-key"
+    assert runtime.services.gemini_word_translation_service.model == "gemini-3.1-flash-lite-preview"
+
+
 def test_initialize_word_verification_missing_key_sets_runtime_error(tmp_path: Path) -> None:
     app = FastAPI()
     settings = _settings(
@@ -104,3 +135,36 @@ def test_initialize_word_verification_missing_key_sets_runtime_error(tmp_path: P
     runtime = get_runtime_state(app)
     assert runtime.services.word_verification_service is None
     assert runtime.word_verification_error == "Missing DANOTE_WORD_VERIFICATION_GEMINI_API_KEY."
+
+
+def test_initialize_word_verification_falls_back_to_shared_gemini_key(monkeypatch, tmp_path: Path) -> None:
+    app = FastAPI()
+    settings = _settings(
+        tmp_path,
+        gemini_api_key="shared-key",
+        gemini_model="gemini-3.1-flash-lite-preview",
+        word_verification_enabled=True,
+        word_verification_gemini_api_key=None,
+        word_verification_gemini_model="gemini-3.1-flash-lite-preview",
+    )
+    init_app_state(app, settings)
+
+    class StubVerificationService:
+        provider = "gemini"
+
+        def __init__(self, api_key: str, model: str):
+            self.api_key = api_key
+            self.model = model
+
+        def close(self) -> None:
+            return None
+
+    monkeypatch.setattr("app.bootstrap.runtime_word_verification.GeminiWordVerificationService", StubVerificationService)
+
+    initialize_word_verification(app, settings)
+
+    runtime = get_runtime_state(app)
+    assert runtime.word_verification_error is None
+    assert runtime.services.word_verification_service is not None
+    assert runtime.services.word_verification_service.api_key == "shared-key"
+    assert runtime.services.word_verification_service.model == "gemini-3.1-flash-lite-preview"

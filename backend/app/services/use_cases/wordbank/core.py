@@ -20,6 +20,7 @@ from app.db.repositories import WordbankRepository
 from app.nlp.adapter import NLPAdapter
 from app.services.cor import CORLexiconService
 from app.services.cor_local import CORLocalLexiconService
+from app.services.gemini_translation import GeminiWordTranslationService
 from app.services.translation import TranslationService
 from app.services.tts import PronunciationAudio, TTSService
 from app.services.use_cases.wordbank.commands_add_word import add_word
@@ -41,6 +42,7 @@ class WordbankUseCase:
         db_path,
         typo_engine=None,
         translation_service: TranslationService | None = None,
+        gemini_word_translation_service: GeminiWordTranslationService | None = None,
         nlp_adapter: NLPAdapter | None = None,
         cor_lexicon_service: CORLexiconService | None = None,
         cor_local_lexicon_service: CORLocalLexiconService | None = None,
@@ -50,7 +52,12 @@ class WordbankUseCase:
     ):
         nlp = NLPCollaborator(nlp_adapter, typo_engine, cor_lexicon_service)
         pronunciation = PronunciationCollaborator(tts_service, db_path)
-        translation = TranslationCollaborator(translation_service, db_path)
+        translation = TranslationCollaborator(
+            translation_service,
+            gemini_word_translation_service,
+            cor_local_lexicon_service,
+            db_path,
+        )
         cor = CorResolutionCollaborator(
             cor_lexicon_service,
             cor_local_lexicon_service,

@@ -32,7 +32,10 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
         if row.pos_tag is None and row.morphology is None
     ]
     extracted_forms = runtime.nlp.extract_pos_and_morphology_batch(uncached_forms)
-    gloss_translation_cache: dict[str, str | None] = {}
+    gloss_translation_cache: dict[
+        tuple[str, str, str | None, str | None, str, str | None, str | None],
+        str | None,
+    ] = {}
 
     surface_forms: list[LemmaDetailsResponse.SurfaceFormDetails] = []
     for row in form_rows:
@@ -53,6 +56,15 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
             preferred_pos_tag=pos_tag,
         )
         gloss = cor_local_entry.gloss if cor_local_entry is not None else None
+        gloss_translation = (
+            runtime.cor.lookup_translation_for_cor_gloss(
+                entry=cor_local_entry,
+                lemma_translation=lexeme.english_translation,
+                cache=gloss_translation_cache,
+            )
+            if cor_local_entry is not None
+            else None
+        )
         surface_forms.append(
             LemmaDetailsResponse.SurfaceFormDetails(
                 form=row.form,
@@ -62,10 +74,7 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
                 lemma=lexeme.lemma,
                 lemma_translation=lexeme.english_translation,
                 gloss=gloss,
-                gloss_translation=runtime.cor.lookup_translation_for_cor_gloss(
-                    gloss,
-                    gloss_translation_cache,
-                ),
+                gloss_translation=gloss_translation,
                 gram_raw=cor_local_entry.gram_raw if cor_local_entry is not None else None,
                 has_pronunciation=row.has_pronunciation,
             )

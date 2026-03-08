@@ -122,7 +122,14 @@ class CorResolutionCollaborator:
 
     def lookup_translation_for_cor_gloss(
         self,
-        gloss: str | None,
-        cache: dict[str, str | None] | None = None,
+        *,
+        entry: CORLocalEntry,
+        lemma_translation: str | None = None,
+        cache: dict[tuple[str, str, str | None, str | None, str, str | None, str | None], str | None] | None = None,
     ) -> str | None:
-        return lookup_translation_for_cor_gloss(self._translation, gloss, cache)
+        return lookup_translation_for_cor_gloss(
+            self._translation,
+            entry=entry,
+            lemma_translation=lemma_translation,
+            cache=cache,
+        )

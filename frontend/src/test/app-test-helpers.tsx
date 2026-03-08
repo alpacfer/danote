@@ -294,6 +294,36 @@ export function mockFetchImplementation(options?: {
     message: string
   }
   resetDbHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+  developerApiKeysResponse?: {
+    status: string
+    message: string
+    configured: Record<string, boolean>
+  }
+  developerApiKeysHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+  translationProbeResponse?: {
+    status: string
+    probe_input: string
+    result_text: string | null
+    provider: string | null
+    message: string
+  }
+  translationProbeHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+  speechProbeResponse?: {
+    status: string
+    probe_input: string
+    result_text: string | null
+    provider: string | null
+    message: string
+  }
+  speechProbeHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+  geminiProbeResponse?: {
+    status: string
+    probe_input: string
+    result_text: string | null
+    provider: string | null
+    message: string
+  }
+  geminiProbeHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
   translationResponse?: {
     status: "generated" | "unavailable"
     source_word: string
@@ -417,6 +447,12 @@ export function mockFetchImplementation(options?: {
         configured: false,
         message: "Provider 'azure' is not selected.",
       },
+      gemini: {
+        status: "inactive",
+        active: false,
+        configured: false,
+        message: "Gemini has not been checked yet.",
+      },
     },
   }
   const analyzeOk = options?.analyzeOk ?? true
@@ -476,6 +512,37 @@ export function mockFetchImplementation(options?: {
   }
   const resetDbOk = options?.resetDbOk ?? true
   const resetDbResponse = options?.resetDbResponse ?? { status: "reset" as const, message: "Database reset complete." }
+  const developerApiKeysResponse = options?.developerApiKeysResponse ?? {
+    status: "updated",
+    message: "Runtime API keys updated.",
+    configured: {
+      gemini: true,
+      translation_azure: false,
+      tts_azure: false,
+      word_verification_gemini: true,
+    },
+  }
+  const geminiProbeResponse = options?.geminiProbeResponse ?? {
+    status: "ok",
+    probe_input: "bogen",
+    result_text: "the book",
+    provider: "gemini_word_translation",
+    message: "Gemini probe completed successfully.",
+  }
+  const translationProbeResponse = options?.translationProbeResponse ?? {
+    status: "ok",
+    probe_input: "bogen",
+    result_text: "the book",
+    provider: "azure_translator",
+    message: "Azure Translator probe completed successfully.",
+  }
+  const speechProbeResponse = options?.speechProbeResponse ?? {
+    status: "ok",
+    probe_input: "bogen",
+    result_text: "audio/wav (128 bytes)",
+    provider: "azure_speech_tts",
+    message: "Azure Speech probe completed successfully.",
+  }
   const translationResponse = options?.translationResponse ?? {
     status: "unavailable" as const,
     source_word: "kat",
@@ -825,6 +892,34 @@ export function mockFetchImplementation(options?: {
         return options.detectLanguageHandler(input, init)
       }
       return responseOf(detectLanguageResponse)
+    }
+
+    if (url.endsWith("/api/developer/api-keys")) {
+      if (options?.developerApiKeysHandler) {
+        return options.developerApiKeysHandler(input, init)
+      }
+      return responseOf(developerApiKeysResponse)
+    }
+
+    if (url.endsWith("/api/developer/gemini-probe")) {
+      if (options?.geminiProbeHandler) {
+        return options.geminiProbeHandler(input, init)
+      }
+      return responseOf(geminiProbeResponse)
+    }
+
+    if (url.endsWith("/api/developer/translation-probe")) {
+      if (options?.translationProbeHandler) {
+        return options.translationProbeHandler(input, init)
+      }
+      return responseOf(translationProbeResponse)
+    }
+
+    if (url.endsWith("/api/developer/tts-probe")) {
+      if (options?.speechProbeHandler) {
+        return options.speechProbeHandler(input, init)
+      }
+      return responseOf(speechProbeResponse)
     }
 
     if (url.endsWith("/api/sentencebank/sentences") && init?.method === "POST") {

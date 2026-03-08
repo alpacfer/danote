@@ -14,8 +14,14 @@ export type DeveloperSectionAdapterArgs = {
   developerTtsAzureApiKey: ComponentProps<typeof DeveloperSection>["developerTtsAzureApiKey"]
   developerTtsAzureRegion: ComponentProps<typeof DeveloperSection>["developerTtsAzureRegion"]
   developerTtsAzureEndpoint: ComponentProps<typeof DeveloperSection>["developerTtsAzureEndpoint"]
-  developerVerificationGeminiApiKey: ComponentProps<typeof DeveloperSection>["developerVerificationGeminiApiKey"]
+  developerGeminiApiKey: ComponentProps<typeof DeveloperSection>["developerGeminiApiKey"]
   isSavingDeveloperApiKeys: ComponentProps<typeof DeveloperSection>["isSavingDeveloperApiKeys"]
+  isTestingTranslation: ComponentProps<typeof DeveloperSection>["isTestingTranslation"]
+  translationProbeResult: ComponentProps<typeof DeveloperSection>["translationProbeResult"]
+  isTestingSpeech: ComponentProps<typeof DeveloperSection>["isTestingSpeech"]
+  speechProbeResult: ComponentProps<typeof DeveloperSection>["speechProbeResult"]
+  isTestingGemini: ComponentProps<typeof DeveloperSection>["isTestingGemini"]
+  geminiProbeResult: ComponentProps<typeof DeveloperSection>["geminiProbeResult"]
   isResettingDatabase: ComponentProps<typeof DeveloperSection>["isResettingDatabase"]
   setSelectedNlpModel: (model: ComponentProps<typeof DeveloperSection>["selectedNlpModel"]) => void
   setDeveloperTranslationAzureApiKey: (value: string) => void
@@ -24,8 +30,11 @@ export type DeveloperSectionAdapterArgs = {
   setDeveloperTtsAzureApiKey: (value: string) => void
   setDeveloperTtsAzureRegion: (value: string) => void
   setDeveloperTtsAzureEndpoint: (value: string) => void
-  setDeveloperVerificationGeminiApiKey: (value: string) => void
+  setDeveloperGeminiApiKey: (value: string) => void
   saveDeveloperApiKeys: () => Promise<void>
+  runTranslationProbe: () => Promise<void>
+  runSpeechProbe: () => Promise<void>
+  runGeminiProbe: () => Promise<void>
   resetDatabase: () => Promise<void>
 }
 
@@ -55,8 +64,14 @@ export function buildDeveloperSectionProps(
     developerTtsAzureApiKey: args.developerTtsAzureApiKey,
     developerTtsAzureRegion: args.developerTtsAzureRegion,
     developerTtsAzureEndpoint: args.developerTtsAzureEndpoint,
-    developerVerificationGeminiApiKey: args.developerVerificationGeminiApiKey,
+    developerGeminiApiKey: args.developerGeminiApiKey,
     isSavingDeveloperApiKeys: args.isSavingDeveloperApiKeys,
+    isTestingTranslation: args.isTestingTranslation,
+    translationProbeResult: args.translationProbeResult,
+    isTestingSpeech: args.isTestingSpeech,
+    speechProbeResult: args.speechProbeResult,
+    isTestingGemini: args.isTestingGemini,
+    geminiProbeResult: args.geminiProbeResult,
     isResettingDatabase: args.isResettingDatabase,
     onSelectedNlpModelChange: args.setSelectedNlpModel,
     onDeveloperTranslationAzureApiKeyChange: args.setDeveloperTranslationAzureApiKey,
@@ -65,9 +80,18 @@ export function buildDeveloperSectionProps(
     onDeveloperTtsAzureApiKeyChange: args.setDeveloperTtsAzureApiKey,
     onDeveloperTtsAzureRegionChange: args.setDeveloperTtsAzureRegion,
     onDeveloperTtsAzureEndpointChange: args.setDeveloperTtsAzureEndpoint,
-    onDeveloperVerificationGeminiApiKeyChange: args.setDeveloperVerificationGeminiApiKey,
+    onDeveloperGeminiApiKeyChange: args.setDeveloperGeminiApiKey,
     onSaveDeveloperApiKeys: () => {
       void args.saveDeveloperApiKeys()
+    },
+    onRunTranslationProbe: () => {
+      void args.runTranslationProbe()
+    },
+    onRunSpeechProbe: () => {
+      void args.runSpeechProbe()
+    },
+    onRunGeminiProbe: () => {
+      void args.runGeminiProbe()
     },
     onResetDatabase: () => {
       void args.resetDatabase()

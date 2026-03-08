@@ -49,7 +49,7 @@ def run_db_operation(
         raise
     except RuntimeError as exc:
         if include_runtime_error:
-            raise HTTPException(status_code=500, detail=str(exc)) from exc
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
         raise
     except sqlite3.OperationalError as exc:
         logger.exception(error_log_name)

@@ -2,6 +2,8 @@ from app.api.schemas.v1.analyze import AnalyzedToken, AnalyzeRequest, AnalyzeRes
 from app.api.schemas.v1.developer import (
     DeveloperApiKeysUpdateRequest,
     DeveloperApiKeysUpdateResponse,
+    DeveloperServiceProbeResponse,
+    GeminiProbeResponse,
 )
 from app.api.schemas.v1.root import ApiStatusEntry, HealthResponse
 from app.api.schemas.v1.sentencebank import (
@@ -38,6 +40,8 @@ __all__ = [
     "AnalyzeRequest",
     "DeveloperApiKeysUpdateRequest",
     "DeveloperApiKeysUpdateResponse",
+    "DeveloperServiceProbeResponse",
+    "GeminiProbeResponse",
     "AnalyzeResponse",
     "AnalyzedToken",
     "ApiStatusEntry",

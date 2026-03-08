@@ -1,3 +1,6 @@
+import { useState } from "react"
+
+import { type DeveloperServiceProbeResponse } from "@/app/core"
 import { useApiStatusItems, useGroupedWordbankLemmas } from "@/app/hooks/app/use-app-derived-data"
 import { useNoteAutosave } from "@/app/hooks/use-note-autosave"
 import { useSyncDiscoveredTokenMemory } from "@/app/hooks/use-sync-discovered-token-memory"
@@ -13,6 +16,7 @@ import { buildSentencebankSectionProps } from "@/app/sections/sentencebank-secti
 import { buildWordbankSectionProps } from "@/app/sections/wordbank-section-props"
 
 export function useAppController() {
+  const [apiProbeStatuses, setApiProbeStatuses] = useState<Record<string, DeveloperServiceProbeResponse | null>>({})
   const foundation = useAppFoundation()
   const { navigation, health, analysis, discoveredTokenMetadataState, notesPersistence, lexiconData, notifications } = foundation
 
@@ -28,6 +32,7 @@ export function useAppController() {
   const developerSettings = useDeveloperComposition({
     foundation,
     clearVerificationErrors: wordbank.clearVerificationErrors,
+    setApiProbeStatuses,
   })
 
   useNoteAutosave({
@@ -48,7 +53,7 @@ export function useAppController() {
   })
 
   const groupedWordbankLemmas = useGroupedWordbankLemmas(lexiconData.lemmas)
-  const apiStatusItems = useApiStatusItems(health.healthPayload, health.status)
+  const apiStatusItems = useApiStatusItems(health.healthPayload, health.status, apiProbeStatuses)
 
   const sectionProps = {
     autosaveStatusLabel: notesPersistence.autosaveStatus === "saving"
@@ -139,8 +144,14 @@ export function useAppController() {
       developerTtsAzureApiKey: developerSettings.developerTtsAzureApiKey,
       developerTtsAzureRegion: developerSettings.developerTtsAzureRegion,
       developerTtsAzureEndpoint: developerSettings.developerTtsAzureEndpoint,
-      developerVerificationGeminiApiKey: developerSettings.developerVerificationGeminiApiKey,
+      developerGeminiApiKey: developerSettings.developerGeminiApiKey,
       isSavingDeveloperApiKeys: developerSettings.isSavingDeveloperApiKeys,
+      isTestingTranslation: developerSettings.isTestingTranslation,
+      translationProbeResult: developerSettings.translationProbeResult,
+      isTestingSpeech: developerSettings.isTestingSpeech,
+      speechProbeResult: developerSettings.speechProbeResult,
+      isTestingGemini: developerSettings.isTestingGemini,
+      geminiProbeResult: developerSettings.geminiProbeResult,
       isResettingDatabase: developerSettings.isResettingDatabase,
       setSelectedNlpModel: developerSettings.setSelectedNlpModel,
       setDeveloperTranslationAzureApiKey: developerSettings.setDeveloperTranslationAzureApiKey,
@@ -149,8 +160,11 @@ export function useAppController() {
       setDeveloperTtsAzureApiKey: developerSettings.setDeveloperTtsAzureApiKey,
       setDeveloperTtsAzureRegion: developerSettings.setDeveloperTtsAzureRegion,
       setDeveloperTtsAzureEndpoint: developerSettings.setDeveloperTtsAzureEndpoint,
-      setDeveloperVerificationGeminiApiKey: developerSettings.setDeveloperVerificationGeminiApiKey,
+      setDeveloperGeminiApiKey: developerSettings.setDeveloperGeminiApiKey,
       saveDeveloperApiKeys: developerSettings.saveDeveloperApiKeys,
+      runTranslationProbe: developerSettings.runTranslationProbe,
+      runSpeechProbe: developerSettings.runSpeechProbe,
+      runGeminiProbe: developerSettings.runGeminiProbe,
       resetDatabase: developerSettings.resetDatabase,
     }),
   }

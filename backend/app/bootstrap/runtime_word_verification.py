@@ -26,7 +26,7 @@ def initialize_word_verification(
     verification_key = _override_or_setting(
         overrides,
         "word_verification_gemini",
-        settings.word_verification_gemini_api_key,
+        settings.word_verification_gemini_api_key or settings.gemini_api_key,
     )
     if verification_key:
         try:
@@ -35,7 +35,7 @@ def initialize_word_verification(
                 "word_verification_service",
                 GeminiWordVerificationService(
                     api_key=verification_key,
-                    model=settings.word_verification_gemini_model,
+                    model=settings.word_verification_gemini_model or settings.gemini_model,
                 ),
             )
         except Exception:

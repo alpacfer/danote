@@ -12,11 +12,13 @@ import {
 } from "@/components/ui/select"
 import {
   apiStatusBadgeClass,
+  type DeveloperServiceProbeResponse,
   humanizeApiStatus,
   type ApiStatusItem,
   type ConnectionStatus,
   type NlpModelOption,
 } from "@/app/core"
+import { DeveloperProbeResult } from "@/app/sections/developer-probe-result"
 
 export type DeveloperSectionProps = {
   badgeVariant: "secondary" | "outline" | "destructive"
@@ -31,8 +33,14 @@ export type DeveloperSectionProps = {
   developerTtsAzureApiKey: string
   developerTtsAzureRegion: string
   developerTtsAzureEndpoint: string
-  developerVerificationGeminiApiKey: string
+  developerGeminiApiKey: string
   isSavingDeveloperApiKeys: boolean
+  isTestingTranslation: boolean
+  translationProbeResult: DeveloperServiceProbeResponse | null
+  isTestingSpeech: boolean
+  speechProbeResult: DeveloperServiceProbeResponse | null
+  isTestingGemini: boolean
+  geminiProbeResult: DeveloperServiceProbeResponse | null
   isResettingDatabase: boolean
   onSelectedNlpModelChange: (value: NlpModelOption) => void
   onDeveloperTranslationAzureApiKeyChange: (value: string) => void
@@ -41,8 +49,11 @@ export type DeveloperSectionProps = {
   onDeveloperTtsAzureApiKeyChange: (value: string) => void
   onDeveloperTtsAzureRegionChange: (value: string) => void
   onDeveloperTtsAzureEndpointChange: (value: string) => void
-  onDeveloperVerificationGeminiApiKeyChange: (value: string) => void
+  onDeveloperGeminiApiKeyChange: (value: string) => void
   onSaveDeveloperApiKeys: () => void
+  onRunTranslationProbe: () => void
+  onRunSpeechProbe: () => void
+  onRunGeminiProbe: () => void
   onResetDatabase: () => void
 }
 
@@ -59,8 +70,14 @@ export function DeveloperSection({
   developerTtsAzureApiKey,
   developerTtsAzureRegion,
   developerTtsAzureEndpoint,
-  developerVerificationGeminiApiKey,
+  developerGeminiApiKey,
   isSavingDeveloperApiKeys,
+  isTestingTranslation,
+  translationProbeResult,
+  isTestingSpeech,
+  speechProbeResult,
+  isTestingGemini,
+  geminiProbeResult,
   isResettingDatabase,
   onSelectedNlpModelChange,
   onDeveloperTranslationAzureApiKeyChange,
@@ -69,8 +86,11 @@ export function DeveloperSection({
   onDeveloperTtsAzureApiKeyChange,
   onDeveloperTtsAzureRegionChange,
   onDeveloperTtsAzureEndpointChange,
-  onDeveloperVerificationGeminiApiKeyChange,
+  onDeveloperGeminiApiKeyChange,
   onSaveDeveloperApiKeys,
+  onRunTranslationProbe,
+  onRunSpeechProbe,
+  onRunGeminiProbe,
   onResetDatabase,
 }: DeveloperSectionProps) {
   return (
@@ -158,6 +178,18 @@ export function DeveloperSection({
               placeholder="https://api.cognitive.microsofttranslator.com"
             />
           </div>
+          <div className="space-y-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={onRunTranslationProbe}
+              disabled={isTestingTranslation}
+            >
+              {isTestingTranslation ? "Testing Azure Translator..." : "Test Azure Translator"}
+            </Button>
+            <DeveloperProbeResult ariaLabel="translation-probe-result" result={translationProbeResult} />
+          </div>
           <div className="space-y-1">
             <Label htmlFor="developer-tts-azure-key">Azure Speech API key</Label>
             <Input
@@ -186,19 +218,37 @@ export function DeveloperSection({
               placeholder="https://<resource>.cognitiveservices.azure.com"
             />
           </div>
+          <div className="space-y-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={onRunSpeechProbe}
+              disabled={isTestingSpeech}
+            >
+              {isTestingSpeech ? "Testing Azure Speech..." : "Test Azure Speech"}
+            </Button>
+            <DeveloperProbeResult ariaLabel="speech-probe-result" result={speechProbeResult} />
+          </div>
           <div className="space-y-1">
-            <Label htmlFor="developer-verification-key">Word verification Gemini key</Label>
+            <Label htmlFor="developer-gemini-key">Gemini API key</Label>
             <Input
-              id="developer-verification-key"
+              id="developer-gemini-key"
               type="password"
-              value={developerVerificationGeminiApiKey}
-              onChange={(event) => onDeveloperVerificationGeminiApiKeyChange(event.target.value)}
-              placeholder="Paste Gemini key for verification"
+              value={developerGeminiApiKey}
+              onChange={(event) => onDeveloperGeminiApiKeyChange(event.target.value)}
+              placeholder="Paste Gemini key"
             />
           </div>
-          <Button type="button" size="sm" onClick={onSaveDeveloperApiKeys} disabled={isSavingDeveloperApiKeys}>
-            {isSavingDeveloperApiKeys ? "Saving..." : "Apply runtime API keys"}
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" size="sm" onClick={onSaveDeveloperApiKeys} disabled={isSavingDeveloperApiKeys}>
+              {isSavingDeveloperApiKeys ? "Saving..." : "Apply runtime API keys"}
+            </Button>
+            <Button type="button" size="sm" variant="outline" onClick={onRunGeminiProbe} disabled={isTestingGemini}>
+              {isTestingGemini ? "Testing Gemini..." : "Test Gemini"}
+            </Button>
+          </div>
+          <DeveloperProbeResult ariaLabel="gemini-probe-result" result={geminiProbeResult} />
         </div>
         <Button
           type="button"

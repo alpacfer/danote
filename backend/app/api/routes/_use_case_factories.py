@@ -13,6 +13,7 @@ def build_wordbank_use_case(request: Request) -> WordbankUseCase:
         db_path=settings.db_path,
         typo_engine=services.typo_engine,
         translation_service=services.translation_service,
+        gemini_word_translation_service=services.gemini_word_translation_service,
         nlp_adapter=services.nlp_adapter,
         cor_lexicon_service=services.cor_lexicon_service,
         cor_local_lexicon_service=services.cor_local_lexicon_service,

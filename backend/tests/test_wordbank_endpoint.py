@@ -392,6 +392,129 @@ def test_generate_translation_returns_generated_value(tmp_path, stub_nlp_adapter
     }
 
 
+def test_generate_translation_uses_gemini_for_gloss_aware_words(tmp_path, stub_nlp_adapter_factory) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    cor_local_db_path = tmp_path / "cor.sqlite"
+    apply_migrations(db_path)
+    with sqlite3.connect(cor_local_db_path) as conn:
+        conn.execute(
+            """
+            CREATE TABLE cor_entries (
+                cor_id TEXT PRIMARY KEY,
+                lemma TEXT NOT NULL,
+                gloss TEXT,
+                gram TEXT NOT NULL,
+                form TEXT NOT NULL,
+                norm TEXT NOT NULL,
+                lemma_idx INTEGER NOT NULL,
+                gram_code INTEGER NOT NULL,
+                variation INTEGER NOT NULL
+            )
+            """
+        )
+        conn.execute("CREATE INDEX idx_cor_form ON cor_entries(form)")
+        conn.executemany(
+            """
+            INSERT INTO cor_entries (
+                cor_id, lemma, gloss, gram, form, norm, lemma_idx, gram_code, variation
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                ("COR.123.111.01", "bog", "book", "sb.fk.sg.best", "bogen", "N", 123, 111, 1),
+            ),
+        )
+    app = create_app(_test_settings(db_path, cor_local_db_path=cor_local_db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+
+    class StubGeminiWordTranslationService:
+        provider = "gemini_word_translation"
+
+        def translate_word(self, payload) -> str | None:
+            if payload.surface_form == "bogen" and payload.lemma == "bog" and payload.gloss == "book":
+                return "the book"
+            return None
+
+    with TestClient(app) as client:
+        client.post("/api/wordbank/lexemes", json={"surface_token": "Bogen", "lemma_candidate": "bog"})
+        set_service_field(client.app, "gemini_word_translation_service", StubGeminiWordTranslationService())
+        response = client.post(
+            "/api/wordbank/translation",
+            json={"surface_token": "bogen", "lemma_candidate": "bog"},
+        )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "status": "generated",
+        "source_word": "bogen",
+        "lemma": "bog",
+        "english_translation": "the book",
+    }
+
+    with get_connection(db_path) as conn:
+        surface_row = conn.execute(
+            "SELECT english_translation, translation_provider FROM surface_forms WHERE form = ?",
+            ("bogen",),
+        ).fetchone()
+
+    assert surface_row is not None
+    assert surface_row["english_translation"] == "the book"
+    assert surface_row["translation_provider"] == "gemini_word_translation"
+
+
+def test_generate_translation_uses_gemini_when_azure_returns_same_text(tmp_path, stub_nlp_adapter_factory) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    apply_migrations(db_path)
+    app = create_app(_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+
+    class StubTranslationService:
+        provider = "azure_translator"
+
+        def translate_da_to_en(self, text: str) -> str | None:
+            if text == "mere":
+                return "mere"
+            return None
+
+        def translate_en_to_da(self, text: str) -> str | None:
+            return None
+
+        def detect_source_language(self, text: str) -> str | None:
+            return None
+
+    class StubGeminiWordTranslationService:
+        provider = "gemini_word_translation"
+
+        def translate_word(self, payload) -> str | None:
+            if payload.surface_form == "mere" and payload.lemma == "mere":
+                return "more"
+            return None
+
+    with TestClient(app) as client:
+        client.post("/api/wordbank/lexemes", json={"surface_token": "Mere", "lemma_candidate": "mere"})
+        set_service_field(client.app, "translation_service", StubTranslationService())
+        set_service_field(client.app, "gemini_word_translation_service", StubGeminiWordTranslationService())
+        response = client.post(
+            "/api/wordbank/translation",
+            json={"surface_token": "mere", "lemma_candidate": "mere"},
+        )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "status": "generated",
+        "source_word": "mere",
+        "lemma": "mere",
+        "english_translation": "more",
+    }
+
+    with get_connection(db_path) as conn:
+        surface_row = conn.execute(
+            "SELECT english_translation, translation_provider FROM surface_forms WHERE form = ?",
+            ("mere",),
+        ).fetchone()
+
+    assert surface_row is not None
+    assert surface_row["english_translation"] == "more"
+    assert surface_row["translation_provider"] == "gemini_word_translation"
+
+
 def test_get_pronunciation_audio_returns_stored_audio(tmp_path, stub_nlp_adapter_factory) -> None:
     db_path = tmp_path / "danote.sqlite3"
     apply_migrations(db_path)

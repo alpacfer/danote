@@ -1,6 +1,7 @@
 import { toast } from "sonner"
 
 import { runAppDatabaseResetWorkflow } from "@/app/core/app-reset-workflow"
+import { type DeveloperServiceProbeResponse } from "@/app/core/types-api"
 import { useDeveloperSettings } from "@/app/hooks/app/use-developer-settings"
 
 import type { useAppFoundation } from "@/app/hooks/app/controller/use-app-foundation"
@@ -11,9 +12,18 @@ type AppFoundation = ReturnType<typeof useAppFoundation>
 type UseDeveloperCompositionArgs = {
   foundation: AppFoundation
   clearVerificationErrors: () => void
+  setApiProbeStatuses: (
+    next:
+      | Record<string, DeveloperServiceProbeResponse | null>
+      | ((current: Record<string, DeveloperServiceProbeResponse | null>) => Record<string, DeveloperServiceProbeResponse | null>),
+  ) => void
 }
 
-export function useDeveloperComposition({ foundation, clearVerificationErrors }: UseDeveloperCompositionArgs) {
+export function useDeveloperComposition({
+  foundation,
+  clearVerificationErrors,
+  setApiProbeStatuses,
+}: UseDeveloperCompositionArgs) {
   const { backendUrl, health, navigation, lexiconData, analysis, setNoteText, setWordbankRefreshTick, setSentencebankRefreshTick } = foundation
 
   return useDeveloperSettings({
@@ -21,6 +31,7 @@ export function useDeveloperComposition({ foundation, clearVerificationErrors }:
     extractErrorMessage,
     setStatus: health.setStatus,
     setHealthPayload: health.setHealthPayload,
+    setApiProbeStatuses,
     onNotifySuccess: (message) => {
       toast.success(message)
     },

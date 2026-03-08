@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
 
 from app.api.schemas.v1.wordbank import (
@@ -9,9 +10,17 @@ from app.api.schemas.v1.wordbank import (
     GenerateReverseTranslationResponse,
     GenerateTranslationResponse,
 )
+from app.services.cor_local import CORLocalEntry, CORLocalLexiconService
+from app.services.gemini_translation import ContextualWordTranslationInput, GeminiWordTranslationService
 from app.db.migrations import get_connection
 from app.services.token_classifier import normalize_token
 from app.services.translation import TranslationService
+
+
+@dataclass(frozen=True, slots=True)
+class TranslationLookupResult:
+    translation: str | None
+    provider: str | None
 
 
 class TranslationCollaborator:
@@ -35,8 +44,16 @@ class TranslationCollaborator:
         }
     )
 
-    def __init__(self, translation_service: TranslationService | None, db_path: Path) -> None:
+    def __init__(
+        self,
+        translation_service: TranslationService | None,
+        gemini_word_translation_service: GeminiWordTranslationService | None,
+        cor_local_lexicon_service: CORLocalLexiconService | None,
+        db_path: Path,
+    ) -> None:
         self._translation_service = translation_service
+        self._gemini_word_translation_service = gemini_word_translation_service
+        self._cor_local_lexicon_service = cor_local_lexicon_service
         self._db_path = db_path
 
     # ------------------------------------------------------------------
@@ -53,8 +70,11 @@ class TranslationCollaborator:
         if not normalized_surface:
             raise ValueError("surface_token or lemma_candidate is required")
 
-        english_translation = self.lookup_translation(normalized_surface)
-        provider = self.provider_name()
+        translation_result = self.lookup_word_translation(
+            normalized_surface,
+            normalized_lemma or normalized_surface,
+        )
+        english_translation = translation_result.translation
         if english_translation:
             with get_connection(self._db_path) as conn:
                 conn.execute(
@@ -63,7 +83,7 @@ class TranslationCollaborator:
                     SET english_translation = ?, translation_provider = ?
                     WHERE form = ?
                     """,
-                    (english_translation, provider, normalized_surface),
+                    (english_translation, translation_result.provider, normalized_surface),
                 )
 
         return GenerateTranslationResponse(
@@ -234,6 +254,120 @@ class TranslationCollaborator:
         except Exception:
             return None
 
+    def lookup_word_translation(self, source_word: str, lemma: str | None = None) -> TranslationLookupResult:
+        normalized_source = normalize_token(source_word)
+        normalized_lemma = normalize_token(lemma or "") or normalized_source
+        contextual = self.lookup_contextual_word_translation(
+            surface_form=normalized_source,
+            lemma=normalized_lemma,
+        )
+        if contextual.translation:
+            return contextual
+        translated = self.lookup_translation(normalized_source)
+        if (
+            translated
+            and " " not in normalized_source
+            and self.normalize_comparable(translated) == self.normalize_comparable(normalized_source)
+        ):
+            fallback = self.lookup_contextual_word_translation(
+                surface_form=normalized_source,
+                lemma=normalized_lemma,
+            )
+            if fallback.translation:
+                return fallback
+            return TranslationLookupResult(translation=None, provider=None)
+        return TranslationLookupResult(
+            translation=translated,
+            provider=self.provider_name() if translated else None,
+        )
+
+    def lookup_contextual_word_translation(
+        self,
+        *,
+        surface_form: str,
+        lemma: str,
+        pos_tag: str | None = None,
+        morphology: str | None = None,
+        gloss: str | None = None,
+        lemma_translation_hint: str | None = None,
+        gloss_translation_hint: str | None = None,
+        cache: dict[tuple[str, str, str | None, str | None, str, str | None, str | None], str | None] | None = None,
+    ) -> TranslationLookupResult:
+        normalized_surface = normalize_token(surface_form)
+        normalized_lemma = normalize_token(lemma)
+        normalized_gloss = normalize_token(gloss or "")
+        if not normalized_surface or not normalized_lemma:
+            return TranslationLookupResult(translation=None, provider=None)
+
+        context_entry = None
+        if normalized_gloss:
+            context_entry = ContextualWordTranslationInput(
+                surface_form=normalized_surface,
+                lemma=normalized_lemma,
+                pos_tag=pos_tag,
+                morphology=morphology,
+                gloss=normalized_gloss,
+                lemma_translation_hint=lemma_translation_hint,
+                gloss_translation_hint=gloss_translation_hint,
+            )
+        else:
+            cor_entry = self._best_cor_local_entry_with_gloss(
+                form=normalized_surface,
+                lemma=normalized_lemma,
+                preferred_pos_tag=pos_tag,
+            )
+            if cor_entry is not None:
+                context_entry = ContextualWordTranslationInput(
+                    surface_form=normalized_surface,
+                    lemma=normalized_lemma,
+                    pos_tag=pos_tag or cor_entry.pos_tag,
+                    morphology=morphology or cor_entry.morphology,
+                    gloss=normalize_token(cor_entry.gloss or ""),
+                    lemma_translation_hint=lemma_translation_hint,
+                    gloss_translation_hint=gloss_translation_hint,
+                )
+            else:
+                context_entry = ContextualWordTranslationInput(
+                    surface_form=normalized_surface,
+                    lemma=normalized_lemma,
+                    pos_tag=pos_tag,
+                    morphology=morphology,
+                    gloss=None,
+                    lemma_translation_hint=lemma_translation_hint,
+                    gloss_translation_hint=gloss_translation_hint,
+                )
+
+        if self._gemini_word_translation_service is None:
+            return TranslationLookupResult(translation=None, provider=None)
+
+        cache_key = (
+            context_entry.surface_form,
+            context_entry.lemma,
+            context_entry.pos_tag,
+            context_entry.morphology,
+            context_entry.gloss,
+            context_entry.lemma_translation_hint,
+            context_entry.gloss_translation_hint,
+        )
+        if cache is not None and cache_key in cache:
+            return TranslationLookupResult(
+                translation=cache[cache_key],
+                provider=self.contextual_provider_name(),
+            )
+
+        try:
+            translated = self._gemini_word_translation_service.translate_word(context_entry)
+            normalized = self.normalize_translation_value(translated)
+        except Exception:
+            normalized = None
+
+        if cache is not None:
+            cache[cache_key] = normalized
+        return TranslationLookupResult(
+            translation=normalized,
+            provider=self.contextual_provider_name(),
+        )
+
     def provider_name(self) -> str:
         provider = getattr(self._translation_service, "provider", None)
         if isinstance(provider, str):
@@ -241,6 +375,14 @@ class TranslationCollaborator:
             if cleaned:
                 return cleaned
         return "translation"
+
+    def contextual_provider_name(self) -> str:
+        provider = getattr(self._gemini_word_translation_service, "provider", None)
+        if isinstance(provider, str):
+            cleaned = provider.strip().lower()
+            if cleaned:
+                return cleaned
+        return "gemini_word_translation"
 
     def normalize_comparable(self, value: str) -> str:
         return " ".join(value.strip().lower().split())
@@ -302,3 +444,37 @@ class TranslationCollaborator:
         if normalized.startswith("da"):
             return "da"
         return None
+
+    def _best_cor_local_entry_with_gloss(
+        self,
+        *,
+        form: str,
+        lemma: str,
+        preferred_pos_tag: str | None,
+    ) -> CORLocalEntry | None:
+        if self._cor_local_lexicon_service is None:
+            return None
+        try:
+            entries = self._cor_local_lexicon_service.lookup_form(form, limit=200)
+        except FileNotFoundError:
+            return None
+        matching = [
+            entry
+            for entry in entries
+            if normalize_token(entry.lemma) == lemma and normalize_token(entry.gloss or "")
+        ]
+        if not matching:
+            return None
+        if preferred_pos_tag:
+            preferred = [entry for entry in matching if entry.pos_tag == preferred_pos_tag]
+            if preferred:
+                matching = preferred
+        matching.sort(
+            key=lambda entry: (
+                0 if normalize_token(entry.form) == form else 1,
+                0 if entry.norm == "N" else 1,
+                entry.lemma_idx,
+                entry.variation,
+            )
+        )
+        return matching[0]

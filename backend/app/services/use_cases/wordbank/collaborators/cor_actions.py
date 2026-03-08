@@ -161,6 +161,16 @@ def lookup_translation_for_cor_entry(
     entry: COREntry,
     normalized_query: str,
 ) -> str | None:
+    contextual = translation.lookup_contextual_word_translation(
+        surface_form=normalized_query,
+        lemma=entry.lemma,
+        pos_tag=entry.pos_tag,
+        morphology=entry.morphology,
+        gloss=normalize_token(entry.glosse or ""),
+    )
+    if contextual.translation:
+        return contextual.translation
+
     candidates: list[str] = []
     if entry.pos_tag == "VERB":
         candidates.append(f"at {entry.lemma}".strip())

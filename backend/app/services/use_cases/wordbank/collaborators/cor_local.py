@@ -39,8 +39,11 @@ def search_cor_form(
     entries = drop_glossless_when_gloss_exists(entries)
 
     groups: list[CORSearchGroup] = []
+    contextual_translation_cache: dict[
+        tuple[str, str, str | None, str | None, str, str | None, str | None],
+        str | None,
+    ] = {}
     lemma_translation_cache: dict[str, str | None] = {}
-    gloss_translation_cache: dict[str, str | None] = {}
     grouped: dict[tuple[str, str | None, str | None], int] = {}
     for entry in entries:
         key = (entry.lemma, entry.gloss, entry.pos_tag)
@@ -49,11 +52,13 @@ def search_cor_form(
             translation,
             entry,
             lemma_translation_cache,
+            contextual_translation_cache,
         )
         gloss_translation = lookup_translation_for_cor_gloss(
             translation,
-            entry.gloss,
-            gloss_translation_cache,
+            entry=entry,
+            lemma_translation=lemma_translation,
+            cache=contextual_translation_cache,
         )
         if group_index is None:
             groups.append(
@@ -107,22 +112,32 @@ def search_cor_lemma_paradigm(
     entries = consolidate_cor_local_entries(entries)
     entries = drop_glossless_when_gloss_exists(entries)
 
+    contextual_translation_cache: dict[
+        tuple[str, str, str | None, str | None, str, str | None, str | None],
+        str | None,
+    ] = {}
     lemma_translation_cache: dict[str, str | None] = {}
-    gloss_translation_cache: dict[str, str | None] = {}
     return CORLemmaParadigmResponse(
         lemma_idx=lemma_idx,
         variants=[
             cor_local_variant(
                 entry,
-                lemma_translation=lookup_translation_for_cor_local_entry(
+                lemma_translation=_lemma_translation_for_entry(
                     translation,
                     entry,
                     lemma_translation_cache,
+                    contextual_translation_cache,
                 ),
                 gloss_translation=lookup_translation_for_cor_gloss(
                     translation,
-                    entry.gloss,
-                    gloss_translation_cache,
+                    entry=entry,
+                    lemma_translation=_lemma_translation_for_entry(
+                        translation,
+                        entry,
+                        lemma_translation_cache,
+                        contextual_translation_cache,
+                    ),
+                    cache=contextual_translation_cache,
                 ),
             )
             for entry in entries
@@ -165,48 +180,83 @@ def best_cor_local_entry_for_form(
 
 def lookup_translation_for_cor_gloss(
     translation: TranslationCollaborator,
-    gloss: str | None,
-    cache: dict[str, str | None] | None = None,
+    *,
+    entry: CORLocalEntry,
+    lemma_translation: str | None = None,
+    cache: dict[tuple[str, str, str | None, str | None, str, str | None, str | None], str | None] | None = None,
 ) -> str | None:
-    if translation._translation_service is None:
-        return None
-    normalized_gloss = normalize_token(gloss or "")
+    normalized_gloss = normalize_token(entry.gloss or "")
     if not normalized_gloss:
         return None
-    if cache is not None and normalized_gloss in cache:
-        return cache[normalized_gloss]
+    contextual = translation.lookup_contextual_word_translation(
+        surface_form=entry.form,
+        lemma=entry.lemma,
+        pos_tag=entry.pos_tag,
+        morphology=entry.morphology,
+        gloss=normalized_gloss,
+        lemma_translation_hint=lemma_translation,
+        cache=cache,
+    )
+    if not contextual.translation:
+        if translation._translation_service is None:
+            return None
+        fallback_cache_key = (
+            entry.form,
+            entry.lemma,
+            entry.pos_tag,
+            entry.morphology,
+            normalized_gloss,
+            lemma_translation,
+            None,
+        )
+        if cache is not None and fallback_cache_key in cache:
+            return cache[fallback_cache_key]
 
-    translated = translation.lookup_translation(normalized_gloss)
-    if translated and translated != normalized_gloss:
+        translated = translation.lookup_translation(normalized_gloss)
+        if translated and translated != normalized_gloss:
+            if cache is not None:
+                cache[fallback_cache_key] = translated
+            return translated
+
+        parts = [normalize_token(part) for part in normalized_gloss.split(",")]
+        parts = [part for part in parts if part]
+        if len(parts) > 1:
+            translated_parts: list[str] = []
+            for part in parts:
+                part_translated = translation.lookup_translation(part)
+                translated_parts.append(part_translated or part)
+            merged = ", ".join(translated_parts)
+            if cache is not None:
+                cache[fallback_cache_key] = merged
+            return merged
+
         if cache is not None:
-            cache[normalized_gloss] = translated
+            cache[fallback_cache_key] = translated
         return translated
-
-    parts = [normalize_token(part) for part in normalized_gloss.split(",")]
-    parts = [part for part in parts if part]
-    if len(parts) > 1:
-        translated_parts: list[str] = []
-        for part in parts:
-            part_translated = translation.lookup_translation(part)
-            translated_parts.append(part_translated or part)
-        merged = ", ".join(translated_parts)
-        if cache is not None:
-            cache[normalized_gloss] = merged
-        return merged
-
-    if cache is not None:
-        cache[normalized_gloss] = translated
-    return translated
+    if translation.normalize_comparable(contextual.translation) == translation.normalize_comparable(normalized_gloss):
+        return None
+    return contextual.translation
 
 
 def lookup_translation_for_cor_local_entry(
     translation: TranslationCollaborator,
     entry: CORLocalEntry,
     cache: dict[str, str | None] | None = None,
+    contextual_cache: dict[
+        tuple[str, str, str | None, str | None, str, str | None, str | None],
+        str | None,
+    ] | None = None,
 ) -> str | None:
-    if translation._translation_service is None:
-        return None
-
+    contextual = translation.lookup_contextual_word_translation(
+        surface_form=entry.form,
+        lemma=entry.lemma,
+        pos_tag=entry.pos_tag,
+        morphology=entry.morphology,
+        gloss=normalize_token(entry.gloss or ""),
+        cache=contextual_cache,
+    )
+    if contextual.translation:
+        return contextual.translation
     frame_kind, frame_text = cor_translation_frame(entry)
     if cache is not None and frame_text in cache:
         translated = cache[frame_text]
@@ -217,6 +267,23 @@ def lookup_translation_for_cor_local_entry(
     if not translated:
         return None
     return strip_cor_translation_frame(frame_kind, translated)
+
+
+def _lemma_translation_for_entry(
+    translation: TranslationCollaborator,
+    entry: CORLocalEntry,
+    cache: dict[str, str | None],
+    contextual_cache: dict[
+        tuple[str, str, str | None, str | None, str, str | None, str | None],
+        str | None,
+    ],
+) -> str | None:
+    return lookup_translation_for_cor_local_entry(
+        translation,
+        entry,
+        cache,
+        contextual_cache,
+    )
 
 
 def consolidate_cor_local_entries(entries: list[CORLocalEntry]) -> list[CORLocalEntry]:

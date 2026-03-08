@@ -15,6 +15,7 @@ class BackendServices:
     cor_lexicon_service: Any = None
     cor_local_lexicon_service: Any = None
     translation_service: Any = None
+    gemini_word_translation_service: Any = None
     word_verification_service: Any = None
     tts_service: Any = None
 
@@ -31,6 +32,7 @@ class BackendRuntimeState:
     cor_lookup_error: str | None = None
     cor_local_lookup_error: str | None = None
     translation_error: str | None = None
+    gemini_word_translation_error: str | None = None
     word_verification_error: str | None = None
     tts_error: str | None = None
 
@@ -69,6 +71,7 @@ def close_runtime_services(app: FastAPI) -> None:
     for field_name in (
         "cor_lexicon_service",
         "translation_service",
+        "gemini_word_translation_service",
         "word_verification_service",
         "tts_service",
     ):

@@ -51,6 +51,84 @@ describe("App system state", () => {
     expect(screen.getByText("Azure Speech API")).toBeInTheDocument()
   })
 
+  it("tests Gemini from developer options and shows inline result", async () => {
+    mockFetchImplementation({
+      healthResponse: {
+        status: "ok",
+        service: "backend",
+        apis: {
+          backend: { status: "ok", active: true, configured: true },
+          azure_translator: { status: "inactive", active: false, configured: false, message: "Not checked yet." },
+          azure_speech: { status: "inactive", active: false, configured: false, message: "Not checked yet." },
+          gemini: { status: "inactive", active: false, configured: false, message: "Not checked yet." },
+        },
+      },
+      geminiProbeResponse: {
+        status: "ok",
+        probe_input: "bogen",
+        result_text: "the book",
+        provider: "gemini_word_translation",
+        message: "Gemini probe completed successfully.",
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /developer/i }))
+    fireEvent.click(screen.getByRole("button", { name: /test gemini/i }))
+
+    expect(await screen.findByLabelText("gemini-probe-result")).toHaveTextContent(/the book/i)
+    expect(vi.mocked(toast.success)).toHaveBeenCalledWith("Gemini probe completed successfully.")
+    expect(screen.getByLabelText("api-status-list")).toHaveTextContent(/gemini/i)
+    expect(screen.getByLabelText("api-status-list")).toHaveTextContent(/^ok$|ok/i)
+  })
+
+  it("tests Azure Translator and Speech from developer options and updates API status", async () => {
+    mockFetchImplementation({
+      healthResponse: {
+        status: "ok",
+        service: "backend",
+        apis: {
+          backend: { status: "ok", active: true, configured: true },
+          azure_translator: { status: "inactive", active: false, configured: false, message: "Not checked yet." },
+          azure_speech: { status: "inactive", active: false, configured: false, message: "Not checked yet." },
+          gemini: { status: "inactive", active: false, configured: false, message: "Not checked yet." },
+        },
+      },
+      translationProbeResponse: {
+        status: "ok",
+        probe_input: "bogen",
+        result_text: "the book",
+        provider: "azure_translator",
+        message: "Azure Translator probe completed successfully.",
+      },
+      speechProbeResponse: {
+        status: "error",
+        probe_input: "bogen",
+        result_text: null,
+        provider: "azure_speech_tts",
+        message: "Azure Speech probe failed.",
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /developer/i }))
+    fireEvent.click(screen.getByRole("button", { name: /test azure translator/i }))
+    fireEvent.click(screen.getByRole("button", { name: /test azure speech/i }))
+
+    expect(await screen.findByLabelText("translation-probe-result")).toHaveTextContent(/the book/i)
+    expect(await screen.findByLabelText("speech-probe-result")).toHaveTextContent(/probe failed/i)
+    expect(vi.mocked(toast.success)).toHaveBeenCalledWith("Azure Translator probe completed successfully.")
+    expect(vi.mocked(toast.error)).toHaveBeenCalledWith("Azure Speech probe failed.")
+    expect(screen.getByLabelText("api-status-list")).toHaveTextContent("Azure Translator API")
+    expect(screen.getByLabelText("api-status-list")).toHaveTextContent("Azure Speech API")
+    expect(screen.getByLabelText("api-status-list")).toHaveTextContent(/Azure Translator probe completed successfully./i)
+    expect(screen.getByLabelText("api-status-list")).toHaveTextContent(/Azure Speech probe failed./i)
+  })
+
   it("deletes complete db from developer options", async () => {
     const resetMethods: Array<string | undefined> = []
     vi.spyOn(window, "confirm").mockReturnValue(true)

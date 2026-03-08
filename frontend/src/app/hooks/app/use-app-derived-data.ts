@@ -5,6 +5,7 @@ import {
   normalizeApiRuntimeStatus,
   type ApiStatusItem,
   type ConnectionStatus,
+  type DeveloperServiceProbeResponse,
   type HealthPayload,
   type WordbankLemma,
 } from "@/app/core"
@@ -33,12 +34,17 @@ export function useGroupedWordbankLemmas(lemmas: WordbankLemma[]) {
   }, [lemmas])
 }
 
-export function useApiStatusItems(healthPayload: HealthPayload | null, status: ConnectionStatus) {
+export function useApiStatusItems(
+  healthPayload: HealthPayload | null,
+  status: ConnectionStatus,
+  apiProbeStatuses: Record<string, DeveloperServiceProbeResponse | null> = {},
+) {
   return useMemo(() => {
     const apis = healthPayload?.apis ?? {}
-    const priorityOrder = ["backend", "azure_translator", "azure_speech"]
+    const priorityOrder = ["backend", "azure_translator", "azure_speech", "gemini"]
     const orderedNames = [
       ...priorityOrder.filter((name) => Object.hasOwn(apis, name)),
+      ...priorityOrder.filter((name) => !Object.hasOwn(apis, name) && apiProbeStatuses[name]),
       ...Object.keys(apis).filter((name) => !priorityOrder.includes(name)).sort(),
     ]
 
@@ -55,12 +61,13 @@ export function useApiStatusItems(healthPayload: HealthPayload | null, status: C
 
     return orderedNames.map((name) => {
       const entry = apis[name] ?? {}
+      const probeResult = apiProbeStatuses[name]
       return {
         name,
         label: humanizeApiName(name),
-        status: normalizeApiRuntimeStatus(entry.status),
-        message: entry.message ?? null,
+        status: probeResult ? (probeResult.status === "ok" ? "ok" : "degraded") : normalizeApiRuntimeStatus(entry.status),
+        message: probeResult?.message ?? entry.message ?? null,
       }
     }) satisfies ApiStatusItem[]
-  }, [healthPayload, status])
+  }, [apiProbeStatuses, healthPayload, status])
 }
