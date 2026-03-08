@@ -193,6 +193,49 @@ def test_wordbank_search_fts_stays_in_sync_with_lexeme_and_surface_updates(tmp_p
     assert surface_matches[0].match_surface == "husene"
 
 
+def test_wordbank_repository_search_returns_query_cor_ids_for_exact_form(tmp_path) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    apply_migrations(db_path)
+    repository = WordbankRepository(db_path)
+
+    lexeme_id, _ = repository.insert_or_load_lexeme(
+        stored_lemma="lærer",
+        translation="teacher",
+        provider="stub",
+        pos_tag="NOUN",
+        morphology="Number=Sing",
+    )
+    repository.insert_or_update_surface_form(
+        lexeme_id=lexeme_id,
+        form="lærer",
+        translation="teacher",
+        provider="stub",
+        pos_tag="NOUN",
+        morphology="Number=Sing",
+    )
+
+    assert repository.insert_surface_form_cor_variant(
+        lexeme_id=lexeme_id,
+        form="lærer",
+        cor_id="COR.49032.110.01",
+    ) is True
+    assert repository.insert_surface_form_cor_variant(
+        lexeme_id=lexeme_id,
+        form="lærer",
+        cor_id="COR.49032.112.01",
+    ) is True
+    assert repository.insert_surface_form_cor_variant(
+        lexeme_id=lexeme_id,
+        form="lærer",
+        cor_id="COR.49032.112.01",
+    ) is False
+
+    matches = repository.search_lemmas("lærer", limit=8)
+
+    assert [item.lemma for item in matches] == ["lærer"]
+    assert matches[0].query_cor_ids == ["COR.49032.110.01", "COR.49032.112.01"]
+
+
 def test_sentencebank_repository_round_trips_sentences(tmp_path) -> None:
     db_path = tmp_path / "danote.sqlite3"
     apply_migrations(db_path)

@@ -95,17 +95,20 @@ export function useWordbankWorkflows({
     metadata?: {
       posTag?: string | null
       morphology?: string | null
+      corId?: string | null
     },
   ): Promise<AddWordResponse> {
     const normalizedSurfaceToken = normalizeSearchWord(surfaceToken)
     const normalizedLemmaCandidate = lemmaCandidate ? normalizeSearchWord(lemmaCandidate) : null
     const normalizedPosTag = metadata?.posTag?.trim() || null
     const normalizedMorphology = metadata?.morphology?.trim() || null
+    const normalizedCorId = metadata?.corId?.trim() || null
     return apiClient.postJson<AddWordResponse>(
       "/api/wordbank/lexemes",
       {
         surface_token: normalizedSurfaceToken,
         lemma_candidate: normalizedLemmaCandidate,
+        ...(normalizedCorId ? { cor_id: normalizedCorId } : {}),
         ...(normalizedPosTag ? { pos_tag: normalizedPosTag } : {}),
         ...(normalizedMorphology ? { morphology: normalizedMorphology } : {}),
       },
@@ -158,6 +161,7 @@ export function useWordbankWorkflows({
     metadata?: {
       posTag?: string | null
       morphology?: string | null
+      corId?: string | null
     },
   ): Promise<string | null> {
     try {

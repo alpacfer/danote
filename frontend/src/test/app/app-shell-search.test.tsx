@@ -41,6 +41,7 @@ describe("App shell and search", () => {
             variation_count: 2,
             english_translation: "book",
             match_surface: "bogens",
+            query_cor_ids: ["COR.100.111.01"],
           },
         ],
       },
@@ -319,6 +320,7 @@ describe("App shell and search", () => {
             variation_count: 1,
             english_translation: "teacher",
             match_surface: null,
+            query_cor_ids: ["COR.49032.110.01"],
           },
         ],
       },
@@ -402,6 +404,7 @@ describe("App shell and search", () => {
             variation_count: 2,
             english_translation: "book",
             match_surface: "bogen",
+            query_cor_ids: ["COR.123.111.01"],
           },
         ],
       },
@@ -469,8 +472,86 @@ describe("App shell and search", () => {
     expect((await within(commandDialog).findAllByText(/^bogen$/i)).length).toBeGreaterThan(0)
     expect(await within(commandDialog).findByTestId("search-open-icon")).toBeInTheDocument()
     expect(within(commandDialog).queryByTestId("search-add-variation-label")).not.toBeInTheDocument()
-    expect((await within(commandDialog).findAllByTestId("search-add-icon")).length).toBeGreaterThan(0)
+    expect(await within(commandDialog).findAllByTestId("search-add-icon")).toHaveLength(1)
     expect(await within(commandDialog).findByText(/^boge$/i, { selector: "em" })).toBeInTheDocument()
+  })
+
+  it("hides only the saved COR id and keeps homonym alternatives with same lemma and form", async () => {
+    mockFetchImplementation({
+      lemmasResponse: {
+        items: [{ lemma: "mus", variation_count: 1, english_translation: "mouse" }],
+      },
+      searchWordbankResponse: {
+        items: [
+          {
+            lemma: "mus",
+            display_lemma: "mus",
+            variation_count: 1,
+            english_translation: "mouse",
+            match_surface: "mus",
+            query_cor_ids: ["COR.111.110.01"],
+          },
+        ],
+      },
+      corSearchFormResponse: {
+        form: "mus",
+        groups: [
+          {
+            lemma: "mus",
+            gloss: "mouse-animal",
+            pos_tag: "NOUN",
+            variants: [
+              {
+                cor_id: "COR.111.110.01",
+                form: "mus",
+                lemma: "mus",
+                gloss: "mouse-animal",
+                lemma_translation: "mouse",
+                gram_raw: "sb.fk.sg.ubest",
+                norm: "N",
+                lemma_idx: 111,
+                gram_code: 110,
+                variation: 1,
+                pos_tag: "NOUN",
+                morphology: "Gender=Com|Number=Sing|Definite=Ind",
+                features: { Gender: "Com", Number: "Sing", Definite: "Ind" },
+                extra_tags: [],
+              },
+              {
+                cor_id: "COR.111.110.02",
+                form: "mus",
+                lemma: "mus",
+                gloss: "mussel-food",
+                lemma_translation: "mussel",
+                gram_raw: "sb.fk.sg.ubest",
+                norm: "N",
+                lemma_idx: 111,
+                gram_code: 110,
+                variation: 2,
+                pos_tag: "NOUN",
+                morphology: "Gender=Com|Number=Sing|Definite=Ind",
+                features: { Gender: "Com", Number: "Sing", Definite: "Ind" },
+                extra_tags: [],
+              },
+            ],
+          },
+        ],
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    const commandDialog = await screen.findByRole("dialog")
+    const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
+    fireEvent.change(searchInput, { target: { value: "mus" } })
+
+    expect(await within(commandDialog).findByTestId("search-open-icon")).toBeInTheDocument()
+    expect(await within(commandDialog).findAllByTestId("search-add-icon")).toHaveLength(1)
+    await waitFor(() => {
+      expect(within(commandDialog).getAllByRole("option")).toHaveLength(2)
+    })
   })
 
   it("shows standard saved-lemma row with consistent from-lemma text and badges", async () => {
@@ -486,6 +567,7 @@ describe("App shell and search", () => {
             variation_count: 1,
             english_translation: "visibility",
             match_surface: "sigtbarhed",
+            query_cor_ids: ["COR.999.110.01"],
             pos_tag: "NOUN",
             morphology: "Gender=Com|Number=Sing|Definite=Ind",
           },
@@ -536,7 +618,7 @@ describe("App shell and search", () => {
     expect((await within(commandDialog).findAllByTestId("search-metadata-badge")).length).toBeGreaterThan(0)
   })
 
-  it("renders prefix matches with the same from-lemma text design", async () => {
+  it("hides saved prefix matches until the query is exact", async () => {
     mockFetchImplementation({
       lemmasResponse: {
         items: [{ lemma: "sigtbarhed", variation_count: 1, english_translation: "visibility" }],
@@ -549,6 +631,7 @@ describe("App shell and search", () => {
             variation_count: 1,
             english_translation: "visibility",
             match_surface: "sigtbarhed",
+            query_cor_ids: ["COR.302.110.01"],
             pos_tag: "NOUN",
             morphology: "Gender=Com|Number=Sing|Definite=Ind",
           },
@@ -567,7 +650,12 @@ describe("App shell and search", () => {
     const commandDialog = await screen.findByRole("dialog")
     const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
     fireEvent.change(searchInput, { target: { value: "sigtbar" } })
+    await waitFor(() => {
+      expect(within(commandDialog).queryByTestId("search-open-icon")).not.toBeInTheDocument()
+    })
+    expect(within(commandDialog).queryByText(/^sigtbarhed$/i, { selector: "strong" })).not.toBeInTheDocument()
 
+    fireEvent.change(searchInput, { target: { value: "sigtbarhed" } })
     expect(await within(commandDialog).findByText(/^sigtbarhed$/i, { selector: "strong" })).toBeInTheDocument()
     expect(await within(commandDialog).findByTestId("search-open-icon")).toBeInTheDocument()
     expect(within(commandDialog).getByText(/\bfrom\b/i)).toBeInTheDocument()
@@ -701,6 +789,7 @@ describe("App shell and search", () => {
             variation_count: 1,
             english_translation: "teacher",
             match_surface: null,
+            query_cor_ids: ["COR.49032.110.01"],
             pos_tag: "NOUN",
             morphology: "Gender=Com|Number=Sing|Definite=Ind",
           },
@@ -860,7 +949,7 @@ describe("App shell and search", () => {
       : false).toBe(true)
   })
 
-  it("keeps saved lemma visible across ulykk -> ulykker query changes and shows non-legacy badges", async () => {
+  it("shows saved lemmas only for exact queries and keeps non-legacy badges", async () => {
     mockFetchImplementation({
       lemmasResponse: {
         items: [{ lemma: "ulykke", variation_count: 2, english_translation: "accident" }],
@@ -873,6 +962,7 @@ describe("App shell and search", () => {
             variation_count: 2,
             english_translation: "accident",
             match_surface: "ulykker",
+            query_cor_ids: ["COR.700.112.01"],
             pos_tag: "NOUN",
             morphology: "Gender=Com|Number=Plur|Definite=Ind",
           },
@@ -916,30 +1006,32 @@ describe("App shell and search", () => {
     const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
 
     fireEvent.change(searchInput, { target: { value: "ulykk" } })
-    expect(await within(commandDialog).findByText(/^ulykke$/i, { selector: "strong" })).toBeInTheDocument()
+    await waitFor(() => {
+      expect(within(commandDialog).queryByTestId("search-open-icon")).not.toBeInTheDocument()
+    })
+    expect(await within(commandDialog).findByText(/no results found\./i)).toBeInTheDocument()
+    expect(within(commandDialog).queryByTestId("search-add-icon")).not.toBeInTheDocument()
+    expect(within(commandDialog).queryByText(/^ulykke$/i, { selector: "strong" })).not.toBeInTheDocument()
+
+    fireEvent.change(searchInput, { target: { value: "ulykker" } })
+    expect(await within(commandDialog).findByTestId("search-open-icon")).toBeInTheDocument()
+    expect(within(commandDialog).queryByTestId("search-add-icon")).not.toBeInTheDocument()
+    expect(within(commandDialog).queryByTestId("search-add-variation-label")).not.toBeInTheDocument()
+    await waitFor(() => {
+      const options = within(commandDialog).getAllByRole("option")
+      expect(options[0].getAttribute("data-value")?.startsWith("wordbank-ulykke")).toBe(true)
+    })
     expect(await within(commandDialog).findByText(/^Noun$/i)).toBeInTheDocument()
     expect(await within(commandDialog).findByText(/^n-word$/i)).toBeInTheDocument()
     expect(await within(commandDialog).findByText(/^Plural$/i)).toBeInTheDocument()
     expect(await within(commandDialog).findByText(/^Indefinite$/i)).toBeInTheDocument()
     expect(within(commandDialog).queryByText(/^NOUN$/)).not.toBeInTheDocument()
 
-    fireEvent.change(searchInput, { target: { value: "ulykker" } })
-    await waitFor(() => {
-      const options = within(commandDialog).getAllByRole("option")
-      expect(options.length).toBeGreaterThan(0)
-      expect(options[0]).toHaveTextContent(/ulykk/i)
-    })
-
     fireEvent.change(searchInput, { target: { value: "ulykke" } })
-    await waitFor(() => {
-      expect(within(commandDialog).getAllByRole("option").length).toBeGreaterThan(0)
-    })
-
-    fireEvent.change(searchInput, { target: { value: "ulykker" } })
+    expect(within(commandDialog).queryByTestId("search-add-icon")).not.toBeInTheDocument()
     await waitFor(() => {
       const options = within(commandDialog).getAllByRole("option")
-      expect(options.length).toBeGreaterThan(0)
-      expect(options[0]).toHaveTextContent(/ulykk/i)
+      expect(options[0].getAttribute("data-value")?.startsWith("wordbank-ulykke")).toBe(true)
     })
   })
 
@@ -955,6 +1047,7 @@ describe("App shell and search", () => {
       variation_count: number
       english_translation?: string | null
       match_surface?: string | null
+      query_cor_ids?: string[]
       pos_tag?: string | null
       morphology?: string | null
     }> = []
@@ -1019,6 +1112,7 @@ describe("App shell and search", () => {
               variation_count: 2,
               english_translation: "accident",
               match_surface: "ulykker",
+              query_cor_ids: ["COR.700.112.01"],
               pos_tag: "NOUN",
               morphology: "Gender=Com|Number=Plur|Definite=Ind",
             })
@@ -1065,13 +1159,15 @@ describe("App shell and search", () => {
     commandDialog = await screen.findByRole("dialog")
     searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
 
-    fireEvent.change(searchInput, { target: { value: "ulykk" } })
+    fireEvent.change(searchInput, { target: { value: "ulykker" } })
     await waitFor(() => {
       const options = within(commandDialog).getAllByRole("option")
       expect(options.length).toBeGreaterThan(0)
       expect(options[0]).toHaveTextContent(/ulykk/i)
       expect(options[0]).toHaveAttribute("data-selected", "true")
     })
+    expect(await within(commandDialog).findByTestId("search-open-icon")).toBeInTheDocument()
+    expect(within(commandDialog).queryByTestId("search-add-icon")).not.toBeInTheDocument()
     expect(await within(commandDialog).findByText(/^Noun$/i)).toBeInTheDocument()
     expect(await within(commandDialog).findByText(/^n-word$/i)).toBeInTheDocument()
     expect(await within(commandDialog).findByText(/^Plural$/i)).toBeInTheDocument()
@@ -1084,7 +1180,9 @@ describe("App shell and search", () => {
       expect(options.length).toBeGreaterThan(0)
       expect(options[0]).toHaveTextContent(/ulykk/i)
       expect(options[0]).toHaveAttribute("data-selected", "true")
+      expect(options[0].getAttribute("data-value")?.startsWith("wordbank-ulykke")).toBe(true)
     })
+    expect(within(commandDialog).queryByTestId("search-add-icon")).not.toBeInTheDocument()
 
     fireEvent.change(searchInput, { target: { value: "ulykker" } })
     await waitFor(() => {
@@ -1136,7 +1234,7 @@ describe("App shell and search", () => {
             display_lemma: "silde",
             variation_count: 1,
             english_translation: "herring",
-            match_surface: null,
+            match_surface: "sild",
             pos_tag: "NOUN",
             morphology: "Gender=Com|Number=Sing|Definite=Ind",
           },
@@ -1154,14 +1252,14 @@ describe("App shell and search", () => {
             display_lemma: "sigtbarhed",
             variation_count: 1,
             english_translation: "visibility",
-            match_surface: null,
+            match_surface: "sild",
             pos_tag: "NOUN",
             morphology: "Gender=Com|Number=Sing|Definite=Ind",
           },
         ],
       },
       corSearchFormResponse: {
-        form: "si",
+        form: "sild",
         groups: [],
       },
     })
@@ -1172,7 +1270,7 @@ describe("App shell and search", () => {
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
     const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
-    fireEvent.change(searchInput, { target: { value: "si" } })
+    fireEvent.change(searchInput, { target: { value: "sild" } })
 
     await waitFor(() => {
       expect(within(commandDialog).getAllByRole("option").length).toBeGreaterThan(2)
@@ -1186,7 +1284,7 @@ describe("App shell and search", () => {
       expect(options[0]).toHaveAttribute("data-selected", "false")
     })
 
-    fireEvent.change(searchInput, { target: { value: "sid" } })
+    fireEvent.change(searchInput, { target: { value: "silde" } })
 
     await waitFor(() => {
       const options = within(commandDialog).getAllByRole("option")
@@ -1313,12 +1411,14 @@ describe("App shell and search", () => {
           const body = JSON.parse(String(init?.body ?? "{}")) as {
             surface_token?: string
             lemma_candidate?: string
+            cor_id?: string
             pos_tag?: string
             morphology?: string
           }
           return (
             body.surface_token === "lærer"
             && body.lemma_candidate === "lære"
+            && body.cor_id === "COR.30686.203.01"
             && body.pos_tag === "VERB"
             && body.morphology === "Tense=Pres|VerbForm=Fin|Voice=Act"
           )

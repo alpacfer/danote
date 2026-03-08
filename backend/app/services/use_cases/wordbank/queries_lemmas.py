@@ -43,6 +43,7 @@ def search_lemmas(runtime: WordbankRuntime, query: str, *, limit: int = 8) -> Wo
                 english_translation=row.english_translation,
                 variation_count=row.variation_count,
                 match_surface=row.match_surface,
+                query_cor_ids=row.query_cor_ids,
                 pos_tag=row.pos_tag,
                 morphology=row.morphology,
             )

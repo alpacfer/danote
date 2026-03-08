@@ -46,6 +46,7 @@ def add_word(payload: AddWordRequest, request: Request) -> AddWordResponse:
         lambda: build_wordbank_use_case(request).add_word(
             payload.surface_token,
             payload.lemma_candidate,
+            cor_id=payload.cor_id,
             pos_tag=payload.pos_tag,
             morphology=payload.morphology,
         ),

@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 class AddWordRequest(BaseModel):
     surface_token: str = Field(..., min_length=1)
     lemma_candidate: str | None = None
+    cor_id: str | None = None
     pos_tag: str | None = None
     morphology: str | None = None
 
@@ -187,6 +188,7 @@ class WordbankSearchItem(BaseModel):
     english_translation: str | None
     variation_count: int
     match_surface: str | None = None
+    query_cor_ids: list[str] = Field(default_factory=list)
     pos_tag: str | None = None
     morphology: str | None = None
 

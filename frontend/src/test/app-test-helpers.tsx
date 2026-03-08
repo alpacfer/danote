@@ -242,6 +242,7 @@ export function mockFetchImplementation(options?: {
       variation_count: number
       english_translation?: string | null
       match_surface?: string | null
+      query_cor_ids?: string[]
       pos_tag?: string | null
       morphology?: string | null
     }>
@@ -504,6 +505,7 @@ export function mockFetchImplementation(options?: {
       english_translation: item.english_translation ?? null,
       variation_count: item.variation_count,
       match_surface: null,
+      query_cor_ids: [],
     })),
   }
   const corSearchFormResponse = options?.corSearchFormResponse ?? {

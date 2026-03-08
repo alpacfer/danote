@@ -19,7 +19,11 @@ type UseSidebarSearchParams = {
   wordbankCacheVersion: number
 }
 
-type SearchMatch = { lemma: WordbankLemma; matchSurface: string | null }
+type SearchMatch = {
+  lemma: WordbankLemma
+  matchSurface: string | null
+  queryCorIds: string[]
+}
 export function useSidebarSearch({
   savedNotes,
   wordbankCacheVersion,
@@ -117,9 +121,15 @@ export function useSidebarSearch({
               morphology: item.morphology ?? null,
             },
             matchSurface: item.match_surface ?? null,
+            queryCorIds: item.query_cor_ids ?? [],
           }))
-          wordbankSearchCacheRef.current.set(normalizedQuery, mapped)
-          commitSearchMatches(mapped)
+          const exactMatches = mapped.filter((item) => {
+            const lemmaKey = normalizeSearchWord(item.lemma.lemma)
+            const matchSurfaceKey = normalizeSearchWord(item.matchSurface ?? "")
+            return lemmaKey === normalizedQuery || matchSurfaceKey === normalizedQuery
+          })
+          wordbankSearchCacheRef.current.set(normalizedQuery, exactMatches)
+          commitSearchMatches(exactMatches)
         } catch {
           if (!cancelled) {
             commitSearchMatches([])

@@ -86,6 +86,7 @@ class WordbankUseCase:
         surface_token: str,
         lemma_candidate: str | None,
         *,
+        cor_id: str | None = None,
         pos_tag: str | None = None,
         morphology: str | None = None,
     ):
@@ -93,6 +94,7 @@ class WordbankUseCase:
             self._runtime,
             surface_token,
             lemma_candidate,
+            cor_id=cor_id,
             pos_tag=pos_tag,
             morphology=morphology,
         )

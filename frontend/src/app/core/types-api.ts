@@ -116,6 +116,7 @@ export type WordbankSearchItem = {
   english_translation: string | null
   variation_count: number
   match_surface?: string | null
+  query_cor_ids?: string[]
   pos_tag?: string | null
   morphology?: string | null
 }

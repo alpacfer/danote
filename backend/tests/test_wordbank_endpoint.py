@@ -163,6 +163,33 @@ def test_add_word_duplicate_is_graceful(tmp_path, stub_nlp_adapter_factory) -> N
     assert "already" in second_payload["message"].lower()
 
 
+def test_add_word_with_new_cor_id_for_existing_form_is_inserted(tmp_path, stub_nlp_adapter_factory) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    apply_migrations(db_path)
+    app = create_app(_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+
+    with TestClient(app) as client:
+        first = client.post(
+            "/api/wordbank/lexemes",
+            json={"surface_token": "lærer", "lemma_candidate": "lærer", "cor_id": "COR.49032.110.01"},
+        )
+        second = client.post(
+            "/api/wordbank/lexemes",
+            json={"surface_token": "lærer", "lemma_candidate": "lærer", "cor_id": "COR.30686.203.01"},
+        )
+        duplicate = client.post(
+            "/api/wordbank/lexemes",
+            json={"surface_token": "lærer", "lemma_candidate": "lærer", "cor_id": "COR.30686.203.01"},
+        )
+
+    assert first.status_code == 200
+    assert first.json()["status"] == "inserted"
+    assert second.status_code == 200
+    assert second.json()["status"] == "inserted"
+    assert duplicate.status_code == 200
+    assert duplicate.json()["status"] == "exists"
+
+
 def test_list_lemmas_returns_sorted_lemmas_with_variation_counts(tmp_path, stub_nlp_adapter_factory) -> None:
     db_path = tmp_path / "danote.sqlite3"
     apply_migrations(db_path)
@@ -201,6 +228,7 @@ def test_search_lemmas_returns_variation_matches(tmp_path, stub_nlp_adapter_fact
             "english_translation": None,
             "variation_count": 2,
             "match_surface": "bogens",
+            "query_cor_ids": [],
             "pos_tag": None,
             "morphology": None,
         }
@@ -233,8 +261,41 @@ def test_search_lemmas_prefers_matched_surface_metadata(tmp_path, stub_nlp_adapt
             "english_translation": None,
             "variation_count": 2,
             "match_surface": "ulykker",
+            "query_cor_ids": [],
             "pos_tag": "NOUN",
             "morphology": "Gender=Com|Number=Plur|Definite=Ind",
+        }
+    ]
+
+
+def test_search_lemmas_returns_query_cor_ids_for_exact_form(tmp_path, stub_nlp_adapter_factory) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    apply_migrations(db_path)
+    app = create_app(_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+
+    with TestClient(app) as client:
+        client.post(
+            "/api/wordbank/lexemes",
+            json={"surface_token": "lærer", "lemma_candidate": "lærer", "cor_id": "COR.49032.110.01"},
+        )
+        client.post(
+            "/api/wordbank/lexemes",
+            json={"surface_token": "lærer", "lemma_candidate": "lærer", "cor_id": "COR.30686.203.01"},
+        )
+        response = client.get("/api/wordbank/search", params={"query": "lærer"})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["items"] == [
+        {
+            "lemma": "lærer",
+            "display_lemma": "lærer",
+            "english_translation": None,
+            "variation_count": 1,
+            "match_surface": "lærer",
+            "query_cor_ids": ["COR.30686.203.01", "COR.49032.110.01"],
+            "pos_tag": None,
+            "morphology": None,
         }
     ]
 

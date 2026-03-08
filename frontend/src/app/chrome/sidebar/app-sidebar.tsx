@@ -55,6 +55,7 @@ export type AppSidebarProps = {
     metadata?: {
       posTag?: string | null
       morphology?: string | null
+      corId?: string | null
     },
   ) => Promise<string | null>
 }

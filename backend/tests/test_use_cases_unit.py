@@ -577,6 +577,38 @@ def test_wordbank_search_lemmas_uses_matched_surface_metadata(tmp_path: Path) ->
     assert result.items[0].morphology == "Gender=Com|Number=Plur|Definite=Ind"
 
 
+def test_wordbank_add_word_treats_new_cor_id_for_same_form_as_inserted(tmp_path: Path) -> None:
+    use_case = WordbankUseCase(_db_path(tmp_path))
+
+    first = use_case.add_word("Lærer", "lærer", cor_id="COR.49032.110.01")
+    second = use_case.add_word("Lærer", "lærer", cor_id="COR.30686.203.01")
+
+    assert first.status == "inserted"
+    assert second.status == "inserted"
+
+
+def test_wordbank_add_word_treats_duplicate_cor_id_for_same_form_as_exists(tmp_path: Path) -> None:
+    use_case = WordbankUseCase(_db_path(tmp_path))
+
+    first = use_case.add_word("Lærer", "lærer", cor_id="COR.49032.110.01")
+    second = use_case.add_word("Lærer", "lærer", cor_id="COR.49032.110.01")
+
+    assert first.status == "inserted"
+    assert second.status == "exists"
+
+
+def test_wordbank_search_lemmas_returns_query_cor_ids_for_exact_form(tmp_path: Path) -> None:
+    use_case = WordbankUseCase(_db_path(tmp_path))
+    use_case.add_word("Lærer", "lærer", cor_id="COR.49032.110.01")
+    use_case.add_word("Lærer", "lærer", cor_id="COR.30686.203.01")
+
+    result = use_case.search_lemmas("lærer")
+
+    assert len(result.items) == 1
+    assert result.items[0].lemma == "lærer"
+    assert result.items[0].query_cor_ids == ["COR.30686.203.01", "COR.49032.110.01"]
+
+
 def test_wordbank_search_lemmas_prefers_exact_surface_match_and_stable_variation_count(tmp_path: Path) -> None:
     use_case = WordbankUseCase(_db_path(tmp_path))
     use_case.add_word("abc", "lemma")

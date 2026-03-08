@@ -36,6 +36,7 @@ type SidebarWordbankResultsProps = {
     metadata?: {
       posTag?: string | null
       morphology?: string | null
+      corId?: string | null
     },
   ) => Promise<string | null>
   onOpenWordbankLemma: (lemma: string) => void
@@ -76,6 +77,7 @@ export function SidebarWordbankResults({
                   {
                     posTag: addVariation.variant.pos_tag ?? null,
                     morphology: addVariation.variant.morphology ?? null,
+                    corId: addVariation.variant.cor_id,
                   },
                 )
                 if (addedLemma) {

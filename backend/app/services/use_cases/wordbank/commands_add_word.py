@@ -14,6 +14,7 @@ from app.services.use_cases.wordbank.runtime import WordbankRuntime
 class _AddWordInputs:
     normalized_surface: str
     stored_lemma: str
+    normalized_cor_id: str | None
     selected_pos_tag: str | None
     selected_morphology: str | None
 
@@ -46,10 +47,16 @@ class _AddWordWriteResult:
     inserted_lexeme: bool
     inserted_surface_form: bool
     inserted_lemma_surface_form: bool
+    inserted_cor_variant: bool
 
     @property
     def inserted_any(self) -> bool:
-        return self.inserted_lexeme or self.inserted_surface_form or self.inserted_lemma_surface_form
+        return (
+            self.inserted_lexeme
+            or self.inserted_surface_form
+            or self.inserted_lemma_surface_form
+            or self.inserted_cor_variant
+        )
 
 
 _NO_TRANSLATION = TranslationLookupResult(translation=None, provider=None)
@@ -60,10 +67,11 @@ def add_word(
     surface_token: str,
     lemma_candidate: str | None,
     *,
+    cor_id: str | None = None,
     pos_tag: str | None = None,
     morphology: str | None = None,
 ) -> AddWordResponse:
-    inputs = _normalize_add_word_inputs(runtime, surface_token, lemma_candidate, pos_tag, morphology)
+    inputs = _normalize_add_word_inputs(runtime, surface_token, lemma_candidate, cor_id, pos_tag, morphology)
     translations = _lookup_word_translations(runtime, inputs)
     lemma_metadata = _build_lemma_metadata(runtime, inputs, translations.lemma)
     surface_metadata = _build_surface_metadata(runtime, inputs, translations.surface)
@@ -88,12 +96,18 @@ def add_word(
         metadata=surface_metadata,
         provider=surface_metadata.provider,
     )
+    inserted_cor_variant = _sync_surface_form_cor_variant(
+        runtime,
+        lexeme_id=lexeme_id,
+        inputs=inputs,
+    )
 
     runtime.nlp.invalidate_pos_cache(inputs.stored_lemma, inputs.normalized_surface or None)
     write_result = _AddWordWriteResult(
         inserted_lexeme=inserted_lexeme,
         inserted_surface_form=inserted_surface_form,
         inserted_lemma_surface_form=inserted_lemma_surface_form,
+        inserted_cor_variant=inserted_cor_variant,
     )
     if write_result.inserted_any:
         runtime.nlp.add_user_lexeme(inputs.stored_lemma)
@@ -119,6 +133,7 @@ def _normalize_add_word_inputs(
     runtime: WordbankRuntime,
     surface_token: str,
     lemma_candidate: str | None,
+    cor_id: str | None,
     pos_tag: str | None,
     morphology: str | None,
 ) -> _AddWordInputs:
@@ -130,6 +145,7 @@ def _normalize_add_word_inputs(
     return _AddWordInputs(
         normalized_surface=normalized_surface,
         stored_lemma=stored_lemma,
+        normalized_cor_id=(cor_id or "").strip() or None,
         selected_pos_tag=runtime.nlp.normalize_optional_pos_tag(pos_tag),
         selected_morphology=runtime.nlp.normalize_optional_morphology(morphology),
     )
@@ -217,6 +233,22 @@ def _sync_surface_form(
         form=inputs.normalized_surface,
         metadata=metadata,
         provider=provider,
+    )
+
+
+def _sync_surface_form_cor_variant(
+    runtime: WordbankRuntime,
+    *,
+    lexeme_id: int,
+    inputs: _AddWordInputs,
+) -> bool:
+    if not inputs.normalized_cor_id:
+        return False
+    form = inputs.normalized_surface or inputs.stored_lemma
+    return runtime.repository.insert_surface_form_cor_variant(
+        lexeme_id=lexeme_id,
+        form=form,
+        cor_id=inputs.normalized_cor_id,
     )
 
 

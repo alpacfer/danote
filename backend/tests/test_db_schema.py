@@ -39,6 +39,7 @@ def test_db_init_creates_expected_tables(tmp_path) -> None:
         "schema_migrations",
         "lexemes",
         "surface_forms",
+        "surface_form_cor_variants",
         "wordbank_search_fts",
         "phrase_translations",
         "token_events",
@@ -106,6 +107,15 @@ def test_uniqueness_constraints_reject_duplicates(tmp_path) -> None:
                 "INSERT INTO surface_forms (lexeme_id, form, source) VALUES (?, ?, ?)",
                 (lexeme_id, "bogen", "manual"),
             )
+        conn.execute(
+            "INSERT INTO surface_form_cor_variants (lexeme_id, form, cor_id) VALUES (?, ?, ?)",
+            (lexeme_id, "bogen", "COR.123.110.01"),
+        )
+        with pytest.raises(sqlite3.IntegrityError):
+            conn.execute(
+                "INSERT INTO surface_form_cor_variants (lexeme_id, form, cor_id) VALUES (?, ?, ?)",
+                (lexeme_id, "bogen", "COR.123.110.01"),
+            )
 
         conn.execute(
             "INSERT INTO ignored_tokens (token, scope) VALUES (?, ?)",
@@ -116,3 +126,19 @@ def test_uniqueness_constraints_reject_duplicates(tmp_path) -> None:
                 "INSERT INTO ignored_tokens (token, scope) VALUES (?, ?)",
                 ("plc", "global"),
             )
+
+
+def test_surface_form_cor_variants_has_expected_indexes(tmp_path) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    apply_migrations(db_path)
+
+    with get_connection(db_path) as conn:
+        indexes = {
+            row["name"]
+            for row in conn.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'surface_form_cor_variants'"
+            ).fetchall()
+        }
+
+    assert "idx_surface_form_cor_variants_lexeme_form" in indexes
+    assert "idx_surface_form_cor_variants_cor_id" in indexes

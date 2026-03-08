@@ -8,7 +8,11 @@ import {
   type WordbankLemma,
 } from "@/app/core"
 
-type SearchApiMatch = { lemma: WordbankLemma; matchSurface: string | null }
+type SearchApiMatch = {
+  lemma: WordbankLemma
+  matchSurface: string | null
+  queryCorIds: string[]
+}
 
 type CorVariantCandidate = { group: CORSearchGroup; variant: CORSearchVariant }
 
@@ -18,6 +22,7 @@ type UseSidebarSearchRankingParams = {
   searchApiMatches: SearchApiMatch[]
   activeCorFormSearchResult: { query: string; payload: CORSearchFormResponse } | null
 }
+
 const scoreWordbankResult = (payload: {
   query: string
   lemmaKey: string
@@ -83,7 +88,11 @@ export function useSidebarSearchRanking({
   activeCorFormSearchResult,
 }: UseSidebarSearchRankingParams) {
   const wordbankResults = useMemo(
-    () => searchApiMatches.map((item) => ({ lemma: item.lemma, matchSurface: item.matchSurface ?? null })),
+    () => searchApiMatches.map((item) => ({
+      lemma: item.lemma,
+      matchSurface: item.matchSurface ?? null,
+      queryCorIds: item.queryCorIds ?? [],
+    })),
     [searchApiMatches],
   )
   const savedLemmaKeySet = useMemo(
@@ -149,11 +158,21 @@ export function useSidebarSearchRanking({
   const exactSavedVariationLemmaKeySet = useMemo(
     () => new Set(
       wordbankResults
-        .filter(({ matchSurface }) => normalizeSearchWord(matchSurface ?? "") === normalizedQuery)
+        .filter(({ lemma, matchSurface }) => {
+          const lemmaKey = normalizeSearchWord(lemma.lemma)
+          const matchSurfaceKey = normalizeSearchWord(matchSurface ?? "")
+          return lemmaKey === normalizedQuery || matchSurfaceKey === normalizedQuery
+        })
         .map(({ lemma }) => normalizeSearchWord(lemma.lemma))
         .filter(Boolean),
     ),
     [normalizedQuery, wordbankResults],
+  )
+  const savedQueryCorIdSet = useMemo(
+    () => new Set(
+      wordbankResults.flatMap(({ queryCorIds }) => queryCorIds).map((item) => item.trim()).filter(Boolean),
+    ),
+    [wordbankResults],
   )
 
   const orderedWordbankResults = useMemo(() => {
@@ -185,16 +204,14 @@ export function useSidebarSearchRanking({
 
   const corSearchVariantsToRender = useMemo(
     () => corSearchVariants.filter((candidate) => {
-      const formKey = normalizeSearchWord(candidate.variant.form)
-      const lemmaKey = normalizeSearchWord(candidate.variant.lemma)
-      const isExactSavedVariation = formKey === normalizedQuery && exactSavedVariationLemmaKeySet.has(lemmaKey)
-      if (isExactSavedVariation) {
+      if (savedQueryCorIdSet.has(candidate.variant.cor_id)) {
         return false
       }
+      const lemmaKey = normalizeSearchWord(candidate.variant.lemma)
       const linked = addVariationBySavedLemma.get(lemmaKey)
       return !linked || linked.variant.cor_id !== candidate.variant.cor_id
     }),
-    [addVariationBySavedLemma, corSearchVariants, exactSavedVariationLemmaKeySet, normalizedQuery],
+    [addVariationBySavedLemma, corSearchVariants, savedQueryCorIdSet],
   )
 
   const orderedCorSearchGroups = useMemo(

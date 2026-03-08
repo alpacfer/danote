@@ -23,6 +23,7 @@ class WordbankSearchRow:
     morphology: str | None
     variation_count: int
     match_surface: str | None
+    query_cor_ids: list[str]
 
 
 @dataclass(frozen=True, slots=True)
@@ -85,6 +86,7 @@ class WordbankRepository:
                 morphology=row["morphology"],
                 variation_count=int(row["variation_count"]),
                 match_surface=row["match_surface"],
+                query_cor_ids=_parse_query_cor_ids(row["query_cor_ids"]),
             )
             for row in rows
         ]
@@ -277,3 +279,27 @@ class WordbankRepository:
                 (pos_tag, morphology, lexeme_id, form),
             )
         return cursor.rowcount == 1
+
+    def insert_surface_form_cor_variant(self, *, lexeme_id: int, form: str, cor_id: str) -> bool:
+        with timed_db_operation("wordbank.insert_surface_form_cor_variant"), get_connection(self._db_path) as conn:
+            cursor = conn.execute(
+                """
+                INSERT OR IGNORE INTO surface_form_cor_variants (
+                    lexeme_id,
+                    form,
+                    cor_id
+                )
+                VALUES (?, ?, ?)
+                """,
+                (lexeme_id, form, cor_id),
+            )
+        return cursor.rowcount == 1
+
+
+_QUERY_COR_IDS_SEPARATOR = "\x1f"
+
+
+def _parse_query_cor_ids(raw: str | None) -> list[str]:
+    if not raw:
+        return []
+    return [item for item in raw.split(_QUERY_COR_IDS_SEPARATOR) if item]

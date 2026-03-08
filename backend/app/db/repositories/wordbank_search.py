@@ -51,6 +51,19 @@ def _search_lemmas_with_fts(
             JOIN candidate_ids c ON c.lexeme_id = sf.lexeme_id
             GROUP BY sf.lexeme_id
         ),
+        query_cor_variants AS (
+            SELECT
+                rows.lexeme_id,
+                GROUP_CONCAT(rows.cor_id, char(31)) AS query_cor_ids
+            FROM (
+                SELECT sfcv.lexeme_id, sfcv.cor_id
+                FROM surface_form_cor_variants sfcv
+                JOIN candidate_ids c ON c.lexeme_id = sfcv.lexeme_id
+                WHERE sfcv.form = ? COLLATE NOCASE
+                ORDER BY sfcv.lexeme_id, sfcv.cor_id
+            ) rows
+            GROUP BY rows.lexeme_id
+        ),
         surface_matches AS (
             SELECT
                 sf.lexeme_id,
@@ -90,10 +103,12 @@ def _search_lemmas_with_fts(
             COALESCE(bsm.pos_tag, cl.pos_tag) AS pos_tag,
             COALESCE(bsm.morphology, cl.morphology) AS morphology,
             COALESCE(sc.variation_count, 0) AS variation_count,
-            bsm.match_surface
+            bsm.match_surface,
+            COALESCE(qcv.query_cor_ids, '') AS query_cor_ids
         FROM candidate_lexemes cl
         LEFT JOIN surface_counts sc ON sc.lexeme_id = cl.id
         LEFT JOIN best_surface_matches bsm ON bsm.lexeme_id = cl.id
+        LEFT JOIN query_cor_variants qcv ON qcv.lexeme_id = cl.id
         ORDER BY
             CASE
                 WHEN cl.lemma = ? COLLATE NOCASE THEN 0
@@ -109,6 +124,7 @@ def _search_lemmas_with_fts(
         (
             fts_match_query,
             candidate_limit,
+            normalized_query,
             normalized_query,
             prefix_pattern,
             normalized_query,
@@ -168,6 +184,19 @@ def _search_lemmas_with_prefix_only(
             JOIN candidate_ids c ON c.lexeme_id = sf.lexeme_id
             GROUP BY sf.lexeme_id
         ),
+        query_cor_variants AS (
+            SELECT
+                rows.lexeme_id,
+                GROUP_CONCAT(rows.cor_id, char(31)) AS query_cor_ids
+            FROM (
+                SELECT sfcv.lexeme_id, sfcv.cor_id
+                FROM surface_form_cor_variants sfcv
+                JOIN candidate_ids c ON c.lexeme_id = sfcv.lexeme_id
+                WHERE sfcv.form = ? COLLATE NOCASE
+                ORDER BY sfcv.lexeme_id, sfcv.cor_id
+            ) rows
+            GROUP BY rows.lexeme_id
+        ),
         surface_matches AS (
             SELECT
                 sf.lexeme_id,
@@ -207,10 +236,12 @@ def _search_lemmas_with_prefix_only(
             COALESCE(bsm.pos_tag, cl.pos_tag) AS pos_tag,
             COALESCE(bsm.morphology, cl.morphology) AS morphology,
             COALESCE(sc.variation_count, 0) AS variation_count,
-            bsm.match_surface
+            bsm.match_surface,
+            COALESCE(qcv.query_cor_ids, '') AS query_cor_ids
         FROM candidate_lexemes cl
         LEFT JOIN surface_counts sc ON sc.lexeme_id = cl.id
         LEFT JOIN best_surface_matches bsm ON bsm.lexeme_id = cl.id
+        LEFT JOIN query_cor_variants qcv ON qcv.lexeme_id = cl.id
         ORDER BY
             CASE
                 WHEN cl.lemma = ? COLLATE NOCASE THEN 0
@@ -227,6 +258,7 @@ def _search_lemmas_with_prefix_only(
             normalized_query,
             prefix_pattern,
             prefix_pattern,
+            normalized_query,
             normalized_query,
             prefix_pattern,
             normalized_query,

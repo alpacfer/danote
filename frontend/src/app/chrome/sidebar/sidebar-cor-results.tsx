@@ -35,6 +35,7 @@ type SidebarCorResultsProps = {
     metadata?: {
       posTag?: string | null
       morphology?: string | null
+      corId?: string | null
     },
   ) => Promise<string | null>
   onCloseSearch: () => void
@@ -83,6 +84,7 @@ export function SidebarCorResults({
                         {
                           posTag: variant.pos_tag ?? null,
                           morphology: variant.morphology ?? null,
+                          corId: variant.cor_id,
                         },
                       )
                       if (addedLemma) {

@@ -67,6 +67,7 @@ export type SidebarSearchResultsActions = {
     metadata?: {
       posTag?: string | null
       morphology?: string | null
+      corId?: string | null
     },
   ) => Promise<string | null>
   onCloseSearch: () => void
