@@ -49,6 +49,7 @@ export function buildVerificationErrorDetail(payload: {
   message: string | null | undefined
   composedWordCount?: number | null
   storedSurfaceForm?: string | null
+  meaningId?: number | null
   problem?: string | null
   changeToImplement?: string | null
   suggestedChanges?: {
@@ -73,6 +74,7 @@ export function buildVerificationErrorDetail(payload: {
       }
     : undefined
   const normalizedSurface = normalizeSearchWord(payload.storedSurfaceForm ?? "") || null
+  const meaningId = payload.meaningId ?? null
   const explicitProblem = compactMessage(payload.problem)
   const explicitChange = compactMessage(payload.changeToImplement)
 
@@ -92,6 +94,7 @@ export function buildVerificationErrorDetail(payload: {
         "Review lemma/surface form and translation, then update the entry to a valid Danish word form.",
       rawMessage: detail || explicitProblem || "Gemini flagged the entry as incorrect.",
       storedSurfaceForm: normalizedSurface,
+      meaningId,
       suggestedChanges,
       suggestedChangesPayload: payload.suggestedChanges ?? undefined,
     }
@@ -107,6 +110,7 @@ export function buildVerificationErrorDetail(payload: {
         "Set the Gemini verification API key in Developer settings or backend env, then retry verification.",
       rawMessage: detail || explicitProblem || "Missing Gemini verification configuration.",
       storedSurfaceForm: normalizedSurface,
+      meaningId,
       suggestedChanges,
       suggestedChangesPayload: payload.suggestedChanges ?? undefined,
     }
@@ -121,6 +125,7 @@ export function buildVerificationErrorDetail(payload: {
         explicitChange || "Retry verification after a short delay, or use an API key with higher quota.",
       rawMessage: detail || explicitProblem || "Gemini verification request was rate-limited.",
       storedSurfaceForm: normalizedSurface,
+      meaningId,
       suggestedChanges,
       suggestedChangesPayload: payload.suggestedChanges ?? undefined,
     }
@@ -134,6 +139,7 @@ export function buildVerificationErrorDetail(payload: {
       explicitChange || "Check verification input and retry. If it persists, inspect backend logs for provider errors.",
     rawMessage: detail || explicitProblem || "Gemini verification failed unexpectedly.",
     storedSurfaceForm: normalizedSurface,
+    meaningId,
     suggestedChanges,
     suggestedChangesPayload: payload.suggestedChanges ?? undefined,
   }

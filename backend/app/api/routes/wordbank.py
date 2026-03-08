@@ -62,6 +62,7 @@ def verify_added_word(payload: VerifyWordRequest, request: Request) -> VerifyWor
         lambda: build_wordbank_use_case(request).verify_added_word(
             payload.stored_lemma,
             payload.stored_surface_form,
+            meaning_id=payload.meaning_id,
         ),
         error_log_name="wordbank_db_operational_error",
     )
@@ -94,6 +95,7 @@ def apply_verification_changes(
         lambda: build_wordbank_use_case(request).apply_verification_changes(
             stored_lemma=payload.stored_lemma,
             stored_surface_form=payload.stored_surface_form,
+            meaning_id=payload.meaning_id,
             suggested_changes=payload.suggested_changes.model_dump(),
             provider=payload.provider,
         ),
@@ -162,17 +164,11 @@ def generate_phrase_translation(
 
 @router.get("/wordbank/lemmas", response_model=LemmaListResponse)
 def list_lemmas(request: Request) -> LemmaListResponse:
-    response = run_db_operation(
+    return run_db_operation(
         request,
         lambda: build_wordbank_use_case(request).list_lemmas(),
         include_runtime_error=True,
         error_log_name="wordbank_db_operational_error",
-    )
-    return LemmaListResponse(
-        items=[
-            item.model_copy(update={"variation_count": max(0, item.variation_count - 1)})
-            for item in response.items
-        ]
     )
 
 

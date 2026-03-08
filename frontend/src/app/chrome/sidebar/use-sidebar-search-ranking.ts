@@ -6,20 +6,15 @@ import {
   type CORSearchGroup,
   type CORSearchVariant,
   type WordbankLemma,
+  type WordbankSearchItem,
 } from "@/app/core"
-
-type SearchApiMatch = {
-  lemma: WordbankLemma
-  matchSurface: string | null
-  queryCorIds: string[]
-}
 
 type CorVariantCandidate = { group: CORSearchGroup; variant: CORSearchVariant }
 
 type UseSidebarSearchRankingParams = {
   lemmas: WordbankLemma[]
   normalizedQuery: string
-  searchApiMatches: SearchApiMatch[]
+  searchApiMatches: WordbankSearchItem[]
   activeCorFormSearchResult: { query: string; payload: CORSearchFormResponse } | null
 }
 
@@ -56,6 +51,7 @@ const scoreWordbankResult = (payload: {
   }
   return 0
 }
+
 const scoreCorGroup = (group: CORSearchGroup, normalizedQuery: string, savedLemmaKeySet: Set<string>): number => {
   let best = 0
   for (const variant of group.variants ?? []) {
@@ -81,6 +77,7 @@ const scoreCorGroup = (group: CORSearchGroup, normalizedQuery: string, savedLemm
   }
   return best
 }
+
 export function useSidebarSearchRanking({
   lemmas,
   normalizedQuery,
@@ -88,17 +85,13 @@ export function useSidebarSearchRanking({
   activeCorFormSearchResult,
 }: UseSidebarSearchRankingParams) {
   const wordbankResults = useMemo(
-    () => searchApiMatches.map((item) => ({
-      lemma: item.lemma,
-      matchSurface: item.matchSurface ?? null,
-      queryCorIds: item.queryCorIds ?? [],
-    })),
+    () => searchApiMatches.map((item) => ({ ...item, query_cor_ids: item.query_cor_ids ?? [] })),
     [searchApiMatches],
   )
   const savedLemmaKeySet = useMemo(
     () =>
       new Set(
-        [...lemmas.map((item) => item.lemma), ...searchApiMatches.map((item) => item.lemma.lemma)]
+        [...lemmas.map((item) => item.lemma), ...searchApiMatches.map((item) => item.lemma)]
           .map((item) => normalizeSearchWord(item))
           .filter(Boolean),
       ),
@@ -112,106 +105,128 @@ export function useSidebarSearchRanking({
     () => corSearchGroups.flatMap((group) => (group.variants ?? []).map((variant) => ({ group, variant }))),
     [corSearchGroups],
   )
-  const addVariationBySavedLemma = useMemo(() => {
+
+  const addVariationBySavedResult = useMemo(() => {
     const linked = new Map<string, CorVariantCandidate>()
     if (!normalizedQuery || wordbankResults.length === 0 || corSearchVariants.length === 0) {
       return linked
     }
 
-    const savedLemmaKeys = new Set(wordbankResults.map(({ lemma }) => normalizeSearchWord(lemma.lemma)))
-    for (const candidate of corSearchVariants) {
-      const lemmaKey = normalizeSearchWord(candidate.variant.lemma)
-      if (!lemmaKey || !savedLemmaKeys.has(lemmaKey)) {
-        continue
-      }
-      const formKey = normalizeSearchWord(candidate.variant.form)
-      if (!formKey || formKey === lemmaKey || formKey !== normalizedQuery) {
-        continue
-      }
-      const existing = linked.get(lemmaKey)
-      if (!existing || normalizeSearchWord(existing.variant.form) !== normalizedQuery) {
-        linked.set(lemmaKey, candidate)
+    for (const savedResult of wordbankResults) {
+      const savedKey = savedWordbankResultKey(savedResult)
+      const lemmaKey = normalizeSearchWord(savedResult.lemma)
+      for (const candidate of corSearchVariants) {
+        if (!candidateMatchesSavedResult(candidate, savedResult)) {
+          continue
+        }
+        const formKey = normalizeSearchWord(candidate.variant.form)
+        if (!formKey || formKey === lemmaKey || formKey !== normalizedQuery) {
+          continue
+        }
+        linked.set(savedKey, candidate)
+        break
       }
     }
     return linked
   }, [corSearchVariants, normalizedQuery, wordbankResults])
-  const displayVariantBySavedLemma = useMemo(() => {
+
+  const displayVariantBySavedResult = useMemo(() => {
     const linked = new Map<string, CorVariantCandidate>()
     if (!normalizedQuery || wordbankResults.length === 0 || corSearchVariants.length === 0) {
       return linked
     }
 
-    const savedLemmaKeys = new Set(wordbankResults.map(({ lemma }) => normalizeSearchWord(lemma.lemma)))
-    for (const candidate of corSearchVariants) {
-      const lemmaKey = normalizeSearchWord(candidate.variant.lemma)
-      const formKey = normalizeSearchWord(candidate.variant.form)
-      if (!lemmaKey || !savedLemmaKeys.has(lemmaKey) || !formKey || formKey !== normalizedQuery) {
-        continue
-      }
-      const existing = linked.get(lemmaKey)
-      if (!existing || normalizeSearchWord(existing.variant.form) !== normalizedQuery) {
-        linked.set(lemmaKey, candidate)
+    for (const savedResult of wordbankResults) {
+      const savedKey = savedWordbankResultKey(savedResult)
+      for (const candidate of corSearchVariants) {
+        if (!candidateMatchesSavedResult(candidate, savedResult)) {
+          continue
+        }
+        const formKey = normalizeSearchWord(candidate.variant.form)
+        if (!formKey || formKey !== normalizedQuery) {
+          continue
+        }
+        linked.set(savedKey, candidate)
+        break
       }
     }
     return linked
   }, [corSearchVariants, normalizedQuery, wordbankResults])
-  const exactSavedVariationLemmaKeySet = useMemo(
-    () => new Set(
-      wordbankResults
-        .filter(({ lemma, matchSurface }) => {
-          const lemmaKey = normalizeSearchWord(lemma.lemma)
-          const matchSurfaceKey = normalizeSearchWord(matchSurface ?? "")
-          return lemmaKey === normalizedQuery || matchSurfaceKey === normalizedQuery
-        })
-        .map(({ lemma }) => normalizeSearchWord(lemma.lemma))
-        .filter(Boolean),
-    ),
+
+  const exactSavedVariationKeySet = useMemo(
+    () =>
+      new Set(
+        wordbankResults
+          .filter((item) => {
+            const lemmaKey = normalizeSearchWord(item.lemma)
+            const matchSurfaceKey = normalizeSearchWord(item.match_surface ?? "")
+            return lemmaKey === normalizedQuery || matchSurfaceKey === normalizedQuery
+          })
+          .map(savedWordbankResultKey),
+      ),
     [normalizedQuery, wordbankResults],
   )
+
   const savedQueryCorIdSet = useMemo(
-    () => new Set(
-      wordbankResults.flatMap(({ queryCorIds }) => queryCorIds).map((item) => item.trim()).filter(Boolean),
-    ),
+    () =>
+      new Set(
+        wordbankResults
+          .flatMap((item) => item.query_cor_ids ?? [])
+          .map((item) => item.trim())
+          .filter(Boolean),
+      ),
     [wordbankResults],
+  )
+
+  const addVariationCorIdSet = useMemo(
+    () => new Set([...addVariationBySavedResult.values()].map((candidate) => candidate.variant.cor_id)),
+    [addVariationBySavedResult],
   )
 
   const orderedWordbankResults = useMemo(() => {
     return [...wordbankResults].sort((left, right) => {
-      const leftLemmaKey = normalizeSearchWord(left.lemma.lemma)
-      const rightLemmaKey = normalizeSearchWord(right.lemma.lemma)
-      const leftLinked = addVariationBySavedLemma.get(leftLemmaKey)?.variant ?? null
-      const rightLinked = addVariationBySavedLemma.get(rightLemmaKey)?.variant ?? null
+      const leftKey = savedWordbankResultKey(left)
+      const rightKey = savedWordbankResultKey(right)
+      const leftLemmaKey = normalizeSearchWord(left.lemma)
+      const rightLemmaKey = normalizeSearchWord(right.lemma)
+      const leftLinked = addVariationBySavedResult.get(leftKey)?.variant ?? null
+      const rightLinked = addVariationBySavedResult.get(rightKey)?.variant ?? null
       const leftScore = scoreWordbankResult({
         query: normalizedQuery,
         lemmaKey: leftLemmaKey,
         linkedForm: normalizeSearchWord(leftLinked?.form ?? ""),
-        matchSurface: normalizeSearchWord(left.matchSurface ?? ""),
-        isExactSaved: exactSavedVariationLemmaKeySet.has(leftLemmaKey),
+        matchSurface: normalizeSearchWord(left.match_surface ?? ""),
+        isExactSaved: exactSavedVariationKeySet.has(leftKey),
       })
       const rightScore = scoreWordbankResult({
         query: normalizedQuery,
         lemmaKey: rightLemmaKey,
         linkedForm: normalizeSearchWord(rightLinked?.form ?? ""),
-        matchSurface: normalizeSearchWord(right.matchSurface ?? ""),
-        isExactSaved: exactSavedVariationLemmaKeySet.has(rightLemmaKey),
+        matchSurface: normalizeSearchWord(right.match_surface ?? ""),
+        isExactSaved: exactSavedVariationKeySet.has(rightKey),
       })
       if (leftScore !== rightScore) {
         return rightScore - leftScore
       }
-      return left.lemma.lemma.localeCompare(right.lemma.lemma, "da-DK")
+      if (left.lemma !== right.lemma) {
+        return left.lemma.localeCompare(right.lemma, "da-DK")
+      }
+      return (left.meaning_id ?? 0) - (right.meaning_id ?? 0)
     })
-  }, [addVariationBySavedLemma, exactSavedVariationLemmaKeySet, normalizedQuery, wordbankResults])
+  }, [addVariationBySavedResult, exactSavedVariationKeySet, normalizedQuery, wordbankResults])
 
   const corSearchVariantsToRender = useMemo(
-    () => corSearchVariants.filter((candidate) => {
-      if (savedQueryCorIdSet.has(candidate.variant.cor_id)) {
-        return false
-      }
-      const lemmaKey = normalizeSearchWord(candidate.variant.lemma)
-      const linked = addVariationBySavedLemma.get(lemmaKey)
-      return !linked || linked.variant.cor_id !== candidate.variant.cor_id
-    }),
-    [addVariationBySavedLemma, corSearchVariants, savedQueryCorIdSet],
+    () =>
+      corSearchVariants.filter((candidate) => {
+        if (savedQueryCorIdSet.has(candidate.variant.cor_id)) {
+          return false
+        }
+        if (addVariationCorIdSet.has(candidate.variant.cor_id)) {
+          return false
+        }
+        return true
+      }),
+    [addVariationCorIdSet, corSearchVariants, savedQueryCorIdSet],
   )
 
   const orderedCorSearchGroups = useMemo(
@@ -228,9 +243,9 @@ export function useSidebarSearchRanking({
 
   return {
     savedLemmaKeySet,
-    addVariationBySavedLemma,
-    displayVariantBySavedLemma,
-    exactSavedVariationLemmaKeySet,
+    addVariationBySavedResult,
+    displayVariantBySavedResult,
+    exactSavedVariationKeySet,
     orderedWordbankResults,
     corSearchVariantsToRender,
     orderedCorSearchGroups,
@@ -238,3 +253,24 @@ export function useSidebarSearchRanking({
     hasWordbankActions: corSearchVariantsToRender.length > 0,
   }
 }
+
+function savedWordbankResultKey(item: WordbankSearchItem): string {
+  const lemmaKey = normalizeSearchWord(item.lemma)
+  return `${lemmaKey}::${item.meaning_id ?? "root"}::${item.cor_lemma_idx ?? "none"}`
+}
+
+function candidateMatchesSavedResult(
+  candidate: CorVariantCandidate,
+  savedResult: WordbankSearchItem,
+): boolean {
+  if (
+    savedResult.cor_lemma_idx !== null
+    && savedResult.cor_lemma_idx !== undefined
+  ) {
+    return savedResult.cor_lemma_idx === candidate.variant.lemma_idx
+  }
+  return savedResult.meaning_id == null
+    && normalizeSearchWord(savedResult.lemma) === normalizeSearchWord(candidate.variant.lemma)
+}
+
+export { savedWordbankResultKey }

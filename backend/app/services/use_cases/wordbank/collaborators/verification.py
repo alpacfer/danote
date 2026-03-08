@@ -38,7 +38,11 @@ class VerificationCollaborator:
     # ------------------------------------------------------------------
 
     def verify_added_word(
-        self, stored_lemma: str, stored_surface_form: str | None
+        self,
+        stored_lemma: str,
+        stored_surface_form: str | None,
+        *,
+        meaning_id: int | None = None,
     ) -> VerifyWordResponse:
         normalized_lemma = normalize_token(stored_lemma)
         normalized_surface = normalize_token(stored_surface_form or "") or None
@@ -48,6 +52,7 @@ class VerificationCollaborator:
         payload = self._build_verification_input(
             stored_lemma=normalized_lemma,
             stored_surface_form=normalized_surface,
+            meaning_id=meaning_id,
         )
         verification = self._verify_added_word(payload)
         return VerifyWordResponse(
@@ -61,6 +66,7 @@ class VerificationCollaborator:
         *,
         stored_lemma: str,
         stored_surface_form: str | None,
+        meaning_id: int | None,
         suggested_changes: dict[str, str | None],
         provider: str | None = None,
     ) -> ApplyVerificationChangesResponse:
@@ -133,12 +139,27 @@ class VerificationCollaborator:
             if lexeme_row is None:
                 raise LookupError(f"Lemma '{normalized_lemma}' was not found")
             lexeme_id = int(lexeme_row["id"])
-            lexeme_before = {
-                "pos_tag": lexeme_row["pos_tag"],
-                "morphology": lexeme_row["morphology"],
-                "english_translation": lexeme_row["english_translation"],
-                "translation_provider": lexeme_row["translation_provider"],
-            }
+            meaning_row = self._load_meaning_row(
+                conn,
+                lexeme_id=lexeme_id,
+                requested_meaning_id=meaning_id,
+                normalized_lemma=normalized_lemma,
+            )
+
+            if meaning_row is not None:
+                lexeme_before = {
+                    "pos_tag": meaning_row["pos_tag"],
+                    "morphology": meaning_row["morphology"],
+                    "english_translation": meaning_row["english_translation"],
+                    "translation_provider": provider_name,
+                }
+            else:
+                lexeme_before = {
+                    "pos_tag": lexeme_row["pos_tag"],
+                    "morphology": lexeme_row["morphology"],
+                    "english_translation": lexeme_row["english_translation"],
+                    "translation_provider": lexeme_row["translation_provider"],
+                }
 
             lexeme_updates: list[str] = []
             lexeme_params: list[str | int] = []
@@ -152,27 +173,45 @@ class VerificationCollaborator:
                 applied_fields.append("lemma_morphology")
             if "lexeme_translation" in normalized_changes:
                 lexeme_updates.append("english_translation = ?")
-                lexeme_updates.append("translation_provider = ?")
                 lexeme_params.append(normalized_changes["lexeme_translation"])
-                lexeme_params.append(provider_name)
+                if meaning_row is None:
+                    lexeme_updates.append("translation_provider = ?")
+                    lexeme_params.append(provider_name)
                 applied_fields.append("lexeme_translation")
 
             if lexeme_updates:
-                conn.execute(
-                    f"UPDATE lexemes SET {', '.join(lexeme_updates)} WHERE id = ?",
-                    (*lexeme_params, lexeme_id),
-                )
+                if meaning_row is not None:
+                    conn.execute(
+                        f"UPDATE lexeme_meanings SET {', '.join(lexeme_updates)} WHERE id = ?",
+                        (*lexeme_params, int(meaning_row["id"])),
+                    )
+                else:
+                    conn.execute(
+                        f"UPDATE lexemes SET {', '.join(lexeme_updates)} WHERE id = ?",
+                        (*lexeme_params, lexeme_id),
+                    )
 
             if normalized_surface:
-                surface_row = conn.execute(
-                    """
-                    SELECT pos_tag, morphology, english_translation, translation_provider
-                    FROM surface_forms
-                    WHERE lexeme_id = ? AND form = ?
-                    LIMIT 1
-                    """,
-                    (lexeme_id, normalized_surface),
-                ).fetchone()
+                if meaning_row is not None:
+                    surface_row = conn.execute(
+                        """
+                        SELECT pos_tag, morphology, english_translation, translation_provider
+                        FROM surface_forms
+                        WHERE meaning_id = ? AND form = ?
+                        LIMIT 1
+                        """,
+                        (int(meaning_row["id"]), normalized_surface),
+                    ).fetchone()
+                else:
+                    surface_row = conn.execute(
+                        """
+                        SELECT pos_tag, morphology, english_translation, translation_provider
+                        FROM surface_forms
+                        WHERE lexeme_id = ? AND meaning_id IS NULL AND form = ?
+                        LIMIT 1
+                        """,
+                        (lexeme_id, normalized_surface),
+                    ).fetchone()
                 if surface_row is not None:
                     surface_before = {
                         "pos_tag": surface_row["pos_tag"],
@@ -182,10 +221,15 @@ class VerificationCollaborator:
                     }
                 conn.execute(
                     """
-                    INSERT OR IGNORE INTO surface_forms (lexeme_id, form, source)
-                    VALUES (?, ?, ?)
+                    INSERT OR IGNORE INTO surface_forms (lexeme_id, meaning_id, form, source)
+                    VALUES (?, ?, ?, ?)
                     """,
-                    (lexeme_id, normalized_surface, "manual"),
+                    (
+                        lexeme_id,
+                        int(meaning_row["id"]) if meaning_row is not None else None,
+                        normalized_surface,
+                        "manual",
+                    ),
                 )
 
                 surface_updates: list[str] = []
@@ -206,14 +250,24 @@ class VerificationCollaborator:
                     applied_fields.append("surface_translation")
 
                 if surface_updates:
-                    conn.execute(
-                        f"""
-                        UPDATE surface_forms
-                        SET {", ".join(surface_updates)}
-                        WHERE lexeme_id = ? AND form = ?
-                        """,
-                        (*surface_params, lexeme_id, normalized_surface),
-                    )
+                    if meaning_row is not None:
+                        conn.execute(
+                            f"""
+                            UPDATE surface_forms
+                            SET {", ".join(surface_updates)}
+                            WHERE meaning_id = ? AND form = ?
+                            """,
+                            (*surface_params, int(meaning_row["id"]), normalized_surface),
+                        )
+                    else:
+                        conn.execute(
+                            f"""
+                            UPDATE surface_forms
+                            SET {", ".join(surface_updates)}
+                            WHERE lexeme_id = ? AND meaning_id IS NULL AND form = ?
+                            """,
+                            (*surface_params, lexeme_id, normalized_surface),
+                        )
 
         self._nlp.invalidate_pos_cache(normalized_lemma, normalized_surface)
         if applied_fields and provider_name == "gemini":
@@ -298,6 +352,7 @@ class VerificationCollaborator:
         *,
         stored_lemma: str,
         stored_surface_form: str | None,
+        meaning_id: int | None,
     ) -> WordVerificationInput:
         lexeme_source = "manual"
         lexeme_translation: str | None = None
@@ -319,19 +374,40 @@ class VerificationCollaborator:
 
             if lexeme_row is not None:
                 lexeme_source = lexeme_row["source"]
-                lexeme_translation = lexeme_row["english_translation"]
-                lexeme_translation_provider = lexeme_row["translation_provider"]
+                meaning_row = self._load_meaning_row(
+                    conn,
+                    lexeme_id=int(lexeme_row["id"]),
+                    requested_meaning_id=meaning_id,
+                    normalized_lemma=stored_lemma,
+                )
+                if meaning_row is not None:
+                    lexeme_translation = meaning_row["english_translation"]
+                    lexeme_translation_provider = "meaning_section"
+                else:
+                    lexeme_translation = lexeme_row["english_translation"]
+                    lexeme_translation_provider = lexeme_row["translation_provider"]
 
                 if stored_surface_form:
-                    surface_row = conn.execute(
-                        """
-                        SELECT source, english_translation, translation_provider
-                        FROM surface_forms
-                        WHERE lexeme_id = ? AND form = ?
-                        LIMIT 1
-                        """,
-                        (lexeme_row["id"], stored_surface_form),
-                    ).fetchone()
+                    if meaning_id is not None:
+                        surface_row = conn.execute(
+                            """
+                            SELECT source, english_translation, translation_provider
+                            FROM surface_forms
+                            WHERE meaning_id = ? AND form = ?
+                            LIMIT 1
+                            """,
+                            (meaning_id, stored_surface_form),
+                        ).fetchone()
+                    else:
+                        surface_row = conn.execute(
+                            """
+                            SELECT source, english_translation, translation_provider
+                            FROM surface_forms
+                            WHERE lexeme_id = ? AND meaning_id IS NULL AND form = ?
+                            LIMIT 1
+                            """,
+                            (lexeme_row["id"], stored_surface_form),
+                        ).fetchone()
                     if surface_row is not None:
                         surface_source = surface_row["source"]
                         surface_translation = surface_row["english_translation"]
@@ -359,6 +435,42 @@ class VerificationCollaborator:
             surface_pos_tag=surface_pos_tag,
             surface_morphology=surface_morphology,
         )
+
+    def _load_meaning_row(
+        self,
+        conn,
+        *,
+        lexeme_id: int,
+        requested_meaning_id: int | None,
+        normalized_lemma: str,
+    ):
+        if requested_meaning_id is not None:
+            meaning_row = conn.execute(
+                """
+                SELECT id, pos_tag, morphology, english_translation
+                FROM lexeme_meanings
+                WHERE id = ? AND lexeme_id = ?
+                LIMIT 1
+                """,
+                (requested_meaning_id, lexeme_id),
+            ).fetchone()
+            if meaning_row is None:
+                raise LookupError(f"Meaning '{requested_meaning_id}' was not found for '{normalized_lemma}'")
+            return meaning_row
+
+        meaning_rows = conn.execute(
+            """
+            SELECT id, pos_tag, morphology, english_translation
+            FROM lexeme_meanings
+            WHERE lexeme_id = ?
+            ORDER BY id ASC
+            LIMIT 2
+            """,
+            (lexeme_id,),
+        ).fetchall()
+        if len(meaning_rows) == 1:
+            return meaning_rows[0]
+        return None
 
     def _verify_added_word(
         self, payload: WordVerificationInput

@@ -21,10 +21,11 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
         raise LookupError(f"Lemma '{normalized_lemma}' was not found")
     form_rows = runtime.repository.list_surface_forms(lexeme.id)
     meaning_rows = runtime.repository.list_lexeme_meanings(lexeme.id)
+    meaning_by_id = {row.id: row for row in meaning_rows}
 
     lemma_pos_tag = lexeme.pos_tag
     lemma_morphology = lexeme.morphology
-    if lemma_pos_tag is None and lemma_morphology is None:
+    if not meaning_rows and lemma_pos_tag is None and lemma_morphology is None:
         lemma_pos_tag, lemma_morphology = runtime.nlp.extract_pos_and_morphology(lexeme.lemma)
         _store_lexeme_metadata(
             runtime,
@@ -52,21 +53,34 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
             pos_tag, morphology = extracted_forms.get(row.form, (None, None))
             _store_surface_form_metadata(
                 runtime,
-                lexeme_id=lexeme.id,
-                form=row.form,
+                surface_form_id=row.id,
                 pos_tag=pos_tag,
                 morphology=morphology,
             )
-        cor_local_entry = runtime.cor.best_cor_local_entry_for_form(
-            form=row.form,
-            lemma=lexeme.lemma,
-            preferred_pos_tag=pos_tag,
+        meaning = meaning_by_id.get(row.meaning_id) if row.meaning_id is not None else None
+        cor_local_entry = (
+            runtime.cor.best_cor_local_entry_for_form(
+                form=row.form,
+                lemma=lexeme.lemma,
+                preferred_pos_tag=pos_tag,
+                preferred_lemma_idx=meaning.cor_lemma_idx if meaning is not None else None,
+            )
+            if meaning is not None
+            else runtime.cor.best_cor_local_entry_for_form(
+                form=row.form,
+                lemma=lexeme.lemma,
+                preferred_pos_tag=pos_tag,
+            )
         )
         gloss = cor_local_entry.gloss if cor_local_entry is not None else None
         gloss_translation = (
             runtime.cor.lookup_translation_for_cor_gloss(
                 entry=cor_local_entry,
-                lemma_translation=lexeme.english_translation,
+                lemma_translation=(
+                    meaning.english_translation
+                    if meaning is not None
+                    else lexeme.english_translation
+                ),
                 cache=gloss_translation_cache,
             )
             if cor_local_entry is not None
@@ -81,7 +95,11 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
                     pos_tag=pos_tag,
                     morphology=morphology,
                     lemma=lexeme.lemma,
-                    lemma_translation=lexeme.english_translation,
+                    lemma_translation=(
+                        meaning.english_translation
+                        if meaning is not None
+                        else lexeme.english_translation
+                    ),
                     gloss=gloss,
                     gloss_translation=gloss_translation,
                     gram_raw=cor_local_entry.gram_raw if cor_local_entry is not None else None,
@@ -112,6 +130,15 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
         if detail.form != lexeme.lemma:
             details_by_meaning_id[meaning_id].append(detail)
 
+    if len(meaning_rows) == 1:
+        lemma_pos_tag = meaning_rows[0].pos_tag or lemma_pos_tag
+        lemma_morphology = meaning_rows[0].morphology or lemma_morphology
+        lemma_translation = meaning_rows[0].english_translation or lexeme.english_translation
+    else:
+        lemma_pos_tag = None
+        lemma_morphology = None
+        lemma_translation = None
+
     meaning_sections = [
         LemmaDetailsResponse.MeaningSection(
             id=meaning.id,
@@ -127,7 +154,7 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
 
     return LemmaDetailsResponse(
         lemma=lexeme.lemma,
-        english_translation=lexeme.english_translation,
+        english_translation=lemma_translation,
         pos_tag=lemma_pos_tag,
         morphology=lemma_morphology,
         is_sectioned=True,
@@ -153,14 +180,12 @@ def _store_lexeme_metadata(
 def _store_surface_form_metadata(
     runtime: WordbankRuntime,
     *,
-    lexeme_id: int,
-    form: str,
+    surface_form_id: int,
     pos_tag: str | None,
     morphology: str | None,
 ) -> None:
     runtime.repository.update_surface_form_metadata(
-        lexeme_id=lexeme_id,
-        form=form,
+        surface_form_id=surface_form_id,
         pos_tag=pos_tag,
         morphology=morphology,
     )

@@ -9,7 +9,7 @@ import {
   normalizeSearchWord,
   type CORSearchFormResponse,
   type SavedNote,
-  type WordbankLemma,
+  type WordbankSearchItem,
   type WordbankSearchResponse,
 } from "@/app/core"
 import { extractErrorMessage } from "@/app/hooks/app/controller/runtime-utils"
@@ -19,19 +19,14 @@ type UseSidebarSearchParams = {
   wordbankCacheVersion: number
 }
 
-type SearchMatch = {
-  lemma: WordbankLemma
-  matchSurface: string | null
-  queryCorIds: string[]
-}
 export function useSidebarSearch({
   savedNotes,
   wordbankCacheVersion,
 }: UseSidebarSearchParams) {
   const [searchQuery, setSearchQuery] = useState("")
   const corFormSearchCacheRef = useRef<Map<string, CORSearchFormResponse>>(new Map())
-  const wordbankSearchCacheRef = useRef<Map<string, SearchMatch[]>>(new Map())
-  const [searchApiMatches, setSearchApiMatches] = useState<SearchMatch[]>([])
+  const wordbankSearchCacheRef = useRef<Map<string, WordbankSearchItem[]>>(new Map())
+  const [searchApiMatches, setSearchApiMatches] = useState<WordbankSearchItem[]>([])
   const [corFormSearchResult, setCorFormSearchResult] = useState<{ query: string; payload: CORSearchFormResponse } | null>(null)
   const [isCorTranslationsLoading, setIsCorTranslationsLoading] = useState(false)
   const apiClient = useMemo(
@@ -69,7 +64,7 @@ export function useSidebarSearch({
 
   useEffect(() => {
     let cancelled = false
-    const commitSearchMatches = (nextMatches: SearchMatch[]) => {
+    const commitSearchMatches = (nextMatches: WordbankSearchItem[]) => {
       window.setTimeout(() => {
         if (!cancelled) {
           setSearchApiMatches(nextMatches)
@@ -111,21 +106,9 @@ export function useSidebarSearch({
           if (cancelled) {
             return
           }
-          const mapped = (payload.items ?? []).map((item) => ({
-            lemma: {
-              lemma: item.lemma,
-              display_lemma: item.display_lemma,
-              english_translation: item.english_translation,
-              variation_count: item.variation_count,
-              pos_tag: item.pos_tag ?? null,
-              morphology: item.morphology ?? null,
-            },
-            matchSurface: item.match_surface ?? null,
-            queryCorIds: item.query_cor_ids ?? [],
-          }))
-          const exactMatches = mapped.filter((item) => {
-            const lemmaKey = normalizeSearchWord(item.lemma.lemma)
-            const matchSurfaceKey = normalizeSearchWord(item.matchSurface ?? "")
+          const exactMatches = (payload.items ?? []).filter((item) => {
+            const lemmaKey = normalizeSearchWord(item.lemma)
+            const matchSurfaceKey = normalizeSearchWord(item.match_surface ?? "")
             return lemmaKey === normalizedQuery || matchSurfaceKey === normalizedQuery
           })
           wordbankSearchCacheRef.current.set(normalizedQuery, exactMatches)

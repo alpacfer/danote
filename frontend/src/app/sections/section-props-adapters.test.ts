@@ -54,6 +54,7 @@ describe("section prop adapters", () => {
 
     const result = buildWordbankSectionProps({
       selectedLemma: "bog",
+      selectedMeaningId: 12,
       wordbankError: null,
       isWordbankLoading: false,
       lemmas: [],
@@ -82,6 +83,7 @@ describe("section prop adapters", () => {
     expect(playPronunciation).toHaveBeenCalledWith("bog")
     expect(regenerate).toHaveBeenCalledTimes(1)
     expect(apply).toHaveBeenCalledTimes(1)
+    expect(result.selectedMeaningId).toBe(12)
   })
 
   it("builds developer props and preserves callbacks", async () => {

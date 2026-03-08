@@ -200,18 +200,21 @@ class PronunciationCollaborator:
         form: str,
         force: bool = False,
     ) -> bool:
-        existing = conn.execute(
+        existing_rows = conn.execute(
             """
             SELECT id, pronunciation_audio
             FROM surface_forms
             WHERE lexeme_id = ? AND form = ?
-            LIMIT 1
+            ORDER BY id ASC
             """,
             (lexeme_id, form),
-        ).fetchone()
+        ).fetchall()
 
-        existing_audio = existing["pronunciation_audio"] if existing is not None else None
-        if not force and isinstance(existing_audio, bytes) and existing_audio:
+        if (
+            not force
+            and existing_rows
+            and all(isinstance(row["pronunciation_audio"], bytes) and row["pronunciation_audio"] for row in existing_rows)
+        ):
             return False
 
         generated = self._lookup_pronunciation(form)
@@ -219,11 +222,12 @@ class PronunciationCollaborator:
             return False
         generated = _normalize_pronunciation_audio(generated)
 
-        if existing is None:
+        if not existing_rows:
             conn.execute(
                 """
                 INSERT INTO surface_forms (
                     lexeme_id,
+                    meaning_id,
                     form,
                     source,
                     pronunciation_audio,
@@ -236,6 +240,7 @@ class PronunciationCollaborator:
                 """,
                 (
                     lexeme_id,
+                    None,
                     form,
                     "manual",
                     generated.audio_bytes,
@@ -246,24 +251,25 @@ class PronunciationCollaborator:
             )
             return True
 
-        conn.execute(
-            """
-            UPDATE surface_forms
-            SET pronunciation_audio = ?,
-                pronunciation_mime_type = ?,
-                pronunciation_provider = ?,
-                pronunciation_model = ?,
-                pronunciation_generated_at = CURRENT_TIMESTAMP
-            WHERE id = ?
-            """,
-            (
-                generated.audio_bytes,
-                generated.mime_type,
-                self._tts_provider_name(),
-                self._tts_model_name(),
-                int(existing["id"]),
-            ),
-        )
+        for existing in existing_rows:
+            conn.execute(
+                """
+                UPDATE surface_forms
+                SET pronunciation_audio = ?,
+                    pronunciation_mime_type = ?,
+                    pronunciation_provider = ?,
+                    pronunciation_model = ?,
+                    pronunciation_generated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (
+                    generated.audio_bytes,
+                    generated.mime_type,
+                    self._tts_provider_name(),
+                    self._tts_model_name(),
+                    int(existing["id"]),
+                ),
+            )
         return True
 
     def _lookup_pronunciation(self, source_word: str) -> PronunciationAudio | None:

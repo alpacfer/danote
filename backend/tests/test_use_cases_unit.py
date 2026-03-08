@@ -91,6 +91,48 @@ class FakeCORLocalLexiconService:
     def lookup_lemma(self, lemma_idx: int, limit: int = 1000) -> list[CORLocalEntry]:
         return list(self._by_lemma_idx.get(lemma_idx, []))[:limit]
 
+    def lookup_cor_id(self, cor_id: str) -> CORLocalEntry | None:
+        normalized = cor_id.strip()
+        if not normalized:
+            return None
+        for entries in self._by_form.values():
+            for entry in entries:
+                if entry.cor_id == normalized:
+                    return entry
+        for entries in self._by_lemma_idx.values():
+            for entry in entries:
+                if entry.cor_id == normalized:
+                    return entry
+        return None
+
+
+def _cor_local_entry(
+    *,
+    cor_id: str,
+    lemma: str,
+    gloss: str | None,
+    form: str,
+    lemma_idx: int,
+    pos_tag: str,
+    morphology: str,
+    gram_raw: str = "",
+) -> CORLocalEntry:
+    return CORLocalEntry(
+        cor_id=cor_id,
+        lemma=lemma,
+        gloss=gloss,
+        gram_raw=gram_raw,
+        form=form,
+        norm="N",
+        lemma_idx=lemma_idx,
+        gram_code=0,
+        variation=0,
+        pos_tag=pos_tag,
+        morphology=morphology,
+        features={},
+        extra_tags=[],
+    )
+
 
 class FakeVerificationService:
     provider = "gemini"
@@ -162,6 +204,81 @@ def _db_path(tmp_path: Path) -> Path:
     return db_path
 
 
+def _bog_homograph_cor_local() -> FakeCORLocalLexiconService:
+    book_lemma = _cor_local_entry(
+        cor_id="COR.BOG.BOOK.LEM",
+        lemma="bog",
+        gloss="book",
+        form="bog",
+        lemma_idx=123,
+        pos_tag="NOUN",
+        morphology="Gender=Com|Number=Sing|Definite=Ind",
+        gram_raw="sb.fk.sg.ubest",
+    )
+    book_surface = _cor_local_entry(
+        cor_id="COR.BOG.BOOK.DEF",
+        lemma="bog",
+        gloss="book",
+        form="bogen",
+        lemma_idx=123,
+        pos_tag="NOUN",
+        morphology="Gender=Com|Number=Sing|Definite=Def",
+        gram_raw="sb.fk.sg.best",
+    )
+    book_plural = _cor_local_entry(
+        cor_id="COR.BOG.BOOK.PL",
+        lemma="bog",
+        gloss="book",
+        form="bøger",
+        lemma_idx=123,
+        pos_tag="NOUN",
+        morphology="Gender=Com|Number=Plur|Definite=Ind",
+        gram_raw="sb.fk.pl.ubest",
+    )
+    swamp_lemma = _cor_local_entry(
+        cor_id="COR.BOG.SWAMP.LEM",
+        lemma="bog",
+        gloss="swamp",
+        form="bog",
+        lemma_idx=124,
+        pos_tag="NOUN",
+        morphology="Gender=Com|Number=Sing|Definite=Ind",
+        gram_raw="sb.fk.sg.ubest",
+    )
+    swamp_surface = _cor_local_entry(
+        cor_id="COR.BOG.SWAMP.DEF",
+        lemma="bog",
+        gloss="swamp",
+        form="bogen",
+        lemma_idx=124,
+        pos_tag="NOUN",
+        morphology="Gender=Com|Number=Sing|Definite=Def",
+        gram_raw="sb.fk.sg.best",
+    )
+    swamp_plural = _cor_local_entry(
+        cor_id="COR.BOG.SWAMP.PL",
+        lemma="bog",
+        gloss="swamp",
+        form="moser",
+        lemma_idx=124,
+        pos_tag="NOUN",
+        morphology="Gender=Com|Number=Plur|Definite=Ind",
+        gram_raw="sb.fk.pl.ubest",
+    )
+    return FakeCORLocalLexiconService(
+        by_form={
+            "bog": [book_lemma, swamp_lemma],
+            "bogen": [book_surface, swamp_surface],
+            "bøger": [book_plural],
+            "moser": [swamp_plural],
+        },
+        by_lemma_idx={
+            123: [book_lemma, book_surface, book_plural],
+            124: [swamp_lemma, swamp_surface, swamp_plural],
+        },
+    )
+
+
 def test_wordbank_use_case_round_trip(tmp_path: Path) -> None:
     use_case = WordbankUseCase(_db_path(tmp_path))
 
@@ -181,7 +298,7 @@ def test_wordbank_use_case_round_trip(tmp_path: Path) -> None:
     listing = use_case.list_lemmas()
     assert listing.items[0].lemma == "bog"
     assert listing.items[0].display_lemma == "bog"
-    assert listing.items[0].variation_count == 2
+    assert listing.items[0].variation_count == 1
     assert listing.items[0].english_translation is None
 
 
@@ -249,7 +366,7 @@ def test_wordbank_use_case_runs_verification_task_and_returns_result(tmp_path: P
     assert added.verification.reviewer_role == "Professional Danish Language Expert"
     assert "queued" in added.verification.message.lower()
 
-    verified = use_case.verify_added_word("bog", "bogen")
+    verified = use_case.verify_added_word("bog", "bogen", meaning_id=added.meaning.id if added.meaning else None)
     assert verified.verification.status == "verified"
     assert "coherent" in verified.verification.message.lower()
     assert len(verification_service.calls) == 1
@@ -419,11 +536,12 @@ def test_wordbank_use_case_normalizes_l16_pronunciation_to_wav(tmp_path: Path) -
 def test_wordbank_use_case_applies_verification_changes(tmp_path: Path) -> None:
     db_path = _db_path(tmp_path)
     use_case = WordbankUseCase(db_path)
-    use_case.add_word("Bogen", "bog")
+    added = use_case.add_word("Bogen", "bog")
 
     response = use_case.apply_verification_changes(
         stored_lemma="bog",
         stored_surface_form="bogen",
+        meaning_id=added.meaning.id if added.meaning else None,
         suggested_changes={
             "lemma_pos_tag": "NOUN",
             "lemma_morphology": "Gender=Com|Number=Sing",
@@ -446,24 +564,27 @@ def test_wordbank_use_case_applies_verification_changes(tmp_path: Path) -> None:
     }
 
     with get_connection(db_path) as conn:
-        lexeme_row = conn.execute(
-            "SELECT pos_tag, morphology, english_translation, translation_provider FROM lexemes WHERE lemma = ?",
-            ("bog",),
+        meaning_row = conn.execute(
+            """
+            SELECT pos_tag, morphology, english_translation
+            FROM lexeme_meanings
+            WHERE id = ?
+            """,
+            (added.meaning.id,),
         ).fetchone()
         surface_row = conn.execute(
             """
             SELECT pos_tag, morphology, english_translation, translation_provider
             FROM surface_forms
-            WHERE form = ?
+            WHERE meaning_id = ? AND form = ?
             """,
-            ("bogen",),
+            (added.meaning.id, "bogen"),
         ).fetchone()
 
-    assert lexeme_row is not None
-    assert lexeme_row["pos_tag"] == "NOUN"
-    assert lexeme_row["morphology"] == "Gender=Com|Number=Sing"
-    assert lexeme_row["english_translation"] == "book"
-    assert lexeme_row["translation_provider"] == "gemini"
+    assert meaning_row is not None
+    assert meaning_row["pos_tag"] == "NOUN"
+    assert meaning_row["morphology"] == "Gender=Com|Number=Sing"
+    assert meaning_row["english_translation"] == "book"
     assert surface_row is not None
     assert surface_row["pos_tag"] == "NOUN"
     assert surface_row["morphology"] == "Definite=Def|Number=Sing"
@@ -474,13 +595,14 @@ def test_wordbank_use_case_applies_verification_changes(tmp_path: Path) -> None:
 def test_wordbank_use_case_logs_gemini_applied_changes(tmp_path: Path) -> None:
     db_path = _db_path(tmp_path)
     use_case = WordbankUseCase(db_path)
-    use_case.add_word("Bogen", "bog")
+    added = use_case.add_word("Bogen", "bog")
     log_path = tmp_path / "gemini-applied-changes.jsonl"
 
     use_case = WordbankUseCase(db_path, gemini_changes_log_path=log_path)
     response = use_case.apply_verification_changes(
         stored_lemma="bog",
         stored_surface_form="bogen",
+        meaning_id=added.meaning.id if added.meaning else None,
         suggested_changes={
             "lemma_pos_tag": "NOUN",
             "lexeme_translation": "Book",
@@ -565,36 +687,113 @@ def test_wordbank_search_lemmas_uses_matched_surface_metadata(tmp_path: Path) ->
     assert result.items[0].morphology == "Gender=Com|Number=Plur|Definite=Ind"
 
 
-def test_wordbank_add_word_treats_new_cor_id_for_same_form_as_inserted(tmp_path: Path) -> None:
-    use_case = WordbankUseCase(_db_path(tmp_path))
+def test_wordbank_add_word_keeps_same_surface_under_distinct_meaning_sections(tmp_path: Path) -> None:
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_local_lexicon_service=_bog_homograph_cor_local(),
+        translation_service=FakeTranslationService(
+            {
+                "book": "book",
+                "swamp": "swamp",
+                "bog": "book-fallback",
+                "bogen": "generic-bogen",
+            }
+        ),
+        gemini_word_translation_service=FakeGeminiWordTranslationService(
+            {
+                ("bog", "bog", "book"): "book",
+                ("bogen", "bog", "book"): "the book",
+                ("bog", "bog", "swamp"): "swamp",
+                ("bogen", "bog", "swamp"): "the swamp",
+            }
+        ),
+    )
 
-    first = use_case.add_word("Lærer", "lærer", cor_id="COR.49032.110.01")
-    second = use_case.add_word("Lærer", "lærer", cor_id="COR.30686.203.01")
+    first = use_case.add_word("Bogen", "bog", cor_id="COR.BOG.BOOK.DEF")
+    second = use_case.add_word("Bogen", "bog", cor_id="COR.BOG.SWAMP.DEF")
+    details = use_case.get_lemma_details("bog")
 
     assert first.status == "inserted"
     assert second.status == "inserted"
+    assert first.meaning is not None
+    assert second.meaning is not None
+    assert first.meaning.id != second.meaning.id
+    assert [section.meaning_key for section in details.meaning_sections] == ["book", "swamp"]
+    assert details.meaning_sections[0].surface_forms[0].english_translation == "the book"
+    assert details.meaning_sections[1].surface_forms[0].english_translation == "the swamp"
 
 
-def test_wordbank_add_word_treats_duplicate_cor_id_for_same_form_as_exists(tmp_path: Path) -> None:
-    use_case = WordbankUseCase(_db_path(tmp_path))
+def test_wordbank_add_word_treats_duplicate_cor_id_for_same_meaning_form_as_exists(tmp_path: Path) -> None:
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_local_lexicon_service=_bog_homograph_cor_local(),
+    )
 
-    first = use_case.add_word("Lærer", "lærer", cor_id="COR.49032.110.01")
-    second = use_case.add_word("Lærer", "lærer", cor_id="COR.49032.110.01")
+    first = use_case.add_word("Bogen", "bog", cor_id="COR.BOG.BOOK.DEF")
+    second = use_case.add_word("Bogen", "bog", cor_id="COR.BOG.BOOK.DEF")
 
     assert first.status == "inserted"
     assert second.status == "exists"
 
 
-def test_wordbank_search_lemmas_returns_query_cor_ids_for_exact_form(tmp_path: Path) -> None:
-    use_case = WordbankUseCase(_db_path(tmp_path))
-    use_case.add_word("Lærer", "lærer", cor_id="COR.49032.110.01")
-    use_case.add_word("Lærer", "lærer", cor_id="COR.30686.203.01")
+def test_wordbank_search_lemmas_returns_query_cor_ids_for_exact_form_per_meaning(tmp_path: Path) -> None:
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_local_lexicon_service=_bog_homograph_cor_local(),
+        translation_service=FakeTranslationService({"book": "book", "swamp": "swamp"}),
+    )
+    use_case.add_word("Bogen", "bog", cor_id="COR.BOG.BOOK.DEF")
+    use_case.add_word("Bogen", "bog", cor_id="COR.BOG.SWAMP.DEF")
 
-    result = use_case.search_lemmas("lærer")
+    result = use_case.search_lemmas("bogen")
 
-    assert len(result.items) == 1
-    assert result.items[0].lemma == "lærer"
-    assert result.items[0].query_cor_ids == ["COR.30686.203.01", "COR.49032.110.01"]
+    assert [(item.meaning_key, item.query_cor_ids) for item in result.items] == [
+        ("book", ["COR.BOG.BOOK.DEF"]),
+        ("swamp", ["COR.BOG.SWAMP.DEF"]),
+    ]
+
+
+def test_wordbank_search_lemmas_returns_two_saved_rows_for_exact_homograph_lemma(tmp_path: Path) -> None:
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_local_lexicon_service=_bog_homograph_cor_local(),
+        translation_service=FakeTranslationService({"book": "book", "swamp": "swamp"}),
+    )
+    use_case.add_word("Bogen", "bog", cor_id="COR.BOG.BOOK.DEF")
+    use_case.add_word("Bogen", "bog", cor_id="COR.BOG.SWAMP.DEF")
+
+    result = use_case.search_lemmas("bog")
+
+    assert [(item.meaning_key, item.match_surface, item.english_translation) for item in result.items] == [
+        ("book", "bog", "book"),
+        ("swamp", "bog", "swamp"),
+    ]
+
+
+def test_wordbank_add_word_routes_variations_to_their_matching_meaning(tmp_path: Path) -> None:
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_local_lexicon_service=_bog_homograph_cor_local(),
+        translation_service=FakeTranslationService({"book": "book", "swamp": "swamp"}),
+        gemini_word_translation_service=FakeGeminiWordTranslationService(
+            {
+                ("bog", "bog", "book"): "book",
+                ("bogen", "bog", "book"): "the book",
+                ("bøger", "bog", "book"): "books",
+                ("bog", "bog", "swamp"): "swamp",
+                ("moser", "bog", "swamp"): "swamps",
+            }
+        ),
+    )
+
+    use_case.add_word("Bogen", "bog", cor_id="COR.BOG.BOOK.DEF")
+    use_case.add_word("Moser", "bog", cor_id="COR.BOG.SWAMP.PL")
+    details = use_case.get_lemma_details("bog")
+
+    by_key = {section.meaning_key: section for section in details.meaning_sections}
+    assert [item.form for item in by_key["book"].surface_forms] == ["bogen"]
+    assert [item.form for item in by_key["swamp"].surface_forms] == ["moser"]
+    assert by_key["swamp"].surface_forms[0].english_translation == "swamps"
 
 
 def test_wordbank_search_lemmas_prefers_exact_surface_match_and_stable_variation_count(tmp_path: Path) -> None:
@@ -1711,19 +1910,30 @@ def test_add_word_persists_gemini_gloss_aware_translations(tmp_path: Path) -> No
 
     use_case.add_word("Bogen", "bog")
 
+    details = use_case.get_lemma_details("bog")
+
     with get_connection(db_path) as conn:
-        lexeme_row = conn.execute(
-            "SELECT english_translation, translation_provider FROM lexemes WHERE lemma = ?",
+        meaning_row = conn.execute(
+            """
+            SELECT english_translation
+            FROM lexeme_meanings
+            WHERE lexeme_id = (SELECT id FROM lexemes WHERE lemma = ?)
+            """,
             ("bog",),
         ).fetchone()
         surface_row = conn.execute(
-            "SELECT english_translation, translation_provider FROM surface_forms WHERE form = ?",
-            ("bogen",),
+            """
+            SELECT english_translation, translation_provider
+            FROM surface_forms
+            WHERE meaning_id = (SELECT id FROM lexeme_meanings WHERE lexeme_id = (SELECT id FROM lexemes WHERE lemma = ?))
+              AND form = ?
+            """,
+            ("bog", "bogen"),
         ).fetchone()
 
-    assert lexeme_row is not None
-    assert lexeme_row["english_translation"] == "book"
-    assert lexeme_row["translation_provider"] == "gemini_word_translation"
+    assert meaning_row is not None
+    assert meaning_row["english_translation"] == "book"
+    assert details.english_translation == "book"
     assert surface_row is not None
     assert surface_row["english_translation"] == "the book"
     assert surface_row["translation_provider"] == "gemini_word_translation"

@@ -14,21 +14,17 @@ import {
   type CORSearchGroup,
   type CORSearchVariant,
   type SearchFeedbackContext,
-  type WordbankLemma,
+  type WordbankSearchItem,
 } from "@/app/core"
-
-type WordbankResult = {
-  lemma: WordbankLemma
-  matchSurface: string | null
-}
+import { savedWordbankResultKey } from "@/app/chrome/sidebar/use-sidebar-search-ranking"
 
 type SidebarWordbankResultsProps = {
-  orderedWordbankResults: WordbankResult[]
-  displayVariantBySavedLemma: Map<string, { group: CORSearchGroup; variant: CORSearchVariant }>
-  addVariationBySavedLemma: Map<string, { group: CORSearchGroup; variant: CORSearchVariant }>
-  exactSavedVariationLemmaKeySet: Set<string>
+  orderedWordbankResults: WordbankSearchItem[]
+  displayVariantBySavedResult: Map<string, { group: CORSearchGroup; variant: CORSearchVariant }>
+  addVariationBySavedResult: Map<string, { group: CORSearchGroup; variant: CORSearchVariant }>
+  exactSavedVariationKeySet: Set<string>
   normalizedQuery: string
-  wordbankItemValue: (lemma: WordbankLemma) => string
+  wordbankItemValue: (item: WordbankSearchItem) => string
   onAddWordFromSearch: (
     surfaceToken: string,
     lemmaCandidate: string | null,
@@ -40,123 +36,154 @@ type SidebarWordbankResultsProps = {
     },
   ) => Promise<string | null>
   onOpenWordbankLemma: (lemma: string) => void
+  onOpenWordbankMeaning: (lemma: string, meaningId: number) => void
   onCloseSearch: () => void
 }
 
 export function SidebarWordbankResults({
   orderedWordbankResults,
-  displayVariantBySavedLemma,
-  addVariationBySavedLemma,
-  exactSavedVariationLemmaKeySet,
+  displayVariantBySavedResult,
+  addVariationBySavedResult,
+  exactSavedVariationKeySet,
   normalizedQuery,
   wordbankItemValue,
   onAddWordFromSearch,
   onOpenWordbankLemma,
+  onOpenWordbankMeaning,
   onCloseSearch,
 }: SidebarWordbankResultsProps) {
   return (
     <>
-      {orderedWordbankResults.map(({ lemma }) => (
-        <CommandItem
-          key={`search-lemma-${lemma.lemma}`}
-          value={wordbankItemValue(lemma)}
-          onSelect={() => {
-            const lemmaKey = normalizeSearchWord(lemma.lemma)
-            const addVariation = addVariationBySavedLemma.get(lemmaKey)
-            const isExactSavedVariation = exactSavedVariationLemmaKeySet.has(lemmaKey)
-            if (addVariation && !isExactSavedVariation) {
-              void (async () => {
-                const addedLemma = await onAddWordFromSearch(
-                  addVariation.variant.form,
-                  addVariation.variant.lemma,
-                  {
-                    rawToken: normalizedQuery,
-                    predictedStatus: "variation",
-                    suggestionsShown: [`${addVariation.variant.lemma}:${addVariation.variant.gram_raw}`],
-                  },
-                  {
-                    posTag: addVariation.variant.pos_tag ?? null,
-                    morphology: addVariation.variant.morphology ?? null,
-                    corId: addVariation.variant.cor_id,
-                  },
+      {orderedWordbankResults.map((result) => {
+        const resultKey = savedWordbankResultKey(result)
+        return (
+          <CommandItem
+            key={`search-lemma-${resultKey}`}
+            value={wordbankItemValue(result)}
+            onSelect={() => {
+              const addVariation = addVariationBySavedResult.get(resultKey)
+              const isExactSavedVariation = exactSavedVariationKeySet.has(resultKey)
+              if (addVariation && !isExactSavedVariation) {
+                void (async () => {
+                  const addedLemma = await onAddWordFromSearch(
+                    addVariation.variant.form,
+                    addVariation.variant.lemma,
+                    {
+                      rawToken: normalizedQuery,
+                      predictedStatus: "variation",
+                      suggestionsShown: [`${addVariation.variant.lemma}:${addVariation.variant.gram_raw}`],
+                    },
+                    {
+                      posTag: addVariation.variant.pos_tag ?? null,
+                      morphology: addVariation.variant.morphology ?? null,
+                      corId: addVariation.variant.cor_id,
+                    },
+                  )
+                  if (addedLemma) {
+                    onCloseSearch()
+                  }
+                })()
+                return
+              }
+              if (typeof result.meaning_id === "number") {
+                onOpenWordbankMeaning(result.lemma, result.meaning_id)
+              } else {
+                onOpenWordbankLemma(result.lemma)
+              }
+              onCloseSearch()
+            }}
+            className="flex items-center justify-between gap-3"
+          >
+            <div className="flex min-w-0 flex-col items-start gap-0.5">
+              {(() => {
+                const displayVariant = displayVariantBySavedResult.get(resultKey)?.variant ?? null
+                const lemmaKey = normalizeSearchWord(result.lemma)
+                const matchedSurface = result.match_surface?.trim() || ""
+                const matchedSurfaceKey = normalizeSearchWord(matchedSurface)
+                const showMatchedSurface = Boolean(
+                  matchedSurface
+                  && matchedSurfaceKey === normalizedQuery
+                  && matchedSurfaceKey !== lemmaKey,
                 )
-                if (addedLemma) {
-                  onCloseSearch()
-                }
-              })()
-              return
-            }
-            onOpenWordbankLemma(lemma.lemma)
-            onCloseSearch()
-          }}
-          className="flex items-center justify-between gap-3"
-        >
-          <div className="flex min-w-0 flex-col items-start gap-0.5">
-            {(() => {
-              const displayVariant = displayVariantBySavedLemma.get(normalizeSearchWord(lemma.lemma))?.variant ?? null
-              const displayTitle = displayVariant?.form?.trim() || lemma.display_lemma?.trim() || lemma.lemma
-              const linkedLemmaDisplay = displayVariant
-                ? (lemmaDisplayForVariant(displayVariant) ?? lemma.display_lemma?.trim() ?? lemma.lemma)
-                : (lemma.display_lemma?.trim() || lemma.lemma)
-              const linkedLemmaTranslation = displayVariant
-                ? (lemmaTranslationForVariant(displayVariant) ?? lemma.english_translation ?? null)
-                : (lemma.english_translation ?? null)
-              const detailLine = displayVariant ? glossDisplayForVariant(displayVariant) : null
-              const badges = displayVariant
-                ? badgesFromGramRaw(displayVariant.gram_raw)
-                : badgesForSavedForm({
-                  pos_tag: lemma.pos_tag ?? null,
-                  morphology: lemma.morphology ?? null,
-                })
+                const showExactSavedLink = Boolean(
+                  !displayVariant
+                  && matchedSurface
+                  && matchedSurfaceKey === normalizedQuery,
+                )
+                const displayTitle = displayVariant?.form?.trim()
+                  || (showMatchedSurface ? matchedSurface : "")
+                  || result.display_lemma?.trim()
+                  || result.lemma
+                const linkedLemmaDisplay = displayVariant
+                  ? (lemmaDisplayForVariant(displayVariant) ?? result.display_lemma?.trim() ?? result.lemma)
+                  : (showMatchedSurface || showExactSavedLink)
+                    ? (result.display_lemma?.trim() || result.lemma)
+                    : null
+                const linkedLemmaTranslation = displayVariant
+                  ? (lemmaTranslationForVariant(displayVariant) ?? result.english_translation ?? null)
+                  : (showMatchedSurface || showExactSavedLink)
+                    ? result.english_translation
+                    : null
+                const detailLine = displayVariant
+                  ? glossDisplayForVariant(displayVariant)
+                  : (showMatchedSurface || showExactSavedLink)
+                    ? null
+                    : (result.gloss?.trim() || result.english_translation || null)
+                const badges = displayVariant
+                  ? badgesFromGramRaw(displayVariant.gram_raw)
+                  : badgesForSavedForm({
+                    pos_tag: result.pos_tag ?? null,
+                    morphology: result.morphology ?? null,
+                  })
 
-              return (
-                <>
-                  <span>
-                    <strong className="font-semibold">{displayTitle}</strong>
-                    {linkedLemmaDisplay ? (
-                      <span className="text-muted-foreground text-xs">
-                        {" "}from <em>{linkedLemmaDisplay}</em>
-                        {linkedLemmaTranslation ? ` (${linkedLemmaTranslation})` : ""}
-                      </span>
+                return (
+                  <>
+                    <span>
+                      <strong className="font-semibold">{displayTitle}</strong>
+                      {linkedLemmaDisplay ? (
+                        <span className="text-muted-foreground text-xs">
+                          {" "}from <em>{linkedLemmaDisplay}</em>
+                          {linkedLemmaTranslation ? ` (${linkedLemmaTranslation})` : ""}
+                        </span>
+                      ) : null}
+                    </span>
+                    {detailLine ? (
+                      <span className="text-muted-foreground text-xs leading-4">{detailLine}</span>
                     ) : null}
+                    {badges.length > 0 ? (
+                      <div className="mt-1 flex flex-wrap gap-1.5">
+                        {badges.map((badge) => (
+                          <Badge
+                            key={`search-wordbank-${resultKey}-badge-${badge.label}`}
+                            variant={badge.tone === "primary" ? "default" : "secondary"}
+                            className={`text-xs ${badge.tone === "primary" ? `border ${posBadgeClass(displayVariant?.pos_tag ?? result.pos_tag ?? null)}` : `border ${corSecondaryBadgeClass(badge.label)}`}`.trim()}
+                            data-testid="search-metadata-badge"
+                          >
+                            {badge.label}
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : null}
+                  </>
+                )
+              })()}
+            </div>
+            {(() => {
+              const linkedVariation = addVariationBySavedResult.get(resultKey)
+              const isExactSavedVariation = exactSavedVariationKeySet.has(resultKey)
+              if (linkedVariation && !isExactSavedVariation) {
+                return (
+                  <span className="text-muted-foreground flex items-center gap-1 text-xs font-semibold">
+                    <span data-testid="search-add-variation-label">variation</span>
+                    <Plus data-testid="search-add-icon" className="size-4 shrink-0" />
                   </span>
-                  {detailLine ? (
-                    <span className="text-muted-foreground text-xs leading-4">{detailLine}</span>
-                  ) : null}
-                  {badges.length > 0 ? (
-                    <div className="mt-1 flex flex-wrap gap-1.5">
-                      {badges.map((badge) => (
-                        <Badge
-                          key={`search-wordbank-${lemma.lemma}-badge-${badge.label}`}
-                          variant={badge.tone === "primary" ? "default" : "secondary"}
-                          className={`text-xs ${badge.tone === "primary" ? `border ${posBadgeClass(displayVariant?.pos_tag ?? lemma.pos_tag ?? null)}` : `border ${corSecondaryBadgeClass(badge.label)}`}`.trim()}
-                          data-testid="search-metadata-badge"
-                        >
-                          {badge.label}
-                        </Badge>
-                      ))}
-                    </div>
-                  ) : null}
-                </>
-              )
+                )
+              }
+              return <Eye data-testid="search-open-icon" className="text-muted-foreground size-4 shrink-0" />
             })()}
-          </div>
-          {(() => {
-            const lemmaKey = normalizeSearchWord(lemma.lemma)
-            const linkedVariation = addVariationBySavedLemma.get(lemmaKey)
-            const isExactSavedVariation = exactSavedVariationLemmaKeySet.has(lemmaKey)
-            if (linkedVariation && !isExactSavedVariation) {
-              return (
-                <span className="text-muted-foreground flex items-center gap-1 text-xs font-semibold">
-                  <span data-testid="search-add-variation-label">variation</span>
-                  <Plus data-testid="search-add-icon" className="size-4 shrink-0" />
-                </span>
-              )
-            }
-            return <Eye data-testid="search-open-icon" className="text-muted-foreground size-4 shrink-0" />
-          })()}
-        </CommandItem>
-      ))}
+          </CommandItem>
+        )
+      })}
     </>
   )
 }

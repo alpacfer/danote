@@ -56,6 +56,7 @@ export type VerificationErrorDetail = {
   changeToImplement: string
   rawMessage: string
   storedSurfaceForm: string | null
+  meaningId: number | null
   suggestedChanges?: {
     lemmaPosTag?: string
     lemmaMorphology?: string

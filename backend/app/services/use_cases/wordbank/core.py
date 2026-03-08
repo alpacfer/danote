@@ -110,20 +110,32 @@ class WordbankUseCase:
             stored_lemma, stored_surface_form, force=force
         )
 
-    def verify_added_word(self, stored_lemma: str, stored_surface_form: str | None):
-        return self._runtime.verification.verify_added_word(stored_lemma, stored_surface_form)
+    def verify_added_word(
+        self,
+        stored_lemma: str,
+        stored_surface_form: str | None,
+        *,
+        meaning_id: int | None = None,
+    ):
+        return self._runtime.verification.verify_added_word(
+            stored_lemma,
+            stored_surface_form,
+            meaning_id=meaning_id,
+        )
 
     def apply_verification_changes(
         self,
         *,
         stored_lemma: str,
         stored_surface_form: str | None,
+        meaning_id: int | None = None,
         suggested_changes: dict[str, str | None],
         provider: str | None = None,
     ):
         return self._runtime.verification.apply_verification_changes(
             stored_lemma=stored_lemma,
             stored_surface_form=stored_surface_form,
+            meaning_id=meaning_id,
             suggested_changes=suggested_changes,
             provider=provider,
         )

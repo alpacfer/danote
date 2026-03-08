@@ -17,6 +17,7 @@ export function useWordbankComposition({ foundation, onSentenceSaved }: UseWordb
     backendUrl,
     extractErrorMessage,
     selectedLemma: navigation.selectedLemma,
+    selectedMeaningId: navigation.selectedMeaningId,
     lemmaDetails: lexiconData.lemmaDetails,
     sentences: lexiconData.sentences,
     setAnalysisRefreshTick: analysis.setAnalysisRefreshTick,
@@ -24,6 +25,7 @@ export function useWordbankComposition({ foundation, onSentenceSaved }: UseWordb
     setSentencebankRefreshTick: foundation.setSentencebankRefreshTick,
     setActiveSection: navigation.setActiveSection,
     setSelectedLemma: navigation.setSelectedLemma,
+    setSelectedMeaningId: navigation.setSelectedMeaningId,
     postTokenFeedback: async (payload) => {
       await postTokenFeedback(backendUrl, payload)
     },

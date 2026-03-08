@@ -253,6 +253,7 @@ describe("App wordbank", () => {
           body: JSON.stringify({
             stored_lemma: "kat",
             stored_surface_form: "kat",
+            meaning_id: null,
             suggested_changes: {
               lemma_pos_tag: "NOUN",
               lemma_morphology: "Gender=Com|Number=Sing",

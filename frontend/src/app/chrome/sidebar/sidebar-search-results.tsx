@@ -14,16 +14,11 @@ import {
   type CORSearchVariant,
   type SavedNote,
   type SearchFeedbackContext,
-  type WordbankLemma,
+  type WordbankSearchItem,
 } from "@/app/core"
 
 import { SidebarCorResults } from "@/app/chrome/sidebar/sidebar-cor-results"
 import { SidebarWordbankResults } from "@/app/chrome/sidebar/sidebar-wordbank-results"
-
-type WordbankResult = {
-  lemma: WordbankLemma
-  matchSurface: string | null
-}
 
 type PageItem = {
   key: string
@@ -43,23 +38,24 @@ export type SidebarSearchResultsState = {
 }
 
 export type SidebarSearchResultsData = {
-  orderedWordbankResults: WordbankResult[]
-  displayVariantBySavedLemma: Map<string, { group: CORSearchGroup; variant: CORSearchVariant }>
-  addVariationBySavedLemma: Map<string, { group: CORSearchGroup; variant: CORSearchVariant }>
-  exactSavedVariationLemmaKeySet: Set<string>
+  orderedWordbankResults: WordbankSearchItem[]
+  displayVariantBySavedResult: Map<string, { group: CORSearchGroup; variant: CORSearchVariant }>
+  addVariationBySavedResult: Map<string, { group: CORSearchGroup; variant: CORSearchVariant }>
+  exactSavedVariationKeySet: Set<string>
   orderedCorSearchGroups: CORSearchGroup[]
   corSearchVariantsToRender: Array<{ group: CORSearchGroup; variant: CORSearchVariant }>
   savedLemmaKeySet: Set<string>
   matchingNotes: SavedNote[]
   matchingPageItems: PageItem[]
   isCorTranslationsLoading: boolean
-  wordbankItemValue: (lemma: WordbankLemma) => string
+  wordbankItemValue: (item: WordbankSearchItem) => string
   corVariantItemValue: (variant: CORSearchVariant) => string
 }
 
 export type SidebarSearchResultsActions = {
   onOpenSavedNote: (noteId: string) => void
   onOpenWordbankLemma: (lemma: string) => void
+  onOpenWordbankMeaning: (lemma: string, meaningId: number) => void
   onAddWordFromSearch: (
     surfaceToken: string,
     lemmaCandidate: string | null,
@@ -87,13 +83,14 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
         <CommandGroup heading="Wordbank">
           <SidebarWordbankResults
             orderedWordbankResults={data.orderedWordbankResults}
-            displayVariantBySavedLemma={data.displayVariantBySavedLemma}
-            addVariationBySavedLemma={data.addVariationBySavedLemma}
-            exactSavedVariationLemmaKeySet={data.exactSavedVariationLemmaKeySet}
+            displayVariantBySavedResult={data.displayVariantBySavedResult}
+            addVariationBySavedResult={data.addVariationBySavedResult}
+            exactSavedVariationKeySet={data.exactSavedVariationKeySet}
             normalizedQuery={state.normalizedQuery}
             wordbankItemValue={data.wordbankItemValue}
             onAddWordFromSearch={actions.onAddWordFromSearch}
             onOpenWordbankLemma={actions.onOpenWordbankLemma}
+            onOpenWordbankMeaning={actions.onOpenWordbankMeaning}
             onCloseSearch={actions.onCloseSearch}
           />
           <SidebarCorResults

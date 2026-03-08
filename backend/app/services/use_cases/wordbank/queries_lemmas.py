@@ -43,6 +43,10 @@ def search_lemmas(runtime: WordbankRuntime, query: str, *, limit: int = 8) -> Wo
             WordbankSearchItem(
                 lemma=row.lemma,
                 display_lemma=_display_lemma_for_list(runtime, row.lemma, row.pos_tag),
+                meaning_id=row.meaning_id,
+                meaning_key=row.meaning_key,
+                gloss=row.gloss,
+                cor_lemma_idx=row.cor_lemma_idx,
                 english_translation=row.english_translation,
                 variation_count=row.variation_count,
                 match_surface=row.match_surface,

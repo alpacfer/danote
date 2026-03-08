@@ -13,8 +13,7 @@ CREATE TABLE IF NOT EXISTS surface_forms (
   form TEXT NOT NULL COLLATE NOCASE,
   source TEXT NOT NULL DEFAULT 'observed',
   created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
-  FOREIGN KEY (lexeme_id) REFERENCES lexemes(id) ON DELETE CASCADE,
-  UNIQUE (lexeme_id, form)
+  FOREIGN KEY (lexeme_id) REFERENCES lexemes(id) ON DELETE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS idx_surface_forms_form ON surface_forms(form);

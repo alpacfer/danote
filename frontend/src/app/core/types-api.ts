@@ -120,6 +120,10 @@ export type LemmaListResponse = {
 export type WordbankSearchItem = {
   lemma: string
   display_lemma: string
+  meaning_id: number | null
+  meaning_key: string | null
+  gloss: string | null
+  cor_lemma_idx: number | null
   english_translation: string | null
   variation_count: number
   match_surface?: string | null

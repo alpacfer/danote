@@ -6,6 +6,7 @@ import type {
 
 export type WordbankSectionProps = {
   selectedLemma: string | null
+  selectedMeaningId: number | null
   wordbankError: string | null
   isWordbankLoading: boolean
   lemmas: WordbankLemma[]

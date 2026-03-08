@@ -10,6 +10,7 @@ import { Info, RefreshCw, Volume2 } from "lucide-react"
 
 type WordbankLemmaHeaderProps = {
   selectedLemma: string
+  selectedMeaningId: number | null
   lemmaDetails: LemmaDetailsResponse
   pronunciationLoadingByForm: Record<string, boolean>
   onPlayPronunciation: (form: string) => void
@@ -24,6 +25,7 @@ type WordbankLemmaHeaderProps = {
 
 export function WordbankLemmaHeader({
   selectedLemma,
+  selectedMeaningId,
   lemmaDetails,
   pronunciationLoadingByForm,
   onPlayPronunciation,
@@ -36,24 +38,31 @@ export function WordbankLemmaHeader({
   showSupplementaryMetadata,
 }: WordbankLemmaHeaderProps) {
   const normalizedSelectedLemma = (lemmaDetails.lemma ?? selectedLemma).trim().toLocaleLowerCase("da-DK")
+  const selectedMeaningSection = (lemmaDetails.meaning_sections ?? []).find((section) => section.id === selectedMeaningId) ?? null
   const lemmaPronunciationForm = (() => {
-    const exactMatch = lemmaDetails.surface_forms.find(
+    const selectedMeaningForms = selectedMeaningSection?.surface_forms ?? []
+    const exactMatch = [...selectedMeaningForms, ...lemmaDetails.surface_forms].find(
       (form) => form.form.trim().toLocaleLowerCase("da-DK") === normalizedSelectedLemma && form.has_pronunciation,
     )
     if (exactMatch) {
       return exactMatch.form
     }
-    const firstAvailable = lemmaDetails.surface_forms.find((form) => form.has_pronunciation)
+    const firstAvailable = [...selectedMeaningForms, ...lemmaDetails.surface_forms].find((form) => form.has_pronunciation)
     return firstAvailable?.form ?? null
   })()
   const lemmaSurfaceDetails = lemmaDetails.surface_forms.find(
     (form) => form.form.trim().toLocaleLowerCase("da-DK") === normalizedSelectedLemma,
   ) ?? null
-  const lemmaBadges = showSupplementaryMetadata ? badgesForSavedForm({
-    pos_tag: lemmaDetails.pos_tag ?? null,
-    morphology: lemmaDetails.morphology ?? null,
-    gram_raw: lemmaSurfaceDetails?.gram_raw ?? null,
-  }) : []
+  const headerTranslation = selectedMeaningSection?.english_translation ?? lemmaDetails.english_translation
+  const headerPosTag = selectedMeaningSection?.pos_tag ?? lemmaDetails.pos_tag
+  const headerMorphology = selectedMeaningSection?.morphology ?? lemmaDetails.morphology
+  const headerBadges = showSupplementaryMetadata || Boolean(selectedMeaningSection)
+    ? badgesForSavedForm({
+      pos_tag: headerPosTag ?? null,
+      morphology: headerMorphology ?? null,
+      gram_raw: lemmaSurfaceDetails?.gram_raw ?? null,
+    })
+    : []
 
   return (
     <div>
@@ -154,15 +163,15 @@ export function WordbankLemmaHeader({
           </Popover>
         </ButtonGroup>
       </div>
-      {showSupplementaryMetadata ? (
+      {showSupplementaryMetadata || selectedMeaningSection ? (
         <>
-          <p className="text-muted-foreground mt-1 text-base">{lemmaDetails.english_translation ?? "No translation available."}</p>
+          <p className="text-muted-foreground mt-1 text-base">{headerTranslation ?? "No translation available."}</p>
           <div className="mt-2 flex flex-wrap gap-1.5">
-            {lemmaBadges.map((badge) => (
+            {headerBadges.map((badge) => (
               <Badge
                 key={`lemma-badge-${badge.label}`}
                 variant={badge.tone === "primary" ? "default" : "secondary"}
-                className={`text-xs ${badge.tone === "primary" ? `border ${posBadgeClass(lemmaDetails.pos_tag)}` : `border ${corSecondaryBadgeClass(badge.label)}`}`.trim()}
+                className={`text-xs ${badge.tone === "primary" ? `border ${posBadgeClass(headerPosTag)}` : `border ${corSecondaryBadgeClass(badge.label)}`}`.trim()}
               >
                 {badge.label}
               </Badge>

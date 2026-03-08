@@ -25,6 +25,7 @@ type UseWordbankWorkflowsParams = {
   backendUrl: string
   extractErrorMessage: (response: Response, fallback: string) => Promise<string>
   selectedLemma: string | null
+  selectedMeaningId: number | null
   lemmaDetails: LemmaDetailsResponse | null
   sentences: SentencebankSentence[]
   setAnalysisRefreshTick: Dispatch<SetStateAction<number>>
@@ -32,6 +33,7 @@ type UseWordbankWorkflowsParams = {
   setSentencebankRefreshTick: Dispatch<SetStateAction<number>>
   setActiveSection: (value: AppSection) => void
   setSelectedLemma: (value: string | null) => void
+  setSelectedMeaningId: (value: number | null) => void
   postTokenFeedback: (payload: TokenFeedbackPayload) => Promise<void>
   onSentenceSaved?: () => void
   pushNotification: (message: string) => void
@@ -41,6 +43,7 @@ export function useWordbankWorkflows({
   backendUrl,
   extractErrorMessage,
   selectedLemma,
+  selectedMeaningId,
   lemmaDetails,
   sentences,
   setAnalysisRefreshTick,
@@ -48,6 +51,7 @@ export function useWordbankWorkflows({
   setSentencebankRefreshTick,
   setActiveSection,
   setSelectedLemma,
+  setSelectedMeaningId,
   postTokenFeedback,
   onSentenceSaved,
   pushNotification,
@@ -69,6 +73,7 @@ export function useWordbankWorkflows({
     backendUrl,
     extractErrorMessage,
     selectedLemma,
+    selectedMeaningId,
     lemmaDetails,
     setWordbankRefreshTick,
   })
@@ -130,7 +135,11 @@ export function useWordbankWorkflows({
         corId: action?.cor_id ?? null,
       })
       toast.success(payload.message)
-      void verifyWordInBackground(payload.stored_lemma, payload.stored_surface_form)
+      void verifyWordInBackground(
+        payload.stored_lemma,
+        payload.stored_surface_form,
+        payload.meaning?.id ?? null,
+      )
       void generatePronunciationInBackground(payload.stored_lemma, payload.stored_surface_form)
       void postTokenFeedback({
         raw_token: token.surface_token,
@@ -168,7 +177,11 @@ export function useWordbankWorkflows({
     try {
       const payload = await addWordToWordbank(surfaceToken, lemmaCandidate, metadata)
       toast.success(payload.message)
-      void verifyWordInBackground(payload.stored_lemma, payload.stored_surface_form)
+      void verifyWordInBackground(
+        payload.stored_lemma,
+        payload.stored_surface_form,
+        payload.meaning?.id ?? null,
+      )
       void generatePronunciationInBackground(payload.stored_lemma, payload.stored_surface_form)
       void postTokenFeedback({
         raw_token: feedbackContext?.rawToken ?? surfaceToken,
@@ -182,6 +195,7 @@ export function useWordbankWorkflows({
       setWordbankRefreshTick((current) => current + 1)
       setActiveSection("wordbank")
       setSelectedLemma(payload.stored_lemma)
+      setSelectedMeaningId(payload.meaning?.id ?? null)
       return payload.stored_lemma
     } catch (error) {
       const message = error instanceof Error ? error.message : "Could not add word to wordbank. Try again."

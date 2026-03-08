@@ -11,6 +11,7 @@ import {
 import { useSidebarHotkeys } from "@/app/chrome/sidebar/use-sidebar-hotkeys"
 import { useSidebarSearch } from "@/app/chrome/sidebar/use-sidebar-search"
 import { useSidebarSearchRanking } from "@/app/chrome/sidebar/use-sidebar-search-ranking"
+import { savedWordbankResultKey } from "@/app/chrome/sidebar/use-sidebar-search-ranking"
 import {
   BACKEND_URL,
   createApiClient,
@@ -20,6 +21,7 @@ import {
   type SavedNote,
   type SearchFeedbackContext,
   type WordbankLemma,
+  type WordbankSearchItem,
 } from "@/app/core"
 import { Button } from "@/components/ui/button"
 import { CommandDialog, CommandInput } from "@/components/ui/command"
@@ -47,6 +49,7 @@ export type AppSidebarProps = {
   onSelectSentencebank: () => void
   onSelectDeveloper: () => void
   onOpenWordbankLemma: (lemma: string) => void
+  onOpenWordbankMeaning: (lemma: string, meaningId: number) => void
   onOpenSavedNote: (noteId: string) => void
   onAddWordFromSearch: (
     surfaceToken: string,
@@ -71,6 +74,7 @@ export function AppSidebar({
   onSelectSentencebank,
   onSelectDeveloper,
   onOpenWordbankLemma,
+  onOpenWordbankMeaning,
   onOpenSavedNote,
   onAddWordFromSearch,
 }: AppSidebarProps) {
@@ -127,9 +131,9 @@ export function AppSidebar({
 
   const {
     savedLemmaKeySet,
-    addVariationBySavedLemma,
-    displayVariantBySavedLemma,
-    exactSavedVariationLemmaKeySet,
+    addVariationBySavedResult,
+    displayVariantBySavedResult,
+    exactSavedVariationKeySet,
     orderedWordbankResults,
     corSearchVariantsToRender,
     orderedCorSearchGroups,
@@ -174,8 +178,8 @@ export function AppSidebar({
 
   const orderedCommandItemValues = useMemo(() => {
     const values: string[] = []
-    for (const { lemma } of orderedWordbankResults) {
-      values.push(`wordbank-${normalizeSearchWord(lemma.lemma)}`)
+    for (const item of orderedWordbankResults) {
+      values.push(`wordbank-${savedWordbankResultKey(item)}`)
     }
     for (const variant of orderedCorVariantsToRender) {
       values.push(`cor-variant-${variant.cor_id}`)
@@ -207,22 +211,23 @@ export function AppSidebar({
 
   const searchResultData: SidebarSearchResultsData = {
     orderedWordbankResults,
-    displayVariantBySavedLemma,
-    addVariationBySavedLemma,
-    exactSavedVariationLemmaKeySet,
+    displayVariantBySavedResult,
+    addVariationBySavedResult,
+    exactSavedVariationKeySet,
     orderedCorSearchGroups,
     corSearchVariantsToRender,
     savedLemmaKeySet,
     matchingNotes,
     matchingPageItems,
     isCorTranslationsLoading,
-    wordbankItemValue: (lemma: WordbankLemma) => `wordbank-${normalizeSearchWord(lemma.lemma)}`,
+    wordbankItemValue: (item: WordbankSearchItem) => `wordbank-${savedWordbankResultKey(item)}`,
     corVariantItemValue: (variant: CORSearchVariant) => `cor-variant-${variant.cor_id}`,
   }
 
   const searchResultActions: SidebarSearchResultsActions = {
     onOpenSavedNote,
     onOpenWordbankLemma,
+    onOpenWordbankMeaning,
     onAddWordFromSearch,
     onCloseSearch: () => {
       setIsSearchOpen(false)

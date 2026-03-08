@@ -9,6 +9,7 @@ import { Volume2 } from "lucide-react"
 type WordbankMeaningSectionsProps = {
   lemma: string
   meaningSections: LemmaDetailsResponse["meaning_sections"]
+  selectedMeaningId: number | null
   pronunciationLoadingByForm: Record<string, boolean>
   onPlayPronunciation: (form: string) => void
 }
@@ -16,6 +17,7 @@ type WordbankMeaningSectionsProps = {
 export function WordbankMeaningSections({
   lemma,
   meaningSections,
+  selectedMeaningId,
   pronunciationLoadingByForm,
   onPlayPronunciation,
 }: WordbankMeaningSectionsProps) {
@@ -31,8 +33,15 @@ export function WordbankMeaningSections({
           morphology: section.morphology ?? null,
         })
         const sectionTranslation = section.english_translation?.trim() || section.gloss?.trim() || "No translation available."
+        const isSelected = selectedMeaningId === section.id
         return (
-          <Card key={`meaning-section-${section.id}-${section.meaning_key}`}>
+          <Card
+            key={`meaning-section-${section.id}-${section.meaning_key}`}
+            id={`wordbank-meaning-${section.id}`}
+            data-meaning-id={section.id}
+            data-selected={isSelected ? "true" : "false"}
+            className={isSelected ? "ring-primary/30 border-primary/50 ring-2" : undefined}
+          >
             <CardContent className="space-y-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="space-y-1">

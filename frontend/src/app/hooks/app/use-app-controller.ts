@@ -110,6 +110,7 @@ export function useAppController() {
     }),
     wordbankSectionProps: buildWordbankSectionProps({
       selectedLemma: navigation.selectedLemma,
+      selectedMeaningId: navigation.selectedMeaningId,
       wordbankError: lexiconData.wordbankError,
       isWordbankLoading: lexiconData.isWordbankLoading,
       lemmas: lexiconData.lemmas,
@@ -178,6 +179,7 @@ export function useAppController() {
   return {
     activeSection: navigation.activeSection,
     selectedLemma: navigation.selectedLemma,
+    selectedMeaningId: navigation.selectedMeaningId,
     status: health.status,
     lemmas: lexiconData.lemmas,
     savedNotes: notesPersistence.savedNotes,
@@ -195,6 +197,7 @@ export function useAppController() {
     selectSentencebank: navigation.selectSentencebank,
     selectDeveloper: navigation.selectDeveloper,
     openWordbankLemma: navigation.openWordbankLemma,
+    openWordbankMeaning: navigation.openWordbankMeaning,
     openWordbankRoot: navigation.openWordbankRoot,
     openSavedNoteById: workspace.openSavedNoteById,
     addWordFromSearch: wordbank.addWordFromSearch,

@@ -82,14 +82,24 @@ class TranslationCollaborator:
         english_translation = translation_result.translation
         if english_translation:
             with get_connection(self._db_path) as conn:
-                conn.execute(
+                matching_rows = conn.execute(
                     """
-                    UPDATE surface_forms
-                    SET english_translation = ?, translation_provider = ?
+                    SELECT id
+                    FROM surface_forms
                     WHERE form = ?
+                    ORDER BY id ASC
                     """,
-                    (english_translation, translation_result.provider, normalized_surface),
-                )
+                    (normalized_surface,),
+                ).fetchall()
+                if len(matching_rows) == 1:
+                    conn.execute(
+                        """
+                        UPDATE surface_forms
+                        SET english_translation = ?, translation_provider = ?
+                        WHERE id = ?
+                        """,
+                        (english_translation, translation_result.provider, int(matching_rows[0]["id"])),
+                    )
 
         return GenerateTranslationResponse(
             status="generated" if english_translation else "unavailable",
@@ -492,6 +502,7 @@ class TranslationCollaborator:
                 MeaningSectionCandidateInput(
                     id=candidate_id,
                     meaning_key=str(getattr(candidate, "meaning_key", "")),
+                    cor_lemma_idx=getattr(candidate, "cor_lemma_idx", None),
                     gloss=self.normalize_translation_value(getattr(candidate, "gloss", None)),
                     english_translation=self.normalize_translation_value(
                         getattr(candidate, "english_translation", None)

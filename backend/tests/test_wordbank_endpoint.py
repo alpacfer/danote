@@ -163,12 +163,17 @@ def test_add_word_includes_verification_result_when_service_is_available(tmp_pat
     assert payload["verification"]["status"] == "queued"
     assert payload["verification"]["provider"] == "gemini"
     assert payload["verification"]["reviewer_role"] == "Professional Danish Language Expert"
+    assert payload["meaning"]["id"] is not None
 
     with TestClient(app) as client:
         set_service_field(client.app, "word_verification_service", StubVerificationService())
         verify_response = client.post(
             "/api/wordbank/lexemes/verify",
-            json={"stored_lemma": "bog", "stored_surface_form": "bogen"},
+            json={
+                "stored_lemma": "bog",
+                "stored_surface_form": "bogen",
+                "meaning_id": payload["meaning"]["id"],
+            },
         )
 
     assert verify_response.status_code == 200
@@ -202,27 +207,33 @@ def test_add_word_duplicate_is_graceful(tmp_path, stub_nlp_adapter_factory) -> N
 
 def test_add_word_with_new_cor_id_for_existing_form_is_inserted(tmp_path, stub_nlp_adapter_factory) -> None:
     db_path = tmp_path / "danote.sqlite3"
+    cor_db_path = tmp_path / "cor.sqlite"
     apply_migrations(db_path)
-    app = create_app(_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+    _seed_cor_local_bog_senses(cor_db_path)
+    app = create_app(
+        _test_settings(db_path, cor_local_db_path=cor_db_path),
+        nlp_adapter_factory=stub_nlp_adapter_factory,
+    )
 
     with TestClient(app) as client:
         first = client.post(
             "/api/wordbank/lexemes",
-            json={"surface_token": "lærer", "lemma_candidate": "lærer", "cor_id": "COR.49032.110.01"},
+            json={"surface_token": "bogen", "lemma_candidate": "bog", "cor_id": "COR.BOG.BOOK.1"},
         )
         second = client.post(
             "/api/wordbank/lexemes",
-            json={"surface_token": "lærer", "lemma_candidate": "lærer", "cor_id": "COR.30686.203.01"},
+            json={"surface_token": "bogen", "lemma_candidate": "bog", "cor_id": "COR.BOG.SWAMP.1"},
         )
         duplicate = client.post(
             "/api/wordbank/lexemes",
-            json={"surface_token": "lærer", "lemma_candidate": "lærer", "cor_id": "COR.30686.203.01"},
+            json={"surface_token": "bogen", "lemma_candidate": "bog", "cor_id": "COR.BOG.SWAMP.1"},
         )
 
     assert first.status_code == 200
     assert first.json()["status"] == "inserted"
     assert second.status_code == 200
     assert second.json()["status"] == "inserted"
+    assert first.json()["meaning"]["id"] != second.json()["meaning"]["id"]
     assert duplicate.status_code == 200
     assert duplicate.json()["status"] == "exists"
 
@@ -447,18 +458,20 @@ def test_search_lemmas_returns_variation_matches(tmp_path, stub_nlp_adapter_fact
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["items"] == [
-        {
-            "lemma": "bog",
-            "display_lemma": "bog",
-            "english_translation": None,
-            "variation_count": 2,
-            "match_surface": "bogens",
-            "query_cor_ids": [],
-            "pos_tag": None,
-            "morphology": None,
-        }
-    ]
+    assert len(payload["items"]) == 1
+    item = payload["items"][0]
+    assert item["lemma"] == "bog"
+    assert item["display_lemma"] == "bog"
+    assert item["meaning_id"] is not None
+    assert item["meaning_key"] == "bog"
+    assert item["gloss"] is None
+    assert item["cor_lemma_idx"] is None
+    assert item["english_translation"] is None
+    assert item["variation_count"] == 2
+    assert item["match_surface"] == "bogens"
+    assert item["query_cor_ids"] == []
+    assert item["pos_tag"] is None
+    assert item["morphology"] is None
 
 
 def test_search_lemmas_prefers_matched_surface_metadata(tmp_path, stub_nlp_adapter_factory) -> None:
@@ -480,49 +493,78 @@ def test_search_lemmas_prefers_matched_surface_metadata(tmp_path, stub_nlp_adapt
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["items"] == [
-        {
-            "lemma": "ulykke",
-            "display_lemma": "ulykke",
-            "english_translation": None,
-            "variation_count": 2,
-            "match_surface": "ulykker",
-            "query_cor_ids": [],
-            "pos_tag": "NOUN",
-            "morphology": "Gender=Com|Number=Plur|Definite=Ind",
-        }
-    ]
+    assert len(payload["items"]) == 1
+    item = payload["items"][0]
+    assert item["lemma"] == "ulykke"
+    assert item["display_lemma"] == "ulykke"
+    assert item["meaning_id"] is not None
+    assert item["meaning_key"] == "ulykke"
+    assert item["gloss"] is None
+    assert item["cor_lemma_idx"] is None
+    assert item["english_translation"] is None
+    assert item["variation_count"] == 2
+    assert item["match_surface"] == "ulykker"
+    assert item["query_cor_ids"] == []
+    assert item["pos_tag"] == "NOUN"
+    assert item["morphology"] == "Gender=Com|Number=Plur|Definite=Ind"
 
 
 def test_search_lemmas_returns_query_cor_ids_for_exact_form(tmp_path, stub_nlp_adapter_factory) -> None:
     db_path = tmp_path / "danote.sqlite3"
+    cor_db_path = tmp_path / "cor.sqlite"
     apply_migrations(db_path)
-    app = create_app(_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+    _seed_cor_local_bog_senses(cor_db_path)
+    app = create_app(
+        _test_settings(db_path, cor_local_db_path=cor_db_path),
+        nlp_adapter_factory=stub_nlp_adapter_factory,
+    )
 
     with TestClient(app) as client:
         client.post(
             "/api/wordbank/lexemes",
-            json={"surface_token": "lærer", "lemma_candidate": "lærer", "cor_id": "COR.49032.110.01"},
+            json={"surface_token": "bogen", "lemma_candidate": "bog", "cor_id": "COR.BOG.BOOK.1"},
         )
         client.post(
             "/api/wordbank/lexemes",
-            json={"surface_token": "lærer", "lemma_candidate": "lærer", "cor_id": "COR.30686.203.01"},
+            json={"surface_token": "bogen", "lemma_candidate": "bog", "cor_id": "COR.BOG.SWAMP.1"},
         )
-        response = client.get("/api/wordbank/search", params={"query": "lærer"})
+        response = client.get("/api/wordbank/search", params={"query": "bogen"})
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["items"] == [
-        {
-            "lemma": "lærer",
-            "display_lemma": "lærer",
-            "english_translation": None,
-            "variation_count": 1,
-            "match_surface": "lærer",
-            "query_cor_ids": ["COR.30686.203.01", "COR.49032.110.01"],
-            "pos_tag": None,
-            "morphology": None,
-        }
+    assert [(item["meaning_key"], item["query_cor_ids"], item["cor_lemma_idx"]) for item in payload["items"]] == [
+        ("book", ["COR.BOG.BOOK.1"], 123),
+        ("swamp", ["COR.BOG.SWAMP.1"], 124),
+    ]
+    assert [item["match_surface"] for item in payload["items"]] == ["bogen", "bogen"]
+
+
+def test_search_lemmas_returns_two_rows_for_exact_homograph_lemma(tmp_path, stub_nlp_adapter_factory) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    cor_db_path = tmp_path / "cor.sqlite"
+    apply_migrations(db_path)
+    _seed_cor_local_bog_senses(cor_db_path)
+    app = create_app(
+        _test_settings(db_path, cor_local_db_path=cor_db_path),
+        nlp_adapter_factory=stub_nlp_adapter_factory,
+    )
+
+    with TestClient(app) as client:
+        client.post(
+            "/api/wordbank/lexemes",
+            json={"surface_token": "bogen", "lemma_candidate": "bog", "cor_id": "COR.BOG.BOOK.1"},
+        )
+        client.post(
+            "/api/wordbank/lexemes",
+            json={"surface_token": "bogen", "lemma_candidate": "bog", "cor_id": "COR.BOG.SWAMP.1"},
+        )
+        response = client.get("/api/wordbank/search", params={"query": "bog"})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert [(item["meaning_key"], item["match_surface"], item["english_translation"]) for item in payload["items"]] == [
+        ("book", "bog", "book"),
+        ("swamp", "bog", "swamp"),
     ]
 
 
@@ -889,12 +931,14 @@ def test_apply_verification_changes_endpoint_updates_word_fields(tmp_path, stub_
             json={"surface_token": "Bogen", "lemma_candidate": "bog"},
         )
         assert add_response.status_code == 200
+        meaning_id = add_response.json()["meaning"]["id"]
 
         apply_response = client.post(
             "/api/wordbank/lexemes/apply-verification-changes",
             json={
                 "stored_lemma": "bog",
                 "stored_surface_form": "bogen",
+                "meaning_id": meaning_id,
                 "provider": "gemini",
                 "suggested_changes": {
                     "lemma_pos_tag": "NOUN",
@@ -920,24 +964,27 @@ def test_apply_verification_changes_endpoint_updates_word_fields(tmp_path, stub_
     }
 
     with get_connection(db_path) as conn:
-        lexeme_row = conn.execute(
-            "SELECT pos_tag, morphology, english_translation, translation_provider FROM lexemes WHERE lemma = ?",
-            ("bog",),
+        meaning_row = conn.execute(
+            """
+            SELECT pos_tag, morphology, english_translation
+            FROM lexeme_meanings
+            WHERE id = ?
+            """,
+            (meaning_id,),
         ).fetchone()
         surface_row = conn.execute(
             """
             SELECT pos_tag, morphology, english_translation, translation_provider
             FROM surface_forms
-            WHERE form = ?
+            WHERE meaning_id = ? AND form = ?
             """,
-            ("bogen",),
+            (meaning_id, "bogen"),
         ).fetchone()
 
-    assert lexeme_row is not None
-    assert lexeme_row["pos_tag"] == "NOUN"
-    assert lexeme_row["morphology"] == "Gender=Com|Number=Sing"
-    assert lexeme_row["english_translation"] == "book"
-    assert lexeme_row["translation_provider"] == "gemini"
+    assert meaning_row is not None
+    assert meaning_row["pos_tag"] == "NOUN"
+    assert meaning_row["morphology"] == "Gender=Com|Number=Sing"
+    assert meaning_row["english_translation"] == "book"
     assert surface_row is not None
     assert surface_row["pos_tag"] == "NOUN"
     assert surface_row["morphology"] == "Definite=Def|Number=Sing"

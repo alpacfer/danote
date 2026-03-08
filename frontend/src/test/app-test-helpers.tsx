@@ -239,6 +239,10 @@ export function mockFetchImplementation(options?: {
     items: Array<{
       lemma: string
       display_lemma: string
+      meaning_id?: number | null
+      meaning_key?: string | null
+      gloss?: string | null
+      cor_lemma_idx?: number | null
       variation_count: number
       english_translation?: string | null
       match_surface?: string | null
@@ -525,6 +529,10 @@ export function mockFetchImplementation(options?: {
     items: lemmasResponse.items.map((item) => ({
       lemma: item.lemma,
       display_lemma: item.lemma,
+      meaning_id: 1,
+      meaning_key: item.lemma,
+      gloss: null,
+      cor_lemma_idx: null,
       english_translation: item.english_translation ?? null,
       variation_count: item.variation_count,
       match_surface: null,

@@ -136,6 +136,7 @@ class AddWordResponse(BaseModel):
 class VerifyWordRequest(BaseModel):
     stored_lemma: str = Field(..., min_length=1)
     stored_surface_form: str | None = None
+    meaning_id: int | None = None
 
 
 class VerifyWordResponse(BaseModel):
@@ -168,6 +169,7 @@ class ApplyVerificationChangesRequest(BaseModel):
 
     stored_lemma: str = Field(..., min_length=1)
     stored_surface_form: str | None = None
+    meaning_id: int | None = None
     suggested_changes: SuggestedChanges
     provider: str | None = None
 
@@ -193,6 +195,10 @@ class LemmaListResponse(BaseModel):
 class WordbankSearchItem(BaseModel):
     lemma: str
     display_lemma: str
+    meaning_id: int | None = None
+    meaning_key: str | None = None
+    gloss: str | None = None
+    cor_lemma_idx: int | None = None
     english_translation: str | None
     variation_count: int
     match_surface: str | None = None

@@ -212,9 +212,29 @@ def load_matched_lemma_summary(
     with get_connection(db_path) as conn:
         lemma_row = conn.execute(
             """
-            SELECT l.lemma, l.english_translation, COUNT(sf.id) AS variation_count
+            WITH meaning_counts AS (
+                SELECT lexeme_id, COUNT(*) AS meaning_count
+                FROM lexeme_meanings
+                GROUP BY lexeme_id
+            ),
+            single_meanings AS (
+                SELECT lexeme_id, english_translation
+                FROM lexeme_meanings
+                GROUP BY lexeme_id
+                HAVING COUNT(*) = 1
+            )
+            SELECT
+                l.lemma,
+                CASE
+                    WHEN COALESCE(mc.meaning_count, 0) = 0 THEN l.english_translation
+                    WHEN mc.meaning_count = 1 THEN COALESCE(sm.english_translation, l.english_translation)
+                    ELSE NULL
+                END AS english_translation,
+                COUNT(DISTINCT CASE WHEN sf.form <> l.lemma THEN sf.form END) AS variation_count
             FROM lexemes l
             LEFT JOIN surface_forms sf ON sf.lexeme_id = l.id
+            LEFT JOIN meaning_counts mc ON mc.lexeme_id = l.id
+            LEFT JOIN single_meanings sm ON sm.lexeme_id = l.id
             WHERE l.lemma = ?
             GROUP BY l.id
             LIMIT 1

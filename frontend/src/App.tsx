@@ -25,6 +25,7 @@ function App() {
     selectSentencebank,
     selectDeveloper,
     openWordbankLemma,
+    openWordbankMeaning,
     openWordbankRoot,
     openSavedNoteById,
     addWordFromSearch,
@@ -45,6 +46,7 @@ function App() {
         onSelectSentencebank={selectSentencebank}
         onSelectDeveloper={selectDeveloper}
         onOpenWordbankLemma={openWordbankLemma}
+        onOpenWordbankMeaning={openWordbankMeaning}
         onOpenSavedNote={openSavedNoteById}
         onAddWordFromSearch={addWordFromSearch}
       />

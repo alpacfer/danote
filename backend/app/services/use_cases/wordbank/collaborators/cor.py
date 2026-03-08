@@ -11,6 +11,8 @@ from app.services.cor import COREntry, CORLexiconService
 from app.services.cor_local import CORLocalEntry, CORLocalLexiconService
 from app.services.use_cases.wordbank.collaborators.cor_local import (
     best_cor_local_entry_for_form,
+    best_cor_local_lemma_entry,
+    cor_local_entries_for_form,
     cor_local_entry_for_cor_id,
     lookup_translation_for_cor_gloss,
     search_cor_form,
@@ -114,10 +116,42 @@ class CorResolutionCollaborator:
         form: str,
         lemma: str,
         preferred_pos_tag: str | None,
+        preferred_lemma_idx: int | None = None,
     ) -> CORLocalEntry | None:
         return best_cor_local_entry_for_form(
             self._cor_local_lexicon_service,
             form=form,
+            lemma=lemma,
+            preferred_pos_tag=preferred_pos_tag,
+            preferred_lemma_idx=preferred_lemma_idx,
+        )
+
+    def cor_local_entries_for_form(
+        self,
+        *,
+        form: str,
+        lemma: str,
+        preferred_pos_tag: str | None,
+        preferred_lemma_idx: int | None = None,
+    ) -> list[CORLocalEntry]:
+        return cor_local_entries_for_form(
+            self._cor_local_lexicon_service,
+            form=form,
+            lemma=lemma,
+            preferred_pos_tag=preferred_pos_tag,
+            preferred_lemma_idx=preferred_lemma_idx,
+        )
+
+    def best_cor_local_lemma_entry(
+        self,
+        *,
+        lemma_idx: int,
+        lemma: str,
+        preferred_pos_tag: str | None,
+    ) -> CORLocalEntry | None:
+        return best_cor_local_lemma_entry(
+            self._cor_local_lexicon_service,
+            lemma_idx=lemma_idx,
             lemma=lemma,
             preferred_pos_tag=preferred_pos_tag,
         )

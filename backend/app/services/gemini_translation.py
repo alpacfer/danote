@@ -26,6 +26,7 @@ class ContextualWordTranslationInput:
 class MeaningSectionCandidateInput:
     id: int
     meaning_key: str
+    cor_lemma_idx: int | None = None
     gloss: str | None = None
     english_translation: str | None = None
     pos_tag: str | None = None
