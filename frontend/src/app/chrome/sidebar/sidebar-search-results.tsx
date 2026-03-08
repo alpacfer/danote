@@ -52,6 +52,7 @@ export type SidebarSearchResultsData = {
   savedLemmaKeySet: Set<string>
   matchingNotes: SavedNote[]
   matchingPageItems: PageItem[]
+  isCorTranslationsLoading: boolean
   wordbankItemValue: (lemma: WordbankLemma) => string
   corVariantItemValue: (variant: CORSearchVariant) => string
 }
@@ -100,6 +101,7 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
             savedLemmaKeySet={data.savedLemmaKeySet}
             normalizedQuery={state.normalizedQuery}
             corVariantItemValue={data.corVariantItemValue}
+            isTranslationsLoading={data.isCorTranslationsLoading}
             onAddWordFromSearch={actions.onAddWordFromSearch}
             onCloseSearch={actions.onCloseSearch}
           />

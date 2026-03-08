@@ -85,6 +85,7 @@ export function AppSidebar({
     matchingNotes,
     searchApiMatches,
     activeCorFormSearchResult,
+    isCorTranslationsLoading,
   } = useSidebarSearch({
     savedNotes,
     wordbankCacheVersion,
@@ -213,6 +214,7 @@ export function AppSidebar({
     savedLemmaKeySet,
     matchingNotes,
     matchingPageItems,
+    isCorTranslationsLoading,
     wordbankItemValue: (lemma: WordbankLemma) => `wordbank-${normalizeSearchWord(lemma.lemma)}`,
     corVariantItemValue: (variant: CORSearchVariant) => `cor-variant-${variant.cor_id}`,
   }

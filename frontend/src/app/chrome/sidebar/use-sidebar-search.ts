@@ -27,6 +27,7 @@ export function useSidebarSearch({
   const wordbankSearchCacheRef = useRef<Map<string, SearchMatch[]>>(new Map())
   const [searchApiMatches, setSearchApiMatches] = useState<SearchMatch[]>([])
   const [corFormSearchResult, setCorFormSearchResult] = useState<{ query: string; payload: CORSearchFormResponse } | null>(null)
+  const [isCorTranslationsLoading, setIsCorTranslationsLoading] = useState(false)
   const apiClient = useMemo(() => createApiClient({ backendUrl: BACKEND_URL }), [])
 
   const normalizedQuery = normalizeSearchWord(searchQuery)
@@ -131,15 +132,14 @@ export function useSidebarSearch({
 
   useEffect(() => {
     if (!normalizedQuery || /\s/u.test(normalizedQuery) || isShortLetterWord(normalizedQuery)) {
+      setIsCorTranslationsLoading(false)
       return
     }
 
     const cachedPayload = corFormSearchCacheRef.current.get(normalizedQuery)
     if (cachedPayload) {
-      setCorFormSearchResult({
-        query: normalizedQuery,
-        payload: cachedPayload,
-      })
+      setCorFormSearchResult({ query: normalizedQuery, payload: cachedPayload })
+      setIsCorTranslationsLoading(false)
       return
     }
 
@@ -148,25 +148,34 @@ export function useSidebarSearch({
     const timeoutId = window.setTimeout(() => {
       void (async () => {
         try {
-          const payload = await apiClient.tryGetJson<CORSearchFormResponse>(
+          // Phase 1: fetch words immediately without translations
+          const partialPayload = await apiClient.tryGetJson<CORSearchFormResponse>(
+            `/api/wordbank/search/cor-form?form=${encodeURIComponent(trimmedQuery)}&limit=100&include_translations=false`,
+            { signal: controller.signal },
+          )
+          if (cancelled) return
+          if (partialPayload) {
+            setCorFormSearchResult({ query: normalizedQuery, payload: partialPayload })
+            setIsCorTranslationsLoading(true)
+          }
+
+          // Phase 2: fetch again with translations to fill in
+          const fullPayload = await apiClient.tryGetJson<CORSearchFormResponse>(
             `/api/wordbank/search/cor-form?form=${encodeURIComponent(trimmedQuery)}&limit=100`,
             { signal: controller.signal },
           )
-          if (!payload) {
-            setCorFormSearchResult((current) => (current?.query === normalizedQuery ? null : current))
-            return
+          if (cancelled) return
+          if (fullPayload) {
+            corFormSearchCacheRef.current.set(normalizedQuery, fullPayload)
+            setCorFormSearchResult({ query: normalizedQuery, payload: fullPayload })
           }
-          if (cancelled) {
-            return
-          }
-          corFormSearchCacheRef.current.set(normalizedQuery, payload)
-          setCorFormSearchResult({
-            query: normalizedQuery,
-            payload,
-          })
         } catch {
           if (!cancelled) {
             setCorFormSearchResult((current) => (current?.query === normalizedQuery ? null : current))
+          }
+        } finally {
+          if (!cancelled) {
+            setIsCorTranslationsLoading(false)
           }
         }
       })()
@@ -176,6 +185,7 @@ export function useSidebarSearch({
       cancelled = true
       window.clearTimeout(timeoutId)
       controller.abort()
+      setIsCorTranslationsLoading(false)
     }
   }, [apiClient, normalizedQuery, trimmedQuery, wordbankCacheVersion])
 
@@ -193,5 +203,6 @@ export function useSidebarSearch({
     matchingNotes,
     searchApiMatches,
     activeCorFormSearchResult,
+    isCorTranslationsLoading,
   }
 }

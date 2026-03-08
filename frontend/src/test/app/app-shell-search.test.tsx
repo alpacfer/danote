@@ -1380,17 +1380,17 @@ describe("App shell and search", () => {
     fireEvent.change(searchInput, { target: { value: "house" } })
 
     await waitFor(() => {
-      expect(corRequestCount).toBe(1)
+      expect(corRequestCount).toBe(2)
     })
 
     fireEvent.change(searchInput, { target: { value: "home" } })
     await waitFor(() => {
-      expect(corRequestCount).toBe(2)
+      expect(corRequestCount).toBe(4)
     })
 
     fireEvent.change(searchInput, { target: { value: "house" } })
     await waitFor(() => {
-      expect(corRequestCount).toBe(2)
+      expect(corRequestCount).toBe(4)
     })
   })
 

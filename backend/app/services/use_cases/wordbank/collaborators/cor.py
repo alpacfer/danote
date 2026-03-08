@@ -63,12 +63,13 @@ class CorResolutionCollaborator:
     # Public API — COR local search
     # ------------------------------------------------------------------
 
-    def search_cor_form(self, form: str, *, limit: int = 100) -> CORSearchFormResponse:
+    def search_cor_form(self, form: str, *, limit: int = 100, include_translations: bool = True) -> CORSearchFormResponse:
         return search_cor_form(
             self._cor_local_lexicon_service,
             self._translation,
             form,
             limit=limit,
+            include_translations=include_translations,
         )
 
     def search_cor_lemma_paradigm(

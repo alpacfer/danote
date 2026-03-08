@@ -141,8 +141,8 @@ class WordbankUseCase:
     def get_pronunciation_audio(self, form: str) -> PronunciationAudio:
         return self._runtime.pronunciation.get_pronunciation_audio(form)
 
-    def search_cor_form(self, form: str, *, limit: int = 100) -> CORSearchFormResponse:
-        return self._runtime.cor.search_cor_form(form, limit=limit)
+    def search_cor_form(self, form: str, *, limit: int = 100, include_translations: bool = True) -> CORSearchFormResponse:
+        return self._runtime.cor.search_cor_form(form, limit=limit, include_translations=include_translations)
 
     def search_cor_lemma_paradigm(
         self, lemma_idx: int, *, limit: int = 1000

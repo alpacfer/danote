@@ -192,10 +192,11 @@ def search_cor_form(
     request: Request,
     form: str = Query(..., min_length=1),
     limit: int = Query(100, ge=1, le=500),
+    include_translations: bool = Query(True),
 ) -> CORSearchFormResponse:
     return run_db_operation(
         request,
-        lambda: build_wordbank_use_case(request).search_cor_form(form, limit=limit),
+        lambda: build_wordbank_use_case(request).search_cor_form(form, limit=limit, include_translations=include_translations),
         include_runtime_error=True,
         error_log_name="wordbank_db_operational_error",
     )

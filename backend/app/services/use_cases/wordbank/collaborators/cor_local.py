@@ -19,6 +19,7 @@ def search_cor_form(
     form: str,
     *,
     limit: int = 100,
+    include_translations: bool = True,
 ) -> CORSearchFormResponse:
     normalized_form = normalize_token(form)
     if not normalized_form:
@@ -48,18 +49,22 @@ def search_cor_form(
     for entry in entries:
         key = (entry.lemma, entry.gloss, entry.pos_tag)
         group_index = grouped.get(key)
-        lemma_translation = lookup_translation_for_cor_local_entry(
-            translation,
-            entry,
-            lemma_translation_cache,
-            contextual_translation_cache,
-        )
-        gloss_translation = lookup_translation_for_cor_gloss(
-            translation,
-            entry=entry,
-            lemma_translation=lemma_translation,
-            cache=contextual_translation_cache,
-        )
+        if include_translations:
+            lemma_translation = lookup_translation_for_cor_local_entry(
+                translation,
+                entry,
+                lemma_translation_cache,
+                contextual_translation_cache,
+            )
+            gloss_translation = lookup_translation_for_cor_gloss(
+                translation,
+                entry=entry,
+                lemma_translation=lemma_translation,
+                cache=contextual_translation_cache,
+            )
+        else:
+            lemma_translation = None
+            gloss_translation = None
         if group_index is None:
             groups.append(
                 CORSearchGroup(

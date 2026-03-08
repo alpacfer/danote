@@ -2,6 +2,7 @@ import { Plus } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { CommandItem } from "@/components/ui/command"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   badgesFromGramRaw,
   corSecondaryBadgeClass,
@@ -26,6 +27,7 @@ type SidebarCorResultsProps = {
   savedLemmaKeySet: Set<string>
   normalizedQuery: string
   corVariantItemValue: (variant: CORSearchVariant) => string
+  isTranslationsLoading: boolean
   onAddWordFromSearch: (
     surfaceToken: string,
     lemmaCandidate: string | null,
@@ -44,6 +46,7 @@ export function SidebarCorResults({
   savedLemmaKeySet,
   normalizedQuery,
   corVariantItemValue,
+  isTranslationsLoading,
   onAddWordFromSearch,
   onCloseSearch,
 }: SidebarCorResultsProps) {
@@ -60,6 +63,9 @@ export function SidebarCorResults({
               const isVariationCandidate = normalizeSearchWord(variant.form) !== normalizeSearchWord(variant.lemma)
               const isVariationAdd = isVariationCandidate && savedLemmaKeySet.has(normalizeSearchWord(variant.lemma))
               const detailLine = glossDisplayForVariant(variant)
+              const lemmaDisplay = lemmaDisplayForVariant(variant)
+              const lemmaTranslation = lemmaTranslationForVariant(variant)
+              const rawGloss = variant.gloss?.trim() ?? null
               return (
                 <CommandItem
                   key={`cor-variant-${variant.cor_id}`}
@@ -89,14 +95,24 @@ export function SidebarCorResults({
                   <div className="flex min-w-0 flex-col items-start gap-0.5">
                     <span>
                       <strong className="font-semibold">{variant.form}</strong>
-                      {lemmaDisplayForVariant(variant) ? (
+                      {lemmaDisplay ? (
                         <span className="text-muted-foreground text-xs">
-                          {" "}from <em>{lemmaDisplayForVariant(variant)}</em>
-                          {lemmaTranslationForVariant(variant) ? ` (${lemmaTranslationForVariant(variant)})` : ""}
+                          {" "}from <em>{lemmaDisplay}</em>
+                          {lemmaTranslation ? (
+                            ` (${lemmaTranslation})`
+                          ) : isTranslationsLoading ? (
+                            <Skeleton className="ml-1 inline-block h-3 w-14 align-middle" />
+                          ) : null}
                         </span>
                       ) : null}
                     </span>
-                    {detailLine ? <span className="text-muted-foreground text-xs leading-4">{detailLine}</span> : null}
+                    {isTranslationsLoading && rawGloss ? (
+                      <span className="text-muted-foreground text-xs leading-4">
+                        {rawGloss} <Skeleton className="inline-block h-3 w-14 align-middle" />
+                      </span>
+                    ) : detailLine ? (
+                      <span className="text-muted-foreground text-xs leading-4">{detailLine}</span>
+                    ) : null}
                     {badgesFromGramRaw(variant.gram_raw).length > 0 ? (
                       <div className="mt-1 flex flex-wrap gap-1.5">
                         {badgesFromGramRaw(variant.gram_raw).map((badge) => (
