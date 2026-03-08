@@ -7,6 +7,9 @@ from app.api.schemas.v1.wordbank import AddWordResponse
 from app.services.cor_local import CORLocalEntry
 from app.services.gemini_translation import ContextualWordTranslationInput
 from app.services.token_classifier import normalize_token
+from app.services.use_cases.wordbank.collaborators.cor_local_translations import (
+    lookup_translation_for_cor_local_entry,
+)
 from app.services.use_cases.wordbank.collaborators.translation import TranslationLookupResult
 from app.services.use_cases.wordbank.meaning_sections import (
     MeaningResolution,
@@ -482,6 +485,30 @@ def _lookup_word_translations(
     contextual_results = _batch_lookup_contextual_translations(runtime, targets)
     resolved: dict[str, TranslationLookupResult] = {}
     for target in targets:
+        if (
+            meaning_resolution is not None
+            and target.id == "surface"
+            and target.surface_form != inputs.stored_lemma
+        ):
+            resolved[target.id] = _NO_TRANSLATION
+            continue
+        if target.id == "lemma" and lemma_cor_entry is not None:
+            resolved[target.id] = _resolve_cor_lemma_translation(
+                runtime,
+                cor_entry=lemma_cor_entry,
+            )
+            continue
+        if (
+            meaning_resolution is not None
+            and target.id == "surface"
+            and target.surface_form == inputs.stored_lemma
+            and lemma_cor_entry is not None
+        ):
+            resolved[target.id] = _resolve_cor_lemma_translation(
+                runtime,
+                cor_entry=lemma_cor_entry,
+            )
+            continue
         contextual = contextual_results.get(target.id, _NO_TRANSLATION)
         resolved[target.id] = _resolve_translation_with_fallback(runtime, target, contextual)
 
@@ -569,6 +596,21 @@ def _resolve_translation_with_fallback(
         == runtime.translation.normalize_comparable(target.surface_form)
     ):
         return _NO_TRANSLATION
+    return TranslationLookupResult(
+        translation=translated,
+        provider=runtime.translation.provider_name() if translated else None,
+    )
+
+
+def _resolve_cor_lemma_translation(
+    runtime: WordbankRuntime,
+    *,
+    cor_entry: CORLocalEntry,
+) -> TranslationLookupResult:
+    translated = lookup_translation_for_cor_local_entry(
+        runtime.translation,
+        cor_entry,
+    )
     return TranslationLookupResult(
         translation=translated,
         provider=runtime.translation.provider_name() if translated else None,

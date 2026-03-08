@@ -53,7 +53,9 @@ export function WordbankLemmaHeader({
   const lemmaSurfaceDetails = lemmaDetails.surface_forms.find(
     (form) => form.form.trim().toLocaleLowerCase("da-DK") === normalizedSelectedLemma,
   ) ?? null
-  const headerTranslation = selectedMeaningSection?.english_translation ?? lemmaDetails.english_translation
+  const headerTranslation = lemmaDetails.is_sectioned
+    ? null
+    : (selectedMeaningSection?.english_translation ?? lemmaDetails.english_translation)
   const headerPosTag = selectedMeaningSection?.pos_tag ?? lemmaDetails.pos_tag
   const headerMorphology = selectedMeaningSection?.morphology ?? lemmaDetails.morphology
   const headerBadges = showSupplementaryMetadata || Boolean(selectedMeaningSection)
@@ -163,20 +165,24 @@ export function WordbankLemmaHeader({
           </Popover>
         </ButtonGroup>
       </div>
-      {showSupplementaryMetadata || selectedMeaningSection ? (
+      {((headerTranslation && (showSupplementaryMetadata || selectedMeaningSection)) || headerBadges.length > 0) ? (
         <>
-          <p className="text-muted-foreground mt-1 text-base">{headerTranslation ?? "No translation available."}</p>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {headerBadges.map((badge) => (
-              <Badge
-                key={`lemma-badge-${badge.label}`}
-                variant={badge.tone === "primary" ? "default" : "secondary"}
-                className={`text-xs ${badge.tone === "primary" ? `border ${posBadgeClass(headerPosTag)}` : `border ${corSecondaryBadgeClass(badge.label)}`}`.trim()}
-              >
-                {badge.label}
-              </Badge>
-            ))}
-          </div>
+          {headerTranslation ? (
+            <p className="text-muted-foreground mt-1 text-base">{headerTranslation}</p>
+          ) : null}
+          {headerBadges.length > 0 ? (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {headerBadges.map((badge) => (
+                <Badge
+                  key={`lemma-badge-${badge.label}`}
+                  variant={badge.tone === "primary" ? "default" : "secondary"}
+                  className={`text-xs ${badge.tone === "primary" ? `border ${posBadgeClass(headerPosTag)}` : `border ${corSecondaryBadgeClass(badge.label)}`}`.trim()}
+                >
+                  {badge.label}
+                </Badge>
+              ))}
+            </div>
+          ) : null}
         </>
       ) : null}
     </div>

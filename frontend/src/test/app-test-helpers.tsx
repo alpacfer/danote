@@ -180,6 +180,12 @@ export function mockFetchImplementation(options?: {
     stored_surface_form: string | null
     source: "manual"
     message: string
+    meaning?: {
+      id: number
+      meaning_key: string
+      gloss?: string | null
+      english_translation?: string | null
+    } | null
     verification?: {
       status: "verified" | "flagged" | "error" | "skipped" | "queued"
       provider: string | null

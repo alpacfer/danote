@@ -41,7 +41,8 @@ describe("App wordbank", () => {
     fireEvent.click(bogItem)
     expect(await screen.findByText(/^bog$/i)).toBeInTheDocument()
     expect((await screen.findAllByText(/^book$/i)).length).toBeGreaterThan(0)
-    expect(screen.getByText(/^book's$/i)).toBeInTheDocument()
+    expect(screen.getByText(/^bogens$/i)).toBeInTheDocument()
+    expect(screen.queryByText(/^book's$/i)).not.toBeInTheDocument()
   }, 10_000)
 
   it("non-verb word pages render meaning sections and remove duplicated top metadata", async () => {

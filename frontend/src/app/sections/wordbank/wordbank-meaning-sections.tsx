@@ -1,5 +1,5 @@
 import type { LemmaDetailsResponse } from "@/app/core"
-import { badgesForSavedForm, corSecondaryBadgeClass, glossDisplayForSavedForm, normalizeSearchWord, posBadgeClass } from "@/app/core"
+import { badgesForSavedForm, corSecondaryBadgeClass, normalizeSearchWord, posBadgeClass } from "@/app/core"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -68,9 +68,6 @@ export function WordbankMeaningSections({
                     <div key={`${section.id}-${form.form}`} className="flex items-center justify-between gap-3 border-t pt-2 first:border-t-0 first:pt-0">
                       <div className="min-w-0">
                         <p className="text-base font-semibold leading-tight">{form.form}</p>
-                        <p className="text-muted-foreground text-sm">
-                          {glossDisplayForSavedForm(form) ?? form.english_translation ?? "No translation available."}
-                        </p>
                       </div>
                       <Tooltip>
                         <TooltipTrigger asChild>

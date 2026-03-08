@@ -320,10 +320,12 @@ def test_wordbank_use_case_facade_delegates_across_extracted_workflows(tmp_path:
     assert details.english_translation == "book"
     assert details.is_sectioned is True
     assert len(details.meaning_sections) == 1
-    assert details.meaning_sections[0].surface_forms[0].english_translation == "the book"
+    assert details.meaning_sections[0].surface_forms[0].english_translation is None
 
 
-def test_wordbank_use_case_stores_deepl_translations_for_lemma_and_surface(tmp_path: Path) -> None:
+def test_wordbank_use_case_stores_lemma_translation_but_not_section_surface_translation(
+    tmp_path: Path,
+) -> None:
     use_case = WordbankUseCase(
         _db_path(tmp_path),
         translation_service=FakeTranslationService({"bog": "book", "bogen": "the book"}),
@@ -340,11 +342,97 @@ def test_wordbank_use_case_stores_deepl_translations_for_lemma_and_surface(tmp_p
     assert details.meaning_sections[0].surface_forms == [
         LemmaDetailsResponse.SurfaceFormDetails(
             form="bogen",
-            english_translation="the book",
+            english_translation=None,
             lemma="bog",
             lemma_translation="book",
         )
     ]
+
+
+def test_wordbank_sectioned_add_prefers_cor_lemma_translation_and_skips_variation_translation(
+    tmp_path: Path,
+) -> None:
+    db_path = _db_path(tmp_path)
+    noun_lemma = _cor_local_entry(
+        cor_id="COR.49032.110.01",
+        lemma="lærer",
+        gloss="teacher",
+        form="lærer",
+        lemma_idx=49032,
+        pos_tag="NOUN",
+        morphology="Gender=Com|Number=Sing|Definite=Ind",
+        gram_raw="sb.fk.sg.ubest",
+    )
+    noun_plural = _cor_local_entry(
+        cor_id="COR.49032.112.01",
+        lemma="lærer",
+        gloss="teacher",
+        form="lærere",
+        lemma_idx=49032,
+        pos_tag="NOUN",
+        morphology="Gender=Com|Number=Plur|Definite=Ind",
+        gram_raw="sb.fk.pl.ubest",
+    )
+    use_case = WordbankUseCase(
+        db_path,
+        cor_local_lexicon_service=FakeCORLocalLexiconService(
+            by_form={
+                "lærer": [noun_lemma],
+                "lærere": [noun_plural],
+            },
+            by_lemma_idx={
+                49032: [noun_lemma, noun_plural],
+            },
+        ),
+        translation_service=FakeTranslationService({"en lærer": "a teacher"}),
+        gemini_word_translation_service=FakeGeminiWordTranslationService(
+            {
+                ("lærer", "lærer", "teacher"): "apprenticeship",
+                ("lærere", "lærer", "teacher"): "teachers",
+            }
+        ),
+    )
+
+    added = use_case.add_word(
+        "lærere",
+        "lærer",
+        cor_id="COR.49032.112.01",
+        pos_tag="NOUN",
+        morphology="Gender=Com|Number=Plur|Definite=Ind",
+    )
+
+    details = use_case.get_lemma_details("lærer")
+    assert added.meaning is not None
+    assert details.is_sectioned is True
+    assert details.english_translation == "teacher"
+    assert len(details.meaning_sections) == 1
+    assert details.meaning_sections[0].english_translation == "teacher"
+    assert details.meaning_sections[0].surface_forms == [
+        LemmaDetailsResponse.SurfaceFormDetails(
+            form="lærere",
+            english_translation=None,
+            pos_tag="NOUN",
+            morphology="Gender=Com|Number=Plur|Definite=Ind",
+            lemma="lærer",
+            lemma_translation="teacher",
+            gloss="teacher",
+            gram_raw="sb.fk.pl.ubest",
+        )
+    ]
+
+    with get_connection(db_path) as conn:
+        surface_row = conn.execute(
+            """
+            SELECT english_translation
+            FROM surface_forms
+            WHERE meaning_id = ? AND form = ?
+            LIMIT 1
+            """,
+            (added.meaning.id, "lærere"),
+        ).fetchone()
+
+    assert surface_row is not None
+    assert surface_row["english_translation"] is None
 
 
 def test_wordbank_use_case_runs_verification_task_and_returns_result(tmp_path: Path) -> None:
@@ -719,8 +807,8 @@ def test_wordbank_add_word_keeps_same_surface_under_distinct_meaning_sections(tm
     assert second.meaning is not None
     assert first.meaning.id != second.meaning.id
     assert [section.meaning_key for section in details.meaning_sections] == ["book", "swamp"]
-    assert details.meaning_sections[0].surface_forms[0].english_translation == "the book"
-    assert details.meaning_sections[1].surface_forms[0].english_translation == "the swamp"
+    assert details.meaning_sections[0].surface_forms[0].english_translation is None
+    assert details.meaning_sections[1].surface_forms[0].english_translation is None
 
 
 def test_wordbank_add_word_treats_duplicate_cor_id_for_same_meaning_form_as_exists(tmp_path: Path) -> None:
@@ -793,7 +881,7 @@ def test_wordbank_add_word_routes_variations_to_their_matching_meaning(tmp_path:
     by_key = {section.meaning_key: section for section in details.meaning_sections}
     assert [item.form for item in by_key["book"].surface_forms] == ["bogen"]
     assert [item.form for item in by_key["swamp"].surface_forms] == ["moser"]
-    assert by_key["swamp"].surface_forms[0].english_translation == "swamps"
+    assert by_key["swamp"].surface_forms[0].english_translation is None
 
 
 def test_wordbank_search_lemmas_prefers_exact_surface_match_and_stable_variation_count(tmp_path: Path) -> None:
@@ -1935,8 +2023,8 @@ def test_add_word_persists_gemini_gloss_aware_translations(tmp_path: Path) -> No
     assert meaning_row["english_translation"] == "book"
     assert details.english_translation == "book"
     assert surface_row is not None
-    assert surface_row["english_translation"] == "the book"
-    assert surface_row["translation_provider"] == "gemini_word_translation"
+    assert surface_row["english_translation"] is None
+    assert surface_row["translation_provider"] is None
 
 
 def test_add_word_batches_gemini_for_lemma_and_surface_translations(tmp_path: Path) -> None:
@@ -1995,7 +2083,7 @@ def test_add_word_batches_gemini_for_lemma_and_surface_translations(tmp_path: Pa
     use_case.add_word("Bogen", "bog")
 
     assert gemini_translation.batch_calls == [[("bog", "bog", "book"), ("bogen", "bog", "book")]]
-    assert gemini_translation.calls == []
+    assert gemini_translation.calls == [("bogen", "bog", "book")]
 
 
 def test_wordbank_search_cor_form_consolidates_same_entry_with_multiple_grams(tmp_path: Path) -> None:
