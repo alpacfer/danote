@@ -927,13 +927,15 @@ describe("App shell and search", () => {
     const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
     fireEvent.change(searchInput, { target: { value: "sigtbarhed" } })
 
+    let topItem: HTMLElement | null = null
     await waitFor(() => {
-      expect(within(commandDialog).getAllByRole("option").length).toBeGreaterThan(0)
+      const options = within(commandDialog).getAllByRole("option")
+      expect(options.length).toBeGreaterThan(0)
+      topItem = options[0] ?? null
+      expect(topItem).not.toBeNull()
+      expect(topItem?.getAttribute("data-value")?.startsWith("wordbank-sigtbarhed")).toBe(true)
     })
-    const options = within(commandDialog).getAllByRole("option")
-    const topItem = options[0]
     expect(topItem).toHaveAttribute("data-value")
-    expect(topItem.getAttribute("data-value")?.startsWith("wordbank-sigtbarhed")).toBe(true)
     expect(within(topItem).queryByTestId("search-open-icon")).toBeInTheDocument()
   })
 

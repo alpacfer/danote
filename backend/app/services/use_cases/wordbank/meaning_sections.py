@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import re
 
 from app.db.repositories.wordbank import LexemeMeaningRecord
 from app.services.cor_local import CORLocalEntry
@@ -11,6 +12,8 @@ LEGACY_WORDBANK_RESET_REQUIRED_MESSAGE = (
     "Wordbank data is incompatible with meaning sections. "
     "Reset the database from Developer settings and add words again."
 )
+
+_LIKELY_ENGLISH_GLOSS_RE = re.compile(r"^[A-Za-z][A-Za-z ',-]*$")
 
 
 def is_verb_like_pos_tag(pos_tag: str | None) -> bool:
@@ -179,6 +182,9 @@ def resolve_meaning_translation(
     lemma_translation: str | None,
     surface_translation: str | None,
 ) -> str | None:
+    normalized_lemma_translation = normalize_token(lemma_translation or "")
+    normalized_gloss = normalize_token(gloss or "")
+    normalized_translated_gloss = None
     if cor_entry is not None:
         translated_gloss = runtime.cor.lookup_translation_for_cor_gloss(
             entry=cor_entry,
@@ -186,15 +192,37 @@ def resolve_meaning_translation(
             cache={},
         )
         normalized_translated_gloss = normalize_token(translated_gloss or "")
-        if normalized_translated_gloss:
+    if normalized_lemma_translation:
+        # If the gloss is already English, prefer it over a conflicting contextual lemma guess.
+        if (
+            normalized_gloss
+            and normalized_translated_gloss
+            and normalized_gloss == normalized_translated_gloss
+            and normalized_lemma_translation != normalized_translated_gloss
+        ):
             return normalized_translated_gloss
-    if gloss:
-        return gloss
-    if lemma_translation:
-        return normalize_token(lemma_translation)
+        if (
+            normalized_gloss
+            and not normalized_translated_gloss
+            and normalized_lemma_translation != normalized_gloss
+            and _is_likely_english_gloss(gloss)
+        ):
+            return normalized_gloss
+        return normalized_lemma_translation
+    if normalized_translated_gloss:
+        return normalized_translated_gloss
+    if normalized_gloss:
+        return normalized_gloss
     if surface_translation:
         return normalize_token(surface_translation)
     return None
+
+
+def _is_likely_english_gloss(gloss: str | None) -> bool:
+    normalized_gloss = normalize_token(gloss or "")
+    if not normalized_gloss:
+        return False
+    return _LIKELY_ENGLISH_GLOSS_RE.fullmatch(normalized_gloss) is not None
 
 
 def _resolve_existing_meaning_by_cor_id(

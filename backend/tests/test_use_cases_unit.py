@@ -2036,6 +2036,80 @@ def test_add_word_persists_gemini_gloss_aware_translations(tmp_path: Path) -> No
     assert surface_row["translation_provider"] is None
 
 
+def test_wordbank_sectioned_details_keep_lemma_translation_and_expose_translated_gloss(
+    tmp_path: Path,
+) -> None:
+    db_path = _db_path(tmp_path)
+    reading_lemma = _cor_local_entry(
+        cor_id="COR.BOG.READING.LEM",
+        lemma="bog",
+        gloss="til læsning",
+        form="bog",
+        lemma_idx=123,
+        pos_tag="NOUN",
+        morphology="Gender=Com|Number=Sing|Definite=Ind",
+        gram_raw="sb.fk.sg.ubest",
+    )
+    reading_surface = _cor_local_entry(
+        cor_id="COR.BOG.READING.DEF",
+        lemma="bog",
+        gloss="til læsning",
+        form="bogen",
+        lemma_idx=123,
+        pos_tag="NOUN",
+        morphology="Gender=Com|Number=Sing|Definite=Def",
+        gram_raw="sb.fk.sg.best",
+    )
+    use_case = WordbankUseCase(
+        db_path,
+        cor_local_lexicon_service=FakeCORLocalLexiconService(
+            by_form={
+                "bog": [reading_lemma],
+                "bogen": [reading_surface],
+            },
+            by_lemma_idx={123: [reading_lemma, reading_surface]},
+        ),
+        translation_service=FakeTranslationService({
+            "en bog": "book",
+            "til læsning": "for reading",
+        }),
+    )
+
+    use_case.add_word("Bogen", "bog")
+
+    details = use_case.get_lemma_details("bog")
+
+    with get_connection(db_path) as conn:
+        meaning_row = conn.execute(
+            """
+            SELECT gloss, english_translation
+            FROM lexeme_meanings
+            WHERE lexeme_id = (SELECT id FROM lexemes WHERE lemma = ?)
+            """,
+            ("bog",),
+        ).fetchone()
+
+    assert meaning_row is not None
+    assert meaning_row["gloss"] == "til læsning"
+    assert meaning_row["english_translation"] == "book"
+    assert details.meaning_sections[0].gloss == "til læsning"
+    assert details.meaning_sections[0].english_translation == "book"
+    assert details.meaning_sections[0].surface_forms == [
+        LemmaDetailsResponse.SurfaceFormDetails(
+            form="bogen",
+            english_translation=None,
+            pos_tag="NOUN",
+            morphology="Gender=Com|Number=Sing|Definite=Def",
+            lemma="bog",
+            lemma_translation="book",
+            gloss="til læsning",
+            gloss_translation="for reading",
+            gram_raw="sb.fk.sg.best",
+            has_pronunciation=False,
+        )
+    ]
+
+
 def test_add_word_batches_gemini_for_lemma_and_surface_translations(tmp_path: Path) -> None:
     db_path = _db_path(tmp_path)
     local_cor = FakeCORLocalLexiconService(

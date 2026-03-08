@@ -166,6 +166,13 @@ function normalizedGlossPart(value: string | null | undefined): string | null {
   return trimmed ? trimmed : null
 }
 
+export function englishGlossForSavedForm(form: {
+  gloss?: string | null
+  gloss_translation?: string | null
+}): string | null {
+  return normalizedGlossPart(form.gloss_translation) ?? normalizedGlossPart(form.gloss)
+}
+
 export function lemmaTranslationWithGloss(
   lemmaTranslation: string | null | undefined,
   glossTranslation: string | null | undefined,
@@ -206,7 +213,7 @@ export function glossDisplayForSavedForm(form: {
   gloss_translation?: string | null
   english_translation?: string | null
 }): string | null {
-  const translation = form.gloss_translation?.trim()
+  const translation = englishGlossForSavedForm(form)
   if (translation) {
     return translation
   }

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 from app.api.schemas.v1.wordbank import LemmaDetailsResponse
 from app.services.token_classifier import normalize_token
 from app.services.use_cases.wordbank.meaning_sections import (
@@ -8,6 +10,8 @@ from app.services.use_cases.wordbank.meaning_sections import (
     is_verb_like_pos_tag,
 )
 from app.services.use_cases.wordbank.runtime import WordbankRuntime
+
+_LIKELY_ENGLISH_GLOSS_RE = re.compile(r"^[A-Za-z][A-Za-z ',-]*$")
 
 
 def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsResponse:
@@ -41,6 +45,7 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
     ]
     extracted_forms = runtime.nlp.extract_pos_and_morphology_batch(uncached_forms)
     detailed_forms: list[tuple[int | None, LemmaDetailsResponse.SurfaceFormDetails]] = []
+    gloss_translation_cache: dict[tuple[str, str, str | None, str | None, str, str | None, str | None], str | None] = {}
 
     for row in form_rows:
         pos_tag = row.pos_tag
@@ -80,6 +85,15 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
             if meaning is not None
             else lexeme.english_translation
         )
+        gloss_translation = None
+        if _is_likely_english_gloss(gloss):
+            gloss_translation = normalize_token(gloss or "")
+        elif cor_local_entry is not None:
+            gloss_translation = runtime.cor.lookup_translation_for_cor_gloss(
+                entry=cor_local_entry,
+                lemma_translation=lemma_translation,
+                cache=gloss_translation_cache,
+            )
         detailed_forms.append(
             (
                 row.meaning_id,
@@ -91,7 +105,7 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
                     lemma=lexeme.lemma,
                     lemma_translation=lemma_translation,
                     gloss=gloss,
-                    gloss_translation=lemma_translation if cor_local_entry is not None else None,
+                    gloss_translation=gloss_translation,
                     gram_raw=cor_local_entry.gram_raw if cor_local_entry is not None else None,
                     has_pronunciation=row.has_pronunciation,
                 ),
@@ -179,3 +193,10 @@ def _store_surface_form_metadata(
         pos_tag=pos_tag,
         morphology=morphology,
     )
+
+
+def _is_likely_english_gloss(gloss: str | None) -> bool:
+    normalized_gloss = normalize_token(gloss or "")
+    if not normalized_gloss:
+        return False
+    return _LIKELY_ENGLISH_GLOSS_RE.fullmatch(normalized_gloss) is not None

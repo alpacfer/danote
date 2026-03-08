@@ -159,6 +159,48 @@ describe("App wordbank", () => {
     expect(screen.getByText(/^book, for reading$/i)).toBeInTheDocument()
   })
 
+  it("meaning-section translation shows lemma translation plus translated gloss, not raw Danish gloss", async () => {
+    mockFetchImplementation({
+      lemmasResponse: {
+        items: [{ lemma: "bog", variation_count: 1 }],
+      },
+      lemmaDetailsResponse: {
+        lemma: "bog",
+        english_translation: null,
+        is_sectioned: true,
+        meaning_sections: [
+          {
+            id: 1,
+            meaning_key: "for-reading",
+            gloss: "til læsning",
+            english_translation: "book",
+            pos_tag: "NOUN",
+            morphology: "Gender=Com|Number=Sing|Definite=Ind",
+            surface_forms: [
+              {
+                form: "bogen",
+                english_translation: null,
+                gloss: "til læsning",
+                gloss_translation: "for reading",
+                has_pronunciation: true,
+              },
+            ],
+          },
+        ],
+        surface_forms: [],
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+    fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /bog/i }))
+
+    expect(await screen.findByRole("heading", { name: /^bog$/i })).toBeInTheDocument()
+    expect(screen.getByText(/^book, for reading$/i)).toBeInTheDocument()
+    expect(screen.queryByText(/^book, til læsning$/i)).not.toBeInTheDocument()
+  })
+
   it("verb word pages keep flat variation layout without surface translations", async () => {
     mockFetchImplementation({
       lemmasResponse: {
@@ -182,6 +224,43 @@ describe("App wordbank", () => {
     expect(await screen.findByText(/^learn$/i)).toBeInTheDocument()
     expect(screen.getByText(/^lærer$/i)).toBeInTheDocument()
     expect(screen.queryByText(/^learns$/i)).not.toBeInTheDocument()
+  })
+
+  it("variation cards show translated gloss instead of raw Danish gloss", async () => {
+    mockFetchImplementation({
+      lemmasResponse: {
+        items: [{ lemma: "bog", variation_count: 1 }],
+      },
+      lemmaDetailsResponse: {
+        lemma: "bog",
+        english_translation: "book",
+        is_sectioned: false,
+        pos_tag: "NOUN",
+        morphology: "Gender=Com|Number=Sing|Definite=Ind",
+        surface_forms: [
+          {
+            form: "bogen",
+            english_translation: null,
+            lemma: "bog",
+            lemma_translation: "book",
+            gloss: "til læsning",
+            gloss_translation: "for reading",
+            pos_tag: "NOUN",
+            morphology: "Gender=Com|Number=Sing|Definite=Def",
+            has_pronunciation: true,
+          },
+        ],
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+    fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /bog/i }))
+
+    expect(await screen.findByRole("heading", { name: /^bog$/i })).toBeInTheDocument()
+    expect(screen.getByText(/\(book, for reading\)/i)).toBeInTheDocument()
+    expect(screen.queryByText(/\(book, til læsning\)/i)).not.toBeInTheDocument()
   })
 
   it("does not render an empty-variation message when there are no saved variations", async () => {
