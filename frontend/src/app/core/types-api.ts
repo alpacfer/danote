@@ -8,6 +8,7 @@ export type WordActionSuggestion = {
   action_type: "open_wordbank" | "add_as_new" | "add_variation"
   surface: string
   lemma: string
+  cor_id?: string | null
   translation_label: string | null
   direction: "da_to_en" | "en_to_da" | "variation" | "known"
   direction_label: string | null
@@ -42,6 +43,12 @@ export type AddWordResponse = {
   stored_surface_form: string | null
   source: "manual"
   message: string
+  meaning?: {
+    id: number
+    meaning_key: string
+    gloss?: string | null
+    english_translation?: string | null
+  } | null
   verification?: {
     status: "verified" | "flagged" | "error" | "skipped" | "queued"
     provider: string | null
@@ -160,6 +167,27 @@ export type LemmaDetailsResponse = {
   english_translation: string | null
   pos_tag: string | null
   morphology: string | null
+  is_sectioned?: boolean
+  meaning_sections?: Array<{
+    id: number
+    meaning_key: string
+    gloss?: string | null
+    english_translation?: string | null
+    pos_tag?: string | null
+    morphology?: string | null
+    surface_forms: Array<{
+      form: string
+      english_translation: string | null
+      pos_tag: string | null
+      morphology: string | null
+      lemma?: string | null
+      lemma_translation?: string | null
+      gloss?: string | null
+      gloss_translation?: string | null
+      gram_raw?: string | null
+      has_pronunciation?: boolean
+    }>
+  }>
   surface_forms: Array<{
     form: string
     english_translation: string | null

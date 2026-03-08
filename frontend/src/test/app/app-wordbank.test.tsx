@@ -11,10 +11,22 @@ describe("App wordbank", () => {
       },
       lemmaDetailsResponse: {
         lemma: "bog",
-        surface_forms: [
-          { form: "bogen", english_translation: "book" },
-          { form: "bogens", english_translation: "book's" },
+        is_sectioned: true,
+        meaning_sections: [
+          {
+            id: 1,
+            meaning_key: "book",
+            gloss: "book",
+            english_translation: "book",
+            pos_tag: "NOUN",
+            morphology: "Gender=Com|Number=Sing",
+            surface_forms: [
+              { form: "bogen", english_translation: "the book", has_pronunciation: true },
+              { form: "bogens", english_translation: "book's", has_pronunciation: false },
+            ],
+          },
         ],
+        surface_forms: [],
       },
     })
 
@@ -28,9 +40,67 @@ describe("App wordbank", () => {
 
     fireEvent.click(bogItem)
     expect(await screen.findByText(/^bog$/i)).toBeInTheDocument()
-    expect(await screen.findByText(/^book$/i)).toBeInTheDocument()
+    expect((await screen.findAllByText(/^book$/i)).length).toBeGreaterThan(0)
     expect(screen.getByText(/^book's$/i)).toBeInTheDocument()
   }, 10_000)
+
+  it("non-verb word pages render meaning sections and remove duplicated top metadata", async () => {
+    mockFetchImplementation({
+      lemmasResponse: {
+        items: [{ lemma: "bog", variation_count: 2 }],
+      },
+      lemmaDetailsResponse: {
+        lemma: "bog",
+        english_translation: "book",
+        is_sectioned: true,
+        meaning_sections: [
+          {
+            id: 1,
+            meaning_key: "book",
+            gloss: "book",
+            english_translation: "book",
+            pos_tag: "NOUN",
+            morphology: "Gender=Com|Number=Sing|Definite=Ind",
+            surface_forms: [{ form: "bogen", english_translation: "the book", has_pronunciation: true }],
+          },
+        ],
+        surface_forms: [],
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+    fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /bog/i }))
+
+    expect(await screen.findByText(/^bog$/i)).toBeInTheDocument()
+    expect(screen.getAllByText(/^book$/i)).toHaveLength(1)
+    expect(screen.getAllByText(/^n-word$/i)).toHaveLength(1)
+  })
+
+  it("verb word pages keep flat variation layout", async () => {
+    mockFetchImplementation({
+      lemmasResponse: {
+        items: [{ lemma: "lære", variation_count: 1 }],
+      },
+      lemmaDetailsResponse: {
+        lemma: "lære",
+        english_translation: "learn",
+        is_sectioned: false,
+        pos_tag: "VERB",
+        morphology: "VerbForm=Inf",
+        surface_forms: [{ form: "lærer", english_translation: "learns", pos_tag: "VERB", morphology: "Tense=Pres|VerbForm=Fin" }],
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+    fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /lære/i }))
+
+    expect(await screen.findByText(/^learn$/i)).toBeInTheDocument()
+    expect(screen.getByText(/^learns$/i)).toBeInTheDocument()
+  })
 
   it("defers loading the full wordbank list until the wordbank section opens", async () => {
     const fetchSpy = mockFetchImplementation({

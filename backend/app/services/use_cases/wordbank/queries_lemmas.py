@@ -7,10 +7,12 @@ from app.api.schemas.v1.wordbank import (
     WordbankSearchResponse,
 )
 from app.services.token_classifier import normalize_token
+from app.services.use_cases.wordbank.meaning_sections import ensure_wordbank_meaning_compatibility
 from app.services.use_cases.wordbank.runtime import WordbankRuntime
 
 
 def list_lemmas(runtime: WordbankRuntime) -> LemmaListResponse:
+    ensure_wordbank_meaning_compatibility(runtime)
     rows = runtime.repository.list_lemmas()
 
     return LemmaListResponse(
@@ -27,6 +29,7 @@ def list_lemmas(runtime: WordbankRuntime) -> LemmaListResponse:
 
 
 def search_lemmas(runtime: WordbankRuntime, query: str, *, limit: int = 8) -> WordbankSearchResponse:
+    ensure_wordbank_meaning_compatibility(runtime)
     normalized_query = normalize_token(query)
     if not normalized_query:
         raise ValueError("query is required")

@@ -127,6 +127,7 @@ export function useWordbankWorkflows({
       const payload = await addWordToWordbank(requestSurface, requestLemma, {
         posTag: action?.pos_tag,
         morphology: action?.morphology,
+        corId: action?.cor_id ?? null,
       })
       toast.success(payload.message)
       void verifyWordInBackground(payload.stored_lemma, payload.stored_surface_form)

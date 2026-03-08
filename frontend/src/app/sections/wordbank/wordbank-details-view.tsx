@@ -1,5 +1,6 @@
 import type { WordbankSectionProps } from "@/app/sections/wordbank/wordbank-section-types"
 import { WordbankDetailsLoadingSkeleton, WordbankLemmaHeader } from "@/app/sections/wordbank/wordbank-lemma-header"
+import { WordbankMeaningSections } from "@/app/sections/wordbank/wordbank-meaning-sections"
 import { WordbankVariationGrid } from "@/app/sections/wordbank/wordbank-variation-grid"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
@@ -47,6 +48,8 @@ export function WordbankDetailsView({
   const variationForms = lemmaDetails.surface_forms.filter(
     (form) => form.form.trim().toLocaleLowerCase("da-DK") !== normalizedSelectedLemma,
   )
+  const meaningSections = lemmaDetails.meaning_sections ?? []
+  const isSectioned = Boolean(lemmaDetails.is_sectioned)
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
@@ -68,12 +71,22 @@ export function WordbankDetailsView({
             hasSuggestedVerificationChanges={hasSuggestedVerificationChanges}
             isApplyingVerificationChanges={isApplyingVerificationChanges}
             onApplySelectedLemmaVerificationChanges={onApplySelectedLemmaVerificationChanges}
+            showSupplementaryMetadata={!isSectioned}
           />
-          <WordbankVariationGrid
-            variationForms={variationForms}
-            pronunciationLoadingByForm={pronunciationLoadingByForm}
-            onPlayPronunciation={onPlayPronunciation}
-          />
+          {isSectioned ? (
+            <WordbankMeaningSections
+              lemma={lemmaDetails.lemma}
+              meaningSections={meaningSections}
+              pronunciationLoadingByForm={pronunciationLoadingByForm}
+              onPlayPronunciation={onPlayPronunciation}
+            />
+          ) : (
+            <WordbankVariationGrid
+              variationForms={variationForms}
+              pronunciationLoadingByForm={pronunciationLoadingByForm}
+              onPlayPronunciation={onPlayPronunciation}
+            />
+          )}
         </div>
       </ScrollArea>
     </div>

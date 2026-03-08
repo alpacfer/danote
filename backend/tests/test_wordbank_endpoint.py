@@ -59,6 +59,42 @@ def _seed_cor_local_db(db_path) -> None:
         )
 
 
+def _seed_cor_local_bog_senses(db_path) -> None:
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            """
+            CREATE TABLE cor_entries (
+                cor_id TEXT PRIMARY KEY,
+                lemma TEXT NOT NULL,
+                gloss TEXT,
+                gram TEXT NOT NULL,
+                form TEXT NOT NULL,
+                norm TEXT NOT NULL,
+                lemma_idx INTEGER NOT NULL,
+                gram_code INTEGER NOT NULL,
+                variation INTEGER NOT NULL
+            )
+            """
+        )
+        conn.execute("CREATE INDEX idx_cor_form ON cor_entries(form)")
+        conn.execute("CREATE INDEX idx_cor_form_lower ON cor_entries(lower(form))")
+        conn.execute("CREATE INDEX idx_cor_lemma_idx ON cor_entries(lemma_idx)")
+        conn.execute("CREATE INDEX idx_cor_lemma_gram ON cor_entries(lemma, gram)")
+        conn.executemany(
+            """
+            INSERT INTO cor_entries (
+                cor_id, lemma, gloss, gram, form, norm, lemma_idx, gram_code, variation
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                ("COR.BOG.BOOK.1", "bog", "book", "sb.fk.sg.best", "bogen", "N", 123, 111, 1),
+                ("COR.BOG.BOOK.2", "bog", "book", "sb.fk.pl.ubest", "bøger", "N", 123, 112, 1),
+                ("COR.BOG.SWAMP.1", "bog", "swamp", "sb.fk.sg.best", "bogen", "N", 124, 211, 1),
+                ("COR.BOG.SWAMP.2", "bog", "swamp", "sb.fk.pl.ubest", "moser", "N", 124, 212, 1),
+            ),
+        )
+
+
 def test_add_word_inserts_lemma_and_surface_form(tmp_path, stub_nlp_adapter_factory) -> None:
     db_path = tmp_path / "danote.sqlite3"
     apply_migrations(db_path)
@@ -76,6 +112,7 @@ def test_add_word_inserts_lemma_and_surface_form(tmp_path, stub_nlp_adapter_fact
     assert payload["stored_lemma"] == "bog"
     assert payload["stored_surface_form"] == "bogen"
     assert payload["source"] == "manual"
+    assert payload["meaning"]["meaning_key"] == "bog"
 
     with get_connection(db_path) as conn:
         lexeme_row = conn.execute(
@@ -190,6 +227,163 @@ def test_add_word_with_new_cor_id_for_existing_form_is_inserted(tmp_path, stub_n
     assert duplicate.json()["status"] == "exists"
 
 
+def test_add_word_creates_non_verb_meaning_sections_from_gloss(tmp_path, stub_nlp_adapter_factory) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    cor_db_path = tmp_path / "cor.sqlite"
+    apply_migrations(db_path)
+    _seed_cor_local_bog_senses(cor_db_path)
+    app = create_app(
+        _test_settings(db_path, cor_local_db_path=cor_db_path),
+        nlp_adapter_factory=stub_nlp_adapter_factory,
+    )
+
+    with TestClient(app) as client:
+        first = client.post(
+            "/api/wordbank/lexemes",
+            json={"surface_token": "bogen", "lemma_candidate": "bog", "cor_id": "COR.BOG.BOOK.1"},
+        )
+        second = client.post(
+            "/api/wordbank/lexemes",
+            json={"surface_token": "moser", "lemma_candidate": "bog", "cor_id": "COR.BOG.SWAMP.2"},
+        )
+        details = client.get("/api/wordbank/lemmas/bog")
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert details.status_code == 200
+    payload = details.json()
+    assert payload["is_sectioned"] is True
+    assert len(payload["meaning_sections"]) == 2
+    by_key = {section["meaning_key"]: section for section in payload["meaning_sections"]}
+    assert set(by_key) == {"book", "swamp"}
+    assert [item["form"] for item in by_key["book"]["surface_forms"]] == ["bogen"]
+    assert [item["form"] for item in by_key["swamp"]["surface_forms"]] == ["moser"]
+
+
+def test_add_word_saves_variation_under_existing_meaning_section(tmp_path, stub_nlp_adapter_factory) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    cor_db_path = tmp_path / "cor.sqlite"
+    apply_migrations(db_path)
+    _seed_cor_local_bog_senses(cor_db_path)
+    app = create_app(
+        _test_settings(db_path, cor_local_db_path=cor_db_path),
+        nlp_adapter_factory=stub_nlp_adapter_factory,
+    )
+
+    with TestClient(app) as client:
+        client.post(
+            "/api/wordbank/lexemes",
+            json={"surface_token": "bogen", "lemma_candidate": "bog", "cor_id": "COR.BOG.BOOK.1"},
+        )
+        response = client.post(
+            "/api/wordbank/lexemes",
+            json={"surface_token": "bøger", "lemma_candidate": "bog", "cor_id": "COR.BOG.BOOK.2"},
+        )
+        details = client.get("/api/wordbank/lemmas/bog")
+
+    assert response.status_code == 200
+    payload = details.json()
+    assert payload["is_sectioned"] is True
+    assert len(payload["meaning_sections"]) == 1
+    section = payload["meaning_sections"][0]
+    assert section["meaning_key"] == "book"
+    assert [item["form"] for item in section["surface_forms"]] == ["bogen", "bøger"]
+
+
+def test_add_word_uses_gemini_to_route_variation_when_multiple_sections_exist(tmp_path, stub_nlp_adapter_factory) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    cor_db_path = tmp_path / "cor.sqlite"
+    apply_migrations(db_path)
+    _seed_cor_local_bog_senses(cor_db_path)
+    app = create_app(
+        _test_settings(db_path, cor_local_db_path=cor_db_path),
+        nlp_adapter_factory=stub_nlp_adapter_factory,
+    )
+
+    class StubGeminiWordTranslationService:
+        provider = "gemini_word_translation"
+
+        def translate_word(self, _payload) -> str | None:
+            return None
+
+        def translate_words_batch(self, payloads) -> list[str | None]:
+            return [None for _ in payloads]
+
+        def select_meaning_section(self, payload) -> int | None:
+            for item in payload.meaning_candidates:
+                if item.meaning_key == "swamp":
+                    return item.id
+            return None
+
+    with TestClient(app) as client:
+        set_service_field(client.app, "gemini_word_translation_service", StubGeminiWordTranslationService())
+        client.post(
+            "/api/wordbank/lexemes",
+            json={"surface_token": "bogen", "lemma_candidate": "bog", "cor_id": "COR.BOG.BOOK.1"},
+        )
+        client.post(
+            "/api/wordbank/lexemes",
+            json={"surface_token": "moser", "lemma_candidate": "bog", "cor_id": "COR.BOG.SWAMP.2"},
+        )
+        routed = client.post(
+            "/api/wordbank/lexemes",
+            json={"surface_token": "bogens", "lemma_candidate": "bog"},
+        )
+        details = client.get("/api/wordbank/lemmas/bog")
+
+    assert routed.status_code == 200
+    payload = details.json()
+    by_key = {section["meaning_key"]: section for section in payload["meaning_sections"]}
+    assert "swamp" in by_key
+    assert [item["form"] for item in by_key["swamp"]["surface_forms"]] == ["bogens", "moser"]
+
+
+def test_add_word_creates_new_section_when_gemini_cannot_pick_existing_section(tmp_path, stub_nlp_adapter_factory) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    cor_db_path = tmp_path / "cor.sqlite"
+    apply_migrations(db_path)
+    _seed_cor_local_bog_senses(cor_db_path)
+    app = create_app(
+        _test_settings(db_path, cor_local_db_path=cor_db_path),
+        nlp_adapter_factory=stub_nlp_adapter_factory,
+    )
+
+    class StubGeminiWordTranslationService:
+        provider = "gemini_word_translation"
+
+        def translate_word(self, _payload) -> str | None:
+            return None
+
+        def translate_words_batch(self, payloads) -> list[str | None]:
+            return [None for _ in payloads]
+
+        def select_meaning_section(self, _payload) -> int | None:
+            return None
+
+    with TestClient(app) as client:
+        set_service_field(client.app, "gemini_word_translation_service", StubGeminiWordTranslationService())
+        client.post(
+            "/api/wordbank/lexemes",
+            json={"surface_token": "bogen", "lemma_candidate": "bog", "cor_id": "COR.BOG.BOOK.1"},
+        )
+        client.post(
+            "/api/wordbank/lexemes",
+            json={"surface_token": "moser", "lemma_candidate": "bog", "cor_id": "COR.BOG.SWAMP.2"},
+        )
+        added = client.post(
+            "/api/wordbank/lexemes",
+            json={"surface_token": "bogens", "lemma_candidate": "bog"},
+        )
+        details = client.get("/api/wordbank/lemmas/bog")
+
+    assert added.status_code == 200
+    assert added.json()["meaning"]["meaning_key"] == "bog"
+    payload = details.json()
+    by_key = {section["meaning_key"]: section for section in payload["meaning_sections"]}
+    assert "bog" in by_key
+    assert [item["form"] for item in by_key["bog"]["surface_forms"]] == ["bogens"]
+
+
 def test_list_lemmas_returns_sorted_lemmas_with_variation_counts(tmp_path, stub_nlp_adapter_factory) -> None:
     db_path = tmp_path / "danote.sqlite3"
     apply_migrations(db_path)
@@ -208,6 +402,38 @@ def test_list_lemmas_returns_sorted_lemmas_with_variation_counts(tmp_path, stub_
         {"lemma": "bog", "display_lemma": "bog", "english_translation": None, "variation_count": 2},
         {"lemma": "hus", "display_lemma": "hus", "english_translation": None, "variation_count": 1},
     ]
+
+
+def test_wordbank_endpoints_require_reset_for_legacy_non_verb_rows(tmp_path, stub_nlp_adapter_factory) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    apply_migrations(db_path)
+    with get_connection(db_path) as conn:
+        conn.execute(
+            "INSERT INTO lexemes (lemma, source) VALUES (?, ?)",
+            ("bog", "manual"),
+        )
+        lexeme_row = conn.execute(
+            "SELECT id FROM lexemes WHERE lemma = ?",
+            ("bog",),
+        ).fetchone()
+        assert lexeme_row is not None
+        conn.execute(
+            "INSERT INTO surface_forms (lexeme_id, form, source) VALUES (?, ?, ?)",
+            (int(lexeme_row["id"]), "bogen", "manual"),
+        )
+
+    app = create_app(_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+    with TestClient(app) as client:
+        list_response = client.get("/api/wordbank/lemmas")
+        add_response = client.post(
+            "/api/wordbank/lexemes",
+            json={"surface_token": "bogens", "lemma_candidate": "bog"},
+        )
+
+    assert list_response.status_code == 503
+    assert "reset the database" in list_response.json()["detail"].lower()
+    assert add_response.status_code == 503
+    assert "reset the database" in add_response.json()["detail"].lower()
 
 
 def test_search_lemmas_returns_variation_matches(tmp_path, stub_nlp_adapter_factory) -> None:
@@ -398,12 +624,16 @@ def test_get_lemma_details_returns_all_saved_variations(tmp_path, stub_nlp_adapt
     payload = response.json()
     assert payload["lemma"] == "bog"
     assert payload["english_translation"] is None
-    assert [item["form"] for item in payload["surface_forms"]] == ["bog", "bogen", "bogens"]
-    by_form = {item["form"]: item for item in payload["surface_forms"]}
-    assert by_form["bog"]["english_translation"] is None
+    assert payload["is_sectioned"] is True
+    assert payload["surface_forms"] == []
+    assert len(payload["meaning_sections"]) == 1
+    section = payload["meaning_sections"][0]
+    assert section["meaning_key"] == "bog"
+    assert [item["form"] for item in section["surface_forms"]] == ["bogen", "bogens"]
+    by_form = {item["form"]: item for item in section["surface_forms"]}
     assert by_form["bogen"]["english_translation"] is None
     assert by_form["bogens"]["english_translation"] is None
-    assert all(item["has_pronunciation"] is False for item in payload["surface_forms"])
+    assert all(item["has_pronunciation"] is False for item in section["surface_forms"])
 
 
 def test_get_lemma_details_returns_not_found_for_unknown_lemma(tmp_path, stub_nlp_adapter_factory) -> None:
@@ -743,15 +973,13 @@ def test_add_word_does_not_block_on_pronunciation_for_new_surface_form(tmp_path,
 
     assert details_response.status_code == 200
     payload = details_response.json()
-    assert payload["surface_forms"] == [
-        {
-            "form": "katten",
-            "english_translation": None,
-            "pos_tag": None,
-            "morphology": None,
-            "has_pronunciation": False,
-        }
-    ]
+    assert payload["is_sectioned"] is True
+    assert payload["surface_forms"] == []
+    assert len(payload["meaning_sections"]) == 1
+    forms = payload["meaning_sections"][0]["surface_forms"]
+    assert [item["form"] for item in forms] == ["katten"]
+    assert forms[0]["english_translation"] is None
+    assert forms[0]["has_pronunciation"] is False
     assert stub_tts.calls == []
 
 
@@ -790,15 +1018,13 @@ def test_generate_pronunciation_endpoint_generates_for_recently_added_word(tmp_p
 
     assert details_response.status_code == 200
     payload = details_response.json()
-    assert payload["surface_forms"] == [
-        {
-            "form": "katten",
-            "english_translation": None,
-            "pos_tag": None,
-            "morphology": None,
-            "has_pronunciation": True,
-        }
-    ]
+    assert payload["is_sectioned"] is True
+    assert payload["surface_forms"] == []
+    assert len(payload["meaning_sections"]) == 1
+    forms = payload["meaning_sections"][0]["surface_forms"]
+    assert [item["form"] for item in forms] == ["katten"]
+    assert forms[0]["english_translation"] is None
+    assert forms[0]["has_pronunciation"] is True
     assert stub_tts.calls == ["kat", "katten"]
 
 

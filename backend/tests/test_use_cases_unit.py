@@ -172,20 +172,11 @@ def test_wordbank_use_case_round_trip(tmp_path: Path) -> None:
 
     details = use_case.get_lemma_details("bog")
     assert details.lemma == "bog"
-    assert details.surface_forms == [
-        LemmaDetailsResponse.SurfaceFormDetails(
-            form="bog",
-            english_translation=None,
-            lemma="bog",
-            lemma_translation=None,
-        ),
-        LemmaDetailsResponse.SurfaceFormDetails(
-            form="bogen",
-            english_translation=None,
-            lemma="bog",
-            lemma_translation=None,
-        )
-    ]
+    assert details.is_sectioned is True
+    assert details.surface_forms == []
+    assert len(details.meaning_sections) == 1
+    assert details.meaning_sections[0].meaning_key == "bog"
+    assert [item.form for item in details.meaning_sections[0].surface_forms] == ["bogen"]
 
     listing = use_case.list_lemmas()
     assert listing.items[0].lemma == "bog"
@@ -210,7 +201,9 @@ def test_wordbank_use_case_facade_delegates_across_extracted_workflows(tmp_path:
     assert search.items[0].lemma == "bog"
     assert details.lemma == "bog"
     assert details.english_translation == "book"
-    assert details.surface_forms[1].english_translation == "the book"
+    assert details.is_sectioned is True
+    assert len(details.meaning_sections) == 1
+    assert details.meaning_sections[0].surface_forms[0].english_translation == "the book"
 
 
 def test_wordbank_use_case_stores_deepl_translations_for_lemma_and_surface(tmp_path: Path) -> None:
@@ -223,13 +216,11 @@ def test_wordbank_use_case_stores_deepl_translations_for_lemma_and_surface(tmp_p
 
     details = use_case.get_lemma_details("bog")
     assert details.english_translation == "book"
-    assert details.surface_forms == [
-        LemmaDetailsResponse.SurfaceFormDetails(
-            form="bog",
-            english_translation="book",
-            lemma="bog",
-            lemma_translation="book",
-        ),
+    assert details.is_sectioned is True
+    assert details.surface_forms == []
+    assert len(details.meaning_sections) == 1
+    assert details.meaning_sections[0].english_translation == "book"
+    assert details.meaning_sections[0].surface_forms == [
         LemmaDetailsResponse.SurfaceFormDetails(
             form="bogen",
             english_translation="the book",
@@ -296,15 +287,12 @@ def test_wordbank_use_case_includes_pos_and_morphology_when_nlp_available(tmp_pa
     details = use_case.get_lemma_details("bog")
     assert details.pos_tag == "NOUN"
     assert details.morphology == "Gender=Com|Number=Sing"
-    assert details.surface_forms == [
-        LemmaDetailsResponse.SurfaceFormDetails(
-            form="bog",
-            english_translation=None,
-            pos_tag="NOUN",
-            morphology="Gender=Com|Number=Sing",
-            lemma="bog",
-            lemma_translation=None,
-        ),
+    assert details.is_sectioned is True
+    assert details.surface_forms == []
+    assert len(details.meaning_sections) == 1
+    assert details.meaning_sections[0].pos_tag == "NOUN"
+    assert details.meaning_sections[0].morphology == "Gender=Com|Number=Sing"
+    assert details.meaning_sections[0].surface_forms == [
         LemmaDetailsResponse.SurfaceFormDetails(
             form="bogen",
             english_translation=None,
@@ -2304,9 +2292,10 @@ def test_wordbank_get_lemma_details_persists_extracted_pos_and_morphology_for_fo
 
     details_first = use_case.get_lemma_details("bog")
     assert details_first.pos_tag == "NOUN"
-    assert details_first.surface_forms[0].pos_tag == "NOUN"
+    assert details_first.is_sectioned is True
+    assert details_first.meaning_sections[0].surface_forms[0].pos_tag == "NOUN"
 
     details_second = use_case.get_lemma_details("bog")
     assert details_second.pos_tag == "NOUN"
-    assert details_second.surface_forms[0].morphology == "Number=Sing"
+    assert details_second.meaning_sections[0].surface_forms[0].morphology == "Number=Sing"
     assert adapter.calls == calls_after_add

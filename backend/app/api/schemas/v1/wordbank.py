@@ -55,6 +55,7 @@ class WordActionSuggestion(BaseModel):
     action_type: Literal["open_wordbank", "add_as_new", "add_variation"]
     surface: str
     lemma: str
+    cor_id: str | None = None
     translation_label: str | None = None
     direction: Literal["da_to_en", "en_to_da", "variation", "known"]
     direction_label: str | None = None
@@ -99,6 +100,12 @@ class GeneratePhraseTranslationResponse(BaseModel):
 
 
 class AddWordResponse(BaseModel):
+    class MeaningContext(BaseModel):
+        id: int
+        meaning_key: str
+        gloss: str | None = None
+        english_translation: str | None = None
+
     class VerificationResult(BaseModel):
         class SuggestedChanges(BaseModel):
             lemma_pos_tag: str | None = None
@@ -122,6 +129,7 @@ class AddWordResponse(BaseModel):
     stored_surface_form: str | None
     source: Literal["manual"]
     message: str
+    meaning: MeaningContext | None = None
     verification: VerificationResult | None = None
 
 
@@ -248,8 +256,19 @@ class LemmaDetailsResponse(BaseModel):
         gram_raw: str | None = None
         has_pronunciation: bool = False
 
+    class MeaningSection(BaseModel):
+        id: int
+        meaning_key: str
+        gloss: str | None = None
+        english_translation: str | None = None
+        pos_tag: str | None = None
+        morphology: str | None = None
+        surface_forms: list["LemmaDetailsResponse.SurfaceFormDetails"] = Field(default_factory=list)
+
     lemma: str
     english_translation: str | None
+    is_sectioned: bool = False
+    meaning_sections: list[MeaningSection] = Field(default_factory=list)
     surface_forms: list[SurfaceFormDetails]
 
 

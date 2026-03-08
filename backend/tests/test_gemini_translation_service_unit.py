@@ -6,6 +6,8 @@ from app.services.gemini_translation import (
     ContextualWordTranslationInput,
     GeminiFlashLiteWordTranslationService,
     GeminiTranslationError,
+    MeaningSectionCandidateInput,
+    MeaningSectionSelectionInput,
 )
 
 
@@ -98,6 +100,27 @@ def test_gemini_word_translation_service_supports_minimal_non_gloss_prompt(monke
     assert "Translate lemma_da, not surface_form_da." in str(prompt)
 
 
+def test_gemini_word_translation_service_prompt_prioritizes_common_morphology_sense(monkeypatch) -> None:
+    service = GeminiFlashLiteWordTranslationService(api_key="test-key")
+    fake_client = _FakeClient([_FakeResponse('{"translation":"to bend"}')])
+    monkeypatch.setattr(service, "_ensure_client", lambda: fake_client)
+
+    translated = service.translate_word(
+        ContextualWordTranslationInput(
+            surface_form="bog",
+            lemma="boge",
+            pos_tag="VERB",
+            morphology="Mood=Imp|VerbForm=Fin",
+        )
+    )
+
+    assert translated == "to bend"
+    prompt = str(fake_client.models.calls[0]["contents"])
+    assert "Treat pos_tag and morphology as hard constraints for sense disambiguation." in prompt
+    assert "choose the most common modern English meaning" in prompt
+    assert "prefer 'to bend'/'to bow' over golf-specific 'to bogey'" in prompt
+
+
 def test_gemini_word_translation_service_parses_structured_batch_response(monkeypatch) -> None:
     service = GeminiFlashLiteWordTranslationService(api_key="test-key")
     fake_client = _FakeClient(
@@ -124,6 +147,77 @@ def test_gemini_word_translation_service_parses_structured_batch_response(monkey
 
     assert translated == ["the book", "learns"]
     assert fake_client.models.calls[0]["config"] is not None
+
+
+def test_gemini_word_translation_service_batch_prompt_prioritizes_common_morphology_sense(monkeypatch) -> None:
+    service = GeminiFlashLiteWordTranslationService(api_key="test-key")
+    fake_client = _FakeClient(
+        [
+            _FakeResponse(
+                None,
+                parsed={"items": [{"id": "0", "translation": "to bend"}]},
+            )
+        ]
+    )
+    monkeypatch.setattr(service, "_ensure_client", lambda: fake_client)
+
+    translated = service.translate_words_batch(
+        [
+            ContextualWordTranslationInput(
+                surface_form="bog",
+                lemma="boge",
+                pos_tag="VERB",
+                morphology="Mood=Imp|VerbForm=Fin",
+            )
+        ]
+    )
+
+    assert translated == ["to bend"]
+    prompt = str(fake_client.models.calls[0]["contents"])
+    assert "Treat pos_tag and morphology as hard constraints for sense disambiguation." in prompt
+    assert "choose the most common modern English meaning" in prompt
+    assert "prefer 'to bend'/'to bow' over golf-specific 'to bogey'" in prompt
+
+
+def test_gemini_word_translation_service_selects_existing_meaning_section(monkeypatch) -> None:
+    service = GeminiFlashLiteWordTranslationService(api_key="test-key")
+    fake_client = _FakeClient([_FakeResponse(None, parsed={"meaning_section_id": 2})])
+    monkeypatch.setattr(service, "_ensure_client", lambda: fake_client)
+
+    selected = service.select_meaning_section(
+        MeaningSectionSelectionInput(
+            surface_form="bogens",
+            lemma="bog",
+            meaning_candidates=[
+                MeaningSectionCandidateInput(id=1, meaning_key="book", gloss="book"),
+                MeaningSectionCandidateInput(id=2, meaning_key="swamp", gloss="swamp"),
+            ],
+        )
+    )
+
+    assert selected == 2
+    prompt = str(fake_client.models.calls[0]["contents"])
+    assert "meaning_section_id" in prompt
+    assert "Meaning sections" in prompt
+
+
+def test_gemini_word_translation_service_returns_none_for_invalid_meaning_section(monkeypatch) -> None:
+    service = GeminiFlashLiteWordTranslationService(api_key="test-key")
+    fake_client = _FakeClient([_FakeResponse(None, parsed={"meaning_section_id": 99})])
+    monkeypatch.setattr(service, "_ensure_client", lambda: fake_client)
+
+    selected = service.select_meaning_section(
+        MeaningSectionSelectionInput(
+            surface_form="bogens",
+            lemma="bog",
+            meaning_candidates=[
+                MeaningSectionCandidateInput(id=1, meaning_key="book", gloss="book"),
+                MeaningSectionCandidateInput(id=2, meaning_key="swamp", gloss="swamp"),
+            ],
+        )
+    )
+
+    assert selected is None
 
 
 def test_gemini_word_translation_service_uses_nullable_batch_schema() -> None:

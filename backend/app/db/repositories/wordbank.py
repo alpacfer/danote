@@ -6,6 +6,7 @@ from pathlib import Path
 from app.db.repositories.wordbank_search import search_lemmas as search_wordbank_rows
 from app.db.sqlite import get_connection, timed_db_operation
 
+_QUERY_COR_IDS_SEPARATOR = "\x1f"
 
 @dataclass(frozen=True, slots=True)
 class LemmaListRow:
@@ -13,7 +14,6 @@ class LemmaListRow:
     english_translation: str | None
     pos_tag: str | None
     variation_count: int
-
 
 @dataclass(frozen=True, slots=True)
 class WordbankSearchRow:
@@ -25,7 +25,6 @@ class WordbankSearchRow:
     match_surface: str | None
     query_cor_ids: list[str]
 
-
 @dataclass(frozen=True, slots=True)
 class LexemeRecord:
     id: int
@@ -34,6 +33,14 @@ class LexemeRecord:
     pos_tag: str | None
     morphology: str | None
 
+@dataclass(frozen=True, slots=True)
+class LexemeMeaningRecord:
+    id: int
+    meaning_key: str
+    gloss: str | None
+    english_translation: str | None
+    pos_tag: str | None
+    morphology: str | None
 
 @dataclass(frozen=True, slots=True)
 class SurfaceFormRecord:
@@ -41,8 +48,8 @@ class SurfaceFormRecord:
     english_translation: str | None
     pos_tag: str | None
     morphology: str | None
+    meaning_id: int | None
     has_pronunciation: bool
-
 
 class WordbankRepository:
     def __init__(self, db_path: Path):
@@ -120,6 +127,7 @@ class WordbankRepository:
                     english_translation AS english_translation,
                     pos_tag,
                     morphology,
+                    meaning_id,
                     CASE WHEN pronunciation_audio IS NOT NULL THEN 1 ELSE 0 END AS has_pronunciation
                 FROM surface_forms
                 WHERE lexeme_id = ?
@@ -133,7 +141,37 @@ class WordbankRepository:
                 english_translation=row["english_translation"],
                 pos_tag=row["pos_tag"],
                 morphology=row["morphology"],
+                meaning_id=int(row["meaning_id"]) if row["meaning_id"] is not None else None,
                 has_pronunciation=bool(row["has_pronunciation"]),
+            )
+            for row in rows
+        ]
+
+    def list_lexeme_meanings(self, lexeme_id: int) -> list[LexemeMeaningRecord]:
+        with timed_db_operation("wordbank.list_lexeme_meanings"), get_connection(self._db_path, read_only=True) as conn:
+            rows = conn.execute(
+                """
+                SELECT
+                    id,
+                    meaning_key,
+                    gloss,
+                    english_translation,
+                    pos_tag,
+                    morphology
+                FROM lexeme_meanings
+                WHERE lexeme_id = ?
+                ORDER BY id ASC
+                """,
+                (lexeme_id,),
+            ).fetchall()
+        return [
+            LexemeMeaningRecord(
+                id=int(row["id"]),
+                meaning_key=str(row["meaning_key"]),
+                gloss=row["gloss"],
+                english_translation=row["english_translation"],
+                pos_tag=row["pos_tag"],
+                morphology=row["morphology"],
             )
             for row in rows
         ]
@@ -295,9 +333,116 @@ class WordbankRepository:
             )
         return cursor.rowcount == 1
 
+    def upsert_lexeme_meaning(
+        self,
+        *,
+        lexeme_id: int,
+        meaning_key: str,
+        gloss: str | None,
+        english_translation: str | None,
+        pos_tag: str | None,
+        morphology: str | None,
+    ) -> tuple[LexemeMeaningRecord, bool]:
+        with timed_db_operation("wordbank.upsert_lexeme_meaning"), get_connection(self._db_path) as conn:
+            cursor = conn.execute(
+                """
+                INSERT OR IGNORE INTO lexeme_meanings (
+                    lexeme_id,
+                    meaning_key,
+                    gloss,
+                    english_translation,
+                    pos_tag,
+                    morphology
+                )
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    lexeme_id,
+                    meaning_key,
+                    gloss,
+                    english_translation,
+                    pos_tag,
+                    morphology,
+                ),
+            )
+            row = conn.execute(
+                """
+                SELECT id, meaning_key, gloss, english_translation, pos_tag, morphology
+                FROM lexeme_meanings
+                WHERE lexeme_id = ? AND meaning_key = ?
+                LIMIT 1
+                """,
+                (lexeme_id, meaning_key),
+            ).fetchone()
+            if row is None:
+                raise RuntimeError("Failed to create or load lexeme meaning")
+            meaning_id = int(row["id"])
+            conn.execute(
+                """
+                UPDATE lexeme_meanings
+                SET
+                    gloss = COALESCE(gloss, ?),
+                    english_translation = COALESCE(english_translation, ?),
+                    pos_tag = COALESCE(pos_tag, ?),
+                    morphology = COALESCE(morphology, ?),
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (gloss, english_translation, pos_tag, morphology, meaning_id),
+            )
+            updated_row = conn.execute(
+                """
+                SELECT id, meaning_key, gloss, english_translation, pos_tag, morphology
+                FROM lexeme_meanings
+                WHERE id = ?
+                LIMIT 1
+                """,
+                (meaning_id,),
+            ).fetchone()
+        if updated_row is None:
+            raise RuntimeError("Failed to load upserted lexeme meaning")
+        return (
+            LexemeMeaningRecord(
+                id=int(updated_row["id"]),
+                meaning_key=str(updated_row["meaning_key"]),
+                gloss=updated_row["gloss"],
+                english_translation=updated_row["english_translation"],
+                pos_tag=updated_row["pos_tag"],
+                morphology=updated_row["morphology"],
+            ),
+            cursor.rowcount == 1,
+        )
 
-_QUERY_COR_IDS_SEPARATOR = "\x1f"
+    def assign_surface_form_meaning_if_unset(
+        self,
+        *,
+        lexeme_id: int,
+        form: str,
+        meaning_id: int,
+    ) -> None:
+        with timed_db_operation("wordbank.assign_surface_form_meaning_if_unset"), get_connection(self._db_path) as conn:
+            conn.execute(
+                """
+                UPDATE surface_forms
+                SET meaning_id = ?, last_seen_at = CURRENT_TIMESTAMP
+                WHERE lexeme_id = ? AND form = ? AND (meaning_id IS NULL OR meaning_id = ?)
+                """,
+                (meaning_id, lexeme_id, form, meaning_id),
+            )
 
+    def has_non_verb_forms_without_meaning(self) -> bool:
+        with timed_db_operation("wordbank.has_non_verb_forms_without_meaning"), get_connection(self._db_path, read_only=True) as conn:
+            row = conn.execute(
+                """
+                SELECT 1
+                FROM surface_forms sf
+                JOIN lexemes l ON l.id = sf.lexeme_id
+                WHERE sf.meaning_id IS NULL
+                  AND COALESCE(UPPER(l.pos_tag), '') NOT IN ('VERB', 'AUX')
+                LIMIT 1
+                """
+            ).fetchone()
+        return row is not None
 
 def _parse_query_cor_ids(raw: str | None) -> list[str]:
     if not raw:

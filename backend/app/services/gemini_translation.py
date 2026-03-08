@@ -22,6 +22,27 @@ class ContextualWordTranslationInput:
     gloss_translation_hint: str | None = None
 
 
+@dataclass(frozen=True, slots=True)
+class MeaningSectionCandidateInput:
+    id: int
+    meaning_key: str
+    gloss: str | None = None
+    english_translation: str | None = None
+    pos_tag: str | None = None
+    morphology: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class MeaningSectionSelectionInput:
+    surface_form: str
+    lemma: str
+    pos_tag: str | None = None
+    morphology: str | None = None
+    gloss: str | None = None
+    english_translation: str | None = None
+    meaning_candidates: list[MeaningSectionCandidateInput] = field(default_factory=list)
+
+
 class GeminiWordTranslationService(Protocol):
     provider: str
 
@@ -29,6 +50,7 @@ class GeminiWordTranslationService(Protocol):
     def translate_words_batch(
         self, payloads: list[ContextualWordTranslationInput]
     ) -> list[str | None]: ...
+    def select_meaning_section(self, payload: MeaningSectionSelectionInput) -> int | None: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -128,6 +150,16 @@ class GeminiFlashLiteWordTranslationService:
         by_id = {item.id: item.translation for item in parsed.items}
         return [by_id.get(item.id) for item in request_items]
 
+    def select_meaning_section(self, payload: MeaningSectionSelectionInput) -> int | None:
+        if not payload.meaning_candidates:
+            return None
+        prompt = self._meaning_section_selection_prompt(payload)
+        response = self._generate_content(
+            prompt,
+            config=self._meaning_section_selection_response_config(),
+        )
+        return self._parse_meaning_section_id(response, valid_ids={item.id for item in payload.meaning_candidates})
+
     def _translation_prompt(self, payload: ContextualWordTranslationInput) -> str:
         context = {
             "surface_form_da": payload.surface_form,
@@ -163,6 +195,10 @@ class GeminiFlashLiteWordTranslationService:
             + "- Output only the English translation.\n"
             + "- Translate lemma_da, not surface_form_da.\n"
             + "- Return a lemma-level translation; avoid adding articles/function words unless part of the lemma meaning.\n"
+            + "- Treat pos_tag and morphology as hard constraints for sense disambiguation.\n"
+            + "- If multiple senses are possible, choose the most common modern English meaning for the given Danish lemma/POS/morphology.\n"
+            + "- Avoid false-friend transliterations and niche domain senses unless gloss or hints explicitly require them.\n"
+            + "- For verbs, prefer the common infinitive meaning in English (for example, prefer 'to bend'/'to bow' over golf-specific 'to bogey' unless context explicitly indicates golf).\n"
             + "- Do not explain your reasoning.\n"
             + f"Context:\n{json.dumps(context, ensure_ascii=False)}"
         )
@@ -183,8 +219,34 @@ class GeminiFlashLiteWordTranslationService:
             "- Output only the English translation.\n"
             "- Translate lemma, not surface_form.\n"
             "- Return lemma-level translations; avoid adding articles/function words unless part of the lemma meaning.\n"
+            "- Treat pos_tag and morphology as hard constraints for sense disambiguation.\n"
+            "- If multiple senses are possible, choose the most common modern English meaning for the given Danish lemma/POS/morphology.\n"
+            "- Avoid false-friend transliterations and niche domain senses unless gloss or hints explicitly require them.\n"
+            "- For verbs, prefer the common infinitive meaning in English (for example, prefer 'to bend'/'to bow' over golf-specific 'to bogey' unless context explicitly indicates golf).\n"
             "- Do not explain your reasoning.\n"
             f"Items:\n{json.dumps([asdict(item) for item in items], ensure_ascii=False)}"
+        )
+
+    def _meaning_section_selection_prompt(self, payload: MeaningSectionSelectionInput) -> str:
+        context = {
+            "surface_form_da": payload.surface_form,
+            "lemma_da": payload.lemma,
+            "pos_tag": payload.pos_tag,
+            "morphology": payload.morphology,
+            "gloss": payload.gloss,
+            "english_translation": payload.english_translation,
+        }
+        candidates = [asdict(item) for item in payload.meaning_candidates]
+        return (
+            "You are assigning a Danish non-verb word to one existing meaning section.\n"
+            "Return JSON only: {\"meaning_section_id\": <integer|null>}\n"
+            "Rules:\n"
+            "- Choose exactly one section id if there is a confident semantic match.\n"
+            "- Use gloss, translation, POS, and morphology as hard disambiguation signals.\n"
+            "- Return null if no section is a confident match.\n"
+            "- Do not explain your reasoning.\n"
+            f"Word context:\n{json.dumps(context, ensure_ascii=False)}\n"
+            f"Meaning sections:\n{json.dumps(candidates, ensure_ascii=False)}"
         )
 
     def _single_response_config(self) -> object:
@@ -233,6 +295,25 @@ class GeminiFlashLiteWordTranslationService:
             },
             temperature=0,
             max_output_tokens=max_output_tokens,
+            thinking_config=genai_types.ThinkingConfig(thinking_budget=0),
+        )
+
+    def _meaning_section_selection_response_config(self) -> object:
+        genai_types = self._genai_types()
+        return genai_types.GenerateContentConfig(
+            response_mime_type="application/json",
+            response_schema={
+                "type": "OBJECT",
+                "properties": {
+                    "meaning_section_id": {
+                        "type": "INTEGER",
+                        "nullable": True,
+                    },
+                },
+                "required": ["meaning_section_id"],
+            },
+            temperature=0,
+            max_output_tokens=64,
             thinking_config=genai_types.ThinkingConfig(thinking_budget=0),
         )
 
@@ -388,6 +469,36 @@ class GeminiFlashLiteWordTranslationService:
                 )
             )
         return BatchContextualWordTranslationResponse(items=parsed_items)
+
+    def _parse_meaning_section_id(self, response: object, *, valid_ids: set[int]) -> int | None:
+        parsed_payload = getattr(response, "parsed", None)
+        parsed = self._parse_meaning_section_payload(parsed_payload, valid_ids=valid_ids)
+        if parsed is not None:
+            return parsed
+
+        raw_text = getattr(response, "text", None)
+        if not isinstance(raw_text, str):
+            return None
+        cleaned = raw_text.strip()
+        if cleaned.startswith("```"):
+            cleaned = cleaned.removeprefix("```json").removeprefix("```").strip()
+            if cleaned.endswith("```"):
+                cleaned = cleaned[:-3].strip()
+        try:
+            payload = json.loads(cleaned)
+        except ValueError:
+            return None
+        return self._parse_meaning_section_payload(payload, valid_ids=valid_ids)
+
+    def _parse_meaning_section_payload(self, payload: object, *, valid_ids: set[int]) -> int | None:
+        if not isinstance(payload, dict):
+            return None
+        value = payload.get("meaning_section_id")
+        if not isinstance(value, int):
+            return None
+        if value not in valid_ids:
+            return None
+        return value
 
 
 def _normalize_translation_value(value: str | None) -> str | None:

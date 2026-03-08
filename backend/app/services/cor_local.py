@@ -198,6 +198,24 @@ class CORLocalLexiconService:
         )
         return [self._row_to_entry(row) for row in rows]
 
+    def lookup_cor_id(self, cor_id: str) -> CORLocalEntry | None:
+        normalized_cor_id = _normalize_space(cor_id)
+        if not normalized_cor_id:
+            return None
+        rows = self._query_rows(
+            """
+            SELECT
+                cor_id, lemma, gloss, gram, form, norm, lemma_idx, gram_code, variation
+            FROM cor_entries
+            WHERE cor_id = ?
+            LIMIT 1
+            """,
+            (normalized_cor_id,),
+        )
+        if not rows:
+            return None
+        return self._row_to_entry(rows[0])
+
     def _query_rows(
         self,
         sql: str,

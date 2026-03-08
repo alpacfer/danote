@@ -165,6 +165,7 @@ def list_lemmas(request: Request) -> LemmaListResponse:
     response = run_db_operation(
         request,
         lambda: build_wordbank_use_case(request).list_lemmas(),
+        include_runtime_error=True,
         error_log_name="wordbank_db_operational_error",
     )
     return LemmaListResponse(
@@ -184,6 +185,7 @@ def search_wordbank(
     return run_db_operation(
         request,
         lambda: build_wordbank_use_case(request).search_lemmas(query, limit=limit),
+        include_runtime_error=True,
         error_log_name="wordbank_db_operational_error",
     )
 
@@ -223,13 +225,18 @@ def get_lemma_details(lemma: str, request: Request) -> LemmaDetailsResponse:
         request,
         lambda: build_wordbank_use_case(request).get_lemma_details(lemma),
         include_lookup_error=True,
+        include_runtime_error=True,
         error_log_name="wordbank_db_operational_error",
     )
+    if response.is_sectioned:
+        return JSONResponse(content=response.model_dump())
     payload: dict[str, object] = {
         "lemma": response.lemma,
         "english_translation": response.english_translation,
         "pos_tag": response.pos_tag,
         "morphology": response.morphology,
+        "is_sectioned": False,
+        "meaning_sections": [],
         "surface_forms": [],
     }
     non_lemma_form_count = sum(1 for form in response.surface_forms if form.form != response.lemma)

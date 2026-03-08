@@ -11,6 +11,7 @@ from app.services.cor import COREntry, CORLexiconService
 from app.services.cor_local import CORLocalEntry, CORLocalLexiconService
 from app.services.use_cases.wordbank.collaborators.cor_local import (
     best_cor_local_entry_for_form,
+    cor_local_entry_for_cor_id,
     lookup_translation_for_cor_gloss,
     search_cor_form,
     search_cor_lemma_paradigm,
@@ -119,6 +120,12 @@ class CorResolutionCollaborator:
             form=form,
             lemma=lemma,
             preferred_pos_tag=preferred_pos_tag,
+        )
+
+    def cor_local_entry_for_cor_id(self, *, cor_id: str) -> CORLocalEntry | None:
+        return cor_local_entry_for_cor_id(
+            self._cor_local_lexicon_service,
+            cor_id=cor_id,
         )
 
     def lookup_translation_for_cor_gloss(

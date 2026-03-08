@@ -2,10 +2,16 @@ from __future__ import annotations
 
 from app.api.schemas.v1.wordbank import LemmaDetailsResponse
 from app.services.token_classifier import normalize_token
+from app.services.use_cases.wordbank.meaning_sections import (
+    LEGACY_WORDBANK_RESET_REQUIRED_MESSAGE,
+    ensure_wordbank_meaning_compatibility,
+    is_verb_like_pos_tag,
+)
 from app.services.use_cases.wordbank.runtime import WordbankRuntime
 
 
 def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsResponse:
+    ensure_wordbank_meaning_compatibility(runtime)
     normalized_lemma = normalize_token(lemma)
     if not normalized_lemma:
         raise ValueError("lemma is required")
@@ -14,6 +20,7 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
     if lexeme is None:
         raise LookupError(f"Lemma '{normalized_lemma}' was not found")
     form_rows = runtime.repository.list_surface_forms(lexeme.id)
+    meaning_rows = runtime.repository.list_lexeme_meanings(lexeme.id)
 
     lemma_pos_tag = lexeme.pos_tag
     lemma_morphology = lexeme.morphology
@@ -36,8 +43,8 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
         tuple[str, str, str | None, str | None, str, str | None, str | None],
         str | None,
     ] = {}
+    detailed_forms: list[tuple[int | None, LemmaDetailsResponse.SurfaceFormDetails]] = []
 
-    surface_forms: list[LemmaDetailsResponse.SurfaceFormDetails] = []
     for row in form_rows:
         pos_tag = row.pos_tag
         morphology = row.morphology
@@ -65,27 +72,67 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
             if cor_local_entry is not None
             else None
         )
-        surface_forms.append(
-            LemmaDetailsResponse.SurfaceFormDetails(
-                form=row.form,
-                english_translation=row.english_translation,
-                pos_tag=pos_tag,
-                morphology=morphology,
-                lemma=lexeme.lemma,
-                lemma_translation=lexeme.english_translation,
-                gloss=gloss,
-                gloss_translation=gloss_translation,
-                gram_raw=cor_local_entry.gram_raw if cor_local_entry is not None else None,
-                has_pronunciation=row.has_pronunciation,
+        detailed_forms.append(
+            (
+                row.meaning_id,
+                LemmaDetailsResponse.SurfaceFormDetails(
+                    form=row.form,
+                    english_translation=row.english_translation,
+                    pos_tag=pos_tag,
+                    morphology=morphology,
+                    lemma=lexeme.lemma,
+                    lemma_translation=lexeme.english_translation,
+                    gloss=gloss,
+                    gloss_translation=gloss_translation,
+                    gram_raw=cor_local_entry.gram_raw if cor_local_entry is not None else None,
+                    has_pronunciation=row.has_pronunciation,
+                ),
             )
         )
+
+    if is_verb_like_pos_tag(lemma_pos_tag):
+        return LemmaDetailsResponse(
+            lemma=lexeme.lemma,
+            english_translation=lexeme.english_translation,
+            pos_tag=lemma_pos_tag,
+            morphology=lemma_morphology,
+            is_sectioned=False,
+            meaning_sections=[],
+            surface_forms=[detail for _meaning_id, detail in detailed_forms],
+        )
+
+    if any(meaning_id is None for meaning_id, _detail in detailed_forms):
+        raise RuntimeError(LEGACY_WORDBANK_RESET_REQUIRED_MESSAGE)
+
+    details_by_meaning_id: dict[int, list[LemmaDetailsResponse.SurfaceFormDetails]] = {}
+    for meaning_id, detail in detailed_forms:
+        if meaning_id is None:
+            continue
+        details_by_meaning_id.setdefault(meaning_id, [])
+        if detail.form != lexeme.lemma:
+            details_by_meaning_id[meaning_id].append(detail)
+
+    meaning_sections = [
+        LemmaDetailsResponse.MeaningSection(
+            id=meaning.id,
+            meaning_key=meaning.meaning_key,
+            gloss=meaning.gloss,
+            english_translation=meaning.english_translation,
+            pos_tag=meaning.pos_tag,
+            morphology=meaning.morphology,
+            surface_forms=details_by_meaning_id.get(meaning.id, []),
+        )
+        for meaning in meaning_rows
+    ]
 
     return LemmaDetailsResponse(
         lemma=lexeme.lemma,
         english_translation=lexeme.english_translation,
         pos_tag=lemma_pos_tag,
         morphology=lemma_morphology,
-        surface_forms=surface_forms,
+        is_sectioned=True,
+        meaning_sections=meaning_sections,
+        surface_forms=[],
     )
 
 

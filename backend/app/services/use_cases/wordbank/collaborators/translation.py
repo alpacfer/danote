@@ -11,7 +11,12 @@ from app.api.schemas.v1.wordbank import (
     GenerateTranslationResponse,
 )
 from app.services.cor_local import CORLocalEntry, CORLocalLexiconService
-from app.services.gemini_translation import ContextualWordTranslationInput, GeminiWordTranslationService
+from app.services.gemini_translation import (
+    ContextualWordTranslationInput,
+    GeminiWordTranslationService,
+    MeaningSectionCandidateInput,
+    MeaningSectionSelectionInput,
+)
 from app.db.migrations import get_connection
 from app.services.token_classifier import normalize_token
 from app.services.translation import TranslationService
@@ -458,6 +463,62 @@ class TranslationCollaborator:
             translation=normalized,
             provider=self.contextual_provider_name(),
         )
+
+    def select_meaning_section(
+        self,
+        *,
+        surface_form: str,
+        lemma: str,
+        pos_tag: str | None,
+        morphology: str | None,
+        gloss: str | None,
+        english_translation: str | None,
+        meaning_candidates: list[object],
+    ) -> int | None:
+        if self._gemini_word_translation_service is None or not meaning_candidates:
+            return None
+        selector = getattr(self._gemini_word_translation_service, "select_meaning_section", None)
+        if not callable(selector):
+            return None
+
+        candidate_payloads: list[MeaningSectionCandidateInput] = []
+        valid_ids: set[int] = set()
+        for candidate in meaning_candidates:
+            candidate_id = getattr(candidate, "id", None)
+            if not isinstance(candidate_id, int):
+                continue
+            valid_ids.add(candidate_id)
+            candidate_payloads.append(
+                MeaningSectionCandidateInput(
+                    id=candidate_id,
+                    meaning_key=str(getattr(candidate, "meaning_key", "")),
+                    gloss=self.normalize_translation_value(getattr(candidate, "gloss", None)),
+                    english_translation=self.normalize_translation_value(
+                        getattr(candidate, "english_translation", None)
+                    ),
+                    pos_tag=getattr(candidate, "pos_tag", None),
+                    morphology=getattr(candidate, "morphology", None),
+                )
+            )
+        if not candidate_payloads:
+            return None
+
+        payload = MeaningSectionSelectionInput(
+            surface_form=surface_form,
+            lemma=lemma,
+            pos_tag=pos_tag,
+            morphology=morphology,
+            gloss=self.normalize_translation_value(gloss),
+            english_translation=self.normalize_translation_value(english_translation),
+            meaning_candidates=candidate_payloads,
+        )
+        try:
+            selected = selector(payload)
+        except Exception:
+            return None
+        if not isinstance(selected, int) or selected not in valid_ids:
+            return None
+        return selected
 
     def provider_name(self) -> str:
         provider = getattr(self._translation_service, "provider", None)

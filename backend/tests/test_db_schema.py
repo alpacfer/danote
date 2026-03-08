@@ -38,6 +38,7 @@ def test_db_init_creates_expected_tables(tmp_path) -> None:
     assert {
         "schema_migrations",
         "lexemes",
+        "lexeme_meanings",
         "surface_forms",
         "surface_form_cor_variants",
         "wordbank_search_fts",

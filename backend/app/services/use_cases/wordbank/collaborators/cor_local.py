@@ -209,6 +209,25 @@ def best_cor_local_entry_for_form(
     return filtered[0]
 
 
+def cor_local_entry_for_cor_id(
+    cor_local_lexicon_service: CORLocalLexiconService | None,
+    *,
+    cor_id: str,
+) -> CORLocalEntry | None:
+    if cor_local_lexicon_service is None:
+        return None
+    normalized_cor_id = " ".join(cor_id.strip().split())
+    if not normalized_cor_id:
+        return None
+    try:
+        entry = cor_local_lexicon_service.lookup_cor_id(normalized_cor_id)
+    except FileNotFoundError:
+        return None
+    if entry is None or entry.norm != "N":
+        return None
+    return entry
+
+
 def lookup_translation_for_cor_gloss(
     translation: TranslationCollaborator,
     *,

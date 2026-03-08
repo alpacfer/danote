@@ -7,6 +7,10 @@ from app.api.schemas.v1.wordbank import AddWordResponse
 from app.services.gemini_translation import ContextualWordTranslationInput
 from app.services.token_classifier import normalize_token
 from app.services.use_cases.wordbank.collaborators.translation import TranslationLookupResult
+from app.services.use_cases.wordbank.meaning_sections import (
+    assign_non_verb_meaning,
+    ensure_wordbank_meaning_compatibility,
+)
 from app.services.use_cases.wordbank.runtime import WordbankRuntime
 
 
@@ -71,6 +75,7 @@ def add_word(
     pos_tag: str | None = None,
     morphology: str | None = None,
 ) -> AddWordResponse:
+    ensure_wordbank_meaning_compatibility(runtime)
     inputs = _normalize_add_word_inputs(runtime, surface_token, lemma_candidate, cor_id, pos_tag, morphology)
     translations = _lookup_word_translations(runtime, inputs)
     lemma_metadata = _build_lemma_metadata(runtime, inputs, translations.lemma)
@@ -101,6 +106,17 @@ def add_word(
         lexeme_id=lexeme_id,
         inputs=inputs,
     )
+    meaning_assignment = assign_non_verb_meaning(
+        runtime,
+        lexeme_id=lexeme_id,
+        stored_lemma=inputs.stored_lemma,
+        normalized_surface=inputs.normalized_surface,
+        normalized_cor_id=inputs.normalized_cor_id,
+        pos_tag=lemma_metadata.pos_tag,
+        morphology=lemma_metadata.morphology,
+        lemma_translation=translations.lemma.translation,
+        surface_translation=translations.surface.translation,
+    )
 
     runtime.nlp.invalidate_pos_cache(inputs.stored_lemma, inputs.normalized_surface or None)
     write_result = _AddWordWriteResult(
@@ -125,6 +141,16 @@ def add_word(
         stored_surface_form=inputs.normalized_surface or None,
         source="manual",
         message=message,
+        meaning=(
+            AddWordResponse.MeaningContext(
+                id=meaning_assignment.id,
+                meaning_key=meaning_assignment.meaning_key,
+                gloss=meaning_assignment.gloss,
+                english_translation=meaning_assignment.english_translation,
+            )
+            if meaning_assignment is not None
+            else None
+        ),
         verification=verification,
     )
 

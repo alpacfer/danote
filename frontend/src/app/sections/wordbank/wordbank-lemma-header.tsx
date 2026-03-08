@@ -19,6 +19,7 @@ type WordbankLemmaHeaderProps = {
   hasSuggestedVerificationChanges: (detail: VerificationErrorDetail | null) => boolean
   isApplyingVerificationChanges: boolean
   onApplySelectedLemmaVerificationChanges: () => void
+  showSupplementaryMetadata: boolean
 }
 
 export function WordbankLemmaHeader({
@@ -32,6 +33,7 @@ export function WordbankLemmaHeader({
   hasSuggestedVerificationChanges,
   isApplyingVerificationChanges,
   onApplySelectedLemmaVerificationChanges,
+  showSupplementaryMetadata,
 }: WordbankLemmaHeaderProps) {
   const normalizedSelectedLemma = (lemmaDetails.lemma ?? selectedLemma).trim().toLocaleLowerCase("da-DK")
   const lemmaPronunciationForm = (() => {
@@ -47,11 +49,11 @@ export function WordbankLemmaHeader({
   const lemmaSurfaceDetails = lemmaDetails.surface_forms.find(
     (form) => form.form.trim().toLocaleLowerCase("da-DK") === normalizedSelectedLemma,
   ) ?? null
-  const lemmaBadges = badgesForSavedForm({
+  const lemmaBadges = showSupplementaryMetadata ? badgesForSavedForm({
     pos_tag: lemmaDetails.pos_tag ?? null,
     morphology: lemmaDetails.morphology ?? null,
     gram_raw: lemmaSurfaceDetails?.gram_raw ?? null,
-  })
+  }) : []
 
   return (
     <div>
@@ -152,18 +154,22 @@ export function WordbankLemmaHeader({
           </Popover>
         </ButtonGroup>
       </div>
-      <p className="text-muted-foreground mt-1 text-base">{lemmaDetails.english_translation ?? "No translation available."}</p>
-      <div className="mt-2 flex flex-wrap gap-1.5">
-        {lemmaBadges.map((badge) => (
-          <Badge
-            key={`lemma-badge-${badge.label}`}
-            variant={badge.tone === "primary" ? "default" : "secondary"}
-            className={`text-xs ${badge.tone === "primary" ? `border ${posBadgeClass(lemmaDetails.pos_tag)}` : `border ${corSecondaryBadgeClass(badge.label)}`}`.trim()}
-          >
-            {badge.label}
-          </Badge>
-        ))}
-      </div>
+      {showSupplementaryMetadata ? (
+        <>
+          <p className="text-muted-foreground mt-1 text-base">{lemmaDetails.english_translation ?? "No translation available."}</p>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {lemmaBadges.map((badge) => (
+              <Badge
+                key={`lemma-badge-${badge.label}`}
+                variant={badge.tone === "primary" ? "default" : "secondary"}
+                className={`text-xs ${badge.tone === "primary" ? `border ${posBadgeClass(lemmaDetails.pos_tag)}` : `border ${corSecondaryBadgeClass(badge.label)}`}`.trim()}
+              >
+                {badge.label}
+              </Badge>
+            ))}
+          </div>
+        </>
+      ) : null}
     </div>
   )
 }

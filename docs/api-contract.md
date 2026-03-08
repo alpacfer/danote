@@ -99,9 +99,17 @@ Persist a token into the local wordbank with manual source. The backend stores t
   "stored_lemma": "bog",
   "stored_surface_form": "bogen",
   "source": "manual",
-  "message": "Added 'bog' to wordbank."
+  "message": "Added 'bog' to wordbank.",
+  "meaning": {
+    "id": 1,
+    "meaning_key": "book",
+    "gloss": "book",
+    "english_translation": "book"
+  }
 }
 ```
+
+`meaning` is optional and present for non-verb sectioned entries.
 
 ### Write Rules (v0)
 
@@ -113,6 +121,7 @@ Persist a token into the local wordbank with manual source. The backend stores t
 ### Failure Responses
 
 - `503` with JSON `{ "detail": "Database unavailable..." }` when DB is unavailable/locked.
+- `503` with JSON containing `"Reset the database"` when legacy non-verb rows are incompatible with meaning sections.
 
 ## POST `/api/tokens/feedback`
 

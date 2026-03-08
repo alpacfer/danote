@@ -90,14 +90,15 @@ def replace_danish_add_actions(
         seen_keys.add(key)
         label = option.translation_label or fallback_translation or option.surface
         replaced_actions.append(
-            WordActionSuggestion(
-                action_type="add_as_new",
-                surface=option.surface,
-                lemma=option.lemma,
-                translation_label=label,
-                direction="da_to_en",
-                direction_label=default_direction_label,
-                pos_tag=option.pos_tag,
+                WordActionSuggestion(
+                    action_type="add_as_new",
+                    surface=option.surface,
+                    lemma=option.lemma,
+                    cor_id=option.cor_id,
+                    translation_label=label,
+                    direction="da_to_en",
+                    direction_label=default_direction_label,
+                    pos_tag=option.pos_tag,
                 morphology=option.morphology,
                 show_lemma=comparable_surface != comparable_lemma,
             )
@@ -155,6 +156,7 @@ def build_cor_add_options(
             _CORAddOption(
                 surface=normalized_query,
                 lemma=entry.lemma,
+                cor_id=entry.cor_id,
                 pos_tag=entry.pos_tag,
                 morphology=entry.morphology,
                 translation_label=translation_label,

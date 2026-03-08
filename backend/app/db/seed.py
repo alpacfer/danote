@@ -38,6 +38,28 @@ def seed_starter_data(db_path: Path) -> dict[str, int]:
                 continue
 
             lexeme_id = lexeme_row["id"]
+            conn.execute(
+                """
+                INSERT OR IGNORE INTO lexeme_meanings (
+                    lexeme_id,
+                    meaning_key
+                )
+                VALUES (?, ?)
+                """,
+                (lexeme_id, lemma),
+            )
+            meaning_row = conn.execute(
+                """
+                SELECT id
+                FROM lexeme_meanings
+                WHERE lexeme_id = ? AND meaning_key = ?
+                LIMIT 1
+                """,
+                (lexeme_id, lemma),
+            ).fetchone()
+            if meaning_row is None:
+                continue
+            meaning_id = meaning_row["id"]
 
             placeholders = ", ".join("?" for _ in forms)
             conn.execute(
@@ -53,12 +75,20 @@ def seed_starter_data(db_path: Path) -> dict[str, int]:
             for form in forms:
                 cursor = conn.execute(
                     """
-                    INSERT OR IGNORE INTO surface_forms (lexeme_id, form, source)
-                    VALUES (?, ?, ?)
+                    INSERT OR IGNORE INTO surface_forms (lexeme_id, form, source, meaning_id)
+                    VALUES (?, ?, ?, ?)
                     """,
-                    (lexeme_id, form, "seed"),
+                    (lexeme_id, form, "seed", meaning_id),
                 )
                 inserted_surface_forms += 1 if cursor.rowcount == 1 else 0
+                conn.execute(
+                    """
+                    UPDATE surface_forms
+                    SET meaning_id = COALESCE(meaning_id, ?)
+                    WHERE lexeme_id = ? AND form = ?
+                    """,
+                    (meaning_id, lexeme_id, form),
+                )
 
     return {
         "inserted_lexemes": inserted_lexemes,

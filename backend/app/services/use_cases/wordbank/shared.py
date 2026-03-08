@@ -82,6 +82,7 @@ def _cor_entry_priority(entry: object, normalized_surface: str) -> tuple:
 class _CORAddOption:
     surface: str
     lemma: str
+    cor_id: str | None
     pos_tag: str | None
     morphology: str | None
     translation_label: str | None
