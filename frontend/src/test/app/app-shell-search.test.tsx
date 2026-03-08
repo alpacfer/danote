@@ -1453,7 +1453,7 @@ describe("App shell and search", () => {
       expect(vi.mocked(toast.error)).toHaveBeenCalledWith("Azure translation is unavailable.")
     })
     expect(within(commandDialog).getByText(/^lærer$/i)).toBeInTheDocument()
-    expect(within(commandDialog).getByText(/^learn$/i)).toBeInTheDocument()
+    expect(within(commandDialog).queryByText(/^learn$/i)).not.toBeInTheDocument()
   })
 
   it("shows a backend connectivity message when adding from search hits a network failure", async () => {

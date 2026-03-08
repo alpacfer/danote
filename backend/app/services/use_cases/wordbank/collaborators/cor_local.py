@@ -80,6 +80,7 @@ def search_cor_form(
                 entry,
                 lemma_translation_cache,
                 contextual_translation_cache,
+                gloss_cache=gloss_translation_cache,
                 strict_azure=True,
             )
             gloss_translation = lookup_translation_for_cor_gloss(
@@ -272,6 +273,7 @@ def lookup_translation_for_cor_local_entry(
     entry: CORLocalEntry,
     cache: dict[_AzureFrameCacheKey, str | None] | None = None,
     contextual_cache: dict[_ContextualCacheKey, str | None] | None = None,
+    gloss_cache: dict[str, str | None] | None = None,
     strict_azure: bool = False,
 ) -> str | None:
     if strict_azure:
@@ -287,6 +289,12 @@ def lookup_translation_for_cor_local_entry(
         if cache is not None:
             cache[frame] = translated
     azure_for_comparison = azure_framed_translation_for_comparison(frame, translated)
+    normalized_gloss = normalize_token(entry.gloss or "")
+    gloss_translation_hint = (
+        gloss_cache.get(normalized_gloss)
+        if gloss_cache is not None and normalized_gloss
+        else None
+    )
     if _should_use_gemini_for_lemma(
         entry,
         frame=frame,
@@ -297,11 +305,17 @@ def lookup_translation_for_cor_local_entry(
             lemma=entry.lemma,
             pos_tag=entry.pos_tag,
             morphology=entry.morphology,
-            gloss=normalize_token(entry.gloss or ""),
+            gloss=normalized_gloss,
+            gloss_translation_hint=gloss_translation_hint,
             cache=contextual_cache,
         )
         if contextual.translation:
-            return _format_lemma_translation(entry, contextual.translation)
+            contextual_formatted = _format_lemma_translation(entry, contextual.translation)
+            return _resolve_contextual_lemma_translation(
+                entry,
+                contextual_translation=contextual_formatted,
+                gloss_translation_hint=gloss_translation_hint,
+            )
     return _format_lemma_translation(entry, azure_for_comparison)
 
 
@@ -334,7 +348,13 @@ def _prime_cor_form_contextual_translations(
     if gloss_cache is None:
         gloss_cache = {}
     _prime_azure_lemma_translations(translation, entries, lemma_cache, gloss_cache)
-    requests_by_key = _collect_gemini_batch_requests(entries, translation, cache, lemma_cache)
+    requests_by_key = _collect_gemini_batch_requests(
+        entries,
+        translation,
+        cache,
+        lemma_cache,
+        gloss_cache,
+    )
     if not requests_by_key:
         return
     _run_gemini_batch(translation, list(requests_by_key.values()), cache)
@@ -380,6 +400,7 @@ def _collect_gemini_batch_requests(
     translation: TranslationCollaborator,
     cache: dict[_ContextualCacheKey, str | None],
     lemma_cache: dict[_AzureFrameCacheKey, str | None],
+    gloss_cache: dict[str, str | None],
 ) -> dict[_ContextualCacheKey, _BatchContextualRequest]:
     requests_by_key: dict[_ContextualCacheKey, _BatchContextualRequest] = {}
     for entry in entries:
@@ -392,7 +413,11 @@ def _collect_gemini_batch_requests(
             azure_translation=azure_for_comparison,
         ):
             continue
-        request = _build_contextual_request(translation, entry)
+        request = _build_contextual_request(
+            translation,
+            entry,
+            gloss_translation_hint=gloss_cache.get(normalize_token(entry.gloss or "")),
+        )
         if request is None or request.cache_key in cache or request.cache_key in requests_by_key:
             continue
         requests_by_key[request.cache_key] = request
@@ -452,6 +477,8 @@ def _gloss_translation_texts_from_entries(entries: list[CORLocalEntry]) -> list[
 def _build_contextual_request(
     translation: TranslationCollaborator,
     entry: CORLocalEntry,
+    *,
+    gloss_translation_hint: str | None = None,
 ) -> _BatchContextualRequest | None:
     payload = ContextualWordTranslationInput(
         surface_form=entry.form,
@@ -459,6 +486,7 @@ def _build_contextual_request(
         pos_tag=entry.pos_tag,
         morphology=entry.morphology,
         gloss=normalize_token(entry.gloss or "") or None,
+        gloss_translation_hint=normalize_token(gloss_translation_hint or "") or None,
     )
     if not payload.surface_form or not payload.lemma:
         return None
@@ -480,6 +508,12 @@ def _should_use_gemini_for_lemma(
     normalized_lemma = normalize_token(entry.lemma)
     normalized_frame = normalize_token(frame.text)
     normalized_translation = normalize_token(azure_translation or "")
+    if (
+        entry.pos_tag == "VERB"
+        and normalized_lemma
+        and normalized_translation == f"to {normalized_lemma}"
+    ):
+        return True
     return bool(
         (normalized_lemma and normalized_translation and normalized_lemma == normalized_translation)
         or (
@@ -499,6 +533,28 @@ def _format_lemma_translation(entry: CORLocalEntry, translated: str | None) -> s
     if normalized.startswith("to "):
         return normalized
     return f"to {normalized}"
+
+
+def _resolve_contextual_lemma_translation(
+    entry: CORLocalEntry,
+    *,
+    contextual_translation: str | None,
+    gloss_translation_hint: str | None,
+) -> str | None:
+    normalized_contextual = normalize_token(contextual_translation or "")
+    if not normalized_contextual:
+        return None
+    normalized_lemma = normalize_token(entry.lemma)
+    normalized_hint = normalize_token(gloss_translation_hint or "")
+    if (
+        entry.pos_tag != "VERB"
+        and normalized_lemma
+        and normalized_hint
+        and normalized_contextual == normalized_lemma
+        and normalized_hint != normalized_lemma
+    ):
+        return normalized_hint
+    return normalized_contextual
 
 
 def _require_azure_translation(translation: TranslationCollaborator) -> None:

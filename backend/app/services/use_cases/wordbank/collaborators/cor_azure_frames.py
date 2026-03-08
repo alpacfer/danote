@@ -97,16 +97,19 @@ def _is_neuter(*, gram: str, morphology: str | None) -> bool:
 
 
 def _strip_leading_english_article(value: str) -> str:
-    return re.sub(r"^(?:a|an|the)\s+", "", value, flags=re.IGNORECASE).strip()
+    # Some providers translate Danish noun framing prefixes ("et"/"en") into
+    # function words like "and" before the actual noun. Strip those leading
+    # markers so comparisons stay lemma-focused.
+    return re.sub(r"^(?:a|an|the|and|en|et)\s+", "", value, flags=re.IGNORECASE).strip()
 
 
 def _normalize_verb_infinitive(value: str) -> str:
     if not value:
         return value
+    remainder = re.sub(r"^(?:(?:to|that|the|at)\s+)+", "", value, flags=re.IGNORECASE).strip()
     lowered = value.lower()
-    if not lowered.startswith("to "):
+    if not lowered.startswith("to ") and remainder == value:
         return value
-    remainder = re.sub(r"^(?:to\s+)+", "", value, flags=re.IGNORECASE).strip()
     if not remainder:
         return "to"
     return f"to {remainder}"

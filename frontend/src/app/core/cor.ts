@@ -162,15 +162,8 @@ export function lemmaTranslationForVariant(variant: CORSearchVariant): string | 
 }
 
 export function glossDisplayForVariant(variant: CORSearchVariant): string | null {
-  const gloss = variant.gloss?.trim()
-  if (!gloss) {
-    return null
-  }
   const translation = variant.gloss_translation?.trim()
-  if (!translation) {
-    return gloss
-  }
-  return `${gloss} (${translation})`
+  return translation || null
 }
 
 export function lemmaDisplayForSavedForm(form: {

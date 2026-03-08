@@ -1440,6 +1440,164 @@ def test_wordbank_search_cor_form_uses_gemini_when_azure_echoes_verb_frame(tmp_p
     assert gemini_translation.batch_calls == [[("morer", "more", "amuse")]]
 
 
+def test_wordbank_search_cor_form_uses_gemini_when_azure_returns_literal_verb_infinitive(tmp_path: Path) -> None:
+    local_cor = FakeCORLocalLexiconService(
+        by_form={
+            "mor": [
+                CORLocalEntry(
+                    cor_id="COR.35834.209.01",
+                    lemma="more",
+                    gloss=None,
+                    gram_raw="vb.imp",
+                    form="mor",
+                    norm="N",
+                    lemma_idx=35834,
+                    gram_code=209,
+                    variation=1,
+                    pos_tag="VERB",
+                    morphology="Mood=Imp|VerbForm=Fin",
+                    features={"Mood": "Imp", "VerbForm": "Fin"},
+                    extra_tags=[],
+                ),
+            ]
+        }
+    )
+    gemini_translation = FakeGeminiWordTranslationService({("mor", "more", None): "amuse"})
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_local_lexicon_service=local_cor,
+        translation_service=FakeTranslationService({"at more": "to more"}),
+        gemini_word_translation_service=gemini_translation,
+    )
+
+    response = use_case.search_cor_form("mor", limit=100)
+
+    assert response.groups[0].variants[0].lemma_translation == "to amuse"
+    assert gemini_translation.batch_calls == [[("mor", "more", None)]]
+
+
+def test_wordbank_search_cor_form_strips_function_word_prefix_from_noun_frame_translation(tmp_path: Path) -> None:
+    local_cor = FakeCORLocalLexiconService(
+        by_form={
+            "vad": [
+                CORLocalEntry(
+                    cor_id="COR.39436.209.01",
+                    lemma="vade",
+                    gloss=None,
+                    gram_raw="vb.imp",
+                    form="vad",
+                    norm="N",
+                    lemma_idx=39436,
+                    gram_code=209,
+                    variation=1,
+                    pos_tag="VERB",
+                    morphology="Mood=Imp|VerbForm=Fin",
+                    features={"Mood": "Imp", "VerbForm": "Fin"},
+                    extra_tags=[],
+                ),
+                CORLocalEntry(
+                    cor_id="COR.75509.120.01",
+                    lemma="vad",
+                    gloss=None,
+                    gram_raw="sb.itk.sg.ubest",
+                    form="vad",
+                    norm="N",
+                    lemma_idx=75509,
+                    gram_code=120,
+                    variation=1,
+                    pos_tag="NOUN",
+                    morphology="Gender=Neut|Number=Sing|Definite=Ind",
+                    features={"Gender": "Neut", "Number": "Sing", "Definite": "Ind"},
+                    extra_tags=[],
+                ),
+            ]
+        }
+    )
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_local_lexicon_service=local_cor,
+        translation_service=FakeTranslationService({"at vade": "to wade", "et vad": "and bet"}),
+        gemini_word_translation_service=None,
+    )
+
+    response = use_case.search_cor_form("vad", limit=100)
+
+    by_pos = {group.pos_tag: group.variants[0] for group in response.groups}
+    assert by_pos["VERB"].lemma_translation == "to wade"
+    assert by_pos["NOUN"].lemma_translation == "bet"
+
+
+def test_wordbank_search_cor_form_normalizes_verb_frame_artifacts_from_translation(tmp_path: Path) -> None:
+    local_cor = FakeCORLocalLexiconService(
+        by_form={
+            "vandet": [
+                CORLocalEntry(
+                    cor_id="COR.36401.208.01",
+                    lemma="vande",
+                    gloss=None,
+                    gram_raw="vb.perf.part",
+                    form="vandet",
+                    norm="N",
+                    lemma_idx=36401,
+                    gram_code=208,
+                    variation=1,
+                    pos_tag="VERB",
+                    morphology="Aspect=Perf|VerbForm=Part",
+                    features={"Aspect": "Perf", "VerbForm": "Part"},
+                    extra_tags=[],
+                ),
+            ]
+        }
+    )
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_local_lexicon_service=local_cor,
+        translation_service=FakeTranslationService({"at vande": "that the water"}),
+        gemini_word_translation_service=None,
+    )
+
+    response = use_case.search_cor_form("vandet", limit=100)
+
+    assert response.groups[0].variants[0].lemma_translation == "to water"
+
+
+def test_wordbank_search_cor_form_prefers_gloss_hint_when_gemini_echoes_noun_lemma(tmp_path: Path) -> None:
+    local_cor = FakeCORLocalLexiconService(
+        by_form={
+            "mor": [
+                CORLocalEntry(
+                    cor_id="COR.51046.110.01",
+                    lemma="mor",
+                    gloss="jordlag",
+                    gram_raw="sb.fk.sg.ubest",
+                    form="mor",
+                    norm="N",
+                    lemma_idx=51046,
+                    gram_code=110,
+                    variation=1,
+                    pos_tag="NOUN",
+                    morphology="Gender=Com|Number=Sing|Definite=Ind",
+                    features={"Gender": "Com", "Number": "Sing", "Definite": "Ind"},
+                    extra_tags=[],
+                ),
+            ]
+        }
+    )
+    gemini_translation = FakeGeminiWordTranslationService({("mor", "mor", "jordlag"): "mor"})
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_local_lexicon_service=local_cor,
+        translation_service=FakeTranslationService({"en mor": "a mother", "jordlag": "soil layer"}),
+        gemini_word_translation_service=gemini_translation,
+    )
+
+    response = use_case.search_cor_form("mor", limit=100)
+
+    assert response.groups[0].variants[0].lemma_translation == "soil layer"
+    assert response.groups[0].variants[0].gloss_translation == "soil layer"
+    assert gemini_translation.batch_calls == [[("mor", "mor", "jordlag")]]
+
+
 def test_wordbank_search_cor_form_translates_comma_separated_gloss_parts(tmp_path: Path) -> None:
     local_cor = FakeCORLocalLexiconService(
         by_form={

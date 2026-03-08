@@ -267,4 +267,4 @@ def test_gemini_word_translation_service_sets_client_timeout(monkeypatch) -> Non
     timeout = getattr(captured.get("http_options"), "timeout", None)
     assert translated == "book"
     assert captured["api_key"] == "test-key"
-    assert timeout == 8
+    assert timeout == 7500

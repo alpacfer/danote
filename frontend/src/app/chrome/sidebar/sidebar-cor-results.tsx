@@ -65,7 +65,7 @@ export function SidebarCorResults({
               const detailLine = glossDisplayForVariant(variant)
               const lemmaDisplay = lemmaDisplayForVariant(variant)
               const lemmaTranslation = lemmaTranslationForVariant(variant)
-              const rawGloss = variant.gloss?.trim() ?? null
+              const hasGloss = Boolean(variant.gloss?.trim())
               return (
                 <CommandItem
                   key={`cor-variant-${variant.cor_id}`}
@@ -106,9 +106,9 @@ export function SidebarCorResults({
                         </span>
                       ) : null}
                     </span>
-                    {isTranslationsLoading && rawGloss ? (
+                    {isTranslationsLoading && hasGloss ? (
                       <span className="text-muted-foreground text-xs leading-4">
-                        {rawGloss} <Skeleton className="inline-block h-3 w-14 align-middle" />
+                        <Skeleton className="inline-block h-3 w-24 align-middle" />
                       </span>
                     ) : detailLine ? (
                       <span className="text-muted-foreground text-xs leading-4">{detailLine}</span>

@@ -85,9 +85,10 @@ class GeminiFlashLiteWordTranslationService:
                     "google-genai package is required for Gemini word translation."
                 ) from exc
             genai_types = self._genai_types()
+            timeout_ms = max(1, math.ceil(self.timeout_seconds * 1000))
             self._client = genai.Client(
                 api_key=self.api_key,
-                http_options=genai_types.HttpOptions(timeout=max(1, math.ceil(self.timeout_seconds))),
+                http_options=genai_types.HttpOptions(timeout=timeout_ms),
             )
         return self._client
 
