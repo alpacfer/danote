@@ -1,4 +1,4 @@
-import { act, fireEvent, getNotesEditor, mockFetchImplementation, renderApp, responseOf, screen, seedSavedNotes, toast, vi, waitFor, within } from "@/test/app-test-helpers"
+import { fireEvent, getNotesEditor, mockFetchImplementation, renderApp, responseOf, screen, seedSavedNotes, toast, vi, waitFor, within } from "@/test/app-test-helpers"
 
 describe("App shell and search", () => {
   it("renders header, lesson notes card, and backend status badge", async () => {
@@ -213,9 +213,8 @@ describe("App shell and search", () => {
     })
   })
 
-  it("shows a translation skeleton for saved-word search results until translation resolves", async () => {
-    let resolveTranslation: ((response: Response) => void) | null = null
-    mockFetchImplementation({
+  it("hides the second line for saved-word search results without a gloss", async () => {
+    const fetchSpy = mockFetchImplementation({
       lemmasResponse: { items: [] },
       searchWordbankResponse: {
         items: [
@@ -232,9 +231,6 @@ describe("App shell and search", () => {
         form: "kat",
         groups: [],
       },
-      translationHandler: async () => await new Promise<Response>((resolve) => {
-        resolveTranslation = resolve
-      }),
     })
 
     renderApp()
@@ -245,23 +241,19 @@ describe("App shell and search", () => {
     const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
     fireEvent.change(searchInput, { target: { value: "kat" } })
 
-    expect(await within(commandDialog).findByTestId("search-translation-skeleton")).toBeInTheDocument()
+    expect(await within(commandDialog).findByText(/^kat$/i, { selector: "strong" })).toBeInTheDocument()
 
-    await act(async () => {
-      resolveTranslation?.(responseOf({
-        status: "generated",
-        source_word: "kat",
-        lemma: "kat",
-        english_translation: "cat",
-      }))
+    await waitFor(() => {
+      expect(within(commandDialog).queryByTestId("search-translation-skeleton")).not.toBeInTheDocument()
+      expect(within(commandDialog).queryByText(/^no translation available\.$/i)).not.toBeInTheDocument()
+      expect(
+        fetchSpy.mock.calls.some(([input]) => String(input).includes("/api/wordbank/translation")),
+      ).toBe(false)
     })
-
-    expect(await within(commandDialog).findByText(/^cat$/i)).toBeInTheDocument()
   })
 
-  it("shows a translation skeleton for COR search results until translation resolves", async () => {
-    let resolveTranslation: ((response: Response) => void) | null = null
-    mockFetchImplementation({
+  it("hides the second line for COR search results without a gloss", async () => {
+    const fetchSpy = mockFetchImplementation({
       lemmasResponse: { items: [] },
       searchWordbankResponse: { items: [] },
       corSearchFormResponse: {
@@ -292,9 +284,6 @@ describe("App shell and search", () => {
           },
         ],
       },
-      translationHandler: async () => await new Promise<Response>((resolve) => {
-        resolveTranslation = resolve
-      }),
     })
 
     renderApp()
@@ -305,18 +294,16 @@ describe("App shell and search", () => {
     const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
     fireEvent.change(searchInput, { target: { value: "kattens" } })
 
-    expect(await within(commandDialog).findByTestId("search-translation-skeleton")).toBeInTheDocument()
+    expect(await within(commandDialog).findByText(/^kattens$/i, { selector: "strong" })).toBeInTheDocument()
 
-    await act(async () => {
-      resolveTranslation?.(responseOf({
-        status: "generated",
-        source_word: "kattens",
-        lemma: "kat",
-        english_translation: "the cat's",
-      }))
+    await waitFor(() => {
+      expect(within(commandDialog).queryByTestId("search-translation-skeleton")).not.toBeInTheDocument()
+      expect(within(commandDialog).queryByText(/^no translation available\.$/i)).not.toBeInTheDocument()
+      expect(within(commandDialog).queryByText(/the cat's/i)).not.toBeInTheDocument()
+      expect(
+        fetchSpy.mock.calls.some(([input]) => String(input).includes("/api/wordbank/translation")),
+      ).toBe(false)
     })
-
-    expect(await within(commandDialog).findByText(/the cat's/i)).toBeInTheDocument()
   })
 
   it("keeps showing other add alternatives when an exact saved form exists", async () => {

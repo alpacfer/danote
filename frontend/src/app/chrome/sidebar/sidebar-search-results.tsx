@@ -54,10 +54,6 @@ export type SidebarSearchResultsData = {
   matchingPageItems: PageItem[]
   wordbankItemValue: (lemma: WordbankLemma) => string
   corVariantItemValue: (variant: CORSearchVariant) => string
-  getWordbankTranslation: (lemma: WordbankLemma, displayVariant: CORSearchVariant | null) => string | null
-  isWordbankTranslationLoading: (lemma: WordbankLemma, displayVariant: CORSearchVariant | null) => boolean
-  getCorVariantTranslation: (variant: CORSearchVariant) => string | null
-  isCorVariantTranslationLoading: (variant: CORSearchVariant) => boolean
 }
 
 export type SidebarSearchResultsActions = {
@@ -94,8 +90,6 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
             exactSavedVariationLemmaKeySet={data.exactSavedVariationLemmaKeySet}
             normalizedQuery={state.normalizedQuery}
             wordbankItemValue={data.wordbankItemValue}
-            getWordbankTranslation={data.getWordbankTranslation}
-            isWordbankTranslationLoading={data.isWordbankTranslationLoading}
             onAddWordFromSearch={actions.onAddWordFromSearch}
             onOpenWordbankLemma={actions.onOpenWordbankLemma}
             onCloseSearch={actions.onCloseSearch}
@@ -106,8 +100,6 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
             savedLemmaKeySet={data.savedLemmaKeySet}
             normalizedQuery={state.normalizedQuery}
             corVariantItemValue={data.corVariantItemValue}
-            getCorVariantTranslation={data.getCorVariantTranslation}
-            isCorVariantTranslationLoading={data.isCorVariantTranslationLoading}
             onAddWordFromSearch={actions.onAddWordFromSearch}
             onCloseSearch={actions.onCloseSearch}
           />

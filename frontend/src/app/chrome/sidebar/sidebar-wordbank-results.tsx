@@ -2,7 +2,6 @@ import { Eye, Plus } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { CommandItem } from "@/components/ui/command"
-import { Skeleton } from "@/components/ui/skeleton"
 import {
   badgesForSavedForm,
   badgesFromGramRaw,
@@ -30,8 +29,6 @@ type SidebarWordbankResultsProps = {
   exactSavedVariationLemmaKeySet: Set<string>
   normalizedQuery: string
   wordbankItemValue: (lemma: WordbankLemma) => string
-  getWordbankTranslation: (lemma: WordbankLemma, displayVariant: CORSearchVariant | null) => string | null
-  isWordbankTranslationLoading: (lemma: WordbankLemma, displayVariant: CORSearchVariant | null) => boolean
   onAddWordFromSearch: (
     surfaceToken: string,
     lemmaCandidate: string | null,
@@ -52,8 +49,6 @@ export function SidebarWordbankResults({
   exactSavedVariationLemmaKeySet,
   normalizedQuery,
   wordbankItemValue,
-  getWordbankTranslation,
-  isWordbankTranslationLoading,
   onAddWordFromSearch,
   onOpenWordbankLemma,
   onCloseSearch,
@@ -104,11 +99,7 @@ export function SidebarWordbankResults({
               const linkedLemmaTranslation = displayVariant
                 ? (lemmaTranslationForVariant(displayVariant) ?? lemma.english_translation ?? null)
                 : (lemma.english_translation ?? null)
-              const translation = getWordbankTranslation(lemma, displayVariant)
-              const isTranslationLoading = isWordbankTranslationLoading(lemma, displayVariant)
-              const detailLine = displayVariant
-                ? (glossDisplayForVariant(displayVariant) ?? translation)
-                : translation
+              const detailLine = displayVariant ? glossDisplayForVariant(displayVariant) : null
               const badges = displayVariant
                 ? badgesFromGramRaw(displayVariant.gram_raw)
                 : badgesForSavedForm({
@@ -129,11 +120,7 @@ export function SidebarWordbankResults({
                   </span>
                   {detailLine ? (
                     <span className="text-muted-foreground text-xs leading-4">{detailLine}</span>
-                  ) : isTranslationLoading ? (
-                    <Skeleton data-testid="search-translation-skeleton" className="h-4 w-24" />
-                  ) : (
-                    <span className="text-muted-foreground text-xs leading-4">No translation available.</span>
-                  )}
+                  ) : null}
                   {badges.length > 0 ? (
                     <div className="mt-1 flex flex-wrap gap-1.5">
                       {badges.map((badge) => (
