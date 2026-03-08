@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import logging
 import re
+import time
+from dataclasses import dataclass
 
 from app.api.schemas.v1.wordbank import (
     CORLemmaParadigmResponse,
@@ -9,8 +12,19 @@ from app.api.schemas.v1.wordbank import (
     CORSearchVariant,
 )
 from app.services.cor_local import CORLocalEntry, CORLocalLexiconService
+from app.services.gemini_translation import ContextualWordTranslationInput
 from app.services.token_classifier import normalize_token
 from app.services.use_cases.wordbank.collaborators.translation import TranslationCollaborator
+
+logger = logging.getLogger(__name__)
+
+_ContextualCacheKey = tuple[str, str, str | None, str | None, str | None, str | None, str | None]
+
+
+@dataclass(frozen=True, slots=True)
+class _BatchContextualRequest:
+    payload: ContextualWordTranslationInput
+    cache_key: _ContextualCacheKey
 
 
 def search_cor_form(
@@ -40,11 +54,14 @@ def search_cor_form(
     entries = drop_glossless_when_gloss_exists(entries)
 
     groups: list[CORSearchGroup] = []
-    contextual_translation_cache: dict[
-        tuple[str, str, str | None, str | None, str, str | None, str | None],
-        str | None,
-    ] = {}
+    contextual_translation_cache: dict[_ContextualCacheKey, str | None] = {}
     lemma_translation_cache: dict[str, str | None] = {}
+    if include_translations:
+        _prime_cor_form_contextual_translations(
+            translation,
+            entries,
+            cache=contextual_translation_cache,
+        )
     grouped: dict[tuple[str, str | None, str | None], int] = {}
     for entry in entries:
         key = (entry.lemma, entry.gloss, entry.pos_tag)
@@ -55,12 +72,14 @@ def search_cor_form(
                 entry,
                 lemma_translation_cache,
                 contextual_translation_cache,
+                strict_azure=True,
             )
             gloss_translation = lookup_translation_for_cor_gloss(
                 translation,
                 entry=entry,
                 lemma_translation=lemma_translation,
                 cache=contextual_translation_cache,
+                strict_azure=True,
             )
         else:
             lemma_translation = None
@@ -117,10 +136,7 @@ def search_cor_lemma_paradigm(
     entries = consolidate_cor_local_entries(entries)
     entries = drop_glossless_when_gloss_exists(entries)
 
-    contextual_translation_cache: dict[
-        tuple[str, str, str | None, str | None, str, str | None, str | None],
-        str | None,
-    ] = {}
+    contextual_translation_cache: dict[_ContextualCacheKey, str | None] = {}
     lemma_translation_cache: dict[str, str | None] = {}
     return CORLemmaParadigmResponse(
         lemma_idx=lemma_idx,
@@ -188,107 +204,205 @@ def lookup_translation_for_cor_gloss(
     *,
     entry: CORLocalEntry,
     lemma_translation: str | None = None,
-    cache: dict[tuple[str, str, str | None, str | None, str, str | None, str | None], str | None] | None = None,
+    cache: dict[_ContextualCacheKey, str | None] | None = None,
+    strict_azure: bool = False,
 ) -> str | None:
     normalized_gloss = normalize_token(entry.gloss or "")
     if not normalized_gloss:
         return None
-    contextual = translation.lookup_contextual_word_translation(
-        surface_form=entry.form,
-        lemma=entry.lemma,
-        pos_tag=entry.pos_tag,
-        morphology=entry.morphology,
-        gloss=normalized_gloss,
-        lemma_translation_hint=lemma_translation,
-        cache=cache,
-    )
-    if not contextual.translation:
+    if strict_azure:
+        _require_azure_translation(translation)
+        lookup_translation = translation.lookup_translation_strict
+    else:
         if translation._translation_service is None:
             return None
-        fallback_cache_key = (
-            entry.form,
-            entry.lemma,
-            entry.pos_tag,
-            entry.morphology,
-            normalized_gloss,
-            lemma_translation,
-            None,
-        )
-        if cache is not None and fallback_cache_key in cache:
-            return cache[fallback_cache_key]
+        lookup_translation = translation.lookup_translation
+    fallback_cache_key = (
+        entry.form,
+        entry.lemma,
+        entry.pos_tag,
+        entry.morphology,
+        normalized_gloss,
+        lemma_translation,
+        None,
+    )
+    if cache is not None and fallback_cache_key in cache:
+        return cache[fallback_cache_key]
 
-        translated = translation.lookup_translation(normalized_gloss)
-        if translated and translated != normalized_gloss:
-            if cache is not None:
-                cache[fallback_cache_key] = translated
-            return translated
-
-        parts = [normalize_token(part) for part in normalized_gloss.split(",")]
-        parts = [part for part in parts if part]
-        if len(parts) > 1:
-            translated_parts: list[str] = []
-            for part in parts:
-                part_translated = translation.lookup_translation(part)
-                translated_parts.append(part_translated or part)
-            merged = ", ".join(translated_parts)
-            if cache is not None:
-                cache[fallback_cache_key] = merged
-            return merged
-
+    translated = lookup_translation(normalized_gloss)
+    if translated and translated != normalized_gloss:
         if cache is not None:
             cache[fallback_cache_key] = translated
         return translated
-    if translation.normalize_comparable(contextual.translation) == translation.normalize_comparable(normalized_gloss):
-        return None
-    return contextual.translation
+
+    parts = [normalize_token(part) for part in normalized_gloss.split(",")]
+    parts = [part for part in parts if part]
+    if len(parts) > 1:
+        translated_parts: list[str] = []
+        for part in parts:
+            part_translated = lookup_translation(part)
+            translated_parts.append(part_translated or part)
+        merged = ", ".join(translated_parts)
+        if cache is not None:
+            cache[fallback_cache_key] = merged
+        return merged
+
+    if cache is not None:
+        cache[fallback_cache_key] = translated
+    return translated
 
 
 def lookup_translation_for_cor_local_entry(
     translation: TranslationCollaborator,
     entry: CORLocalEntry,
     cache: dict[str, str | None] | None = None,
-    contextual_cache: dict[
-        tuple[str, str, str | None, str | None, str, str | None, str | None],
-        str | None,
-    ] | None = None,
+    contextual_cache: dict[_ContextualCacheKey, str | None] | None = None,
+    strict_azure: bool = False,
 ) -> str | None:
-    contextual = translation.lookup_contextual_word_translation(
-        surface_form=entry.form,
-        lemma=entry.lemma,
-        pos_tag=entry.pos_tag,
-        morphology=entry.morphology,
-        gloss=normalize_token(entry.gloss or ""),
-        cache=contextual_cache,
-    )
-    if contextual.translation:
-        return contextual.translation
+    if strict_azure:
+        _require_azure_translation(translation)
+        lookup_translation = translation.lookup_translation_strict
+    else:
+        lookup_translation = translation.lookup_translation
     frame_kind, frame_text = cor_translation_frame(entry)
     if cache is not None and frame_text in cache:
         translated = cache[frame_text]
     else:
-        translated = translation.lookup_translation(frame_text)
+        translated = lookup_translation(frame_text)
         if cache is not None:
             cache[frame_text] = translated
-    if not translated:
-        return None
-    return strip_cor_translation_frame(frame_kind, translated)
+    stripped = strip_cor_translation_frame(frame_kind, translated) if translated else None
+    if _should_use_gemini_for_lemma(entry, frame_text=frame_text, azure_translation=stripped):
+        contextual = translation.lookup_contextual_word_translation(
+            surface_form=entry.form,
+            lemma=entry.lemma,
+            pos_tag=entry.pos_tag,
+            morphology=entry.morphology,
+            gloss=normalize_token(entry.gloss or ""),
+            cache=contextual_cache,
+        )
+        if contextual.translation:
+            if entry.pos_tag == "VERB":
+                return f"to {entry.lemma}".strip()
+            return contextual.translation
+        return stripped
+    if stripped:
+        return stripped
+
+    if translated:
+        stripped = strip_cor_translation_frame(frame_kind, translated)
+        if stripped:
+            return stripped
+    return None
 
 
 def _lemma_translation_for_entry(
     translation: TranslationCollaborator,
     entry: CORLocalEntry,
     cache: dict[str, str | None],
-    contextual_cache: dict[
-        tuple[str, str, str | None, str | None, str, str | None, str | None],
-        str | None,
-    ],
+    contextual_cache: dict[_ContextualCacheKey, str | None],
 ) -> str | None:
     return lookup_translation_for_cor_local_entry(
         translation,
         entry,
         cache,
         contextual_cache,
+        strict_azure=False,
     )
+
+
+def _prime_cor_form_contextual_translations(
+    translation: TranslationCollaborator,
+    entries: list[CORLocalEntry],
+    *,
+    cache: dict[_ContextualCacheKey, str | None],
+) -> None:
+    _require_azure_translation(translation)
+    requests_by_key: dict[_ContextualCacheKey, _BatchContextualRequest] = {}
+    for entry in entries:
+        frame_kind, frame_text = cor_translation_frame(entry)
+        translated = translation.lookup_translation_strict(frame_text)
+        stripped = strip_cor_translation_frame(frame_kind, translated) if translated else None
+        if not _should_use_gemini_for_lemma(entry, frame_text=frame_text, azure_translation=stripped):
+            continue
+        request = _build_contextual_request(translation, entry)
+        if request is None or request.cache_key in cache or request.cache_key in requests_by_key:
+            continue
+        requests_by_key[request.cache_key] = request
+    if not requests_by_key:
+        return
+
+    requests = list(requests_by_key.values())
+    started_at = time.perf_counter()
+    batch_results = translation.batch_lookup_contextual_word_translations(
+        [request.payload for request in requests],
+        cache=cache,
+    )
+    retry_single_count = 0
+    for request, result in zip(requests, batch_results, strict=False):
+        if result.translation is not None:
+            continue
+        retry_single_count += 1
+        cache.pop(request.cache_key, None)
+        translation.lookup_contextual_word_translation_from_payload(
+            request.payload,
+            cache=cache,
+        )
+
+    logger.info(
+        "wordbank_cor_form_batch_translations",
+        extra={
+            "batch_size": len(requests),
+            "batch_latency_seconds": round(time.perf_counter() - started_at, 4),
+            "retry_single_count": retry_single_count,
+        },
+    )
+
+
+def _build_contextual_request(
+    translation: TranslationCollaborator,
+    entry: CORLocalEntry,
+) -> _BatchContextualRequest | None:
+    payload = ContextualWordTranslationInput(
+        surface_form=entry.form,
+        lemma=entry.lemma,
+        pos_tag=entry.pos_tag,
+        morphology=entry.morphology,
+        gloss=normalize_token(entry.gloss or "") or None,
+    )
+    if not payload.surface_form or not payload.lemma:
+        return None
+    return _BatchContextualRequest(
+        payload=payload,
+        cache_key=translation.contextual_translation_cache_key(payload),
+    )
+
+
+def _should_use_gemini_for_lemma(
+    entry: CORLocalEntry,
+    *,
+    frame_text: str,
+    azure_translation: str | None,
+) -> bool:
+    normalized_gloss = normalize_token(entry.gloss or "")
+    if normalized_gloss:
+        return True
+    normalized_lemma = normalize_token(entry.lemma)
+    normalized_translation = normalize_token(azure_translation or "")
+    normalized_frame = normalize_token(frame_text)
+    return bool(
+        (normalized_lemma and normalized_translation and normalized_lemma == normalized_translation)
+        or (
+            normalized_frame
+            and normalized_translation
+            and normalized_frame == normalized_translation
+        )
+    )
+
+
+def _require_azure_translation(translation: TranslationCollaborator) -> None:
+    if translation._translation_service is None:
+        raise RuntimeError("Azure translation is unavailable.")
 
 
 def consolidate_cor_local_entries(entries: list[CORLocalEntry]) -> list[CORLocalEntry]:

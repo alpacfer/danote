@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import json
+from dataclasses import asdict, dataclass, field
 import time
 from typing import Protocol
 
@@ -24,6 +24,32 @@ class GeminiWordTranslationService(Protocol):
     provider: str
 
     def translate_word(self, payload: ContextualWordTranslationInput) -> str | None: ...
+    def translate_words_batch(
+        self, payloads: list[ContextualWordTranslationInput]
+    ) -> list[str | None]: ...
+
+
+@dataclass(frozen=True, slots=True)
+class BatchContextualWordTranslationRequestItem:
+    id: str
+    surface_form: str
+    lemma: str
+    pos_tag: str | None = None
+    morphology: str | None = None
+    gloss: str | None = None
+    lemma_translation_hint: str | None = None
+    gloss_translation_hint: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class BatchContextualWordTranslationResponseItem:
+    id: str
+    translation: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class BatchContextualWordTranslationResponse:
+    items: list[BatchContextualWordTranslationResponseItem]
 
 
 @dataclass
@@ -67,6 +93,34 @@ class GeminiFlashLiteWordTranslationService:
         raw = self._generate_text(prompt)
         return self._parse_translation(raw)
 
+    def translate_words_batch(
+        self,
+        payloads: list[ContextualWordTranslationInput],
+    ) -> list[str | None]:
+        if not payloads:
+            return []
+        request_items = [
+            BatchContextualWordTranslationRequestItem(
+                id=str(index),
+                surface_form=payload.surface_form,
+                lemma=payload.lemma,
+                pos_tag=payload.pos_tag,
+                morphology=payload.morphology,
+                gloss=payload.gloss,
+                lemma_translation_hint=payload.lemma_translation_hint,
+                gloss_translation_hint=payload.gloss_translation_hint,
+            )
+            for index, payload in enumerate(payloads)
+        ]
+        prompt = self._batch_translation_prompt(request_items)
+        response = self._generate_content(
+            prompt,
+            config=self._batch_response_config(),
+        )
+        parsed = self._parse_batch_translations(response, expected_ids=[item.id for item in request_items])
+        by_id = {item.id: item.translation for item in parsed.items}
+        return [by_id.get(item.id) for item in request_items]
+
     def _translation_prompt(self, payload: ContextualWordTranslationInput) -> str:
         context = {
             "surface_form_da": payload.surface_form,
@@ -106,15 +160,69 @@ class GeminiFlashLiteWordTranslationService:
             + f"Context:\n{json.dumps(context, ensure_ascii=False)}"
         )
 
+    def _batch_translation_prompt(
+        self,
+        items: list[BatchContextualWordTranslationRequestItem],
+    ) -> str:
+        return (
+            "You translate Danish words into the exact English word or short phrase that matches the supplied "
+            "dictionary context.\n"
+            "Return JSON only with this exact shape: "
+            "{\"items\":[{\"id\":\"0\",\"translation\":\"...\"}]}\n"
+            "Rules:\n"
+            "- Return exactly one item for every input id.\n"
+            "- Copy each id exactly.\n"
+            "- Output only the English translation.\n"
+            "- Preserve inflection when morphology requires it.\n"
+            "- Keep articles or function words only when needed for the exact form.\n"
+            "- Do not explain your reasoning.\n"
+            f"Items:\n{json.dumps([asdict(item) for item in items], ensure_ascii=False)}"
+        )
+
+    def _batch_response_config(self):
+        try:
+            from google.genai import types as genai_types  # type: ignore import-not-found
+        except ImportError as exc:
+            raise GeminiTranslationError(
+                "google-genai package is required for Gemini word translation."
+            ) from exc
+        return genai_types.GenerateContentConfig(
+            response_mime_type="application/json",
+            response_schema={
+                "type": "object",
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "id": {"type": "string"},
+                                "translation": {"type": ["string", "null"]},
+                            },
+                            "required": ["id", "translation"],
+                        },
+                    }
+                },
+                "required": ["items"],
+            },
+        )
+
     def _generate_text(self, prompt: str) -> str | None:
+        response = self._generate_content(prompt)
+        text = getattr(response, "text", None)
+        cleaned = text.strip() if isinstance(text, str) else ""
+        return cleaned or None
+
+    def _generate_content(self, prompt: str, *, config: object | None = None) -> object:
         attempts = self.max_retries + 1
         for attempt in range(attempts):
             try:
                 client = self._ensure_client()
-                response = client.models.generate_content(model=self.model, contents=prompt)
-                text = getattr(response, "text", None)
-                cleaned = text.strip() if isinstance(text, str) else ""
-                return cleaned or None
+                return client.models.generate_content(
+                    model=self.model,
+                    contents=prompt,
+                    config=config,
+                )
             except Exception as exc:
                 if attempt < self.max_retries:
                     delay = self.backoff_seconds * (2**attempt)
@@ -122,7 +230,7 @@ class GeminiFlashLiteWordTranslationService:
                         time.sleep(delay)
                     continue
                 raise GeminiTranslationError(f"Gemini word translation request failed: {exc}") from exc
-        return None
+        raise GeminiTranslationError("Gemini word translation request failed after retries.")
 
     def _parse_translation(self, raw: str | None) -> str | None:
         if not raw:
@@ -143,6 +251,66 @@ class GeminiFlashLiteWordTranslationService:
         if isinstance(parsed, str):
             return _normalize_translation_value(parsed)
         return None
+
+    def _parse_batch_translations(
+        self,
+        response: object,
+        *,
+        expected_ids: list[str],
+    ) -> BatchContextualWordTranslationResponse:
+        parsed_payload = getattr(response, "parsed", None)
+        batch = self._parse_batch_payload(parsed_payload, expected_ids=expected_ids)
+        if batch is not None:
+            return batch
+
+        raw_text = getattr(response, "text", None)
+        if not isinstance(raw_text, str):
+            return BatchContextualWordTranslationResponse(items=[])
+        cleaned = raw_text.strip()
+        if cleaned.startswith("```"):
+            cleaned = cleaned.removeprefix("```json").removeprefix("```").strip()
+            if cleaned.endswith("```"):
+                cleaned = cleaned[:-3].strip()
+        try:
+            payload = json.loads(cleaned)
+        except ValueError:
+            return BatchContextualWordTranslationResponse(items=[])
+        batch = self._parse_batch_payload(payload, expected_ids=expected_ids)
+        if batch is not None:
+            return batch
+        return BatchContextualWordTranslationResponse(items=[])
+
+    def _parse_batch_payload(
+        self,
+        payload: object,
+        *,
+        expected_ids: list[str],
+    ) -> BatchContextualWordTranslationResponse | None:
+        if isinstance(payload, BatchContextualWordTranslationResponse):
+            return payload
+        if isinstance(payload, dict):
+            items = payload.get("items")
+        else:
+            items = None
+        if not isinstance(items, list):
+            return None
+
+        expected = set(expected_ids)
+        parsed_items: list[BatchContextualWordTranslationResponseItem] = []
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            item_id = item.get("id")
+            if not isinstance(item_id, str) or item_id not in expected:
+                continue
+            translation = item.get("translation")
+            parsed_items.append(
+                BatchContextualWordTranslationResponseItem(
+                    id=item_id,
+                    translation=_normalize_translation_value(translation),
+                )
+            )
+        return BatchContextualWordTranslationResponse(items=parsed_items)
 
 
 def _normalize_translation_value(value: str | None) -> str | None:

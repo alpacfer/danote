@@ -254,6 +254,15 @@ class TranslationCollaborator:
         except Exception:
             return None
 
+    def lookup_translation_strict(self, source_word: str) -> str | None:
+        if self._translation_service is None:
+            raise RuntimeError("Azure translation is unavailable.")
+        try:
+            translated = self._translation_service.translate_da_to_en(source_word)
+        except Exception as exc:
+            raise RuntimeError("Azure translation is unavailable.") from exc
+        return self.normalize_translation_value(translated)
+
     def lookup_word_translation(self, source_word: str, lemma: str | None = None) -> TranslationLookupResult:
         normalized_source = normalize_token(source_word)
         normalized_lemma = normalize_token(lemma or "") or normalized_source
@@ -361,6 +370,84 @@ class TranslationCollaborator:
         except Exception:
             normalized = None
 
+        if cache is not None:
+            cache[cache_key] = normalized
+        return TranslationLookupResult(
+            translation=normalized,
+            provider=self.contextual_provider_name(),
+        )
+
+    def contextual_translation_cache_key(
+        self,
+        payload: ContextualWordTranslationInput,
+    ) -> tuple[str, str, str | None, str | None, str | None, str | None, str | None]:
+        return (
+            payload.surface_form,
+            payload.lemma,
+            payload.pos_tag,
+            payload.morphology,
+            payload.gloss,
+            payload.lemma_translation_hint,
+            payload.gloss_translation_hint,
+        )
+
+    def batch_lookup_contextual_word_translations(
+        self,
+        payloads: list[ContextualWordTranslationInput],
+        *,
+        cache: dict[tuple[str, str, str | None, str | None, str | None, str | None, str | None], str | None]
+        | None = None,
+    ) -> list[TranslationLookupResult]:
+        if not payloads:
+            return []
+        if self._gemini_word_translation_service is None:
+            return [TranslationLookupResult(translation=None, provider=None) for _ in payloads]
+
+        try:
+            translated = self._gemini_word_translation_service.translate_words_batch(payloads)
+        except Exception:
+            translated = [None] * len(payloads)
+
+        results: list[TranslationLookupResult] = []
+        for payload, value in zip(payloads, translated, strict=False):
+            normalized = self.normalize_translation_value(value)
+            if cache is not None:
+                cache[self.contextual_translation_cache_key(payload)] = normalized
+            results.append(
+                TranslationLookupResult(
+                    translation=normalized,
+                    provider=self.contextual_provider_name(),
+                )
+            )
+
+        if len(results) < len(payloads):
+            missing_count = len(payloads) - len(results)
+            results.extend(
+                TranslationLookupResult(translation=None, provider=self.contextual_provider_name())
+                for _ in range(missing_count)
+            )
+        return results
+
+    def lookup_contextual_word_translation_from_payload(
+        self,
+        payload: ContextualWordTranslationInput,
+        *,
+        cache: dict[tuple[str, str, str | None, str | None, str | None, str | None, str | None], str | None]
+        | None = None,
+    ) -> TranslationLookupResult:
+        if self._gemini_word_translation_service is None:
+            return TranslationLookupResult(translation=None, provider=None)
+        cache_key = self.contextual_translation_cache_key(payload)
+        if cache is not None and cache_key in cache:
+            return TranslationLookupResult(
+                translation=cache[cache_key],
+                provider=self.contextual_provider_name(),
+            )
+        try:
+            translated = self._gemini_word_translation_service.translate_word(payload)
+            normalized = self.normalize_translation_value(translated)
+        except Exception:
+            normalized = None
         if cache is not None:
             cache[cache_key] = normalized
         return TranslationLookupResult(

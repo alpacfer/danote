@@ -250,7 +250,7 @@ def test_search_cor_form_returns_grouped_variants(tmp_path, stub_nlp_adapter_fac
     )
 
     with TestClient(app) as client:
-        response = client.get("/api/wordbank/search/cor-form", params={"form": "LÆRER"})
+        response = client.get("/api/wordbank/search/cor-form", params={"form": "LÆRER", "include_translations": "false"})
 
     assert response.status_code == 200
     payload = response.json()
@@ -298,12 +298,29 @@ def test_search_cor_form_works_when_nlp_is_unavailable(tmp_path) -> None:
     )
 
     with TestClient(app) as client:
-        response = client.get("/api/wordbank/search/cor-form", params={"form": "lærer"})
+        response = client.get("/api/wordbank/search/cor-form", params={"form": "lærer", "include_translations": "false"})
 
     assert response.status_code == 200
     payload = response.json()
     assert payload["form"] == "lærer"
     assert len(payload["groups"]) == 2
+
+
+def test_search_cor_form_returns_azure_error_when_translations_requested_without_service(tmp_path, stub_nlp_adapter_factory) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    cor_db_path = tmp_path / "cor.sqlite"
+    apply_migrations(db_path)
+    _seed_cor_local_db(cor_db_path)
+    app = create_app(
+        _test_settings(db_path, cor_local_db_path=cor_db_path),
+        nlp_adapter_factory=stub_nlp_adapter_factory,
+    )
+
+    with TestClient(app) as client:
+        response = client.get("/api/wordbank/search/cor-form", params={"form": "lærer"})
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == "Azure translation is unavailable."
 
 
 def test_get_lemma_details_returns_all_saved_variations(tmp_path, stub_nlp_adapter_factory) -> None:

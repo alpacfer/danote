@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react"
+import { toast } from "sonner"
 
 import {
   BACKEND_URL,
@@ -11,6 +12,7 @@ import {
   type WordbankLemma,
   type WordbankSearchResponse,
 } from "@/app/core"
+import { extractErrorMessage } from "@/app/hooks/app/controller/runtime-utils"
 
 type UseSidebarSearchParams = {
   savedNotes: SavedNote[]
@@ -28,7 +30,10 @@ export function useSidebarSearch({
   const [searchApiMatches, setSearchApiMatches] = useState<SearchMatch[]>([])
   const [corFormSearchResult, setCorFormSearchResult] = useState<{ query: string; payload: CORSearchFormResponse } | null>(null)
   const [isCorTranslationsLoading, setIsCorTranslationsLoading] = useState(false)
-  const apiClient = useMemo(() => createApiClient({ backendUrl: BACKEND_URL }), [])
+  const apiClient = useMemo(
+    () => createApiClient({ backendUrl: BACKEND_URL, extractErrorMessage }),
+    [],
+  )
 
   const normalizedQuery = normalizeSearchWord(searchQuery)
   const trimmedQuery = normalizedQuery
@@ -160,18 +165,17 @@ export function useSidebarSearch({
           }
 
           // Phase 2: fetch again with translations to fill in
-          const fullPayload = await apiClient.tryGetJson<CORSearchFormResponse>(
+          const fullPayload = await apiClient.getJson<CORSearchFormResponse>(
             `/api/wordbank/search/cor-form?form=${encodeURIComponent(trimmedQuery)}&limit=100`,
+            "Azure translation is unavailable.",
             { signal: controller.signal },
           )
           if (cancelled) return
-          if (fullPayload) {
-            corFormSearchCacheRef.current.set(normalizedQuery, fullPayload)
-            setCorFormSearchResult({ query: normalizedQuery, payload: fullPayload })
-          }
-        } catch {
-          if (!cancelled) {
-            setCorFormSearchResult((current) => (current?.query === normalizedQuery ? null : current))
+          corFormSearchCacheRef.current.set(normalizedQuery, fullPayload)
+          setCorFormSearchResult({ query: normalizedQuery, payload: fullPayload })
+        } catch (error) {
+          if (!cancelled && error instanceof Error) {
+            toast.error(error.message)
           }
         } finally {
           if (!cancelled) {
