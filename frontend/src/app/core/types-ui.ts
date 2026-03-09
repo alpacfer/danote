@@ -63,7 +63,6 @@ export type VerificationErrorDetail = {
     surfacePosTag?: string
     surfaceMorphology?: string
     lexemeTranslation?: string
-    surfaceTranslation?: string
   }
   suggestedChangesPayload?: {
     lemma_pos_tag?: string | null
@@ -71,6 +70,5 @@ export type VerificationErrorDetail = {
     surface_pos_tag?: string | null
     surface_morphology?: string | null
     lexeme_translation?: string | null
-    surface_translation?: string | null
   }
 }

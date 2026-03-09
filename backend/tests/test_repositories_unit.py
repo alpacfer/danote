@@ -11,7 +11,7 @@ def _insert_meaning_scoped_lemma(
     english_translation: str,
     pos_tag: str = "NOUN",
     morphology: str = "Number=Sing",
-    forms: list[tuple[str, str | None, str | None]] | None = None,
+    forms: list[tuple[str, str | None]] | None = None,
 ) -> tuple[int, int]:
     lexeme_id, _inserted = repository.insert_or_load_lexeme(
         stored_lemma=lemma,
@@ -29,15 +29,13 @@ def _insert_meaning_scoped_lemma(
         pos_tag=pos_tag,
         morphology=morphology,
     )
-    for form, form_translation, form_morphology in forms or [
-        (lemma, english_translation, morphology),
+    for form, form_morphology in forms or [
+        (lemma, morphology),
     ]:
         repository.insert_or_update_surface_form(
             lexeme_id=lexeme_id,
             meaning_id=meaning.id,
             form=form,
-            translation=form_translation,
-            provider="stub",
             pos_tag=pos_tag,
             morphology=form_morphology or morphology,
         )
@@ -51,7 +49,7 @@ def _insert_unsectioned_lemma(
     english_translation: str,
     pos_tag: str = "VERB",
     morphology: str = "VerbForm=Inf",
-    forms: list[tuple[str, str | None, str | None]] | None = None,
+    forms: list[tuple[str, str | None]] | None = None,
 ) -> int:
     lexeme_id, _inserted = repository.insert_or_load_lexeme(
         stored_lemma=lemma,
@@ -60,15 +58,13 @@ def _insert_unsectioned_lemma(
         pos_tag=pos_tag,
         morphology=morphology,
     )
-    for form, form_translation, form_morphology in forms or [
-        (lemma, english_translation, morphology),
+    for form, form_morphology in forms or [
+        (lemma, morphology),
     ]:
         repository.insert_or_update_surface_form(
             lexeme_id=lexeme_id,
             meaning_id=None,
             form=form,
-            translation=form_translation,
-            provider="stub",
             pos_tag=pos_tag,
             morphology=form_morphology or morphology,
         )
@@ -87,8 +83,8 @@ def test_wordbank_repository_lists_and_searches_lemmas(tmp_path) -> None:
         cor_lemma_idx=101,
         english_translation="book",
         forms=[
-            ("bog", "book", "Number=Sing"),
-            ("bogen", "the book", "Definite=Def|Number=Sing"),
+            ("bog", "Number=Sing"),
+            ("bogen", "Definite=Def|Number=Sing"),
         ],
     )
 
@@ -126,8 +122,8 @@ def test_wordbank_search_prefers_exact_then_prefix_then_translation(tmp_path) ->
         cor_lemma_idx=101,
         english_translation="book",
         forms=[
-            ("bog", "book", "Number=Sing"),
-            ("bogen", "the book", "Definite=Def|Number=Sing"),
+            ("bog", "Number=Sing"),
+            ("bogen", "Definite=Def|Number=Sing"),
         ],
     )
     _insert_meaning_scoped_lemma(
@@ -137,8 +133,8 @@ def test_wordbank_search_prefers_exact_then_prefix_then_translation(tmp_path) ->
         cor_lemma_idx=102,
         english_translation="letter",
         forms=[
-            ("bogstav", "letter", "Number=Sing"),
-            ("bogstaver", "letters", "Number=Plur"),
+            ("bogstav", "Number=Sing"),
+            ("bogstaver", "Number=Plur"),
         ],
     )
     _insert_unsectioned_lemma(
@@ -148,8 +144,8 @@ def test_wordbank_search_prefers_exact_then_prefix_then_translation(tmp_path) ->
         pos_tag="NOUN",
         morphology="Number=Sing",
         forms=[
-            ("hus", "house", "Number=Sing"),
-            ("huset", "the house", "Definite=Def|Number=Sing"),
+            ("hus", "Number=Sing"),
+            ("huset", "Definite=Def|Number=Sing"),
         ],
     )
 
@@ -173,8 +169,8 @@ def test_wordbank_search_uses_prefix_only_for_short_queries(tmp_path) -> None:
         cor_lemma_idx=101,
         english_translation="book",
         forms=[
-            ("bog", "book", "Number=Sing"),
-            ("bogen", "the book", "Definite=Def|Number=Sing"),
+            ("bog", "Number=Sing"),
+            ("bogen", "Definite=Def|Number=Sing"),
         ],
     )
     _insert_meaning_scoped_lemma(
@@ -184,8 +180,8 @@ def test_wordbank_search_uses_prefix_only_for_short_queries(tmp_path) -> None:
         cor_lemma_idx=102,
         english_translation="inside short search",
         forms=[
-            ("xbog", "inside short search", "Number=Sing"),
-            ("ubog", "inside short form", "Number=Sing"),
+            ("xbog", "Number=Sing"),
+            ("ubog", "Number=Sing"),
         ],
     )
 
@@ -206,8 +202,8 @@ def test_wordbank_search_uses_contains_for_longer_substring_queries(tmp_path) ->
         cor_lemma_idx=102,
         english_translation="inside substring search",
         forms=[
-            ("xbog", "inside substring search", "Number=Sing"),
-            ("ubogens", "inside substring form", "Case=Gen|Number=Sing"),
+            ("xbog", "Number=Sing"),
+            ("ubogens", "Case=Gen|Number=Sing"),
         ],
     )
 
@@ -228,7 +224,7 @@ def test_wordbank_search_stays_in_sync_with_lexeme_and_surface_updates(tmp_path)
         english_translation="house",
         pos_tag="NOUN",
         morphology="Number=Sing",
-        forms=[("hus", "house", "Number=Sing")],
+        forms=[("hus", "Number=Sing")],
     )
     assert [item.lemma for item in repository.search_lemmas("hou", limit=8)] == ["hus"]
 
@@ -236,8 +232,6 @@ def test_wordbank_search_stays_in_sync_with_lexeme_and_surface_updates(tmp_path)
         lexeme_id=lexeme_id,
         meaning_id=None,
         form="husene",
-        translation="houses",
-        provider="stub",
         pos_tag="NOUN",
         morphology="Definite=Def|Number=Plur",
     )
@@ -258,8 +252,8 @@ def test_wordbank_repository_search_returns_query_cor_ids_per_meaning(tmp_path) 
         cor_lemma_idx=101,
         english_translation="book",
         forms=[
-            ("bog", "book", "Number=Sing"),
-            ("bogen", "the book", "Definite=Def|Number=Sing"),
+            ("bog", "Number=Sing"),
+            ("bogen", "Definite=Def|Number=Sing"),
         ],
     )
     _lexeme_id, swamp_meaning_id = _insert_meaning_scoped_lemma(
@@ -269,8 +263,8 @@ def test_wordbank_repository_search_returns_query_cor_ids_per_meaning(tmp_path) 
         cor_lemma_idx=202,
         english_translation="swamp",
         forms=[
-            ("bog", "swamp", "Number=Sing"),
-            ("bogen", "the swamp", "Definite=Def|Number=Sing"),
+            ("bog", "Number=Sing"),
+            ("bogen", "Definite=Def|Number=Sing"),
         ],
     )
 
@@ -314,8 +308,8 @@ def test_wordbank_repository_search_returns_two_rows_for_exact_homograph_lemma(t
         cor_lemma_idx=101,
         english_translation="book",
         forms=[
-            ("bog", "book", "Number=Sing"),
-            ("bogen", "the book", "Definite=Def|Number=Sing"),
+            ("bog", "Number=Sing"),
+            ("bogen", "Definite=Def|Number=Sing"),
         ],
     )
     _insert_meaning_scoped_lemma(
@@ -325,8 +319,8 @@ def test_wordbank_repository_search_returns_two_rows_for_exact_homograph_lemma(t
         cor_lemma_idx=202,
         english_translation="swamp",
         forms=[
-            ("bog", "swamp", "Number=Sing"),
-            ("bogen", "the swamp", "Definite=Def|Number=Sing"),
+            ("bog", "Number=Sing"),
+            ("bogen", "Definite=Def|Number=Sing"),
         ],
     )
 

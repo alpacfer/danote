@@ -320,10 +320,10 @@ def test_wordbank_use_case_facade_delegates_across_extracted_workflows(tmp_path:
     assert details.english_translation == "book"
     assert details.is_sectioned is True
     assert len(details.meaning_sections) == 1
-    assert details.meaning_sections[0].surface_forms[0].english_translation is None
+    assert details.meaning_sections[0].surface_forms[0].lemma_translation == "book"
 
 
-def test_wordbank_use_case_stores_lemma_translation_but_not_section_surface_translation(
+def test_wordbank_use_case_stores_lemma_translation_on_meaning_sections_only(
     tmp_path: Path,
 ) -> None:
     use_case = WordbankUseCase(
@@ -342,7 +342,6 @@ def test_wordbank_use_case_stores_lemma_translation_but_not_section_surface_tran
     assert details.meaning_sections[0].surface_forms == [
         LemmaDetailsResponse.SurfaceFormDetails(
             form="bogen",
-            english_translation=None,
             lemma="bog",
             lemma_translation="book",
         )
@@ -415,7 +414,6 @@ def test_wordbank_sectioned_add_prefers_cor_lemma_translation_and_skips_variatio
     assert details.meaning_sections[0].surface_forms == [
         LemmaDetailsResponse.SurfaceFormDetails(
             form="lærere",
-            english_translation=None,
             pos_tag="NOUN",
             morphology="Gender=Com|Number=Plur|Definite=Ind",
             lemma="lærer",
@@ -432,7 +430,7 @@ def test_wordbank_sectioned_add_prefers_cor_lemma_translation_and_skips_variatio
     with get_connection(db_path) as conn:
         surface_row = conn.execute(
             """
-            SELECT english_translation
+            SELECT form
             FROM surface_forms
             WHERE meaning_id = ? AND form = ?
             LIMIT 1
@@ -441,7 +439,7 @@ def test_wordbank_sectioned_add_prefers_cor_lemma_translation_and_skips_variatio
         ).fetchone()
 
     assert surface_row is not None
-    assert surface_row["english_translation"] is None
+    assert surface_row["form"] == "lærere"
 
 
 def test_wordbank_use_case_runs_verification_task_and_returns_result(tmp_path: Path) -> None:
@@ -509,7 +507,6 @@ def test_wordbank_use_case_includes_pos_and_morphology_when_nlp_available(tmp_pa
     assert details.meaning_sections[0].surface_forms == [
         LemmaDetailsResponse.SurfaceFormDetails(
             form="bogen",
-            english_translation=None,
             pos_tag="NOUN",
             morphology="Gender=Com|Number=Sing",
             lemma="bog",
@@ -645,7 +642,6 @@ def test_wordbank_use_case_applies_verification_changes(tmp_path: Path) -> None:
             "surface_pos_tag": "NOUN",
             "surface_morphology": "Definite=Def|Number=Sing",
             "lexeme_translation": "book",
-            "surface_translation": "the book",
         },
         provider="gemini",
     )
@@ -657,7 +653,6 @@ def test_wordbank_use_case_applies_verification_changes(tmp_path: Path) -> None:
         "surface_pos_tag",
         "surface_morphology",
         "lexeme_translation",
-        "surface_translation",
     }
 
     with get_connection(db_path) as conn:
@@ -671,7 +666,7 @@ def test_wordbank_use_case_applies_verification_changes(tmp_path: Path) -> None:
         ).fetchone()
         surface_row = conn.execute(
             """
-            SELECT pos_tag, morphology, english_translation, translation_provider
+            SELECT pos_tag, morphology
             FROM surface_forms
             WHERE meaning_id = ? AND form = ?
             """,
@@ -685,8 +680,6 @@ def test_wordbank_use_case_applies_verification_changes(tmp_path: Path) -> None:
     assert surface_row is not None
     assert surface_row["pos_tag"] == "NOUN"
     assert surface_row["morphology"] == "Definite=Def|Number=Sing"
-    assert surface_row["english_translation"] == "the book"
-    assert surface_row["translation_provider"] == "gemini"
 
 
 def test_wordbank_use_case_logs_gemini_applied_changes(tmp_path: Path) -> None:
@@ -703,7 +696,6 @@ def test_wordbank_use_case_logs_gemini_applied_changes(tmp_path: Path) -> None:
         suggested_changes={
             "lemma_pos_tag": "NOUN",
             "lexeme_translation": "Book",
-            "surface_translation": "The Book",
         },
         provider="gemini",
     )
@@ -717,7 +709,6 @@ def test_wordbank_use_case_logs_gemini_applied_changes(tmp_path: Path) -> None:
     assert payload["stored_lemma"] == "bog"
     assert payload["stored_surface_form"] == "bogen"
     assert payload["suggested_changes"]["lexeme_translation"] == "book"
-    assert payload["suggested_changes"]["surface_translation"] == "the book"
     assert "timestamp_utc" in payload
 
 
@@ -816,8 +807,8 @@ def test_wordbank_add_word_keeps_same_surface_under_distinct_meaning_sections(tm
     assert second.meaning is not None
     assert first.meaning.id != second.meaning.id
     assert [section.meaning_key for section in details.meaning_sections] == ["book", "swamp"]
-    assert details.meaning_sections[0].surface_forms[0].english_translation is None
-    assert details.meaning_sections[1].surface_forms[0].english_translation is None
+    assert details.meaning_sections[0].surface_forms[0].lemma_translation == "book"
+    assert details.meaning_sections[1].surface_forms[0].lemma_translation == "swamp"
 
 
 def test_wordbank_add_word_treats_duplicate_cor_id_for_same_meaning_form_as_exists(tmp_path: Path) -> None:
@@ -890,7 +881,7 @@ def test_wordbank_add_word_routes_variations_to_their_matching_meaning(tmp_path:
     by_key = {section.meaning_key: section for section in details.meaning_sections}
     assert [item.form for item in by_key["book"].surface_forms] == ["bogen"]
     assert [item.form for item in by_key["swamp"].surface_forms] == ["moser"]
-    assert by_key["swamp"].surface_forms[0].english_translation is None
+    assert by_key["swamp"].surface_forms[0].lemma_translation == "swamp"
 
 
 def test_wordbank_search_lemmas_prefers_exact_surface_match_and_stable_variation_count(tmp_path: Path) -> None:
@@ -2020,7 +2011,7 @@ def test_add_word_persists_gemini_gloss_aware_translations(tmp_path: Path) -> No
         ).fetchone()
         surface_row = conn.execute(
             """
-            SELECT english_translation, translation_provider
+            SELECT form
             FROM surface_forms
             WHERE meaning_id = (SELECT id FROM lexeme_meanings WHERE lexeme_id = (SELECT id FROM lexemes WHERE lemma = ?))
               AND form = ?
@@ -2032,8 +2023,7 @@ def test_add_word_persists_gemini_gloss_aware_translations(tmp_path: Path) -> No
     assert meaning_row["english_translation"] == "book"
     assert details.english_translation == "book"
     assert surface_row is not None
-    assert surface_row["english_translation"] is None
-    assert surface_row["translation_provider"] is None
+    assert surface_row["form"] == "bogen"
 
 
 def test_wordbank_sectioned_details_keep_lemma_translation_and_expose_translated_gloss(
@@ -2094,10 +2084,10 @@ def test_wordbank_sectioned_details_keep_lemma_translation_and_expose_translated
     assert meaning_row["english_translation"] == "book"
     assert details.meaning_sections[0].gloss == "til læsning"
     assert details.meaning_sections[0].english_translation == "book"
+    assert details.meaning_sections[0].gloss_translation == "for reading"
     assert details.meaning_sections[0].surface_forms == [
         LemmaDetailsResponse.SurfaceFormDetails(
             form="bogen",
-            english_translation=None,
             pos_tag="NOUN",
             morphology="Gender=Com|Number=Sing|Definite=Def",
             lemma="bog",
@@ -2110,7 +2100,52 @@ def test_wordbank_sectioned_details_keep_lemma_translation_and_expose_translated
     ]
 
 
-def test_add_word_batches_gemini_for_lemma_and_surface_translations(tmp_path: Path) -> None:
+def test_wordbank_sectioned_details_do_not_overwrite_lemma_translation_with_english_gloss(
+    tmp_path: Path,
+) -> None:
+    db_path = _db_path(tmp_path)
+    mother_lemma = _cor_local_entry(
+        cor_id="COR.MOR.LEM",
+        lemma="mor",
+        gloss="person",
+        form="mor",
+        lemma_idx=51046,
+        pos_tag="NOUN",
+        morphology="Gender=Com|Number=Sing|Definite=Ind",
+        gram_raw="sb.fk.sg.ubest",
+    )
+    use_case = WordbankUseCase(
+        db_path,
+        cor_local_lexicon_service=FakeCORLocalLexiconService(
+            by_form={"mor": [mother_lemma]},
+            by_lemma_idx={51046: [mother_lemma]},
+        ),
+        translation_service=FakeTranslationService({"en mor": "a mother", "person": "person"}),
+    )
+
+    use_case.add_word("Mor", "mor")
+    details = use_case.get_lemma_details("mor")
+
+    with get_connection(db_path) as conn:
+        meaning_row = conn.execute(
+            """
+            SELECT gloss, english_translation
+            FROM lexeme_meanings
+            WHERE lexeme_id = (SELECT id FROM lexemes WHERE lemma = ?)
+            """,
+            ("mor",),
+        ).fetchone()
+
+    assert meaning_row is not None
+    assert meaning_row["gloss"] == "person"
+    assert meaning_row["english_translation"] == "mother"
+    assert details.english_translation == "mother"
+    assert details.meaning_sections[0].english_translation == "mother"
+    assert details.meaning_sections[0].gloss_translation == "person"
+    assert details.meaning_sections[0].surface_forms == []
+
+
+def test_add_word_batches_gemini_only_for_lemma_translation(tmp_path: Path) -> None:
     db_path = _db_path(tmp_path)
     local_cor = FakeCORLocalLexiconService(
         by_form={
@@ -2165,8 +2200,8 @@ def test_add_word_batches_gemini_for_lemma_and_surface_translations(tmp_path: Pa
 
     use_case.add_word("Bogen", "bog")
 
-    assert gemini_translation.batch_calls == [[("bog", "bog", "book"), ("bogen", "bog", "book")]]
-    assert gemini_translation.calls == [("bogen", "bog", "book")]
+    assert gemini_translation.batch_calls == [[("bog", "bog", "book")]]
+    assert gemini_translation.calls == []
 
 
 def test_wordbank_search_cor_form_consolidates_same_entry_with_multiple_grams(tmp_path: Path) -> None:

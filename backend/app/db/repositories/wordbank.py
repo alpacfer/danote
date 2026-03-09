@@ -57,7 +57,6 @@ class SurfaceFormRecord:
     id: int
     lexeme_id: int
     form: str
-    english_translation: str | None
     pos_tag: str | None
     morphology: str | None
     cor_id: str | None
@@ -185,7 +184,6 @@ class WordbankRepository:
                     id,
                     lexeme_id,
                     form,
-                    english_translation,
                     pos_tag,
                     morphology,
                     (
@@ -215,7 +213,6 @@ class WordbankRepository:
                     id,
                     lexeme_id,
                     form,
-                    english_translation,
                     pos_tag,
                     morphology,
                     (
@@ -245,7 +242,6 @@ class WordbankRepository:
                     sf.id,
                     sf.lexeme_id,
                     sf.form,
-                    sf.english_translation,
                     sf.pos_tag,
                     sf.morphology,
                     sfcv.cor_id,
@@ -400,8 +396,6 @@ class WordbankRepository:
         lexeme_id: int,
         meaning_id: int | None,
         form: str,
-        translation: str | None,
-        provider: str | None,
         pos_tag: str | None,
         morphology: str | None,
     ) -> tuple[SurfaceFormRecord, bool]:
@@ -416,22 +410,18 @@ class WordbankRepository:
                         meaning_id,
                         form,
                         source,
-                        english_translation,
-                        translation_provider,
                         pos_tag,
                         morphology,
                         seen_count,
                         last_seen_at
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
                     """,
                     (
                         lexeme_id,
                         meaning_id,
                         form,
                         "manual",
-                        translation,
-                        provider if translation else None,
                         pos_tag,
                         morphology,
                         1,
@@ -443,7 +433,6 @@ class WordbankRepository:
                         id,
                         lexeme_id,
                         form,
-                        english_translation,
                         pos_tag,
                         morphology,
                         (
@@ -468,13 +457,11 @@ class WordbankRepository:
                     UPDATE surface_forms
                     SET seen_count = seen_count + 1,
                         last_seen_at = CURRENT_TIMESTAMP,
-                        english_translation = COALESCE(english_translation, ?),
-                        translation_provider = COALESCE(translation_provider, ?),
                         pos_tag = COALESCE(pos_tag, ?),
                         morphology = COALESCE(morphology, ?)
                     WHERE id = ?
                     """,
-                    (translation, provider if translation else None, pos_tag, morphology, int(row["id"])),
+                    (pos_tag, morphology, int(row["id"])),
                 )
                 row = conn.execute(
                     """
@@ -482,7 +469,6 @@ class WordbankRepository:
                         id,
                         lexeme_id,
                         form,
-                        english_translation,
                         pos_tag,
                         morphology,
                         (
@@ -673,7 +659,6 @@ def _surface_form_from_row(row) -> SurfaceFormRecord:
         id=int(row["id"]),
         lexeme_id=int(row["lexeme_id"]),
         form=str(row["form"]),
-        english_translation=row["english_translation"],
         pos_tag=row["pos_tag"],
         morphology=row["morphology"],
         cor_id=row["cor_id"],
@@ -702,7 +687,6 @@ def _select_surface_form_row(conn, *, lexeme_id: int, meaning_id: int | None, fo
                 id,
                 lexeme_id,
                 form,
-                english_translation,
                 pos_tag,
                 morphology,
                 (
@@ -726,7 +710,6 @@ def _select_surface_form_row(conn, *, lexeme_id: int, meaning_id: int | None, fo
             id,
             lexeme_id,
             form,
-            english_translation,
             pos_tag,
             morphology,
             (

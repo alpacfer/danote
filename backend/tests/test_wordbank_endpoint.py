@@ -673,8 +673,8 @@ def test_get_lemma_details_returns_all_saved_variations(tmp_path, stub_nlp_adapt
     assert section["meaning_key"] == "bog"
     assert [item["form"] for item in section["surface_forms"]] == ["bogen", "bogens"]
     by_form = {item["form"]: item for item in section["surface_forms"]}
-    assert by_form["bogen"]["english_translation"] is None
-    assert by_form["bogens"]["english_translation"] is None
+    assert by_form["bogen"]["lemma_translation"] is None
+    assert by_form["bogens"]["lemma_translation"] is None
     assert all(item["has_pronunciation"] is False for item in section["surface_forms"])
 
 
@@ -801,13 +801,12 @@ def test_generate_translation_uses_gemini_for_gloss_aware_words(tmp_path, stub_n
 
     with get_connection(db_path) as conn:
         surface_row = conn.execute(
-            "SELECT english_translation, translation_provider FROM surface_forms WHERE form = ?",
+            "SELECT form FROM surface_forms WHERE form = ?",
             ("bogen",),
         ).fetchone()
 
     assert surface_row is not None
-    assert surface_row["english_translation"] == "the book"
-    assert surface_row["translation_provider"] == "gemini_word_translation"
+    assert surface_row["form"] == "bogen"
 
 
 def test_generate_translation_uses_gemini_when_azure_returns_same_text(tmp_path, stub_nlp_adapter_factory) -> None:
@@ -856,13 +855,12 @@ def test_generate_translation_uses_gemini_when_azure_returns_same_text(tmp_path,
 
     with get_connection(db_path) as conn:
         surface_row = conn.execute(
-            "SELECT english_translation, translation_provider FROM surface_forms WHERE form = ?",
+            "SELECT form FROM surface_forms WHERE form = ?",
             ("mere",),
         ).fetchone()
 
     assert surface_row is not None
-    assert surface_row["english_translation"] == "more"
-    assert surface_row["translation_provider"] == "gemini_word_translation"
+    assert surface_row["form"] == "mere"
 
 
 def test_get_pronunciation_audio_returns_stored_audio(tmp_path, stub_nlp_adapter_factory) -> None:
@@ -946,7 +944,6 @@ def test_apply_verification_changes_endpoint_updates_word_fields(tmp_path, stub_
                     "surface_pos_tag": "NOUN",
                     "surface_morphology": "Definite=Def|Number=Sing",
                     "lexeme_translation": "book",
-                    "surface_translation": "the book",
                 },
             },
         )
@@ -960,7 +957,6 @@ def test_apply_verification_changes_endpoint_updates_word_fields(tmp_path, stub_
         "surface_pos_tag",
         "surface_morphology",
         "lexeme_translation",
-        "surface_translation",
     }
 
     with get_connection(db_path) as conn:
@@ -974,7 +970,7 @@ def test_apply_verification_changes_endpoint_updates_word_fields(tmp_path, stub_
         ).fetchone()
         surface_row = conn.execute(
             """
-            SELECT pos_tag, morphology, english_translation, translation_provider
+            SELECT pos_tag, morphology
             FROM surface_forms
             WHERE meaning_id = ? AND form = ?
             """,
@@ -988,8 +984,6 @@ def test_apply_verification_changes_endpoint_updates_word_fields(tmp_path, stub_
     assert surface_row is not None
     assert surface_row["pos_tag"] == "NOUN"
     assert surface_row["morphology"] == "Definite=Def|Number=Sing"
-    assert surface_row["english_translation"] == "the book"
-    assert surface_row["translation_provider"] == "gemini"
 
 
 def test_add_word_does_not_block_on_pronunciation_for_new_surface_form(tmp_path, stub_nlp_adapter_factory) -> None:
@@ -1025,7 +1019,7 @@ def test_add_word_does_not_block_on_pronunciation_for_new_surface_form(tmp_path,
     assert len(payload["meaning_sections"]) == 1
     forms = payload["meaning_sections"][0]["surface_forms"]
     assert [item["form"] for item in forms] == ["katten"]
-    assert forms[0]["english_translation"] is None
+    assert forms[0]["lemma_translation"] is None
     assert forms[0]["has_pronunciation"] is False
     assert stub_tts.calls == []
 
@@ -1070,7 +1064,7 @@ def test_generate_pronunciation_endpoint_generates_for_recently_added_word(tmp_p
     assert len(payload["meaning_sections"]) == 1
     forms = payload["meaning_sections"][0]["surface_forms"]
     assert [item["form"] for item in forms] == ["katten"]
-    assert forms[0]["english_translation"] is None
+    assert forms[0]["lemma_translation"] is None
     assert forms[0]["has_pronunciation"] is True
     assert stub_tts.calls == ["kat", "katten"]
 

@@ -10,6 +10,7 @@ from app.api.schemas.v1.wordbank import (
     GenerateReverseTranslationResponse,
     GenerateTranslationResponse,
 )
+from app.db.migrations import get_connection
 from app.services.cor_local import CORLocalEntry, CORLocalLexiconService
 from app.services.gemini_translation import (
     ContextualWordTranslationInput,
@@ -17,7 +18,6 @@ from app.services.gemini_translation import (
     MeaningSectionCandidateInput,
     MeaningSectionSelectionInput,
 )
-from app.db.migrations import get_connection
 from app.services.token_classifier import normalize_token
 from app.services.translation import TranslationService
 
@@ -80,26 +80,6 @@ class TranslationCollaborator:
             normalized_lemma or normalized_surface,
         )
         english_translation = translation_result.translation
-        if english_translation:
-            with get_connection(self._db_path) as conn:
-                matching_rows = conn.execute(
-                    """
-                    SELECT id
-                    FROM surface_forms
-                    WHERE form = ?
-                    ORDER BY id ASC
-                    """,
-                    (normalized_surface,),
-                ).fetchall()
-                if len(matching_rows) == 1:
-                    conn.execute(
-                        """
-                        UPDATE surface_forms
-                        SET english_translation = ?, translation_provider = ?
-                        WHERE id = ?
-                        """,
-                        (english_translation, translation_result.provider, int(matching_rows[0]["id"])),
-                    )
 
         return GenerateTranslationResponse(
             status="generated" if english_translation else "unavailable",

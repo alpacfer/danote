@@ -147,7 +147,6 @@ export function WordbankLemmaHeader({
                         {selectedLemmaVerificationError.suggestedChanges.surfacePosTag ? <li>Surface POS: {selectedLemmaVerificationError.suggestedChanges.surfacePosTag}</li> : null}
                         {selectedLemmaVerificationError.suggestedChanges.surfaceMorphology ? <li>Surface morphology: {selectedLemmaVerificationError.suggestedChanges.surfaceMorphology}</li> : null}
                         {selectedLemmaVerificationError.suggestedChanges.lexemeTranslation ? <li>Lemma translation: {selectedLemmaVerificationError.suggestedChanges.lexemeTranslation}</li> : null}
-                        {selectedLemmaVerificationError.suggestedChanges.surfaceTranslation ? <li>Surface translation: {selectedLemmaVerificationError.suggestedChanges.surfaceTranslation}</li> : null}
                       </ul>
                     </div>
                   ) : null}

@@ -81,7 +81,6 @@ class VerificationCollaborator:
             "surface_pos_tag",
             "surface_morphology",
             "lexeme_translation",
-            "surface_translation",
         )
         normalized_changes: dict[str, str] = {}
         for field in accepted_fields:
@@ -90,7 +89,7 @@ class VerificationCollaborator:
                 continue
             cleaned = value.strip()
             if cleaned:
-                if field in {"lexeme_translation", "surface_translation"}:
+                if field == "lexeme_translation":
                     from app.services.use_cases.wordbank.collaborators.translation import (
                         TranslationCollaborator,
                     )
@@ -110,7 +109,7 @@ class VerificationCollaborator:
 
         needs_surface = any(
             field in normalized_changes
-            for field in ("surface_pos_tag", "surface_morphology", "surface_translation")
+            for field in ("surface_pos_tag", "surface_morphology")
         )
         if needs_surface and not normalized_surface:
             raise ValueError(
@@ -151,7 +150,7 @@ class VerificationCollaborator:
                     "pos_tag": meaning_row["pos_tag"],
                     "morphology": meaning_row["morphology"],
                     "english_translation": meaning_row["english_translation"],
-                    "translation_provider": provider_name,
+                    "translation_provider": "meaning_section",
                 }
             else:
                 lexeme_before = {
@@ -195,7 +194,7 @@ class VerificationCollaborator:
                 if meaning_row is not None:
                     surface_row = conn.execute(
                         """
-                        SELECT pos_tag, morphology, english_translation, translation_provider
+                        SELECT pos_tag, morphology
                         FROM surface_forms
                         WHERE meaning_id = ? AND form = ?
                         LIMIT 1
@@ -205,7 +204,7 @@ class VerificationCollaborator:
                 else:
                     surface_row = conn.execute(
                         """
-                        SELECT pos_tag, morphology, english_translation, translation_provider
+                        SELECT pos_tag, morphology
                         FROM surface_forms
                         WHERE lexeme_id = ? AND meaning_id IS NULL AND form = ?
                         LIMIT 1
@@ -216,8 +215,6 @@ class VerificationCollaborator:
                     surface_before = {
                         "pos_tag": surface_row["pos_tag"],
                         "morphology": surface_row["morphology"],
-                        "english_translation": surface_row["english_translation"],
-                        "translation_provider": surface_row["translation_provider"],
                     }
                 conn.execute(
                     """
@@ -242,12 +239,6 @@ class VerificationCollaborator:
                     surface_updates.append("morphology = ?")
                     surface_params.append(normalized_changes["surface_morphology"])
                     applied_fields.append("surface_morphology")
-                if "surface_translation" in normalized_changes:
-                    surface_updates.append("english_translation = ?")
-                    surface_updates.append("translation_provider = ?")
-                    surface_params.append(normalized_changes["surface_translation"])
-                    surface_params.append(provider_name)
-                    applied_fields.append("surface_translation")
 
                 if surface_updates:
                     if meaning_row is not None:
@@ -358,8 +349,6 @@ class VerificationCollaborator:
         lexeme_translation: str | None = None
         lexeme_translation_provider: str | None = None
         surface_source: str | None = None
-        surface_translation: str | None = None
-        surface_translation_provider: str | None = None
 
         with get_connection(self._db_path) as conn:
             lexeme_row = conn.execute(
@@ -391,7 +380,7 @@ class VerificationCollaborator:
                     if meaning_id is not None:
                         surface_row = conn.execute(
                             """
-                            SELECT source, english_translation, translation_provider
+                            SELECT source
                             FROM surface_forms
                             WHERE meaning_id = ? AND form = ?
                             LIMIT 1
@@ -401,7 +390,7 @@ class VerificationCollaborator:
                     else:
                         surface_row = conn.execute(
                             """
-                            SELECT source, english_translation, translation_provider
+                            SELECT source
                             FROM surface_forms
                             WHERE lexeme_id = ? AND meaning_id IS NULL AND form = ?
                             LIMIT 1
@@ -410,8 +399,6 @@ class VerificationCollaborator:
                         ).fetchone()
                     if surface_row is not None:
                         surface_source = surface_row["source"]
-                        surface_translation = surface_row["english_translation"]
-                        surface_translation_provider = surface_row["translation_provider"]
 
         lemma_pos_tag, lemma_morphology = self._nlp.extract_pos_and_morphology(stored_lemma)
         surface_pos_tag: str | None = None
@@ -428,8 +415,6 @@ class VerificationCollaborator:
             lexeme_translation=lexeme_translation,
             lexeme_translation_provider=lexeme_translation_provider,
             surface_source=surface_source,
-            surface_translation=surface_translation,
-            surface_translation_provider=surface_translation_provider,
             lemma_pos_tag=lemma_pos_tag,
             lemma_morphology=lemma_morphology,
             surface_pos_tag=surface_pos_tag,

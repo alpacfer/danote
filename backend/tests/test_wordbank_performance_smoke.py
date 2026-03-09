@@ -30,18 +30,16 @@ def test_wordbank_routes_meet_smoke_latency_budget(tmp_path, stub_nlp_adapter_fa
             stored_lemma=lemma,
             translation=f"translation {index:04d}",
             provider="stub",
-            pos_tag="NOUN",
-            morphology="Number=Sing",
+            pos_tag="VERB",
+            morphology="VerbForm=Inf",
         )
         for variation in range(3):
             repository.insert_or_update_surface_form(
                 lexeme_id=lexeme_id,
                 meaning_id=None,
                 form=lemma if variation == 0 else f"{lemma}-form{variation}",
-                translation=None,
-                provider="stub",
-                pos_tag="NOUN",
-                morphology="Number=Sing",
+                pos_tag="VERB",
+                morphology="VerbForm=Inf",
             )
     app = create_app(_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
 

@@ -1,12 +1,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import re
 from typing import Literal
 
 from app.api.schemas.v1.wordbank import AddWordResponse
 from app.services.cor_local import CORLocalEntry
 from app.services.gemini_translation import ContextualWordTranslationInput
 from app.services.token_classifier import normalize_token
+from app.services.use_cases.wordbank.collaborators.cor_azure_frames import (
+    azure_framed_translation_for_comparison,
+    cor_local_azure_frame,
+)
 from app.services.use_cases.wordbank.collaborators.cor_local_translations import (
     lookup_translation_for_cor_local_entry,
 )
@@ -40,7 +45,7 @@ class _WordMetadata:
 
 @dataclass(frozen=True, slots=True)
 class _ContextualTranslationTarget:
-    id: Literal["lemma", "surface"]
+    id: Literal["lemma"]
     surface_form: str
     lemma: str
     preferred_pos_tag: str | None
@@ -51,7 +56,6 @@ class _ContextualTranslationTarget:
 @dataclass(frozen=True, slots=True)
 class _TranslationSelection:
     lemma: TranslationLookupResult
-    surface: TranslationLookupResult
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,6 +78,7 @@ class _AddWordWriteResult:
 
 
 _NO_TRANSLATION = TranslationLookupResult(translation=None, provider=None)
+_LIKELY_ENGLISH_GLOSS_RE = re.compile(r"^[A-Za-z][A-Za-z ',-]*$")
 
 
 def add_word(
@@ -140,7 +145,6 @@ def _add_meaning_scoped_word(
         cor_entry=meaning_resolution.lemma_cor_entry or meaning_resolution.surface_cor_entry,
         gloss=meaning_resolution.gloss,
         lemma_translation=translations.lemma.translation,
-        surface_translation=translations.surface.translation,
     )
     meaning_record, inserted_meaning = runtime.repository.upsert_lexeme_meaning(
         lexeme_id=lexeme_id,
@@ -173,7 +177,7 @@ def _add_meaning_scoped_word(
         preferred_morphology=meaning_resolution.surface_cor_entry.morphology
         if meaning_resolution.surface_cor_entry is not None
         else meaning_resolution.morphology,
-        translation_result=translations.surface if actual_surface else translations.lemma,
+        translation_result=_NO_TRANSLATION,
         cor_entry=meaning_resolution.surface_cor_entry or meaning_resolution.lemma_cor_entry,
     )
 
@@ -183,8 +187,6 @@ def _add_meaning_scoped_word(
             lexeme_id=lexeme_id,
             meaning_id=meaning_record.id,
             form=actual_surface,
-            translation=surface_metadata.translation or lemma_metadata.translation,
-            provider=surface_metadata.provider or lemma_metadata.provider,
             pos_tag=surface_metadata.pos_tag or lemma_metadata.pos_tag,
             morphology=surface_metadata.morphology or lemma_metadata.morphology,
         )
@@ -193,8 +195,6 @@ def _add_meaning_scoped_word(
             lexeme_id=lexeme_id,
             meaning_id=meaning_record.id,
             form=inputs.stored_lemma,
-            translation=lemma_metadata.translation,
-            provider=lemma_metadata.provider,
             pos_tag=lemma_metadata.pos_tag,
             morphology=lemma_metadata.morphology,
         )
@@ -202,10 +202,8 @@ def _add_meaning_scoped_word(
             lexeme_id=lexeme_id,
             meaning_id=meaning_record.id,
             form=actual_surface,
-            translation=surface_metadata.translation,
-            provider=surface_metadata.provider,
-            pos_tag=surface_metadata.pos_tag,
-            morphology=surface_metadata.morphology,
+            pos_tag=surface_metadata.pos_tag or lemma_metadata.pos_tag,
+            morphology=surface_metadata.morphology or lemma_metadata.morphology,
         )
         del lemma_surface_form
 
@@ -244,7 +242,7 @@ def _add_unsectioned_word(
     translations: _TranslationSelection,
 ) -> AddWordResponse:
     lemma_metadata = _build_root_metadata(runtime, inputs, translations.lemma, initial_metadata)
-    surface_metadata = _build_surface_metadata(runtime, inputs, translations.surface)
+    surface_metadata = _build_surface_metadata(runtime, inputs)
     runtime.repository.insert_or_load_lexeme(
         stored_lemma=inputs.stored_lemma,
         translation=lemma_metadata.translation,
@@ -260,8 +258,6 @@ def _add_unsectioned_word(
             lexeme_id=lexeme_id,
             meaning_id=None,
             form=actual_surface,
-            translation=surface_metadata.translation or lemma_metadata.translation,
-            provider=surface_metadata.provider or lemma_metadata.provider,
             pos_tag=surface_metadata.pos_tag or lemma_metadata.pos_tag,
             morphology=surface_metadata.morphology or lemma_metadata.morphology,
         )
@@ -270,8 +266,6 @@ def _add_unsectioned_word(
             lexeme_id=lexeme_id,
             meaning_id=None,
             form=inputs.stored_lemma,
-            translation=lemma_metadata.translation,
-            provider=lemma_metadata.provider,
             pos_tag=lemma_metadata.pos_tag,
             morphology=lemma_metadata.morphology,
         )
@@ -279,8 +273,6 @@ def _add_unsectioned_word(
             lexeme_id=lexeme_id,
             meaning_id=None,
             form=actual_surface,
-            translation=surface_metadata.translation,
-            provider=surface_metadata.provider,
             pos_tag=surface_metadata.pos_tag,
             morphology=surface_metadata.morphology,
         )
@@ -371,13 +363,12 @@ def _build_root_metadata(
 def _build_surface_metadata(
     runtime: WordbankRuntime,
     inputs: _AddWordInputs,
-    translation_result: TranslationLookupResult,
 ) -> _WordMetadata:
     actual_surface = inputs.normalized_surface or inputs.stored_lemma
     if inputs.selected_pos_tag is not None or inputs.selected_morphology is not None:
         return _WordMetadata(
-            translation=translation_result.translation,
-            provider=translation_result.provider,
+            translation=None,
+            provider=None,
             pos_tag=inputs.selected_pos_tag,
             morphology=inputs.selected_morphology,
         )
@@ -386,8 +377,8 @@ def _build_surface_metadata(
         preferred_pos_tag=inputs.selected_pos_tag,
     )
     return _WordMetadata(
-        translation=translation_result.translation,
-        provider=translation_result.provider,
+        translation=None,
+        provider=None,
         pos_tag=pos_tag,
         morphology=morphology,
     )
@@ -439,12 +430,15 @@ def _lookup_word_translations(
     meaning_resolution: MeaningResolution | None,
 ) -> _TranslationSelection:
     lemma_cor_entry = None
-    surface_cor_entry = None
+    prefer_cor_lemma_translation = False
     preferred_pos_tag = inputs.selected_pos_tag
     preferred_morphology = inputs.selected_morphology
     if meaning_resolution is not None:
         lemma_cor_entry = meaning_resolution.lemma_cor_entry or meaning_resolution.surface_cor_entry
-        surface_cor_entry = meaning_resolution.surface_cor_entry or meaning_resolution.lemma_cor_entry
+        prefer_cor_lemma_translation = meaning_resolution.lemma_cor_entry is not None or (
+            meaning_resolution.surface_cor_entry is not None
+            and normalize_token(meaning_resolution.surface_cor_entry.form) == inputs.stored_lemma
+        )
         preferred_pos_tag = meaning_resolution.pos_tag
         preferred_morphology = meaning_resolution.morphology
     elif inputs.normalized_cor_id:
@@ -455,10 +449,9 @@ def _lookup_word_translations(
                 lemma=inputs.stored_lemma,
                 preferred_pos_tag=surface_cor_entry.pos_tag or inputs.selected_pos_tag,
             )
+            prefer_cor_lemma_translation = lemma_cor_entry is not None
             preferred_pos_tag = surface_cor_entry.pos_tag or inputs.selected_pos_tag
             preferred_morphology = surface_cor_entry.morphology or inputs.selected_morphology
-        else:
-            surface_cor_entry = None
 
     targets: list[_ContextualTranslationTarget] = [
         _ContextualTranslationTarget(
@@ -470,40 +463,10 @@ def _lookup_word_translations(
             cor_entry=lemma_cor_entry,
         )
     ]
-    actual_surface = inputs.normalized_surface or inputs.stored_lemma
-    targets.append(
-        _ContextualTranslationTarget(
-            id="surface",
-            surface_form=actual_surface,
-            lemma=inputs.stored_lemma,
-            preferred_pos_tag=preferred_pos_tag,
-            preferred_morphology=preferred_morphology,
-            cor_entry=surface_cor_entry if actual_surface != inputs.stored_lemma else (surface_cor_entry or lemma_cor_entry),
-        )
-    )
-
     contextual_results = _batch_lookup_contextual_translations(runtime, targets)
     resolved: dict[str, TranslationLookupResult] = {}
     for target in targets:
-        if (
-            meaning_resolution is not None
-            and target.id == "surface"
-            and target.surface_form != inputs.stored_lemma
-        ):
-            resolved[target.id] = _NO_TRANSLATION
-            continue
-        if target.id == "lemma" and lemma_cor_entry is not None:
-            resolved[target.id] = _resolve_cor_lemma_translation(
-                runtime,
-                cor_entry=lemma_cor_entry,
-            )
-            continue
-        if (
-            meaning_resolution is not None
-            and target.id == "surface"
-            and target.surface_form == inputs.stored_lemma
-            and lemma_cor_entry is not None
-        ):
+        if target.id == "lemma" and prefer_cor_lemma_translation and lemma_cor_entry is not None:
             resolved[target.id] = _resolve_cor_lemma_translation(
                 runtime,
                 cor_entry=lemma_cor_entry,
@@ -514,7 +477,6 @@ def _lookup_word_translations(
 
     return _TranslationSelection(
         lemma=resolved.get("lemma", _NO_TRANSLATION),
-        surface=resolved.get("surface", _NO_TRANSLATION),
     )
 
 
@@ -607,6 +569,17 @@ def _resolve_cor_lemma_translation(
     *,
     cor_entry: CORLocalEntry,
 ) -> TranslationLookupResult:
+    frame = cor_local_azure_frame(cor_entry)
+    framed_translation = azure_framed_translation_for_comparison(
+        frame,
+        runtime.translation.lookup_translation(frame.text),
+    )
+    if framed_translation and _is_likely_english_gloss(cor_entry.gloss):
+        return TranslationLookupResult(
+            translation=framed_translation,
+            provider=runtime.translation.provider_name(),
+        )
+
     translated = lookup_translation_for_cor_local_entry(
         runtime.translation,
         cor_entry,
@@ -615,6 +588,13 @@ def _resolve_cor_lemma_translation(
         translation=translated,
         provider=runtime.translation.provider_name() if translated else None,
     )
+
+
+def _is_likely_english_gloss(gloss: str | None) -> bool:
+    normalized_gloss = normalize_token(gloss or "")
+    if not normalized_gloss:
+        return False
+    return _LIKELY_ENGLISH_GLOSS_RE.fullmatch(normalized_gloss) is not None
 
 
 def _build_add_word_response(

@@ -21,8 +21,8 @@ describe("App wordbank", () => {
             pos_tag: "NOUN",
             morphology: "Gender=Com|Number=Sing",
             surface_forms: [
-              { form: "bogen", english_translation: "the book", has_pronunciation: true },
-              { form: "bogens", english_translation: "book's", has_pronunciation: false },
+              { form: "bogen", has_pronunciation: true },
+              { form: "bogens", has_pronunciation: false },
             ],
           },
         ],
@@ -62,7 +62,7 @@ describe("App wordbank", () => {
             english_translation: "book",
             pos_tag: "NOUN",
             morphology: "Gender=Com|Number=Sing|Definite=Ind",
-            surface_forms: [{ form: "bogen", english_translation: "the book", has_pronunciation: true }],
+            surface_forms: [{ form: "bogen", has_pronunciation: true }],
           },
         ],
         surface_forms: [],
@@ -99,7 +99,6 @@ describe("App wordbank", () => {
             surface_forms: [
               {
                 form: "lærere",
-                english_translation: null,
                 gloss: "teacher",
                 gloss_translation: "teacher",
                 pos_tag: "NOUN",
@@ -141,6 +140,7 @@ describe("App wordbank", () => {
             meaning_key: "for-reading",
             gloss: "for reading",
             english_translation: "book",
+            gloss_translation: "for reading",
             pos_tag: "NOUN",
             morphology: "Gender=Com|Number=Sing|Definite=Ind",
             surface_forms: [],
@@ -174,12 +174,12 @@ describe("App wordbank", () => {
             meaning_key: "for-reading",
             gloss: "til læsning",
             english_translation: "book",
+            gloss_translation: "for reading",
             pos_tag: "NOUN",
             morphology: "Gender=Com|Number=Sing|Definite=Ind",
             surface_forms: [
               {
                 form: "bogen",
-                english_translation: null,
                 gloss: "til læsning",
                 gloss_translation: "for reading",
                 has_pronunciation: true,
@@ -212,7 +212,7 @@ describe("App wordbank", () => {
         is_sectioned: false,
         pos_tag: "VERB",
         morphology: "VerbForm=Inf",
-        surface_forms: [{ form: "lærer", english_translation: "learns", pos_tag: "VERB", morphology: "Tense=Pres|VerbForm=Fin" }],
+        surface_forms: [{ form: "lærer", pos_tag: "VERB", morphology: "Tense=Pres|VerbForm=Fin" }],
       },
     })
 
@@ -240,7 +240,6 @@ describe("App wordbank", () => {
         surface_forms: [
           {
             form: "bogen",
-            english_translation: null,
             lemma: "bog",
             lemma_translation: "book",
             gloss: "til læsning",
@@ -316,7 +315,7 @@ describe("App wordbank", () => {
       },
       lemmaDetailsResponse: {
         lemma: "bog",
-        surface_forms: [{ form: "bogen", english_translation: "book", has_pronunciation: true }],
+        surface_forms: [{ form: "bogen", has_pronunciation: true }],
       },
     })
 
@@ -345,6 +344,39 @@ describe("App wordbank", () => {
     })
   })
 
+  it("keeps the lemma pronunciation action playable when the only saved form is hidden from details", async () => {
+    const fetchSpy = mockFetchImplementation({
+      lemmasResponse: {
+        items: [{ lemma: "kone", variation_count: 0 }],
+      },
+      lemmaDetailsResponse: {
+        lemma: "kone",
+        english_translation: "wife",
+        is_sectioned: false,
+        pos_tag: "NOUN",
+        morphology: "Gender=Com|Number=Sing",
+        surface_forms: [],
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /kone/i }))
+
+    const listenButton = await screen.findByRole("button", { name: /listen to kone/i })
+    expect(listenButton).toBeEnabled()
+    fireEvent.click(listenButton)
+
+    await waitFor(() => {
+      expect(fetchSpy).toHaveBeenCalledWith(
+        expect.stringContaining("/api/wordbank/pronunciation?form=kone"),
+        undefined,
+      )
+    })
+  })
+
   it("shows verification error info on the word page and in notifications", async () => {
     vi.useRealTimers()
 
@@ -366,7 +398,7 @@ describe("App wordbank", () => {
       lemmaDetailsResponse: {
         lemma: "kat",
         english_translation: "cat",
-        surface_forms: [{ form: "kat", english_translation: "cat", has_pronunciation: true }],
+        surface_forms: [{ form: "kat", has_pronunciation: true }],
       },
       verifyWordResponse: {
         stored_lemma: "kat",
@@ -385,7 +417,6 @@ describe("App wordbank", () => {
             surface_pos_tag: "NOUN",
             surface_morphology: "Definite=Def|Number=Sing",
             lexeme_translation: "cat",
-            surface_translation: "the cat",
           },
         },
       },
@@ -445,7 +476,6 @@ describe("App wordbank", () => {
               surface_pos_tag: "NOUN",
               surface_morphology: "Definite=Def|Number=Sing",
               lexeme_translation: "cat",
-              surface_translation: "the cat",
             },
             provider: "gemini",
           }),

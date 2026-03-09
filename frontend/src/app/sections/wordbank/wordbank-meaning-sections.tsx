@@ -2,7 +2,6 @@ import type { LemmaDetailsResponse } from "@/app/core"
 import {
   badgesForSavedForm,
   corSecondaryBadgeClass,
-  englishGlossForSavedForm,
   lemmaTranslationWithGloss,
   posBadgeClass,
   posBorderLeftClass,
@@ -37,10 +36,9 @@ export function WordbankMeaningSections({
           pos_tag: section.pos_tag ?? null,
           morphology: section.morphology ?? null,
         })
-        const glossTranslation = englishGlossForSavedForm(section.surface_forms[0] ?? {}) ?? englishGlossForSavedForm(section)
         const sectionTranslation = lemmaTranslationWithGloss(
           section.english_translation ?? null,
-          glossTranslation,
+          section.gloss_translation ?? null,
         )
         const isSelected = selectedMeaningId === section.id
         return (

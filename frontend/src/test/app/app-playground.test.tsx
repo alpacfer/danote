@@ -545,7 +545,7 @@ describe("App playground", () => {
       lemmaDetailsResponse: {
         lemma: "bog",
         english_translation: "book",
-        surface_forms: [{ form: "bogen", english_translation: "book" }],
+        surface_forms: [{ form: "bogen" }],
       },
       translationResponse: {
         status: "generated",

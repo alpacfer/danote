@@ -58,7 +58,6 @@ export function buildVerificationErrorDetail(payload: {
     surface_pos_tag?: string | null
     surface_morphology?: string | null
     lexeme_translation?: string | null
-    surface_translation?: string | null
   } | null
 }): VerificationErrorDetail {
   const providerName = payload.provider?.trim() || "gemini"
@@ -70,7 +69,6 @@ export function buildVerificationErrorDetail(payload: {
         surfacePosTag: payload.suggestedChanges.surface_pos_tag ?? undefined,
         surfaceMorphology: payload.suggestedChanges.surface_morphology ?? undefined,
         lexemeTranslation: payload.suggestedChanges.lexeme_translation ?? undefined,
-        surfaceTranslation: payload.suggestedChanges.surface_translation ?? undefined,
       }
     : undefined
   const normalizedSurface = normalizeSearchWord(payload.storedSurfaceForm ?? "") || null

@@ -42,6 +42,25 @@ Object.defineProperty(globalThis, "ResizeObserver", {
   value: ResizeObserverMock,
 })
 
+class AudioMock {
+  src = ""
+
+  constructor(src?: string) {
+    this.src = src ?? ""
+  }
+
+  play() {
+    return Promise.resolve()
+  }
+
+  pause() {}
+}
+
+Object.defineProperty(globalThis, "Audio", {
+  writable: true,
+  value: AudioMock,
+})
+
 Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
   writable: true,
   value: () => {},

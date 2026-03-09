@@ -242,7 +242,6 @@ def get_lemma_details(lemma: str, request: Request) -> LemmaDetailsResponse:
             continue
         item: dict[str, object] = {
             "form": form.form,
-            "english_translation": form.english_translation,
             "pos_tag": form.pos_tag,
             "morphology": form.morphology,
             "has_pronunciation": form.has_pronunciation,

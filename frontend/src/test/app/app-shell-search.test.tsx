@@ -691,7 +691,7 @@ describe("App shell and search", () => {
             english_translation: "book",
             pos_tag: "NOUN",
             morphology: "Gender=Com|Number=Sing",
-            surface_forms: [{ form: "bogen", english_translation: "the book", has_pronunciation: false }],
+            surface_forms: [{ form: "bogen", has_pronunciation: false }],
           },
           {
             id: 2,
@@ -700,7 +700,7 @@ describe("App shell and search", () => {
             english_translation: "swamp",
             pos_tag: "NOUN",
             morphology: "Gender=Com|Number=Sing",
-            surface_forms: [{ form: "moser", english_translation: "swamps", has_pronunciation: false }],
+            surface_forms: [{ form: "moser", has_pronunciation: false }],
           },
         ],
         surface_forms: [],

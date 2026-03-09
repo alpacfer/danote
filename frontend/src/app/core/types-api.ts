@@ -63,7 +63,6 @@ export type AddWordResponse = {
       surface_pos_tag?: string | null
       surface_morphology?: string | null
       lexeme_translation?: string | null
-      surface_translation?: string | null
     } | null
   } | null
 }
@@ -85,7 +84,6 @@ export type VerifyWordResponse = {
       surface_pos_tag?: string | null
       surface_morphology?: string | null
       lexeme_translation?: string | null
-      surface_translation?: string | null
     } | null
   }
 }
@@ -177,11 +175,11 @@ export type LemmaDetailsResponse = {
     meaning_key: string
     gloss?: string | null
     english_translation?: string | null
+    gloss_translation?: string | null
     pos_tag?: string | null
     morphology?: string | null
     surface_forms: Array<{
       form: string
-      english_translation: string | null
       pos_tag: string | null
       morphology: string | null
       lemma?: string | null
@@ -194,7 +192,6 @@ export type LemmaDetailsResponse = {
   }>
   surface_forms: Array<{
     form: string
-    english_translation: string | null
     pos_tag: string | null
     morphology: string | null
     lemma?: string | null

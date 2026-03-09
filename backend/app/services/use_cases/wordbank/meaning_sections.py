@@ -180,7 +180,6 @@ def resolve_meaning_translation(
     cor_entry: CORLocalEntry | None,
     gloss: str | None,
     lemma_translation: str | None,
-    surface_translation: str | None,
 ) -> str | None:
     normalized_lemma_translation = normalize_token(lemma_translation or "")
     normalized_gloss = normalize_token(gloss or "")
@@ -193,28 +192,11 @@ def resolve_meaning_translation(
         )
         normalized_translated_gloss = normalize_token(translated_gloss or "")
     if normalized_lemma_translation:
-        # If the gloss is already English, prefer it over a conflicting contextual lemma guess.
-        if (
-            normalized_gloss
-            and normalized_translated_gloss
-            and normalized_gloss == normalized_translated_gloss
-            and normalized_lemma_translation != normalized_translated_gloss
-        ):
-            return normalized_translated_gloss
-        if (
-            normalized_gloss
-            and not normalized_translated_gloss
-            and normalized_lemma_translation != normalized_gloss
-            and _is_likely_english_gloss(gloss)
-        ):
-            return normalized_gloss
         return normalized_lemma_translation
     if normalized_translated_gloss:
         return normalized_translated_gloss
     if normalized_gloss:
         return normalized_gloss
-    if surface_translation:
-        return normalize_token(surface_translation)
     return None
 
 

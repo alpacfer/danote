@@ -99,7 +99,6 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
                 row.meaning_id,
                 LemmaDetailsResponse.SurfaceFormDetails(
                     form=row.form,
-                    english_translation=row.english_translation,
                     pos_tag=pos_tag,
                     morphology=morphology,
                     lemma=lexeme.lemma,
@@ -134,6 +133,18 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
         if detail.form != lexeme.lemma:
             details_by_meaning_id[meaning_id].append(detail)
 
+    meaning_gloss_translations = {
+        meaning.id: _resolve_meaning_gloss_translation(
+            runtime,
+            lexeme_lemma=lexeme.lemma,
+            lexeme_pos_tag=lexeme.pos_tag,
+            meaning=meaning,
+            details=details_by_meaning_id.get(meaning.id, []),
+            gloss_translation_cache=gloss_translation_cache,
+        )
+        for meaning in meaning_rows
+    }
+
     if len(meaning_rows) == 1:
         lemma_pos_tag = meaning_rows[0].pos_tag or lemma_pos_tag
         lemma_morphology = meaning_rows[0].morphology or lemma_morphology
@@ -149,6 +160,7 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
             meaning_key=meaning.meaning_key,
             gloss=meaning.gloss,
             english_translation=meaning.english_translation,
+            gloss_translation=meaning_gloss_translations.get(meaning.id),
             pos_tag=meaning.pos_tag,
             morphology=meaning.morphology,
             surface_forms=details_by_meaning_id.get(meaning.id, []),
@@ -200,3 +212,37 @@ def _is_likely_english_gloss(gloss: str | None) -> bool:
     if not normalized_gloss:
         return False
     return _LIKELY_ENGLISH_GLOSS_RE.fullmatch(normalized_gloss) is not None
+
+
+def _resolve_meaning_gloss_translation(
+    runtime: WordbankRuntime,
+    *,
+    lexeme_lemma: str,
+    lexeme_pos_tag: str | None,
+    meaning,
+    details: list[LemmaDetailsResponse.SurfaceFormDetails],
+    gloss_translation_cache: dict[tuple[str, str, str | None, str | None, str, str | None, str | None], str | None],
+) -> str | None:
+    existing = next((detail.gloss_translation for detail in details if detail.gloss_translation), None)
+    if existing:
+        return existing
+
+    if _is_likely_english_gloss(meaning.gloss):
+        return normalize_token(meaning.gloss or "")
+
+    if meaning.cor_lemma_idx is None:
+        return None
+
+    cor_local_entry = runtime.cor.best_cor_local_lemma_entry(
+        lemma_idx=meaning.cor_lemma_idx,
+        lemma=lexeme_lemma,
+        preferred_pos_tag=meaning.pos_tag or lexeme_pos_tag,
+    )
+    if cor_local_entry is None:
+        return None
+
+    return runtime.cor.lookup_translation_for_cor_gloss(
+        entry=cor_local_entry,
+        lemma_translation=meaning.english_translation,
+        cache=gloss_translation_cache,
+    )

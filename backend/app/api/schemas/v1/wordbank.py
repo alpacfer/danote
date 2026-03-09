@@ -113,7 +113,6 @@ class AddWordResponse(BaseModel):
             surface_pos_tag: str | None = None
             surface_morphology: str | None = None
             lexeme_translation: str | None = None
-            surface_translation: str | None = None
 
         status: Literal["verified", "flagged", "error", "skipped", "queued"]
         provider: str | None = None
@@ -165,7 +164,6 @@ class ApplyVerificationChangesRequest(BaseModel):
         surface_pos_tag: str | None = None
         surface_morphology: str | None = None
         lexeme_translation: str | None = None
-        surface_translation: str | None = None
 
     stored_lemma: str = Field(..., min_length=1)
     stored_surface_form: str | None = None
@@ -252,7 +250,6 @@ class LemmaDetailsResponse(BaseModel):
 
     class SurfaceFormDetails(BaseModel):
         form: str
-        english_translation: str | None
         pos_tag: str | None = None
         morphology: str | None = None
         lemma: str | None = None
@@ -267,6 +264,7 @@ class LemmaDetailsResponse(BaseModel):
         meaning_key: str
         gloss: str | None = None
         english_translation: str | None = None
+        gloss_translation: str | None = None
         pos_tag: str | None = None
         morphology: str | None = None
         surface_forms: list["LemmaDetailsResponse.SurfaceFormDetails"] = Field(default_factory=list)

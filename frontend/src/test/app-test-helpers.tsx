@@ -200,7 +200,6 @@ export function mockFetchImplementation(options?: {
         surface_pos_tag?: string | null
         surface_morphology?: string | null
         lexeme_translation?: string | null
-        surface_translation?: string | null
       } | null
     } | null
   }
@@ -221,7 +220,6 @@ export function mockFetchImplementation(options?: {
         surface_pos_tag?: string | null
         surface_morphology?: string | null
         lexeme_translation?: string | null
-        surface_translation?: string | null
       } | null
     }
   }
@@ -292,11 +290,11 @@ export function mockFetchImplementation(options?: {
       meaning_key: string
       gloss?: string | null
       english_translation?: string | null
+      gloss_translation?: string | null
       pos_tag?: string | null
       morphology?: string | null
       surface_forms: Array<{
         form: string
-        english_translation: string | null
         has_pronunciation?: boolean
         pos_tag?: string | null
         morphology?: string | null
@@ -309,7 +307,6 @@ export function mockFetchImplementation(options?: {
     }>
     surface_forms: Array<{
       form: string
-      english_translation: string | null
       has_pronunciation?: boolean
       pos_tag?: string | null
       morphology?: string | null
@@ -348,6 +345,7 @@ export function mockFetchImplementation(options?: {
     message: string
   }
   speechProbeHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+  pronunciationAudioHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
   geminiProbeResponse?: {
     status: string
     probe_input: string
@@ -553,7 +551,7 @@ export function mockFetchImplementation(options?: {
   const lemmaDetailsResponse = options?.lemmaDetailsResponse ?? {
     lemma: "bog",
     english_translation: null,
-    surface_forms: [{ form: "bogen", english_translation: null }],
+    surface_forms: [{ form: "bogen" }],
   }
   const resetDbOk = options?.resetDbOk ?? true
   const resetDbResponse = options?.resetDbResponse ?? { status: "reset" as const, message: "Database reset complete." }
@@ -589,6 +587,8 @@ export function mockFetchImplementation(options?: {
     provider: "azure_speech_tts",
     message: "Azure Speech probe completed successfully.",
   }
+  const pronunciationAudioContentType = "audio/wav"
+  const pronunciationAudioBytes = new Uint8Array([82, 73, 70, 70, 0, 0, 0, 0, 87, 65, 86, 69])
   const translationResponse = options?.translationResponse ?? {
     status: "unavailable" as const,
     source_word: "kat",
@@ -760,6 +760,18 @@ export function mockFetchImplementation(options?: {
         stored_lemma: body.stored_lemma ?? "kat",
         stored_surface_form: body.stored_surface_form ?? "kat",
         pronunciation_form: body.stored_surface_form ?? body.stored_lemma ?? null,
+      })
+    }
+
+    if (url.includes("/api/wordbank/pronunciation?")) {
+      if (options?.pronunciationAudioHandler) {
+        return options.pronunciationAudioHandler(input, init)
+      }
+      return new Response(pronunciationAudioBytes, {
+        status: 200,
+        headers: {
+          "Content-Type": pronunciationAudioContentType,
+        },
       })
     }
 

@@ -18,8 +18,6 @@ class WordVerificationInput:
     lexeme_translation: str | None
     lexeme_translation_provider: str | None
     surface_source: str | None
-    surface_translation: str | None
-    surface_translation_provider: str | None
     lemma_pos_tag: str | None
     lemma_morphology: str | None
     surface_pos_tag: str | None
@@ -133,8 +131,6 @@ class GeminiWordVerificationService:
                 "surface_forms": {
                     "form": payload.stored_surface_form,
                     "source": payload.surface_source,
-                    "english_translation": payload.surface_translation,
-                    "translation_provider": payload.surface_translation_provider,
                     "pos_tag": payload.surface_pos_tag,
                     "morphology": payload.surface_morphology,
                 },
@@ -151,7 +147,7 @@ class GeminiWordVerificationService:
             '"problem":"...",'
             '"change_to_implement":"...",'
             '"suggested_changes":{"lemma_pos_tag":null,"lemma_morphology":null,"surface_pos_tag":null,'
-            '"surface_morphology":null,"lexeme_translation":null,"surface_translation":null}'
+            '"surface_morphology":null,"lexeme_translation":null}'
             "}\n"
             "Rules:\n"
             "- If verdict=correct, keep problem/change_to_implement null and suggested_changes as {}.\n"
@@ -197,7 +193,6 @@ class GeminiWordVerificationService:
                 "surface_pos_tag",
                 "surface_morphology",
                 "lexeme_translation",
-                "surface_translation",
             ):
                 value = suggested_changes_raw.get(key)
                 if value is None or isinstance(value, str):

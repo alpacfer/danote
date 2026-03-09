@@ -26,7 +26,7 @@ export function WordbankPronunciationWord({
 }: WordbankPronunciationWordProps) {
   const effectivePlayForm = playForm ?? form
   const isLoading = Boolean(pronunciationLoadingByForm[normalizeSearchWord(effectivePlayForm)])
-  const isDisabled = !hasPronunciation || isLoading
+  const isDisabled = isLoading
 
   const button = (
     <Tooltip>

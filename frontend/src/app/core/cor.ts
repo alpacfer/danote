@@ -170,7 +170,7 @@ export function englishGlossForSavedForm(form: {
   gloss?: string | null
   gloss_translation?: string | null
 }): string | null {
-  return normalizedGlossPart(form.gloss_translation) ?? normalizedGlossPart(form.gloss)
+  return normalizedGlossPart(form.gloss_translation)
 }
 
 export function lemmaTranslationWithGloss(
@@ -211,18 +211,8 @@ export function lemmaDisplayForSavedForm(form: {
 export function glossDisplayForSavedForm(form: {
   gloss?: string | null
   gloss_translation?: string | null
-  english_translation?: string | null
 }): string | null {
-  const translation = englishGlossForSavedForm(form)
-  if (translation) {
-    return translation
-  }
-  const englishTranslation = form.english_translation?.trim()
-  if (englishTranslation) {
-    return englishTranslation
-  }
-  const gloss = form.gloss?.trim()
-  return gloss || null
+  return englishGlossForSavedForm(form)
 }
 
 export function badgesForSavedForm(form: {
