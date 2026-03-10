@@ -16,7 +16,7 @@ danote is a Danish-first language-learning notes app with:
 
 If you change backend orchestration or API schemas, additionally run:
 
-4. `cd backend && PYTHONPATH=. pytest -q tests/test_use_cases_unit.py`
+4. `cd backend && PYTHONPATH=. pytest -q tests/use_cases`
 
 ## Architecture map
 
@@ -100,7 +100,7 @@ If you change backend orchestration or API schemas, additionally run:
 - [ ] `make lint` passes
 - [ ] `make test` passes
 - [ ] `make docs-smoke` passes
-- [ ] If backend orchestration changed: `tests/test_use_cases_unit.py` passes
+- [ ] If backend orchestration changed: `tests/use_cases` passes
 - [ ] No unstaged/untracked scratch files remain
 
 ## Quick file lookup

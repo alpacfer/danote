@@ -34,7 +34,7 @@ log "running backend fast unit suite"
       tests/test_typo_engine_unit.py \
       tests/test_token_classifier_unit.py \
       tests/test_token_filter_unit.py \
-      tests/test_use_cases_unit.py
+      tests/use_cases
   fi
 )
 

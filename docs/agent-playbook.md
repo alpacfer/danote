@@ -31,7 +31,7 @@ If backend orchestration changed, also run:
 
 ```bash
 cd backend
-PYTHONPATH=. pytest -q tests/test_use_cases_unit.py
+PYTHONPATH=. pytest -q tests/use_cases
 ```
 
 ## 4) Common pitfalls
