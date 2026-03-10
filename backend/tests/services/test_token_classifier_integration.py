@@ -7,7 +7,6 @@ from app.db.seed import seed_starter_data
 from app.nlp.danish import DaCyLemmyNLPAdapter
 from app.services.token_classifier import LemmaAwareClassifier
 
-
 MODEL = "da_dacy_small_trf-0.2.0"
 
 

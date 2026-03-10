@@ -6,7 +6,6 @@ from app.core.app_state import get_runtime_state
 from app.core.config import Settings
 from app.main import create_app
 
-
 MODEL = "da_dacy_small_trf-0.2.0"
 
 

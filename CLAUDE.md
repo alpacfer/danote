@@ -101,5 +101,5 @@ make docs-smoke
 
 If backend orchestration or schemas changed, also run:
 ```bash
-cd backend && PYTHONPATH=. .venv/bin/pytest -q tests/use_cases
+bash ./scripts/pytest-backend.sh -q tests/use_cases
 ```

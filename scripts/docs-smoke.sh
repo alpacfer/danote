@@ -27,14 +27,9 @@ log "running backend fast unit suite"
 (
   if command -v make >/dev/null 2>&1; then
     cd "$ROOT_DIR"
-    make test-backend-unit
+    make test-backend-fast
   else
-    cd "$ROOT_DIR/backend"
-    PYTHONPATH=. .venv/bin/python -m pytest -q \
-      tests/test_typo_engine_unit.py \
-      tests/test_token_classifier_unit.py \
-      tests/test_token_filter_unit.py \
-      tests/use_cases
+    bash "$ROOT_DIR/scripts/pytest-backend.sh" -q tests/use_cases tests/services tests/bootstrap tests/db tests/api
   fi
 )
 

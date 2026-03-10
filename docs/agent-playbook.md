@@ -30,8 +30,7 @@ make docs-smoke
 If backend orchestration changed, also run:
 
 ```bash
-cd backend
-PYTHONPATH=. pytest -q tests/use_cases
+bash ./scripts/pytest-backend.sh -q tests/use_cases
 ```
 
 ## 4) Common pitfalls

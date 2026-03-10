@@ -11,7 +11,6 @@ from app.db.migrations import apply_migrations
 from app.db.seed import seed_starter_data
 from app.main import create_app
 
-
 FIXTURES_DIR = Path(__file__).resolve().parents[2] / "test-data" / "fixtures"
 NOTES_DIR = FIXTURES_DIR / "notes"
 EXPECTED_ANALYZE_DIR = FIXTURES_DIR / "expected" / "analyze"

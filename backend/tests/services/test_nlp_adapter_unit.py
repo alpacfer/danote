@@ -4,8 +4,7 @@ import sys
 import types
 
 from app.core.config import Settings
-from app.nlp.danish import DaCyLemmyNLPAdapter
-from app.nlp.danish import load_danish_nlp_adapter
+from app.nlp.danish import DaCyLemmyNLPAdapter, load_danish_nlp_adapter
 
 
 class _FakeToken:

@@ -1,9 +1,14 @@
-.PHONY: help setup-backend setup-backend-search setup-frontend setup lint lint-backend maintainability-check test test-backend-unit test-backend-medium test-backend-slow test-backend-perf test-frontend docs-smoke agent-verify dev
+.PHONY: help setup-backend setup-backend-search setup-frontend setup lint lint-backend maintainability-check test pytest-backend test-backend-fast test-backend-unit test-backend-api test-backend-medium test-backend-slow test-backend-perf test-frontend docs-smoke agent-verify dev
 
 BACKEND_DIR := backend
 FRONTEND_DIR := frontend
 BACKEND_PY := $(BACKEND_DIR)/.venv/bin/python
 BACKEND_PYTEST := PYTHONPATH=. $(BACKEND_DIR)/.venv/bin/pytest
+BACKEND_TEST_UNIT_DIRS := tests/use_cases tests/services tests/bootstrap tests/db
+BACKEND_TEST_API_DIR := tests/api
+BACKEND_TEST_MEDIUM_DIR := tests/system/test_reliability.py
+BACKEND_TEST_SLOW_DIR := tests/system/test_regression_fixtures.py
+BACKEND_TEST_PERF_DIR := tests/system/test_wordbank_performance_smoke.py
 export PATH := $(HOME)/.local/bin:$(PATH)
 
 help:
@@ -14,8 +19,11 @@ help:
 	@echo "  setup               Run setup-backend and setup-frontend"
 	@echo "  lint                Run frontend lint and backend lint checks"
 	@echo "  maintainability-check Run file size budget guardrails"
+	@echo "  pytest-backend      Run backend pytest with ARGS passthrough"
+	@echo "  test-backend-fast   Run fast backend unit + API tests"
 	@echo "  test-backend-unit   Run fast backend unit tests"
-	@echo "  test-backend-medium Run backend medium integration tests"
+	@echo "  test-backend-api    Run backend API contract tests"
+	@echo "  test-backend-medium Run backend system integration tests"
 	@echo "  test-backend-slow   Run backend slow regression fixture tests"
 	@echo "  test-backend-perf   Run backend performance smoke checks"
 	@echo "  test-frontend       Run frontend tests"
@@ -52,22 +60,30 @@ lint-backend:
 	cd $(BACKEND_DIR) && .venv/bin/python -m ruff check app/bootstrap app/core app/db app/api/routes/_runtime.py app/api/routes/_use_case_factories.py app/api/routes/root.py app/api/routes/analyze.py app/api/routes/sentencebank.py app/api/routes/wordbank.py app/main.py
 	cd $(BACKEND_DIR) && PYTHONPATH=. .venv/bin/python -m mypy app/bootstrap app/core app/db app/api/routes/_runtime.py app/api/routes/_use_case_factories.py
 
+pytest-backend:
+	bash ./scripts/pytest-backend.sh $(ARGS)
+
+test-backend-fast: test-backend-unit test-backend-api
+
 test-backend-unit:
-	cd $(BACKEND_DIR) && PYTHONPATH=. .venv/bin/pytest -q tests/test_typo_engine_unit.py tests/test_token_classifier_unit.py tests/test_token_filter_unit.py tests/test_cor_local_builder_unit.py tests/test_cor_local_service_unit.py tests/use_cases tests/test_runtime_state_unit.py tests/test_runtime_bootstrap_unit.py tests/test_repositories_unit.py
+	cd $(BACKEND_DIR) && PYTHONPATH=. .venv/bin/pytest -q $(BACKEND_TEST_UNIT_DIRS)
+
+test-backend-api:
+	cd $(BACKEND_DIR) && PYTHONPATH=. .venv/bin/pytest -q $(BACKEND_TEST_API_DIR)
 
 test-backend-medium:
-	cd $(BACKEND_DIR) && PYTHONPATH=. .venv/bin/pytest -q tests/test_reliability.py tests/test_wordbank_endpoint.py
+	cd $(BACKEND_DIR) && PYTHONPATH=. .venv/bin/pytest -q $(BACKEND_TEST_MEDIUM_DIR)
 
 test-backend-slow:
-	cd $(BACKEND_DIR) && PYTHONPATH=. .venv/bin/pytest -q tests/test_regression_fixtures.py
+	cd $(BACKEND_DIR) && PYTHONPATH=. .venv/bin/pytest -q $(BACKEND_TEST_SLOW_DIR)
 
 test-backend-perf:
-	cd $(BACKEND_DIR) && PYTHONPATH=. .venv/bin/pytest -q tests/test_wordbank_performance_smoke.py
+	cd $(BACKEND_DIR) && PYTHONPATH=. .venv/bin/pytest -q $(BACKEND_TEST_PERF_DIR)
 
 test-frontend:
 	cd $(FRONTEND_DIR) && npm test -- --run
 
-test: test-backend-unit test-frontend
+test: test-backend-fast test-frontend
 
 docs-smoke:
 	./scripts/docs-smoke.sh

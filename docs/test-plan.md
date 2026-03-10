@@ -2,28 +2,24 @@
 
 ## Backend
 
-### Unit (`backend/tests`)
+### Fast backend groups
 
-- `test_smoke.py`: app imports and starts.
-- `test_health.py`: health route shape and readiness payload.
-- `test_token_classifier_unit.py`: normalization and classification logic.
-- `test_nlp_adapter_unit.py`: adapter behavior with mocked internals.
+- `tests/use_cases/`: use-case orchestration and workflow behavior.
+- `tests/services/`: service units and focused service integrations.
+- `tests/bootstrap/`: runtime/config/bootstrap behavior.
+- `tests/db/`: schema, fixture pack, and repository persistence checks.
+- `tests/api/`: HTTP contract and endpoint behavior.
 
-### Integration (`backend/tests`)
+### System backend groups
 
-- `test_db_schema.py`: migration, seed idempotency, uniqueness constraints.
-- `test_token_classifier_integration.py`: seeded DB + real NLP + classifier matrix.
-- `test_nlp_adapter_integration.py`: lemma behavior for Danish forms and safety cases.
-- `test_nlp_startup_integration.py`: NLP startup metadata and loading.
-- `test_analysis_endpoint.py`: analyze endpoint behavior and token filtering.
-- `test_wordbank_endpoint.py`: add-word insert and duplicate handling.
-- `test_reliability.py`: restart persistence and degraded-mode failure handling.
-- `test_regression_fixtures.py`: fixture-to-golden regression checks.
+- `tests/system/test_reliability.py`: restart persistence and degraded-mode failure handling.
+- `tests/system/test_regression_fixtures.py`: fixture-to-golden regression checks.
+- `tests/system/test_wordbank_performance_smoke.py`: opt-in performance smoke coverage.
 
-### Contract (`backend/tests`)
+### Contract
 
-- `test_analysis_endpoint.py::test_response_matches_contract_schema_exactly`
-- Health and failure contract checks in `test_health.py` and `test_reliability.py`.
+- `tests/api/test_analysis_endpoint.py::test_response_matches_contract_schema_exactly`
+- Health and failure contract checks in `tests/api/test_health.py` and `tests/system/test_reliability.py`.
 
 ## Frontend
 

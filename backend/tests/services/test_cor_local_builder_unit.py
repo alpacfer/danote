@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from pathlib import Path
 import sqlite3
+from pathlib import Path
 
 from app.services.cor_local_builder import build_cor_sqlite, parse_cor_id
 

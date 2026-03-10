@@ -4,17 +4,16 @@
 
 1. **Fast layer (PR default)**
    - Frontend lint + tests
-   - Backend fast unit tests
+   - Backend fast unit + API tests
    - Docs smoke checks
 
 2. **Medium layer (PR default)**
    - Backend integration/reliability subset:
-     - `tests/test_reliability.py`
-     - `tests/test_wordbank_endpoint.py`
+     - `tests/system/test_reliability.py`
 
 3. **Slow layer (manual/scheduled)**
    - Backend regression fixture tests:
-     - `tests/test_regression_fixtures.py`
+     - `tests/system/test_regression_fixtures.py`
 
 ## Local command mapping
 
@@ -27,13 +26,11 @@ make docs-smoke
 Medium checks:
 
 ```bash
-cd backend
-PYTHONPATH=. pytest -q tests/test_reliability.py tests/test_wordbank_endpoint.py
+bash ./scripts/pytest-backend.sh -q tests/system/test_reliability.py
 ```
 
 Slow checks:
 
 ```bash
-cd backend
-PYTHONPATH=. pytest -q tests/test_regression_fixtures.py
+bash ./scripts/pytest-backend.sh -q tests/system/test_regression_fixtures.py
 ```

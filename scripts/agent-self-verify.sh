@@ -20,8 +20,7 @@ make docs-smoke
 
 log "running backend use-case verification"
 (
-  cd backend
-  PYTHONPATH=. pytest -q tests/use_cases
+  bash ./scripts/pytest-backend.sh -q tests/use_cases
 )
 
 log "agent self-verification passed"

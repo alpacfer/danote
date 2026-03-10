@@ -187,16 +187,25 @@ uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ## Test
 
 ```bash
-cd backend
-source .venv/bin/activate
-PYTHONPATH=. pytest
+bash ./scripts/pytest-backend.sh
 ```
 
 Fixture regression subset:
 
 ```bash
-cd backend
-PYTHONPATH=. .venv/bin/pytest tests/test_regression_fixtures.py -q
+bash ./scripts/pytest-backend.sh -q tests/system/test_regression_fixtures.py
+```
+
+Fast backend suite:
+
+```bash
+make test-backend-fast
+```
+
+Interactive shell convenience:
+
+```bash
+export PATH="$(pwd)/backend/.venv/bin:$PATH"
 ```
 
 

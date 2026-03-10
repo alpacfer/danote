@@ -24,7 +24,7 @@ Notes:
 - Add indexes for frequent lookups (`normalized_token`, `token`, `timestamp`).
 
 Tests:
-- extend `backend/tests/test_db_schema.py`
+- extend `backend/tests/db/test_db_schema.py`
 - add migration + insert/query tests for each new table
 
 ## 3) Typo service module
@@ -53,8 +53,8 @@ Required behavior:
 - extend classification literals to include `typo_likely` and `uncertain`
 
 Tests:
-- extend `backend/tests/test_token_classifier_unit.py`
-- extend `backend/tests/test_token_classifier_integration.py`
+- extend `backend/tests/services/test_token_classifier_unit.py`
+- extend `backend/tests/services/test_token_classifier_integration.py`
 
 ## 5) Analyze API schema update
 
@@ -68,7 +68,7 @@ Add token fields:
 - `reason_tags`
 
 Tests:
-- `backend/tests/test_analysis_endpoint.py` contract assertions
+- `backend/tests/api/test_analysis_endpoint.py` contract assertions
 
 ## 6) Feedback and ignore API
 
@@ -81,7 +81,7 @@ Endpoints:
 - `POST /api/tokens/ignore`
 
 Tests:
-- new API tests near `backend/tests/test_wordbank_endpoint.py`
+- new API tests near `backend/tests/api/test_wordbank_add_and_list_endpoint.py`
 
 ## 7) Dictionary and candidate sources
 

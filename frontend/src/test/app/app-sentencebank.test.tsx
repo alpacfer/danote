@@ -8,7 +8,7 @@ describe("App sentencebank", () => {
           {
             id: 1,
             source_text: "Jeg elsker dansk",
-            english_translation: "I love Danish",
+            english_translation: "i love danish",
             created_at: "2026-02-28T12:00:00.000Z",
           },
         ],

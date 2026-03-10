@@ -16,7 +16,7 @@ danote is a Danish-first language-learning notes app with:
 
 If you change backend orchestration or API schemas, additionally run:
 
-4. `cd backend && PYTHONPATH=. pytest -q tests/use_cases`
+4. `bash ./scripts/pytest-backend.sh -q tests/use_cases`
 
 ## Architecture map
 

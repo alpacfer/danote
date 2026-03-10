@@ -4,7 +4,6 @@ import pytest
 
 from app.nlp.danish import DaCyLemmyNLPAdapter
 
-
 MODEL = "da_dacy_small_trf-0.2.0"
 
 

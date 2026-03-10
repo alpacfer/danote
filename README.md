@@ -146,8 +146,7 @@ PYTHONPATH=backend backend/.venv/bin/python scripts/generate_fixture_goldens.py
 Run fixture regression tests:
 
 ```bash
-cd backend
-PYTHONPATH=. .venv/bin/pytest tests/test_regression_fixtures.py -q
+bash ./scripts/pytest-backend.sh -q tests/system/test_regression_fixtures.py
 ```
 
 Run scripted e2e reliability flow:
