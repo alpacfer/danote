@@ -69,37 +69,22 @@ def test_apply_verification_changes_endpoint_updates_word_fields(tmp_path, stub_
                 "stored_surface_form": "bogen",
                 "meaning_id": meaning_id,
                 "provider": "gemini",
-                "suggested_changes": {
-                    "lemma_pos_tag": "NOUN",
-                    "lemma_morphology": "Gender=Com|Number=Sing",
-                    "surface_pos_tag": "NOUN",
-                    "surface_morphology": "Definite=Def|Number=Sing",
-                    "lexeme_translation": "book",
+                "action": {
+                    "action_type": "fix_translation",
+                    "english_translation": "book",
                 },
             },
         )
 
     assert apply_response.status_code == 200
-    assert set(apply_response.json()["applied_fields"]) == {
-        "lemma_pos_tag",
-        "lemma_morphology",
-        "surface_pos_tag",
-        "surface_morphology",
-        "lexeme_translation",
-    }
+    assert apply_response.json()["applied_action_type"] == "fix_translation"
     with get_connection(db_path) as conn:
         meaning_row = conn.execute(
-            "SELECT pos_tag, morphology, english_translation FROM lexeme_meanings WHERE id = ?",
+            "SELECT english_translation FROM lexeme_meanings WHERE id = ?",
             (meaning_id,),
         ).fetchone()
-        surface_row = conn.execute(
-            "SELECT pos_tag, morphology FROM surface_forms WHERE meaning_id = ? AND form = ?",
-            (meaning_id, "bogen"),
-        ).fetchone()
     assert meaning_row is not None
-    assert surface_row is not None
     assert meaning_row["english_translation"] == "book"
-    assert surface_row["pos_tag"] == "NOUN"
 
 
 def test_add_word_does_not_block_on_pronunciation_for_new_surface_form(tmp_path, stub_nlp_adapter_factory) -> None:

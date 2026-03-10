@@ -1,6 +1,7 @@
 import type {
   LemmaDetailsResponse,
   VerificationErrorDetail,
+  VerificationSuccessDetail,
   WordbankLemma,
 } from "@/app/core"
 
@@ -11,6 +12,7 @@ export type WordbankSectionProps = {
   isWordbankLoading: boolean
   lemmas: WordbankLemma[]
   groupedWordbankLemmas: Array<{ letter: string; items: WordbankLemma[] }>
+  unreadWordbankLemmaCounts: Map<string, number>
   onSelectLemma: (lemma: string) => void
   lemmaDetails: LemmaDetailsResponse | null
   lemmaDetailsError: string | null
@@ -21,7 +23,8 @@ export type WordbankSectionProps = {
   isRegeneratingLemmaPronunciation: boolean
   onRegenerateSelectedLemmaPronunciation: () => void
   selectedLemmaVerificationError: VerificationErrorDetail | null
-  hasSuggestedVerificationChanges: (detail: VerificationErrorDetail | null) => boolean
+  selectedLemmaVerificationSuccess: VerificationSuccessDetail | null
+  hasSuggestedVerificationActions: (detail: VerificationErrorDetail | null) => boolean
   isApplyingVerificationChanges: boolean
-  onApplySelectedLemmaVerificationChanges: () => void
+  onApplySelectedLemmaVerificationAction: (actionIndex: number) => void
 }

@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 
 import { type DeveloperServiceProbeResponse } from "@/app/core"
 import { useApiStatusItems, useGroupedWordbankLemmas } from "@/app/hooks/app/use-app-derived-data"
@@ -19,6 +19,7 @@ export function useAppController() {
   const [apiProbeStatuses, setApiProbeStatuses] = useState<Record<string, DeveloperServiceProbeResponse | null>>({})
   const foundation = useAppFoundation()
   const { navigation, health, analysis, discoveredTokenMetadataState, notesPersistence, lexiconData, notifications } = foundation
+  const { markWordVerificationNotificationsAsRead, unreadWordbankLemmaCounts, unreadWordbankNotificationCount } = notifications
 
   const { popovers, workspace } = usePlaygroundComposition({ foundation })
 
@@ -54,6 +55,22 @@ export function useAppController() {
 
   const groupedWordbankLemmas = useGroupedWordbankLemmas(lexiconData.lemmas)
   const apiStatusItems = useApiStatusItems(health.healthPayload, health.status, apiProbeStatuses)
+
+  useEffect(() => {
+    if (navigation.activeSection !== "wordbank" || !navigation.selectedLemma) {
+      return
+    }
+    if ((unreadWordbankLemmaCounts.get(navigation.selectedLemma) ?? 0) === 0) {
+      return
+    }
+    markWordVerificationNotificationsAsRead(navigation.selectedLemma, navigation.selectedMeaningId)
+  }, [
+    markWordVerificationNotificationsAsRead,
+    navigation.activeSection,
+    navigation.selectedLemma,
+    navigation.selectedMeaningId,
+    unreadWordbankLemmaCounts,
+  ])
 
   const sectionProps = {
     autosaveStatusLabel: notesPersistence.autosaveStatus === "saving"
@@ -115,6 +132,7 @@ export function useAppController() {
       isWordbankLoading: lexiconData.isWordbankLoading,
       lemmas: lexiconData.lemmas,
       groupedWordbankLemmas,
+      unreadWordbankLemmaCounts,
       setSelectedLemma: navigation.setSelectedLemma,
       lemmaDetails: lexiconData.lemmaDetails,
       lemmaDetailsError: lexiconData.lemmaDetailsError,
@@ -125,9 +143,10 @@ export function useAppController() {
       isRegeneratingLemmaPronunciation: wordbank.isRegeneratingLemmaPronunciation,
       regenerateSelectedLemmaPronunciation: wordbank.regenerateSelectedLemmaPronunciation,
       selectedLemmaVerificationError: wordbank.selectedLemmaVerificationError,
-      hasSuggestedVerificationChanges: wordbank.hasSuggestedVerificationChanges,
+      selectedLemmaVerificationSuccess: wordbank.selectedLemmaVerificationSuccess,
+      hasSuggestedVerificationActions: wordbank.hasSuggestedVerificationActions,
       isApplyingVerificationChanges: wordbank.isApplyingVerificationChanges,
-      applySelectedLemmaVerificationChanges: wordbank.applySelectedLemmaVerificationChanges,
+      applySelectedLemmaVerificationAction: wordbank.applySelectedLemmaVerificationAction,
     }),
     sentencebankSectionProps: buildSentencebankSectionProps({
       sentencebankError: lexiconData.sentencebankError,
@@ -185,11 +204,14 @@ export function useAppController() {
     savedNotes: notesPersistence.savedNotes,
     wordbankRefreshTick: foundation.wordbankRefreshTick,
     activeSavedNote: notesPersistence.activeSavedNote,
+    isVerifyingWords: wordbank.isVerifyingWords,
     notifications: notifications.notifications,
     isNotificationsOpen: notifications.isNotificationsOpen,
     setIsNotificationsOpen: notifications.setIsNotificationsOpen,
     hasUnreadNotifications: notifications.hasUnreadNotifications,
     unreadNotifications: notifications.unreadNotifications,
+    unreadWordbankNotificationCount,
+    unreadWordbankLemmaCounts,
     markAllNotificationsAsRead: notifications.markAllNotificationsAsRead,
     selectPlayground: navigation.selectPlayground,
     selectNotes: navigation.selectNotes,

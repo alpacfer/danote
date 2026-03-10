@@ -1,4 +1,4 @@
-import type { LemmaDetailsResponse, VerificationErrorDetail } from "@/app/core"
+import type { LemmaDetailsResponse, VerificationErrorDetail, VerificationSuccessDetail } from "@/app/core"
 import { badgesForSavedForm, corSecondaryBadgeClass, posBadgeClass } from "@/app/core"
 import { WordbankPronunciationWord } from "@/app/sections/wordbank/wordbank-pronunciation-word"
 import { Badge } from "@/components/ui/badge"
@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { ButtonGroup } from "@/components/ui/button-group"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Info, RefreshCw } from "lucide-react"
+import { BadgeCheck, Info, RefreshCw } from "lucide-react"
 
 type WordbankLemmaHeaderProps = {
   selectedLemma: string
@@ -17,9 +17,10 @@ type WordbankLemmaHeaderProps = {
   isRegeneratingLemmaPronunciation: boolean
   onRegenerateSelectedLemmaPronunciation: () => void
   selectedLemmaVerificationError: VerificationErrorDetail | null
-  hasSuggestedVerificationChanges: (detail: VerificationErrorDetail | null) => boolean
+  selectedLemmaVerificationSuccess: VerificationSuccessDetail | null
+  hasSuggestedVerificationActions: (detail: VerificationErrorDetail | null) => boolean
   isApplyingVerificationChanges: boolean
-  onApplySelectedLemmaVerificationChanges: () => void
+  onApplySelectedLemmaVerificationAction: (actionIndex: number) => void
   showSupplementaryMetadata: boolean
 }
 
@@ -32,9 +33,10 @@ export function WordbankLemmaHeader({
   isRegeneratingLemmaPronunciation,
   onRegenerateSelectedLemmaPronunciation,
   selectedLemmaVerificationError,
-  hasSuggestedVerificationChanges,
+  selectedLemmaVerificationSuccess,
+  hasSuggestedVerificationActions,
   isApplyingVerificationChanges,
-  onApplySelectedLemmaVerificationChanges,
+  onApplySelectedLemmaVerificationAction,
   showSupplementaryMetadata,
 }: WordbankLemmaHeaderProps) {
   const normalizedSelectedLemma = (lemmaDetails.lemma ?? selectedLemma).trim().toLocaleLowerCase("da-DK")
@@ -95,6 +97,16 @@ export function WordbankLemmaHeader({
               ))}
             </span>
           ) : null}
+          {selectedLemmaVerificationSuccess ? (
+            <Badge
+              variant="outline"
+              aria-label="Gemini verification passed"
+              className="border-emerald-500/60 bg-emerald-500/10 text-emerald-700"
+            >
+              <BadgeCheck className="mr-1 size-3.5" />
+              Verified
+            </Badge>
+          ) : null}
         </div>
         <ButtonGroup className="shrink-0">
           <Button
@@ -118,6 +130,9 @@ export function WordbankLemmaHeader({
                   disabled={!selectedLemmaVerificationError}
                 >
                   <Info className="size-4" />
+                  {selectedLemmaVerificationError?.suggestedActions.length ? (
+                    <span className="ml-1 text-[11px] leading-none">{selectedLemmaVerificationError.suggestedActions.length}</span>
+                  ) : null}
                 </Button>
               </span>
             </PopoverTrigger>
@@ -138,27 +153,35 @@ export function WordbankLemmaHeader({
                     <p className="text-muted-foreground text-[11px] font-semibold tracking-wide uppercase">Change to implement</p>
                     <p className="text-sm">{selectedLemmaVerificationError.changeToImplement}</p>
                   </div>
-                  {selectedLemmaVerificationError.suggestedChanges && Object.values(selectedLemmaVerificationError.suggestedChanges).some(Boolean) ? (
+                  {hasSuggestedVerificationActions(selectedLemmaVerificationError) ? (
                     <div className="space-y-1">
-                      <p className="text-muted-foreground text-[11px] font-semibold tracking-wide uppercase">Specific fields to change</p>
-                      <ul className="space-y-1 text-sm">
-                        {selectedLemmaVerificationError.suggestedChanges.lemmaPosTag ? <li>Lemma POS: {selectedLemmaVerificationError.suggestedChanges.lemmaPosTag}</li> : null}
-                        {selectedLemmaVerificationError.suggestedChanges.lemmaMorphology ? <li>Lemma morphology: {selectedLemmaVerificationError.suggestedChanges.lemmaMorphology}</li> : null}
-                        {selectedLemmaVerificationError.suggestedChanges.surfacePosTag ? <li>Surface POS: {selectedLemmaVerificationError.suggestedChanges.surfacePosTag}</li> : null}
-                        {selectedLemmaVerificationError.suggestedChanges.surfaceMorphology ? <li>Surface morphology: {selectedLemmaVerificationError.suggestedChanges.surfaceMorphology}</li> : null}
-                        {selectedLemmaVerificationError.suggestedChanges.lexemeTranslation ? <li>Lemma translation: {selectedLemmaVerificationError.suggestedChanges.lexemeTranslation}</li> : null}
-                      </ul>
+                      <p className="text-muted-foreground text-[11px] font-semibold tracking-wide uppercase">Suggested actions</p>
+                      <div className="space-y-2">
+                        {selectedLemmaVerificationError.suggestedActions.map((action, index) => (
+                          <div key={`${action.action_type}-${index}`} className="space-y-2 rounded-md border p-3">
+                            <div className="space-y-1">
+                              <p className="text-sm font-medium">{verificationActionTitle(action)}</p>
+                              <p className="text-muted-foreground text-xs">
+                                {action.reason?.trim() || verificationActionSummary(action)}
+                              </p>
+                              {!action.reason?.trim() ? null : (
+                                <p className="text-sm">{verificationActionSummary(action)}</p>
+                              )}
+                            </div>
+                            <Button
+                              type="button"
+                              size="sm"
+                              className="w-full"
+                              disabled={isApplyingVerificationChanges}
+                              onClick={() => onApplySelectedLemmaVerificationAction(index)}
+                            >
+                              {isApplyingVerificationChanges ? "Applying..." : "Accept Action"}
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   ) : null}
-                  <Button
-                    type="button"
-                    size="sm"
-                    className="w-full"
-                    disabled={!hasSuggestedVerificationChanges(selectedLemmaVerificationError) || isApplyingVerificationChanges}
-                    onClick={onApplySelectedLemmaVerificationChanges}
-                  >
-                    {isApplyingVerificationChanges ? "Applying..." : "Apply Gemini Changes"}
-                  </Button>
                 </>
               )}
             </PopoverContent>
@@ -170,6 +193,40 @@ export function WordbankLemmaHeader({
       ) : null}
     </div>
   )
+}
+
+function verificationActionTitle(action: VerificationErrorDetail["suggestedActions"][number]): string {
+  if (action.action_type === "fix_translation") {
+    return "Fix translation"
+  }
+  if (action.action_type === "fix_gloss") {
+    return "Fix gloss"
+  }
+  if (action.action_type === "move_to_meaning_section") {
+    return "Move to different meaning"
+  }
+  if (action.action_type === "move_to_lemma") {
+    return "Move to different lemma"
+  }
+  return "Review action"
+}
+
+function verificationActionSummary(action: VerificationErrorDetail["suggestedActions"][number]): string {
+  if (action.action_type === "fix_translation") {
+    return `Set translation to '${action.english_translation ?? ""}'.`
+  }
+  if (action.action_type === "fix_gloss") {
+    return `Set gloss to '${action.gloss ?? ""}'.`
+  }
+  if (action.action_type === "move_to_meaning_section") {
+    return `Move this entry to meaning section #${action.target_meaning_id ?? "?"}.`
+  }
+  if (action.action_type === "move_to_lemma") {
+    const targetLemma = action.target_lemma ?? "new lemma"
+    const targetMeaning = action.target_meaning_key ?? "new meaning"
+    return `Move this entry to '${targetLemma}' under '${targetMeaning}'.`
+  }
+  return "Review the Gemini recommendation."
 }
 
 export function WordbankDetailsLoadingSkeleton() {

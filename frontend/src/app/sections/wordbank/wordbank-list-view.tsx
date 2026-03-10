@@ -5,7 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 
 type WordbankListViewProps = Pick<
   WordbankSectionProps,
-  "wordbankError" | "isWordbankLoading" | "lemmas" | "groupedWordbankLemmas" | "onSelectLemma"
+  "wordbankError" | "isWordbankLoading" | "lemmas" | "groupedWordbankLemmas" | "unreadWordbankLemmaCounts" | "onSelectLemma"
 >
 
 export function WordbankListView({
@@ -13,6 +13,7 @@ export function WordbankListView({
   isWordbankLoading,
   lemmas,
   groupedWordbankLemmas,
+  unreadWordbankLemmaCounts,
   onSelectLemma,
 }: WordbankListViewProps) {
   return (
@@ -63,18 +64,31 @@ export function WordbankListView({
                   {group.items.map((lemma) => {
                     const displayWord = lemma.display_lemma?.trim() || lemma.lemma
                     const showCount = lemma.variation_count > 1
+                    const unreadCount = unreadWordbankLemmaCounts.get(lemma.lemma) ?? 0
                     return (
                       <Button
                         key={lemma.lemma}
                         type="button"
                         variant="outline"
                         size="sm"
-                        className="w-auto"
+                        className="relative w-auto pr-3"
                         onClick={() => onSelectLemma(lemma.lemma)}
                       >
                         {displayWord}
                         {showCount ? (
                           <span className="text-muted-foreground font-normal"> · {lemma.variation_count}</span>
+                        ) : null}
+                        {unreadCount > 0 ? (
+                          unreadCount > 1 ? (
+                            <span className="bg-primary text-primary-foreground ml-2 inline-flex min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] leading-5">
+                              {unreadCount}
+                            </span>
+                          ) : (
+                            <span
+                              aria-label={`Pending verification for ${displayWord}`}
+                              className="bg-primary ml-2 inline-flex size-2.5 rounded-full"
+                            />
+                          )
                         ) : null}
                       </Button>
                     )

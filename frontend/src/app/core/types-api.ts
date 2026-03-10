@@ -70,13 +70,7 @@ export type AddWordResponse = {
     composed_word_count: number | null
     problem?: string | null
     change_to_implement?: string | null
-    suggested_changes?: {
-      lemma_pos_tag?: string | null
-      lemma_morphology?: string | null
-      surface_pos_tag?: string | null
-      surface_morphology?: string | null
-      lexeme_translation?: string | null
-    } | null
+    suggested_actions?: VerificationAction[] | null
   } | null
   pronunciation?: {
     status: "queued" | "skipped"
@@ -96,14 +90,22 @@ export type VerifyWordResponse = {
     composed_word_count: number | null
     problem?: string | null
     change_to_implement?: string | null
-    suggested_changes?: {
-      lemma_pos_tag?: string | null
-      lemma_morphology?: string | null
-      surface_pos_tag?: string | null
-      surface_morphology?: string | null
-      lexeme_translation?: string | null
-    } | null
+    suggested_actions?: VerificationAction[] | null
   }
+}
+
+export type VerificationAction = {
+  action_type: "fix_translation" | "fix_gloss" | "move_to_meaning_section" | "move_to_lemma"
+  reason?: string | null
+  english_translation?: string | null
+  gloss?: string | null
+  target_meaning_id?: number | null
+  target_lemma?: string | null
+  target_meaning_key?: string | null
+  target_gloss?: string | null
+  target_english_translation?: string | null
+  target_pos_tag?: string | null
+  target_morphology?: string | null
 }
 
 export type GeneratePronunciationResponse = {
@@ -117,7 +119,9 @@ export type ApplyVerificationChangesResponse = {
   status: "applied" | "skipped"
   stored_lemma: string
   stored_surface_form: string | null
-  applied_fields: string[]
+  applied_action_type: string | null
+  target_lemma: string | null
+  target_meaning_id: number | null
 }
 
 export type WordbankLemma = {

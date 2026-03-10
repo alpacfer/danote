@@ -32,13 +32,19 @@ export function mockFetchImplementation(options?: {
       composed_word_count: number | null
       problem?: string | null
       change_to_implement?: string | null
-      suggested_changes?: {
-        lemma_pos_tag?: string | null
-        lemma_morphology?: string | null
-        surface_pos_tag?: string | null
-        surface_morphology?: string | null
-        lexeme_translation?: string | null
-      } | null
+      suggested_actions?: Array<{
+        action_type: "fix_translation" | "fix_gloss" | "move_to_meaning_section" | "move_to_lemma"
+        reason?: string | null
+        english_translation?: string | null
+        gloss?: string | null
+        target_meaning_id?: number | null
+        target_lemma?: string | null
+        target_meaning_key?: string | null
+        target_gloss?: string | null
+        target_english_translation?: string | null
+        target_pos_tag?: string | null
+        target_morphology?: string | null
+      }> | null
     } | null
     pronunciation?: {
       status: "queued" | "skipped"
@@ -94,20 +100,29 @@ export function mockFetchImplementation(options?: {
       composed_word_count: number | null
       problem?: string | null
       change_to_implement?: string | null
-      suggested_changes?: {
-        lemma_pos_tag?: string | null
-        lemma_morphology?: string | null
-        surface_pos_tag?: string | null
-        surface_morphology?: string | null
-        lexeme_translation?: string | null
-      } | null
+      suggested_actions?: Array<{
+        action_type: "fix_translation" | "fix_gloss" | "move_to_meaning_section" | "move_to_lemma"
+        reason?: string | null
+        english_translation?: string | null
+        gloss?: string | null
+        target_meaning_id?: number | null
+        target_lemma?: string | null
+        target_meaning_key?: string | null
+        target_gloss?: string | null
+        target_english_translation?: string | null
+        target_pos_tag?: string | null
+        target_morphology?: string | null
+      }> | null
     }
   }
+  verifyWordHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
   applyVerificationChangesResponse?: {
     status: "applied" | "skipped"
     stored_lemma: string
     stored_surface_form: string | null
-    applied_fields: string[]
+    applied_action_type: string | null
+    target_lemma: string | null
+    target_meaning_id: number | null
   }
   applyVerificationChangesHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
   addWordHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
@@ -406,7 +421,9 @@ export function mockFetchImplementation(options?: {
     status: "applied" as const,
     stored_lemma: addWordResponse.stored_lemma,
     stored_surface_form: addWordResponse.stored_surface_form,
-    applied_fields: ["lemma_pos_tag"],
+    applied_action_type: "fix_translation",
+    target_lemma: addWordResponse.stored_lemma,
+    target_meaning_id: null,
   }
   const lemmasOk = options?.lemmasOk ?? true
   const lemmasResponse = options?.lemmasResponse ?? { items: [] }
@@ -621,6 +638,9 @@ export function mockFetchImplementation(options?: {
     }
 
     if (url.endsWith("/api/wordbank/lexemes/verify")) {
+      if (options?.verifyWordHandler) {
+        return options.verifyWordHandler(input, init)
+      }
       return responseOf(verifyWordResponse)
     }
 

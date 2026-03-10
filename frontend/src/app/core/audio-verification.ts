@@ -52,29 +52,27 @@ export function buildVerificationErrorDetail(payload: {
   meaningId?: number | null
   problem?: string | null
   changeToImplement?: string | null
-  suggestedChanges?: {
-    lemma_pos_tag?: string | null
-    lemma_morphology?: string | null
-    surface_pos_tag?: string | null
-    surface_morphology?: string | null
-    lexeme_translation?: string | null
-  } | null
+  suggestedActions?: Array<{
+    action_type: "fix_translation" | "fix_gloss" | "move_to_meaning_section" | "move_to_lemma"
+    reason?: string | null
+    english_translation?: string | null
+    gloss?: string | null
+    target_meaning_id?: number | null
+    target_lemma?: string | null
+    target_meaning_key?: string | null
+    target_gloss?: string | null
+    target_english_translation?: string | null
+    target_pos_tag?: string | null
+    target_morphology?: string | null
+  }> | null
 }): VerificationErrorDetail {
   const providerName = payload.provider?.trim() || "gemini"
   const detail = normalizeVerificationMessage(payload.message)
-  const suggestedChanges = payload.suggestedChanges
-    ? {
-        lemmaPosTag: payload.suggestedChanges.lemma_pos_tag ?? undefined,
-        lemmaMorphology: payload.suggestedChanges.lemma_morphology ?? undefined,
-        surfacePosTag: payload.suggestedChanges.surface_pos_tag ?? undefined,
-        surfaceMorphology: payload.suggestedChanges.surface_morphology ?? undefined,
-        lexemeTranslation: payload.suggestedChanges.lexeme_translation ?? undefined,
-      }
-    : undefined
   const normalizedSurface = normalizeSearchWord(payload.storedSurfaceForm ?? "") || null
   const meaningId = payload.meaningId ?? null
   const explicitProblem = compactMessage(payload.problem)
   const explicitChange = compactMessage(payload.changeToImplement)
+  const suggestedActions = payload.suggestedActions ?? []
 
   if (payload.status === "flagged") {
     const count = payload.composedWordCount ?? 0
@@ -93,8 +91,7 @@ export function buildVerificationErrorDetail(payload: {
       rawMessage: detail || explicitProblem || "Gemini flagged the entry as incorrect.",
       storedSurfaceForm: normalizedSurface,
       meaningId,
-      suggestedChanges,
-      suggestedChangesPayload: payload.suggestedChanges ?? undefined,
+      suggestedActions,
     }
   }
 
@@ -109,8 +106,7 @@ export function buildVerificationErrorDetail(payload: {
       rawMessage: detail || explicitProblem || "Missing Gemini verification configuration.",
       storedSurfaceForm: normalizedSurface,
       meaningId,
-      suggestedChanges,
-      suggestedChangesPayload: payload.suggestedChanges ?? undefined,
+      suggestedActions,
     }
   }
 
@@ -124,8 +120,7 @@ export function buildVerificationErrorDetail(payload: {
       rawMessage: detail || explicitProblem || "Gemini verification request was rate-limited.",
       storedSurfaceForm: normalizedSurface,
       meaningId,
-      suggestedChanges,
-      suggestedChangesPayload: payload.suggestedChanges ?? undefined,
+      suggestedActions,
     }
   }
 
@@ -138,7 +133,6 @@ export function buildVerificationErrorDetail(payload: {
     rawMessage: detail || explicitProblem || "Gemini verification failed unexpectedly.",
     storedSurfaceForm: normalizedSurface,
     meaningId,
-    suggestedChanges,
-    suggestedChangesPayload: payload.suggestedChanges ?? undefined,
+    suggestedActions,
   }
 }

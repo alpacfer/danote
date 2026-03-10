@@ -97,7 +97,7 @@ def apply_verification_changes(
             stored_lemma=payload.stored_lemma,
             stored_surface_form=payload.stored_surface_form,
             meaning_id=payload.meaning_id,
-            suggested_changes=payload.suggested_changes.model_dump(),
+            action=payload.action.model_dump(),
             provider=payload.provider,
         ),
         include_lookup_error=True,

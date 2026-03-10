@@ -59,6 +59,7 @@ describe("section prop adapters", () => {
       isWordbankLoading: false,
       lemmas: [],
       groupedWordbankLemmas: [],
+      unreadWordbankLemmaCounts: new Map(),
       setSelectedLemma: vi.fn(),
       lemmaDetails: null,
       lemmaDetailsError: null,
@@ -69,14 +70,15 @@ describe("section prop adapters", () => {
       isRegeneratingLemmaPronunciation: false,
       regenerateSelectedLemmaPronunciation: regenerate,
       selectedLemmaVerificationError: null,
-      hasSuggestedVerificationChanges: () => false,
+      selectedLemmaVerificationSuccess: null,
+      hasSuggestedVerificationActions: () => false,
       isApplyingVerificationChanges: false,
-      applySelectedLemmaVerificationChanges: apply,
+      applySelectedLemmaVerificationAction: apply,
     })
 
     result.onPlayPronunciation("bog")
     result.onRegenerateSelectedLemmaPronunciation()
-    result.onApplySelectedLemmaVerificationChanges()
+    result.onApplySelectedLemmaVerificationAction(0)
 
     await Promise.resolve()
 

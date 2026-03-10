@@ -44,6 +44,7 @@ export type AppSidebarProps = {
   lemmas: WordbankLemma[]
   wordbankCacheVersion: number
   savedNotes: SavedNote[]
+  unreadWordbankNotificationCount: number
   onSelectPlayground: () => void
   onSelectNotes: () => void
   onSelectWordbank: () => void
@@ -70,6 +71,7 @@ export function AppSidebar({
   lemmas,
   wordbankCacheVersion,
   savedNotes,
+  unreadWordbankNotificationCount,
   onSelectPlayground,
   onSelectNotes,
   onSelectWordbank,
@@ -299,7 +301,13 @@ export function AppSidebar({
                 <SidebarMenuButton type="button" isActive={activeSection === "wordbank"} onClick={onSelectWordbank}>
                   <BookOpen />
                   <span>Wordbank</span>
-                  <span aria-hidden="true" className="text-muted-foreground ml-auto text-[11px]">Alt+W</span>
+                  {unreadWordbankNotificationCount > 0 ? (
+                    <span className="bg-primary text-primary-foreground ml-auto inline-flex min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] leading-5">
+                      {unreadWordbankNotificationCount}
+                    </span>
+                  ) : (
+                    <span aria-hidden="true" className="text-muted-foreground ml-auto text-[11px]">Alt+W</span>
+                  )}
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>

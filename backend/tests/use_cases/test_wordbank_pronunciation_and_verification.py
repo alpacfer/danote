@@ -147,7 +147,7 @@ def test_wordbank_use_case_normalizes_l16_pronunciation_to_wav(tmp_path: Path) -
     assert audio.mime_type == "audio/wav"
     assert audio.audio_bytes[:4] == b"RIFF"
 
-def test_wordbank_use_case_applies_verification_changes(tmp_path: Path) -> None:
+def test_wordbank_use_case_applies_translation_verification_action(tmp_path: Path) -> None:
     db_path = _db_path(tmp_path)
     use_case = WordbankUseCase(db_path)
     added = use_case.add_word("Bogen", "bog")
@@ -156,50 +156,124 @@ def test_wordbank_use_case_applies_verification_changes(tmp_path: Path) -> None:
         stored_lemma="bog",
         stored_surface_form="bogen",
         meaning_id=added.meaning.id if added.meaning else None,
-        suggested_changes={
-            "lemma_pos_tag": "NOUN",
-            "lemma_morphology": "Gender=Com|Number=Sing",
-            "surface_pos_tag": "NOUN",
-            "surface_morphology": "Definite=Def|Number=Sing",
-            "lexeme_translation": "book",
+        action={
+            "action_type": "fix_translation",
+            "english_translation": "book",
         },
         provider="gemini",
     )
 
     assert response.status == "applied"
-    assert set(response.applied_fields) == {
-        "lemma_pos_tag",
-        "lemma_morphology",
-        "surface_pos_tag",
-        "surface_morphology",
-        "lexeme_translation",
-    }
+    assert response.applied_action_type == "fix_translation"
+    assert response.target_lemma == "bog"
+    assert response.target_meaning_id == added.meaning.id
 
     with get_connection(db_path) as conn:
         meaning_row = conn.execute(
             """
-            SELECT pos_tag, morphology, english_translation
+            SELECT english_translation
             FROM lexeme_meanings
             WHERE id = ?
             """,
             (added.meaning.id,),
         ).fetchone()
-        surface_row = conn.execute(
-            """
-            SELECT pos_tag, morphology
-            FROM surface_forms
-            WHERE meaning_id = ? AND form = ?
-            """,
-            (added.meaning.id, "bogen"),
-        ).fetchone()
 
     assert meaning_row is not None
-    assert meaning_row["pos_tag"] == "NOUN"
-    assert meaning_row["morphology"] == "Gender=Com|Number=Sing"
     assert meaning_row["english_translation"] == "book"
-    assert surface_row is not None
-    assert surface_row["pos_tag"] == "NOUN"
-    assert surface_row["morphology"] == "Definite=Def|Number=Sing"
+
+
+def test_wordbank_use_case_applies_gloss_verification_action(tmp_path: Path) -> None:
+    db_path = _db_path(tmp_path)
+    use_case = WordbankUseCase(db_path)
+    added = use_case.add_word("Bogen", "bog")
+
+    response = use_case.apply_verification_changes(
+        stored_lemma="bog",
+        stored_surface_form="bogen",
+        meaning_id=added.meaning.id if added.meaning else None,
+        action={
+            "action_type": "fix_gloss",
+            "gloss": "reading material",
+        },
+        provider="gemini",
+    )
+
+    assert response.status == "applied"
+    assert response.applied_action_type == "fix_gloss"
+    with get_connection(db_path) as conn:
+        meaning_row = conn.execute(
+            "SELECT gloss FROM lexeme_meanings WHERE id = ?",
+            (added.meaning.id,),
+        ).fetchone()
+    assert meaning_row is not None
+    assert meaning_row["gloss"] == "reading material"
+
+
+def test_wordbank_use_case_moves_surface_to_another_meaning_section(tmp_path: Path) -> None:
+    db_path = _db_path(tmp_path)
+    use_case = WordbankUseCase(
+        db_path,
+        cor_local_lexicon_service=_bog_homograph_cor_local(),
+        translation_service=FakeTranslationService({"bog": "book", "bogen": "book", "moser": "swamp"}),
+    )
+    first = use_case.add_word("Bogen", "bog", cor_id="COR.BOG.BOOK.DEF")
+    second = use_case.add_word("Moser", "bog", cor_id="COR.BOG.SWAMP.PL")
+
+    response = use_case.apply_verification_changes(
+        stored_lemma="bog",
+        stored_surface_form="bogen",
+        meaning_id=first.meaning.id if first.meaning else None,
+        action={
+            "action_type": "move_to_meaning_section",
+            "target_meaning_id": second.meaning.id if second.meaning else None,
+        },
+        provider="gemini",
+    )
+
+    assert response.status == "applied"
+    assert response.applied_action_type == "move_to_meaning_section"
+    assert response.target_meaning_id == second.meaning.id
+    details = use_case.get_lemma_details("bog")
+    by_key = {section.meaning_key: section for section in details.meaning_sections}
+    assert [item.form for item in by_key["book"].surface_forms] == []
+    assert [item.form for item in by_key["swamp"].surface_forms] == ["bogen", "moser"]
+
+
+def test_wordbank_use_case_moves_meaning_section_to_new_lemma(tmp_path: Path) -> None:
+    db_path = _db_path(tmp_path)
+    use_case = WordbankUseCase(
+        db_path,
+        cor_local_lexicon_service=_bog_homograph_cor_local(),
+        translation_service=FakeTranslationService({"bog": "book", "bogen": "book"}),
+    )
+    added = use_case.add_word("Bogen", "bog", cor_id="COR.BOG.BOOK.DEF")
+
+    response = use_case.apply_verification_changes(
+        stored_lemma="bog",
+        stored_surface_form="bogen",
+        meaning_id=added.meaning.id if added.meaning else None,
+        action={
+            "action_type": "move_to_lemma",
+            "target_lemma": "bind",
+            "target_meaning_key": "book",
+            "target_gloss": "book",
+            "target_english_translation": "book",
+            "target_pos_tag": "NOUN",
+            "target_morphology": "Gender=Com|Number=Sing",
+        },
+        provider="gemini",
+    )
+
+    assert response.status == "applied"
+    assert response.applied_action_type == "move_to_lemma"
+    assert response.target_lemma == "bind"
+    moved_details = use_case.get_lemma_details("bind")
+    assert [section.meaning_key for section in moved_details.meaning_sections] == ["book"]
+    assert [item.form for item in moved_details.meaning_sections[0].surface_forms] == ["bogen"]
+    with get_connection(db_path) as conn:
+        source_lexeme = conn.execute("SELECT id FROM lexemes WHERE lemma = ?", ("bog",)).fetchone()
+    assert source_lexeme is None
+
 
 def test_wordbank_use_case_logs_gemini_applied_changes(tmp_path: Path) -> None:
     db_path = _db_path(tmp_path)
@@ -212,9 +286,9 @@ def test_wordbank_use_case_logs_gemini_applied_changes(tmp_path: Path) -> None:
         stored_lemma="bog",
         stored_surface_form="bogen",
         meaning_id=added.meaning.id if added.meaning else None,
-        suggested_changes={
-            "lemma_pos_tag": "NOUN",
-            "lexeme_translation": "Book",
+        action={
+            "action_type": "fix_translation",
+            "english_translation": "Book",
         },
         provider="gemini",
     )
@@ -227,5 +301,6 @@ def test_wordbank_use_case_logs_gemini_applied_changes(tmp_path: Path) -> None:
     assert payload["provider"] == "gemini"
     assert payload["stored_lemma"] == "bog"
     assert payload["stored_surface_form"] == "bogen"
-    assert payload["suggested_changes"]["lexeme_translation"] == "book"
+    assert payload["action"]["english_translation"] == "Book"
+    assert payload["action_type"] == "fix_translation"
     assert "timestamp_utc" in payload

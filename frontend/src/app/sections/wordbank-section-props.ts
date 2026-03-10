@@ -9,6 +9,7 @@ export type WordbankSectionAdapterArgs = {
   isWordbankLoading: boolean
   lemmas: ComponentProps<typeof WordbankSection>["lemmas"]
   groupedWordbankLemmas: ComponentProps<typeof WordbankSection>["groupedWordbankLemmas"]
+  unreadWordbankLemmaCounts: ComponentProps<typeof WordbankSection>["unreadWordbankLemmaCounts"]
   setSelectedLemma: (lemma: string | null) => void
   lemmaDetails: ComponentProps<typeof WordbankSection>["lemmaDetails"]
   lemmaDetailsError: ComponentProps<typeof WordbankSection>["lemmaDetailsError"]
@@ -19,9 +20,10 @@ export type WordbankSectionAdapterArgs = {
   isRegeneratingLemmaPronunciation: boolean
   regenerateSelectedLemmaPronunciation: () => Promise<void>
   selectedLemmaVerificationError: ComponentProps<typeof WordbankSection>["selectedLemmaVerificationError"]
-  hasSuggestedVerificationChanges: ComponentProps<typeof WordbankSection>["hasSuggestedVerificationChanges"]
+  selectedLemmaVerificationSuccess: ComponentProps<typeof WordbankSection>["selectedLemmaVerificationSuccess"]
+  hasSuggestedVerificationActions: ComponentProps<typeof WordbankSection>["hasSuggestedVerificationActions"]
   isApplyingVerificationChanges: boolean
-  applySelectedLemmaVerificationChanges: () => Promise<void>
+  applySelectedLemmaVerificationAction: (actionIndex: number) => Promise<void>
 }
 
 export function buildWordbankSectionProps(
@@ -34,6 +36,7 @@ export function buildWordbankSectionProps(
     isWordbankLoading: args.isWordbankLoading,
     lemmas: args.lemmas,
     groupedWordbankLemmas: args.groupedWordbankLemmas,
+    unreadWordbankLemmaCounts: args.unreadWordbankLemmaCounts,
     onSelectLemma: args.setSelectedLemma,
     lemmaDetails: args.lemmaDetails,
     lemmaDetailsError: args.lemmaDetailsError,
@@ -48,10 +51,11 @@ export function buildWordbankSectionProps(
       void args.regenerateSelectedLemmaPronunciation()
     },
     selectedLemmaVerificationError: args.selectedLemmaVerificationError,
-    hasSuggestedVerificationChanges: args.hasSuggestedVerificationChanges,
+    selectedLemmaVerificationSuccess: args.selectedLemmaVerificationSuccess,
+    hasSuggestedVerificationActions: args.hasSuggestedVerificationActions,
     isApplyingVerificationChanges: args.isApplyingVerificationChanges,
-    onApplySelectedLemmaVerificationChanges: () => {
-      void args.applySelectedLemmaVerificationChanges()
+    onApplySelectedLemmaVerificationAction: (actionIndex: number) => {
+      void args.applySelectedLemmaVerificationAction(actionIndex)
     },
   }
 }

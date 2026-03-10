@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 import json
 import time
-from typing import Literal, Protocol
+from typing import Any, Literal, Protocol
 
 
 class VerificationError(RuntimeError):
@@ -11,9 +11,23 @@ class VerificationError(RuntimeError):
 
 
 @dataclass(frozen=True)
+class WordVerificationMeaningSection:
+    id: int
+    meaning_key: str
+    gloss: str | None
+    english_translation: str | None
+    pos_tag: str | None
+    morphology: str | None
+    surface_forms: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class WordVerificationInput:
     stored_lemma: str
     stored_surface_form: str | None
+    meaning_id: int | None
+    meaning_key: str | None
+    meaning_gloss: str | None
     lexeme_source: str
     lexeme_translation: str | None
     lexeme_translation_provider: str | None
@@ -22,6 +36,22 @@ class WordVerificationInput:
     lemma_morphology: str | None
     surface_pos_tag: str | None
     surface_morphology: str | None
+    sibling_meaning_sections: tuple[WordVerificationMeaningSection, ...] = ()
+
+
+@dataclass(frozen=True)
+class WordVerificationAction:
+    action_type: Literal["fix_translation", "fix_gloss", "move_to_meaning_section", "move_to_lemma"]
+    reason: str | None = None
+    english_translation: str | None = None
+    gloss: str | None = None
+    target_meaning_id: int | None = None
+    target_lemma: str | None = None
+    target_meaning_key: str | None = None
+    target_gloss: str | None = None
+    target_english_translation: str | None = None
+    target_pos_tag: str | None = None
+    target_morphology: str | None = None
 
 
 @dataclass(frozen=True)
@@ -31,7 +61,7 @@ class WordVerificationResult:
     composed_word_count: int | None = None
     problem: str | None = None
     change_to_implement: str | None = None
-    suggested_changes: dict[str, str | None] | None = None
+    suggested_actions: tuple[WordVerificationAction, ...] = ()
 
 
 class WordVerificationService(Protocol):
@@ -74,7 +104,6 @@ class GeminiWordVerificationService:
         return self._client
 
     def close(self) -> None:
-        # google-genai does not require explicit close for default client transport.
         self._client = None
 
     def verify_word_entry(self, payload: WordVerificationInput) -> WordVerificationResult:
@@ -96,62 +125,77 @@ class GeminiWordVerificationService:
         change_to_implement = (
             parsed.get("change_to_implement") if isinstance(parsed.get("change_to_implement"), str) else None
         )
-        suggested_changes_raw = parsed.get("suggested_changes")
-        suggested_changes = (
-            suggested_changes_raw
-            if isinstance(suggested_changes_raw, dict)
-            else None
-        )
+        suggested_actions = tuple(self._parse_suggested_actions(parsed.get("suggested_actions")))
 
         if verdict == "incorrect":
             return WordVerificationResult(
                 verdict="flagged",
                 message="incorrect",
                 composed_word_count=word_count,
-                problem=problem or "Gemini flagged lexical inconsistency in lemma/surface/POS/morphology/translation.",
+                problem=problem or "Gemini flagged lexical inconsistency in lemma, meaning, or surface-form placement.",
                 change_to_implement=(
                     change_to_implement
-                    or "Update the stored entry so lemma, surface form, POS, morphology, and translations are coherent."
+                    or "Review the suggested action list and apply the change that makes lemma, meaning section, and forms coherent."
                 ),
-                suggested_changes=suggested_changes,
+                suggested_actions=suggested_actions,
             )
         return WordVerificationResult(verdict="verified", message="OK", composed_word_count=word_count)
 
     def _verification_prompt(self, payload: WordVerificationInput) -> str:
         entry = {
-            "where": {
-                "lexemes": {
-                    "lemma": payload.stored_lemma,
-                    "source": payload.lexeme_source,
-                    "english_translation": payload.lexeme_translation,
-                    "translation_provider": payload.lexeme_translation_provider,
-                    "pos_tag": payload.lemma_pos_tag,
-                    "morphology": payload.lemma_morphology,
-                },
-                "surface_forms": {
-                    "form": payload.stored_surface_form,
-                    "source": payload.surface_source,
-                    "pos_tag": payload.surface_pos_tag,
-                    "morphology": payload.surface_morphology,
-                },
-            }
+            "current_entry": {
+                "lemma": payload.stored_lemma,
+                "surface_form": payload.stored_surface_form,
+                "meaning_id": payload.meaning_id,
+                "meaning_key": payload.meaning_key,
+                "gloss": payload.meaning_gloss,
+                "english_translation": payload.lexeme_translation,
+                "lexeme_source": payload.lexeme_source,
+                "translation_provider": payload.lexeme_translation_provider,
+                "surface_source": payload.surface_source,
+                "lemma_pos_tag": payload.lemma_pos_tag,
+                "lemma_morphology": payload.lemma_morphology,
+                "surface_pos_tag": payload.surface_pos_tag,
+                "surface_morphology": payload.surface_morphology,
+            },
+            "available_meaning_sections": [
+                {
+                    "id": section.id,
+                    "meaning_key": section.meaning_key,
+                    "gloss": section.gloss,
+                    "english_translation": section.english_translation,
+                    "pos_tag": section.pos_tag,
+                    "morphology": section.morphology,
+                    "surface_forms": list(section.surface_forms),
+                }
+                for section in payload.sibling_meaning_sections
+            ],
         }
         return (
             "You are a Professional Danish Language Expert.\n"
-            "Verify lexical correctness: lemma/surface/POS/morphology/translation coherence.\n"
-            "Also count if entry is composed of multiple words (e.g. 'lege plads' -> 2).\n"
-            "JSON only:\n"
+            "Review the current wordbank entry using the model lemma page -> meaning sections -> surface forms.\n"
+            "Count if the reviewed entry is composed of multiple words.\n"
+            "Return JSON only.\n"
             "{"
             '"verdict":"correct|incorrect",'
             '"word_count":0,'
             '"problem":"...",'
             '"change_to_implement":"...",'
-            '"suggested_changes":{"lemma_pos_tag":null,"lemma_morphology":null,"surface_pos_tag":null,'
-            '"surface_morphology":null,"lexeme_translation":null}'
-            "}\n"
+            '"suggested_actions":['
+            '{"action_type":"fix_translation","reason":"...","english_translation":"..."},'
+            '{"action_type":"fix_gloss","reason":"...","gloss":"..."},'
+            '{"action_type":"move_to_meaning_section","reason":"...","target_meaning_id":0},'
+            '{"action_type":"move_to_lemma","reason":"...","target_lemma":"...",'
+            '"target_meaning_key":"...","target_gloss":"...",'
+            '"target_english_translation":"...","target_pos_tag":"...",'
+            '"target_morphology":"..."}'
+            "]}\n"
             "Rules:\n"
-            "- If verdict=correct, keep problem/change_to_implement null and suggested_changes as {}.\n"
-            "- If verdict=incorrect, provide concrete change instructions and only include changed fields in suggested_changes.\n"
+            "- Use only these four action types: fix_translation, fix_gloss, move_to_meaning_section, move_to_lemma.\n"
+            "- If verdict=correct, return suggested_actions as [].\n"
+            "- If action_type=move_to_meaning_section, target_meaning_id must be one of the available meaning ids.\n"
+            "- If action_type=move_to_lemma, include target_lemma and target_meaning_key.\n"
+            "- Discard no uncertainty into prose; use reason and structured fields instead.\n"
             f"Entry:\n{json.dumps(entry, ensure_ascii=False)}"
         )
 
@@ -184,21 +228,80 @@ class GeminiWordVerificationService:
             out["problem"] = parsed["problem"]
         if isinstance(parsed.get("change_to_implement"), str):
             out["change_to_implement"] = parsed["change_to_implement"]
-        suggested_changes_raw = parsed.get("suggested_changes")
-        if isinstance(suggested_changes_raw, dict):
-            normalized_changes: dict[str, str | None] = {}
-            for key in (
-                "lemma_pos_tag",
-                "lemma_morphology",
-                "surface_pos_tag",
-                "surface_morphology",
-                "lexeme_translation",
-            ):
-                value = suggested_changes_raw.get(key)
-                if value is None or isinstance(value, str):
-                    normalized_changes[key] = value
-            out["suggested_changes"] = normalized_changes
+        if isinstance(parsed.get("suggested_actions"), list):
+            out["suggested_actions"] = parsed["suggested_actions"]
         return out
+
+    def _parse_suggested_actions(self, raw: object) -> list[WordVerificationAction]:
+        if not isinstance(raw, list):
+            return []
+        actions: list[WordVerificationAction] = []
+        for item in raw:
+            action = self._normalize_action(item)
+            if action is not None:
+                actions.append(action)
+        return actions
+
+    def _normalize_action(self, raw: object) -> WordVerificationAction | None:
+        if not isinstance(raw, dict):
+            return None
+        action_type = raw.get("action_type")
+        if not isinstance(action_type, str):
+            return None
+        normalized_type = action_type.strip().lower()
+        if normalized_type not in {
+            "fix_translation",
+            "fix_gloss",
+            "move_to_meaning_section",
+            "move_to_lemma",
+        }:
+            return None
+
+        reason = _optional_clean_str(raw.get("reason"))
+        if normalized_type == "fix_translation":
+            english_translation = _optional_clean_str(raw.get("english_translation"))
+            if not english_translation:
+                return None
+            return WordVerificationAction(
+                action_type="fix_translation",
+                reason=reason,
+                english_translation=english_translation,
+            )
+
+        if normalized_type == "fix_gloss":
+            gloss = _optional_clean_str(raw.get("gloss"))
+            if not gloss:
+                return None
+            return WordVerificationAction(
+                action_type="fix_gloss",
+                reason=reason,
+                gloss=gloss,
+            )
+
+        if normalized_type == "move_to_meaning_section":
+            target_meaning_id = raw.get("target_meaning_id")
+            if not isinstance(target_meaning_id, int):
+                return None
+            return WordVerificationAction(
+                action_type="move_to_meaning_section",
+                reason=reason,
+                target_meaning_id=target_meaning_id,
+            )
+
+        target_lemma = _optional_clean_str(raw.get("target_lemma"))
+        target_meaning_key = _optional_clean_str(raw.get("target_meaning_key"))
+        if not target_lemma or not target_meaning_key:
+            return None
+        return WordVerificationAction(
+            action_type="move_to_lemma",
+            reason=reason,
+            target_lemma=target_lemma,
+            target_meaning_key=target_meaning_key,
+            target_gloss=_optional_clean_str(raw.get("target_gloss")),
+            target_english_translation=_optional_clean_str(raw.get("target_english_translation")),
+            target_pos_tag=_optional_clean_str(raw.get("target_pos_tag")),
+            target_morphology=_optional_clean_str(raw.get("target_morphology")),
+        )
 
     def _infer_word_count(self, payload: WordVerificationInput) -> int:
         source_text = payload.stored_surface_form or payload.stored_lemma
@@ -222,3 +325,10 @@ class GeminiWordVerificationService:
                     continue
                 raise VerificationError(f"Gemini verification request failed: {exc}") from exc
         return None
+
+
+def _optional_clean_str(value: Any) -> str | None:
+    if not isinstance(value, str):
+        return None
+    cleaned = value.strip()
+    return cleaned or None

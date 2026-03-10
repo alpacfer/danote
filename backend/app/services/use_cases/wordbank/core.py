@@ -131,14 +131,14 @@ class WordbankUseCase:
         stored_lemma: str,
         stored_surface_form: str | None,
         meaning_id: int | None = None,
-        suggested_changes: dict[str, str | None],
+        action: dict[str, object],
         provider: str | None = None,
     ):
         return self._runtime.verification.apply_verification_changes(
             stored_lemma=stored_lemma,
             stored_surface_form=stored_surface_form,
             meaning_id=meaning_id,
-            suggested_changes=suggested_changes,
+            action=action,
             provider=provider,
         )
 

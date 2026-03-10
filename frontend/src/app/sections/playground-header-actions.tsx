@@ -1,4 +1,4 @@
-import { Bell, Save } from "lucide-react"
+import { Bell, LoaderCircle, Save } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -13,6 +13,7 @@ export type PlaygroundHeaderActionsProps = {
   autosaveStatusLabel: string
   hasActiveSavedNote: boolean
   isNotificationsOpen: boolean
+  isVerifyingWords: boolean
   hasUnreadNotifications: boolean
   unreadCount: number
   notifications: AppNotification[]
@@ -24,6 +25,7 @@ export function PlaygroundHeaderActions({
   autosaveStatusLabel,
   hasActiveSavedNote,
   isNotificationsOpen,
+  isVerifyingWords,
   hasUnreadNotifications,
   unreadCount,
   notifications,
@@ -60,13 +62,15 @@ export function PlaygroundHeaderActions({
                 variant={hasUnreadNotifications ? "default" : "outline"}
                 className="gap-1.5"
                 aria-label={
-                  hasUnreadNotifications
+                  isVerifyingWords
+                    ? "Word verification is running"
+                    : hasUnreadNotifications
                     ? `Show notifications (${unreadCount} unread)`
                     : "No unread notifications"
                 }
-                disabled={!hasUnreadNotifications}
+                disabled={!hasUnreadNotifications && !isVerifyingWords}
               >
-                <Bell className="size-3.5" />
+                {isVerifyingWords ? <LoaderCircle className="size-3.5 animate-spin" /> : <Bell className="size-3.5" />}
                 {hasUnreadNotifications ? (
                   <span className="text-[11px] leading-none">{unreadCount}</span>
                 ) : null}

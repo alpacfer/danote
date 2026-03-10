@@ -19,9 +19,10 @@ type WordbankDetailsViewProps = Pick<
   | "isRegeneratingLemmaPronunciation"
   | "onRegenerateSelectedLemmaPronunciation"
   | "selectedLemmaVerificationError"
-  | "hasSuggestedVerificationChanges"
+  | "selectedLemmaVerificationSuccess"
+  | "hasSuggestedVerificationActions"
   | "isApplyingVerificationChanges"
-  | "onApplySelectedLemmaVerificationChanges"
+  | "onApplySelectedLemmaVerificationAction"
 >
 
 export function WordbankDetailsView({
@@ -36,9 +37,10 @@ export function WordbankDetailsView({
   isRegeneratingLemmaPronunciation,
   onRegenerateSelectedLemmaPronunciation,
   selectedLemmaVerificationError,
-  hasSuggestedVerificationChanges,
+  selectedLemmaVerificationSuccess,
+  hasSuggestedVerificationActions,
   isApplyingVerificationChanges,
-  onApplySelectedLemmaVerificationChanges,
+  onApplySelectedLemmaVerificationAction,
 }: WordbankDetailsViewProps) {
   const normalizedSelectedLemma = (lemmaDetails?.lemma ?? selectedLemma ?? "").trim().toLocaleLowerCase("da-DK")
   const variationForms = (lemmaDetails?.surface_forms ?? []).filter(
@@ -86,9 +88,10 @@ export function WordbankDetailsView({
             isRegeneratingLemmaPronunciation={isRegeneratingLemmaPronunciation}
             onRegenerateSelectedLemmaPronunciation={onRegenerateSelectedLemmaPronunciation}
             selectedLemmaVerificationError={selectedLemmaVerificationError}
-            hasSuggestedVerificationChanges={hasSuggestedVerificationChanges}
+            selectedLemmaVerificationSuccess={selectedLemmaVerificationSuccess}
+            hasSuggestedVerificationActions={hasSuggestedVerificationActions}
             isApplyingVerificationChanges={isApplyingVerificationChanges}
-            onApplySelectedLemmaVerificationChanges={onApplySelectedLemmaVerificationChanges}
+            onApplySelectedLemmaVerificationAction={onApplySelectedLemmaVerificationAction}
             showSupplementaryMetadata={!isSectioned}
           />
           {isSectioned ? (

@@ -1,4 +1,8 @@
-import { type AnalyzedToken, type WordActionSuggestion } from "@/app/core/types-api"
+import {
+  type AnalyzedToken,
+  type VerificationAction,
+  type WordActionSuggestion,
+} from "@/app/core/types-api"
 
 export type HighlightPopoverState = {
   open: boolean
@@ -42,12 +46,26 @@ export type SavedNote = {
   savedAt: string
 }
 
-export type AppNotification = {
+type BaseNotification = {
   id: string
   message: string
   createdAt: string
   read: boolean
 }
+
+export type InfoNotification = BaseNotification & {
+  kind: "info"
+}
+
+export type WordVerificationNotification = BaseNotification & {
+  kind: "word_verification"
+  lemma: string
+  meaningId: number | null
+  surfaceForm: string | null
+  actionCount: number
+}
+
+export type AppNotification = InfoNotification | WordVerificationNotification
 
 export type VerificationErrorDetail = {
   provider: string
@@ -57,18 +75,13 @@ export type VerificationErrorDetail = {
   rawMessage: string
   storedSurfaceForm: string | null
   meaningId: number | null
-  suggestedChanges?: {
-    lemmaPosTag?: string
-    lemmaMorphology?: string
-    surfacePosTag?: string
-    surfaceMorphology?: string
-    lexemeTranslation?: string
-  }
-  suggestedChangesPayload?: {
-    lemma_pos_tag?: string | null
-    lemma_morphology?: string | null
-    surface_pos_tag?: string | null
-    surface_morphology?: string | null
-    lexeme_translation?: string | null
-  }
+  suggestedActions: VerificationAction[]
+}
+
+export type VerificationSuccessDetail = {
+  provider: string
+  rawMessage: string
+  storedSurfaceForm: string | null
+  meaningId: number | null
+  verifiedAt: string
 }

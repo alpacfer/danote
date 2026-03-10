@@ -89,18 +89,26 @@ export function useWordbankWorkflows({
 
   const {
     isApplyingVerificationChanges,
+    isVerifyingWords,
     selectedLemmaVerificationError,
-    hasSuggestedVerificationChanges,
+    selectedLemmaVerificationSuccess,
+    hasSuggestedVerificationActions,
     verifyWordInBackground,
-    applySelectedLemmaVerificationChanges,
+    applySelectedLemmaVerificationAction,
     clearVerificationErrors,
   } = useVerificationWorkflow({
     backendUrl,
     extractErrorMessage,
     selectedLemma,
+    selectedMeaningId,
     lemmaDetails,
     setWordbankRefreshTick,
     pushNotification,
+    onOpenWordbankTarget: (lemma, meaningId) => {
+      setActiveSection("wordbank")
+      setSelectedLemma(lemma)
+      setSelectedMeaningId(meaningId)
+    },
   })
 
   async function addWordToWordbank(
@@ -261,14 +269,16 @@ export function useWordbankWorkflows({
     pronunciationLoadingByForm,
     isRegeneratingLemmaPronunciation,
     isApplyingVerificationChanges,
+    isVerifyingWords,
     selectedLemmaVerificationError,
-    hasSuggestedVerificationChanges,
+    selectedLemmaVerificationSuccess,
+    hasSuggestedVerificationActions,
     addTokenToWordbank,
     addWordFromSearch,
     addSentenceToSentencebank,
     playPronunciation,
     regenerateSelectedLemmaPronunciation,
-    applySelectedLemmaVerificationChanges,
+    applySelectedLemmaVerificationAction,
     clearVerificationErrors,
   }
 }

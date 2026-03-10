@@ -13,12 +13,13 @@ function App() {
     savedNotes,
     wordbankRefreshTick,
     activeSavedNote,
+    isVerifyingWords,
     notifications,
     isNotificationsOpen,
     setIsNotificationsOpen,
     hasUnreadNotifications,
     unreadNotifications,
-    markAllNotificationsAsRead,
+    unreadWordbankNotificationCount,
     selectPlayground,
     selectNotes,
     selectWordbank,
@@ -40,6 +41,7 @@ function App() {
         lemmas={lemmas}
         wordbankCacheVersion={wordbankRefreshTick}
         savedNotes={savedNotes}
+        unreadWordbankNotificationCount={unreadWordbankNotificationCount}
         onSelectPlayground={selectPlayground}
         onSelectNotes={selectNotes}
         onSelectWordbank={selectWordbank}
@@ -70,15 +72,13 @@ function App() {
                   autosaveStatusLabel={sectionProps.autosaveStatusLabel}
                   hasActiveSavedNote={Boolean(activeSavedNote)}
                   isNotificationsOpen={isNotificationsOpen}
+                  isVerifyingWords={isVerifyingWords}
                   hasUnreadNotifications={hasUnreadNotifications}
                   unreadCount={unreadNotifications.length}
                   notifications={notifications}
                   onOpenSaveDialog={openSaveDialog}
                   onNotificationsOpenChange={(open) => {
                     setIsNotificationsOpen(open)
-                    if (open && hasUnreadNotifications) {
-                      markAllNotificationsAsRead()
-                    }
                   }}
                 />
               ) : null}

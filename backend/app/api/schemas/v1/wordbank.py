@@ -123,14 +123,20 @@ class AddWordResponse(BaseModel):
         gloss: str | None = None
         english_translation: str | None = None
 
-    class VerificationResult(BaseModel):
-        class SuggestedChanges(BaseModel):
-            lemma_pos_tag: str | None = None
-            lemma_morphology: str | None = None
-            surface_pos_tag: str | None = None
-            surface_morphology: str | None = None
-            lexeme_translation: str | None = None
+    class VerificationAction(BaseModel):
+        action_type: Literal["fix_translation", "fix_gloss", "move_to_meaning_section", "move_to_lemma"]
+        reason: str | None = None
+        english_translation: str | None = None
+        gloss: str | None = None
+        target_meaning_id: int | None = None
+        target_lemma: str | None = None
+        target_meaning_key: str | None = None
+        target_gloss: str | None = None
+        target_english_translation: str | None = None
+        target_pos_tag: str | None = None
+        target_morphology: str | None = None
 
+    class VerificationResult(BaseModel):
         status: Literal["verified", "flagged", "error", "skipped", "queued"]
         provider: str | None = None
         reviewer_role: str | None = None
@@ -138,7 +144,7 @@ class AddWordResponse(BaseModel):
         composed_word_count: int | None = None
         problem: str | None = None
         change_to_implement: str | None = None
-        suggested_changes: SuggestedChanges | None = None
+        suggested_actions: list["AddWordResponse.VerificationAction"] = Field(default_factory=list)
 
     status: Literal["inserted", "exists"]
     stored_lemma: str
@@ -177,17 +183,10 @@ class GeneratePronunciationResponse(BaseModel):
 
 
 class ApplyVerificationChangesRequest(BaseModel):
-    class SuggestedChanges(BaseModel):
-        lemma_pos_tag: str | None = None
-        lemma_morphology: str | None = None
-        surface_pos_tag: str | None = None
-        surface_morphology: str | None = None
-        lexeme_translation: str | None = None
-
     stored_lemma: str = Field(..., min_length=1)
     stored_surface_form: str | None = None
     meaning_id: int | None = None
-    suggested_changes: SuggestedChanges
+    action: AddWordResponse.VerificationAction
     provider: str | None = None
 
 
@@ -195,7 +194,9 @@ class ApplyVerificationChangesResponse(BaseModel):
     status: Literal["applied", "skipped"]
     stored_lemma: str
     stored_surface_form: str | None
-    applied_fields: list[str] = Field(default_factory=list)
+    applied_action_type: str | None = None
+    target_lemma: str | None = None
+    target_meaning_id: int | None = None
 
 
 class LemmaSummary(BaseModel):

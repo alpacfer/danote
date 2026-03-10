@@ -1,4 +1,4 @@
-import { fireEvent, getNotesEditor, mockFetchImplementation, renderApp, screen, setNotesEditorText, vi, waitFor } from "@/test/app-test-helpers"
+import { fireEvent, getNotesEditor, mockFetchImplementation, renderApp, responseOf, screen, setNotesEditorText, vi, waitFor } from "@/test/app-test-helpers"
 
 describe("App wordbank", () => {
   it("variation cards show translated gloss instead of raw Danish gloss", async () => {
@@ -186,13 +186,13 @@ describe("App wordbank", () => {
           composed_word_count: null,
           problem: "Stored POS and translation are inconsistent for this entry.",
           change_to_implement: "Update POS to NOUN and translation to 'cat'.",
-          suggested_changes: {
-            lemma_pos_tag: "NOUN",
-            lemma_morphology: "Gender=Com|Number=Sing",
-            surface_pos_tag: "NOUN",
-            surface_morphology: "Definite=Def|Number=Sing",
-            lexeme_translation: "cat",
-          },
+          suggested_actions: [
+            {
+              action_type: "fix_translation",
+              english_translation: "cat",
+              reason: "The translation should be cat.",
+            },
+          ],
         },
       },
     })
@@ -213,8 +213,8 @@ describe("App wordbank", () => {
     const notificationsButton = await screen.findByRole("button", { name: /show notifications \(1 unread\)/i })
     fireEvent.click(notificationsButton)
     const notificationList = await screen.findByLabelText("notification-list")
-    expect(notificationList).toHaveTextContent("ERROR kat:")
-    expect(notificationList).toHaveTextContent("Change:")
+    expect(notificationList).toHaveTextContent("Review needed for 'kat'.")
+    expect(screen.getByRole("button", { name: /wordbank/i })).toHaveTextContent("1")
 
     fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
     fireEvent.click(await screen.findByRole("button", { name: /kat/i }))
@@ -227,12 +227,11 @@ describe("App wordbank", () => {
     expect(screen.getByText("Change to implement")).toBeInTheDocument()
     expect(screen.getByText(/stored pos and translation are inconsistent/i)).toBeInTheDocument()
     expect(screen.getByText(/update pos to noun and translation to 'cat'/i)).toBeInTheDocument()
-    expect(screen.getByText(/specific fields to change/i)).toBeInTheDocument()
-    expect(screen.getByText(/lemma pos: noun/i)).toBeInTheDocument()
-    expect(screen.getByText(/lemma morphology: gender=com\|number=sing/i)).toBeInTheDocument()
-    expect(screen.getByText(/lemma translation: cat/i)).toBeInTheDocument()
+    expect(screen.getByText(/suggested actions/i)).toBeInTheDocument()
+    expect(screen.getByText(/fix translation/i)).toBeInTheDocument()
+    expect(screen.getByText(/set translation to 'cat'/i)).toBeInTheDocument()
 
-    const applyButton = screen.getByRole("button", { name: /apply gemini changes/i })
+    const applyButton = screen.getByRole("button", { name: /accept action/i })
     expect(applyButton).toBeEnabled()
     fireEvent.click(applyButton)
 
@@ -245,12 +244,10 @@ describe("App wordbank", () => {
             stored_lemma: "kat",
             stored_surface_form: "kat",
             meaning_id: null,
-            suggested_changes: {
-              lemma_pos_tag: "NOUN",
-              lemma_morphology: "Gender=Com|Number=Sing",
-              surface_pos_tag: "NOUN",
-              surface_morphology: "Definite=Def|Number=Sing",
-              lexeme_translation: "cat",
+            action: {
+              action_type: "fix_translation",
+              english_translation: "cat",
+              reason: "The translation should be cat.",
             },
             provider: "gemini",
           }),
@@ -258,4 +255,91 @@ describe("App wordbank", () => {
       )
     })
   }, 15_000)
+
+  it("starts Gemini verification after save, shows the spinner, and marks the word as verified after success", async () => {
+    let resolveVerification: ((response: Response) => void) | null = null
+    const verificationRequest = new Promise<Response>((resolve) => {
+      resolveVerification = resolve
+    })
+
+    const fetchSpy = mockFetchImplementation({
+      analyzeTokens: [
+        {
+          surface_token: "kat",
+          normalized_token: "kat",
+          lemma_candidate: "kat",
+          classification: "new",
+          match_source: "none",
+          matched_lemma: null,
+          matched_surface_form: null,
+        },
+      ],
+      lemmasResponse: {
+        items: [{ lemma: "kat", variation_count: 1 }],
+      },
+      lemmaDetailsResponse: {
+        lemma: "kat",
+        english_translation: "cat",
+        is_sectioned: false,
+        pos_tag: "NOUN",
+        morphology: "Number=Sing",
+        surface_forms: [{ form: "kat", has_pronunciation: true }],
+      },
+      verifyWordHandler: () => verificationRequest,
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    setNotesEditorText("kat ")
+    await waitFor(() => {
+      const mark = getNotesEditor().querySelector("mark[data-status='new']")
+      expect(mark).toBeInTheDocument()
+    }, { timeout: 3_000 })
+
+    const mark = getNotesEditor().querySelector("mark[data-status='new']")
+    fireEvent.click(mark as HTMLElement, { clientX: 160, clientY: 140 })
+    fireEvent.click(await screen.findByRole("button", { name: /add to wordbank/i }))
+
+    await waitFor(() => {
+      expect(fetchSpy).toHaveBeenCalledWith(
+        expect.stringContaining("/api/wordbank/lexemes/verify"),
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({
+            stored_lemma: "kat",
+            stored_surface_form: "kat",
+            meaning_id: null,
+          }),
+        }),
+      )
+    })
+    await screen.findByRole("button", { name: /word verification is running/i })
+
+    resolveVerification?.(responseOf({
+      stored_lemma: "kat",
+      stored_surface_form: "kat",
+      verification: {
+        status: "verified",
+        provider: "gemini",
+        reviewer_role: "Professional Danish Language Expert",
+        message: "Verification passed.",
+        composed_word_count: null,
+        suggested_actions: [],
+      },
+    }))
+
+    await waitFor(() => {
+      expect(
+        screen.queryByRole("button", { name: /word verification is running/i }),
+      ).not.toBeInTheDocument()
+      expect(
+        screen.getByRole("button", { name: /show notifications \(1 unread\)/i }),
+      ).toBeEnabled()
+    })
+
+    fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /kat/i }))
+    expect(await screen.findByLabelText(/gemini verification passed/i)).toBeInTheDocument()
+  })
 })
