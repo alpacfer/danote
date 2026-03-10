@@ -18,12 +18,43 @@ def _test_settings(db_path) -> Settings:
     )
 
 
-def test_feedback_and_ignore_endpoints_persist_rows(tmp_path, stub_nlp_adapter_factory) -> None:
+def test_feedback_and_ignore_endpoints_persist_rows_when_typo_engine_is_available(
+    tmp_path,
+    stub_nlp_adapter_factory,
+) -> None:
     db_path = tmp_path / "danote.sqlite3"
     apply_migrations(db_path)
     app = create_app(_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
 
+    class StubTypoEngine:
+        def add_feedback(
+            self,
+            *,
+            raw_token: str,
+            predicted_status: str,
+            suggestions_shown: list[str],
+            user_action: str,
+            chosen_value: str | None,
+        ) -> None:
+            with get_connection(db_path) as conn:
+                conn.execute(
+                    """
+                    INSERT INTO typo_feedback (
+                        raw_token, predicted_status, suggestions_shown, user_action, chosen_value
+                    ) VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (raw_token, predicted_status, ",".join(suggestions_shown), user_action, chosen_value),
+                )
+
+        def add_ignored_token(self, token: str, *, scope: str, expires_at: str | None = None) -> None:
+            with get_connection(db_path) as conn:
+                conn.execute(
+                    "INSERT INTO ignored_tokens (token, scope, expires_at) VALUES (?, ?, ?)",
+                    (token.lower(), scope, expires_at),
+                )
+
     with TestClient(app) as client:
+        client.app.state.typo_engine = StubTypoEngine()
         ignore = client.post("/api/tokens/ignore", json={"token": "PLC", "scope": "global"})
         feedback = client.post(
             "/api/tokens/feedback",
@@ -48,3 +79,28 @@ def test_feedback_and_ignore_endpoints_persist_rows(tmp_path, stub_nlp_adapter_f
     assert row is not None
     assert row["raw_token"] == "spisr"
     assert row["user_action"] == "replace"
+
+
+def test_feedback_and_ignore_endpoints_return_503_without_typo_engine(
+    tmp_path,
+    stub_nlp_adapter_factory,
+) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    apply_migrations(db_path)
+    app = create_app(_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+
+    with TestClient(app) as client:
+        ignore = client.post("/api/tokens/ignore", json={"token": "PLC", "scope": "global"})
+        feedback = client.post(
+            "/api/tokens/feedback",
+            json={
+                "raw_token": "spisr",
+                "predicted_status": "typo_likely",
+                "suggestions_shown": ["spiser"],
+                "user_action": "replace",
+                "chosen_value": "spiser",
+            },
+        )
+
+    assert ignore.status_code == 503
+    assert feedback.status_code == 503

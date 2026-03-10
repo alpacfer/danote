@@ -4,17 +4,17 @@ from fastapi.testclient import TestClient
 
 from app.db.migrations import apply_migrations
 from app.main import create_app
+from tests.api.support import build_api_test_app
 from tests.api.wordbank_test_support import (
+    build_test_settings,
     seed_cor_local_bog_senses,
     seed_cor_local_db,
-    test_settings,
 )
 
 
 def test_search_lemmas_returns_variation_matches(tmp_path, stub_nlp_adapter_factory) -> None:
     db_path = tmp_path / "danote.sqlite3"
-    apply_migrations(db_path)
-    app = create_app(test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+    app = build_api_test_app(db_path, nlp_adapter_factory=stub_nlp_adapter_factory)
 
     with TestClient(app) as client:
         client.post("/api/wordbank/lexemes", json={"surface_token": "bogens", "lemma_candidate": "bog"})
@@ -34,8 +34,7 @@ def test_search_lemmas_returns_variation_matches(tmp_path, stub_nlp_adapter_fact
 
 def test_search_lemmas_prefers_matched_surface_metadata(tmp_path, stub_nlp_adapter_factory) -> None:
     db_path = tmp_path / "danote.sqlite3"
-    apply_migrations(db_path)
-    app = create_app(test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+    app = build_api_test_app(db_path, nlp_adapter_factory=stub_nlp_adapter_factory)
 
     with TestClient(app) as client:
         client.post(
@@ -61,11 +60,11 @@ def test_search_lemmas_prefers_matched_surface_metadata(tmp_path, stub_nlp_adapt
 def test_search_lemmas_returns_query_cor_ids_for_exact_form(tmp_path, stub_nlp_adapter_factory) -> None:
     db_path = tmp_path / "danote.sqlite3"
     cor_db_path = tmp_path / "cor.sqlite"
-    apply_migrations(db_path)
     seed_cor_local_bog_senses(cor_db_path)
-    app = create_app(
-        test_settings(db_path, cor_local_db_path=cor_db_path),
+    app = build_api_test_app(
+        db_path,
         nlp_adapter_factory=stub_nlp_adapter_factory,
+        cor_local_db_path=cor_db_path,
     )
 
     with TestClient(app) as client:
@@ -89,11 +88,11 @@ def test_search_lemmas_returns_query_cor_ids_for_exact_form(tmp_path, stub_nlp_a
 def test_search_lemmas_returns_two_rows_for_exact_homograph_lemma(tmp_path, stub_nlp_adapter_factory) -> None:
     db_path = tmp_path / "danote.sqlite3"
     cor_db_path = tmp_path / "cor.sqlite"
-    apply_migrations(db_path)
     seed_cor_local_bog_senses(cor_db_path)
-    app = create_app(
-        test_settings(db_path, cor_local_db_path=cor_db_path),
+    app = build_api_test_app(
+        db_path,
         nlp_adapter_factory=stub_nlp_adapter_factory,
+        cor_local_db_path=cor_db_path,
     )
 
     with TestClient(app) as client:
@@ -120,7 +119,7 @@ def test_search_cor_form_returns_grouped_variants(tmp_path, stub_nlp_adapter_fac
     apply_migrations(db_path)
     seed_cor_local_db(cor_db_path)
     app = create_app(
-        test_settings(db_path, cor_local_db_path=cor_db_path),
+        build_test_settings(db_path, cor_local_db_path=cor_db_path),
         nlp_adapter_factory=stub_nlp_adapter_factory,
     )
 
@@ -141,7 +140,7 @@ def test_search_cor_lemma_returns_paradigm_forms(tmp_path, stub_nlp_adapter_fact
     apply_migrations(db_path)
     seed_cor_local_db(cor_db_path)
     app = create_app(
-        test_settings(db_path, cor_local_db_path=cor_db_path),
+        build_test_settings(db_path, cor_local_db_path=cor_db_path),
         nlp_adapter_factory=stub_nlp_adapter_factory,
     )
 
@@ -161,7 +160,7 @@ def test_search_cor_form_works_when_nlp_is_unavailable(tmp_path) -> None:
     def failing_nlp_factory(_settings):
         raise RuntimeError("NLP startup failed")
 
-    app = create_app(test_settings(db_path, cor_local_db_path=cor_db_path), nlp_adapter_factory=failing_nlp_factory)
+    app = create_app(build_test_settings(db_path, cor_local_db_path=cor_db_path), nlp_adapter_factory=failing_nlp_factory)
     with TestClient(app) as client:
         response = client.get("/api/wordbank/search/cor-form", params={"form": "lærer", "include_translations": "false"})
 
@@ -175,7 +174,7 @@ def test_search_cor_form_returns_azure_error_when_translations_requested_without
     apply_migrations(db_path)
     seed_cor_local_db(cor_db_path)
     app = create_app(
-        test_settings(db_path, cor_local_db_path=cor_db_path),
+        build_test_settings(db_path, cor_local_db_path=cor_db_path),
         nlp_adapter_factory=stub_nlp_adapter_factory,
     )
 

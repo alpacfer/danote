@@ -4,6 +4,8 @@
       "surface_token": "Jeg",
       "normalized_token": "jeg",
       "lemma_candidate": "jeg",
+      "pos_tag": "PRON",
+      "morphology": "Case=Nom|Gender=Com|Number=Sing|Person=1|PronType=Prs",
       "classification": "new",
       "match_source": "none",
       "matched_lemma": null,
@@ -14,15 +16,27 @@
         "gating_ok",
         "gating_skip_dictionary_exact"
       ],
-      "status": "new",
-      "surface": "Jeg",
-      "normalized": "jeg",
-      "lemma": "jeg"
+      "word_actions": [
+        {
+          "action_type": "add_as_new",
+          "surface": "jeg",
+          "lemma": "jeg",
+          "cor_id": null,
+          "translation_label": "jeg",
+          "direction": "da_to_en",
+          "direction_label": "Danish -> English",
+          "pos_tag": "PRON",
+          "morphology": "Case=Nom|Gender=Com|Number=Sing|Person=1|PronType=Prs",
+          "show_lemma": false
+        }
+      ]
     },
     {
       "surface_token": "kan",
       "normalized_token": "kan",
       "lemma_candidate": "kan",
+      "pos_tag": "AUX",
+      "morphology": "Mood=Ind|Tense=Pres|VerbForm=Fin|Voice=Act",
       "classification": "known",
       "match_source": "exact",
       "matched_lemma": "kan",
@@ -32,15 +46,27 @@
       "reason_tags": [
         "exact_match"
       ],
-      "status": "known",
-      "surface": "kan",
-      "normalized": "kan",
-      "lemma": "kan"
+      "word_actions": [
+        {
+          "action_type": "open_wordbank",
+          "surface": "kan",
+          "lemma": "kan",
+          "cor_id": null,
+          "translation_label": null,
+          "direction": "known",
+          "direction_label": "Wordbank",
+          "pos_tag": "AUX",
+          "morphology": "Mood=Ind|Tense=Pres|VerbForm=Fin|Voice=Act",
+          "show_lemma": false
+        }
+      ]
     },
     {
       "surface_token": "godt",
       "normalized_token": "godt",
       "lemma_candidate": "god",
+      "pos_tag": "ADV",
+      "morphology": "Degree=Pos",
       "classification": "new",
       "match_source": "none",
       "matched_lemma": null,
@@ -51,15 +77,27 @@
         "gating_ok",
         "gating_skip_dictionary_exact"
       ],
-      "status": "new",
-      "surface": "godt",
-      "normalized": "godt",
-      "lemma": "god"
+      "word_actions": [
+        {
+          "action_type": "add_as_new",
+          "surface": "godt",
+          "lemma": "god",
+          "cor_id": null,
+          "translation_label": "godt",
+          "direction": "da_to_en",
+          "direction_label": "Danish -> English",
+          "pos_tag": "ADV",
+          "morphology": "Degree=Pos",
+          "show_lemma": true
+        }
+      ]
     },
     {
       "surface_token": "lide",
       "normalized_token": "lide",
       "lemma_candidate": "lide",
+      "pos_tag": "VERB",
+      "morphology": "VerbForm=Inf|Voice=Act",
       "classification": "known",
       "match_source": "exact",
       "matched_lemma": "lide",
@@ -69,15 +107,27 @@
       "reason_tags": [
         "exact_match"
       ],
-      "status": "known",
-      "surface": "lide",
-      "normalized": "lide",
-      "lemma": "lide"
+      "word_actions": [
+        {
+          "action_type": "open_wordbank",
+          "surface": "lide",
+          "lemma": "lide",
+          "cor_id": null,
+          "translation_label": null,
+          "direction": "known",
+          "direction_label": "Wordbank",
+          "pos_tag": "VERB",
+          "morphology": "VerbForm=Inf|Voice=Act",
+          "show_lemma": false
+        }
+      ]
     },
     {
       "surface_token": "bogen",
       "normalized_token": "bogen",
       "lemma_candidate": "bog",
+      "pos_tag": "NOUN",
+      "morphology": "Definite=Def|Gender=Com|Number=Sing",
       "classification": "variation",
       "match_source": "lemma",
       "matched_lemma": "bog",
@@ -87,15 +137,27 @@
       "reason_tags": [
         "lemma_match"
       ],
-      "status": "variation",
-      "surface": "bogen",
-      "normalized": "bogen",
-      "lemma": "bog"
+      "word_actions": [
+        {
+          "action_type": "add_variation",
+          "surface": "bogen",
+          "lemma": "bog",
+          "cor_id": null,
+          "translation_label": "bogen",
+          "direction": "variation",
+          "direction_label": "Variation",
+          "pos_tag": "NOUN",
+          "morphology": "Definite=Def|Gender=Com|Number=Sing",
+          "show_lemma": false
+        }
+      ]
     },
     {
       "surface_token": "Jeg",
       "normalized_token": "jeg",
       "lemma_candidate": "jeg",
+      "pos_tag": "PRON",
+      "morphology": "Case=Nom|Gender=Com|Number=Sing|Person=1|PronType=Prs",
       "classification": "new",
       "match_source": "none",
       "matched_lemma": null,
@@ -107,15 +169,27 @@
         "proper_noun_bias",
         "gating_skip_dictionary_exact"
       ],
-      "status": "new",
-      "surface": "Jeg",
-      "normalized": "jeg",
-      "lemma": "jeg"
+      "word_actions": [
+        {
+          "action_type": "add_as_new",
+          "surface": "jeg",
+          "lemma": "jeg",
+          "cor_id": null,
+          "translation_label": "jeg",
+          "direction": "da_to_en",
+          "direction_label": "Danish -> English",
+          "pos_tag": "PRON",
+          "morphology": "Case=Nom|Gender=Com|Number=Sing|Person=1|PronType=Prs",
+          "show_lemma": false
+        }
+      ]
     },
     {
       "surface_token": "kan",
       "normalized_token": "kan",
       "lemma_candidate": "kan",
+      "pos_tag": "AUX",
+      "morphology": "Mood=Ind|Tense=Pres|VerbForm=Fin|Voice=Act",
       "classification": "known",
       "match_source": "exact",
       "matched_lemma": "kan",
@@ -125,15 +199,27 @@
       "reason_tags": [
         "exact_match"
       ],
-      "status": "known",
-      "surface": "kan",
-      "normalized": "kan",
-      "lemma": "kan"
+      "word_actions": [
+        {
+          "action_type": "open_wordbank",
+          "surface": "kan",
+          "lemma": "kan",
+          "cor_id": null,
+          "translation_label": null,
+          "direction": "known",
+          "direction_label": "Wordbank",
+          "pos_tag": "AUX",
+          "morphology": "Mood=Ind|Tense=Pres|VerbForm=Fin|Voice=Act",
+          "show_lemma": false
+        }
+      ]
     },
     {
       "surface_token": "lide",
       "normalized_token": "lide",
       "lemma_candidate": "lide",
+      "pos_tag": "VERB",
+      "morphology": "VerbForm=Inf|Voice=Act",
       "classification": "known",
       "match_source": "exact",
       "matched_lemma": "lide",
@@ -143,15 +229,27 @@
       "reason_tags": [
         "exact_match"
       ],
-      "status": "known",
-      "surface": "lide",
-      "normalized": "lide",
-      "lemma": "lide"
+      "word_actions": [
+        {
+          "action_type": "open_wordbank",
+          "surface": "lide",
+          "lemma": "lide",
+          "cor_id": null,
+          "translation_label": null,
+          "direction": "known",
+          "direction_label": "Wordbank",
+          "pos_tag": "VERB",
+          "morphology": "VerbForm=Inf|Voice=Act",
+          "show_lemma": false
+        }
+      ]
     },
     {
       "surface_token": "bogen",
       "normalized_token": "bogen",
       "lemma_candidate": "bog",
+      "pos_tag": "NOUN",
+      "morphology": "Definite=Def|Gender=Com|Number=Sing",
       "classification": "variation",
       "match_source": "lemma",
       "matched_lemma": "bog",
@@ -161,33 +259,27 @@
       "reason_tags": [
         "lemma_match"
       ],
-      "status": "variation",
-      "surface": "bogen",
-      "normalized": "bogen",
-      "lemma": "bog"
-    },
-    {
-      "surface_token": "og",
-      "normalized_token": "og",
-      "lemma_candidate": "og",
-      "classification": "new",
-      "match_source": "none",
-      "matched_lemma": null,
-      "matched_surface_form": null,
-      "suggestions": [],
-      "confidence": 0.0,
-      "reason_tags": [
-        "gating_skip_short"
-      ],
-      "status": "new",
-      "surface": "og",
-      "normalized": "og",
-      "lemma": "og"
+      "word_actions": [
+        {
+          "action_type": "add_variation",
+          "surface": "bogen",
+          "lemma": "bog",
+          "cor_id": null,
+          "translation_label": "bogen",
+          "direction": "variation",
+          "direction_label": "Variation",
+          "pos_tag": "NOUN",
+          "morphology": "Definite=Def|Gender=Com|Number=Sing",
+          "show_lemma": false
+        }
+      ]
     },
     {
       "surface_token": "jeg",
       "normalized_token": "jeg",
       "lemma_candidate": "jeg",
+      "pos_tag": "PRON",
+      "morphology": "Case=Nom|Gender=Com|Number=Sing|Person=1|PronType=Prs",
       "classification": "new",
       "match_source": "none",
       "matched_lemma": null,
@@ -199,15 +291,27 @@
         "proper_noun_bias",
         "gating_skip_dictionary_exact"
       ],
-      "status": "new",
-      "surface": "jeg",
-      "normalized": "jeg",
-      "lemma": "jeg"
+      "word_actions": [
+        {
+          "action_type": "add_as_new",
+          "surface": "jeg",
+          "lemma": "jeg",
+          "cor_id": null,
+          "translation_label": "jeg",
+          "direction": "da_to_en",
+          "direction_label": "Danish -> English",
+          "pos_tag": "PRON",
+          "morphology": "Case=Nom|Gender=Com|Number=Sing|Person=1|PronType=Prs",
+          "show_lemma": false
+        }
+      ]
     },
     {
       "surface_token": "kan",
       "normalized_token": "kan",
       "lemma_candidate": "kan",
+      "pos_tag": "AUX",
+      "morphology": "Mood=Ind|Tense=Pres|VerbForm=Fin|Voice=Act",
       "classification": "known",
       "match_source": "exact",
       "matched_lemma": "kan",
@@ -217,15 +321,27 @@
       "reason_tags": [
         "exact_match"
       ],
-      "status": "known",
-      "surface": "kan",
-      "normalized": "kan",
-      "lemma": "kan"
+      "word_actions": [
+        {
+          "action_type": "open_wordbank",
+          "surface": "kan",
+          "lemma": "kan",
+          "cor_id": null,
+          "translation_label": null,
+          "direction": "known",
+          "direction_label": "Wordbank",
+          "pos_tag": "AUX",
+          "morphology": "Mood=Ind|Tense=Pres|VerbForm=Fin|Voice=Act",
+          "show_lemma": false
+        }
+      ]
     },
     {
       "surface_token": "lide",
       "normalized_token": "lide",
       "lemma_candidate": "lide",
+      "pos_tag": "VERB",
+      "morphology": "VerbForm=Inf|Voice=Act",
       "classification": "known",
       "match_source": "exact",
       "matched_lemma": "lide",
@@ -235,15 +351,27 @@
       "reason_tags": [
         "exact_match"
       ],
-      "status": "known",
-      "surface": "lide",
-      "normalized": "lide",
-      "lemma": "lide"
+      "word_actions": [
+        {
+          "action_type": "open_wordbank",
+          "surface": "lide",
+          "lemma": "lide",
+          "cor_id": null,
+          "translation_label": null,
+          "direction": "known",
+          "direction_label": "Wordbank",
+          "pos_tag": "VERB",
+          "morphology": "VerbForm=Inf|Voice=Act",
+          "show_lemma": false
+        }
+      ]
     },
     {
       "surface_token": "BOGEN",
       "normalized_token": "bogen",
       "lemma_candidate": "bog",
+      "pos_tag": "NOUN",
+      "morphology": "Definite=Def|Gender=Com|Number=Sing",
       "classification": "variation",
       "match_source": "lemma",
       "matched_lemma": "bog",
@@ -253,10 +381,20 @@
       "reason_tags": [
         "lemma_match"
       ],
-      "status": "variation",
-      "surface": "BOGEN",
-      "normalized": "bogen",
-      "lemma": "bog"
+      "word_actions": [
+        {
+          "action_type": "add_variation",
+          "surface": "bogen",
+          "lemma": "bog",
+          "cor_id": null,
+          "translation_label": "bogen",
+          "direction": "variation",
+          "direction_label": "Variation",
+          "pos_tag": "NOUN",
+          "morphology": "Definite=Def|Gender=Com|Number=Sing",
+          "show_lemma": false
+        }
+      ]
     }
   ]
 }

@@ -10,6 +10,7 @@
 2. **Medium layer (PR default)**
    - Backend integration/reliability subset:
      - `tests/system/test_reliability.py`
+     - `tests/system/test_analysis_endpoint_real_nlp.py`
 
 3. **Slow layer (manual/scheduled)**
    - Backend regression fixture tests:
@@ -27,6 +28,7 @@ Medium checks:
 
 ```bash
 bash ./scripts/pytest-backend.sh -q tests/system/test_reliability.py
+bash ./scripts/pytest-backend.sh -q tests/system/test_analysis_endpoint_real_nlp.py
 ```
 
 Slow checks:

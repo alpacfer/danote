@@ -4,6 +4,8 @@
       "surface_token": "JEG",
       "normalized_token": "jeg",
       "lemma_candidate": "jeg",
+      "pos_tag": "PRON",
+      "morphology": "Case=Nom|Gender=Com|Number=Sing|Person=1|PronType=Prs",
       "classification": "new",
       "match_source": "none",
       "matched_lemma": null,
@@ -13,15 +15,27 @@
       "reason_tags": [
         "gating_skip_acronym"
       ],
-      "status": "new",
-      "surface": "JEG",
-      "normalized": "jeg",
-      "lemma": "jeg"
+      "word_actions": [
+        {
+          "action_type": "add_as_new",
+          "surface": "jeg",
+          "lemma": "jeg",
+          "cor_id": null,
+          "translation_label": "jeg",
+          "direction": "da_to_en",
+          "direction_label": "Danish -> English",
+          "pos_tag": "PRON",
+          "morphology": "Case=Nom|Gender=Com|Number=Sing|Person=1|PronType=Prs",
+          "show_lemma": false
+        }
+      ]
     },
     {
       "surface_token": "kan",
       "normalized_token": "kan",
       "lemma_candidate": "kan",
+      "pos_tag": "AUX",
+      "morphology": "Mood=Ind|Tense=Pres|VerbForm=Fin|Voice=Act",
       "classification": "known",
       "match_source": "exact",
       "matched_lemma": "kan",
@@ -31,15 +45,27 @@
       "reason_tags": [
         "exact_match"
       ],
-      "status": "known",
-      "surface": "kan",
-      "normalized": "kan",
-      "lemma": "kan"
+      "word_actions": [
+        {
+          "action_type": "open_wordbank",
+          "surface": "kan",
+          "lemma": "kan",
+          "cor_id": null,
+          "translation_label": null,
+          "direction": "known",
+          "direction_label": "Wordbank",
+          "pos_tag": "AUX",
+          "morphology": "Mood=Ind|Tense=Pres|VerbForm=Fin|Voice=Act",
+          "show_lemma": false
+        }
+      ]
     },
     {
       "surface_token": "LIDE",
       "normalized_token": "lide",
       "lemma_candidate": "lide",
+      "pos_tag": "VERB",
+      "morphology": "VerbForm=Inf|Voice=Act",
       "classification": "known",
       "match_source": "exact",
       "matched_lemma": "lide",
@@ -49,15 +75,27 @@
       "reason_tags": [
         "exact_match"
       ],
-      "status": "known",
-      "surface": "LIDE",
-      "normalized": "lide",
-      "lemma": "lide"
+      "word_actions": [
+        {
+          "action_type": "open_wordbank",
+          "surface": "lide",
+          "lemma": "lide",
+          "cor_id": null,
+          "translation_label": null,
+          "direction": "known",
+          "direction_label": "Wordbank",
+          "pos_tag": "VERB",
+          "morphology": "VerbForm=Inf|Voice=Act",
+          "show_lemma": false
+        }
+      ]
     },
     {
       "surface_token": "Bogen",
       "normalized_token": "bogen",
       "lemma_candidate": "bog",
+      "pos_tag": "NOUN",
+      "morphology": "Definite=Def|Gender=Com|Number=Sing",
       "classification": "variation",
       "match_source": "lemma",
       "matched_lemma": "bog",
@@ -67,33 +105,27 @@
       "reason_tags": [
         "lemma_match"
       ],
-      "status": "variation",
-      "surface": "Bogen",
-      "normalized": "bogen",
-      "lemma": "bog"
-    },
-    {
-      "surface_token": "og",
-      "normalized_token": "og",
-      "lemma_candidate": "og",
-      "classification": "new",
-      "match_source": "none",
-      "matched_lemma": null,
-      "matched_surface_form": null,
-      "suggestions": [],
-      "confidence": 0.0,
-      "reason_tags": [
-        "gating_skip_short"
-      ],
-      "status": "new",
-      "surface": "og",
-      "normalized": "og",
-      "lemma": "og"
+      "word_actions": [
+        {
+          "action_type": "add_variation",
+          "surface": "bogen",
+          "lemma": "bog",
+          "cor_id": null,
+          "translation_label": "bogen",
+          "direction": "variation",
+          "direction_label": "Variation",
+          "pos_tag": "NOUN",
+          "morphology": "Definite=Def|Gender=Com|Number=Sing",
+          "show_lemma": false
+        }
+      ]
     },
     {
       "surface_token": "BOG",
       "normalized_token": "bog",
       "lemma_candidate": "bog",
+      "pos_tag": "X",
+      "morphology": null,
       "classification": "known",
       "match_source": "exact",
       "matched_lemma": "bog",
@@ -103,10 +135,20 @@
       "reason_tags": [
         "exact_match"
       ],
-      "status": "known",
-      "surface": "BOG",
-      "normalized": "bog",
-      "lemma": "bog"
+      "word_actions": [
+        {
+          "action_type": "open_wordbank",
+          "surface": "bog",
+          "lemma": "bog",
+          "cor_id": null,
+          "translation_label": null,
+          "direction": "known",
+          "direction_label": "Wordbank",
+          "pos_tag": "X",
+          "morphology": null,
+          "show_lemma": false
+        }
+      ]
     }
   ]
 }

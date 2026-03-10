@@ -5,13 +5,13 @@ from fastapi.testclient import TestClient
 from app.core.app_state import set_service_field
 from app.db.migrations import apply_migrations, get_connection
 from app.main import create_app
-from tests.api.wordbank_test_support import seed_cor_local_bog_senses, test_settings
+from tests.api.wordbank_test_support import build_test_settings, seed_cor_local_bog_senses
 
 
 def test_add_word_inserts_lemma_and_surface_form(tmp_path, stub_nlp_adapter_factory) -> None:
     db_path = tmp_path / "danote.sqlite3"
     apply_migrations(db_path)
-    app = create_app(test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+    app = create_app(build_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
 
     with TestClient(app) as client:
         response = client.post(
@@ -51,7 +51,7 @@ def test_add_word_inserts_lemma_and_surface_form(tmp_path, stub_nlp_adapter_fact
 def test_add_word_includes_verification_result_when_service_is_available(tmp_path, stub_nlp_adapter_factory) -> None:
     db_path = tmp_path / "danote.sqlite3"
     apply_migrations(db_path)
-    app = create_app(test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+    app = create_app(build_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
 
     class StubVerificationService:
         provider = "gemini"
@@ -96,7 +96,7 @@ def test_add_word_includes_verification_result_when_service_is_available(tmp_pat
 def test_add_word_duplicate_is_graceful(tmp_path, stub_nlp_adapter_factory) -> None:
     db_path = tmp_path / "danote.sqlite3"
     apply_migrations(db_path)
-    app = create_app(test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+    app = create_app(build_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
 
     with TestClient(app) as client:
         first = client.post("/api/wordbank/lexemes", json={"surface_token": "kat", "lemma_candidate": "kat"})
@@ -115,7 +115,7 @@ def test_add_word_with_new_cor_id_for_existing_form_is_inserted(tmp_path, stub_n
     apply_migrations(db_path)
     seed_cor_local_bog_senses(cor_db_path)
     app = create_app(
-        test_settings(db_path, cor_local_db_path=cor_db_path),
+        build_test_settings(db_path, cor_local_db_path=cor_db_path),
         nlp_adapter_factory=stub_nlp_adapter_factory,
     )
 
@@ -148,7 +148,7 @@ def test_add_word_creates_non_verb_meaning_sections_from_gloss(tmp_path, stub_nl
     apply_migrations(db_path)
     seed_cor_local_bog_senses(cor_db_path)
     app = create_app(
-        test_settings(db_path, cor_local_db_path=cor_db_path),
+        build_test_settings(db_path, cor_local_db_path=cor_db_path),
         nlp_adapter_factory=stub_nlp_adapter_factory,
     )
 
@@ -178,7 +178,7 @@ def test_add_word_saves_variation_under_existing_meaning_section(tmp_path, stub_
     apply_migrations(db_path)
     seed_cor_local_bog_senses(cor_db_path)
     app = create_app(
-        test_settings(db_path, cor_local_db_path=cor_db_path),
+        build_test_settings(db_path, cor_local_db_path=cor_db_path),
         nlp_adapter_factory=stub_nlp_adapter_factory,
     )
 
@@ -205,7 +205,7 @@ def test_add_word_uses_gemini_to_route_variation_when_multiple_sections_exist(tm
     apply_migrations(db_path)
     seed_cor_local_bog_senses(cor_db_path)
     app = create_app(
-        test_settings(db_path, cor_local_db_path=cor_db_path),
+        build_test_settings(db_path, cor_local_db_path=cor_db_path),
         nlp_adapter_factory=stub_nlp_adapter_factory,
     )
 
@@ -248,7 +248,7 @@ def test_add_word_creates_new_section_when_gemini_cannot_pick_existing_section(t
     apply_migrations(db_path)
     seed_cor_local_bog_senses(cor_db_path)
     app = create_app(
-        test_settings(db_path, cor_local_db_path=cor_db_path),
+        build_test_settings(db_path, cor_local_db_path=cor_db_path),
         nlp_adapter_factory=stub_nlp_adapter_factory,
     )
 
@@ -286,7 +286,7 @@ def test_add_word_creates_new_section_when_gemini_cannot_pick_existing_section(t
 def test_list_lemmas_returns_sorted_lemmas_with_variation_counts(tmp_path, stub_nlp_adapter_factory) -> None:
     db_path = tmp_path / "danote.sqlite3"
     apply_migrations(db_path)
-    app = create_app(test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+    app = create_app(build_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
 
     with TestClient(app) as client:
         client.post("/api/wordbank/lexemes", json={"surface_token": "bogen", "lemma_candidate": "bog"})
@@ -304,7 +304,7 @@ def test_list_lemmas_returns_sorted_lemmas_with_variation_counts(tmp_path, stub_
 def test_get_lemma_details_returns_all_saved_variations(tmp_path, stub_nlp_adapter_factory) -> None:
     db_path = tmp_path / "danote.sqlite3"
     apply_migrations(db_path)
-    app = create_app(test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+    app = create_app(build_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
 
     with TestClient(app) as client:
         client.post("/api/wordbank/lexemes", json={"surface_token": "bogen", "lemma_candidate": "bog"})
@@ -325,7 +325,7 @@ def test_get_lemma_details_returns_all_saved_variations(tmp_path, stub_nlp_adapt
 def test_get_lemma_details_returns_not_found_for_unknown_lemma(tmp_path, stub_nlp_adapter_factory) -> None:
     db_path = tmp_path / "danote.sqlite3"
     apply_migrations(db_path)
-    app = create_app(test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+    app = create_app(build_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
 
     with TestClient(app) as client:
         response = client.get("/api/wordbank/lemmas/missing")
@@ -337,7 +337,7 @@ def test_get_lemma_details_returns_not_found_for_unknown_lemma(tmp_path, stub_nl
 def test_reset_database_clears_tables(tmp_path, stub_nlp_adapter_factory) -> None:
     db_path = tmp_path / "danote.sqlite3"
     apply_migrations(db_path)
-    app = create_app(test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+    app = create_app(build_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
 
     with TestClient(app) as client:
         client.post("/api/wordbank/lexemes", json={"surface_token": "bogen", "lemma_candidate": "bog"})
@@ -368,7 +368,7 @@ def test_wordbank_endpoints_require_reset_for_legacy_non_verb_rows(tmp_path, stu
             (int(lexeme_row["id"]), "bogen", "manual"),
         )
 
-    app = create_app(test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+    app = create_app(build_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
     with TestClient(app) as client:
         list_response = client.get("/api/wordbank/lemmas")
         add_response = client.post(

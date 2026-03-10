@@ -41,11 +41,11 @@ def test_db_init_creates_expected_tables(tmp_path) -> None:
         "lexeme_meanings",
         "surface_forms",
         "surface_form_cor_variants",
-        "wordbank_search_fts",
         "phrase_translations",
         "token_events",
         "typo_feedback",
         "ignored_tokens",
+        "sentence_bank",
     }.issubset(table_names)
 
 
@@ -108,14 +108,19 @@ def test_uniqueness_constraints_reject_duplicates(tmp_path) -> None:
                 "INSERT INTO surface_forms (lexeme_id, form, source) VALUES (?, ?, ?)",
                 (lexeme_id, "bogen", "manual"),
             )
+        surface_form_id = conn.execute(
+            "SELECT id FROM surface_forms WHERE lexeme_id = ? AND form = ?",
+            (lexeme_id, "bogen"),
+        ).fetchone()["id"]
+
         conn.execute(
-            "INSERT INTO surface_form_cor_variants (lexeme_id, form, cor_id) VALUES (?, ?, ?)",
-            (lexeme_id, "bogen", "COR.123.110.01"),
+            "INSERT INTO surface_form_cor_variants (surface_form_id, cor_id) VALUES (?, ?)",
+            (surface_form_id, "COR.123.110.01"),
         )
         with pytest.raises(sqlite3.IntegrityError):
             conn.execute(
-                "INSERT INTO surface_form_cor_variants (lexeme_id, form, cor_id) VALUES (?, ?, ?)",
-                (lexeme_id, "bogen", "COR.123.110.01"),
+                "INSERT INTO surface_form_cor_variants (surface_form_id, cor_id) VALUES (?, ?)",
+                (surface_form_id, "COR.123.110.01"),
             )
 
         conn.execute(
@@ -141,5 +146,23 @@ def test_surface_form_cor_variants_has_expected_indexes(tmp_path) -> None:
             ).fetchall()
         }
 
-    assert "idx_surface_form_cor_variants_lexeme_form" in indexes
+    assert "idx_surface_form_cor_variants_surface_form_id" in indexes
     assert "idx_surface_form_cor_variants_cor_id" in indexes
+
+
+def test_surface_form_cor_variants_has_expected_columns(tmp_path) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    apply_migrations(db_path)
+
+    with get_connection(db_path) as conn:
+        columns = {
+            row["name"]: row["type"]
+            for row in conn.execute("PRAGMA table_info(surface_form_cor_variants)").fetchall()
+        }
+
+    assert columns == {
+        "id": "INTEGER",
+        "surface_form_id": "INTEGER",
+        "cor_id": "TEXT",
+        "created_at": "TEXT",
+    }

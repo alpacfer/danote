@@ -7,13 +7,13 @@ from fastapi.testclient import TestClient
 from app.core.app_state import set_service_field
 from app.db.migrations import apply_migrations, get_connection
 from app.main import create_app
-from tests.api.wordbank_test_support import test_settings
+from tests.api.support import build_api_test_app
+from tests.api.wordbank_test_support import build_test_settings
 
 
 def test_generate_translation_returns_generated_value(tmp_path, stub_nlp_adapter_factory) -> None:
     db_path = tmp_path / "danote.sqlite3"
-    apply_migrations(db_path)
-    app = create_app(test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+    app = build_api_test_app(db_path, nlp_adapter_factory=stub_nlp_adapter_factory)
 
     class StubTranslationService:
         def translate_da_to_en(self, text: str) -> str | None:
@@ -35,7 +35,6 @@ def test_generate_translation_returns_generated_value(tmp_path, stub_nlp_adapter
 def test_generate_translation_uses_gemini_for_gloss_aware_words(tmp_path, stub_nlp_adapter_factory) -> None:
     db_path = tmp_path / "danote.sqlite3"
     cor_local_db_path = tmp_path / "cor.sqlite"
-    apply_migrations(db_path)
     with sqlite3.connect(cor_local_db_path) as conn:
         conn.execute(
             """
@@ -61,9 +60,10 @@ def test_generate_translation_uses_gemini_for_gloss_aware_words(tmp_path, stub_n
             """,
             (("COR.123.111.01", "bog", "book", "sb.fk.sg.best", "bogen", "N", 123, 111, 1),),
         )
-    app = create_app(
-        test_settings(db_path, cor_local_db_path=cor_local_db_path),
+    app = build_api_test_app(
+        db_path,
         nlp_adapter_factory=stub_nlp_adapter_factory,
+        cor_local_db_path=cor_local_db_path,
     )
 
     class StubGeminiWordTranslationService:
@@ -88,8 +88,7 @@ def test_generate_translation_uses_gemini_for_gloss_aware_words(tmp_path, stub_n
 
 def test_generate_translation_uses_gemini_when_azure_returns_same_text(tmp_path, stub_nlp_adapter_factory) -> None:
     db_path = tmp_path / "danote.sqlite3"
-    apply_migrations(db_path)
-    app = create_app(test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+    app = build_api_test_app(db_path, nlp_adapter_factory=stub_nlp_adapter_factory)
 
     class StubTranslationService:
         provider = "azure_translator"
@@ -124,7 +123,7 @@ def test_generate_translation_uses_gemini_when_azure_returns_same_text(tmp_path,
 def test_generate_translation_returns_unavailable_when_provider_has_none(tmp_path, stub_nlp_adapter_factory) -> None:
     db_path = tmp_path / "danote.sqlite3"
     apply_migrations(db_path)
-    app = create_app(test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+    app = create_app(build_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
 
     with TestClient(app) as client:
         response = client.post("/api/wordbank/translation", json={"surface_token": "katten", "lemma_candidate": "kat"})
@@ -137,7 +136,7 @@ def test_generate_translation_returns_unavailable_when_provider_has_none(tmp_pat
 def test_generate_reverse_translation_returns_generated_value(tmp_path, stub_nlp_adapter_factory) -> None:
     db_path = tmp_path / "danote.sqlite3"
     apply_migrations(db_path)
-    app = create_app(test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+    app = create_app(build_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
 
     class StubTranslationService:
         def translate_da_to_en(self, text: str) -> str | None:
@@ -157,7 +156,7 @@ def test_generate_reverse_translation_returns_generated_value(tmp_path, stub_nlp
 def test_generate_reverse_translation_normalizes_provider_case(tmp_path, stub_nlp_adapter_factory) -> None:
     db_path = tmp_path / "danote.sqlite3"
     apply_migrations(db_path)
-    app = create_app(test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+    app = create_app(build_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
 
     class StubTranslationService:
         def translate_da_to_en(self, text: str) -> str | None:
@@ -177,7 +176,7 @@ def test_generate_reverse_translation_normalizes_provider_case(tmp_path, stub_nl
 def test_detect_word_language_returns_provider_detected_english(tmp_path, stub_nlp_adapter_factory) -> None:
     db_path = tmp_path / "danote.sqlite3"
     apply_migrations(db_path)
-    app = create_app(test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+    app = create_app(build_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
 
     class StubTranslationService:
         def translate_da_to_en(self, text: str) -> str | None:
@@ -200,7 +199,7 @@ def test_detect_word_language_returns_provider_detected_english(tmp_path, stub_n
 def test_detect_word_language_returns_danish_for_danish_chars(tmp_path, stub_nlp_adapter_factory) -> None:
     db_path = tmp_path / "danote.sqlite3"
     apply_migrations(db_path)
-    app = create_app(test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+    app = create_app(build_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
 
     with TestClient(app) as client:
         response = client.post("/api/wordbank/detect-language", json={"source_word": "børn"})
@@ -212,7 +211,7 @@ def test_detect_word_language_returns_danish_for_danish_chars(tmp_path, stub_nlp
 def test_generate_phrase_translation_returns_cached_value_without_second_provider_call(tmp_path, stub_nlp_adapter_factory) -> None:
     db_path = tmp_path / "danote.sqlite3"
     apply_migrations(db_path)
-    app = create_app(test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+    app = create_app(build_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
 
     class StubTranslationService:
         def __init__(self) -> None:

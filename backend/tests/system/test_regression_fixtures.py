@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -10,8 +9,8 @@ from app.core.config import Settings
 from app.db.migrations import apply_migrations
 from app.db.seed import seed_starter_data
 from app.main import create_app
+from tests.helpers.paths import FIXTURES_DIR
 
-FIXTURES_DIR = Path(__file__).resolve().parents[2] / "test-data" / "fixtures"
 NOTES_DIR = FIXTURES_DIR / "notes"
 EXPECTED_ANALYZE_DIR = FIXTURES_DIR / "expected" / "analyze"
 CASES_FILE = FIXTURES_DIR / "analysis-cases.json"

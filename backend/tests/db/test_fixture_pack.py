@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
-FIXTURES_DIR = Path(__file__).resolve().parents[2] / "test-data" / "fixtures"
+from tests.helpers.paths import FIXTURES_DIR
 
 
 def _load_json(path: Path):

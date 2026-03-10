@@ -3,15 +3,12 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 
 from app.core.app_state import set_service_field
-from app.db.migrations import apply_migrations
-from app.main import create_app
-from tests.api.wordbank_test_support import test_settings
+from tests.api.support import build_api_test_app
 
 
 def test_add_sentence_inserts_and_returns_translation_from_provider(tmp_path, stub_nlp_adapter_factory) -> None:
     db_path = tmp_path / "danote.sqlite3"
-    apply_migrations(db_path)
-    app = create_app(test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+    app = build_api_test_app(db_path, nlp_adapter_factory=stub_nlp_adapter_factory)
 
     class StubTranslationService:
         def translate_da_to_en(self, text: str) -> str | None:
@@ -34,8 +31,7 @@ def test_add_sentence_inserts_and_returns_translation_from_provider(tmp_path, st
 
 def test_add_sentence_duplicate_is_graceful(tmp_path, stub_nlp_adapter_factory) -> None:
     db_path = tmp_path / "danote.sqlite3"
-    apply_migrations(db_path)
-    app = create_app(test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+    app = build_api_test_app(db_path, nlp_adapter_factory=stub_nlp_adapter_factory)
 
     with TestClient(app) as client:
         first = client.post("/api/sentencebank/sentences", json={"source_text": "Jeg laeser hver dag"})
@@ -50,8 +46,7 @@ def test_add_sentence_duplicate_is_graceful(tmp_path, stub_nlp_adapter_factory) 
 
 def test_list_sentences_returns_newest_first(tmp_path, stub_nlp_adapter_factory) -> None:
     db_path = tmp_path / "danote.sqlite3"
-    apply_migrations(db_path)
-    app = create_app(test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+    app = build_api_test_app(db_path, nlp_adapter_factory=stub_nlp_adapter_factory)
 
     with TestClient(app) as client:
         client.post("/api/sentencebank/sentences", json={"source_text": "Jeg laeser en bog"})

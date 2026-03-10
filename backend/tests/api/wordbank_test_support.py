@@ -4,8 +4,10 @@ import sqlite3
 
 from app.core.config import Settings
 
+__test__ = False
 
-def test_settings(db_path, *, cor_local_db_path=None) -> Settings:
+
+def build_test_settings(db_path, *, cor_local_db_path=None) -> Settings:
     return Settings(
         environment="test",
         app_name="danote-backend-test",

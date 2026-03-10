@@ -6,13 +6,13 @@ from app.core.app_state import set_service_field
 from app.db.migrations import apply_migrations, get_connection
 from app.main import create_app
 from app.services.tts import PronunciationAudio
-from tests.api.wordbank_test_support import test_settings
+from tests.api.wordbank_test_support import build_test_settings
 
 
 def test_get_pronunciation_audio_returns_stored_audio(tmp_path, stub_nlp_adapter_factory) -> None:
     db_path = tmp_path / "danote.sqlite3"
     apply_migrations(db_path)
-    app = create_app(test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+    app = create_app(build_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
 
     class StubTTSService:
         def synthesize(self, text: str) -> PronunciationAudio | None:
@@ -34,7 +34,7 @@ def test_get_pronunciation_audio_returns_stored_audio(tmp_path, stub_nlp_adapter
 def test_get_pronunciation_audio_normalizes_l16_to_wav(tmp_path, stub_nlp_adapter_factory) -> None:
     db_path = tmp_path / "danote.sqlite3"
     apply_migrations(db_path)
-    app = create_app(test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+    app = create_app(build_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
 
     class StubTTSService:
         def synthesize(self, text: str) -> PronunciationAudio | None:
@@ -56,7 +56,7 @@ def test_get_pronunciation_audio_normalizes_l16_to_wav(tmp_path, stub_nlp_adapte
 def test_apply_verification_changes_endpoint_updates_word_fields(tmp_path, stub_nlp_adapter_factory) -> None:
     db_path = tmp_path / "danote.sqlite3"
     apply_migrations(db_path)
-    app = create_app(test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+    app = create_app(build_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
 
     with TestClient(app) as client:
         add_response = client.post("/api/wordbank/lexemes", json={"surface_token": "Bogen", "lemma_candidate": "bog"})
@@ -105,7 +105,7 @@ def test_apply_verification_changes_endpoint_updates_word_fields(tmp_path, stub_
 def test_add_word_does_not_block_on_pronunciation_for_new_surface_form(tmp_path, stub_nlp_adapter_factory) -> None:
     db_path = tmp_path / "danote.sqlite3"
     apply_migrations(db_path)
-    app = create_app(test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+    app = create_app(build_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
 
     class StubTTSService:
         def __init__(self) -> None:
@@ -131,7 +131,7 @@ def test_add_word_does_not_block_on_pronunciation_for_new_surface_form(tmp_path,
 def test_generate_pronunciation_endpoint_generates_for_recently_added_word(tmp_path, stub_nlp_adapter_factory) -> None:
     db_path = tmp_path / "danote.sqlite3"
     apply_migrations(db_path)
-    app = create_app(test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+    app = create_app(build_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
 
     class StubTTSService:
         def __init__(self) -> None:
@@ -157,7 +157,7 @@ def test_generate_pronunciation_endpoint_generates_for_recently_added_word(tmp_p
 def test_generate_pronunciation_endpoint_force_regenerates_existing_audio(tmp_path, stub_nlp_adapter_factory) -> None:
     db_path = tmp_path / "danote.sqlite3"
     apply_migrations(db_path)
-    app = create_app(test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+    app = create_app(build_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
 
     class StubTTSService:
         def __init__(self) -> None:
@@ -189,7 +189,7 @@ def test_generate_pronunciation_endpoint_force_regenerates_existing_audio(tmp_pa
 def test_get_pronunciation_audio_returns_service_unavailable_when_tts_not_configured(tmp_path, stub_nlp_adapter_factory) -> None:
     db_path = tmp_path / "danote.sqlite3"
     apply_migrations(db_path)
-    app = create_app(test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+    app = create_app(build_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
 
     with TestClient(app) as client:
         add_response = client.post("/api/wordbank/lexemes", json={"surface_token": "Katten", "lemma_candidate": "kat"})

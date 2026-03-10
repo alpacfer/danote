@@ -13,6 +13,7 @@
 ### System backend groups
 
 - `tests/system/test_reliability.py`: restart persistence and degraded-mode failure handling.
+- `tests/system/test_analysis_endpoint_real_nlp.py`: real-model `/api/analyze` smoke coverage kept out of the fast API tier.
 - `tests/system/test_regression_fixtures.py`: fixture-to-golden regression checks.
 - `tests/system/test_wordbank_performance_smoke.py`: opt-in performance smoke coverage.
 
@@ -23,15 +24,15 @@
 
 ## Frontend
 
-### Components/Rendering (`frontend/src/App.test.tsx`)
+### Components/Rendering (`frontend/src/test/app/*.test.tsx`)
 
 - Shell render, header, tabs, status badge, legend, table states.
 
-### Behavior (`frontend/src/App.test.tsx`)
+### Behavior (`frontend/src/test/app/*.test.tsx`)
 
 - Debounce, stale-response protection, finalized-token gating.
 
-### Integration (`frontend/src/App.test.tsx`)
+### Integration (`frontend/src/test/app/*.test.tsx`)
 
 - Analyze API mocked flows.
 - Add-word API mocked flows (success/error + refresh).

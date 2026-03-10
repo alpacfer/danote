@@ -6,7 +6,7 @@ BACKEND_PY := $(BACKEND_DIR)/.venv/bin/python
 BACKEND_PYTEST := PYTHONPATH=. $(BACKEND_DIR)/.venv/bin/pytest
 BACKEND_TEST_UNIT_DIRS := tests/use_cases tests/services tests/bootstrap tests/db
 BACKEND_TEST_API_DIR := tests/api
-BACKEND_TEST_MEDIUM_DIR := tests/system/test_reliability.py
+BACKEND_TEST_MEDIUM_DIR := tests/system/test_reliability.py tests/system/test_analysis_endpoint_real_nlp.py
 BACKEND_TEST_SLOW_DIR := tests/system/test_regression_fixtures.py
 BACKEND_TEST_PERF_DIR := tests/system/test_wordbank_performance_smoke.py
 export PATH := $(HOME)/.local/bin:$(PATH)

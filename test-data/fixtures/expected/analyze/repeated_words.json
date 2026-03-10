@@ -4,6 +4,8 @@
       "surface_token": "bogen",
       "normalized_token": "bogen",
       "lemma_candidate": "bog",
+      "pos_tag": "NOUN",
+      "morphology": "Definite=Def|Gender=Com|Number=Sing",
       "classification": "variation",
       "match_source": "lemma",
       "matched_lemma": "bog",
@@ -13,15 +15,27 @@
       "reason_tags": [
         "lemma_match"
       ],
-      "status": "variation",
-      "surface": "bogen",
-      "normalized": "bogen",
-      "lemma": "bog"
+      "word_actions": [
+        {
+          "action_type": "add_variation",
+          "surface": "bogen",
+          "lemma": "bog",
+          "cor_id": null,
+          "translation_label": "bogen",
+          "direction": "variation",
+          "direction_label": "Variation",
+          "pos_tag": "NOUN",
+          "morphology": "Definite=Def|Gender=Com|Number=Sing",
+          "show_lemma": false
+        }
+      ]
     },
     {
       "surface_token": "bogen",
       "normalized_token": "bogen",
       "lemma_candidate": "bog",
+      "pos_tag": "NOUN",
+      "morphology": "Definite=Def|Gender=Com|Number=Sing",
       "classification": "variation",
       "match_source": "lemma",
       "matched_lemma": "bog",
@@ -31,15 +45,27 @@
       "reason_tags": [
         "lemma_match"
       ],
-      "status": "variation",
-      "surface": "bogen",
-      "normalized": "bogen",
-      "lemma": "bog"
+      "word_actions": [
+        {
+          "action_type": "add_variation",
+          "surface": "bogen",
+          "lemma": "bog",
+          "cor_id": null,
+          "translation_label": "bogen",
+          "direction": "variation",
+          "direction_label": "Variation",
+          "pos_tag": "NOUN",
+          "morphology": "Definite=Def|Gender=Com|Number=Sing",
+          "show_lemma": false
+        }
+      ]
     },
     {
       "surface_token": "bogen",
       "normalized_token": "bogen",
       "lemma_candidate": "bog",
+      "pos_tag": "NOUN",
+      "morphology": "Definite=Def|Gender=Com|Number=Sing",
       "classification": "variation",
       "match_source": "lemma",
       "matched_lemma": "bog",
@@ -49,15 +75,27 @@
       "reason_tags": [
         "lemma_match"
       ],
-      "status": "variation",
-      "surface": "bogen",
-      "normalized": "bogen",
-      "lemma": "bog"
+      "word_actions": [
+        {
+          "action_type": "add_variation",
+          "surface": "bogen",
+          "lemma": "bog",
+          "cor_id": null,
+          "translation_label": "bogen",
+          "direction": "variation",
+          "direction_label": "Variation",
+          "pos_tag": "NOUN",
+          "morphology": "Definite=Def|Gender=Com|Number=Sing",
+          "show_lemma": false
+        }
+      ]
     },
     {
       "surface_token": "bogen",
       "normalized_token": "bogen",
       "lemma_candidate": "bog",
+      "pos_tag": "NOUN",
+      "morphology": "Definite=Def|Gender=Com|Number=Sing",
       "classification": "variation",
       "match_source": "lemma",
       "matched_lemma": "bog",
@@ -67,10 +105,20 @@
       "reason_tags": [
         "lemma_match"
       ],
-      "status": "variation",
-      "surface": "bogen",
-      "normalized": "bogen",
-      "lemma": "bog"
+      "word_actions": [
+        {
+          "action_type": "add_variation",
+          "surface": "bogen",
+          "lemma": "bog",
+          "cor_id": null,
+          "translation_label": "bogen",
+          "direction": "variation",
+          "direction_label": "Variation",
+          "pos_tag": "NOUN",
+          "morphology": "Definite=Def|Gender=Com|Number=Sing",
+          "show_lemma": false
+        }
+      ]
     }
   ]
 }
