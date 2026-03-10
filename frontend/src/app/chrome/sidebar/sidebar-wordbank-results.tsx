@@ -11,6 +11,7 @@ import {
   lemmaTranslationForVariant,
   normalizeSearchWord,
   posBadgeClass,
+  type SearchSaveSeed,
   type CORSearchGroup,
   type CORSearchVariant,
   type SearchFeedbackContext,
@@ -34,6 +35,7 @@ type SidebarWordbankResultsProps = {
       morphology?: string | null
       corId?: string | null
     },
+    searchSeed?: SearchSaveSeed | null,
   ) => Promise<string | null>
   onOpenWordbankLemma: (lemma: string) => void
   onOpenWordbankMeaning: (lemma: string, meaningId: number) => void
@@ -77,6 +79,18 @@ export function SidebarWordbankResults({
                       posTag: addVariation.variant.pos_tag ?? null,
                       morphology: addVariation.variant.morphology ?? null,
                       corId: addVariation.variant.cor_id,
+                    },
+                    {
+                      lemma: addVariation.variant.lemma,
+                      surface: addVariation.variant.form,
+                      cor_id: addVariation.variant.cor_id,
+                      cor_lemma_idx: addVariation.variant.lemma_idx,
+                      meaning_key: result.meaning_key ?? result.lemma,
+                      gloss: result.gloss ?? null,
+                      english_translation: result.english_translation ?? null,
+                      pos_tag: addVariation.variant.pos_tag ?? result.pos_tag ?? null,
+                      morphology: addVariation.variant.morphology ?? result.morphology ?? null,
+                      target_meaning_id: result.meaning_id ?? null,
                     },
                   )
                   if (addedLemma) {

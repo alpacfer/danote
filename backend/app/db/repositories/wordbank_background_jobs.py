@@ -1,0 +1,136 @@
+from __future__ import annotations
+
+import json
+from dataclasses import dataclass
+from pathlib import Path
+
+from app.db.sqlite import get_connection, timed_db_operation
+
+
+@dataclass(frozen=True, slots=True)
+class WordbankBackgroundJobRecord:
+    id: int
+    job_type: str
+    dedupe_key: str
+    payload: dict[str, object]
+    status: str
+    attempt_count: int
+    max_attempts: int
+
+
+class WordbankBackgroundJobRepository:
+    def __init__(self, db_path: Path) -> None:
+        self._db_path = db_path
+
+    def enqueue(
+        self,
+        *,
+        job_type: str,
+        dedupe_key: str,
+        payload: dict[str, object],
+        max_attempts: int = 3,
+    ) -> bool:
+        with timed_db_operation("wordbank_background_jobs.enqueue"), get_connection(self._db_path) as conn:
+            cursor = conn.execute(
+                """
+                INSERT OR IGNORE INTO wordbank_background_jobs (
+                    job_type,
+                    dedupe_key,
+                    payload_json,
+                    max_attempts
+                )
+                VALUES (?, ?, ?, ?)
+                """,
+                (job_type, dedupe_key, json.dumps(payload, ensure_ascii=True, sort_keys=True), max_attempts),
+            )
+        return cursor.rowcount == 1
+
+    def claim_next(self) -> WordbankBackgroundJobRecord | None:
+        with get_connection(self._db_path) as conn:
+            row = conn.execute(
+                """
+                SELECT
+                    id,
+                    job_type,
+                    dedupe_key,
+                    payload_json,
+                    status,
+                    attempt_count,
+                    max_attempts
+                FROM wordbank_background_jobs
+                WHERE status = 'pending'
+                  AND available_at <= CURRENT_TIMESTAMP
+                ORDER BY created_at ASC, id ASC
+                LIMIT 1
+                """
+            ).fetchone()
+            if row is None:
+                return None
+            conn.execute(
+                """
+                UPDATE wordbank_background_jobs
+                SET status = 'running',
+                    attempt_count = attempt_count + 1,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (int(row["id"]),),
+            )
+        return _job_from_row(
+            {
+                **dict(row),
+                "status": "running",
+                "attempt_count": int(row["attempt_count"]) + 1,
+            }
+        )
+
+    def mark_completed(self, job_id: int) -> None:
+        with timed_db_operation("wordbank_background_jobs.mark_completed"), get_connection(self._db_path) as conn:
+            conn.execute(
+                """
+                UPDATE wordbank_background_jobs
+                SET status = 'completed',
+                    updated_at = CURRENT_TIMESTAMP,
+                    completed_at = CURRENT_TIMESTAMP,
+                    last_error = NULL
+                WHERE id = ?
+                """,
+                (job_id,),
+            )
+
+    def mark_retryable_failure(self, job: WordbankBackgroundJobRecord, *, error_message: str, retry_delay_seconds: int = 1) -> None:
+        next_status = "pending" if job.attempt_count < job.max_attempts else "failed"
+        with timed_db_operation("wordbank_background_jobs.mark_retryable_failure"), get_connection(self._db_path) as conn:
+            conn.execute(
+                """
+                UPDATE wordbank_background_jobs
+                SET status = ?,
+                    last_error = ?,
+                    updated_at = CURRENT_TIMESTAMP,
+                    available_at = CASE
+                        WHEN ? = 'pending' THEN DATETIME(CURRENT_TIMESTAMP, ?)
+                        ELSE available_at
+                    END
+                WHERE id = ?
+                """,
+                (next_status, error_message, next_status, f"+{retry_delay_seconds} seconds", job.id),
+            )
+
+
+def _job_from_row(row: dict[str, object]) -> WordbankBackgroundJobRecord:
+    return WordbankBackgroundJobRecord(
+        id=_required_int(row, "id"),
+        job_type=str(row["job_type"]),
+        dedupe_key=str(row["dedupe_key"]),
+        payload=json.loads(str(row["payload_json"])),
+        status=str(row["status"]),
+        attempt_count=_required_int(row, "attempt_count"),
+        max_attempts=_required_int(row, "max_attempts"),
+    )
+
+
+def _required_int(row: dict[str, object], key: str) -> int:
+    value = row.get(key)
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError(f"Background job row is missing '{key}'.")
+    return value

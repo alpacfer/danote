@@ -11,6 +11,7 @@ import {
   type AnalyzedToken,
   type AppSection,
   type LemmaDetailsResponse,
+  type SearchSaveSeed,
   type SearchFeedbackContext,
   type SentencebankSentence,
   type TokenFeedbackPayload,
@@ -27,6 +28,10 @@ type UseWordbankWorkflowsParams = {
   selectedLemma: string | null
   selectedMeaningId: number | null
   lemmaDetails: LemmaDetailsResponse | null
+  setLemmaDetails: Dispatch<SetStateAction<LemmaDetailsResponse | null>>
+  setLemmaDetailsError: Dispatch<SetStateAction<string | null>>
+  setIsLemmaDetailsLoading: Dispatch<SetStateAction<boolean>>
+  setShowLemmaDetailsLoadingSkeleton: Dispatch<SetStateAction<boolean>>
   sentences: SentencebankSentence[]
   setAnalysisRefreshTick: Dispatch<SetStateAction<number>>
   setWordbankRefreshTick: Dispatch<SetStateAction<number>>
@@ -45,6 +50,10 @@ export function useWordbankWorkflows({
   selectedLemma,
   selectedMeaningId,
   lemmaDetails,
+  setLemmaDetails,
+  setLemmaDetailsError,
+  setIsLemmaDetailsLoading,
+  setShowLemmaDetailsLoadingSkeleton,
   sentences,
   setAnalysisRefreshTick,
   setWordbankRefreshTick,
@@ -102,6 +111,7 @@ export function useWordbankWorkflows({
       morphology?: string | null
       corId?: string | null
     },
+    searchSeed?: SearchSaveSeed | null,
   ): Promise<AddWordResponse> {
     const normalizedSurfaceToken = normalizeSearchWord(surfaceToken)
     const normalizedLemmaCandidate = lemmaCandidate ? normalizeSearchWord(lemmaCandidate) : null
@@ -116,6 +126,7 @@ export function useWordbankWorkflows({
         ...(normalizedCorId ? { cor_id: normalizedCorId } : {}),
         ...(normalizedPosTag ? { pos_tag: normalizedPosTag } : {}),
         ...(normalizedMorphology ? { morphology: normalizedMorphology } : {}),
+        ...(searchSeed ? { search_seed: searchSeed } : {}),
       },
       "Could not add word to wordbank.",
     )
@@ -173,16 +184,19 @@ export function useWordbankWorkflows({
       morphology?: string | null
       corId?: string | null
     },
+    searchSeed?: SearchSaveSeed | null,
   ): Promise<string | null> {
     try {
-      const payload = await addWordToWordbank(surfaceToken, lemmaCandidate, metadata)
+      const payload = await addWordToWordbank(surfaceToken, lemmaCandidate, metadata, searchSeed)
       toast.success(payload.message)
-      void verifyWordInBackground(
-        payload.stored_lemma,
-        payload.stored_surface_form,
-        payload.meaning?.id ?? null,
-      )
-      void generatePronunciationInBackground(payload.stored_lemma, payload.stored_surface_form)
+      if (!searchSeed) {
+        void verifyWordInBackground(
+          payload.stored_lemma,
+          payload.stored_surface_form,
+          payload.meaning?.id ?? null,
+        )
+        void generatePronunciationInBackground(payload.stored_lemma, payload.stored_surface_form)
+      }
       void postTokenFeedback({
         raw_token: feedbackContext?.rawToken ?? surfaceToken,
         predicted_status: feedbackContext?.predictedStatus ?? "new",
@@ -191,6 +205,12 @@ export function useWordbankWorkflows({
         chosen_value: payload.stored_lemma,
         source: "search",
       })
+      if (payload.saved_snapshot) {
+        setLemmaDetails(payload.saved_snapshot)
+        setLemmaDetailsError(null)
+        setIsLemmaDetailsLoading(false)
+        setShowLemmaDetailsLoadingSkeleton(false)
+      }
       setAnalysisRefreshTick((current) => current + 1)
       setWordbankRefreshTick((current) => current + 1)
       setActiveSection("wordbank")

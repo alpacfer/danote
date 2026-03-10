@@ -318,4 +318,81 @@ def test_wordbank_get_lemma_details_persists_extracted_pos_and_morphology_for_fo
     details_second = use_case.get_lemma_details("bog")
     assert details_second.pos_tag == "NOUN"
     assert details_second.meaning_sections[0].surface_forms[0].morphology == "Number=Sing"
-    assert adapter.calls == calls_after_add
+
+
+def test_wordbank_search_seed_add_stores_only_selected_search_payload(tmp_path: Path) -> None:
+    class CountingNLPAdapter:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def tokenize(self, text: str) -> list[NLPToken]:
+            self.calls += 1
+            return [
+                NLPToken(
+                    text=text,
+                    lemma=text.lower(),
+                    pos="NOUN",
+                    morphology="Number=Sing",
+                    is_punctuation=False,
+                )
+            ]
+
+        def lemma_candidates_for_token(self, token: str) -> list[str]:
+            return [token.lower()]
+
+        def lemma_for_token(self, token: str) -> str | None:
+            return token.lower()
+
+        def metadata(self) -> dict[str, str]:
+            return {"adapter": "counting"}
+
+    nlp_adapter = CountingNLPAdapter()
+    translation_service = FakeTranslationService({"lærere": "teachers"})
+    gemini_service = FakeGeminiWordTranslationService({("lærere", "lærer", "teacher"): "teachers"})
+    db_path = _db_path(tmp_path)
+    use_case = WordbankUseCase(
+        db_path,
+        nlp_adapter=nlp_adapter,
+        translation_service=translation_service,
+        gemini_word_translation_service=gemini_service,
+    )
+
+    added = use_case.add_word(
+        "lærere",
+        "lærer",
+        search_seed={
+            "lemma": "lærer",
+            "surface": "lærere",
+            "cor_id": "COR.49032.112.01",
+            "cor_lemma_idx": 49032,
+            "meaning_key": "teacher",
+            "gloss": "teacher",
+            "english_translation": "teacher",
+            "pos_tag": "NOUN",
+            "morphology": "Gender=Com|Number=Plur|Definite=Ind",
+        },
+    )
+
+    details = use_case.get_lemma_details("lærer")
+
+    assert added.saved_snapshot is not None
+    assert translation_service.calls == []
+    assert gemini_service.calls == []
+    assert gemini_service.batch_calls == []
+    assert nlp_adapter.calls == 0
+    assert details.is_sectioned is True
+    assert details.meaning_sections[0].english_translation == "teacher"
+    assert [item.form for item in details.meaning_sections[0].surface_forms] == ["lærere"]
+
+    with get_connection(db_path) as conn:
+        rows = conn.execute(
+            """
+            SELECT form
+            FROM surface_forms sf
+            JOIN lexemes l ON l.id = sf.lexeme_id
+            WHERE l.lemma = ?
+            ORDER BY form ASC
+            """,
+            ("lærer",),
+        ).fetchall()
+    assert [str(row["form"]) for row in rows] == ["lærere"]

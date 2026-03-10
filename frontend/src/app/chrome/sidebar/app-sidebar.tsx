@@ -19,6 +19,7 @@ import {
   type AppSection,
   type CORSearchVariant,
   type SavedNote,
+  type SearchSaveSeed,
   type SearchFeedbackContext,
   type WordbankLemma,
   type WordbankSearchItem,
@@ -60,6 +61,7 @@ export type AppSidebarProps = {
       morphology?: string | null
       corId?: string | null
     },
+    searchSeed?: SearchSaveSeed | null,
   ) => Promise<string | null>
 }
 

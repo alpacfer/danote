@@ -6,11 +6,24 @@ from pydantic import BaseModel, Field
 
 
 class AddWordRequest(BaseModel):
+    class SearchSeed(BaseModel):
+        lemma: str = Field(..., min_length=1)
+        surface: str = Field(..., min_length=1)
+        cor_id: str | None = None
+        cor_lemma_idx: int | None = None
+        meaning_key: str | None = None
+        gloss: str | None = None
+        english_translation: str | None = None
+        pos_tag: str | None = None
+        morphology: str | None = None
+        target_meaning_id: int | None = None
+
     surface_token: str = Field(..., min_length=1)
     lemma_candidate: str | None = None
     cor_id: str | None = None
     pos_tag: str | None = None
     morphology: str | None = None
+    search_seed: SearchSeed | None = None
 
 
 class GenerateTranslationRequest(BaseModel):
@@ -100,6 +113,10 @@ class GeneratePhraseTranslationResponse(BaseModel):
 
 
 class AddWordResponse(BaseModel):
+    class QueuedBackgroundTask(BaseModel):
+        status: Literal["queued", "skipped"]
+        form: str | None = None
+
     class MeaningContext(BaseModel):
         id: int
         meaning_key: str
@@ -130,6 +147,8 @@ class AddWordResponse(BaseModel):
     message: str
     meaning: MeaningContext | None = None
     verification: VerificationResult | None = None
+    pronunciation: QueuedBackgroundTask | None = None
+    saved_snapshot: LemmaDetailsResponse | None = None
 
 
 class VerifyWordRequest(BaseModel):
@@ -279,3 +298,7 @@ class LemmaDetailsResponse(BaseModel):
 class ResetDatabaseResponse(BaseModel):
     status: Literal["reset"]
     message: str
+
+
+AddWordResponse.model_rebuild()
+LemmaDetailsResponse.model_rebuild()

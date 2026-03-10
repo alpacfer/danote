@@ -40,6 +40,48 @@ export function mockFetchImplementation(options?: {
         lexeme_translation?: string | null
       } | null
     } | null
+    pronunciation?: {
+      status: "queued" | "skipped"
+      form: string | null
+    } | null
+    saved_snapshot?: {
+      lemma: string
+      english_translation?: string | null
+      pos_tag?: string | null
+      morphology?: string | null
+      is_sectioned?: boolean
+      meaning_sections?: Array<{
+        id: number
+        meaning_key: string
+        gloss?: string | null
+        english_translation?: string | null
+        gloss_translation?: string | null
+        pos_tag?: string | null
+        morphology?: string | null
+        surface_forms: Array<{
+          form: string
+          has_pronunciation?: boolean
+          pos_tag?: string | null
+          morphology?: string | null
+          lemma?: string | null
+          lemma_translation?: string | null
+          gloss?: string | null
+          gloss_translation?: string | null
+          gram_raw?: string | null
+        }>
+      }>
+      surface_forms: Array<{
+        form: string
+        has_pronunciation?: boolean
+        pos_tag?: string | null
+        morphology?: string | null
+        lemma?: string | null
+        lemma_translation?: string | null
+        gloss?: string | null
+        gloss_translation?: string | null
+        gram_raw?: string | null
+      }>
+    } | null
   }
   verifyWordResponse?: {
     stored_lemma: string
@@ -119,6 +161,7 @@ export function mockFetchImplementation(options?: {
   }
   corSearchFormHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
   lemmaDetailsOk?: boolean
+  lemmaDetailsHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
   lemmaDetailsResponse?: {
     lemma: string
     english_translation?: string | null
@@ -651,6 +694,9 @@ export function mockFetchImplementation(options?: {
     }
 
     if (url.includes("/api/wordbank/lemmas/")) {
+      if (options?.lemmaDetailsHandler) {
+        return options.lemmaDetailsHandler(input, init)
+      }
       if (!lemmaDetailsOk) {
         throw new Error("word details request failed")
       }

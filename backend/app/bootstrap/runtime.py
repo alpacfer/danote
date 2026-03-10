@@ -15,6 +15,7 @@ from app.bootstrap.runtime_translation import initialize_translation
 from app.bootstrap.runtime_tts import initialize_tts
 from app.bootstrap.runtime_typo import initialize_typo
 from app.bootstrap.runtime_word_verification import initialize_word_verification
+from app.bootstrap.runtime_wordbank_background_jobs import initialize_wordbank_background_jobs
 from app.core.app_state import close_runtime_services, get_runtime_state
 from app.core.config import Settings
 from app.nlp.adapter import NLPAdapter
@@ -51,6 +52,8 @@ def initialize_runtime(
     applied = initialize_database(app, settings)
     for step in build_startup_steps(nlp_adapter_factory):
         run_startup_step(step, app, settings)
+    if get_runtime_state(app).db_ready:
+        initialize_wordbank_background_jobs(app, settings)
     return applied
 
 

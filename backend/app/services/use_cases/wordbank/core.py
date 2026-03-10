@@ -89,6 +89,7 @@ class WordbankUseCase:
         cor_id: str | None = None,
         pos_tag: str | None = None,
         morphology: str | None = None,
+        search_seed: dict[str, object] | None = None,
     ):
         return add_word(
             self._runtime,
@@ -97,6 +98,7 @@ class WordbankUseCase:
             cor_id=cor_id,
             pos_tag=pos_tag,
             morphology=morphology,
+            search_seed=search_seed,
         )
 
     def generate_pronunciation_for_added_word(

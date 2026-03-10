@@ -49,6 +49,7 @@ def add_word(payload: AddWordRequest, request: Request) -> AddWordResponse:
             cor_id=payload.cor_id,
             pos_tag=payload.pos_tag,
             morphology=payload.morphology,
+            search_seed=payload.search_seed.model_dump() if payload.search_seed is not None else None,
         ),
         include_runtime_error=True,
         error_log_name="wordbank_db_operational_error",

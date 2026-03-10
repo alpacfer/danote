@@ -4,6 +4,19 @@ export type TokenClassification = "known" | "variation" | "typo_likely" | "uncer
 export type AppSection = "playground" | "notes" | "wordbank" | "sentencebank" | "developer"
 export type TokenAction = "add_as_new"
 
+export type SearchSaveSeed = {
+  lemma: string
+  surface: string
+  cor_id?: string | null
+  cor_lemma_idx?: number | null
+  meaning_key?: string | null
+  gloss?: string | null
+  english_translation?: string | null
+  pos_tag?: string | null
+  morphology?: string | null
+  target_meaning_id?: number | null
+}
+
 export type WordActionSuggestion = {
   action_type: "open_wordbank" | "add_as_new" | "add_variation"
   surface: string
@@ -65,6 +78,11 @@ export type AddWordResponse = {
       lexeme_translation?: string | null
     } | null
   } | null
+  pronunciation?: {
+    status: "queued" | "skipped"
+    form: string | null
+  } | null
+  saved_snapshot?: LemmaDetailsResponse | null
 }
 
 export type VerifyWordResponse = {

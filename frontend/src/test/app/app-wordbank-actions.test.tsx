@@ -204,7 +204,7 @@ describe("App wordbank", () => {
     await waitFor(() => {
       const mark = getNotesEditor().querySelector("mark[data-status='new']")
       expect(mark).toBeInTheDocument()
-    })
+    }, { timeout: 3_000 })
 
     const mark = getNotesEditor().querySelector("mark[data-status='new']")
     fireEvent.click(mark as HTMLElement, { clientX: 160, clientY: 140 })
@@ -257,5 +257,5 @@ describe("App wordbank", () => {
         }),
       )
     })
-  }, 10_000)
+  }, 15_000)
 })

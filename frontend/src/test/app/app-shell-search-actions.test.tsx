@@ -117,26 +117,53 @@ describe("App shell and search", () => {
           if (!String(input).endsWith("/api/wordbank/lexemes")) {
             return false
           }
-          const body = JSON.parse(String(init?.body ?? "{}")) as {
-            surface_token?: string
-            lemma_candidate?: string
+        const body = JSON.parse(String(init?.body ?? "{}")) as {
+          surface_token?: string
+          lemma_candidate?: string
+          cor_id?: string
+          pos_tag?: string
+          morphology?: string
+          search_seed?: {
+            lemma?: string
+            surface?: string
             cor_id?: string
-            pos_tag?: string
-            morphology?: string
+            cor_lemma_idx?: number
+            meaning_key?: string
+            gloss?: string | null
+            english_translation?: string | null
+            pos_tag?: string | null
+            morphology?: string | null
+            target_meaning_id?: number | null
           }
-          return (
-            body.surface_token === "lærer"
-            && body.lemma_candidate === "lære"
-            && body.cor_id === "COR.30686.203.01"
-            && body.pos_tag === "VERB"
-            && body.morphology === "Tense=Pres|VerbForm=Fin|Voice=Act"
-          )
-        }),
-      ).toBe(true)
-    })
+        }
+        return (
+          body.surface_token === "lærer"
+          && body.lemma_candidate === "lære"
+          && body.cor_id === "COR.30686.203.01"
+          && body.pos_tag === "VERB"
+          && body.morphology === "Tense=Pres|VerbForm=Fin|Voice=Act"
+          && body.search_seed?.lemma === "lære"
+          && body.search_seed?.surface === "lærer"
+          && body.search_seed?.cor_id === "COR.30686.203.01"
+          && body.search_seed?.cor_lemma_idx === 30686
+          && body.search_seed?.meaning_key === "learn"
+          && body.search_seed?.gloss === "learn"
+          && body.search_seed?.english_translation === "to learn"
+          && body.search_seed?.pos_tag === "VERB"
+          && body.search_seed?.morphology === "Tense=Pres|VerbForm=Fin|Voice=Act"
+        )
+      }),
+    ).toBe(true)
+  })
 
-    expect(
+  expect(
       fetchSpy.mock.calls.some(([input]) => String(input).endsWith("/api/wordbank/resolve-query")),
+    ).toBe(false)
+    expect(
+      fetchSpy.mock.calls.some(([input]) => String(input).endsWith("/api/wordbank/lexemes/verify")),
+    ).toBe(false)
+    expect(
+      fetchSpy.mock.calls.some(([input]) => String(input).endsWith("/api/wordbank/lexemes/pronunciation")),
     ).toBe(false)
   })
 
@@ -297,5 +324,119 @@ describe("App shell and search", () => {
     await waitFor(() => {
       expect(corRequestCount).toBe(4)
     })
+  })
+
+  it("opens the word page from saved snapshot before lemma details reload completes", async () => {
+    mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      searchWordbankResponse: { items: [] },
+      corSearchFormResponse: {
+        form: "lærere",
+        groups: [
+          {
+            lemma: "lærer",
+            gloss: "teacher",
+            pos_tag: "NOUN",
+            variants: [
+              {
+                cor_id: "COR.49032.112.01",
+                form: "lærere",
+                lemma: "lærer",
+                gloss: "teacher",
+                lemma_translation: "teacher",
+                gram_raw: "sb.fk.pl.ubest",
+                norm: "N",
+                lemma_idx: 49032,
+                gram_code: 112,
+                variation: 1,
+                pos_tag: "NOUN",
+                morphology: "Gender=Com|Number=Plur|Definite=Ind",
+                features: { Gender: "Com", Number: "Plur", Definite: "Ind" },
+                extra_tags: [],
+              },
+            ],
+          },
+        ],
+      },
+      addWordResponse: {
+        status: "inserted",
+        stored_lemma: "lærer",
+        stored_surface_form: "lærere",
+        source: "manual",
+        message: "Added 'lærer' to wordbank.",
+        meaning: {
+          id: 1,
+          meaning_key: "teacher",
+          gloss: "teacher",
+          english_translation: "teacher",
+        },
+        saved_snapshot: {
+          lemma: "lærer",
+          english_translation: "teacher",
+          is_sectioned: true,
+          meaning_sections: [
+            {
+              id: 1,
+              meaning_key: "teacher",
+              gloss: "teacher",
+              english_translation: "teacher",
+              pos_tag: "NOUN",
+              morphology: "Gender=Com|Number=Sing|Definite=Ind",
+              surface_forms: [
+                {
+                  form: "lærere",
+                  gloss: "teacher",
+                  pos_tag: "NOUN",
+                  morphology: "Gender=Com|Number=Plur|Definite=Ind",
+                  has_pronunciation: false,
+                },
+              ],
+            },
+          ],
+          surface_forms: [],
+        },
+      },
+      lemmaDetailsHandler: async () => {
+        await new Promise((resolve) => window.setTimeout(resolve, 300))
+        return responseOf({
+          lemma: "lærer",
+          english_translation: "teacher",
+          is_sectioned: true,
+          meaning_sections: [
+            {
+              id: 1,
+              meaning_key: "teacher",
+              gloss: "teacher",
+              english_translation: "teacher",
+              pos_tag: "NOUN",
+              morphology: "Gender=Com|Number=Sing|Definite=Ind",
+              surface_forms: [
+                {
+                  form: "lærere",
+                  gloss: "teacher",
+                  pos_tag: "NOUN",
+                  morphology: "Gender=Com|Number=Plur|Definite=Ind",
+                  has_pronunciation: false,
+                },
+              ],
+            },
+          ],
+          surface_forms: [],
+        })
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    const commandDialog = await screen.findByRole("dialog")
+    const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
+    fireEvent.change(searchInput, { target: { value: "lærere" } })
+
+    fireEvent.click(await within(commandDialog).findByText(/^lærere$/i))
+
+    expect(await screen.findByRole("heading", { name: /^lærer$/i })).toBeInTheDocument()
+    expect(screen.getByText(/^lærere$/i)).toBeInTheDocument()
   })
 })

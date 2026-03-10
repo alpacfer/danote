@@ -4,7 +4,7 @@ import sqlite3
 from pathlib import Path
 from typing import Literal
 
-from app.api.schemas.v1.wordbank import GeneratePronunciationResponse
+from app.api.schemas.v1.wordbank import AddWordResponse, GeneratePronunciationResponse
 from app.db.migrations import get_connection
 from app.services.token_classifier import normalize_token
 from app.services.tts import PronunciationAudio, TTSService
@@ -99,6 +99,24 @@ class PronunciationCollaborator:
             stored_lemma=normalized_lemma,
             stored_surface_form=normalized_surface,
             pronunciation_form=pronunciation_form,
+        )
+
+    def queued_pronunciation_result(
+        self,
+        stored_lemma: str,
+        stored_surface_form: str | None,
+    ) -> AddWordResponse.QueuedBackgroundTask:
+        normalized_lemma = normalize_token(stored_lemma)
+        normalized_surface = normalize_token(stored_surface_form or "") or None
+        pronunciation_form = normalized_surface or normalized_lemma or None
+        if self._tts_service is None:
+            return AddWordResponse.QueuedBackgroundTask(
+                status="skipped",
+                form=pronunciation_form,
+            )
+        return AddWordResponse.QueuedBackgroundTask(
+            status="queued",
+            form=pronunciation_form,
         )
 
     def get_pronunciation_audio(self, form: str) -> PronunciationAudio:

@@ -36,6 +36,7 @@ class WordbankSearchRow:
 class LexemeRecord:
     id: int
     lemma: str
+    source: str
     english_translation: str | None
     pos_tag: str | None
     morphology: str | None
@@ -57,6 +58,7 @@ class SurfaceFormRecord:
     id: int
     lexeme_id: int
     form: str
+    source: str
     pos_tag: str | None
     morphology: str | None
     cor_id: str | None
@@ -157,7 +159,7 @@ class WordbankRepository:
         ) as conn:
             row = conn.execute(
                 """
-                SELECT id, lemma, english_translation, pos_tag, morphology
+                SELECT id, lemma, source, english_translation, pos_tag, morphology
                 FROM lexemes
                 WHERE lemma = ?
                 LIMIT 1
@@ -169,6 +171,7 @@ class WordbankRepository:
         return LexemeRecord(
             id=int(row["id"]),
             lemma=str(row["lemma"]),
+            source=str(row["source"]),
             english_translation=row["english_translation"],
             pos_tag=row["pos_tag"],
             morphology=row["morphology"],
@@ -184,6 +187,7 @@ class WordbankRepository:
                     id,
                     lexeme_id,
                     form,
+                    source,
                     pos_tag,
                     morphology,
                     (
@@ -213,6 +217,7 @@ class WordbankRepository:
                     id,
                     lexeme_id,
                     form,
+                    source,
                     pos_tag,
                     morphology,
                     (
@@ -242,6 +247,7 @@ class WordbankRepository:
                     sf.id,
                     sf.lexeme_id,
                     sf.form,
+                    sf.source,
                     sf.pos_tag,
                     sf.morphology,
                     sfcv.cor_id,
@@ -339,6 +345,7 @@ class WordbankRepository:
         provider: str | None,
         pos_tag: str | None,
         morphology: str | None,
+        source: str = "manual",
     ) -> tuple[int, bool]:
         with timed_db_operation("wordbank.insert_or_load_lexeme"), get_connection(self._db_path) as conn:
             cursor = conn.execute(
@@ -355,7 +362,7 @@ class WordbankRepository:
                 """,
                 (
                     stored_lemma,
-                    "manual",
+                    source,
                     translation,
                     provider if translation else None,
                     pos_tag,
@@ -398,6 +405,7 @@ class WordbankRepository:
         form: str,
         pos_tag: str | None,
         morphology: str | None,
+        source: str = "manual",
     ) -> tuple[SurfaceFormRecord, bool]:
         with timed_db_operation("wordbank.insert_or_update_surface_form"), get_connection(self._db_path) as conn:
             row = _select_surface_form_row(conn, lexeme_id=lexeme_id, meaning_id=meaning_id, form=form)
@@ -421,7 +429,7 @@ class WordbankRepository:
                         lexeme_id,
                         meaning_id,
                         form,
-                        "manual",
+                        source,
                         pos_tag,
                         morphology,
                         1,
@@ -433,6 +441,7 @@ class WordbankRepository:
                         id,
                         lexeme_id,
                         form,
+                        source,
                         pos_tag,
                         morphology,
                         (
@@ -469,6 +478,7 @@ class WordbankRepository:
                         id,
                         lexeme_id,
                         form,
+                        source,
                         pos_tag,
                         morphology,
                         (
@@ -659,6 +669,7 @@ def _surface_form_from_row(row) -> SurfaceFormRecord:
         id=int(row["id"]),
         lexeme_id=int(row["lexeme_id"]),
         form=str(row["form"]),
+        source=str(row["source"]),
         pos_tag=row["pos_tag"],
         morphology=row["morphology"],
         cor_id=row["cor_id"],
@@ -687,6 +698,7 @@ def _select_surface_form_row(conn, *, lexeme_id: int, meaning_id: int | None, fo
                 id,
                 lexeme_id,
                 form,
+                source,
                 pos_tag,
                 morphology,
                 (
@@ -710,6 +722,7 @@ def _select_surface_form_row(conn, *, lexeme_id: int, meaning_id: int | None, fo
             id,
             lexeme_id,
             form,
+            source,
             pos_tag,
             morphology,
             (

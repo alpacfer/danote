@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import time
+
 from fastapi.testclient import TestClient
 
 from app.core.app_state import set_service_field
@@ -380,3 +382,215 @@ def test_wordbank_endpoints_require_reset_for_legacy_non_verb_rows(tmp_path, stu
     assert add_response.status_code == 503
     assert "reset the database" in list_response.json()["detail"].lower()
     assert "reset the database" in add_response.json()["detail"].lower()
+
+
+def test_add_word_search_seed_returns_saved_snapshot_and_stores_only_selected_surface(tmp_path, stub_nlp_adapter_factory) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    apply_migrations(db_path)
+    app = create_app(build_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/wordbank/lexemes",
+            json={
+                "surface_token": "lærere",
+                "lemma_candidate": "lærer",
+                "search_seed": {
+                    "lemma": "lærer",
+                    "surface": "lærere",
+                    "cor_id": "COR.49032.112.01",
+                    "cor_lemma_idx": 49032,
+                    "meaning_key": "teacher",
+                    "gloss": "teacher",
+                    "english_translation": "teacher",
+                    "pos_tag": "NOUN",
+                    "morphology": "Gender=Com|Number=Plur|Definite=Ind",
+                },
+            },
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["saved_snapshot"]["lemma"] == "lærer"
+    assert payload["saved_snapshot"]["meaning_sections"][0]["english_translation"] == "teacher"
+    assert [item["form"] for item in payload["saved_snapshot"]["meaning_sections"][0]["surface_forms"]] == ["lærere"]
+
+    with get_connection(db_path) as conn:
+        rows = conn.execute(
+            """
+            SELECT form
+            FROM surface_forms sf
+            JOIN lexemes l ON l.id = sf.lexeme_id
+            WHERE l.lemma = ?
+            ORDER BY form ASC
+            """,
+            ("lærer",),
+        ).fetchall()
+    assert [str(row["form"]) for row in rows] == ["lærere"]
+
+
+def test_add_word_search_seed_routes_variation_to_target_meaning(tmp_path, stub_nlp_adapter_factory) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    apply_migrations(db_path)
+    app = create_app(build_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+
+    with TestClient(app) as client:
+        first = client.post(
+            "/api/wordbank/lexemes",
+            json={
+                "surface_token": "bogen",
+                "lemma_candidate": "bog",
+                "search_seed": {
+                    "lemma": "bog",
+                    "surface": "bogen",
+                    "cor_id": "COR.BOG.BOOK.1",
+                    "cor_lemma_idx": 123,
+                    "meaning_key": "book",
+                    "gloss": "book",
+                    "english_translation": "book",
+                    "pos_tag": "NOUN",
+                    "morphology": "Gender=Com|Number=Sing|Definite=Def",
+                },
+            },
+        )
+        first_meaning_id = first.json()["meaning"]["id"]
+        second = client.post(
+            "/api/wordbank/lexemes",
+            json={
+                "surface_token": "bøger",
+                "lemma_candidate": "bog",
+                "search_seed": {
+                    "lemma": "bog",
+                    "surface": "bøger",
+                    "cor_id": "COR.BOG.BOOK.2",
+                    "cor_lemma_idx": 123,
+                    "meaning_key": "book",
+                    "gloss": "book",
+                    "english_translation": "book",
+                    "pos_tag": "NOUN",
+                    "morphology": "Gender=Com|Number=Plur|Definite=Ind",
+                    "target_meaning_id": first_meaning_id,
+                },
+            },
+        )
+        details = client.get("/api/wordbank/lemmas/bog")
+
+    assert second.status_code == 200
+    section = details.json()["meaning_sections"][0]
+    assert section["id"] == first_meaning_id
+    assert [item["form"] for item in section["surface_forms"]] == ["bogen", "bøger"]
+
+
+def test_add_word_search_seed_keeps_partial_translation_data(tmp_path, stub_nlp_adapter_factory) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    apply_migrations(db_path)
+    app = create_app(build_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/wordbank/lexemes",
+            json={
+                "surface_token": "lærer",
+                "lemma_candidate": "lære",
+                "search_seed": {
+                    "lemma": "lære",
+                    "surface": "lærer",
+                    "cor_id": "COR.30686.203.01",
+                    "cor_lemma_idx": 30686,
+                    "meaning_key": "learn",
+                    "gloss": "learn",
+                    "english_translation": None,
+                    "pos_tag": "VERB",
+                    "morphology": "Tense=Pres|VerbForm=Fin|Voice=Act",
+                },
+            },
+        )
+        details = client.get("/api/wordbank/lemmas/lære")
+
+    assert response.status_code == 200
+    assert response.json()["saved_snapshot"]["english_translation"] is None
+    assert details.json()["english_translation"] is None
+    assert [item["form"] for item in details.json()["surface_forms"]] == ["lærer"]
+
+
+def test_add_word_search_seed_enqueues_and_runs_background_jobs(tmp_path, stub_nlp_adapter_factory) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    apply_migrations(db_path)
+    app = create_app(build_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+
+    class StubVerificationService:
+        provider = "gemini"
+        reviewer_role = "Professional Danish Language Expert"
+
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def verify_word_entry(self, _payload):
+            self.calls += 1
+
+            class Result:
+                verdict = "verified"
+                message = "Looks good."
+
+            return Result()
+
+    class StubTTSService:
+        provider = "gemini_tts"
+        model = "gemini-2.5-flash-preview-tts"
+
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def synthesize(self, text: str):
+            from app.services.tts import PronunciationAudio
+
+            self.calls += 1
+            return PronunciationAudio(audio_bytes=f"{text}-wav".encode(), mime_type="audio/wav")
+
+    verification_service = StubVerificationService()
+    tts_service = StubTTSService()
+
+    with TestClient(app) as client:
+        set_service_field(client.app, "word_verification_service", verification_service)
+        set_service_field(client.app, "tts_service", tts_service)
+        response = client.post(
+            "/api/wordbank/lexemes",
+            json={
+                "surface_token": "bogen",
+                "lemma_candidate": "bog",
+                "search_seed": {
+                    "lemma": "bog",
+                    "surface": "bogen",
+                    "cor_id": "COR.BOG.BOOK.1",
+                    "cor_lemma_idx": 123,
+                    "meaning_key": "book",
+                    "gloss": "book",
+                    "english_translation": "book",
+                    "pos_tag": "NOUN",
+                    "morphology": "Gender=Com|Number=Sing|Definite=Def",
+                },
+            },
+        )
+
+        deadline = time.time() + 5
+        while time.time() < deadline:
+            with get_connection(db_path) as conn:
+                jobs = conn.execute(
+                    "SELECT status FROM wordbank_background_jobs ORDER BY id ASC"
+                ).fetchall()
+                audio_row = conn.execute(
+                    """
+                    SELECT pronunciation_audio
+                    FROM surface_forms sf
+                    JOIN lexemes l ON l.id = sf.lexeme_id
+                    WHERE l.lemma = ? AND sf.form = ?
+                    """,
+                    ("bog", "bogen"),
+                ).fetchone()
+            if jobs and all(str(job["status"]) == "completed" for job in jobs) and audio_row and audio_row["pronunciation_audio"]:
+                break
+            time.sleep(0.05)
+
+    assert response.status_code == 200
+    assert verification_service.calls >= 1
+    assert tts_service.calls >= 1

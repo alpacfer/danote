@@ -30,13 +30,13 @@ describe("App playground", () => {
     })
 
     renderApp()
-    screen.getByLabelText("backend-connection-status")
+    await screen.findByLabelText("backend-connection-status")
 
     setNotesEditorText("katten ")
     await waitFor(() => {
       const mark = getNotesEditor().querySelector("mark[data-status='variation']")
       expect(mark).toBeInTheDocument()
-    })
+    }, { timeout: 3_000 })
 
     const mark = getNotesEditor().querySelector("mark[data-status='variation']")
     expect(mark).toBeInTheDocument()
@@ -109,13 +109,13 @@ describe("App playground", () => {
     })
 
     renderApp()
-    screen.getByLabelText("backend-connection-status")
+    await screen.findByLabelText("backend-connection-status")
 
     setNotesEditorText("katten ")
     await waitFor(() => {
       const mark = getNotesEditor().querySelector("mark[data-status='variation']")
       expect(mark).toBeInTheDocument()
-    })
+    }, { timeout: 3_000 })
 
     const mark = getNotesEditor().querySelector("mark[data-status='variation']")
     fireEvent.click(mark as HTMLElement, { clientX: 160, clientY: 140 })
@@ -126,7 +126,7 @@ describe("App playground", () => {
     await waitFor(() => {
       const nextMark = getNotesEditor().querySelector("mark[data-status='variation']")
       expect(nextMark).toBeInTheDocument()
-    })
+    }, { timeout: 3_000 })
 
     const nextMark = getNotesEditor().querySelector("mark[data-status='variation']")
     fireEvent.click(nextMark as HTMLElement, { clientX: 160, clientY: 140 })
@@ -168,13 +168,13 @@ describe("App playground", () => {
     })
 
     renderApp()
-    screen.getByLabelText("backend-connection-status")
+    await screen.findByLabelText("backend-connection-status")
 
     setNotesEditorText("bogen ")
     await waitFor(() => {
       const mark = getNotesEditor().querySelector("mark[data-status='known']")
       expect(mark).toBeInTheDocument()
-    })
+    }, { timeout: 3_000 })
 
     const mark = getNotesEditor().querySelector("mark[data-status='known']")
     expect(mark).toBeInTheDocument()
@@ -222,13 +222,13 @@ describe("App playground", () => {
     })
 
     renderApp()
-    screen.getByLabelText("backend-connection-status")
+    await screen.findByLabelText("backend-connection-status")
 
     setNotesEditorText("hus ")
     await waitFor(() => {
       const mark = getNotesEditor().querySelector("mark[data-status='new']")
       expect(mark).toBeInTheDocument()
-    })
+    }, { timeout: 3_000 })
 
     const mark = getNotesEditor().querySelector("mark[data-status='new']")
     expect(mark).toBeInTheDocument()

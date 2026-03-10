@@ -25,6 +25,7 @@ class BackendRuntimeState:
     settings: Settings
     services: BackendServices = field(default_factory=BackendServices)
     runtime_api_keys: dict[str, str | None] = field(default_factory=dict)
+    background_worker: Any = None
     db_ready: bool = False
     db_error: str | None = None
     nlp_ready: bool = False
@@ -67,6 +68,12 @@ def set_service_field(app: FastAPI, field_name: str, value: Any) -> None:
 
 
 def close_runtime_services(app: FastAPI) -> None:
+    runtime = get_runtime_state(app)
+    worker = runtime.background_worker
+    stop = getattr(worker, "stop", None)
+    if callable(stop):
+        stop()
+
     services = get_services(app)
     for field_name in (
         "cor_lexicon_service",

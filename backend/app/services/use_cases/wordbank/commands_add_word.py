@@ -16,6 +16,7 @@ from app.services.use_cases.wordbank.collaborators.cor_local_translations import
     lookup_translation_for_cor_local_entry,
 )
 from app.services.use_cases.wordbank.collaborators.translation import TranslationLookupResult
+from app.services.use_cases.wordbank.commands_add_word_search_seed import add_word_from_search_seed
 from app.services.use_cases.wordbank.meaning_sections import (
     MeaningResolution,
     build_meaning_assignment,
@@ -89,7 +90,15 @@ def add_word(
     cor_id: str | None = None,
     pos_tag: str | None = None,
     morphology: str | None = None,
+    search_seed: dict[str, object] | None = None,
 ) -> AddWordResponse:
+    if search_seed is not None:
+        return add_word_from_search_seed(
+            runtime,
+            surface_token=surface_token,
+            lemma_candidate=lemma_candidate,
+            search_seed=search_seed,
+        )
     ensure_wordbank_meaning_compatibility(runtime)
     inputs = _normalize_add_word_inputs(runtime, surface_token, lemma_candidate, cor_id, pos_tag, morphology)
     initial_metadata = _extract_root_metadata(runtime, inputs)

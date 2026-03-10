@@ -11,6 +11,7 @@ import {
   lemmaTranslationForVariant,
   normalizeSearchWord,
   posBadgeClass,
+  type SearchSaveSeed,
   type CORSearchGroup,
   type CORSearchVariant,
   type SearchFeedbackContext,
@@ -37,6 +38,7 @@ type SidebarCorResultsProps = {
       morphology?: string | null
       corId?: string | null
     },
+    searchSeed?: SearchSaveSeed | null,
   ) => Promise<string | null>
   onCloseSearch: () => void
 }
@@ -85,6 +87,18 @@ export function SidebarCorResults({
                           posTag: variant.pos_tag ?? null,
                           morphology: variant.morphology ?? null,
                           corId: variant.cor_id,
+                        },
+                        {
+                          lemma: variant.lemma,
+                          surface: variant.form,
+                          cor_id: variant.cor_id,
+                          cor_lemma_idx: variant.lemma_idx,
+                          meaning_key: group.gloss ?? variant.lemma,
+                          gloss: group.gloss ?? variant.gloss ?? null,
+                          english_translation: lemmaTranslationForVariant(variant) ?? glossDisplayForVariant(variant),
+                          pos_tag: variant.pos_tag ?? group.pos_tag ?? null,
+                          morphology: variant.morphology ?? null,
+                          target_meaning_id: null,
                         },
                       )
                       if (addedLemma) {

@@ -60,7 +60,7 @@ export function WordbankDetailsView({
     }
   }, [isSectioned, lemmaDetails, selectedMeaningId])
 
-  if (isLemmaDetailsLoading && showLemmaDetailsLoadingSkeleton) {
+  if (isLemmaDetailsLoading && showLemmaDetailsLoadingSkeleton && !lemmaDetails) {
     return <WordbankDetailsLoadingSkeleton />
   }
 

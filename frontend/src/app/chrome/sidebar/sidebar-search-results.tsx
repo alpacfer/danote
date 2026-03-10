@@ -13,6 +13,7 @@ import {
   type CORSearchGroup,
   type CORSearchVariant,
   type SavedNote,
+  type SearchSaveSeed,
   type SearchFeedbackContext,
   type WordbankSearchItem,
 } from "@/app/core"
@@ -65,6 +66,7 @@ export type SidebarSearchResultsActions = {
       morphology?: string | null
       corId?: string | null
     },
+    searchSeed?: SearchSaveSeed | null,
   ) => Promise<string | null>
   onCloseSearch: () => void
 }

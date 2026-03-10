@@ -31,7 +31,7 @@ describe("App playground", () => {
     })
 
     renderApp()
-    screen.getByLabelText("backend-connection-status")
+    await screen.findByLabelText("backend-connection-status")
 
     setNotesEditorText("hus ")
     await waitFor(() => {
@@ -76,7 +76,7 @@ describe("App playground", () => {
     })
 
     renderApp()
-    screen.getByLabelText("backend-connection-status")
+    await screen.findByLabelText("backend-connection-status")
 
     setNotesEditorText("spiser ")
     await waitFor(() => {
@@ -125,7 +125,7 @@ describe("App playground", () => {
     })
 
     renderApp()
-    screen.getByLabelText("backend-connection-status")
+    await screen.findByLabelText("backend-connection-status")
 
     setNotesEditorText("spist ")
     await waitFor(() => {
@@ -210,7 +210,7 @@ describe("App playground", () => {
     })
 
     renderApp()
-    screen.getByLabelText("backend-connection-status")
+    await screen.findByLabelText("backend-connection-status")
 
     setNotesEditorText("hedde ")
     await waitFor(() => {
@@ -305,7 +305,7 @@ describe("App playground", () => {
     })
 
     renderApp()
-    screen.getByLabelText("backend-connection-status")
+    await screen.findByLabelText("backend-connection-status")
 
     setNotesEditorText("det ")
     await waitFor(() => {

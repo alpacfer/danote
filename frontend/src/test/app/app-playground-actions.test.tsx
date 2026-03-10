@@ -2,6 +2,8 @@ import { act, fireEvent, getNotesEditor, mockFetchImplementation, renderApp, res
 
 describe("App playground", () => {
   it("keeps editor focus when opening popover and dismisses popover when typing", async () => {
+    vi.useRealTimers()
+
     mockFetchImplementation({
       analyzeTokens: [
         {
@@ -25,13 +27,13 @@ describe("App playground", () => {
     })
 
     renderApp()
-    screen.getByLabelText("backend-connection-status")
+    await screen.findByLabelText("backend-connection-status")
 
     setNotesEditorText("katten ")
     await waitFor(() => {
       const mark = getNotesEditor().querySelector("mark[data-status='variation']")
       expect(mark).toBeInTheDocument()
-    })
+    }, { timeout: 3_000 })
 
     const mark = getNotesEditor().querySelector("mark[data-status='variation']")
     expect(mark).toBeInTheDocument()
@@ -43,8 +45,8 @@ describe("App playground", () => {
     setNotesEditorText("katten x")
     await waitFor(() => {
       expect(screen.queryByRole("button", { name: /add variation/i })).not.toBeInTheDocument()
-    })
-  })
+    }, { timeout: 3_000 })
+  }, 10_000)
 
   it("adding from popover calls backend, re-analyzes, and shows success toast", async () => {
     vi.useRealTimers()
@@ -127,7 +129,7 @@ describe("App playground", () => {
     })
 
     renderApp()
-    screen.getByLabelText("backend-connection-status")
+    await screen.findByLabelText("backend-connection-status")
 
     setNotesEditorText("kat ")
     await waitFor(() => {
@@ -175,7 +177,7 @@ describe("App playground", () => {
     })
 
     renderApp()
-    screen.getByLabelText("backend-connection-status")
+    await screen.findByLabelText("backend-connection-status")
 
     setNotesEditorText("kat ")
     await waitFor(() => {

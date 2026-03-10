@@ -48,11 +48,35 @@ def test_wordbank_routes_meet_smoke_latency_budget(tmp_path, stub_nlp_adapter_fa
         client.post("/api/wordbank/lexemes", json={"surface_token": "bogens", "lemma_candidate": "bog"})
 
         budgets_ms = {
+            "/api/wordbank/lexemes (search_seed)": 150.0,
             "/api/wordbank/lemmas": 400.0,
-            "/api/wordbank/lemmas/bog": 400.0,
+            "/api/wordbank/lemmas/bog": 120.0,
             "/api/wordbank/search?query=bog&limit=8": 200.0,
             "/api/wordbank/resolve-query": 700.0,
         }
+
+        started_at = perf_counter()
+        seeded_add_response = client.post(
+            "/api/wordbank/lexemes",
+            json={
+                "surface_token": "bøger",
+                "lemma_candidate": "bog",
+                "search_seed": {
+                    "lemma": "bog",
+                    "surface": "bøger",
+                    "cor_id": "COR.BOG.BOOK.2",
+                    "cor_lemma_idx": 123,
+                    "meaning_key": "book",
+                    "gloss": "book",
+                    "english_translation": "book",
+                    "pos_tag": "NOUN",
+                    "morphology": "Gender=Com|Number=Plur|Definite=Ind",
+                },
+            },
+        )
+        seeded_add_duration_ms = (perf_counter() - started_at) * 1000
+        assert seeded_add_response.status_code == 200
+        assert seeded_add_duration_ms < budgets_ms["/api/wordbank/lexemes (search_seed)"]
 
         started_at = perf_counter()
         lemmas_response = client.get("/api/wordbank/lemmas")
