@@ -11,15 +11,33 @@ Python API service for danote.
 - Translation: DeepL API (default) or Azure Translator Text API
 - Text-to-speech: Azure Speech SDK
 
-## Database (Checkpoint 5)
+## Current schema overview
 
 - DB file: `backend/data/danote.sqlite3` (default; configurable via `DANOTE_DB_PATH`)
-- Migration strategy: versioned SQL files in `backend/migrations/`
 - Applied migrations tracking table: `schema_migrations`
-- Schema v0 tables:
-  - `lexemes` (unique lemma/base form)
-  - `surface_forms` (optional inflected/typed forms linked to lexeme)
 - Startup behavior: migrations are auto-applied when backend starts
+
+Major schema domains (high-level):
+
+- Core lexicon:
+  - `lexemes` stores canonical lemmas and shared lexical metadata
+  - `surface_forms` stores observed/inflected forms linked to lexemes (and optional meaning linkage)
+  - `lexeme_meanings` stores meaning sections/senses and optional COR lemma references
+- Typo and feedback telemetry:
+  - `token_events` records token-level classification outcomes
+  - `typo_feedback` captures user decisions on suggestions
+  - `ignored_tokens` stores opt-out tokens/scopes
+- Sentence bank:
+  - `sentence_bank` stores normalized source sentences with optional cached translations
+- Phrase translation cache:
+  - `phrase_translations` caches phrase-level translations by source phrase
+- COR variant linkage:
+  - `surface_form_cor_variants` links stored surface forms to COR IDs for lookup alignment
+- Background jobs:
+  - `wordbank_background_jobs` stores durable async job state for wordbank workflows
+
+Schema evolution is migration-driven: the authoritative source of truth is the ordered SQL files in
+[`backend/migrations/`](./migrations/), which should be read sequentially for exact DDL and history.
 
 ### Seed Data
 
