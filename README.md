@@ -166,6 +166,7 @@ Manual demo and release docs:
 - `docs/wordbank-section-behavior.md`
 - `docs/lemma-benchmark-baseline.md`
 - `docs/lemma-benchmark-report-v0.md`
+- `docs/notes-section-behavior.md`
 - `docs/developer-section-behavior.md`
 
 ## Reproducibility
