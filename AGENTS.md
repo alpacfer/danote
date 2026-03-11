@@ -40,6 +40,15 @@ If you change backend orchestration or API schemas, additionally run:
 - When a required shadcn component is not present, install it first and use the generated component mostly as-is.
   Prefer composing around the generated API and styling via props/class names instead of rewriting the component internals unless explicitly requested.
 
+## Documentation Sync Rule (mandatory)
+
+- Any code/config/API/schema/workflow change must include documentation updates in the same PR.
+- If no documentation files were changed, the PR must explicitly include a clear "No documentation impact" justification.
+- API route or API schema changes must update `docs/api-contract.md`.
+- Command/setup/workflow changes must update `README.md` and relevant documentation under `docs/`.
+- Version/dependency/runtime changes must update `docs/versions.md`.
+- Completion checklists must include an explicit documentation parity verification checkbox.
+
 ## Maintainability guardrails (mandatory)
 
 - Build for long-term maintainability over short-term speed. Avoid "god files" and mixed responsibilities.
@@ -101,6 +110,7 @@ If you change backend orchestration or API schemas, additionally run:
 - [ ] `make test` passes
 - [ ] `make docs-smoke` passes
 - [ ] If backend orchestration changed: `tests/use_cases` passes
+- [ ] Documentation parity verified (docs updated or PR includes explicit "No documentation impact" justification)
 - [ ] No unstaged/untracked scratch files remain
 
 ## Quick file lookup
