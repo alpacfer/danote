@@ -155,16 +155,22 @@ cd backend
 source .venv/bin/activate
 export DANOTE_TRANSLATION_PROVIDER="deepl"
 export DANOTE_TRANSLATION_DEEPL_API_KEY="your-deepl-key"
-# optional DeepL endpoint override (defaults to api.deepl.com / api-free.deepl.com)
-# export DANOTE_TRANSLATION_DEEPL_ENDPOINT="https://api-free.deepl.com"
-export DANOTE_TTS_PROVIDER="azure"
 export DANOTE_TTS_AZURE_API_KEY="your-speech-key"
 export DANOTE_TTS_AZURE_REGION="your-speech-region"
-export DANOTE_TTS_AZURE_VOICE_NAME="da-DK-ChristelNeural"
-# optional audit log for "Apply Gemini changes" actions
-export DANOTE_GEMINI_CHANGES_LOG_PATH="backend/data/gemini-applied-changes.jsonl"
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
+
+Configuration reference: [`../docs/configuration-reference.md`](../docs/configuration-reference.md).
+
+### Configuration precedence
+
+Backend settings are resolved in this order:
+
+1. exported environment variables
+2. `<repo-root>/.env.local`
+3. hardcoded defaults in `backend/app/core/config.py`
+
+For the complete variable catalog (defaults, accepted values, and fallback/alias behavior), see [`../docs/configuration-reference.md`](../docs/configuration-reference.md).
 
 ## API
 
