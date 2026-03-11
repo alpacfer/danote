@@ -162,6 +162,7 @@ Manual demo and release docs:
 - `docs/release-checklist-prototype-v0.md`
 - `docs/lemma-benchmark-baseline.md`
 - `docs/lemma-benchmark-report-v0.md`
+- `docs/developer-section-behavior.md`
 
 ## Reproducibility
 
