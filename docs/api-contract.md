@@ -1,169 +1,214 @@
 # API Contract
 
-## GET `/api/health`
+This document enumerates all HTTP routes currently declared under `backend/app/api/routes/*.py`.
 
-Health and readiness status for backend dependencies.
+## Contract source
 
-### Response JSON
+Route decorators are the source of truth in `backend/app/api/routes/`, and API DTOs live in `backend/app/api/schemas/v1/`. Some token endpoints currently use request/response models declared inline in `backend/app/api/routes/tokens.py` (not yet in `schemas/v1`).
 
-```json
-{
-  "status": "ok",
-  "service": "backend",
-  "components": {
-    "database": "ok",
-    "nlp": "ok"
-  }
-}
-```
+## Root
 
-When startup checks fail (for example DB path invalid or NLP initialization failure), `status` becomes `"degraded"` and component-level status/error fields are returned.
+### GET `/api/`
+- **Request model:** none.
+- **Response model:** inline `dict[str, str]` (`{"status": "ok", "message": "danote backend scaffold"}`).
+- **Notable status/error behavior:** normal success `200`.
 
-## POST `/api/analyze`
+### GET `/api/health`
+- **Request model:** none.
+- **Response model:** `HealthResponse` (`backend/app/api/schemas/v1/root.py`).
+- **Notable status/error behavior:** returns `200` with `status: "ok"` or `"degraded"` depending on DB/NLP/service readiness.
 
-Analyze full note text and return token classifications for finalized tokens. POS/morphology annotations come from the NLP pipeline and may be `null` when unavailable.
+## Analyze
 
-### Request JSON
+### POST `/api/analyze`
+- **Request model:** `AnalyzeRequest`.
+- **Response model:** `AnalyzeResponse`.
+- **Notable status/error behavior:**
+  - `503` when NLP is unavailable (`require_nlp_ready`).
+  - `503` when DB is unavailable/locked.
+  - `400` when the use case raises validation/value errors.
 
-```json
-{
-  "text": "Jeg kan godt lide bogen"
-}
-```
+### POST `/api/analyze/enrich-token`
+- **Request model:** `EnrichTokenRequest`.
+- **Response model:** `ResolveQueryResponse`.
+- **Notable status/error behavior:**
+  - `503` when DB is unavailable/locked.
+  - `400` for value errors from query resolution.
 
-### Response JSON (v1 typo-aware schema)
+## Tokens
 
-```json
-{
-  "tokens": [
-    {
-      "surface_token": "bogen",
-      "normalized_token": "bogen",
-      "lemma_candidate": "bog",
-      "classification": "variation",
-      "match_source": "lemma",
-      "matched_lemma": "bog",
-      "matched_surface_form": null,
-      "suggestions": [],
-      "confidence": 0.0,
-      "reason_tags": ["lemma_match"],
-      "status": "variation",
-      "surface": "bogen",
-      "normalized": "bogen",
-      "lemma": "bog",
-      "pos_tag": "NOUN",
-      "morphology": "Definite=Def|Gender=Com|Number=Sing"
-    }
-  ]
-}
-```
+### POST `/api/tokens/feedback`
+- **Request model:** inline `TokenFeedbackRequest` (`backend/app/api/routes/tokens.py`).
+- **Response model:** inline `TokenFeedbackResponse`.
+- **Notable status/error behavior:**
+  - `503` when typo engine is unavailable.
+  - `503` when typo DB operations fail (`sqlite3.OperationalError`).
 
-### Token Filtering Rules (v0)
+### POST `/api/tokens/ignore`
+- **Request model:** inline `TokenIgnoreRequest` (`backend/app/api/routes/tokens.py`).
+- **Response model:** inline `TokenIgnoreResponse`.
+- **Notable status/error behavior:**
+  - `503` when typo engine is unavailable.
+  - `503` when typo DB operations fail (`sqlite3.OperationalError`).
 
-- Skip empty tokens.
-- Skip pure punctuation tokens.
-- Repeated spaces/newlines are allowed and do not break analysis.
+## Developer
 
-### Classification Rules (v1)
+### POST `/api/developer/api-keys`
+- **Request model:** `DeveloperApiKeysUpdateRequest`.
+- **Response model:** `DeveloperApiKeysUpdateResponse`.
+- **Notable status/error behavior:** updates runtime API key overrides and service wiring; returns configured-provider flags in `configured`.
 
-- Exact DB match: `known`
-- Else lemma found in lexeme DB: `variation`
-- Else typo engine path:
-  - high confidence: `typo_likely`
-  - medium confidence or proper noun risk: `uncertain`
-  - low confidence/no candidate: `new`
+### POST `/api/developer/gemini-probe`
+- **Request model:** none.
+- **Response model:** `GeminiProbeResponse`.
+- **Notable status/error behavior:** endpoint returns probe payload with `status` (`ok`/`error`) and diagnostic message; probe failures are represented in-body (typically `200` response).
 
-### Failure Responses
+### POST `/api/developer/translation-probe`
+- **Request model:** none.
+- **Response model:** `DeveloperServiceProbeResponse`.
+- **Notable status/error behavior:** endpoint returns probe payload with `status` (`ok`/`error`) and provider diagnostics; failures are represented in-body.
 
-- `503` with JSON `{ "detail": "Database unavailable..." }` when DB is unavailable/locked.
-- `503` with JSON `{ "detail": "NLP unavailable..." }` when NLP initialization failed.
+### POST `/api/developer/tts-probe`
+- **Request model:** none.
+- **Response model:** `DeveloperServiceProbeResponse`.
+- **Notable status/error behavior:** endpoint returns probe payload with `status` (`ok`/`error`) and message; failures are represented in-body.
 
-## POST `/api/wordbank/lexemes`
+## Sentencebank
 
-Persist a token into the local wordbank with manual source. The backend stores the lemma when available and also stores the typed surface form.
+### POST `/api/sentencebank/sentences`
+- **Request model:** `AddSentenceRequest`.
+- **Response model:** `AddSentenceResponse`.
+- **Notable status/error behavior:**
+  - `503` when DB is unavailable/locked.
+  - `400` for value errors.
+  - `status` in body is `inserted` or `exists`.
 
-### Request JSON
+### GET `/api/sentencebank/sentences`
+- **Request model:** none.
+- **Response model:** `SentenceListResponse`.
+- **Notable status/error behavior:**
+  - `503` when DB is unavailable/locked.
 
-```json
-{
-  "surface_token": "bogen",
-  "lemma_candidate": "bog"
-}
-```
+## Wordbank
 
-### Response JSON
+### POST `/api/wordbank/lexemes`
+- **Request model:** `AddWordRequest`.
+- **Response model:** `AddWordResponse`.
+- **Notable status/error behavior:**
+  - `503` when DB unavailable/locked.
+  - `503` for runtime DB compatibility errors (e.g., reset-required conditions).
+  - `400` for invalid inputs.
+  - body `status` may be `inserted` or `exists`.
 
-```json
-{
-  "status": "inserted",
-  "stored_lemma": "bog",
-  "stored_surface_form": "bogen",
-  "source": "manual",
-  "message": "Added 'bog' to wordbank.",
-  "meaning": {
-    "id": 1,
-    "meaning_key": "book",
-    "gloss": "book",
-    "english_translation": "book"
-  }
-}
-```
+### POST `/api/wordbank/lexemes/verify`
+- **Request model:** `VerifyWordRequest`.
+- **Response model:** `VerifyWordResponse`.
+- **Notable status/error behavior:**
+  - `503` when DB unavailable/locked.
+  - `404` when target lemma/surface/meaning cannot be found.
+  - `400` for invalid inputs.
 
-`meaning` is optional and present for non-verb sectioned entries.
+### POST `/api/wordbank/lexemes/pronunciation`
+- **Request model:** `GeneratePronunciationRequest`.
+- **Response model:** `GeneratePronunciationResponse`.
+- **Notable status/error behavior:**
+  - `503` when DB unavailable/locked.
+  - `404` when the target entry is not found.
+  - body `status` can be `generated`, `unavailable`, or `skipped`.
 
-### Write Rules (v0)
+### POST `/api/wordbank/lexemes/apply-verification-changes`
+- **Request model:** `ApplyVerificationChangesRequest`.
+- **Response model:** `ApplyVerificationChangesResponse`.
+- **Notable status/error behavior:**
+  - `503` when DB unavailable/locked.
+  - `404` when source/target meaning context cannot be resolved.
+  - body `status` can be `applied` or `skipped`.
 
-- Store `lemma_candidate` as the lexeme if present after normalization; otherwise store normalized `surface_token`.
-- Store normalized `surface_token` as a surface form linked to that lexeme.
-- All writes use source `manual`.
-- Duplicate adds are graceful and return `status: "exists"` with HTTP `200`.
+### POST `/api/wordbank/translation`
+- **Request model:** `GenerateTranslationRequest`.
+- **Response model:** `GenerateTranslationResponse`.
+- **Notable status/error behavior:**
+  - `503` when DB unavailable/locked.
+  - body `status` can be `generated` or `unavailable`.
 
-### Failure Responses
+### POST `/api/wordbank/reverse-translation`
+- **Request model:** `GenerateReverseTranslationRequest`.
+- **Response model:** `GenerateReverseTranslationResponse`.
+- **Notable status/error behavior:**
+  - `503` when DB unavailable/locked.
+  - body `status` can be `generated` or `unavailable`.
 
-- `503` with JSON `{ "detail": "Database unavailable..." }` when DB is unavailable/locked.
-- `503` with JSON containing `"Reset the database"` when legacy non-verb rows are incompatible with meaning sections.
+### POST `/api/wordbank/detect-language`
+- **Request model:** `DetectWordLanguageRequest`.
+- **Response model:** `DetectWordLanguageResponse`.
+- **Notable status/error behavior:**
+  - `503` when DB unavailable/locked.
 
-## POST `/api/tokens/feedback`
+### POST `/api/wordbank/resolve-query`
+- **Request model:** `ResolveQueryRequest`.
+- **Response model:** `ResolveQueryResponse`.
+- **Notable status/error behavior:**
+  - `503` when DB unavailable/locked.
+  - `400` for invalid resolver inputs.
 
-Record user actions taken on typo suggestions.
+### POST `/api/wordbank/phrase-translation`
+- **Request model:** `GeneratePhraseTranslationRequest`.
+- **Response model:** `GeneratePhraseTranslationResponse`.
+- **Notable status/error behavior:**
+  - `503` when DB unavailable/locked.
+  - body `status` can be `generated`, `cached`, or `unavailable`.
 
-### Request JSON
+### GET `/api/wordbank/lemmas`
+- **Request model:** none.
+- **Response model:** `LemmaListResponse`.
+- **Notable status/error behavior:**
+  - `503` when DB unavailable/locked.
+  - `503` for runtime errors surfaced by use case.
 
-```json
-{
-  "raw_token": "spisr",
-  "predicted_status": "typo_likely",
-  "suggestions_shown": ["spiser"],
-  "user_action": "replace",
-  "chosen_value": "spiser"
-}
-```
+### GET `/api/wordbank/search`
+- **Request model:** none (`query` and `limit` query parameters).
+- **Response model:** `WordbankSearchResponse`.
+- **Notable status/error behavior:**
+  - query validation failures return `422` (e.g., empty query or limit out of range).
+  - `503` when DB unavailable/locked.
+  - `503` for runtime errors surfaced by use case.
 
-### Response JSON
+### GET `/api/wordbank/search/cor-form`
+- **Request model:** none (`form`, `limit`, `include_translations` query parameters).
+- **Response model:** `CORSearchFormResponse`.
+- **Notable status/error behavior:**
+  - query validation failures return `422`.
+  - `503` when DB unavailable/locked.
+  - `503` for runtime errors surfaced by use case.
 
-```json
-{
-  "status": "recorded"
-}
-```
+### GET `/api/wordbank/search/cor-lemma/{lemma_idx}`
+- **Request model:** none (`lemma_idx` path param, optional `limit` query parameter).
+- **Response model:** `CORLemmaParadigmResponse`.
+- **Notable status/error behavior:**
+  - path/query validation failures return `422`.
+  - `503` when DB unavailable/locked.
+  - `503` for runtime errors surfaced by use case.
 
-## POST `/api/tokens/ignore`
+### GET `/api/wordbank/lemmas/{lemma}`
+- **Request model:** none (`lemma` path parameter).
+- **Response model:** `LemmaDetailsResponse` (with legacy compatibility JSON shape for non-sectioned entries).
+- **Notable status/error behavior:**
+  - `404` when lemma is not found.
+  - `503` when DB unavailable/locked.
+  - `503` for runtime errors surfaced by use case.
 
-Suppress token from future typo prompts.
+### GET `/api/wordbank/pronunciation`
+- **Request model:** none (`form` query parameter).
+- **Response model:** raw audio bytes (`fastapi.Response`, dynamic `media_type`), not a Pydantic schema.
+- **Notable status/error behavior:**
+  - query validation failures return `422`.
+  - `404` when pronunciation is not found.
+  - `503` when DB unavailable/locked.
+  - `503` for runtime errors surfaced by use case.
 
-### Request JSON
-
-```json
-{
-  "token": "MilkoScna",
-  "scope": "global"
-}
-```
-
-### Response JSON
-
-```json
-{
-  "status": "ignored"
-}
-```
+### DELETE `/api/wordbank/database`
+- **Request model:** none.
+- **Response model:** `ResetDatabaseResponse`.
+- **Notable status/error behavior:**
+  - `503` when DB unavailable/locked.
+  - `503` with `Database reset failed: ...` for filesystem/OS reset failures.
