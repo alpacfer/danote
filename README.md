@@ -167,6 +167,7 @@ Manual demo and release docs:
 - `docs/lemma-benchmark-baseline.md`
 - `docs/lemma-benchmark-report-v0.md`
 - `docs/playground-section-behavior.md`
+- `docs/notes-section-behavior.md`
 - `docs/developer-section-behavior.md`
 
 ## Reproducibility
