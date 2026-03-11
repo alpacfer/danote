@@ -160,6 +160,8 @@ Manual demo and release docs:
 
 - `docs/manual-demo-script.md`
 - `docs/release-checklist-prototype-v0.md`
+- `docs/sidebar-search-behavior.md`
+- `docs/wordbank-section-behavior.md`
 - `docs/lemma-benchmark-baseline.md`
 - `docs/lemma-benchmark-report-v0.md`
 
