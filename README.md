@@ -159,10 +159,15 @@ cd <repo-root>
 Manual demo and release docs:
 
 - `docs/manual-demo-script.md`
+- `docs/app-shell-behavior.md`
 - `docs/release-checklist-prototype-v0.md`
+- `docs/sentencebank-section-behavior.md`
+- `docs/sidebar-search-behavior.md`
+- `docs/wordbank-section-behavior.md`
 - `docs/lemma-benchmark-baseline.md`
 - `docs/lemma-benchmark-report-v0.md`
 - `docs/notes-section-behavior.md`
+- `docs/developer-section-behavior.md`
 
 ## Reproducibility
 
