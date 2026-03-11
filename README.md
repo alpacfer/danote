@@ -159,6 +159,7 @@ cd <repo-root>
 Manual demo and release docs:
 
 - `docs/manual-demo-script.md`
+- `docs/app-shell-behavior.md`
 - `docs/release-checklist-prototype-v0.md`
 - `docs/lemma-benchmark-baseline.md`
 - `docs/lemma-benchmark-report-v0.md`
