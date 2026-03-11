@@ -68,11 +68,13 @@ This document tracks the baseline development environment and dependency locking
 
 - Lockfiles are required and must be committed to the repository.
 - Frontend lockfile: `package-lock.json` (npm)
-- Backend lockfile: `requirements.txt` + `requirements-dev.txt` (pinned)
+- Backend input requirements: `backend/requirements.txt` (+ `backend/requirements-dev.txt` for dev/lock generation)
+- Backend canonical install lockfile: `backend/requirements.lock.txt`
 
 ## Current Lockfile Status
 
 - Frontend lockfile present: `Yes` (`frontend/package-lock.json`)
-- Backend lockfile present: `Yes` (`backend/requirements.txt`, `backend/requirements-dev.txt`)
+- Backend input requirements present: `Yes` (`backend/requirements.txt`, `backend/requirements-dev.txt`)
+- Backend canonical install lockfile present: `Yes` (`backend/requirements.lock.txt`)
 
 Update this file whenever runtime versions or key dependencies change.
