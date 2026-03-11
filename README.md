@@ -10,6 +10,10 @@ Language-learning note-taking web app (Danish-first) with a browser frontend and
 - `scripts/`: development helper scripts
 - `test-data/`: seed fixtures and sample sentences
 
+## Documentation Hub
+
+- Start here: [`docs/README.md`](docs/README.md) for the discoverability + freshness index.
+
 ## Run Instructions
 
 ## Developer Quickstart
