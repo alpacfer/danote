@@ -191,7 +191,62 @@ Route decorators are the source of truth in `backend/app/api/routes/`, and API D
 
 ### GET `/api/wordbank/lemmas/{lemma}`
 - **Request model:** none (`lemma` path parameter).
-- **Response model:** `LemmaDetailsResponse` (with legacy compatibility JSON shape for non-sectioned entries).
+- **Response model:** `LemmaDetailsResponse`.
+- **Canonical response examples:**
+  - **Non-sectioned** (`is_sectioned: false`):
+    ```json
+    {
+      "lemma": "lære",
+      "english_translation": null,
+      "pos_tag": "VERB",
+      "morphology": "Tense=Pres|VerbForm=Fin|Voice=Act",
+      "is_sectioned": false,
+      "meaning_sections": [],
+      "surface_forms": [
+        {
+          "form": "lærer",
+          "pos_tag": "VERB",
+          "morphology": "Tense=Pres|VerbForm=Fin|Voice=Act",
+          "has_pronunciation": false
+        }
+      ]
+    }
+    ```
+  - **Sectioned** (`is_sectioned: true`):
+    ```json
+    {
+      "lemma": "bog",
+      "english_translation": null,
+      "pos_tag": null,
+      "morphology": null,
+      "is_sectioned": true,
+      "meaning_sections": [
+        {
+          "id": 1,
+          "meaning_key": "book",
+          "gloss": "book",
+          "english_translation": "book",
+          "gloss_translation": "book",
+          "pos_tag": "NOUN",
+          "morphology": "Gender=Com|Number=Sing|Definite=Def",
+          "surface_forms": [
+            {
+              "form": "bogen",
+              "pos_tag": "NOUN",
+              "morphology": "Gender=Com|Number=Sing|Definite=Def",
+              "lemma": "bog",
+              "lemma_translation": "book",
+              "gloss": "book",
+              "gloss_translation": "book",
+              "gram_raw": "sb. fk. sg. best",
+              "has_pronunciation": false
+            }
+          ]
+        }
+      ],
+      "surface_forms": []
+    }
+    ```
 - **Notable status/error behavior:**
   - `404` when lemma is not found.
   - `503` when DB unavailable/locked.

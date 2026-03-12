@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 
+from app.api.schemas.v1.wordbank import LemmaDetailsResponse
 from app.services.cor import COREntry
 from app.services.cor_local import CORLocalEntry
 from app.services.token_classifier import normalize_token
@@ -111,3 +112,39 @@ def normalize_translation_value(value: str | None) -> str | None:
     if not cleaned:
         return None
     return cleaned.lower()
+
+
+def map_lemma_details_response(response: LemmaDetailsResponse) -> LemmaDetailsResponse:
+    if response.is_sectioned:
+        return response
+
+    non_lemma_form_count = sum(1 for form in response.surface_forms if form.form != response.lemma)
+    surface_forms: list[LemmaDetailsResponse.SurfaceFormDetails] = []
+    for form in response.surface_forms:
+        if form.form == response.lemma and non_lemma_form_count <= 1:
+            continue
+        surface_forms.append(
+            LemmaDetailsResponse.SurfaceFormDetails(
+                form=form.form,
+                pos_tag=form.pos_tag,
+                morphology=form.morphology,
+                lemma=None,
+                lemma_translation=(
+                    None if form.lemma_translation == response.english_translation else form.lemma_translation
+                ),
+                gloss=form.gloss,
+                gloss_translation=form.gloss_translation,
+                gram_raw=form.gram_raw,
+                has_pronunciation=form.has_pronunciation,
+            )
+        )
+
+    return LemmaDetailsResponse(
+        lemma=response.lemma,
+        english_translation=response.english_translation,
+        pos_tag=response.pos_tag,
+        morphology=response.morphology,
+        is_sectioned=False,
+        meaning_sections=[],
+        surface_forms=surface_forms,
+    )

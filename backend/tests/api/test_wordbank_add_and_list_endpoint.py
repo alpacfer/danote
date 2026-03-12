@@ -324,6 +324,75 @@ def test_get_lemma_details_returns_all_saved_variations(tmp_path, stub_nlp_adapt
     assert all(item["has_pronunciation"] is False for item in section["surface_forms"])
 
 
+def test_get_lemma_details_non_sectioned_payload_omits_optional_surface_fields(tmp_path, stub_nlp_adapter_factory) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    apply_migrations(db_path)
+    app = create_app(build_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+
+    with TestClient(app) as client:
+        client.post(
+            "/api/wordbank/lexemes",
+            json={
+                "surface_token": "lærer",
+                "lemma_candidate": "lære",
+                "search_seed": {
+                    "lemma": "lære",
+                    "surface": "lærer",
+                    "cor_id": "COR.30686.203.01",
+                    "cor_lemma_idx": 30686,
+                    "meaning_key": "learn",
+                    "gloss": "learn",
+                    "english_translation": None,
+                    "pos_tag": "VERB",
+                    "morphology": "Tense=Pres|VerbForm=Fin|Voice=Act",
+                },
+            },
+        )
+        response = client.get("/api/wordbank/lemmas/lære")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["is_sectioned"] is False
+    assert payload["meaning_sections"] == []
+    assert payload["surface_forms"] == [
+        {
+            "form": "lærer",
+            "pos_tag": "VERB",
+            "morphology": "Tense=Pres|VerbForm=Fin|Voice=Act",
+            "has_pronunciation": False,
+        }
+    ]
+
+
+def test_get_lemma_details_sectioned_payload_preserves_section_surface_fields(tmp_path, stub_nlp_adapter_factory) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    cor_db_path = tmp_path / "cor.sqlite"
+    apply_migrations(db_path)
+    seed_cor_local_bog_senses(cor_db_path)
+    app = create_app(
+        build_test_settings(db_path, cor_local_db_path=cor_db_path),
+        nlp_adapter_factory=stub_nlp_adapter_factory,
+    )
+
+    with TestClient(app) as client:
+        client.post(
+            "/api/wordbank/lexemes",
+            json={"surface_token": "bogen", "lemma_candidate": "bog", "cor_id": "COR.BOG.BOOK.1"},
+        )
+        response = client.get("/api/wordbank/lemmas/bog")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["is_sectioned"] is True
+    assert payload["surface_forms"] == []
+    section_surface_form = payload["meaning_sections"][0]["surface_forms"][0]
+    assert section_surface_form["form"] == "bogen"
+    assert section_surface_form["lemma"] == "bog"
+    assert section_surface_form["lemma_translation"] == "book"
+    assert section_surface_form["gloss"] == "book"
+    assert section_surface_form["gram_raw"] == "sb. fk. sg. best"
+
+
 def test_get_lemma_details_returns_not_found_for_unknown_lemma(tmp_path, stub_nlp_adapter_factory) -> None:
     db_path = tmp_path / "danote.sqlite3"
     apply_migrations(db_path)
