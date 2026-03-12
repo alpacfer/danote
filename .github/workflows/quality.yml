@@ -37,6 +37,9 @@ jobs:
       - name: Maintainability budgets
         run: make maintainability-check
 
+      - name: Maintainability checker fixtures
+        run: bash scripts/tests/test-maintainability-budgets.sh
+
       - name: Fast tests
         run: make test
 
