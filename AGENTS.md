@@ -42,8 +42,11 @@ If you change backend orchestration or API schemas, additionally run:
 
 ## Documentation Sync Rule (mandatory)
 
+- Before implementing any code/config/schema/workflow change, agents must first locate and read the related documentation in `README.md` and/or `docs/`.
+- Documentation lookup is a required pre-implementation step (not optional) and should be reflected in the agent's execution notes.
 - Any code/config/API/schema/workflow change must include documentation updates in the same PR.
 - If no documentation files were changed, the PR must explicitly include a clear "No documentation impact" justification.
+- After implementation, agents must update all impacted docs before finishing (or include an explicit, justified "No documentation impact" note).
 - API route or API schema changes must update `docs/api-contract.md`.
 - Command/setup/workflow changes must update `README.md` and relevant documentation under `docs/`.
 - Version/dependency/runtime changes must update `docs/versions.md`.
@@ -106,6 +109,7 @@ If you change backend orchestration or API schemas, additionally run:
 
 ## Self-verification checklist before finishing
 
+- [ ] Related documentation reviewed before implementation (`README.md` and/or `docs/*`)
 - [ ] `make lint` passes
 - [ ] `make test` passes
 - [ ] `make docs-smoke` passes
