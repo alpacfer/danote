@@ -42,4 +42,8 @@ coverage/
 # Local SQLite files
 *.sqlite
 *.sqlite3
+*.sqlite-shm
+*.sqlite-wal
+*.sqlite3-shm
+*.sqlite3-wal
 !backend/resources/dictionaries/cor.sqlite
