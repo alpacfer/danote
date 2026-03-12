@@ -1,58 +1,94 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+ROOT_DIR="${MAINTAINABILITY_ROOT_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
 cd "$ROOT_DIR"
 
 warn_count=0
 fail_count=0
 
+ALLOWLIST_REGEX='^(frontend/src/components/ui/vendor/sidebar\.tsx)$'
+
+is_allowlisted() {
+  local file="$1"
+  [[ "$file" =~ $ALLOWLIST_REGEX ]]
+}
+
+scan_budget() {
+  local label="$1"
+  local soft_limit="$2"
+  local hard_limit="$3"
+  local warn_message="$4"
+  local fail_message="$5"
+
+  while IFS= read -r file; do
+    [[ -z "$file" ]] && continue
+    if is_allowlisted "$file"; then
+      continue
+    fi
+
+    local lines
+    lines=$(wc -l < "$file")
+
+    if (( lines > hard_limit )); then
+      echo "[FAIL] $fail_message: $file ($lines)"
+      fail_count=$((fail_count + 1))
+    elif (( lines > soft_limit )); then
+      echo "[WARN] $warn_message: $file ($lines)"
+      warn_count=$((warn_count + 1))
+    fi
+  done
+}
+
 echo "[maintainability] scanning non-test file budgets"
 
-while IFS= read -r file; do
-  [[ -z "$file" ]] && continue
-  lines=$(wc -l < "$file")
-  if (( lines > 450 )); then
-    echo "[FAIL] ts/tsx hard limit >450: $file ($lines)"
-    fail_count=$((fail_count + 1))
-  elif (( lines > 300 )); then
-    echo "[WARN] ts/tsx soft limit >300: $file ($lines)"
-    warn_count=$((warn_count + 1))
-  fi
-done < <(rg --files frontend/src | rg -v '(/test/|\.test\.|\.spec\.|/__tests__/|components/ui/vendor/sidebar\.tsx$)' | rg '\.(ts|tsx)$')
+scan_budget \
+  "frontend ts/tsx" \
+  300 \
+  450 \
+  "ts/tsx soft limit >300" \
+  "ts/tsx hard limit >450" \
+  < <(rg --files frontend/src | rg -v '(/test/|\.test\.|\.spec\.|/__tests__/)' | rg '\.(ts|tsx)$')
 
-while IFS= read -r file; do
-  [[ -z "$file" ]] && continue
-  lines=$(wc -l < "$file")
-  if (( lines > 200 )); then
-    echo "[WARN] tsx component target >200: $file ($lines)"
-    warn_count=$((warn_count + 1))
-  fi
-done < <(rg --files frontend/src | rg -v '(/test/|\.test\.|\.spec\.|/__tests__/|components/ui/vendor/sidebar\.tsx$)' | rg '\.tsx$')
+scan_budget \
+  "frontend tsx components" \
+  200 \
+  999999 \
+  "tsx component target >200" \
+  "unused" \
+  < <(rg --files frontend/src | rg -v '(/test/|\.test\.|\.spec\.|/__tests__/)' | rg '\.tsx$')
 
-while IFS= read -r file; do
-  [[ -z "$file" ]] && continue
-  lines=$(wc -l < "$file")
-  if (( lines > 700 )); then
-    echo "[FAIL] backend use-case hard limit >700: $file ($lines)"
-    fail_count=$((fail_count + 1))
-  elif (( lines > 350 )); then
-    echo "[WARN] backend use-case soft limit >350: $file ($lines)"
-    warn_count=$((warn_count + 1))
-  fi
-done < <(rg --files backend/app/services/use_cases | rg -v '(/tests?/|\.test\.|\.spec\.|/__tests__/)' | rg '\.py$')
+scan_budget \
+  "backend use-cases" \
+  350 \
+  700 \
+  "backend use-case soft limit >350" \
+  "backend use-case hard limit >700" \
+  < <(rg --files backend/app/services/use_cases | rg -v '(/tests?/|\.test\.|\.spec\.|/__tests__/)' | rg '\.py$')
 
-while IFS= read -r file; do
-  [[ -z "$file" ]] && continue
-  lines=$(wc -l < "$file")
-  if (( lines > 350 )); then
-    echo "[FAIL] backend app boundary hard limit >350: $file ($lines)"
-    fail_count=$((fail_count + 1))
-  elif (( lines > 250 )); then
-    echo "[WARN] backend app boundary soft limit >250: $file ($lines)"
-    warn_count=$((warn_count + 1))
-  fi
-done < <(rg --files backend/app/api/routes backend/app/bootstrap backend/app/core | rg '\.py$')
+scan_budget \
+  "backend services" \
+  300 \
+  600 \
+  "backend service soft limit >300" \
+  "backend service hard limit >600" \
+  < <(rg --files backend/app/services | rg -v '(/use_cases/|/tests?/|\.test\.|\.spec\.|/__tests__/)' | rg '\.py$')
+
+scan_budget \
+  "backend repositories" \
+  300 \
+  800 \
+  "backend repository soft limit >300" \
+  "backend repository hard limit >800" \
+  < <(rg --files backend/app/db/repositories | rg -v '(/tests?/|\.test\.|\.spec\.|/__tests__/)' | rg '\.py$')
+
+scan_budget \
+  "backend app boundary" \
+  250 \
+  350 \
+  "backend app boundary soft limit >250" \
+  "backend app boundary hard limit >350" \
+  < <(rg --files backend/app/api/routes backend/app/bootstrap backend/app/core | rg '\.py$')
 
 echo "[maintainability] scanning architecture boundaries"
 
@@ -72,6 +108,10 @@ fi
 
 while IFS= read -r file; do
   [[ -z "$file" ]] && continue
+  if is_allowlisted "$file"; then
+    continue
+  fi
+
   lines=$(wc -l < "$file")
   if (( lines > 220 )); then
     echo "[FAIL] app-controller orchestration hard limit >220: $file ($lines)"
