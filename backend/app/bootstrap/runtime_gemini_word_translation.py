@@ -7,9 +7,22 @@ from fastapi import FastAPI
 from app.bootstrap.runtime_translation import RuntimeApiKeyOverrides
 from app.core.app_state import get_runtime_state, set_runtime_field, set_service_field
 from app.core.config import Settings
-from app.services.gemini_translation import GeminiFlashLiteWordTranslationService
+from app.services.gemini_translation import GeminiFlashLiteWordTranslationService, GeminiTranslationError
 
 logger = logging.getLogger(__name__)
+
+
+def _log_startup_failure(*, exc: Exception) -> None:
+    logger.warning(
+        "backend_gemini_word_translation_startup_failed",
+        extra={
+            "provider": "gemini_word_translation",
+            "operation": "startup.initialize",
+            "failure_class": exc.__class__.__name__,
+            "retryable": False,
+        },
+        exc_info=exc,
+    )
 
 
 def initialize_gemini_word_translation(
@@ -36,8 +49,8 @@ def initialize_gemini_word_translation(
                     model=settings.gemini_model,
                 ),
             )
-        except Exception:
-            logger.exception("backend_gemini_word_translation_startup_failed")
+        except (GeminiTranslationError, ValueError, TypeError) as exc:
+            _log_startup_failure(exc=exc)
             set_runtime_field(
                 app,
                 "gemini_word_translation_error",

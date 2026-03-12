@@ -5,6 +5,8 @@ from pathlib import Path
 from app.api.schemas.v1.wordbank import LemmaDetailsResponse
 from app.db.migrations import get_connection
 from app.services.cor_local import CORLocalEntry
+from app.services.use_cases.wordbank.collaborators.translation import TranslationCollaborator
+from app.services.use_cases.wordbank.collaborators.translation_failures import ProviderFailureReason
 from app.services.use_cases.wordbank import WordbankUseCase
 from tests.helpers.factories import _cor_local_entry, _db_path
 from tests.helpers.fakes import (
@@ -252,6 +254,46 @@ def test_wordbank_generate_reverse_translation_normalizes_provider_case(tmp_path
     assert generated.status == "generated"
     assert generated.source_word == "mug"
     assert generated.danish_translation == "krus"
+
+
+def test_translation_collaborator_lookup_translation_result_reports_not_configured(tmp_path: Path) -> None:
+    collaborator = TranslationCollaborator(
+        translation_service=None,
+        gemini_word_translation_service=None,
+        cor_local_lexicon_service=None,
+        db_path=_db_path(tmp_path),
+    )
+
+    result = collaborator.lookup_translation_result("bog")
+
+    assert result.value is None
+    assert result.failure is not None
+    assert result.failure.reason == ProviderFailureReason.NOT_CONFIGURED
+    assert result.failure.operation == "translate_da_to_en"
+
+
+def test_translation_collaborator_lookup_translation_logs_failure_payload(caplog, tmp_path: Path) -> None:
+    collaborator = TranslationCollaborator(
+        translation_service=FakeTranslationService({"bog": "book"}, failing_inputs={"bog"}),
+        gemini_word_translation_service=None,
+        cor_local_lexicon_service=None,
+        db_path=_db_path(tmp_path),
+    )
+
+    with caplog.at_level("WARNING"):
+        result = collaborator.lookup_translation_result("bog")
+
+    assert result.value is None
+    assert result.failure is not None
+    assert result.failure.reason == ProviderFailureReason.PROVIDER
+    assert result.failure.retryable is True
+
+    record = next(r for r in caplog.records if r.message == "wordbank_translation_provider_fallback")
+    assert record.provider == "azure_translator"
+    assert record.operation == "translate_da_to_en"
+    assert record.failure_class == "RuntimeError"
+    assert record.failure_reason == "provider"
+    assert record.retryable is True
 
 def test_wordbank_detect_word_language_uses_provider_signal(tmp_path: Path) -> None:
     use_case = WordbankUseCase(

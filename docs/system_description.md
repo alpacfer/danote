@@ -540,3 +540,13 @@ The product is designed around:
 * **a hybrid path that can later add LLM enrichment without putting LLMs in the typing loop**
 
 This defines the app and its purpose clearly, while keeping the first implementation achievable.
+
+## translation fallback observability (runtime + wordbank)
+
+To keep production debugging deterministic while preserving user-facing fallbacks:
+
+- runtime bootstrap for translation providers (Azure, DeepL, Gemini word translation) now logs structured failure metadata before startup fallback paths are applied;
+- translation collaborator fallback paths now emit structured payloads (`provider`, `operation`, `failure_class`, `failure_reason`, `retryable`) before returning unavailable results;
+- internal collaborator provider calls expose typed failure results so call sites can distinguish `not_configured` from provider/runtime failures without relying on raw `None` only.
+
+This preserves existing user behavior (`unavailable` responses still fallback safely) while improving operational observability and future retry-policy tuning.

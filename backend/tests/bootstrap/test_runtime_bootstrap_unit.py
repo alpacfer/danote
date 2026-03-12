@@ -11,6 +11,8 @@ from app.bootstrap.runtime_tts import initialize_tts
 from app.bootstrap.runtime_word_verification import initialize_word_verification
 from app.core.app_state import get_runtime_state, init_app_state
 from app.core.config import Settings
+from app.services.gemini_translation import GeminiTranslationError
+from app.services.translation import TranslationError
 
 
 def _settings(tmp_path: Path, **overrides) -> Settings:
@@ -206,3 +208,58 @@ def test_initialize_word_verification_falls_back_to_shared_gemini_key(monkeypatc
     assert runtime.services.word_verification_service is not None
     assert runtime.services.word_verification_service.api_key == "shared-key"
     assert runtime.services.word_verification_service.model == "gemini-3.1-flash-lite-preview"
+
+
+def test_initialize_translation_logs_structured_failure_payload(monkeypatch, caplog, tmp_path: Path) -> None:
+    app = FastAPI()
+    settings = _settings(
+        tmp_path,
+        translation_provider="azure",
+        translation_enabled=True,
+        translation_azure_api_key="key",
+        translation_azure_region="region",
+    )
+    init_app_state(app, settings)
+
+    class FailingTranslationService:
+        def __init__(self, api_key: str, region: str, endpoint: str | None, api_version: str) -> None:
+            raise TranslationError("bad startup")
+
+    monkeypatch.setattr("app.bootstrap.runtime_translation.AzureTranslationService", FailingTranslationService)
+
+    with caplog.at_level("WARNING"):
+        initialize_translation(app, settings)
+
+    runtime = get_runtime_state(app)
+    assert runtime.translation_error == "Failed to initialize Azure translation service."
+    record = next(r for r in caplog.records if r.message == "backend_translation_startup_failed")
+    assert record.provider == "azure_translator"
+    assert record.operation == "startup.initialize"
+    assert record.failure_class == "TranslationError"
+    assert record.retryable is False
+
+
+def test_initialize_gemini_word_translation_logs_structured_failure_payload(monkeypatch, caplog, tmp_path: Path) -> None:
+    app = FastAPI()
+    settings = _settings(tmp_path, gemini_api_key="shared-key", gemini_model="gemini-3.1-flash-lite-preview")
+    init_app_state(app, settings)
+
+    class FailingGeminiService:
+        def __init__(self, api_key: str, model: str) -> None:
+            raise GeminiTranslationError("invalid model")
+
+    monkeypatch.setattr(
+        "app.bootstrap.runtime_gemini_word_translation.GeminiFlashLiteWordTranslationService",
+        FailingGeminiService,
+    )
+
+    with caplog.at_level("WARNING"):
+        initialize_gemini_word_translation(app, settings)
+
+    runtime = get_runtime_state(app)
+    assert runtime.gemini_word_translation_error == "Failed to initialize Gemini word translation service."
+    record = next(r for r in caplog.records if r.message == "backend_gemini_word_translation_startup_failed")
+    assert record.provider == "gemini_word_translation"
+    assert record.operation == "startup.initialize"
+    assert record.failure_class == "GeminiTranslationError"
+    assert record.retryable is False
