@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+import logging
 from pathlib import Path
+
+import httpx
 
 from app.api.schemas.v1.wordbank import (
     DetectWordLanguageResponse,
@@ -11,15 +14,34 @@ from app.api.schemas.v1.wordbank import (
     GenerateTranslationResponse,
 )
 from app.db.migrations import get_connection
-from app.services.cor_local import CORLocalEntry, CORLocalLexiconService
+from app.services.cor_local import CORLocalLexiconService
 from app.services.gemini_translation import (
     ContextualWordTranslationInput,
+    GeminiTranslationError,
     GeminiWordTranslationService,
     MeaningSectionCandidateInput,
     MeaningSectionSelectionInput,
 )
 from app.services.token_classifier import normalize_token
-from app.services.translation import TranslationService
+from app.services.translation import TranslationError, TranslationService
+from app.services.use_cases.wordbank.collaborators.translation_failures import (
+    ProviderCallResult,
+    ProviderFailureReason,
+)
+from app.services.use_cases.wordbank.collaborators.translation_helpers import (
+    best_cor_local_entry_with_gloss,
+    contextual_provider_name,
+    is_likely_english_word,
+    log_provider_failure,
+    normalize_comparable,
+    normalize_translation_value,
+    not_configured_result,
+    provider_failure_result,
+    provider_name,
+)
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -113,7 +135,7 @@ class TranslationCollaborator:
                 )
 
             english_translation = self.lookup_translation(normalized_source_text)
-            provider = self.provider_name()
+            provider = provider_name(self._translation_service)
             conn.execute(
                 """
                 INSERT INTO phrase_translations (
@@ -241,22 +263,47 @@ class TranslationCollaborator:
         )
 
     def lookup_translation(self, source_word: str) -> str | None:
+        return self.lookup_translation_result(source_word).value
+
+    def lookup_translation_result(self, source_word: str) -> ProviderCallResult:
         if self._translation_service is None:
-            return None
+            return not_configured_result(provider=provider_name(self._translation_service), operation="translate_da_to_en")
         try:
             translated = self._translation_service.translate_da_to_en(source_word)
-            return self.normalize_translation_value(translated)
-        except Exception:
-            return None
+            return ProviderCallResult(value=normalize_translation_value(translated))
+        except (TranslationError, httpx.TimeoutException, TimeoutError) as exc:
+            return provider_failure_result(logger=logger,
+                provider=provider_name(self._translation_service),
+                operation="translate_da_to_en",
+                reason=ProviderFailureReason.TIMEOUT,
+                retryable=True,
+                exc=exc,
+            )
+        except (httpx.HTTPStatusError, PermissionError) as exc:
+            return provider_failure_result(logger=logger,
+                provider=provider_name(self._translation_service),
+                operation="translate_da_to_en",
+                reason=ProviderFailureReason.AUTH,
+                retryable=False,
+                exc=exc,
+            )
+        except (httpx.HTTPError, ConnectionError, RuntimeError) as exc:
+            return provider_failure_result(logger=logger,
+                provider=provider_name(self._translation_service),
+                operation="translate_da_to_en",
+                reason=ProviderFailureReason.PROVIDER,
+                retryable=True,
+                exc=exc,
+            )
 
     def lookup_translation_strict(self, source_word: str) -> str | None:
         if self._translation_service is None:
             raise RuntimeError("Azure translation is unavailable.")
         try:
             translated = self._translation_service.translate_da_to_en(source_word)
-        except Exception as exc:
+        except (TranslationError, httpx.HTTPError, TimeoutError, ValueError, TypeError, RuntimeError) as exc:
             raise RuntimeError("Azure translation is unavailable.") from exc
-        return self.normalize_translation_value(translated)
+        return normalize_translation_value(translated)
 
     def lookup_translation_batch_strict(self, texts: list[str]) -> dict[str, str | None]:
         if self._translation_service is None:
@@ -266,10 +313,10 @@ class TranslationCollaborator:
             return {}
         try:
             raw_results = self._translation_service.translate_da_to_en_batch(unique)
-        except Exception as exc:
+        except (TranslationError, httpx.HTTPError, TimeoutError, ValueError, TypeError, RuntimeError) as exc:
             raise RuntimeError("Azure translation is unavailable.") from exc
         return {
-            text: self.normalize_translation_value(result)
+            text: normalize_translation_value(result)
             for text, result in zip(unique, raw_results, strict=False)
         }
 
@@ -286,12 +333,12 @@ class TranslationCollaborator:
         if (
             translated
             and " " not in normalized_source
-            and self.normalize_comparable(translated) == self.normalize_comparable(normalized_source)
+            and normalize_comparable(translated) == normalize_comparable(normalized_source)
         ):
             return TranslationLookupResult(translation=None, provider=None)
         return TranslationLookupResult(
             translation=translated,
-            provider=self.provider_name() if translated else None,
+            provider=provider_name(self._translation_service) if translated else None,
         )
 
     def lookup_contextual_word_translation(
@@ -324,7 +371,7 @@ class TranslationCollaborator:
                 gloss_translation_hint=gloss_translation_hint,
             )
         else:
-            cor_entry = self._best_cor_local_entry_with_gloss(
+            cor_entry = best_cor_local_entry_with_gloss(self._cor_local_lexicon_service,
                 form=normalized_surface,
                 lemma=normalized_lemma,
                 preferred_pos_tag=pos_tag,
@@ -365,20 +412,27 @@ class TranslationCollaborator:
         if cache is not None and cache_key in cache:
             return TranslationLookupResult(
                 translation=cache[cache_key],
-                provider=self.contextual_provider_name(),
+                provider=contextual_provider_name(self._gemini_word_translation_service),
             )
 
         try:
             translated = self._gemini_word_translation_service.translate_word(context_entry)
-            normalized = self.normalize_translation_value(translated)
-        except Exception:
+            normalized = normalize_translation_value(translated)
+        except (GeminiTranslationError, httpx.HTTPError, TimeoutError, ValueError, TypeError) as exc:
+            log_provider_failure(logger=logger,
+                provider=contextual_provider_name(self._gemini_word_translation_service),
+                operation="translate_word",
+                reason=ProviderFailureReason.PROVIDER,
+                retryable=False,
+                exc=exc,
+            )
             normalized = None
 
         if cache is not None:
             cache[cache_key] = normalized
         return TranslationLookupResult(
             translation=normalized,
-            provider=self.contextual_provider_name(),
+            provider=contextual_provider_name(self._gemini_word_translation_service),
         )
 
     def contextual_translation_cache_key(
@@ -409,19 +463,26 @@ class TranslationCollaborator:
 
         try:
             translated = self._gemini_word_translation_service.translate_words_batch(payloads)
-        except Exception:
+        except (GeminiTranslationError, httpx.HTTPError, TimeoutError, ValueError, TypeError) as exc:
+            log_provider_failure(logger=logger,
+                provider=contextual_provider_name(self._gemini_word_translation_service),
+                operation="translate_words_batch",
+                reason=ProviderFailureReason.PROVIDER,
+                retryable=False,
+                exc=exc,
+            )
             translated = [None] * len(payloads)
 
         results: list[TranslationLookupResult] = []
         for index, payload in enumerate(payloads):
             value = translated[index] if index < len(translated) else None
-            normalized = self.normalize_translation_value(value)
+            normalized = normalize_translation_value(value)
             if cache is not None:
                 cache[self.contextual_translation_cache_key(payload)] = normalized
             results.append(
                 TranslationLookupResult(
                     translation=normalized,
-                    provider=self.contextual_provider_name(),
+                    provider=contextual_provider_name(self._gemini_word_translation_service),
                 )
             )
 
@@ -440,18 +501,25 @@ class TranslationCollaborator:
         if cache is not None and cache_key in cache:
             return TranslationLookupResult(
                 translation=cache[cache_key],
-                provider=self.contextual_provider_name(),
+                provider=contextual_provider_name(self._gemini_word_translation_service),
             )
         try:
             translated = self._gemini_word_translation_service.translate_word(payload)
-            normalized = self.normalize_translation_value(translated)
-        except Exception:
+            normalized = normalize_translation_value(translated)
+        except (GeminiTranslationError, httpx.HTTPError, TimeoutError, ValueError, TypeError) as exc:
+            log_provider_failure(logger=logger,
+                provider=contextual_provider_name(self._gemini_word_translation_service),
+                operation="translate_word",
+                reason=ProviderFailureReason.PROVIDER,
+                retryable=False,
+                exc=exc,
+            )
             normalized = None
         if cache is not None:
             cache[cache_key] = normalized
         return TranslationLookupResult(
             translation=normalized,
-            provider=self.contextual_provider_name(),
+            provider=contextual_provider_name(self._gemini_word_translation_service),
         )
 
     def select_meaning_section(
@@ -483,8 +551,8 @@ class TranslationCollaborator:
                     id=candidate_id,
                     meaning_key=str(getattr(candidate, "meaning_key", "")),
                     cor_lemma_idx=getattr(candidate, "cor_lemma_idx", None),
-                    gloss=self.normalize_translation_value(getattr(candidate, "gloss", None)),
-                    english_translation=self.normalize_translation_value(
+                    gloss=normalize_translation_value(getattr(candidate, "gloss", None)),
+                    english_translation=normalize_translation_value(
                         getattr(candidate, "english_translation", None)
                     ),
                     pos_tag=getattr(candidate, "pos_tag", None),
@@ -499,125 +567,112 @@ class TranslationCollaborator:
             lemma=lemma,
             pos_tag=pos_tag,
             morphology=morphology,
-            gloss=self.normalize_translation_value(gloss),
-            english_translation=self.normalize_translation_value(english_translation),
+            gloss=normalize_translation_value(gloss),
+            english_translation=normalize_translation_value(english_translation),
             meaning_candidates=candidate_payloads,
         )
         try:
             selected = selector(payload)
-        except Exception:
+        except (GeminiTranslationError, httpx.HTTPError, TimeoutError, ValueError, TypeError) as exc:
+            log_provider_failure(logger=logger,
+                provider=contextual_provider_name(self._gemini_word_translation_service),
+                operation="select_meaning_section",
+                reason=ProviderFailureReason.PARSE,
+                retryable=False,
+                exc=exc,
+            )
             return None
         if not isinstance(selected, int) or selected not in valid_ids:
             return None
         return selected
 
-    def provider_name(self) -> str:
-        provider = getattr(self._translation_service, "provider", None)
-        if isinstance(provider, str):
-            cleaned = provider.strip().lower()
-            if cleaned:
-                return cleaned
-        return "translation"
-
-    def contextual_provider_name(self) -> str:
-        provider = getattr(self._gemini_word_translation_service, "provider", None)
-        if isinstance(provider, str):
-            cleaned = provider.strip().lower()
-            if cleaned:
-                return cleaned
-        return "gemini_word_translation"
-
-    def normalize_comparable(self, value: str) -> str:
-        return " ".join(value.strip().lower().split())
-
-    def is_likely_english_word(self, value: str) -> bool:
-        normalized = value.strip().lower()
-        if not normalized or " " in normalized:
-            return False
-        if any(char in normalized for char in ("æ", "ø", "å")):
-            return False
-        allowed = set("abcdefghijklmnopqrstuvwxyz'-")
-        if any(char not in allowed for char in normalized):
-            return False
-        return any(char in "aeiouy" for char in normalized)
-
     def lookup_reverse_translation(self, source_word: str) -> str | None:
-        return self._lookup_reverse_translation(source_word)
+        return self.lookup_reverse_translation_result(source_word).value
 
-    @staticmethod
-    def normalize_translation_value(value: str | None) -> str | None:
-        if not isinstance(value, str):
-            return None
-        cleaned = " ".join(value.strip().split())
-        if not cleaned:
-            return None
-        return cleaned.lower()
+    def lookup_reverse_translation_result(self, source_word: str) -> ProviderCallResult:
+        return self._lookup_reverse_translation(source_word)
 
     # ------------------------------------------------------------------
     # Private helpers
     # ------------------------------------------------------------------
 
-    def _lookup_reverse_translation(self, source_word: str) -> str | None:
+    def _lookup_reverse_translation(self, source_word: str) -> ProviderCallResult:
         if self._translation_service is None:
-            return None
+            return not_configured_result(provider=provider_name(self._translation_service), operation="translate_en_to_da")
         translate_en_to_da = getattr(self._translation_service, "translate_en_to_da", None)
         if not callable(translate_en_to_da):
-            return None
+            return not_configured_result(provider=provider_name(self._translation_service), operation="translate_en_to_da")
         try:
             translated = translate_en_to_da(source_word)
-            return self.normalize_translation_value(translated)
-        except Exception:
-            return None
+            return ProviderCallResult(value=normalize_translation_value(translated))
+        except (TranslationError, httpx.TimeoutException, TimeoutError) as exc:
+            return provider_failure_result(logger=logger,
+                provider=provider_name(self._translation_service),
+                operation="translate_en_to_da",
+                reason=ProviderFailureReason.TIMEOUT,
+                retryable=True,
+                exc=exc,
+            )
+        except (httpx.HTTPStatusError, PermissionError) as exc:
+            return provider_failure_result(logger=logger,
+                provider=provider_name(self._translation_service),
+                operation="translate_en_to_da",
+                reason=ProviderFailureReason.AUTH,
+                retryable=False,
+                exc=exc,
+            )
+        except (httpx.HTTPError, ConnectionError, RuntimeError) as exc:
+            return provider_failure_result(logger=logger,
+                provider=provider_name(self._translation_service),
+                operation="translate_en_to_da",
+                reason=ProviderFailureReason.PROVIDER,
+                retryable=True,
+                exc=exc,
+            )
 
     def _lookup_detected_source_language(self, source_word: str) -> str | None:
-        if self._translation_service is None:
+        result = self._lookup_detected_source_language_result(source_word)
+        if not isinstance(result.value, str):
             return None
+        return result.value
+
+    def _lookup_detected_source_language_result(self, source_word: str) -> ProviderCallResult:
+        if self._translation_service is None:
+            return not_configured_result(provider=provider_name(self._translation_service), operation="detect_source_language")
         detect_source_language = getattr(self._translation_service, "detect_source_language", None)
         if not callable(detect_source_language):
-            return None
+            return not_configured_result(provider=provider_name(self._translation_service), operation="detect_source_language")
         try:
             provider_language = detect_source_language(source_word)
-        except Exception:
-            return None
+        except (TranslationError, httpx.TimeoutException, TimeoutError) as exc:
+            return provider_failure_result(logger=logger,
+                provider=provider_name(self._translation_service),
+                operation="detect_source_language",
+                reason=ProviderFailureReason.TIMEOUT,
+                retryable=True,
+                exc=exc,
+            )
+        except (httpx.HTTPStatusError, PermissionError) as exc:
+            return provider_failure_result(logger=logger,
+                provider=provider_name(self._translation_service),
+                operation="detect_source_language",
+                reason=ProviderFailureReason.AUTH,
+                retryable=False,
+                exc=exc,
+            )
+        except (httpx.HTTPError, ConnectionError, ValueError, TypeError, RuntimeError) as exc:
+            return provider_failure_result(logger=logger,
+                provider=provider_name(self._translation_service),
+                operation="detect_source_language",
+                reason=ProviderFailureReason.PARSE,
+                retryable=False,
+                exc=exc,
+            )
         if not provider_language:
-            return None
+            return ProviderCallResult(value=None)
         normalized = provider_language.strip().lower()
         if normalized.startswith("en"):
-            return "en"
+            return ProviderCallResult(value="en")
         if normalized.startswith("da"):
-            return "da"
-        return None
-
-    def _best_cor_local_entry_with_gloss(
-        self,
-        *,
-        form: str,
-        lemma: str,
-        preferred_pos_tag: str | None,
-    ) -> CORLocalEntry | None:
-        if self._cor_local_lexicon_service is None:
-            return None
-        try:
-            entries = self._cor_local_lexicon_service.lookup_form(form, limit=200)
-        except FileNotFoundError:
-            return None
-        matching = [
-            entry
-            for entry in entries
-            if normalize_token(entry.lemma) == lemma and normalize_token(entry.gloss or "")
-        ]
-        if not matching:
-            return None
-        if preferred_pos_tag:
-            preferred = [entry for entry in matching if entry.pos_tag == preferred_pos_tag]
-            if preferred:
-                matching = preferred
-        matching.sort(
-            key=lambda entry: (
-                0 if normalize_token(entry.form) == form else 1,
-                0 if entry.norm == "N" else 1,
-                entry.lemma_idx,
-                entry.variation,
-            )
-        )
-        return matching[0]
+            return ProviderCallResult(value="da")
+        return ProviderCallResult(value=None)

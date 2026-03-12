@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from app.core.app_state import get_runtime_state, set_runtime_field, set_service_field
 from app.core.config import Settings
 from app.services.deepl_translation import DeepLTranslationService
-from app.services.translation import AzureTranslationService
+from app.services.translation import AzureTranslationService, TranslationError
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +61,19 @@ def _selected_provider(
     return settings.translation_provider.strip().lower()
 
 
+def _log_startup_failure(*, provider: str, operation: str, exc: Exception) -> None:
+    logger.warning(
+        "backend_translation_startup_failed",
+        extra={
+            "provider": provider,
+            "operation": operation,
+            "failure_class": exc.__class__.__name__,
+            "retryable": False,
+        },
+        exc_info=exc,
+    )
+
+
 def _initialize_azure(
     app: FastAPI,
     settings: Settings,
@@ -81,8 +94,8 @@ def _initialize_azure(
                     api_version=settings.translation_azure_api_version,
                 ),
             )
-        except Exception:
-            logger.exception("backend_translation_startup_failed")
+        except (TranslationError, ValueError, TypeError) as exc:
+            _log_startup_failure(provider="azure_translator", operation="startup.initialize", exc=exc)
             set_runtime_field(app, "translation_error", "Failed to initialize Azure translation service.")
     else:
         logger.warning("backend_translation_startup_skipped_missing_azure_config")
@@ -110,8 +123,8 @@ def _initialize_deepl(
                     endpoint=deepl_endpoint,
                 ),
             )
-        except Exception:
-            logger.exception("backend_translation_startup_failed")
+        except (TranslationError, ValueError, TypeError) as exc:
+            _log_startup_failure(provider="deepl_translator", operation="startup.initialize", exc=exc)
             set_runtime_field(app, "translation_error", "Failed to initialize DeepL translation service.")
     else:
         logger.warning("backend_translation_startup_skipped_missing_deepl_config")
