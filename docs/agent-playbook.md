@@ -33,13 +33,19 @@ If backend orchestration changed, also run:
 bash ./scripts/pytest-backend.sh -q tests/use_cases
 ```
 
-## 4) Common pitfalls
+## 4) Maintainability budgets and exemptions
+
+- Budget thresholds and exemptions are defined in `docs/maintainability-budgets.md`.
+- Exemptions are allowlist-only and limited to intentional generated/vendor files.
+- Any allowlist change must include rationale in the same PR.
+
+## 5) Common pitfalls
 
 - Editing route files to include business logic (should be in use-cases).
 - Duplicating schemas in route files (use `api/schemas/v1/`).
 - Updating docs commands without updating smoke scripts.
 
-## 5) Definition of done for agent-generated PRs
+## 6) Definition of done for agent-generated PRs
 
 - Code compiles/lints in the maintained checks.
 - Existing tests pass; new behavior has tests.

@@ -23,6 +23,30 @@ def test_health_route_returns_expected_shape(stub_nlp_adapter_factory) -> None:
     assert "azure_speech" in payload["apis"]
 
 
+def test_health_route_reports_missing_key_and_disabled_provider_statuses(stub_nlp_adapter_factory, tmp_path) -> None:
+    settings = Settings(
+        environment="test",
+        app_name="danote-backend-test",
+        host="127.0.0.1",
+        port=8001,
+        db_path=tmp_path / "danote.sqlite3",
+        nlp_model="da_dacy_small_trf-0.2.0",
+        translation_enabled=True,
+        translation_provider="deepl",
+        tts_enabled=False,
+    )
+    app = create_app(settings=settings, nlp_adapter_factory=stub_nlp_adapter_factory)
+
+    with TestClient(app) as client:
+        response = client.get("/api/health")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["apis"]["deepl_translator"]["status"] == "missing_key"
+    assert payload["apis"]["azure_translator"]["status"] == "inactive"
+    assert payload["apis"]["azure_speech"]["status"] == "disabled"
+
+
 def test_cors_allows_configured_origin(tmp_path, stub_nlp_adapter_factory) -> None:
     settings = Settings(
         environment="test",
