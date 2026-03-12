@@ -8,6 +8,10 @@ from app.api.schemas.v1.wordbank import AddWordResponse
 from app.services.cor_local import CORLocalEntry
 from app.services.gemini_translation import ContextualWordTranslationInput
 from app.services.token_classifier import normalize_token
+from app.services.use_cases.wordbank.add_word_normalization import (
+    AddWordInputs,
+    normalize_add_word_inputs,
+)
 from app.services.use_cases.wordbank.collaborators.cor_azure_frames import (
     azure_framed_translation_for_comparison,
     cor_local_azure_frame,
@@ -317,17 +321,19 @@ def _normalize_add_word_inputs(
     pos_tag: str | None,
     morphology: str | None,
 ) -> _AddWordInputs:
-    normalized_surface = normalize_token(surface_token)
-    normalized_lemma = normalize_token(lemma_candidate or "")
-    stored_lemma = normalized_lemma or normalized_surface
-    if not stored_lemma:
-        raise ValueError("surface_token or lemma_candidate is required")
+    normalized = normalize_add_word_inputs(
+        surface_token,
+        lemma_candidate,
+        cor_id,
+        runtime.nlp.normalize_optional_pos_tag(pos_tag),
+        runtime.nlp.normalize_optional_morphology(morphology),
+    )
     return _AddWordInputs(
-        normalized_surface=normalized_surface,
-        stored_lemma=stored_lemma,
-        normalized_cor_id=(cor_id or "").strip() or None,
-        selected_pos_tag=runtime.nlp.normalize_optional_pos_tag(pos_tag),
-        selected_morphology=runtime.nlp.normalize_optional_morphology(morphology),
+        normalized_surface=normalized.normalized_surface,
+        stored_lemma=normalized.stored_lemma,
+        normalized_cor_id=normalized.normalized_cor_id,
+        selected_pos_tag=normalized.selected_pos_tag,
+        selected_morphology=normalized.selected_morphology,
     )
 
 
