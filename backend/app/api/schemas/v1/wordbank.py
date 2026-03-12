@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_serializer
 
 
 class AddWordRequest(BaseModel):
@@ -278,6 +278,11 @@ class LemmaDetailsResponse(BaseModel):
         gloss_translation: str | None = None
         gram_raw: str | None = None
         has_pronunciation: bool = False
+
+        @model_serializer(mode="wrap")
+        def _serialize_without_empty_fields(self, handler):
+            data = handler(self)
+            return {key: value for key, value in data.items() if value is not None}
 
     class MeaningSection(BaseModel):
         id: int

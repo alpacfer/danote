@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 
 from fastapi import APIRouter, HTTPException, Query, Request, Response
-from fastapi.responses import JSONResponse
 
 from app.api.routes._runtime import run_db_operation
 from app.api.routes._use_case_factories import build_wordbank_use_case
@@ -34,6 +33,7 @@ from app.api.schemas.v1.wordbank import (
     WordbankSearchResponse,
 )
 from app.core.app_state import set_runtime_field
+from app.services.use_cases.wordbank.mappers import map_lemma_details_response
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -225,39 +225,7 @@ def get_lemma_details(lemma: str, request: Request) -> LemmaDetailsResponse:
         include_runtime_error=True,
         error_log_name="wordbank_db_operational_error",
     )
-    if response.is_sectioned:
-        return JSONResponse(content=response.model_dump())
-    payload: dict[str, object] = {
-        "lemma": response.lemma,
-        "english_translation": response.english_translation,
-        "pos_tag": response.pos_tag,
-        "morphology": response.morphology,
-        "is_sectioned": False,
-        "meaning_sections": [],
-        "surface_forms": [],
-    }
-    non_lemma_form_count = sum(1 for form in response.surface_forms if form.form != response.lemma)
-    surface_forms: list[dict[str, object]] = []
-    for form in response.surface_forms:
-        if form.form == response.lemma and non_lemma_form_count <= 1:
-            continue
-        item: dict[str, object] = {
-            "form": form.form,
-            "pos_tag": form.pos_tag,
-            "morphology": form.morphology,
-            "has_pronunciation": form.has_pronunciation,
-        }
-        if form.gloss is not None:
-            item["gloss"] = form.gloss
-        if form.gloss_translation is not None:
-            item["gloss_translation"] = form.gloss_translation
-        if form.gram_raw is not None:
-            item["gram_raw"] = form.gram_raw
-        if form.lemma_translation is not None and form.lemma_translation != response.english_translation:
-            item["lemma_translation"] = form.lemma_translation
-        surface_forms.append(item)
-    payload["surface_forms"] = surface_forms
-    return JSONResponse(content=payload)
+    return map_lemma_details_response(response)
 
 
 @router.get("/wordbank/pronunciation")
