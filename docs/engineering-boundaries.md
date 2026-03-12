@@ -23,3 +23,16 @@ File-size defaults:
 - Backend route/bootstrap/core files should target <= 250 lines.
 - Backend workflow/repository files should target <= 350 lines unless they are intentionally acting as a public facade.
 - Frontend hooks should keep transport calls behind the API client and stay focused on one workflow.
+
+## Wordbank refactor module map (2026-03)
+
+To keep long-running backend files maintainable while preserving stable interfaces:
+
+- `app/db/repositories/wordbank.py` remains the public facade (`WordbankRepository`).
+- `app/db/repositories/wordbank_reads.py` owns read/query behavior.
+- `app/db/repositories/wordbank_mutations.py` owns mutation/upsert behavior.
+- `app/db/repositories/wordbank_models.py` owns shared repository row models and row parsers.
+- `app/services/gemini_translation.py` keeps service entrypoints/signatures; helper logic is delegated to `app/services/gemini_translation_helpers.py`.
+- `app/services/use_cases/wordbank/collaborators/translation.py` remains the collaborator facade; language detection/context building/provider fallback are delegated to focused collaborators in the same folder.
+
+When adding new wordbank behavior, prefer extending these focused modules instead of re-growing a single implementation file.

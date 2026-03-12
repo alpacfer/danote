@@ -20,6 +20,16 @@ from app.services.gemini_translation import (
 )
 from app.services.token_classifier import normalize_token
 from app.services.translation import TranslationService
+from app.services.use_cases.wordbank.collaborators.translation_contextual import (
+    build_contextual_input,
+)
+from app.services.use_cases.wordbank.collaborators.translation_language_detection import (
+    detect_word_language as detect_word_language_with_fallbacks,
+)
+from app.services.use_cases.wordbank.collaborators.translation_provider_fallback import (
+    contextual_provider_name as resolve_contextual_provider_name,
+    provider_name as resolve_provider_name,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -30,24 +40,6 @@ class TranslationLookupResult:
 
 class TranslationCollaborator:
     """Handles DA↔EN translation, language detection, and related DB writes."""
-
-    _AMBIGUOUS_SHORT_WORDS = frozenset(
-        {
-            "an",
-            "at",
-            "de",
-            "den",
-            "det",
-            "en",
-            "for",
-            "gift",
-            "i",
-            "in",
-            "is",
-            "it",
-            "to",
-        }
-    )
 
     def __init__(
         self,
@@ -161,83 +153,10 @@ class TranslationCollaborator:
         cor_entries_lookup: optional callable(normalized_token) -> list[COREntry].
         When provided, a non-empty result signals the word is Danish.
         """
-        normalized_source = normalize_token(source_word)
-        if not normalized_source:
-            raise ValueError("source_word is required")
-
-        normalized_lower = normalized_source.lower()
-        if any(char in normalized_lower for char in ("æ", "ø", "å")):
-            return DetectWordLanguageResponse(
-                source_word=normalized_source,
-                language="da",
-                confidence=0.99,
-            )
-
-        if " " in normalized_source:
-            return DetectWordLanguageResponse(
-                source_word=normalized_source,
-                language="ambiguous",
-                confidence=0.25,
-            )
-
-        if not normalized_lower.isascii() or not normalized_lower.replace("-", "").replace("'", "").isalpha():
-            return DetectWordLanguageResponse(
-                source_word=normalized_source,
-                language="ambiguous",
-                confidence=0.25,
-            )
-
-        if cor_entries_lookup is not None and cor_entries_lookup(normalized_source):
-            return DetectWordLanguageResponse(
-                source_word=normalized_source,
-                language="da",
-                confidence=0.95,
-            )
-
-        detected_source_language = self._lookup_detected_source_language(normalized_source)
-        if normalized_lower in self._AMBIGUOUS_SHORT_WORDS:
-            return DetectWordLanguageResponse(
-                source_word=normalized_source,
-                language="ambiguous",
-                confidence=0.4,
-            )
-
-        if len(normalized_lower) <= 2:
-            if detected_source_language in {"en", "da"}:
-                return DetectWordLanguageResponse(
-                    source_word=normalized_source,
-                    language=detected_source_language,
-                    confidence=0.45,
-                )
-            return DetectWordLanguageResponse(
-                source_word=normalized_source,
-                language="ambiguous",
-                confidence=0.4,
-            )
-
-        if detected_source_language in {"en", "da"}:
-            return DetectWordLanguageResponse(
-                source_word=normalized_source,
-                language=detected_source_language,
-                confidence=0.82,
-            )
-
-        fallback_english_like = bool(
-            normalized_lower
-            and normalized_lower[0].isalpha()
-            and any(char in "aeiouy" for char in normalized_lower)
-        )
-        if fallback_english_like:
-            return DetectWordLanguageResponse(
-                source_word=normalized_source,
-                language="en",
-                confidence=0.55,
-            )
-
-        return DetectWordLanguageResponse(
-            source_word=normalized_source,
-            language="ambiguous",
-            confidence=0.35,
+        return detect_word_language_with_fallbacks(
+            source_word,
+            detect_source_language=self._lookup_detected_source_language,
+            cor_entries_lookup=cor_entries_lookup,
         )
 
     def lookup_translation(self, source_word: str) -> str | None:
@@ -312,43 +231,16 @@ class TranslationCollaborator:
         if not normalized_surface or not normalized_lemma:
             return TranslationLookupResult(translation=None, provider=None)
 
-        context_entry = None
-        if normalized_gloss:
-            context_entry = ContextualWordTranslationInput(
-                surface_form=normalized_surface,
-                lemma=normalized_lemma,
-                pos_tag=pos_tag,
-                morphology=morphology,
-                gloss=normalized_gloss,
-                lemma_translation_hint=lemma_translation_hint,
-                gloss_translation_hint=gloss_translation_hint,
-            )
-        else:
-            cor_entry = self._best_cor_local_entry_with_gloss(
-                form=normalized_surface,
-                lemma=normalized_lemma,
-                preferred_pos_tag=pos_tag,
-            )
-            if cor_entry is not None:
-                context_entry = ContextualWordTranslationInput(
-                    surface_form=normalized_surface,
-                    lemma=normalized_lemma,
-                    pos_tag=pos_tag or cor_entry.pos_tag,
-                    morphology=morphology or cor_entry.morphology,
-                    gloss=normalize_token(cor_entry.gloss or ""),
-                    lemma_translation_hint=lemma_translation_hint,
-                    gloss_translation_hint=gloss_translation_hint,
-                )
-            else:
-                context_entry = ContextualWordTranslationInput(
-                    surface_form=normalized_surface,
-                    lemma=normalized_lemma,
-                    pos_tag=pos_tag,
-                    morphology=morphology,
-                    gloss=None,
-                    lemma_translation_hint=lemma_translation_hint,
-                    gloss_translation_hint=gloss_translation_hint,
-                )
+        context_entry = build_contextual_input(
+            surface_form=normalized_surface,
+            lemma=normalized_lemma,
+            pos_tag=pos_tag,
+            morphology=morphology,
+            gloss=normalized_gloss,
+            lemma_translation_hint=lemma_translation_hint,
+            gloss_translation_hint=gloss_translation_hint,
+            best_cor_local_entry_with_gloss=self._best_cor_local_entry_with_gloss,
+        )
 
         if self._gemini_word_translation_service is None:
             return TranslationLookupResult(translation=None, provider=None)
@@ -512,20 +404,10 @@ class TranslationCollaborator:
         return selected
 
     def provider_name(self) -> str:
-        provider = getattr(self._translation_service, "provider", None)
-        if isinstance(provider, str):
-            cleaned = provider.strip().lower()
-            if cleaned:
-                return cleaned
-        return "translation"
+        return resolve_provider_name(self._translation_service)
 
     def contextual_provider_name(self) -> str:
-        provider = getattr(self._gemini_word_translation_service, "provider", None)
-        if isinstance(provider, str):
-            cleaned = provider.strip().lower()
-            if cleaned:
-                return cleaned
-        return "gemini_word_translation"
+        return resolve_contextual_provider_name(self._gemini_word_translation_service)
 
     def normalize_comparable(self, value: str) -> str:
         return " ".join(value.strip().lower().split())
