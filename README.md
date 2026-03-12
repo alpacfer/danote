@@ -128,6 +128,8 @@ Connectivity check:
 Database init and seed:
 
 - Backend startup auto-creates/migrates SQLite schema.
+- Source-controlled DB asset: `backend/resources/dictionaries/cor.sqlite` (canonical dictionary source).
+- Runtime-generated SQLite artifacts (`*.sqlite-shm`, `*.sqlite-wal`, `*.sqlite3-shm`, `*.sqlite3-wal`) are local-only and ignored by Git.
 - Run idempotent seed loader:
 
 ```bash
