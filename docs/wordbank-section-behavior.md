@@ -10,6 +10,7 @@ This document describes the current, exact behavior of the **Wordbank section** 
 - Details view composition:
   - `frontend/src/app/sections/wordbank/wordbank-details-view.tsx`
   - `frontend/src/app/sections/wordbank/wordbank-lemma-header.tsx`
+  - `frontend/src/app/sections/wordbank/wordbank-verification-popover.tsx`
   - `frontend/src/app/sections/wordbank/wordbank-meaning-sections.tsx`
   - `frontend/src/app/sections/wordbank/wordbank-variation-grid.tsx`
 - List view rendering:
@@ -113,19 +114,24 @@ Meaning auto-scroll behavior:
 - **Regenerate Audio** button:
   - disabled while regeneration request is in progress
   - spinner icon while active
-- **Verification status line**:
-  - shows `Verifying since <timestamp>` while selected target verification is queued
-  - shows `Verified <timestamp>` when selected target verification succeeded
-  - shows `Review needed <timestamp>` when selected target verification failed/was flagged
-- **Verification info** popover button:
-  - disabled when no verification error for selected target
-  - shows count badge for number of suggested actions
-  - popover includes provider/reviewed-at/problem/change summary and action cards
-  - each action card has `Accept Action` button that is disabled while apply is in progress
-- Success badge:
-  - displays `Verified` badge when selected lemma/meaning has verification success record
-- Queued badge:
-  - displays `Verifying...` badge with spinner when selected lemma/meaning has queued verification record
+- **Action cluster layout**:
+  - header actions use the same nested `ButtonGroup` composition pattern as Playground so the audio button and verification button look grouped but visually separated
+- **Verification trigger button**:
+  - always rendered next to `Regenerate Audio`
+  - icon is dynamic by selected target verification state:
+    - idle/no record -> info icon
+    - queued -> spinner
+    - verified -> success/check icon
+    - error/flagged -> alert icon
+  - review-needed state shows the suggested-action count inline on the trigger when actions are present
+- **Verification popover**:
+  - is the single surface for verification status/details; the old standalone status line and success/queued badges are not rendered anymore
+  - includes provider metadata, an indeterminate progress/status summary card, and the relevant timestamp for the selected state
+  - queued state shows verification-in-progress copy and requested time
+  - verified state shows completion copy and verified time
+  - error/flagged state shows reviewed time, problem, change-to-implement text, and action cards
+  - no-record state shows a neutral empty state explaining that verification details will appear here once Gemini runs
+  - each action card uses an `Apply change` button that is disabled while apply is in progress
 
 ## Body mode A: sectioned meanings (WordbankMeaningSections)
 

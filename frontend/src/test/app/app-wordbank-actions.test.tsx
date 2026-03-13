@@ -101,7 +101,12 @@ describe("App wordbank", () => {
     fireEvent.click(await screen.findByRole("button", { name: /bog/i }))
 
     const regenerateButton = await screen.findByRole("button", { name: /regenerate audio/i })
-    expect(screen.getByRole("button", { name: /show verification error info/i })).toBeDisabled()
+    const verificationButton = screen.getByRole("button", { name: /show verification details/i })
+    fireEvent.click(verificationButton)
+
+    expect(await screen.findByText(/no verification record yet/i)).toBeInTheDocument()
+    expect(screen.getByText(/not verified yet/i)).toBeInTheDocument()
+
     fireEvent.click(regenerateButton)
 
     await waitFor(() => {
@@ -117,6 +122,43 @@ describe("App wordbank", () => {
         }),
       )
     })
+  })
+
+  it("shows verification progress in the unified popover while Gemini is still processing", async () => {
+    mockFetchImplementation({
+      lemmasResponse: {
+        items: [{ lemma: "kat", variation_count: 1 }],
+      },
+      lemmaDetailsResponse: {
+        lemma: "kat",
+        english_translation: "cat",
+        verification: {
+          status: "queued",
+          provider: "gemini",
+          reviewer_role: "Professional Danish Language Expert",
+          message: "Verification queued.",
+          composed_word_count: null,
+          stored_surface_form: "kat",
+          requested_at: "2026-03-13T12:00:00.000Z",
+          suggested_actions: [],
+        },
+        surface_forms: [{ form: "kat", has_pronunciation: true }],
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /kat/i }))
+
+    const verificationButton = await screen.findByRole("button", { name: /verification is running/i })
+    fireEvent.click(verificationButton)
+
+    expect(await screen.findByText("Verification")).toBeInTheDocument()
+    expect(screen.getByText(/gemini is verifying this word/i)).toBeInTheDocument()
+    expect(screen.getByText(/verification in progress/i)).toBeInTheDocument()
+    expect(screen.getByText(/requested/i)).toBeInTheDocument()
   })
 
   it("keeps the lemma pronunciation action playable when the only saved form is hidden from details", async () => {
@@ -237,21 +279,21 @@ describe("App wordbank", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
     fireEvent.click(await screen.findByRole("button", { name: /kat/i }))
-    const infoButton = await screen.findByRole("button", { name: /show verification error info/i })
+    const infoButton = await screen.findByRole("button", { name: /show verification review details/i })
     expect(infoButton).toBeEnabled()
-    expect(screen.getByText(/review needed/i)).toBeInTheDocument()
     fireEvent.click(infoButton)
 
-    expect(await screen.findByText("Verification Error")).toBeInTheDocument()
+    expect(await screen.findByText("Verification")).toBeInTheDocument()
+    expect(screen.getByText(/verification needs review/i)).toBeInTheDocument()
     expect(screen.getByText("Problem")).toBeInTheDocument()
     expect(screen.getByText("Change to implement")).toBeInTheDocument()
     expect(screen.getByText(/stored pos and translation are inconsistent/i)).toBeInTheDocument()
     expect(screen.getByText(/update pos to noun and translation to 'cat'/i)).toBeInTheDocument()
-    expect(screen.getByText(/suggested actions/i)).toBeInTheDocument()
+    expect(screen.getByText(/apply changes/i)).toBeInTheDocument()
     expect(screen.getByText(/fix translation/i)).toBeInTheDocument()
     expect(screen.getByText(/set translation to 'cat'/i)).toBeInTheDocument()
 
-    const applyButton = screen.getByRole("button", { name: /accept action/i })
+    const applyButton = screen.getByRole("button", { name: /apply change/i })
     expect(applyButton).toBeEnabled()
     fireEvent.click(applyButton)
 
@@ -371,7 +413,12 @@ describe("App wordbank", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
     fireEvent.click(await screen.findByRole("button", { name: /kat/i }))
-    expect(await screen.findByLabelText(/gemini verification passed/i)).toBeInTheDocument()
-    expect(screen.getByText(/verified .*2026/i)).toBeInTheDocument()
+    const verificationButton = await screen.findByRole("button", { name: /show verification details/i })
+    fireEvent.click(verificationButton)
+
+    expect(await screen.findByText("Verification")).toBeInTheDocument()
+    expect(screen.getByText(/verification completed/i)).toBeInTheDocument()
+    expect(screen.getByText(/^Verification complete$/i)).toBeInTheDocument()
+    expect(screen.getByText(/verification passed\./i)).toBeInTheDocument()
   }, 15_000)
 })

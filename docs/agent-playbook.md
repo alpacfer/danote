@@ -16,6 +16,17 @@ A compact operational playbook for AI agents modifying this repository.
 3. Keep route updates minimal (validation + HTTP error mapping + invocation).
 4. Add tests nearest to the changed boundary.
 
+## 2a) Frontend UI workflow
+
+For any frontend/UI change:
+
+1. Read the relevant repo docs and inspect the local component patterns first.
+2. Review the official shadcn/ui docs for the likely candidate components.
+3. Choose the best-fit primitive and note why adjacent options were rejected when that choice affects structure or interaction.
+4. If the chosen component is missing locally, install it with `npx shadcn@latest add <component>`.
+5. Compose the feature from shadcn primitives before introducing custom UI building blocks.
+6. Update tests and documentation in the same change.
+
 ## 3) Verification strategy
 
 Run this exact sequence for deterministic confidence:

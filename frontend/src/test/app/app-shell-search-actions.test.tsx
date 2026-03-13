@@ -609,11 +609,11 @@ describe("App shell and search", () => {
     fireEvent.click(await within(commandDialog).findByText(/^lærere$/i))
 
     expect(await screen.findByRole("heading", { name: /^lærer$/i })).toBeInTheDocument()
-    expect(screen.getByLabelText(/gemini verification queued/i)).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /verification is running/i })).toBeInTheDocument()
 
     await waitFor(() => {
-      expect(screen.getByLabelText(/gemini verification passed/i)).toBeInTheDocument()
-      expect(screen.queryByLabelText(/gemini verification queued/i)).not.toBeInTheDocument()
+      expect(screen.getByRole("button", { name: /show verification details/i })).toBeInTheDocument()
+      expect(screen.queryByRole("button", { name: /verification is running/i })).not.toBeInTheDocument()
     }, { timeout: 6_000 })
   }, 15_000)
 })

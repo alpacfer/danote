@@ -34,11 +34,14 @@ If you change backend orchestration or API schemas, additionally run:
 - Prefer adding/expanding tests rather than changing expectations silently.
 - Update docs when command or workflow behavior changes.
 - For frontend/UI changes, default to using existing shadcn/ui components before building custom UI primitives.
+- For frontend/UI changes, first review the relevant official shadcn/ui component docs and assess the best-fit primitive before implementing.
+- Record the chosen shadcn primitive and why nearby alternatives were rejected when that decision affects the UI structure or interaction model.
 - When adding a new shadcn component, always use the official CLI command with default values:
   `npx shadcn@latest add <component>`.
   Do not handcraft component source or use custom generator settings unless explicitly requested.
 - When a required shadcn component is not present, install it first and use the generated component mostly as-is.
   Prefer composing around the generated API and styling via props/class names instead of rewriting the component internals unless explicitly requested.
+- Frontend UI workflow should be: review repo docs/patterns, review shadcn docs, choose/install the primitive, compose from shadcn primitives, then update tests and docs in the same change.
 
 ## Documentation Sync Rule (mandatory)
 
