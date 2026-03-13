@@ -70,6 +70,7 @@ describe("section prop adapters", () => {
       isRegeneratingLemmaPronunciation: false,
       regenerateSelectedLemmaPronunciation: regenerate,
       selectedLemmaVerificationError: null,
+      selectedLemmaVerificationQueued: null,
       selectedLemmaVerificationSuccess: null,
       hasSuggestedVerificationActions: () => false,
       isApplyingVerificationChanges: false,

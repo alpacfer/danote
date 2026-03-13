@@ -1,6 +1,7 @@
 import type {
   LemmaDetailsResponse,
   VerificationErrorDetail,
+  VerificationQueuedDetail,
   VerificationSuccessDetail,
   WordbankLemma,
 } from "@/app/core"
@@ -23,6 +24,7 @@ export type WordbankSectionProps = {
   isRegeneratingLemmaPronunciation: boolean
   onRegenerateSelectedLemmaPronunciation: () => void
   selectedLemmaVerificationError: VerificationErrorDetail | null
+  selectedLemmaVerificationQueued: VerificationQueuedDetail | null
   selectedLemmaVerificationSuccess: VerificationSuccessDetail | null
   hasSuggestedVerificationActions: (detail: VerificationErrorDetail | null) => boolean
   isApplyingVerificationChanges: boolean

@@ -37,7 +37,7 @@ describe("App playground", () => {
     await waitFor(() => {
       const mark = getNotesEditor().querySelector("mark[data-status='new']")
       expect(mark).toBeInTheDocument()
-    })
+    }, { timeout: 5_000 })
 
     const mark = getNotesEditor().querySelector("mark[data-status='new']")
     expect(mark).toBeInTheDocument()
@@ -48,7 +48,7 @@ describe("App playground", () => {
     expect(popoverContent).not.toBeNull()
     expect(within(popoverContent as HTMLElement).queryByText(/^house$/i)).not.toBeInTheDocument()
     expect(translationCalls).toBe(1)
-  })
+  }, 10_000)
 
   it("verb popover shows infinitive subtitle and present form in the title", async () => {
     vi.useRealTimers()

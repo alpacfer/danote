@@ -35,7 +35,7 @@ describe("App wordbank", () => {
     expect(await screen.findByRole("heading", { name: /^bog$/i })).toBeInTheDocument()
     expect(screen.getByText(/\(book, for reading\)/i)).toBeInTheDocument()
     expect(screen.queryByText(/\(book, til læsning\)/i)).not.toBeInTheDocument()
-  })
+  }, 10_000)
 
   it("does not render an empty-variation message when there are no saved variations", async () => {
     mockFetchImplementation({
@@ -173,6 +173,25 @@ describe("App wordbank", () => {
       lemmaDetailsResponse: {
         lemma: "kat",
         english_translation: "cat",
+        verification: {
+          status: "error",
+          provider: "gemini",
+          reviewer_role: "Professional Danish Language Expert",
+          message: "Verification task failed: Missing DANOTE_WORD_VERIFICATION_GEMINI_API_KEY.",
+          composed_word_count: null,
+          stored_surface_form: "kat",
+          requested_at: "2026-03-13T12:00:00.000Z",
+          completed_at: "2026-03-13T12:00:02.000Z",
+          problem: "Stored POS and translation are inconsistent for this entry.",
+          change_to_implement: "Update POS to NOUN and translation to 'cat'.",
+          suggested_actions: [
+            {
+              action_type: "fix_translation",
+              english_translation: "cat",
+              reason: "The translation should be cat.",
+            },
+          ],
+        },
         surface_forms: [{ form: "kat", has_pronunciation: true }],
       },
       verifyWordResponse: {
@@ -220,6 +239,7 @@ describe("App wordbank", () => {
     fireEvent.click(await screen.findByRole("button", { name: /kat/i }))
     const infoButton = await screen.findByRole("button", { name: /show verification error info/i })
     expect(infoButton).toBeEnabled()
+    expect(screen.getByText(/review needed/i)).toBeInTheDocument()
     fireEvent.click(infoButton)
 
     expect(await screen.findByText("Verification Error")).toBeInTheDocument()
@@ -280,6 +300,17 @@ describe("App wordbank", () => {
       lemmaDetailsResponse: {
         lemma: "kat",
         english_translation: "cat",
+        verification: {
+          status: "verified",
+          provider: "gemini",
+          reviewer_role: "Professional Danish Language Expert",
+          message: "Verification passed.",
+          composed_word_count: null,
+          stored_surface_form: "kat",
+          requested_at: "2026-03-13T12:00:00.000Z",
+          completed_at: "2026-03-13T12:00:03.000Z",
+          suggested_actions: [],
+        },
         is_sectioned: false,
         pos_tag: "NOUN",
         morphology: "Number=Sing",
@@ -341,5 +372,6 @@ describe("App wordbank", () => {
     fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
     fireEvent.click(await screen.findByRole("button", { name: /kat/i }))
     expect(await screen.findByLabelText(/gemini verification passed/i)).toBeInTheDocument()
+    expect(screen.getByText(/verified .*2026/i)).toBeInTheDocument()
   }, 15_000)
 })

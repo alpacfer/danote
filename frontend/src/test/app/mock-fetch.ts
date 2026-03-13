@@ -30,6 +30,9 @@ export function mockFetchImplementation(options?: {
       reviewer_role: string | null
       message: string
       composed_word_count: number | null
+      stored_surface_form?: string | null
+      requested_at?: string | null
+      completed_at?: string | null
       problem?: string | null
       change_to_implement?: string | null
       suggested_actions?: Array<{
@@ -56,6 +59,31 @@ export function mockFetchImplementation(options?: {
       pos_tag?: string | null
       morphology?: string | null
       is_sectioned?: boolean
+      verification?: {
+        status: "verified" | "flagged" | "error" | "skipped" | "queued"
+        provider: string | null
+        reviewer_role: string | null
+        message: string
+        composed_word_count: number | null
+        stored_surface_form?: string | null
+        requested_at?: string | null
+        completed_at?: string | null
+        problem?: string | null
+        change_to_implement?: string | null
+        suggested_actions?: Array<{
+          action_type: "fix_translation" | "fix_gloss" | "move_to_meaning_section" | "move_to_lemma"
+          reason?: string | null
+          english_translation?: string | null
+          gloss?: string | null
+          target_meaning_id?: number | null
+          target_lemma?: string | null
+          target_meaning_key?: string | null
+          target_gloss?: string | null
+          target_english_translation?: string | null
+          target_pos_tag?: string | null
+          target_morphology?: string | null
+        }> | null
+      } | null
       meaning_sections?: Array<{
         id: number
         meaning_key: string
@@ -64,6 +92,31 @@ export function mockFetchImplementation(options?: {
         gloss_translation?: string | null
         pos_tag?: string | null
         morphology?: string | null
+        verification?: {
+          status: "verified" | "flagged" | "error" | "skipped" | "queued"
+          provider: string | null
+          reviewer_role: string | null
+          message: string
+          composed_word_count: number | null
+          stored_surface_form?: string | null
+          requested_at?: string | null
+          completed_at?: string | null
+          problem?: string | null
+          change_to_implement?: string | null
+          suggested_actions?: Array<{
+            action_type: "fix_translation" | "fix_gloss" | "move_to_meaning_section" | "move_to_lemma"
+            reason?: string | null
+            english_translation?: string | null
+            gloss?: string | null
+            target_meaning_id?: number | null
+            target_lemma?: string | null
+            target_meaning_key?: string | null
+            target_gloss?: string | null
+            target_english_translation?: string | null
+            target_pos_tag?: string | null
+            target_morphology?: string | null
+          }> | null
+        } | null
         surface_forms: Array<{
           form: string
           has_pronunciation?: boolean
@@ -98,6 +151,9 @@ export function mockFetchImplementation(options?: {
       reviewer_role: string | null
       message: string
       composed_word_count: number | null
+      stored_surface_form?: string | null
+      requested_at?: string | null
+      completed_at?: string | null
       problem?: string | null
       change_to_implement?: string | null
       suggested_actions?: Array<{
@@ -181,6 +237,31 @@ export function mockFetchImplementation(options?: {
     lemma: string
     english_translation?: string | null
     is_sectioned?: boolean
+    verification?: {
+      status: "verified" | "flagged" | "error" | "skipped" | "queued"
+      provider: string | null
+      reviewer_role: string | null
+      message: string
+      composed_word_count: number | null
+      stored_surface_form?: string | null
+      requested_at?: string | null
+      completed_at?: string | null
+      problem?: string | null
+      change_to_implement?: string | null
+      suggested_actions?: Array<{
+        action_type: "fix_translation" | "fix_gloss" | "move_to_meaning_section" | "move_to_lemma"
+        reason?: string | null
+        english_translation?: string | null
+        gloss?: string | null
+        target_meaning_id?: number | null
+        target_lemma?: string | null
+        target_meaning_key?: string | null
+        target_gloss?: string | null
+        target_english_translation?: string | null
+        target_pos_tag?: string | null
+        target_morphology?: string | null
+      }> | null
+    } | null
     meaning_sections?: Array<{
       id: number
       meaning_key: string
@@ -189,6 +270,31 @@ export function mockFetchImplementation(options?: {
       gloss_translation?: string | null
       pos_tag?: string | null
       morphology?: string | null
+      verification?: {
+        status: "verified" | "flagged" | "error" | "skipped" | "queued"
+        provider: string | null
+        reviewer_role: string | null
+        message: string
+        composed_word_count: number | null
+        stored_surface_form?: string | null
+        requested_at?: string | null
+        completed_at?: string | null
+        problem?: string | null
+        change_to_implement?: string | null
+        suggested_actions?: Array<{
+          action_type: "fix_translation" | "fix_gloss" | "move_to_meaning_section" | "move_to_lemma"
+          reason?: string | null
+          english_translation?: string | null
+          gloss?: string | null
+          target_meaning_id?: number | null
+          target_lemma?: string | null
+          target_meaning_key?: string | null
+          target_gloss?: string | null
+          target_english_translation?: string | null
+          target_pos_tag?: string | null
+          target_morphology?: string | null
+        }> | null
+      } | null
       surface_forms: Array<{
         form: string
         has_pronunciation?: boolean

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 
 _QUERY_COR_IDS_SEPARATOR = "\x1f"
@@ -62,6 +63,23 @@ class SurfaceFormRecord:
     has_pronunciation: bool
 
 
+@dataclass(frozen=True, slots=True)
+class VerificationRecord:
+    id: int
+    lexeme_id: int
+    meaning_id: int | None
+    status: str
+    provider: str | None
+    reviewer_role: str | None
+    stored_surface_form: str | None
+    message: str
+    problem: str | None
+    change_to_implement: str | None
+    suggested_actions: list[dict[str, object]]
+    requested_at: str
+    completed_at: str | None
+
+
 def surface_form_from_row(row) -> SurfaceFormRecord:
     return SurfaceFormRecord(
         id=int(row["id"]),
@@ -85,6 +103,28 @@ def lexeme_meaning_from_row(row) -> LexemeMeaningRecord:
         english_translation=row["english_translation"],
         pos_tag=row["pos_tag"],
         morphology=row["morphology"],
+    )
+
+
+def verification_record_from_row(row) -> VerificationRecord:
+    raw_actions = row["suggested_actions_json"]
+    parsed_actions = json.loads(str(raw_actions)) if raw_actions else []
+    if not isinstance(parsed_actions, list):
+        parsed_actions = []
+    return VerificationRecord(
+        id=int(row["id"]),
+        lexeme_id=int(row["lexeme_id"]),
+        meaning_id=int(row["meaning_id"]) if row["meaning_id"] is not None else None,
+        status=str(row["status"]),
+        provider=row["provider"],
+        reviewer_role=row["reviewer_role"],
+        stored_surface_form=row["stored_surface_form"],
+        message=str(row["message"]),
+        problem=row["problem"],
+        change_to_implement=row["change_to_implement"],
+        suggested_actions=[item for item in parsed_actions if isinstance(item, dict)],
+        requested_at=str(row["requested_at"]),
+        completed_at=row["completed_at"],
     )
 
 

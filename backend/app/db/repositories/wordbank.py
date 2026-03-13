@@ -7,6 +7,7 @@ from app.db.repositories.wordbank_models import (
     LexemeMeaningRecord,
     LexemeRecord,
     SurfaceFormRecord,
+    VerificationRecord,
     WordbankSearchRow,
 )
 from app.db.repositories.wordbank_mutations import WordbankMutationRepository
@@ -26,5 +27,6 @@ __all__ = [
     "LexemeRecord",
     "LexemeMeaningRecord",
     "SurfaceFormRecord",
+    "VerificationRecord",
     "WordbankRepository",
 ]

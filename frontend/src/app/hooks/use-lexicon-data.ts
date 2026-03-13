@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import {
   type AppSection,
   createApiClient,
+  getSelectedLemmaVerificationResult,
   type LemmaDetailsResponse,
   type LemmaListResponse,
   type SentenceListResponse,
@@ -15,6 +16,7 @@ type UseLexiconDataParams = {
   extractErrorMessage: (response: Response, fallback: string) => Promise<string>
   activeSection: AppSection
   selectedLemma: string | null
+  selectedMeaningId: number | null
   wordbankRefreshTick: number
   sentencebankRefreshTick: number
 }
@@ -24,6 +26,7 @@ export function useLexiconData({
   extractErrorMessage,
   activeSection,
   selectedLemma,
+  selectedMeaningId,
   wordbankRefreshTick,
   sentencebankRefreshTick,
 }: UseLexiconDataParams) {
@@ -38,6 +41,7 @@ export function useLexiconData({
   const [isLemmaDetailsLoading, setIsLemmaDetailsLoading] = useState(false)
   const [showLemmaDetailsLoadingSkeleton, setShowLemmaDetailsLoadingSkeleton] = useState(false)
   const [hasLoadedWordbank, setHasLoadedWordbank] = useState(false)
+  const [lemmaDetailsPollTick, setLemmaDetailsPollTick] = useState(0)
 
   const lemmaDetailsLoadingDelayTimeoutRef = useRef<number | null>(null)
   const lastLoadedWordbankTickRef = useRef<number | null>(null)
@@ -156,7 +160,6 @@ export function useLexiconData({
         if (!cancelled) {
           const message = error instanceof Error ? error.message : "Could not load lemma details."
           setLemmaDetailsError(message)
-          setLemmaDetails(null)
         }
       } finally {
         if (lemmaDetailsLoadingDelayTimeoutRef.current !== null) {
@@ -177,7 +180,26 @@ export function useLexiconData({
         lemmaDetailsLoadingDelayTimeoutRef.current = null
       }
     }
-  }, [activeSection, apiClient, selectedLemma, wordbankRefreshTick])
+  }, [activeSection, apiClient, lemmaDetailsPollTick, selectedLemma, wordbankRefreshTick])
+
+  useEffect(() => {
+    if (activeSection !== "wordbank" || !selectedLemma) {
+      return
+    }
+    const selectedVerification = getSelectedLemmaVerificationResult({
+      lemmaDetails,
+      selectedMeaningId,
+    })
+    if (selectedVerification?.status !== "queued") {
+      return
+    }
+    const timeoutId = window.setTimeout(() => {
+      setLemmaDetailsPollTick((current) => current + 1)
+    }, 1_500)
+    return () => {
+      window.clearTimeout(timeoutId)
+    }
+  }, [activeSection, lemmaDetails, selectedLemma, selectedMeaningId])
 
   return {
     lemmas,

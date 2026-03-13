@@ -143,6 +143,7 @@ export function useAppController() {
       isRegeneratingLemmaPronunciation: wordbank.isRegeneratingLemmaPronunciation,
       regenerateSelectedLemmaPronunciation: wordbank.regenerateSelectedLemmaPronunciation,
       selectedLemmaVerificationError: wordbank.selectedLemmaVerificationError,
+      selectedLemmaVerificationQueued: wordbank.selectedLemmaVerificationQueued,
       selectedLemmaVerificationSuccess: wordbank.selectedLemmaVerificationSuccess,
       hasSuggestedVerificationActions: wordbank.hasSuggestedVerificationActions,
       isApplyingVerificationChanges: wordbank.isApplyingVerificationChanges,

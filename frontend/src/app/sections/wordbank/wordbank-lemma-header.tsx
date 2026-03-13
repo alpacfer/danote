@@ -1,12 +1,12 @@
-import type { LemmaDetailsResponse, VerificationErrorDetail, VerificationSuccessDetail } from "@/app/core"
-import { badgesForSavedForm, corSecondaryBadgeClass, posBadgeClass } from "@/app/core"
+import type { LemmaDetailsResponse, VerificationErrorDetail, VerificationQueuedDetail, VerificationSuccessDetail } from "@/app/core"
+import { badgesForSavedForm, corSecondaryBadgeClass, formatSavedNoteTimestamp, posBadgeClass } from "@/app/core"
 import { WordbankPronunciationWord } from "@/app/sections/wordbank/wordbank-pronunciation-word"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ButtonGroup } from "@/components/ui/button-group"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Skeleton } from "@/components/ui/skeleton"
-import { BadgeCheck, Info, RefreshCw } from "lucide-react"
+import { BadgeCheck, Info, LoaderCircle, RefreshCw } from "lucide-react"
 
 type WordbankLemmaHeaderProps = {
   selectedLemma: string
@@ -17,6 +17,7 @@ type WordbankLemmaHeaderProps = {
   isRegeneratingLemmaPronunciation: boolean
   onRegenerateSelectedLemmaPronunciation: () => void
   selectedLemmaVerificationError: VerificationErrorDetail | null
+  selectedLemmaVerificationQueued: VerificationQueuedDetail | null
   selectedLemmaVerificationSuccess: VerificationSuccessDetail | null
   hasSuggestedVerificationActions: (detail: VerificationErrorDetail | null) => boolean
   isApplyingVerificationChanges: boolean
@@ -33,6 +34,7 @@ export function WordbankLemmaHeader({
   isRegeneratingLemmaPronunciation,
   onRegenerateSelectedLemmaPronunciation,
   selectedLemmaVerificationError,
+  selectedLemmaVerificationQueued,
   selectedLemmaVerificationSuccess,
   hasSuggestedVerificationActions,
   isApplyingVerificationChanges,
@@ -69,6 +71,19 @@ export function WordbankLemmaHeader({
       gram_raw: lemmaSurfaceDetails?.gram_raw ?? null,
     })
     : []
+  const selectedVerificationTimestamp =
+    selectedMeaningSection?.verification?.completed_at
+    ?? selectedMeaningSection?.verification?.requested_at
+    ?? lemmaDetails.verification?.completed_at
+    ?? lemmaDetails.verification?.requested_at
+    ?? new Date().toISOString()
+  const verificationStatusLine = selectedLemmaVerificationQueued
+    ? `Verifying since ${formatSavedNoteTimestamp(selectedLemmaVerificationQueued.requestedAt)}`
+    : selectedLemmaVerificationSuccess
+      ? `Verified ${formatSavedNoteTimestamp(selectedLemmaVerificationSuccess.verifiedAt)}`
+      : selectedLemmaVerificationError
+        ? `Review needed ${formatSavedNoteTimestamp(selectedVerificationTimestamp)}`
+        : null
 
   return (
     <div>
@@ -105,6 +120,16 @@ export function WordbankLemmaHeader({
             >
               <BadgeCheck className="mr-1 size-3.5" />
               Verified
+            </Badge>
+          ) : null}
+          {selectedLemmaVerificationQueued ? (
+            <Badge
+              variant="outline"
+              aria-label="Gemini verification queued"
+              className="border-sky-500/60 bg-sky-500/10 text-sky-700"
+            >
+              <LoaderCircle className="mr-1 size-3.5 animate-spin" />
+              Verifying...
             </Badge>
           ) : null}
         </div>
@@ -144,6 +169,9 @@ export function WordbankLemmaHeader({
                   <div>
                     <p className="text-sm font-semibold">Verification Error</p>
                     <p className="text-muted-foreground text-xs">Provider: {selectedLemmaVerificationError.provider}</p>
+                    <p className="text-muted-foreground text-xs">
+                      Reviewed {formatSavedNoteTimestamp(selectedVerificationTimestamp)}
+                    </p>
                   </div>
                   <div className="space-y-1">
                     <p className="text-muted-foreground text-[11px] font-semibold tracking-wide uppercase">Problem</p>
@@ -188,6 +216,9 @@ export function WordbankLemmaHeader({
           </Popover>
         </ButtonGroup>
       </div>
+      {verificationStatusLine ? (
+        <p className="text-muted-foreground mt-1 pl-1 text-xs">{verificationStatusLine}</p>
+      ) : null}
       {headerTranslation && (showSupplementaryMetadata || selectedMeaningSection) ? (
         <p className="text-muted-foreground mt-1 pl-1 text-sm italic">{headerTranslation}</p>
       ) : null}

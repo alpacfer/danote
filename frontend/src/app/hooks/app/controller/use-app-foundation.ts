@@ -30,6 +30,7 @@ export function useAppFoundation() {
     extractErrorMessage,
     activeSection: navigation.activeSection,
     selectedLemma: navigation.selectedLemma,
+    selectedMeaningId: navigation.selectedMeaningId,
     wordbankRefreshTick,
     sentencebankRefreshTick,
   })

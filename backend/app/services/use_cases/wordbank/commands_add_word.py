@@ -4,7 +4,7 @@ from dataclasses import dataclass
 import re
 from typing import Literal
 
-from app.api.schemas.v1.wordbank import AddWordResponse
+from app.api.schemas.v1.wordbank import AddWordResponse, MeaningContext, VerificationResult
 from app.services.cor_local import CORLocalEntry
 from app.services.gemini_translation import ContextualWordTranslationInput
 from app.services.token_classifier import normalize_token
@@ -233,11 +233,20 @@ def _add_meaning_scoped_word(
     if write_result.inserted_any:
         runtime.nlp.add_user_lexeme(inputs.stored_lemma)
     meaning_assignment = build_meaning_assignment(meaning_record)
+    verification = runtime.verification.queued_verification_result(
+        stored_surface_form=inputs.normalized_surface or inputs.stored_lemma,
+    )
+    runtime.verification.persist_queued_verification(
+        stored_lemma=inputs.stored_lemma,
+        stored_surface_form=inputs.normalized_surface or inputs.stored_lemma,
+        meaning_id=meaning_assignment.id,
+        verification=verification,
+    )
     return _build_add_word_response(
         inputs=inputs,
         write_result=write_result,
         meaning=meaning_assignment,
-        verification=runtime.verification.queued_verification_result(),
+        verification=verification,
     )
 
 
@@ -301,11 +310,20 @@ def _add_unsectioned_word(
     )
     if write_result.inserted_any:
         runtime.nlp.add_user_lexeme(inputs.stored_lemma)
+    verification = runtime.verification.queued_verification_result(
+        stored_surface_form=inputs.normalized_surface or inputs.stored_lemma,
+    )
+    runtime.verification.persist_queued_verification(
+        stored_lemma=inputs.stored_lemma,
+        stored_surface_form=inputs.normalized_surface or inputs.stored_lemma,
+        meaning_id=None,
+        verification=verification,
+    )
     return _build_add_word_response(
         inputs=inputs,
         write_result=write_result,
         meaning=None,
-        verification=runtime.verification.queued_verification_result(),
+        verification=verification,
     )
 
 
@@ -615,7 +633,7 @@ def _build_add_word_response(
     inputs: _AddWordInputs,
     write_result: _AddWordWriteResult,
     meaning,
-    verification: AddWordResponse.VerificationResult | None,
+    verification: VerificationResult | None,
 ) -> AddWordResponse:
     status: Literal["inserted", "exists"] = "inserted" if write_result.inserted_any else "exists"
     message = (
@@ -630,7 +648,7 @@ def _build_add_word_response(
         source="manual",
         message=message,
         meaning=(
-            AddWordResponse.MeaningContext(
+            MeaningContext(
                 id=meaning.id,
                 meaning_key=meaning.meaning_key,
                 gloss=meaning.gloss,

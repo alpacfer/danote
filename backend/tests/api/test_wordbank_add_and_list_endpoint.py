@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from app.core.app_state import set_service_field
 from app.db.migrations import apply_migrations, get_connection
 from app.main import create_app
+from app.services.verification import WordVerificationAction
 from tests.api.wordbank_test_support import build_test_settings, seed_cor_local_bog_senses
 
 
@@ -92,7 +93,31 @@ def test_add_word_includes_verification_result_when_service_is_available(tmp_pat
         )
 
     assert verify_response.status_code == 200
-    assert verify_response.json()["verification"]["status"] == "verified"
+    verify_payload = verify_response.json()
+    assert verify_payload["verification"]["status"] == "verified"
+    assert verify_payload["verification"]["requested_at"] is not None
+    assert verify_payload["verification"]["completed_at"] is not None
+
+    with TestClient(app) as client:
+        details_response = client.get("/api/wordbank/lemmas/bog")
+
+    assert details_response.status_code == 200
+    details_payload = details_response.json()
+    assert details_payload["meaning_sections"][0]["verification"]["status"] == "verified"
+    assert details_payload["meaning_sections"][0]["verification"]["completed_at"] is not None
+
+    with get_connection(db_path) as conn:
+        verification_row = conn.execute(
+            """
+            SELECT status, requested_at, completed_at
+            FROM wordbank_verification_records
+            """
+        ).fetchone()
+
+    assert verification_row is not None
+    assert verification_row["status"] == "verified"
+    assert verification_row["requested_at"] is not None
+    assert verification_row["completed_at"] is not None
 
 
 def test_add_word_duplicate_is_graceful(tmp_path, stub_nlp_adapter_factory) -> None:
@@ -663,3 +688,94 @@ def test_add_word_search_seed_enqueues_and_runs_background_jobs(tmp_path, stub_n
     assert response.status_code == 200
     assert verification_service.calls >= 1
     assert tts_service.calls >= 1
+
+    with get_connection(db_path) as conn:
+        verification_row = conn.execute(
+            """
+            SELECT status, completed_at
+            FROM wordbank_verification_records
+            """
+        ).fetchone()
+
+    assert verification_row is not None
+    assert verification_row["status"] == "verified"
+    assert verification_row["completed_at"] is not None
+
+    with TestClient(app) as client:
+        details = client.get("/api/wordbank/lemmas/bog")
+
+    assert details.status_code == 200
+    assert details.json()["meaning_sections"][0]["verification"]["status"] == "verified"
+
+
+def test_apply_verification_changes_prunes_persisted_suggestions(tmp_path, stub_nlp_adapter_factory) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    apply_migrations(db_path)
+    app = create_app(build_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+
+    class StubVerificationService:
+        provider = "gemini"
+        reviewer_role = "Professional Danish Language Expert"
+
+        def verify_word_entry(self, _payload):
+            class Result:
+                verdict = "flagged"
+                message = "incorrect"
+                problem = "Translation is wrong."
+                change_to_implement = "Set translation to book."
+                suggested_actions = (
+                    WordVerificationAction(
+                        action_type="fix_translation",
+                        english_translation="book",
+                        reason="Use the singular noun translation.",
+                    ),
+                )
+
+            return Result()
+
+    with TestClient(app) as client:
+        set_service_field(client.app, "word_verification_service", StubVerificationService())
+        added = client.post(
+            "/api/wordbank/lexemes",
+            json={"surface_token": "Bogen", "lemma_candidate": "bog"},
+        )
+        added_payload = added.json()
+        verify = client.post(
+            "/api/wordbank/lexemes/verify",
+            json={
+                "stored_lemma": "bog",
+                "stored_surface_form": "bogen",
+                "meaning_id": added_payload["meaning"]["id"],
+            },
+        )
+
+        assert verify.status_code == 200
+        details_before = client.get("/api/wordbank/lemmas/bog")
+        assert details_before.status_code == 200
+        action = details_before.json()["meaning_sections"][0]["verification"]["suggested_actions"][0]
+
+        apply_response = client.post(
+            "/api/wordbank/lexemes/apply-verification-changes",
+            json={
+                "stored_lemma": "bog",
+                "stored_surface_form": "bogen",
+                "meaning_id": added_payload["meaning"]["id"],
+                "provider": "gemini",
+                "action": action,
+            },
+        )
+
+        details_after = client.get("/api/wordbank/lemmas/bog")
+
+    assert apply_response.status_code == 200
+    assert apply_response.json()["status"] == "applied"
+    assert details_after.status_code == 200
+    assert details_after.json()["meaning_sections"][0].get("verification") is None
+
+    with get_connection(db_path) as conn:
+        remaining_rows = conn.execute(
+            "SELECT COUNT(*) AS count FROM wordbank_verification_records"
+        ).fetchone()
+
+    assert remaining_rows is not None
+    assert int(remaining_rows["count"]) == 0

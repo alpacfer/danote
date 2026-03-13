@@ -46,10 +46,12 @@ The Wordbank section has two UI modes:
 - Details are fetched only when:
   - active section is `wordbank`
   - and `selectedLemma` is present
+- If the selected lemma/meaning verification is still `queued`, details are polled every 1.5s until the verification reaches a final state.
 - Leaving wordbank or clearing selection resets details state (`lemmaDetails`, loading/error/skeleton flags).
 - A loading skeleton is intentionally delayed by 180ms:
   - avoids flicker for fast responses
   - only shown if request outlives the delay
+- Poll refresh failures keep the last rendered details visible and only update the error banner.
 
 ## List mode behavior (WordbankListView)
 
@@ -111,13 +113,19 @@ Meaning auto-scroll behavior:
 - **Regenerate Audio** button:
   - disabled while regeneration request is in progress
   - spinner icon while active
+- **Verification status line**:
+  - shows `Verifying since <timestamp>` while selected target verification is queued
+  - shows `Verified <timestamp>` when selected target verification succeeded
+  - shows `Review needed <timestamp>` when selected target verification failed/was flagged
 - **Verification info** popover button:
   - disabled when no verification error for selected target
   - shows count badge for number of suggested actions
-  - popover includes provider/problem/change summary and action cards
+  - popover includes provider/reviewed-at/problem/change summary and action cards
   - each action card has `Accept Action` button that is disabled while apply is in progress
 - Success badge:
   - displays `Verified` badge when selected lemma/meaning has verification success record
+- Queued badge:
+  - displays `Verifying...` badge with spinner when selected lemma/meaning has queued verification record
 
 ## Body mode A: sectioned meanings (WordbankMeaningSections)
 
@@ -175,16 +183,17 @@ Pronunciation behavior is shared by header + section rows + variation rows.
 ## Background verify (`POST /api/wordbank/lexemes/verify`)
 
 - Triggered in background after add flows (except certain search-seed save paths).
-- Results are tracked by `(lemma, meaningId)` key.
-- Success path stores success detail and clears matching error detail.
-- Error path stores a synthesized verification error detail and pushes a "Review needed" notification.
+- Results are persisted by backend target scope `(lemma, meaningId)` and returned through subsequent lemma-detail fetches.
+- Success path stores a persisted verification success record with `requested_at` / `completed_at`.
+- Error path stores a persisted verification error record with timestamps and suggested actions.
+- When the open word page observes a queued-to-final transition, the app pushes an in-session notification.
 
 ## Action apply (`POST /api/wordbank/lexemes/apply-verification-changes`)
 
 - Accepting a popover action calls apply endpoint with selected target and action payload.
 - On applied status:
   - success toast text depends on action type
-  - verification error list is updated (remove applied action or entire detail when moved)
+  - backend persisted verification detail is pruned (remove applied action or delete the record when it is fully resolved / moved)
   - `wordbankRefreshTick` increments
   - app navigates to returned target lemma/meaning
 - On failure:
@@ -216,6 +225,8 @@ Pronunciation behavior is shared by header + section rows + variation rows.
   - optional background verify/pronunciation (skipped when `searchSeed` is present)
   - token feedback submission (`source: "search"`)
   - if response includes `saved_snapshot`, details pane is hydrated immediately from snapshot
+  - if that snapshot includes queued verification, the header immediately shows `Verifying...`
+  - while that queued verification remains selected, the word page polls until the persisted result becomes final
   - analysis + wordbank refresh ticks increment
   - app navigates to wordbank and selects stored lemma/meaning
 

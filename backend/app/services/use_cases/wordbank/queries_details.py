@@ -6,6 +6,7 @@ from app.api.schemas.v1.wordbank import LemmaDetailsResponse
 from app.services.token_classifier import normalize_token
 from app.services.use_cases.wordbank.meaning_sections import ensure_wordbank_meaning_compatibility
 from app.services.use_cases.wordbank.runtime import WordbankRuntime
+from app.services.use_cases.wordbank.verification_records import verification_record_to_schema
 
 _LIKELY_ENGLISH_GLOSS_RE = re.compile(r"^[A-Za-z][A-Za-z ',-]*$")
 
@@ -22,8 +23,12 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
 
     form_rows = runtime.repository.list_surface_forms(lexeme.id)
     meaning_rows = runtime.repository.list_lexeme_meanings(lexeme.id)
+    verification_records = {
+        record.meaning_id: verification_record_to_schema(record)
+        for record in runtime.repository.list_verification_records(lexeme.id)
+    }
     if lexeme.source != "search":
-        return _get_manual_lemma_details(runtime, lexeme, form_rows, meaning_rows)
+        return _get_manual_lemma_details(runtime, lexeme, form_rows, meaning_rows, verification_records)
 
     if not meaning_rows:
         return LemmaDetailsResponse(
@@ -32,6 +37,7 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
             pos_tag=lexeme.pos_tag,
             morphology=lexeme.morphology,
             is_sectioned=False,
+            verification=verification_records.get(None),
             meaning_sections=[],
             surface_forms=[
                 _surface_form_details(
@@ -84,6 +90,7 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
         pos_tag=top_level_pos_tag,
         morphology=top_level_morphology,
         is_sectioned=True,
+        verification=verification_records.get(None),
         meaning_sections=[
             LemmaDetailsResponse.MeaningSection(
                 id=meaning.id,
@@ -93,6 +100,7 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
                 gloss_translation=None,
                 pos_tag=meaning.pos_tag,
                 morphology=meaning.morphology,
+                verification=verification_records.get(meaning.id),
                 surface_forms=section_forms.get(meaning.id, []),
             )
             for meaning in meaning_rows
@@ -101,7 +109,7 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
     )
 
 
-def _get_manual_lemma_details(runtime: WordbankRuntime, lexeme, form_rows, meaning_rows) -> LemmaDetailsResponse:
+def _get_manual_lemma_details(runtime: WordbankRuntime, lexeme, form_rows, meaning_rows, verification_records) -> LemmaDetailsResponse:
     if not meaning_rows:
         return LemmaDetailsResponse(
             lemma=lexeme.lemma,
@@ -109,6 +117,7 @@ def _get_manual_lemma_details(runtime: WordbankRuntime, lexeme, form_rows, meani
             pos_tag=lexeme.pos_tag,
             morphology=lexeme.morphology,
             is_sectioned=False,
+            verification=verification_records.get(None),
             meaning_sections=[],
             surface_forms=[
                 _manual_surface_form_details(
@@ -156,6 +165,7 @@ def _get_manual_lemma_details(runtime: WordbankRuntime, lexeme, form_rows, meani
         pos_tag=top_level_pos_tag,
         morphology=top_level_morphology,
         is_sectioned=True,
+        verification=verification_records.get(None),
         meaning_sections=[
             LemmaDetailsResponse.MeaningSection(
                 id=meaning.id,
@@ -171,6 +181,7 @@ def _get_manual_lemma_details(runtime: WordbankRuntime, lexeme, form_rows, meani
                 ),
                 pos_tag=meaning.pos_tag,
                 morphology=meaning.morphology,
+                verification=verification_records.get(meaning.id),
                 surface_forms=section_forms.get(meaning.id, []),
             )
             for meaning in meaning_rows

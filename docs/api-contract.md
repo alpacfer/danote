@@ -99,6 +99,7 @@ Route decorators are the source of truth in `backend/app/api/routes/`, and API D
   - `503` for runtime DB compatibility errors (e.g., reset-required conditions).
   - `400` for invalid inputs.
   - body `status` may be `inserted` or `exists`.
+  - when `verification` is present, it may include `stored_surface_form`, `requested_at`, and `completed_at`.
 
 ### POST `/api/wordbank/lexemes/verify`
 - **Request model:** `VerifyWordRequest`.
@@ -107,6 +108,8 @@ Route decorators are the source of truth in `backend/app/api/routes/`, and API D
   - `503` when DB unavailable/locked.
   - `404` when target lemma/surface/meaning cannot be found.
   - `400` for invalid inputs.
+  - successful responses persist the verification result for the matching lemma/meaning target.
+  - `verification` may include `stored_surface_form`, `requested_at`, and `completed_at`.
 
 ### POST `/api/wordbank/lexemes/pronunciation`
 - **Request model:** `GeneratePronunciationRequest`.
@@ -195,6 +198,11 @@ Route decorators are the source of truth in `backend/app/api/routes/`, and API D
 ### GET `/api/wordbank/lemmas/{lemma}`
 - **Request model:** none (`lemma` path parameter).
 - **Response model:** `LemmaDetailsResponse`.
+- **Notable response behavior:**
+  - root payload may include `verification` for non-sectioned/root targets.
+  - each `meaning_sections[]` item may include its own `verification`.
+  - verification objects use the same additive fields as add/verify responses:
+    `stored_surface_form`, `requested_at`, `completed_at`, and `suggested_actions`.
 - **Canonical response examples:**
   - **Non-sectioned** (`is_sectioned: false`):
     ```json
@@ -204,6 +212,16 @@ Route decorators are the source of truth in `backend/app/api/routes/`, and API D
       "pos_tag": "VERB",
       "morphology": "Tense=Pres|VerbForm=Fin|Voice=Act",
       "is_sectioned": false,
+      "verification": {
+        "status": "queued",
+        "provider": "gemini",
+        "reviewer_role": "Professional Danish Language Expert",
+        "message": "Word verification queued.",
+        "composed_word_count": null,
+        "stored_surface_form": "lærer",
+        "requested_at": "2026-03-13T12:00:00+00:00",
+        "suggested_actions": []
+      },
       "meaning_sections": [],
       "surface_forms": [
         {
@@ -232,6 +250,17 @@ Route decorators are the source of truth in `backend/app/api/routes/`, and API D
           "gloss_translation": "book",
           "pos_tag": "NOUN",
           "morphology": "Gender=Com|Number=Sing|Definite=Def",
+          "verification": {
+            "status": "verified",
+            "provider": "gemini",
+            "reviewer_role": "Professional Danish Language Expert",
+            "message": "Verification passed.",
+            "composed_word_count": null,
+            "stored_surface_form": "bogen",
+            "requested_at": "2026-03-13T12:00:00+00:00",
+            "completed_at": "2026-03-13T12:00:03+00:00",
+            "suggested_actions": []
+          },
           "surface_forms": [
             {
               "form": "bogen",

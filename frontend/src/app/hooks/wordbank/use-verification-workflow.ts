@@ -1,16 +1,20 @@
-import { type Dispatch, type SetStateAction, useMemo, useState } from "react"
+import { type Dispatch, type SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from "react"
 
 import {
   buildVerificationErrorDetail,
-  compactMessage,
   createApiClient,
+  getSelectedLemmaVerificationSelection,
+  mapVerificationResultToErrorDetail,
+  mapVerificationResultToQueuedDetail,
+  mapVerificationResultToSuccessDetail,
   normalizeSearchWord,
   type ApplyVerificationChangesResponse,
   type LemmaDetailsResponse,
   type VerificationAction,
-  type VerifyWordResponse,
   type VerificationErrorDetail,
-  type VerificationSuccessDetail,
+  type VerificationResult,
+  type VerifyWordResponse,
+  verificationResultSignature,
 } from "@/app/core"
 import { toast } from "sonner"
 
@@ -46,86 +50,62 @@ export function useVerificationWorkflow({
 }: UseVerificationWorkflowParams) {
   const [isApplyingVerificationChanges, setIsApplyingVerificationChanges] = useState(false)
   const [pendingVerificationCount, setPendingVerificationCount] = useState(0)
-  const [verificationErrorsByKey, setVerificationErrorsByKey] = useState<Record<string, VerificationErrorDetail>>({})
-  const [verificationSuccessByKey, setVerificationSuccessByKey] = useState<Record<string, VerificationSuccessDetail>>({})
   const apiClient = useMemo(
     () => createApiClient({ backendUrl, extractErrorMessage }),
     [backendUrl, extractErrorMessage],
   )
+  const notifiedVerificationSignaturesRef = useRef<Record<string, string>>({})
+  const previousVerificationStatusesRef = useRef<Record<string, VerificationResult["status"] | null>>({})
 
-  const selectedLemmaVerificationError = useMemo(() => {
-    const lemmaKey = normalizeSearchWord(lemmaDetails?.lemma ?? selectedLemma ?? "")
-    if (!lemmaKey) {
-      return null
-    }
-    return getSelectedVerificationDetail({
-      verificationDetailsByKey: verificationErrorsByKey,
-      lemma: lemmaKey,
-      selectedMeaningId,
-      meaningSections: lemmaDetails?.meaning_sections ?? [],
-    })
-  }, [lemmaDetails?.lemma, lemmaDetails?.meaning_sections, selectedLemma, selectedMeaningId, verificationErrorsByKey])
+  const selectedVerificationSelection = useMemo(
+    () => getSelectedLemmaVerificationSelection({ lemmaDetails, selectedMeaningId }),
+    [lemmaDetails, selectedMeaningId],
+  )
+  const selectedVerification = selectedVerificationSelection.verification
+  const selectedVerificationMeaningId = selectedVerificationSelection.meaningId
 
-  const selectedLemmaVerificationSuccess = useMemo(() => {
-    const lemmaKey = normalizeSearchWord(lemmaDetails?.lemma ?? selectedLemma ?? "")
-    if (!lemmaKey) {
-      return null
-    }
-    return getSelectedVerificationDetail({
-      verificationDetailsByKey: verificationSuccessByKey,
-      lemma: lemmaKey,
-      selectedMeaningId,
-      meaningSections: lemmaDetails?.meaning_sections ?? [],
-    })
-  }, [lemmaDetails?.lemma, lemmaDetails?.meaning_sections, selectedLemma, selectedMeaningId, verificationSuccessByKey])
+  const selectedLemmaVerificationError = useMemo(
+    () => mapVerificationResultToErrorDetail(selectedVerification, selectedVerificationMeaningId),
+    [selectedVerification, selectedVerificationMeaningId],
+  )
+  const selectedLemmaVerificationSuccess = useMemo(
+    () => mapVerificationResultToSuccessDetail(selectedVerification, selectedVerificationMeaningId),
+    [selectedVerification, selectedVerificationMeaningId],
+  )
+  const selectedLemmaVerificationQueued = useMemo(
+    () => mapVerificationResultToQueuedDetail(selectedVerification, selectedVerificationMeaningId),
+    [selectedVerification, selectedVerificationMeaningId],
+  )
 
   function hasSuggestedVerificationActions(detail: VerificationErrorDetail | null): boolean {
     return (detail?.suggestedActions.length ?? 0) > 0
   }
 
-  function notifyWordVerification(
-    storedLemma: string,
-    storedSurfaceForm: string | null,
-    meaningId: number | null,
-    verification: VerifyWordResponse["verification"],
-  ) {
+  const notifyWordVerification = useCallback((args: {
+    storedLemma: string
+    storedSurfaceForm: string | null
+    meaningId: number | null
+    verification: VerificationResult | null
+  }) => {
+    const { storedLemma, storedSurfaceForm, meaningId, verification } = args
     if (!verification || verification.status === "skipped" || verification.status === "queued") {
       return
     }
-
     const lemmaKey = normalizeSearchWord(storedLemma)
-    const key = verificationKey(lemmaKey, meaningId)
+    const signature = verificationResultSignature(verification, meaningId)
+    const key = verificationKey(lemmaKey || storedLemma, meaningId)
+    if (signature && notifiedVerificationSignaturesRef.current[key] === signature) {
+      return
+    }
+    if (signature) {
+      notifiedVerificationSignaturesRef.current[key] = signature
+    }
+
     if (verification.status === "verified") {
-      setVerificationErrorsByKey((current) => {
-        if (!Object.hasOwn(current, key)) {
-          return current
-        }
-        const next = { ...current }
-        delete next[key]
-        return next
-      })
-      setVerificationSuccessByKey((current) => ({
-        ...current,
-        [key]: {
-          provider: verification.provider?.trim() || "gemini",
-          rawMessage: compactMessage(verification.message) || "Gemini verified this word.",
-          storedSurfaceForm,
-          meaningId,
-          verifiedAt: new Date().toISOString(),
-        },
-      }))
       pushNotification(`Verification passed for '${lemmaKey || storedLemma}'.`)
       return
     }
 
-    setVerificationSuccessByKey((current) => {
-      if (!Object.hasOwn(current, key)) {
-        return current
-      }
-      const next = { ...current }
-      delete next[key]
-      return next
-    })
     const detail = buildVerificationErrorDetail({
       provider: verification.provider,
       status: verification.status === "flagged" ? "flagged" : "error",
@@ -137,16 +117,39 @@ export function useVerificationWorkflow({
       changeToImplement: verification.change_to_implement,
       suggestedActions: verification.suggested_actions,
     })
-    setVerificationErrorsByKey((current) => ({ ...current, [key]: detail }))
-    const displayLemma = lemmaKey || storedLemma || "word"
-    pushNotification(`Review needed for '${displayLemma}'.`, {
+    pushNotification(`Review needed for '${lemmaKey || storedLemma || "word"}'.`, {
       kind: "word_verification",
-      lemma: displayLemma,
+      lemma: lemmaKey || storedLemma,
       meaningId,
       surfaceForm: storedSurfaceForm,
       actionCount: detail.suggestedActions.length,
     })
-  }
+  }, [pushNotification])
+
+  useEffect(() => {
+    const lemmaKey = normalizeSearchWord(lemmaDetails?.lemma ?? selectedLemma ?? "")
+    if (!lemmaKey || !selectedVerification) {
+      return
+    }
+    const verificationKeyValue = verificationKey(lemmaKey, selectedVerificationMeaningId)
+    const previousStatus = previousVerificationStatusesRef.current[verificationKeyValue] ?? null
+    previousVerificationStatusesRef.current[verificationKeyValue] = selectedVerification.status
+    if (previousStatus !== "queued" || selectedVerification.status === "queued" || selectedVerification.status === "skipped") {
+      return
+    }
+    notifyWordVerification({
+      storedLemma: lemmaKey,
+      storedSurfaceForm: selectedVerification.stored_surface_form ?? null,
+      meaningId: selectedVerificationMeaningId,
+      verification: selectedVerification,
+    })
+  }, [
+    lemmaDetails?.lemma,
+    notifyWordVerification,
+    selectedLemma,
+    selectedVerification,
+    selectedVerificationMeaningId,
+  ])
 
   async function verifyWordInBackground(
     storedLemma: string,
@@ -164,11 +167,16 @@ export function useVerificationWorkflow({
         },
         "Could not verify word.",
       )
-      notifyWordVerification(payload.stored_lemma, payload.stored_surface_form, meaningId, payload.verification)
+      notifyWordVerification({
+        storedLemma: payload.stored_lemma,
+        storedSurfaceForm: payload.stored_surface_form,
+        meaningId,
+        verification: payload.verification,
+      })
+      setWordbankRefreshTick((current) => current + 1)
     } catch (error) {
       const message = error instanceof Error ? error.message : null
       const lemmaKey = normalizeSearchWord(storedLemma)
-      const key = verificationKey(lemmaKey, meaningId)
       const detail = buildVerificationErrorDetail({
         provider: "gemini",
         status: "error",
@@ -176,15 +184,6 @@ export function useVerificationWorkflow({
         storedSurfaceForm,
         meaningId,
       })
-      setVerificationSuccessByKey((current) => {
-        if (!Object.hasOwn(current, key)) {
-          return current
-        }
-        const next = { ...current }
-        delete next[key]
-        return next
-      })
-      setVerificationErrorsByKey((current) => ({ ...current, [key]: detail }))
       pushNotification(`Review needed for '${lemmaKey || storedLemma}'.`, {
         kind: "word_verification",
         lemma: lemmaKey || storedLemma,
@@ -199,29 +198,20 @@ export function useVerificationWorkflow({
 
   async function applySelectedLemmaVerificationAction(actionIndex: number) {
     const lemma = normalizeSearchWord(lemmaDetails?.lemma ?? selectedLemma ?? "")
-    if (!lemma) {
-      return
-    }
-    const detail = getSelectedVerificationDetail({
-      verificationDetailsByKey: verificationErrorsByKey,
-      lemma,
-      selectedMeaningId,
-      meaningSections: lemmaDetails?.meaning_sections ?? [],
-    })
+    const detail = selectedLemmaVerificationError
     const action = detail?.suggestedActions[actionIndex]
-    if (!detail || !action) {
+    if (!lemma || !detail || !action) {
       return
     }
 
     setIsApplyingVerificationChanges(true)
-    const detailKey = verificationKey(lemma, detail.meaningId ?? selectedMeaningId ?? null)
     try {
       const payload = await apiClient.postJson<ApplyVerificationChangesResponse>(
         "/api/wordbank/lexemes/apply-verification-changes",
         {
           stored_lemma: lemma,
           stored_surface_form: detail.storedSurfaceForm ?? lemma,
-          meaning_id: detail.meaningId ?? selectedMeaningId ?? null,
+          meaning_id: detail.meaningId ?? selectedVerificationMeaningId ?? null,
           action,
           provider: detail.provider,
         },
@@ -233,28 +223,6 @@ export function useVerificationWorkflow({
       }
 
       toast.success(buildActionToastMessage(action, lemma))
-      setVerificationErrorsByKey((current) => {
-        const currentDetail = current[detailKey]
-        if (!currentDetail) {
-          return current
-        }
-        const shouldRemoveDetail = isMoveAction(payload.applied_action_type) || movedToDifferentTarget(payload, lemma, detail.meaningId)
-        const remainingActions = shouldRemoveDetail
-          ? []
-          : currentDetail.suggestedActions.filter((candidate) => actionKey(candidate) !== actionKey(action))
-        if (remainingActions.length === 0) {
-          const next = { ...current }
-          delete next[detailKey]
-          return next
-        }
-        return {
-          ...current,
-          [detailKey]: {
-            ...currentDetail,
-            suggestedActions: remainingActions,
-          },
-        }
-      })
       setWordbankRefreshTick((current) => current + 1)
       onOpenWordbankTarget(payload.target_lemma ?? lemma, payload.target_meaning_id ?? null)
     } catch (error) {
@@ -266,15 +234,16 @@ export function useVerificationWorkflow({
   }
 
   function clearVerificationErrors() {
-    setVerificationErrorsByKey({})
-    setVerificationSuccessByKey({})
+    notifiedVerificationSignaturesRef.current = {}
+    previousVerificationStatusesRef.current = {}
   }
 
   return {
     isApplyingVerificationChanges,
-    isVerifyingWords: pendingVerificationCount > 0,
+    isVerifyingWords: pendingVerificationCount > 0 || selectedLemmaVerificationQueued !== null,
     selectedLemmaVerificationError,
     selectedLemmaVerificationSuccess,
+    selectedLemmaVerificationQueued,
     hasSuggestedVerificationActions,
     verifyWordInBackground,
     applySelectedLemmaVerificationAction,
@@ -282,43 +251,8 @@ export function useVerificationWorkflow({
   }
 }
 
-function getSelectedVerificationDetail<T>(args: {
-  verificationDetailsByKey: Record<string, T>
-  lemma: string
-  selectedMeaningId: number | null
-  meaningSections: Array<{ id: number }>
-}): T | null {
-  const directMatch = args.verificationDetailsByKey[verificationKey(args.lemma, args.selectedMeaningId)] ?? null
-  if (directMatch) {
-    return directMatch
-  }
-  if (args.selectedMeaningId === null && args.meaningSections.length === 1) {
-    return args.verificationDetailsByKey[verificationKey(args.lemma, args.meaningSections[0]?.id ?? null)] ?? null
-  }
-  return null
-}
-
 function verificationKey(lemma: string, meaningId: number | null): string {
   return `${lemma}::${meaningId ?? "root"}`
-}
-
-function actionKey(action: VerificationAction): string {
-  return JSON.stringify(action)
-}
-
-function isMoveAction(actionType: string | null): boolean {
-  return actionType === "move_to_meaning_section" || actionType === "move_to_lemma"
-}
-
-function movedToDifferentTarget(
-  payload: ApplyVerificationChangesResponse,
-  lemma: string,
-  meaningId: number | null,
-): boolean {
-  if ((payload.target_lemma ?? lemma) !== lemma) {
-    return true
-  }
-  return (payload.target_meaning_id ?? null) !== (meaningId ?? null)
 }
 
 function buildActionToastMessage(action: VerificationAction, lemma: string): string {

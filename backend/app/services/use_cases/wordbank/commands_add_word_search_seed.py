@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from app.api.schemas.v1.wordbank import AddWordResponse
+from app.api.schemas.v1.wordbank import AddWordResponse, MeaningContext, QueuedBackgroundTask, VerificationResult
 from app.db.repositories import WordbankBackgroundJobRepository
 from app.services.token_classifier import normalize_token
 from app.services.use_cases.wordbank.meaning_sections import (
@@ -77,7 +77,15 @@ def add_word_from_search_seed(
     if inserted_lexeme or inserted_surface_form or inserted_cor_variant or meaning is not None:
         runtime.nlp.add_user_lexeme(seed.lemma)
     runtime.nlp.invalidate_pos_cache(seed.lemma, seed.surface)
-    verification = runtime.verification.queued_verification_result()
+    verification = runtime.verification.queued_verification_result(
+        stored_surface_form=seed.surface,
+    )
+    runtime.verification.persist_queued_verification(
+        stored_lemma=seed.lemma,
+        stored_surface_form=seed.surface,
+        meaning_id=meaning.id if meaning is not None else None,
+        verification=verification,
+    )
     pronunciation = runtime.pronunciation.queued_pronunciation_result(seed.lemma, seed.surface)
     _enqueue_background_jobs(
         runtime,
@@ -100,7 +108,7 @@ def add_word_from_search_seed(
             else f"'{seed.lemma}' is already in the wordbank."
         ),
         meaning=(
-            AddWordResponse.MeaningContext(
+            MeaningContext(
                 id=meaning.id,
                 meaning_key=meaning.meaning_key,
                 gloss=meaning.gloss,
@@ -179,8 +187,8 @@ def _enqueue_background_jobs(
     stored_lemma: str,
     stored_surface_form: str | None,
     meaning_id: int | None,
-    verification: AddWordResponse.VerificationResult | None,
-    pronunciation: AddWordResponse.QueuedBackgroundTask | None,
+    verification: VerificationResult | None,
+    pronunciation: QueuedBackgroundTask | None,
 ) -> None:
     repository = WordbankBackgroundJobRepository(runtime.db_path)
     normalized_surface = normalize_token(stored_surface_form or "") or None

@@ -34,11 +34,22 @@ def test_wordbank_use_case_runs_verification_task_and_returns_result(tmp_path: P
     assert added.verification.provider == "gemini"
     assert added.verification.reviewer_role == "Professional Danish Language Expert"
     assert "queued" in added.verification.message.lower()
+    assert added.verification.requested_at is not None
+
+    details_while_queued = use_case.get_lemma_details("bog")
+    assert details_while_queued.meaning_sections[0].verification is not None
+    assert details_while_queued.meaning_sections[0].verification.status == "queued"
 
     verified = use_case.verify_added_word("bog", "bogen", meaning_id=added.meaning.id if added.meaning else None)
     assert verified.verification.status == "verified"
     assert "coherent" in verified.verification.message.lower()
+    assert verified.verification.requested_at is not None
+    assert verified.verification.completed_at is not None
     assert len(verification_service.calls) == 1
+
+    details_after_verify = use_case.get_lemma_details("bog")
+    assert details_after_verify.meaning_sections[0].verification is not None
+    assert details_after_verify.meaning_sections[0].verification.status == "verified"
 
 def test_wordbank_use_case_stores_and_returns_surface_pronunciation(tmp_path: Path) -> None:
     tts_service = FakeTTSService({"bogen": b"fake-wav-bytes"})

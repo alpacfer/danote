@@ -2,18 +2,24 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import UTC, datetime
 from pathlib import Path
 
 from app.api.schemas.v1.wordbank import (
-    AddWordResponse,
     ApplyVerificationChangesResponse,
+    VerificationAction,
+    VerificationResult,
     VerifyWordResponse,
 )
+from app.db.repositories.wordbank import WordbankRepository
 from app.db.migrations import get_connection
 from app.services.token_classifier import normalize_token
 from app.services.use_cases.wordbank.collaborators.nlp import NLPCollaborator
 from app.services.use_cases.wordbank.verification_actions import apply_verification_action
+from app.services.use_cases.wordbank.verification_records import (
+    now_utc_iso,
+    persist_verification_result,
+    prune_verification_record_action,
+)
 from app.services.verification import (
     WordVerificationAction,
     WordVerificationInput,
@@ -57,6 +63,11 @@ class VerificationCollaborator:
             meaning_id=meaning_id,
         )
         verification = self._verify_added_word(payload)
+        self._persist_verification_result(
+            stored_lemma=normalized_lemma,
+            meaning_id=meaning_id,
+            verification=verification,
+        )
         return VerifyWordResponse(
             stored_lemma=normalized_lemma,
             stored_surface_form=normalized_surface,
@@ -92,13 +103,22 @@ class VerificationCollaborator:
         if result.log_payload is not None and provider_name == "gemini":
             self._append_gemini_change_log(
                 {
-                    "timestamp_utc": datetime.now(UTC).isoformat(),
+                    "timestamp_utc": now_utc_iso(),
                     "provider": provider_name,
                     "stored_lemma": normalized_lemma,
                     "stored_surface_form": normalized_surface,
                     **result.log_payload,
                 }
             )
+
+        self._update_persisted_verification_after_apply(
+            stored_lemma=normalized_lemma,
+            meaning_id=meaning_id,
+            action=action,
+            applied_action_type=result.applied_action_type,
+            target_lemma=result.target_lemma,
+            target_meaning_id=result.target_meaning_id,
+        )
 
         return ApplyVerificationChangesResponse(
             status=result.status,
@@ -109,21 +129,59 @@ class VerificationCollaborator:
             target_meaning_id=result.target_meaning_id,
         )
 
-    def queued_verification_result(self) -> AddWordResponse.VerificationResult:
+    def queued_verification_result(
+        self,
+        *,
+        stored_surface_form: str | None = None,
+        requested_at: str | None = None,
+    ) -> VerificationResult:
         if self._verification_service is None:
-            return AddWordResponse.VerificationResult(
+            return VerificationResult(
                 status="skipped",
                 provider=None,
                 reviewer_role=None,
                 message="Word verification is disabled.",
             )
         provider_name, reviewer_name = self._verification_metadata()
-        return AddWordResponse.VerificationResult(
+        return VerificationResult(
             status="queued",
             provider=provider_name,
             reviewer_role=reviewer_name,
             message="Word verification queued.",
             composed_word_count=None,
+            stored_surface_form=stored_surface_form,
+            requested_at=requested_at or now_utc_iso(),
+        )
+
+    def persist_queued_verification(
+        self,
+        *,
+        stored_lemma: str,
+        stored_surface_form: str | None,
+        meaning_id: int | None,
+        verification: VerificationResult | None,
+    ) -> None:
+        if verification is None or verification.status != "queued":
+            return
+        normalized_lemma = normalize_token(stored_lemma)
+        if not normalized_lemma:
+            return
+        repository = WordbankRepository(self._db_path)
+        lexeme = repository.get_lexeme(normalized_lemma)
+        if lexeme is None:
+            return
+        persist_verification_result(
+            repository,
+            lexeme_id=lexeme.id,
+            meaning_id=meaning_id,
+            verification=verification.model_copy(
+                update={
+                    "stored_surface_form": normalize_token(stored_surface_form or "") or None,
+                    "requested_at": verification.requested_at or now_utc_iso(),
+                    "completed_at": None,
+                }
+            ),
+            requested_at=verification.requested_at,
         )
 
     def _append_gemini_change_log(self, payload: dict[str, object]) -> None:
@@ -325,9 +383,9 @@ class VerificationCollaborator:
     def _verify_added_word(
         self,
         payload: WordVerificationInput,
-    ) -> AddWordResponse.VerificationResult:
+    ) -> VerificationResult:
         if self._verification_service is None:
-            return AddWordResponse.VerificationResult(
+            return VerificationResult(
                 status="skipped",
                 provider=None,
                 reviewer_role=None,
@@ -339,23 +397,30 @@ class VerificationCollaborator:
         try:
             verdict = self._verification_service.verify_word_entry(payload)
         except Exception as exc:
-            return AddWordResponse.VerificationResult(
+            return VerificationResult(
                 status="error",
                 provider=provider_name,
                 reviewer_role=reviewer_name,
                 message=f"Verification task failed: {exc}",
                 composed_word_count=None,
+                stored_surface_form=payload.stored_surface_form,
+                requested_at=now_utc_iso(),
+                completed_at=now_utc_iso(),
                 problem=str(exc),
                 change_to_implement="Fix Gemini verification setup or provider errors, then run verification again.",
                 suggested_actions=[],
             )
 
-        return AddWordResponse.VerificationResult(
+        completed_at = now_utc_iso()
+        return VerificationResult(
             status=verdict.verdict,
             provider=provider_name,
             reviewer_role=reviewer_name,
             message=verdict.message,
             composed_word_count=getattr(verdict, "composed_word_count", None),
+            stored_surface_form=payload.stored_surface_form,
+            requested_at=completed_at,
+            completed_at=completed_at,
             problem=getattr(verdict, "problem", None),
             change_to_implement=getattr(verdict, "change_to_implement", None),
             suggested_actions=[
@@ -364,9 +429,68 @@ class VerificationCollaborator:
             ],
         )
 
+    def _persist_verification_result(
+        self,
+        *,
+        stored_lemma: str,
+        meaning_id: int | None,
+        verification: VerificationResult,
+    ) -> None:
+        repository = WordbankRepository(self._db_path)
+        lexeme = repository.get_lexeme(stored_lemma)
+        if lexeme is None:
+            return
+        record = repository.get_verification_record(lexeme_id=lexeme.id, meaning_id=meaning_id)
+        requested_at = record.requested_at if record is not None else verification.requested_at
+        persisted = verification.model_copy(
+            update={
+                "requested_at": requested_at or now_utc_iso(),
+                "completed_at": verification.completed_at or (now_utc_iso() if verification.status != "queued" else None),
+            }
+        )
+        record = persist_verification_result(
+            repository,
+            lexeme_id=lexeme.id,
+            meaning_id=meaning_id,
+            verification=persisted,
+            requested_at=requested_at,
+        )
+        verification.requested_at = record.requested_at
+        verification.completed_at = record.completed_at
 
-def _verification_action_to_schema(action: WordVerificationAction) -> AddWordResponse.VerificationAction:
-    return AddWordResponse.VerificationAction(
+    def _update_persisted_verification_after_apply(
+        self,
+        *,
+        stored_lemma: str,
+        meaning_id: int | None,
+        action: dict[str, object],
+        applied_action_type: str | None,
+        target_lemma: str | None,
+        target_meaning_id: int | None,
+    ) -> None:
+        repository = WordbankRepository(self._db_path)
+        lexeme = repository.get_lexeme(stored_lemma)
+        if lexeme is None:
+            return
+        if applied_action_type in {"move_to_meaning_section", "move_to_lemma"}:
+            repository.delete_verification_record(lexeme_id=lexeme.id, meaning_id=meaning_id)
+            return
+        if target_lemma is not None and target_lemma != stored_lemma:
+            repository.delete_verification_record(lexeme_id=lexeme.id, meaning_id=meaning_id)
+            return
+        if (target_meaning_id if target_meaning_id is not None else None) != (meaning_id if meaning_id is not None else None):
+            repository.delete_verification_record(lexeme_id=lexeme.id, meaning_id=meaning_id)
+            return
+        prune_verification_record_action(
+            repository,
+            lexeme_id=lexeme.id,
+            meaning_id=meaning_id,
+            action=action,
+        )
+
+
+def _verification_action_to_schema(action: WordVerificationAction) -> VerificationAction:
+    return VerificationAction(
         action_type=action.action_type,
         reason=action.reason,
         english_translation=action.english_translation,

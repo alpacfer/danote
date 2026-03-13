@@ -85,3 +85,10 @@ export type VerificationSuccessDetail = {
   meaningId: number | null
   verifiedAt: string
 }
+
+export type VerificationQueuedDetail = {
+  provider: string
+  storedSurfaceForm: string | null
+  meaningId: number | null
+  requestedAt: string
+}

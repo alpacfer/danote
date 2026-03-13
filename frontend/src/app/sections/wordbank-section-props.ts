@@ -20,6 +20,7 @@ export type WordbankSectionAdapterArgs = {
   isRegeneratingLemmaPronunciation: boolean
   regenerateSelectedLemmaPronunciation: () => Promise<void>
   selectedLemmaVerificationError: ComponentProps<typeof WordbankSection>["selectedLemmaVerificationError"]
+  selectedLemmaVerificationQueued: ComponentProps<typeof WordbankSection>["selectedLemmaVerificationQueued"]
   selectedLemmaVerificationSuccess: ComponentProps<typeof WordbankSection>["selectedLemmaVerificationSuccess"]
   hasSuggestedVerificationActions: ComponentProps<typeof WordbankSection>["hasSuggestedVerificationActions"]
   isApplyingVerificationChanges: boolean
@@ -51,6 +52,7 @@ export function buildWordbankSectionProps(
       void args.regenerateSelectedLemmaPronunciation()
     },
     selectedLemmaVerificationError: args.selectedLemmaVerificationError,
+    selectedLemmaVerificationQueued: args.selectedLemmaVerificationQueued,
     selectedLemmaVerificationSuccess: args.selectedLemmaVerificationSuccess,
     hasSuggestedVerificationActions: args.hasSuggestedVerificationActions,
     isApplyingVerificationChanges: args.isApplyingVerificationChanges,

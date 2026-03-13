@@ -62,36 +62,12 @@ export type AddWordResponse = {
     gloss?: string | null
     english_translation?: string | null
   } | null
-  verification?: {
-    status: "verified" | "flagged" | "error" | "skipped" | "queued"
-    provider: string | null
-    reviewer_role: string | null
-    message: string
-    composed_word_count: number | null
-    problem?: string | null
-    change_to_implement?: string | null
-    suggested_actions?: VerificationAction[] | null
-  } | null
+  verification?: VerificationResult | null
   pronunciation?: {
     status: "queued" | "skipped"
     form: string | null
   } | null
   saved_snapshot?: LemmaDetailsResponse | null
-}
-
-export type VerifyWordResponse = {
-  stored_lemma: string
-  stored_surface_form: string | null
-  verification: {
-    status: "verified" | "flagged" | "error" | "skipped" | "queued"
-    provider: string | null
-    reviewer_role: string | null
-    message: string
-    composed_word_count: number | null
-    problem?: string | null
-    change_to_implement?: string | null
-    suggested_actions?: VerificationAction[] | null
-  }
 }
 
 export type VerificationAction = {
@@ -106,6 +82,26 @@ export type VerificationAction = {
   target_english_translation?: string | null
   target_pos_tag?: string | null
   target_morphology?: string | null
+}
+
+export type VerificationResult = {
+  status: "verified" | "flagged" | "error" | "skipped" | "queued"
+  provider: string | null
+  reviewer_role: string | null
+  message: string
+  composed_word_count: number | null
+  stored_surface_form?: string | null
+  requested_at?: string | null
+  completed_at?: string | null
+  problem?: string | null
+  change_to_implement?: string | null
+  suggested_actions?: VerificationAction[] | null
+}
+
+export type VerifyWordResponse = {
+  stored_lemma: string
+  stored_surface_form: string | null
+  verification: VerificationResult
 }
 
 export type GeneratePronunciationResponse = {
@@ -192,6 +188,7 @@ export type LemmaDetailsResponse = {
   pos_tag: string | null
   morphology: string | null
   is_sectioned?: boolean
+  verification?: VerificationResult | null
   meaning_sections?: Array<{
     id: number
     meaning_key: string
@@ -200,6 +197,7 @@ export type LemmaDetailsResponse = {
     gloss_translation?: string | null
     pos_tag?: string | null
     morphology?: string | null
+    verification?: VerificationResult | null
     surface_forms: Array<{
       form: string
       pos_tag: string | null

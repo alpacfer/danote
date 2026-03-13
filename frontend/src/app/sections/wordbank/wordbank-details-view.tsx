@@ -19,6 +19,7 @@ type WordbankDetailsViewProps = Pick<
   | "isRegeneratingLemmaPronunciation"
   | "onRegenerateSelectedLemmaPronunciation"
   | "selectedLemmaVerificationError"
+  | "selectedLemmaVerificationQueued"
   | "selectedLemmaVerificationSuccess"
   | "hasSuggestedVerificationActions"
   | "isApplyingVerificationChanges"
@@ -37,6 +38,7 @@ export function WordbankDetailsView({
   isRegeneratingLemmaPronunciation,
   onRegenerateSelectedLemmaPronunciation,
   selectedLemmaVerificationError,
+  selectedLemmaVerificationQueued,
   selectedLemmaVerificationSuccess,
   hasSuggestedVerificationActions,
   isApplyingVerificationChanges,
@@ -88,6 +90,7 @@ export function WordbankDetailsView({
             isRegeneratingLemmaPronunciation={isRegeneratingLemmaPronunciation}
             onRegenerateSelectedLemmaPronunciation={onRegenerateSelectedLemmaPronunciation}
             selectedLemmaVerificationError={selectedLemmaVerificationError}
+            selectedLemmaVerificationQueued={selectedLemmaVerificationQueued}
             selectedLemmaVerificationSuccess={selectedLemmaVerificationSuccess}
             hasSuggestedVerificationActions={hasSuggestedVerificationActions}
             isApplyingVerificationChanges={isApplyingVerificationChanges}

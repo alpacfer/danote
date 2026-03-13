@@ -7,10 +7,12 @@ from app.db.repositories.wordbank_models import (
     LexemeMeaningRecord,
     LexemeRecord,
     SurfaceFormRecord,
+    VerificationRecord,
     WordbankSearchRow,
     lexeme_meaning_from_row,
     parse_query_cor_ids,
     surface_form_from_row,
+    verification_record_from_row,
 )
 from app.db.repositories.wordbank_search import search_lemmas as search_wordbank_rows
 from app.db.sqlite import get_connection, timed_db_operation
@@ -186,6 +188,91 @@ class WordbankReadRepository:
                 (meaning_id,),
             ).fetchone()
         return lexeme_meaning_from_row(row) if row is not None else None
+
+    def list_verification_records(self, lexeme_id: int) -> list[VerificationRecord]:
+        with timed_db_operation("wordbank.list_verification_records"), get_connection(
+            self._db_path, read_only=True
+        ) as conn:
+            rows = conn.execute(
+                """
+                SELECT
+                    id,
+                    lexeme_id,
+                    meaning_id,
+                    status,
+                    provider,
+                    reviewer_role,
+                    stored_surface_form,
+                    message,
+                    problem,
+                    change_to_implement,
+                    suggested_actions_json,
+                    requested_at,
+                    completed_at
+                FROM wordbank_verification_records
+                WHERE lexeme_id = ?
+                ORDER BY meaning_id IS NULL DESC, meaning_id ASC, id ASC
+                """,
+                (lexeme_id,),
+            ).fetchall()
+        return [verification_record_from_row(row) for row in rows]
+
+    def get_verification_record(
+        self,
+        *,
+        lexeme_id: int,
+        meaning_id: int | None,
+    ) -> VerificationRecord | None:
+        with timed_db_operation("wordbank.get_verification_record"), get_connection(
+            self._db_path, read_only=True
+        ) as conn:
+            if meaning_id is None:
+                row = conn.execute(
+                    """
+                    SELECT
+                        id,
+                        lexeme_id,
+                        meaning_id,
+                        status,
+                        provider,
+                        reviewer_role,
+                        stored_surface_form,
+                        message,
+                        problem,
+                        change_to_implement,
+                        suggested_actions_json,
+                        requested_at,
+                        completed_at
+                    FROM wordbank_verification_records
+                    WHERE lexeme_id = ? AND meaning_id IS NULL
+                    LIMIT 1
+                    """,
+                    (lexeme_id,),
+                ).fetchone()
+            else:
+                row = conn.execute(
+                    """
+                    SELECT
+                        id,
+                        lexeme_id,
+                        meaning_id,
+                        status,
+                        provider,
+                        reviewer_role,
+                        stored_surface_form,
+                        message,
+                        problem,
+                        change_to_implement,
+                        suggested_actions_json,
+                        requested_at,
+                        completed_at
+                    FROM wordbank_verification_records
+                    WHERE lexeme_id = ? AND meaning_id = ?
+                    LIMIT 1
+                    """,
+                    (lexeme_id, meaning_id),
+                ).fetchone()
+        return verification_record_from_row(row) if row is not None else None
 
     def has_non_verb_forms_without_meaning(self) -> bool:
         with timed_db_operation("wordbank.has_non_verb_forms_without_meaning"), get_connection(

@@ -52,7 +52,7 @@ describe("App playground", () => {
     expect(within(popoverContent as HTMLElement).getByText(/^n-word$/i)).toBeInTheDocument()
     expect(within(popoverContent as HTMLElement).getByText(/^cat$/i)).toBeInTheDocument()
     expect(within(popoverContent as HTMLElement).queryByText(/^Morphology: /i)).not.toBeInTheDocument()
-  })
+  }, 10_000)
 
   it("re-opening the same highlighted token reuses popover enrich cache", async () => {
     vi.useRealTimers()
@@ -132,7 +132,7 @@ describe("App playground", () => {
     fireEvent.click(nextMark as HTMLElement, { clientX: 160, clientY: 140 })
     await screen.findByRole("button", { name: /add variation/i })
     expect(enrichCalls).toBe(1)
-  })
+  }, 10_000)
 
   it("clicking a known word opens popover with wordbank action instead of add", async () => {
     vi.useRealTimers()

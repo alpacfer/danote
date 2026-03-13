@@ -112,40 +112,47 @@ class GeneratePhraseTranslationResponse(BaseModel):
     english_translation: str | None
 
 
+class QueuedBackgroundTask(BaseModel):
+    status: Literal["queued", "skipped"]
+    form: str | None = None
+
+
+class MeaningContext(BaseModel):
+    id: int
+    meaning_key: str
+    gloss: str | None = None
+    english_translation: str | None = None
+
+
+class VerificationAction(BaseModel):
+    action_type: Literal["fix_translation", "fix_gloss", "move_to_meaning_section", "move_to_lemma"]
+    reason: str | None = None
+    english_translation: str | None = None
+    gloss: str | None = None
+    target_meaning_id: int | None = None
+    target_lemma: str | None = None
+    target_meaning_key: str | None = None
+    target_gloss: str | None = None
+    target_english_translation: str | None = None
+    target_pos_tag: str | None = None
+    target_morphology: str | None = None
+
+
+class VerificationResult(BaseModel):
+    status: Literal["verified", "flagged", "error", "skipped", "queued"]
+    provider: str | None = None
+    reviewer_role: str | None = None
+    message: str
+    composed_word_count: int | None = None
+    stored_surface_form: str | None = None
+    requested_at: str | None = None
+    completed_at: str | None = None
+    problem: str | None = None
+    change_to_implement: str | None = None
+    suggested_actions: list[VerificationAction] = Field(default_factory=list)
+
+
 class AddWordResponse(BaseModel):
-    class QueuedBackgroundTask(BaseModel):
-        status: Literal["queued", "skipped"]
-        form: str | None = None
-
-    class MeaningContext(BaseModel):
-        id: int
-        meaning_key: str
-        gloss: str | None = None
-        english_translation: str | None = None
-
-    class VerificationAction(BaseModel):
-        action_type: Literal["fix_translation", "fix_gloss", "move_to_meaning_section", "move_to_lemma"]
-        reason: str | None = None
-        english_translation: str | None = None
-        gloss: str | None = None
-        target_meaning_id: int | None = None
-        target_lemma: str | None = None
-        target_meaning_key: str | None = None
-        target_gloss: str | None = None
-        target_english_translation: str | None = None
-        target_pos_tag: str | None = None
-        target_morphology: str | None = None
-
-    class VerificationResult(BaseModel):
-        status: Literal["verified", "flagged", "error", "skipped", "queued"]
-        provider: str | None = None
-        reviewer_role: str | None = None
-        message: str
-        composed_word_count: int | None = None
-        problem: str | None = None
-        change_to_implement: str | None = None
-        suggested_actions: list["AddWordResponse.VerificationAction"] = Field(default_factory=list)
-
     status: Literal["inserted", "exists"]
     stored_lemma: str
     stored_surface_form: str | None
@@ -166,7 +173,7 @@ class VerifyWordRequest(BaseModel):
 class VerifyWordResponse(BaseModel):
     stored_lemma: str
     stored_surface_form: str | None
-    verification: AddWordResponse.VerificationResult
+    verification: VerificationResult
 
 
 class GeneratePronunciationRequest(BaseModel):
@@ -186,7 +193,7 @@ class ApplyVerificationChangesRequest(BaseModel):
     stored_lemma: str = Field(..., min_length=1)
     stored_surface_form: str | None = None
     meaning_id: int | None = None
-    action: AddWordResponse.VerificationAction
+    action: VerificationAction
     provider: str | None = None
 
 
@@ -296,11 +303,13 @@ class LemmaDetailsResponse(BaseModel):
         gloss_translation: str | None = None
         pos_tag: str | None = None
         morphology: str | None = None
+        verification: VerificationResult | None = None
         surface_forms: list["LemmaDetailsResponse.SurfaceFormDetails"] = Field(default_factory=list)
 
     lemma: str
     english_translation: str | None
     is_sectioned: bool = False
+    verification: VerificationResult | None = None
     meaning_sections: list[MeaningSection] = Field(default_factory=list)
     surface_forms: list[SurfaceFormDetails]
 
