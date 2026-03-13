@@ -14,6 +14,12 @@ class AddWordInputs:
     selected_morphology: str | None
 
 
+def _normalize_space(value: str | None) -> str:
+    if not isinstance(value, str):
+        return ""
+    return " ".join(value.strip().split())
+
+
 def normalize_add_word_inputs(
     surface_token: str,
     lemma_candidate: str | None,
@@ -28,7 +34,7 @@ def normalize_add_word_inputs(
     return AddWordInputs(
         normalized_surface=normalized_surface,
         stored_lemma=normalized_lemma or normalized_surface,
-        normalized_cor_id=normalize_token(cor_id or "") or None,
-        selected_pos_tag=normalize_token(pos_tag or "") or None,
-        selected_morphology=normalize_token(morphology or "") or None,
+        normalized_cor_id=_normalize_space(cor_id) or None,
+        selected_pos_tag=_normalize_space(pos_tag).upper() or None,
+        selected_morphology=_normalize_space(morphology) or None,
     )

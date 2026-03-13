@@ -12,10 +12,6 @@ from app.services.use_cases.wordbank.add_word_normalization import (
     AddWordInputs,
     normalize_add_word_inputs,
 )
-from app.services.use_cases.wordbank.collaborators.cor_azure_frames import (
-    azure_framed_translation_for_comparison,
-    cor_local_azure_frame,
-)
 from app.services.use_cases.wordbank.collaborators.cor_local_translations import (
     lookup_translation_for_cor_local_entry,
 )
@@ -584,11 +580,13 @@ def _resolve_cor_lemma_translation(
     *,
     cor_entry: CORLocalEntry,
 ) -> TranslationLookupResult:
-    frame = cor_local_azure_frame(cor_entry)
-    framed_translation = azure_framed_translation_for_comparison(
-        frame,
-        runtime.translation.lookup_translation(frame.text),
+    frame = runtime.translation.build_word_translation_frame(
+        lemma=cor_entry.lemma,
+        pos_tag=cor_entry.pos_tag,
+        gram_or_function=cor_entry.gram_raw,
+        morphology=cor_entry.morphology,
     )
+    framed_translation = runtime.translation.lookup_framed_word_translation(frame).translation
     if framed_translation and _is_likely_english_gloss(cor_entry.gloss):
         return TranslationLookupResult(
             translation=framed_translation,

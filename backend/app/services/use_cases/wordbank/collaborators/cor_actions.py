@@ -8,9 +8,8 @@ from app.db.migrations import get_connection
 from app.services.cor import COREntry
 from app.services.gemini_translation import ContextualWordTranslationInput
 from app.services.token_classifier import normalize_token
-from app.services.use_cases.wordbank.collaborators.cor_azure_frames import (
-    azure_framed_translation_for_comparison,
-    cor_entry_azure_frame,
+from app.services.use_cases.wordbank.collaborators.translation_word_frames import (
+    cor_entry_word_translation_frame,
 )
 from app.services.use_cases.wordbank.collaborators.translation import TranslationCollaborator
 from app.services.use_cases.wordbank.shared import (
@@ -206,7 +205,7 @@ def lookup_translation_for_cor_entry(
     entry: COREntry,
     normalized_query: str,
 ) -> str | None:
-    frame = cor_entry_azure_frame(entry)
+    frame = cor_entry_word_translation_frame(entry)
     candidates: list[str] = [frame.text]
     candidates.append(entry.lemma)
     candidates.append(normalized_query)
@@ -220,8 +219,14 @@ def lookup_translation_for_cor_entry(
         translated = translation.lookup_translation(normalized_candidate)
         if translated:
             if normalized_candidate == normalize_token(frame.text):
-                framed = azure_framed_translation_for_comparison(frame, translated)
+                framed = translation.cleanup_framed_word_translation(frame, translated)
                 if framed:
+                    if (
+                        entry.pos_tag == "VERB"
+                        and framed.startswith("to ")
+                        and not normalize_token(translated).startswith("to ")
+                    ):
+                        return framed[3:]
                     return framed
             return translated
     return None

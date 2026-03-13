@@ -130,6 +130,9 @@ Route decorators are the source of truth in `backend/app/api/routes/`, and API D
 - **Notable status/error behavior:**
   - `503` when DB unavailable/locked.
   - body `status` can be `generated` or `unavailable`.
+  - Single-word translations are normalized after provider lookup:
+    content words are returned as headword-first English output when cleanup is confident,
+    while function words may retain only short lexicalized context such as `because of`.
 
 ### POST `/api/wordbank/reverse-translation`
 - **Request model:** `GenerateReverseTranslationRequest`.

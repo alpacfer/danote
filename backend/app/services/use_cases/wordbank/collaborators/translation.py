@@ -40,6 +40,7 @@ from app.services.use_cases.wordbank.collaborators.translation_failures import (
     ProviderFailureReason,
 )
 from app.services.use_cases.wordbank.collaborators.translation_helpers import (
+    best_cor_local_entry,
     best_cor_local_entry_with_gloss,
     contextual_provider_name,
     is_likely_english_word,
@@ -49,6 +50,12 @@ from app.services.use_cases.wordbank.collaborators.translation_helpers import (
     not_configured_result,
     provider_failure_result,
     provider_name,
+)
+from app.services.use_cases.wordbank.collaborators.translation_word_frames import (
+    WordTranslationFrame,
+    build_word_translation_frame,
+    cleanup_framed_word_translation,
+    cor_local_word_translation_frame,
 )
 
 
@@ -155,7 +162,7 @@ class TranslationCollaborator:
         normalized_source = normalize_token(source_word)
         if not normalized_source:
             raise ValueError("source_word is required")
-        danish_translation_raw = self._lookup_reverse_translation(normalized_source)
+        danish_translation_raw = self._lookup_reverse_translation(normalized_source).value
         danish_translation = (
             normalize_token(danish_translation_raw) if danish_translation_raw else None
         )
@@ -249,6 +256,26 @@ class TranslationCollaborator:
         )
         if contextual.translation:
             return contextual
+
+        cor_entry = best_cor_local_entry(
+            self._cor_local_lexicon_service,
+            form=normalized_source,
+            lemma=normalized_lemma,
+            preferred_pos_tag=None,
+        )
+        if cor_entry is not None:
+            framed_translation = self.lookup_framed_word_translation(
+                cor_local_word_translation_frame(cor_entry)
+            )
+            if framed_translation.translation:
+                if (
+                    " " not in normalized_source
+                    and normalize_comparable(framed_translation.translation)
+                    == normalize_comparable(normalized_source)
+                ):
+                    return TranslationLookupResult(translation=None, provider=None)
+                return framed_translation
+
         translated = self.lookup_translation(normalized_source)
         if (
             translated
@@ -287,45 +314,11 @@ class TranslationCollaborator:
             gloss=normalized_gloss,
             lemma_translation_hint=lemma_translation_hint,
             gloss_translation_hint=gloss_translation_hint,
-            best_cor_local_entry_with_gloss=self._best_cor_local_entry_with_gloss,
+            best_cor_local_entry_with_gloss=lambda **kwargs: best_cor_local_entry_with_gloss(
+                self._cor_local_lexicon_service,
+                **kwargs,
+            ),
         )
-        context_entry = None
-        if normalized_gloss:
-            context_entry = ContextualWordTranslationInput(
-                surface_form=normalized_surface,
-                lemma=normalized_lemma,
-                pos_tag=pos_tag,
-                morphology=morphology,
-                gloss=normalized_gloss,
-                lemma_translation_hint=lemma_translation_hint,
-                gloss_translation_hint=gloss_translation_hint,
-            )
-        else:
-            cor_entry = best_cor_local_entry_with_gloss(self._cor_local_lexicon_service,
-                form=normalized_surface,
-                lemma=normalized_lemma,
-                preferred_pos_tag=pos_tag,
-            )
-            if cor_entry is not None:
-                context_entry = ContextualWordTranslationInput(
-                    surface_form=normalized_surface,
-                    lemma=normalized_lemma,
-                    pos_tag=pos_tag or cor_entry.pos_tag,
-                    morphology=morphology or cor_entry.morphology,
-                    gloss=normalize_token(cor_entry.gloss or ""),
-                    lemma_translation_hint=lemma_translation_hint,
-                    gloss_translation_hint=gloss_translation_hint,
-                )
-            else:
-                context_entry = ContextualWordTranslationInput(
-                    surface_form=normalized_surface,
-                    lemma=normalized_lemma,
-                    pos_tag=pos_tag,
-                    morphology=morphology,
-                    gloss=None,
-                    lemma_translation_hint=lemma_translation_hint,
-                    gloss_translation_hint=gloss_translation_hint,
-                )
 
         if self._gemini_word_translation_service is None:
             return TranslationLookupResult(translation=None, provider=None)
@@ -363,6 +356,42 @@ class TranslationCollaborator:
         return TranslationLookupResult(
             translation=normalized,
             provider=contextual_provider_name(self._gemini_word_translation_service),
+        )
+
+    def lookup_framed_word_translation(
+        self,
+        frame: WordTranslationFrame,
+        *,
+        strict: bool = False,
+    ) -> TranslationLookupResult:
+        translated = self._lookup_framed_word_translation_value(frame, strict=strict)
+        return TranslationLookupResult(
+            translation=translated,
+            provider=provider_name(self._translation_service) if translated else None,
+        )
+
+    def cleanup_framed_word_translation(
+        self,
+        frame: WordTranslationFrame,
+        translated: str | None,
+    ) -> str | None:
+        return cleanup_framed_word_translation(frame, translated)
+
+    def build_word_translation_frame(
+        self,
+        *,
+        lemma: str,
+        pos_tag: str | None = None,
+        pos_code: str | None = None,
+        gram_or_function: str | None = None,
+        morphology: str | None = None,
+    ) -> WordTranslationFrame:
+        return build_word_translation_frame(
+            lemma=lemma,
+            pos_tag=pos_tag,
+            pos_code=pos_code,
+            gram_or_function=gram_or_function,
+            morphology=morphology,
         )
 
     def contextual_translation_cache_key(
@@ -579,6 +608,18 @@ class TranslationCollaborator:
                 retryable=True,
                 exc=exc,
             )
+
+    def _lookup_framed_word_translation_value(
+        self,
+        frame: WordTranslationFrame,
+        *,
+        strict: bool,
+    ) -> str | None:
+        if strict:
+            translated = self.lookup_translation_strict(frame.text)
+        else:
+            translated = self.lookup_translation(frame.text)
+        return cleanup_framed_word_translation(frame, translated)
 
     def _lookup_detected_source_language(self, source_word: str) -> str | None:
         result = self._lookup_detected_source_language_result(source_word)

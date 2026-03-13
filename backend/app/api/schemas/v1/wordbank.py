@@ -282,6 +282,10 @@ class LemmaDetailsResponse(BaseModel):
         @model_serializer(mode="wrap")
         def _serialize_without_empty_fields(self, handler):
             data = handler(self)
+            gram_raw = data.get("gram_raw")
+            if isinstance(gram_raw, str) and gram_raw.strip():
+                parts = [part.strip() for part in gram_raw.split(".") if part.strip()]
+                data["gram_raw"] = ". ".join(parts) if parts else gram_raw
             return {key: value for key, value in data.items() if value is not None}
 
     class MeaningSection(BaseModel):

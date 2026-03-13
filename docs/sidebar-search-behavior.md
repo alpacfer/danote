@@ -81,6 +81,9 @@ Behavior:
 - While phase 2 is in-flight, `isCorTranslationsLoading=true` and result rows show skeleton placeholders for translation-dependent text.
 - Full payload is cached by normalized query.
 - If translation fetch fails, a toast error is shown and already-fetched partial results remain visible.
+- Single-word translation labels are normalized after provider lookup:
+  content-word results prefer headword-only English output,
+  while function words keep only minimal lexicalized context when needed.
 
 ## Cache invalidation behavior
 

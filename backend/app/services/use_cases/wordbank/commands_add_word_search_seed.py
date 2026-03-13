@@ -28,6 +28,12 @@ class SearchSeedInputs:
     target_meaning_id: int | None
 
 
+def _normalize_space(value: str | None) -> str:
+    if not isinstance(value, str):
+        return ""
+    return " ".join(value.strip().split())
+
+
 def add_word_from_search_seed(
     runtime: WordbankRuntime,
     *,
@@ -118,13 +124,13 @@ def _normalize_search_seed(search_seed: dict[str, object]) -> SearchSeedInputs:
     return SearchSeedInputs(
         lemma=lemma,
         surface=surface,
-        cor_id=_optional_normalized_string(search_seed, "cor_id"),
+        cor_id=_optional_spaced_string(search_seed, "cor_id"),
         cor_lemma_idx=_optional_int(search_seed, "cor_lemma_idx"),
         meaning_key=_optional_normalized_string(search_seed, "meaning_key"),
         gloss=_optional_normalized_string(search_seed, "gloss"),
         english_translation=_optional_normalized_string(search_seed, "english_translation"),
         pos_tag=_optional_upper_string(search_seed, "pos_tag"),
-        morphology=_optional_normalized_string(search_seed, "morphology"),
+        morphology=_optional_spaced_string(search_seed, "morphology"),
         target_meaning_id=target_meaning_id,
     )
 
@@ -216,8 +222,18 @@ def _optional_normalized_string(payload: dict[str, object], key: str) -> str | N
     return cleaned or None
 
 
+def _optional_spaced_string(payload: dict[str, object], key: str) -> str | None:
+    value = payload.get(key)
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise ValueError(f"search_seed.{key} is invalid")
+    cleaned = _normalize_space(value)
+    return cleaned or None
+
+
 def _optional_upper_string(payload: dict[str, object], key: str) -> str | None:
-    value = _optional_normalized_string(payload, key)
+    value = _optional_spaced_string(payload, key)
     return value.upper() if value else None
 
 

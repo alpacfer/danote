@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from app.api.schemas.v1.wordbank import LemmaDetailsResponse
 from app.db.migrations import get_connection
 from app.services.cor_local import CORLocalEntry
@@ -200,6 +202,82 @@ def test_wordbank_generate_translation_calls_gemini_once_when_unavailable(tmp_pa
     assert generated.english_translation is None
     assert gemini_translation.batch_calls == []
     assert gemini_translation.calls == [("mere", "mere", None)]
+
+
+@pytest.mark.parametrize("provider", ["azure_translator", "deepl_translator"])
+def test_wordbank_generate_translation_strips_framed_noun_context_for_all_providers(
+    tmp_path: Path,
+    provider: str,
+) -> None:
+    local_cor = FakeCORLocalLexiconService(
+        by_form={
+            "vin": [
+                CORLocalEntry(
+                    cor_id="COR.VIN.110.01",
+                    lemma="vin",
+                    gloss=None,
+                    gram_raw="sb.itk.sg.ubest",
+                    form="vin",
+                    norm="N",
+                    lemma_idx=101,
+                    gram_code=110,
+                    variation=1,
+                    pos_tag="NOUN",
+                    morphology="Gender=Neut|Number=Sing|Definite=Ind",
+                    features={"Gender": "Neut", "Number": "Sing", "Definite": "Ind"},
+                    extra_tags=[],
+                ),
+            ]
+        }
+    )
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_local_lexicon_service=local_cor,
+        translation_service=FakeTranslationService({"et vin": "in wine"}, provider=provider),
+    )
+
+    generated = use_case.generate_translation("Vin", "vin")
+
+    assert generated.status == "generated"
+    assert generated.english_translation == "wine"
+
+
+@pytest.mark.parametrize("provider", ["azure_translator", "deepl_translator"])
+def test_wordbank_generate_translation_keeps_only_minimal_preposition_context_for_all_providers(
+    tmp_path: Path,
+    provider: str,
+) -> None:
+    local_cor = FakeCORLocalLexiconService(
+        by_form={
+            "med": [
+                CORLocalEntry(
+                    cor_id="COR.MED.110.01",
+                    lemma="med",
+                    gloss=None,
+                    gram_raw="præp",
+                    form="med",
+                    norm="N",
+                    lemma_idx=102,
+                    gram_code=110,
+                    variation=1,
+                    pos_tag="ADP",
+                    morphology=None,
+                    features={},
+                    extra_tags=[],
+                ),
+            ]
+        }
+    )
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_local_lexicon_service=local_cor,
+        translation_service=FakeTranslationService({"med huset": "with the house"}, provider=provider),
+    )
+
+    generated = use_case.generate_translation("Med", "med")
+
+    assert generated.status == "generated"
+    assert generated.english_translation == "with"
 
 def test_wordbank_phrase_translation_does_not_use_gemini_when_azure_echoes_input(tmp_path: Path) -> None:
     gemini_translation = FakeGeminiWordTranslationService({("mere", "mere", None): "more"})

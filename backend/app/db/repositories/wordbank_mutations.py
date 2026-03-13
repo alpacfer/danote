@@ -1,11 +1,18 @@
 from __future__ import annotations
 
-from app.db.repositories.wordbank_models import LexemeMeaningRecord, SurfaceFormRecord, lexeme_meaning_from_row, surface_form_from_row
+from pathlib import Path
+
+from app.db.repositories.wordbank_models import (
+    LexemeMeaningRecord,
+    SurfaceFormRecord,
+    lexeme_meaning_from_row,
+    surface_form_from_row,
+)
 from app.db.sqlite import get_connection, timed_db_operation
 
 
 class WordbankMutationRepository:
-    _db_path: object
+    _db_path: Path
 
     def update_lexeme_metadata(self, *, lexeme_id: int, pos_tag: str | None, morphology: str | None) -> None:
         with timed_db_operation("wordbank.update_lexeme_metadata"), get_connection(self._db_path) as conn:
@@ -18,7 +25,6 @@ class WordbankMutationRepository:
                 """,
                 (pos_tag, morphology, lexeme_id),
             )
-
 
     def update_surface_form_metadata(
         self,
@@ -37,7 +43,6 @@ class WordbankMutationRepository:
                 """,
                 (pos_tag, morphology, surface_form_id),
             )
-
 
     def insert_or_load_lexeme(
         self,
@@ -403,5 +408,3 @@ def _select_surface_form_row(conn, *, lexeme_id: int, meaning_id: int | None, fo
         """,
         (meaning_id, form),
     ).fetchone()
-
-

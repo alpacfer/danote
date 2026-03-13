@@ -7,18 +7,18 @@ from app.services.tts import PronunciationAudio
 
 
 class FakeTranslationService:
-    provider = "azure_translator"
-
     def __init__(
         self,
         mapping: dict[str, str],
         detected_languages: dict[str, str] | None = None,
         *,
         failing_inputs: set[str] | None = None,
+        provider: str = "azure_translator",
     ):
         self._mapping = mapping
         self._detected_languages = detected_languages or {}
         self._failing_inputs = failing_inputs or set()
+        self.provider = provider
         self.calls: list[str] = []
 
     def translate_da_to_en(self, text: str) -> str | None:

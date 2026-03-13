@@ -86,6 +86,60 @@ def test_generate_translation_uses_gemini_for_gloss_aware_words(tmp_path, stub_n
     assert surface_row is not None
 
 
+def test_generate_translation_strips_provider_frame_context_for_single_words(tmp_path, stub_nlp_adapter_factory) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    cor_local_db_path = tmp_path / "cor.sqlite"
+    with sqlite3.connect(cor_local_db_path) as conn:
+        conn.execute(
+            """
+            CREATE TABLE cor_entries (
+                cor_id TEXT PRIMARY KEY,
+                lemma TEXT NOT NULL,
+                gloss TEXT,
+                gram TEXT NOT NULL,
+                form TEXT NOT NULL,
+                norm TEXT NOT NULL,
+                lemma_idx INTEGER NOT NULL,
+                gram_code INTEGER NOT NULL,
+                variation INTEGER NOT NULL
+            )
+            """
+        )
+        conn.execute("CREATE INDEX idx_cor_form ON cor_entries(form)")
+        conn.executemany(
+            """
+            INSERT INTO cor_entries (
+                cor_id, lemma, gloss, gram, form, norm, lemma_idx, gram_code, variation
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (("COR.321.111.01", "med", None, "præp", "med", "N", 321, 111, 1),),
+        )
+    app = build_api_test_app(
+        db_path,
+        nlp_adapter_factory=stub_nlp_adapter_factory,
+        cor_local_db_path=cor_local_db_path,
+    )
+
+    class StubTranslationService:
+        provider = "deepl_translator"
+
+        def translate_da_to_en(self, text: str) -> str | None:
+            return "with the house" if text == "med huset" else None
+
+        def translate_en_to_da(self, text: str) -> str | None:
+            return None
+
+        def detect_source_language(self, text: str) -> str | None:
+            return None
+
+    with TestClient(app) as client:
+        set_service_field(client.app, "translation_service", StubTranslationService())
+        response = client.post("/api/wordbank/translation", json={"surface_token": "med", "lemma_candidate": "med"})
+
+    assert response.status_code == 200
+    assert response.json()["english_translation"] == "with"
+
+
 def test_generate_translation_uses_gemini_when_azure_returns_same_text(tmp_path, stub_nlp_adapter_factory) -> None:
     db_path = tmp_path / "danote.sqlite3"
     app = build_api_test_app(db_path, nlp_adapter_factory=stub_nlp_adapter_factory)

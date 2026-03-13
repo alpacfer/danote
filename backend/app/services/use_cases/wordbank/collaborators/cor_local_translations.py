@@ -7,17 +7,17 @@ from dataclasses import dataclass
 from app.services.cor_local import CORLocalEntry
 from app.services.gemini_translation import ContextualWordTranslationInput
 from app.services.token_classifier import normalize_token
-from app.services.use_cases.wordbank.collaborators.cor_azure_frames import (
-    CORAzureFrame,
-    azure_framed_translation_for_comparison,
-    cor_local_azure_frame,
+from app.services.use_cases.wordbank.collaborators.translation_word_frames import (
+    WordTranslationFrame,
+    cor_local_word_translation_frame,
 )
 from app.services.use_cases.wordbank.collaborators.translation import TranslationCollaborator
 
 logger = logging.getLogger(__name__)
 
 ContextualCacheKey = tuple[str, str, str | None, str | None, str | None, str | None, str | None]
-AzureFrameCacheKey = CORAzureFrame
+WordFrameCacheKey = WordTranslationFrame
+AzureFrameCacheKey = WordFrameCacheKey
 
 
 @dataclass(frozen=True, slots=True)
@@ -98,14 +98,14 @@ def lookup_translation_for_cor_local_entry(
         lookup_translation = translation.lookup_translation_strict
     else:
         lookup_translation = translation.lookup_translation
-    frame = cor_local_azure_frame(entry)
+    frame = cor_local_word_translation_frame(entry)
     if cache is not None and frame in cache:
-        translated = cache[frame]
+        cleaned_translation = cache[frame]
     else:
         translated = lookup_translation(frame.text)
+        cleaned_translation = translation.cleanup_framed_word_translation(frame, translated)
         if cache is not None:
-            cache[frame] = translated
-    azure_for_comparison = azure_framed_translation_for_comparison(frame, translated)
+            cache[frame] = cleaned_translation
     normalized_gloss = normalize_token(entry.gloss or "")
     gloss_translation_hint = (
         gloss_cache.get(normalized_gloss)
@@ -115,7 +115,7 @@ def lookup_translation_for_cor_local_entry(
     if _should_use_gemini_for_lemma(
         entry,
         frame=frame,
-        azure_translation=azure_for_comparison,
+        provider_translation=cleaned_translation,
     ):
         contextual = translation.lookup_contextual_word_translation(
             surface_form=entry.form,
@@ -133,7 +133,7 @@ def lookup_translation_for_cor_local_entry(
                 contextual_translation=contextual_formatted,
                 gloss_translation_hint=gloss_translation_hint,
             )
-    return _format_lemma_translation(entry, azure_for_comparison)
+    return _format_lemma_translation(entry, cleaned_translation)
 
 
 def lemma_translation_for_entry(
@@ -180,15 +180,15 @@ def prime_cor_form_contextual_translations(
 def _prime_azure_lemma_translations(
     translation: TranslationCollaborator,
     entries: list[CORLocalEntry],
-    lemma_cache: dict[AzureFrameCacheKey, str | None],
+    lemma_cache: dict[WordFrameCacheKey, str | None],
     gloss_cache: dict[str, str | None],
 ) -> None:
     unique_texts: list[str] = []
     text_seen: set[str] = set(gloss_cache)
     text_seen.update(frame.text for frame in lemma_cache)
-    missing_frames: list[CORAzureFrame] = []
+    missing_frames: list[WordTranslationFrame] = []
     for entry in entries:
-        frame = cor_local_azure_frame(entry)
+        frame = cor_local_word_translation_frame(entry)
         if frame not in lemma_cache:
             missing_frames.append(frame)
             if frame.text not in text_seen:
@@ -205,7 +205,10 @@ def _prime_azure_lemma_translations(
     batch_results = translation.lookup_translation_batch_strict(unique_texts)
     for frame in missing_frames:
         if frame not in lemma_cache:
-            lemma_cache[frame] = batch_results.get(frame.text)
+            lemma_cache[frame] = translation.cleanup_framed_word_translation(
+                frame,
+                batch_results.get(frame.text),
+            )
     for text in _gloss_translation_texts_from_entries(entries):
         if text not in batch_results:
             continue
@@ -216,18 +219,17 @@ def _collect_gemini_batch_requests(
     entries: list[CORLocalEntry],
     translation: TranslationCollaborator,
     cache: dict[ContextualCacheKey, str | None],
-    lemma_cache: dict[AzureFrameCacheKey, str | None],
+    lemma_cache: dict[WordFrameCacheKey, str | None],
     gloss_cache: dict[str, str | None],
 ) -> dict[ContextualCacheKey, _BatchContextualRequest]:
     requests_by_key: dict[ContextualCacheKey, _BatchContextualRequest] = {}
     for entry in entries:
-        frame = cor_local_azure_frame(entry)
-        translated = lemma_cache.get(frame)
-        azure_for_comparison = azure_framed_translation_for_comparison(frame, translated)
+        frame = cor_local_word_translation_frame(entry)
+        cleaned_translation = lemma_cache.get(frame)
         if not _should_use_gemini_for_lemma(
             entry,
             frame=frame,
-            azure_translation=azure_for_comparison,
+            provider_translation=cleaned_translation,
         ):
             continue
         request = _build_contextual_request(
@@ -316,15 +318,15 @@ def _build_contextual_request(
 def _should_use_gemini_for_lemma(
     entry: CORLocalEntry,
     *,
-    frame: CORAzureFrame,
-    azure_translation: str | None,
+    frame: WordTranslationFrame,
+    provider_translation: str | None,
 ) -> bool:
     normalized_gloss = normalize_token(entry.gloss or "")
     if normalized_gloss:
         return True
     normalized_lemma = normalize_token(entry.lemma)
     normalized_frame = normalize_token(frame.text)
-    normalized_translation = normalize_token(azure_translation or "")
+    normalized_translation = normalize_token(provider_translation or "")
     if (
         entry.pos_tag == "VERB"
         and normalized_lemma

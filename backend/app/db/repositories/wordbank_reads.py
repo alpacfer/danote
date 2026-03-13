@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from app.db.repositories.wordbank_models import (
     LemmaListRow,
     LexemeMeaningRecord,
@@ -15,7 +17,7 @@ from app.db.sqlite import get_connection, timed_db_operation
 
 
 class WordbankReadRepository:
-    _db_path: object
+    _db_path: Path
 
     def list_lemmas(self) -> list[LemmaListRow]:
         with timed_db_operation("wordbank.list_lemmas"), get_connection(

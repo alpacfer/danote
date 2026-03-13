@@ -192,6 +192,13 @@ Pronunciation behavior is shared by header + section rows + variation rows.
 
 ## Add flows that affect Wordbank state
 
+## Single-word translation normalization
+
+- Word-level provider translations used by Wordbank are normalized after lookup.
+- Content words (for example nouns and verbs) prefer headword-only English output.
+- Function words (for example prepositions and conjunctions) may keep only short lexicalized context when removing all context would lose the meaning.
+- Phrase translation is not part of this cleanup path.
+
 ## Add from playground token
 
 - `POST /api/wordbank/lexemes`

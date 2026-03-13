@@ -8,13 +8,15 @@ from app.db.migrations import get_connection
 from app.nlp.adapter import NLPToken
 from app.services.tts import PronunciationAudio
 from app.services.use_cases.wordbank import WordbankUseCase
-from tests.helpers.factories import _bog_homograph_cor_local, _db_path
+from tests.helpers.factories import _bog_homograph_cor_local, _cor_local_entry, _db_path
 from tests.helpers.fakes import (
+    FakeCORLocalLexiconService,
     FakeGeminiWordTranslationService,
     FakeTranslationService,
     FakeTTSService,
     FakeVerificationService,
 )
+import pytest
 
 def test_wordbank_use_case_round_trip(tmp_path: Path) -> None:
     use_case = WordbankUseCase(_db_path(tmp_path))
@@ -208,6 +210,39 @@ def test_wordbank_add_word_routes_variations_to_their_matching_meaning(tmp_path:
     assert [item.form for item in by_key["book"].surface_forms] == ["bogen"]
     assert [item.form for item in by_key["swamp"].surface_forms] == ["moser"]
     assert by_key["swamp"].surface_forms[0].lemma_translation == "swamp"
+
+
+@pytest.mark.parametrize("provider", ["azure_translator", "deepl_translator"])
+def test_wordbank_add_word_normalizes_framed_single_word_translation_for_all_providers(
+    tmp_path: Path,
+    provider: str,
+) -> None:
+    vin_entry = _cor_local_entry(
+        cor_id="COR.VIN.110.01",
+        lemma="vin",
+        gloss=None,
+        form="vin",
+        lemma_idx=64001,
+        pos_tag="NOUN",
+        morphology="Gender=Neut|Number=Sing|Definite=Ind",
+        gram_raw="sb.itk.sg.ubest",
+    )
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_local_lexicon_service=FakeCORLocalLexiconService(
+            by_form={"vin": [vin_entry]},
+            by_lemma_idx={64001: [vin_entry]},
+        ),
+        translation_service=FakeTranslationService({"et vin": "in wine"}, provider=provider),
+    )
+
+    use_case.add_word("Vin", "vin", cor_id="COR.VIN.110.01")
+
+    listing = use_case.list_lemmas()
+    details = use_case.get_lemma_details("vin")
+
+    assert listing.items[0].english_translation == "wine"
+    assert details.english_translation == "wine"
 
 def test_wordbank_add_word_applies_selected_pos_and_morphology(tmp_path: Path) -> None:
     use_case = WordbankUseCase(_db_path(tmp_path))

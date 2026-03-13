@@ -5,9 +5,16 @@ import logging
 from fastapi import FastAPI
 
 from app.bootstrap.runtime_translation import RuntimeApiKeyOverrides
-from app.core.app_state import get_runtime_state, set_runtime_field, set_service_field
+from app.core.app_state import (
+    get_runtime_state,
+    set_runtime_field,
+    set_service_field,
+)
 from app.core.config import Settings
-from app.services.gemini_translation import GeminiFlashLiteWordTranslationService, GeminiTranslationError
+from app.services.gemini_translation import (
+    GeminiFlashLiteWordTranslationService,
+    GeminiTranslationError,
+)
 
 logger = logging.getLogger(__name__)
 

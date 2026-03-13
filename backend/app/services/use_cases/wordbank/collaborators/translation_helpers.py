@@ -149,3 +149,38 @@ def best_cor_local_entry_with_gloss(
         )
     )
     return matching[0]
+
+
+def best_cor_local_entry(
+    cor_local_lexicon_service: CORLocalLexiconService | None,
+    *,
+    form: str,
+    lemma: str,
+    preferred_pos_tag: str | None,
+) -> CORLocalEntry | None:
+    if cor_local_lexicon_service is None:
+        return None
+    try:
+        entries = cor_local_lexicon_service.lookup_form(form, limit=200)
+    except FileNotFoundError:
+        return None
+    matching = [
+        entry
+        for entry in entries
+        if normalize_token(entry.lemma) == lemma
+    ]
+    if not matching:
+        return None
+    if preferred_pos_tag:
+        preferred = [entry for entry in matching if entry.pos_tag == preferred_pos_tag]
+        if preferred:
+            matching = preferred
+    matching.sort(
+        key=lambda entry: (
+            0 if normalize_token(entry.form) == form else 1,
+            0 if entry.norm == "N" else 1,
+            entry.lemma_idx,
+            entry.variation,
+        )
+    )
+    return matching[0]
