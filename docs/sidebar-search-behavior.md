@@ -114,8 +114,8 @@ Saved rows are sorted by score descending (then lemma locale sort, then meaning 
 
 COR groups are sorted by best variant score in each group:
 
-- exact variation-add candidate for existing saved lemma -> 400
-- other variation-add candidate for existing saved lemma -> 320
+- exact variation-add candidate whose meaning matches a saved wordbank entry -> 400
+- other variation-add candidate whose meaning matches a saved wordbank entry -> 320
 - exact form match -> 240
 - form prefix match -> 160
 - fallback tie-break: group lemma locale compare (`da-DK`)
@@ -150,8 +150,8 @@ COR groups are sorted by best variant score in each group:
 - May show "from <lemma>" with translation in parentheses when available.
 - During translation loading, translation-dependent text uses skeleton placeholders.
 - Right icon:
-  - `Plus` for new candidate
-  - `variation + Plus` when lemma already exists and form differs from lemma.
+  - `variation + Plus` when the COR candidate meaning matches a saved wordbank entry
+  - `Plus` otherwise
 
 ## Selection actions
 
@@ -168,7 +168,7 @@ COR groups are sorted by best variant score in each group:
 ### Selecting COR row
 
 - Always triggers `onAddWordFromSearch(...)` with `predictedStatus`:
-  - `variation` if lemma already saved and form differs
+  - `variation` when the COR candidate meaning matches a saved wordbank entry
   - `new` otherwise
 - Dialog closes only when add succeeds.
 

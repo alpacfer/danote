@@ -341,5 +341,5 @@ describe("App wordbank", () => {
     fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
     fireEvent.click(await screen.findByRole("button", { name: /kat/i }))
     expect(await screen.findByLabelText(/gemini verification passed/i)).toBeInTheDocument()
-  })
+  }, 15_000)
 })

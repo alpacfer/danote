@@ -134,7 +134,7 @@ export function AppSidebar({
   })
 
   const {
-    savedLemmaKeySet,
+    variationCandidateCorIdSet,
     addVariationBySavedResult,
     displayVariantBySavedResult,
     exactSavedVariationKeySet,
@@ -220,7 +220,7 @@ export function AppSidebar({
     exactSavedVariationKeySet,
     orderedCorSearchGroups,
     corSearchVariantsToRender,
-    savedLemmaKeySet,
+    variationCandidateCorIdSet,
     matchingNotes,
     matchingPageItems,
     isCorTranslationsLoading,

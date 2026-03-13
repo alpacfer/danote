@@ -45,7 +45,7 @@ export type SidebarSearchResultsData = {
   exactSavedVariationKeySet: Set<string>
   orderedCorSearchGroups: CORSearchGroup[]
   corSearchVariantsToRender: Array<{ group: CORSearchGroup; variant: CORSearchVariant }>
-  savedLemmaKeySet: Set<string>
+  variationCandidateCorIdSet: Set<string>
   matchingNotes: SavedNote[]
   matchingPageItems: PageItem[]
   isCorTranslationsLoading: boolean
@@ -98,7 +98,7 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
           <SidebarCorResults
             orderedCorSearchGroups={data.orderedCorSearchGroups}
             corSearchVariantsToRender={data.corSearchVariantsToRender}
-            savedLemmaKeySet={data.savedLemmaKeySet}
+            variationCandidateCorIdSet={data.variationCandidateCorIdSet}
             normalizedQuery={state.normalizedQuery}
             corVariantItemValue={data.corVariantItemValue}
             isTranslationsLoading={data.isCorTranslationsLoading}

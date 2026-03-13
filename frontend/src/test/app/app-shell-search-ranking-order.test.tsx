@@ -1,28 +1,13 @@
 import { fireEvent, mockFetchImplementation, renderApp, screen, waitFor, within } from "@/test/app-test-helpers"
 
 describe("App shell and search", () => {
-  it("keeps exact-form COR add actions for unsaved homograph meanings", async () => {
+  it("shows variation only for the saved homograph meaning linked to the query form", async () => {
     mockFetchImplementation({
       lemmasResponse: {
-        items: [{ lemma: "bog", variation_count: 2, english_translation: null }],
+        items: [{ lemma: "bog", variation_count: 2, english_translation: "book" }],
       },
       searchWordbankResponse: {
-        items: [
-          {
-            lemma: "bog",
-            display_lemma: "bog",
-            meaning_id: 1,
-            meaning_key: "book",
-            gloss: "book",
-            cor_lemma_idx: 123,
-            variation_count: 2,
-            english_translation: "book",
-            match_surface: "bogen",
-            query_cor_ids: ["COR.BOG.BOOK.1"],
-            pos_tag: "NOUN",
-            morphology: "Gender=Com|Number=Sing|Definite=Def",
-          },
-        ],
+        items: [],
       },
       corSearchFormResponse: {
         form: "bogen",
@@ -52,15 +37,15 @@ describe("App shell and search", () => {
           },
           {
             lemma: "bog",
-            gloss: "swamp",
+            gloss: "beechmast",
             pos_tag: "NOUN",
             variants: [
               {
-                cor_id: "COR.BOG.SWAMP.1",
+                cor_id: "COR.BOG.BEECHMAST.1",
                 form: "bogen",
                 lemma: "bog",
-                gloss: "swamp",
-                lemma_translation: "swamp",
+                gloss: "beechmast",
+                lemma_translation: "beechmast",
                 gram_raw: "sb.fk.sg.best",
                 norm: "N",
                 lemma_idx: 124,
@@ -85,8 +70,15 @@ describe("App shell and search", () => {
     const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
     fireEvent.change(searchInput, { target: { value: "bogen" } })
 
-    expect(await within(commandDialog).findByTestId("search-open-icon")).toBeInTheDocument()
-    expect(await within(commandDialog).findAllByTestId("search-add-icon")).toHaveLength(1)
+    const savedVariationRow = (await within(commandDialog).findByText(/\(book\)/i)).closest("[cmdk-item]")
+    const beechmastRow = (await within(commandDialog).findByText(/\(beechmast\)/i)).closest("[cmdk-item]")
+
+    expect(savedVariationRow).toBeTruthy()
+    expect(beechmastRow).toBeTruthy()
+    expect(within(savedVariationRow as HTMLElement).getByTestId("search-add-variation-label")).toBeInTheDocument()
+    expect(within(savedVariationRow as HTMLElement).getByTestId("search-add-icon")).toBeInTheDocument()
+    expect(within(beechmastRow as HTMLElement).queryByTestId("search-add-variation-label")).not.toBeInTheDocument()
+    expect(within(beechmastRow as HTMLElement).getByTestId("search-add-icon")).toBeInTheDocument()
   })
 
   it("opens the selected saved meaning section from search", async () => {

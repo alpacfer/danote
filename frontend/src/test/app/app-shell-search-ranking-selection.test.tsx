@@ -103,7 +103,7 @@ describe("App shell and search", () => {
     expect(within(topItem).queryByTestId("search-add-variation-label")).not.toBeInTheDocument()
   })
 
-  it("command search puts existing-lemma variation options before other COR options", async () => {
+  it("command search marks only meaning-matched COR options as variations", async () => {
     mockFetchImplementation({
       lemmasResponse: {
         items: [{ lemma: "lære", variation_count: 3, english_translation: "learn" }],
@@ -172,8 +172,6 @@ describe("App shell and search", () => {
     const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
     fireEvent.change(searchInput, { target: { value: "lærer" } })
 
-    expect(await within(commandDialog).findByTestId("search-add-variation-label")).toBeInTheDocument()
-
     const verbLemma = await within(commandDialog).findByText(/^at lære$/i, { selector: "em" })
     const nounLemma = await within(commandDialog).findByText(/^lærer$/i, { selector: "em" })
     const verbItem = verbLemma.closest("[cmdk-item]")
@@ -181,6 +179,10 @@ describe("App shell and search", () => {
 
     expect(verbItem).toBeTruthy()
     expect(nounItem).toBeTruthy()
+    expect(within(verbItem as HTMLElement).getByTestId("search-add-variation-label")).toBeInTheDocument()
+    expect(within(nounItem as HTMLElement).queryByTestId("search-add-variation-label")).not.toBeInTheDocument()
+    expect(within(verbItem as HTMLElement).getByTestId("search-add-icon")).toBeInTheDocument()
+    expect(within(nounItem as HTMLElement).getByTestId("search-add-icon")).toBeInTheDocument()
     expect(verbItem && nounItem
       ? (verbItem.compareDocumentPosition(nounItem) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0
       : false).toBe(true)

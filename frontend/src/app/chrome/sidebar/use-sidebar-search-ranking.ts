@@ -52,13 +52,16 @@ const scoreWordbankResult = (payload: {
   return 0
 }
 
-const scoreCorGroup = (group: CORSearchGroup, normalizedQuery: string, savedLemmaKeySet: Set<string>): number => {
+const scoreCorGroup = (
+  group: CORSearchGroup,
+  normalizedQuery: string,
+  variationCandidateCorIdSet: Set<string>,
+): number => {
   let best = 0
   for (const variant of group.variants ?? []) {
     const formKey = normalizeSearchWord(variant.form)
     const lemmaKey = normalizeSearchWord(variant.lemma)
-    const isVariationCandidate = formKey !== lemmaKey
-    const isVariationAdd = isVariationCandidate && savedLemmaKeySet.has(lemmaKey)
+    const isVariationAdd = formKey !== lemmaKey && variationCandidateCorIdSet.has(variant.cor_id)
     if (isVariationAdd && formKey === normalizedQuery) {
       best = Math.max(best, 400)
       continue
@@ -88,15 +91,6 @@ export function useSidebarSearchRanking({
     () => searchApiMatches.map((item) => ({ ...item, query_cor_ids: item.query_cor_ids ?? [] })),
     [searchApiMatches],
   )
-  const savedLemmaKeySet = useMemo(
-    () =>
-      new Set(
-        [...lemmas.map((item) => item.lemma), ...searchApiMatches.map((item) => item.lemma)]
-          .map((item) => normalizeSearchWord(item))
-          .filter(Boolean),
-      ),
-    [lemmas, searchApiMatches],
-  )
   const corSearchGroups = useMemo(
     () => activeCorFormSearchResult?.payload.groups ?? [],
     [activeCorFormSearchResult],
@@ -104,6 +98,24 @@ export function useSidebarSearchRanking({
   const corSearchVariants = useMemo(
     () => corSearchGroups.flatMap((group) => (group.variants ?? []).map((variant) => ({ group, variant }))),
     [corSearchGroups],
+  )
+  const variationCandidateCorIdSet = useMemo(
+    () =>
+      new Set(
+        corSearchVariants
+          .filter((candidate) => {
+            const formKey = normalizeSearchWord(candidate.variant.form)
+            const lemmaKey = normalizeSearchWord(candidate.variant.lemma)
+            return (
+              formKey
+              && lemmaKey
+              && formKey !== lemmaKey
+              && candidateMatchesAnySavedMeaning(candidate, wordbankResults, lemmas)
+            )
+          })
+          .map((candidate) => candidate.variant.cor_id),
+      ),
+    [corSearchVariants, lemmas, wordbankResults],
   )
 
   const addVariationBySavedResult = useMemo(() => {
@@ -231,18 +243,18 @@ export function useSidebarSearchRanking({
 
   const orderedCorSearchGroups = useMemo(
     () => [...corSearchGroups].sort((left, right) => {
-      const leftScore = scoreCorGroup(left, normalizedQuery, savedLemmaKeySet)
-      const rightScore = scoreCorGroup(right, normalizedQuery, savedLemmaKeySet)
+      const leftScore = scoreCorGroup(left, normalizedQuery, variationCandidateCorIdSet)
+      const rightScore = scoreCorGroup(right, normalizedQuery, variationCandidateCorIdSet)
       if (leftScore !== rightScore) {
         return rightScore - leftScore
       }
       return left.lemma.localeCompare(right.lemma, "da-DK")
     }),
-    [corSearchGroups, normalizedQuery, savedLemmaKeySet],
+    [corSearchGroups, normalizedQuery, variationCandidateCorIdSet],
   )
 
   return {
-    savedLemmaKeySet,
+    variationCandidateCorIdSet,
     addVariationBySavedResult,
     displayVariantBySavedResult,
     exactSavedVariationKeySet,
@@ -271,6 +283,40 @@ function candidateMatchesSavedResult(
   }
   return savedResult.meaning_id == null
     && normalizeSearchWord(savedResult.lemma) === normalizeSearchWord(candidate.variant.lemma)
+}
+
+function candidateMatchesAnySavedMeaning(
+  candidate: CorVariantCandidate,
+  savedResults: WordbankSearchItem[],
+  lemmas: WordbankLemma[],
+): boolean {
+  for (const savedResult of savedResults) {
+    if (candidateMatchesSavedResult(candidate, savedResult)) {
+      return true
+    }
+  }
+
+  const lemmaKey = normalizeSearchWord(candidate.variant.lemma)
+  if (!lemmaKey) {
+    return false
+  }
+
+  const candidateMeaningKeySet = new Set(
+    [candidate.group.gloss, candidate.variant.gloss, candidate.variant.lemma_translation]
+      .map((value) => normalizeSearchWord(value ?? ""))
+      .filter(Boolean),
+  )
+  if (candidateMeaningKeySet.size === 0) {
+    return false
+  }
+
+  return lemmas.some((lemma) => {
+    if (normalizeSearchWord(lemma.lemma) !== lemmaKey) {
+      return false
+    }
+    const translationKey = normalizeSearchWord(lemma.english_translation ?? "")
+    return Boolean(translationKey) && candidateMeaningKeySet.has(translationKey)
+  })
 }
 
 export { savedWordbankResultKey }

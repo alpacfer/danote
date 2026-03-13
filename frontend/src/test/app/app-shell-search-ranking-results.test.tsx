@@ -1,4 +1,4 @@
-import { fireEvent, mockFetchImplementation, renderApp, screen, waitFor, within } from "@/test/app-test-helpers"
+import { fireEvent, mockFetchImplementation, renderApp, responseOf, screen, vi, waitFor, within } from "@/test/app-test-helpers"
 
 describe("App shell and search", () => {
   it("hides the second line for saved-word search results without a gloss", async () => {
@@ -91,6 +91,169 @@ describe("App shell and search", () => {
       expect(
         fetchSpy.mock.calls.some(([input]) => String(input).includes("/api/wordbank/translation")),
       ).toBe(false)
+    })
+  })
+
+  it("keeps translation skeletons visible on selected COR results while translations load", async () => {
+    let resolveFullPayload: ((value: Response) => void) | null = null
+    const fullPayloadPromise = new Promise<Response>((resolve) => {
+      resolveFullPayload = resolve
+    })
+    const corSearchFormHandler = vi.fn(async (input: RequestInfo | URL) => {
+      const url = new URL(String(input), "http://localhost")
+      const includeTranslations = url.searchParams.get("include_translations") !== "false"
+      if (!includeTranslations) {
+        return responseOf({
+          form: "lærer",
+          groups: [
+            {
+              lemma: "lære",
+              gloss: "learn",
+              pos_tag: "VERB",
+              variants: [
+                {
+                  cor_id: "COR.30686.203.01",
+                  form: "lærer",
+                  lemma: "lære",
+                  gloss: "learn",
+                  lemma_translation: null,
+                  gram_raw: "vb.præs.akt",
+                  norm: "N",
+                  lemma_idx: 30686,
+                  gram_code: 203,
+                  variation: 1,
+                  pos_tag: "VERB",
+                  morphology: "Tense=Pres|VerbForm=Fin|Voice=Act",
+                  features: { Tense: "Pres", VerbForm: "Fin", Voice: "Act" },
+                  extra_tags: [],
+                },
+              ],
+            },
+            {
+              lemma: "lærer",
+              gloss: "teacher",
+              pos_tag: "NOUN",
+              variants: [
+                {
+                  cor_id: "COR.49032.110.01",
+                  form: "lærer",
+                  lemma: "lærer",
+                  gloss: "teacher",
+                  lemma_translation: null,
+                  gram_raw: "sb.fk.sg.ubest",
+                  norm: "N",
+                  lemma_idx: 49032,
+                  gram_code: 110,
+                  variation: 1,
+                  pos_tag: "NOUN",
+                  morphology: "Gender=Com|Number=Sing|Definite=Ind",
+                  features: { Gender: "Com", Number: "Sing", Definite: "Ind" },
+                  extra_tags: [],
+                },
+              ],
+            },
+          ],
+        })
+      }
+      return fullPayloadPromise
+    })
+
+    mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      searchWordbankResponse: { items: [] },
+      corSearchFormHandler,
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    const commandDialog = await screen.findByRole("dialog")
+    const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
+    fireEvent.change(searchInput, { target: { value: "lærer" } })
+
+    const selectedOption = await waitFor(() => {
+      const options = within(commandDialog).getAllByRole("option")
+      expect(options[0]).toHaveAttribute("data-selected", "true")
+      const selectedSkeletons = within(options[0]).getAllByTestId("search-translation-skeleton")
+      expect(selectedSkeletons.length).toBeGreaterThan(0)
+      return options[0]
+    })
+
+    const selectedSkeletons = within(selectedOption).getAllByTestId("search-translation-skeleton")
+    for (const skeleton of selectedSkeletons) {
+      expect(skeleton.className).toContain("group-data-[selected=true]/search-item:bg-accent-foreground/20")
+    }
+
+    fireEvent.keyDown(searchInput, { key: "ArrowDown" })
+
+    const keyboardSelectedOption = await waitFor(() => {
+      const options = within(commandDialog).getAllByRole("option")
+      expect(options[1]).toHaveAttribute("data-selected", "true")
+      const selectedSkeletonsAfterArrow = within(options[1]).getAllByTestId("search-translation-skeleton")
+      expect(selectedSkeletonsAfterArrow.length).toBeGreaterThan(0)
+      return options[1]
+    })
+
+    const selectedSkeletonsAfterArrow = within(keyboardSelectedOption).getAllByTestId("search-translation-skeleton")
+    for (const skeleton of selectedSkeletonsAfterArrow) {
+      expect(skeleton.className).toContain("group-data-[selected=true]/search-item:bg-accent-foreground/20")
+    }
+
+    resolveFullPayload?.(responseOf({
+      form: "lærer",
+      groups: [
+        {
+          lemma: "lære",
+          gloss: "learn",
+          pos_tag: "VERB",
+          variants: [
+            {
+              cor_id: "COR.30686.203.01",
+              form: "lærer",
+              lemma: "lære",
+              gloss: "learn",
+              lemma_translation: "to learn",
+              gram_raw: "vb.præs.akt",
+              norm: "N",
+              lemma_idx: 30686,
+              gram_code: 203,
+              variation: 1,
+              pos_tag: "VERB",
+              morphology: "Tense=Pres|VerbForm=Fin|Voice=Act",
+              features: { Tense: "Pres", VerbForm: "Fin", Voice: "Act" },
+              extra_tags: [],
+            },
+          ],
+        },
+        {
+          lemma: "lærer",
+          gloss: "teacher",
+          pos_tag: "NOUN",
+          variants: [
+            {
+              cor_id: "COR.49032.110.01",
+              form: "lærer",
+              lemma: "lærer",
+              gloss: "teacher",
+              lemma_translation: "teacher",
+              gram_raw: "sb.fk.sg.ubest",
+              norm: "N",
+              lemma_idx: 49032,
+              gram_code: 110,
+              variation: 1,
+              pos_tag: "NOUN",
+              morphology: "Gender=Com|Number=Sing|Definite=Ind",
+              features: { Gender: "Com", Number: "Sing", Definite: "Ind" },
+              extra_tags: [],
+            },
+          ],
+        },
+      ],
+    }))
+
+    await waitFor(() => {
+      expect(within(commandDialog).queryByTestId("search-translation-skeleton")).not.toBeInTheDocument()
     })
   })
 

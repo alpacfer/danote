@@ -9,7 +9,6 @@ import {
   glossDisplayForVariant,
   lemmaDisplayForVariant,
   lemmaTranslationForVariant,
-  normalizeSearchWord,
   posBadgeClass,
   type SearchSaveSeed,
   type CORSearchGroup,
@@ -25,7 +24,7 @@ type GroupedVariant = {
 type SidebarCorResultsProps = {
   orderedCorSearchGroups: CORSearchGroup[]
   corSearchVariantsToRender: GroupedVariant[]
-  savedLemmaKeySet: Set<string>
+  variationCandidateCorIdSet: Set<string>
   normalizedQuery: string
   corVariantItemValue: (variant: CORSearchVariant) => string
   isTranslationsLoading: boolean
@@ -43,10 +42,12 @@ type SidebarCorResultsProps = {
   onCloseSearch: () => void
 }
 
+const searchTranslationSkeletonClassName = "bg-accent group-data-[selected=true]/search-item:bg-accent-foreground/20"
+
 export function SidebarCorResults({
   orderedCorSearchGroups,
   corSearchVariantsToRender,
-  savedLemmaKeySet,
+  variationCandidateCorIdSet,
   normalizedQuery,
   corVariantItemValue,
   isTranslationsLoading,
@@ -63,8 +64,7 @@ export function SidebarCorResults({
           {corSearchVariantsToRender
             .filter((item) => item.group === group)
             .map(({ variant }) => {
-              const isVariationCandidate = normalizeSearchWord(variant.form) !== normalizeSearchWord(variant.lemma)
-              const isVariationAdd = isVariationCandidate && savedLemmaKeySet.has(normalizeSearchWord(variant.lemma))
+              const isVariationAdd = variationCandidateCorIdSet.has(variant.cor_id)
               const detailLine = glossDisplayForVariant(variant)
               const lemmaDisplay = lemmaDisplayForVariant(variant)
               const lemmaTranslation = lemmaTranslationForVariant(variant)
@@ -117,14 +117,20 @@ export function SidebarCorResults({
                           {lemmaTranslation ? (
                             ` (${lemmaTranslation})`
                           ) : isTranslationsLoading ? (
-                            <Skeleton className="ml-1 inline-block h-3 w-14 align-middle" />
+                            <Skeleton
+                              data-testid="search-translation-skeleton"
+                              className={`ml-1 inline-block h-3 w-14 align-middle ${searchTranslationSkeletonClassName}`}
+                            />
                           ) : null}
                         </span>
                       ) : null}
                     </span>
                     {isTranslationsLoading && hasGloss ? (
                       <span className="text-muted-foreground text-xs leading-4">
-                        <Skeleton className="inline-block h-3 w-24 align-middle" />
+                        <Skeleton
+                          data-testid="search-translation-skeleton"
+                          className={`inline-block h-3 w-24 align-middle ${searchTranslationSkeletonClassName}`}
+                        />
                       </span>
                     ) : detailLine ? (
                       <span className="text-muted-foreground text-xs leading-4">{detailLine}</span>
