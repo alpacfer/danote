@@ -111,6 +111,11 @@ Meaning auto-scroll behavior:
 - Badge source in header:
   - POS/morphology from selected meaning (fallback lemma-level)
   - `gram_raw` from lemma-level surface form matching selected lemma
+- Non-sectioned semantic category badges:
+  - render from top-level `lemmaDetails.categories`
+  - appear in their own header row below the title/translation block
+  - use dedicated outline styling distinct from POS/morphology badges
+  - the non-sectioned header block also acts as the root-scope right-click target for category recategorization
 
 ## Header actions
 
@@ -145,15 +150,28 @@ Meaning auto-scroll behavior:
   - no-record state shows a neutral empty state explaining that verification details will appear here once Gemini runs
   - each action card uses an `Apply change` button that is disabled while apply is in progress
 
+## Word-card context menu
+
+- Wordbank word pages use the shadcn `ContextMenu` primitive for right-click actions on category-bearing scopes.
+- Sectioned pages:
+  - each meaning card is a context-menu trigger
+  - the menu currently exposes `Rethink categories`
+- Non-sectioned pages:
+  - the lemma header block is the context-menu trigger for the root scope
+  - the same `Rethink categories` action is available there
+- `Rethink categories` immediately calls the backend recategorization endpoint for that root / meaning scope and refreshes lemma details after success.
+- The action does not open a confirmation flow and does not apply Gemini verification suggestions; it only recalculates semantic category assignments.
+- The manual rethink path uses the same Gemini category-classification flow as initial verification; the only difference is that this one is user-triggered.
+
 ## Body mode A: sectioned meanings (WordbankMeaningSections)
 
 - If no meaning sections exist, shows `No saved meanings for this lemma.`
 - Each section renders as a card with:
   - left border color from POS class
   - selected-meaning highlight ring when `selectedMeaningId` matches section id
-  - ordinal badge (1-based index)
-  - lemma label
-  - section-level badges from section POS/morphology
+  - left-side metadata cluster: ordinal badge (1-based index), lemma label, section-level POS/morphology badges
+  - right-side semantic category badge cluster from `meaning_sections[].categories`
+  - category badges stay right-aligned on wider layouts and wrap below the header content on narrow screens
   - optional combined translation line in `translation, gloss translation` format when a real English translation exists
   - gloss translation is supplemental disambiguation text; it does not replace a missing translation
 - Surface forms under each meaning:
@@ -216,6 +234,12 @@ Pronunciation behavior is shared by header + section rows + variation rows.
 - Meaning glosses are treated as immutable COR disambiguators.
   Gemini may use them to identify the intended sense, but it does not propose gloss edits.
 - Canonical lemma metadata is evaluated separately from the selected saved surface-form metadata.
+- The same Gemini verification call also classifies the reviewed root / meaning scope into semantic categories.
+  - Gemini receives the shared persisted category list plus the categories already assigned to that scope.
+  - Gemini also receives the whole saved-word context for that lemma: reviewed scope metadata, gloss, translation scope, sibling meaning sections, and the full saved surface-form inventory with meaning links and morphology.
+  - It may choose multiple existing categories.
+  - If needed, it may mint up to 3 new broad categories, which are stored for later runs.
+  - Category assignments are auto-applied with no confirmation step and show up through later lemma-detail fetches.
 - Queue execution is backend-driven through the shared wordbank background-job runner.
   Multiple verification targets can execute in parallel through a bounded worker pool.
 - Queued verification payloads carry a target snapshot hash.
@@ -223,6 +247,15 @@ Pronunciation behavior is shared by header + section rows + variation rows.
 - Success path stores a persisted verification success record with `requested_at` / `completed_at`.
 - Error path stores a persisted verification error record with timestamps and suggested actions.
 - When a queued target reaches a final state, the app pushes a target-specific in-session notification.
+
+## Category rethink
+
+- `POST /api/wordbank/lexemes/rethink-categories` reruns Gemini category classification for a specific root / meaning scope using the current shared category list and the categories already assigned to that scope.
+- This path is triggered manually from the word-card context menu.
+- It uses the same Gemini categorization payload as the initial verification run, including full saved surface-form context and sibling meaning context for the whole word page.
+- Gemini may reuse multiple existing categories and may mint up to 3 new broad categories when needed.
+- Successful recategorization replaces the full persisted category assignment set for that scope.
+- Recategorization does not overwrite or re-review existing verification records.
 
 ## Action apply (`POST /api/wordbank/lexemes/apply-verification-changes`)
 

@@ -1,6 +1,11 @@
 from __future__ import annotations
 
-from app.services.verification import GeminiWordVerificationService, WordVerificationInput
+from app.services.verification import (
+    GeminiWordVerificationService,
+    WordVerificationInput,
+    WordVerificationMeaningSection,
+    WordVerificationSurfaceForm,
+)
 
 
 def _payload() -> WordVerificationInput:
@@ -20,7 +25,41 @@ def _payload() -> WordVerificationInput:
         selected_meaning_morphology="Gender=Com|Number=Sing",
         selected_surface_pos_tag="NOUN",
         selected_surface_morphology="Definite=Def|Number=Sing",
-        sibling_meaning_sections=(),
+        current_categories=("Household Objects",),
+        available_categories=("Animals", "Food", "Household Objects", "Plants"),
+        sibling_meaning_sections=(
+            WordVerificationMeaningSection(
+                id=1,
+                meaning_key="book",
+                gloss="book",
+                english_translation="book",
+                pos_tag="NOUN",
+                morphology="Gender=Com|Number=Sing",
+                surface_forms=("bog", "bogen"),
+            ),
+        ),
+        available_surface_forms=(
+            WordVerificationSurfaceForm(
+                form="bog",
+                meaning_id=1,
+                meaning_key="book",
+                gloss="book",
+                english_translation="book",
+                pos_tag="NOUN",
+                morphology="Gender=Com|Number=Sing",
+                source="manual",
+            ),
+            WordVerificationSurfaceForm(
+                form="bogen",
+                meaning_id=1,
+                meaning_key="book",
+                gloss="book",
+                english_translation="book",
+                pos_tag="NOUN",
+                morphology="Definite=Def|Number=Sing",
+                source="manual",
+            ),
+        ),
     )
 
 
@@ -69,10 +108,56 @@ def test_gemini_verification_service_discards_malformed_actions(monkeypatch) -> 
 def test_gemini_verification_prompt_matches_wordbank_translation_model() -> None:
     service = GeminiWordVerificationService(api_key="test-key")
 
-    prompt = service._verification_prompt(_payload())
+    payload = _payload()
+    prompt = service._verification_prompt(payload)
+    category_prompt = service._category_prompt(payload)
 
     assert "lemma or a meaning section only" in prompt
     assert "Surface forms do not carry independent translations" in prompt
     assert "immutable COR labels" in prompt
     assert "Never suggest editing a gloss" in prompt
     assert "canonical lemma metadata" in prompt
+    assert "Use all provided context together" in prompt
+    assert "available_categories" in prompt
+    assert "current_categories" in prompt
+    assert "available_surface_forms" in prompt
+    assert '"gloss": "book"' in prompt
+    assert '"morphology": "Definite=Def|Number=Sing"' in prompt
+    assert "new_categories" in prompt
+    assert "Use all provided context together" in category_prompt
+    assert "available_surface_forms" in category_prompt
+
+
+def test_gemini_verification_service_parses_existing_and_up_to_three_new_categories(monkeypatch) -> None:
+    service = GeminiWordVerificationService(api_key="test-key")
+    monkeypatch.setattr(
+        service,
+        "_generate_text",
+        lambda prompt: (
+            '{"verdict":"correct","word_count":1,'
+            '"existing_categories":["Household Objects","Food","Unknown"],'
+            '"new_categories":["Reading Material","Culture","Education","Ignored"],'
+            '"suggested_actions":[]}'
+        ),
+    )
+
+    result = service.verify_word_entry(_payload())
+
+    assert result.verdict == "verified"
+    assert result.categories == ("Household Objects", "Food", "Reading Material", "Culture", "Education")
+
+
+def test_gemini_category_classification_reuses_existing_and_new_categories(monkeypatch) -> None:
+    service = GeminiWordVerificationService(api_key="test-key")
+    monkeypatch.setattr(
+        service,
+        "_generate_text",
+        lambda prompt: (
+            '{"existing_categories":["Household Objects"],'
+            '"new_categories":["Reading Material","Education","Culture"]}'
+        ),
+    )
+
+    result = service.classify_word_categories(_payload())
+
+    assert result.categories == ("Household Objects", "Reading Material", "Education", "Culture")

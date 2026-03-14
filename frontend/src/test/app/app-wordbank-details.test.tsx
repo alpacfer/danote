@@ -1,8 +1,10 @@
 import { fireEvent, mockFetchImplementation, renderApp, screen } from "@/test/app-test-helpers"
 import {
   bogHomographWordPageContractFixture,
+  bogVariationGlossWordPageContractFixture,
   cloneContractFixture,
   morHomographWordPageContractFixture,
+  teacherSectionedWordPageContractFixture,
 } from "@/test/app/wordbank-contract-fixtures"
 
 describe("App wordbank", () => {
@@ -130,6 +132,26 @@ describe("App wordbank", () => {
     expect(screen.getByText(/^Plural$/i)).toBeInTheDocument()
   })
 
+  it("contract-backed: sectioned word page shows right-aligned meaning category badges on the meaning card", async () => {
+    mockFetchImplementation({
+      lemmasResponse: {
+        items: [{ lemma: "lærer", variation_count: 1 }],
+      },
+      lemmaDetailsResponse: cloneContractFixture(teacherSectionedWordPageContractFixture),
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+    fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /lærer/i }))
+
+    expect(await screen.findByRole("heading", { name: /^lærer$/i })).toBeInTheDocument()
+    const categoryContainer = screen.getByTestId("wordbank-meaning-category-badges-1")
+    expect(categoryContainer).toHaveTextContent("People")
+    expect(categoryContainer).toHaveTextContent("School")
+    expect(categoryContainer).toHaveTextContent("Work")
+  })
+
   it("contract-backed: word page renders translation comma gloss translation when the backend supplies both", async () => {
     const singleMeaningFixture = cloneContractFixture(bogHomographWordPageContractFixture)
     const firstMeaningSection = singleMeaningFixture.meaning_sections?.[0]
@@ -214,6 +236,26 @@ describe("App wordbank", () => {
     expect(screen.getByText(/^mother, person$/i)).toBeInTheDocument()
     expect(screen.getByText(/^mother, soil layer$/i)).toBeInTheDocument()
     expect(screen.queryByText(/^person$/i)).not.toBeInTheDocument()
+  })
+
+  it("contract-backed: non-sectioned word page shows root category badges in the header", async () => {
+    mockFetchImplementation({
+      lemmasResponse: {
+        items: [{ lemma: "bog", variation_count: 1 }],
+      },
+      lemmaDetailsResponse: cloneContractFixture(bogVariationGlossWordPageContractFixture),
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+    fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /bog/i }))
+
+    expect(await screen.findByRole("heading", { name: /^bog$/i })).toBeInTheDocument()
+    const categoryContainer = screen.getByTestId("wordbank-lemma-category-badges")
+    expect(categoryContainer).toHaveTextContent("Food")
+    expect(categoryContainer).toHaveTextContent("Household Objects")
+    expect(screen.queryByText(/^book's$/i)).not.toBeInTheDocument()
   })
 
   it("renderer-only: verb word pages keep flat variation layout without surface translations", async () => {

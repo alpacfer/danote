@@ -80,6 +80,22 @@ class VerificationRecord:
     completed_at: str | None
 
 
+@dataclass(frozen=True, slots=True)
+class WordCategoryRecord:
+    id: int
+    label: str
+    normalized_label: str
+
+
+@dataclass(frozen=True, slots=True)
+class WordCategoryAssignmentRecord:
+    lexeme_id: int
+    meaning_id: int | None
+    category_id: int
+    category_label: str
+    category_normalized_label: str
+
+
 def surface_form_from_row(row) -> SurfaceFormRecord:
     return SurfaceFormRecord(
         id=int(row["id"]),
@@ -125,6 +141,24 @@ def verification_record_from_row(row) -> VerificationRecord:
         suggested_actions=[item for item in parsed_actions if isinstance(item, dict)],
         requested_at=str(row["requested_at"]),
         completed_at=row["completed_at"],
+    )
+
+
+def word_category_from_row(row) -> WordCategoryRecord:
+    return WordCategoryRecord(
+        id=int(row["id"]),
+        label=str(row["label"]),
+        normalized_label=str(row["normalized_label"]),
+    )
+
+
+def word_category_assignment_from_row(row) -> WordCategoryAssignmentRecord:
+    return WordCategoryAssignmentRecord(
+        lexeme_id=int(row["lexeme_id"]),
+        meaning_id=int(row["meaning_id"]) if row["meaning_id"] is not None else None,
+        category_id=int(row["category_id"]),
+        category_label=str(row["category_label"]),
+        category_normalized_label=str(row["category_normalized_label"]),
     )
 
 

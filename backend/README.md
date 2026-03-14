@@ -23,6 +23,8 @@ Major schema domains (high-level):
   - `lexemes` stores canonical lemmas and shared lexical metadata
   - `surface_forms` stores observed/inflected forms linked to lexemes (and optional meaning linkage)
   - `lexeme_meanings` stores meaning sections/senses and optional COR lemma references
+  - `wordbank_categories` stores the shared semantic category catalog used by Gemini classification
+  - `wordbank_category_assignments` stores semantic category badges for lemma-root and meaning-section scopes
 - Typo and feedback telemetry:
   - `token_events` records token-level classification outcomes
   - `typo_feedback` captures user decisions on suggestions

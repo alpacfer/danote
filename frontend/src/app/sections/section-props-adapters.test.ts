@@ -50,6 +50,7 @@ describe("section prop adapters", () => {
   it("builds wordbank props with safe async wrappers", async () => {
     const playPronunciation = vi.fn(async () => undefined)
     const regenerate = vi.fn(async () => undefined)
+    const rethinkCategories = vi.fn(async () => undefined)
     const apply = vi.fn(async () => undefined)
 
     const result = buildWordbankSectionProps({
@@ -69,6 +70,8 @@ describe("section prop adapters", () => {
       playPronunciation,
       isRegeneratingLemmaPronunciation: false,
       regenerateSelectedLemmaPronunciation: regenerate,
+      isRethinkingCategories: false,
+      rethinkCategories,
       verificationOverview: {
         targets: [],
         queuedCount: 0,
@@ -82,12 +85,14 @@ describe("section prop adapters", () => {
 
     result.onPlayPronunciation("bog")
     result.onRegenerateSelectedLemmaPronunciation()
+    result.onRethinkCategories(12)
     result.onApplyVerificationAction("bog::root::root", 0)
 
     await Promise.resolve()
 
     expect(playPronunciation).toHaveBeenCalledWith("bog")
     expect(regenerate).toHaveBeenCalledTimes(1)
+    expect(rethinkCategories).toHaveBeenCalledWith(12)
     expect(apply).toHaveBeenCalledTimes(1)
     expect(result.selectedMeaningId).toBe(12)
   })

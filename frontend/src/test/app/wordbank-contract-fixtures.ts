@@ -10,6 +10,7 @@ export const bogVariationGlossWordPageContractFixture = {
   pos_tag: "NOUN",
   morphology: "Gender=Com|Number=Sing|Definite=Ind",
   is_sectioned: false,
+  categories: ["Food", "Household Objects"],
   surface_forms: [
     {
       form: "bogen",
@@ -39,6 +40,7 @@ export const bogHomographWordPageContractFixture = {
       gloss_translation: "for reading",
       pos_tag: "NOUN",
       morphology: "Gender=Com|Number=Sing|Definite=Ind",
+      categories: ["Household Objects"],
       surface_forms: [],
     },
     {
@@ -49,6 +51,7 @@ export const bogHomographWordPageContractFixture = {
       gloss_translation: "fruit from a beech tree",
       pos_tag: "NOUN",
       morphology: "Gender=Neut|Number=Sing|Definite=Ind",
+      categories: ["Food", "Plants"],
       surface_forms: [],
     },
   ],
@@ -70,6 +73,7 @@ export const morHomographWordPageContractFixture = {
       gloss_translation: "person",
       pos_tag: "NOUN",
       morphology: "Gender=Com|Number=Sing|Definite=Ind",
+      categories: ["Family", "People"],
       surface_forms: [],
     },
     {
@@ -80,6 +84,7 @@ export const morHomographWordPageContractFixture = {
       gloss_translation: "soil layer",
       pos_tag: "NOUN",
       morphology: "Gender=Com|Number=Sing|Definite=Ind",
+      categories: ["Nature"],
       surface_forms: [],
     },
   ],
@@ -100,6 +105,7 @@ export const teacherSectionedWordPageContractFixture = {
       english_translation: "teacher",
       pos_tag: "NOUN",
       morphology: "Gender=Com|Number=Sing|Definite=Ind",
+      categories: ["People", "School", "Work"],
       surface_forms: [
         {
           form: "lærere",

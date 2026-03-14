@@ -9,6 +9,7 @@ from app.services.use_cases.wordbank.gloss_translations import (
 )
 from app.services.use_cases.wordbank.meaning_sections import ensure_wordbank_meaning_compatibility
 from app.services.use_cases.wordbank.runtime import WordbankRuntime
+from app.services.use_cases.wordbank.verification_categories import category_labels_by_scope
 from app.services.use_cases.wordbank.verification_records import verification_record_to_schema
 
 
@@ -31,8 +32,16 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
         ): verification_record_to_schema(record)
         for record in runtime.repository.list_verification_records(lexeme.id)
     }
+    category_assignments = category_labels_by_scope(runtime.repository, lexeme_id=lexeme.id)
     if lexeme.source != "search":
-        return _get_manual_lemma_details(runtime, lexeme, form_rows, meaning_rows, verification_records)
+        return _get_manual_lemma_details(
+            runtime,
+            lexeme,
+            form_rows,
+            meaning_rows,
+            verification_records,
+            category_assignments,
+        )
 
     if not meaning_rows:
         return LemmaDetailsResponse(
@@ -41,6 +50,7 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
             pos_tag=lexeme.pos_tag,
             morphology=lexeme.morphology,
             is_sectioned=False,
+            categories=category_assignments.get(None, []),
             verification=verification_records.get((None, None)),
             meaning_sections=[],
             surface_forms=[
@@ -110,6 +120,7 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
         pos_tag=top_level_pos_tag,
         morphology=top_level_morphology,
         is_sectioned=True,
+        categories=category_assignments.get(None, []),
         verification=verification_records.get((None, None)),
         meaning_sections=[
             LemmaDetailsResponse.MeaningSection(
@@ -126,6 +137,7 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
                 ),
                 pos_tag=meaning.pos_tag,
                 morphology=meaning.morphology,
+                categories=category_assignments.get(meaning.id, []),
                 verification=verification_records.get((meaning.id, None)),
                 surface_forms=section_forms.get(meaning.id, []),
             )
@@ -135,7 +147,14 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
     )
 
 
-def _get_manual_lemma_details(runtime: WordbankRuntime, lexeme, form_rows, meaning_rows, verification_records) -> LemmaDetailsResponse:
+def _get_manual_lemma_details(
+    runtime: WordbankRuntime,
+    lexeme,
+    form_rows,
+    meaning_rows,
+    verification_records,
+    category_assignments: dict[int | None, list[str]],
+) -> LemmaDetailsResponse:
     if not meaning_rows:
         return LemmaDetailsResponse(
             lemma=lexeme.lemma,
@@ -143,6 +162,7 @@ def _get_manual_lemma_details(runtime: WordbankRuntime, lexeme, form_rows, meani
             pos_tag=lexeme.pos_tag,
             morphology=lexeme.morphology,
             is_sectioned=False,
+            categories=category_assignments.get(None, []),
             verification=verification_records.get((None, None)),
             meaning_sections=[],
             surface_forms=[
@@ -205,6 +225,7 @@ def _get_manual_lemma_details(runtime: WordbankRuntime, lexeme, form_rows, meani
         pos_tag=top_level_pos_tag,
         morphology=top_level_morphology,
         is_sectioned=True,
+        categories=category_assignments.get(None, []),
         verification=verification_records.get((None, None)),
         meaning_sections=[
             LemmaDetailsResponse.MeaningSection(
@@ -221,6 +242,7 @@ def _get_manual_lemma_details(runtime: WordbankRuntime, lexeme, form_rows, meani
                 ),
                 pos_tag=meaning.pos_tag,
                 morphology=meaning.morphology,
+                categories=category_assignments.get(meaning.id, []),
                 verification=verification_records.get((meaning.id, None)),
                 surface_forms=section_forms.get(meaning.id, []),
             )

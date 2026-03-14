@@ -13,6 +13,7 @@ from app.api.schemas.v1.wordbank import (
     LemmaDetailsResponse,
     LemmaListResponse,
     ResetDatabaseResponse,
+    RethinkCategoriesResponse,
     ResolveQueryResponse,
     WordbankSearchResponse,
 )
@@ -121,6 +122,19 @@ class WordbankUseCase:
         meaning_id: int | None = None,
     ):
         return self._runtime.verification.verify_added_word(
+            stored_lemma,
+            stored_surface_form,
+            meaning_id=meaning_id,
+        )
+
+    def rethink_categories(
+        self,
+        stored_lemma: str,
+        stored_surface_form: str | None,
+        *,
+        meaning_id: int | None = None,
+    ) -> RethinkCategoriesResponse:
+        return self._runtime.verification.rethink_categories(
             stored_lemma,
             stored_surface_form,
             meaning_id=meaning_id,

@@ -106,6 +106,16 @@ export type VerifyWordResponse = {
   stored_lemma: string
   stored_surface_form: string | null
   verification: VerificationResult
+  applied_categories: string[]
+}
+
+export type RethinkCategoriesResponse = {
+  status: "updated" | "skipped" | "error"
+  stored_lemma: string
+  stored_surface_form: string | null
+  meaning_id: number | null
+  applied_categories: string[]
+  message: string
 }
 
 export type GeneratePronunciationResponse = {
@@ -193,6 +203,7 @@ export type LemmaDetailsResponse = {
   pos_tag: string | null
   morphology: string | null
   is_sectioned?: boolean
+  categories?: string[]
   verification?: VerificationResult | null
   meaning_sections?: Array<{
     id: number
@@ -202,6 +213,7 @@ export type LemmaDetailsResponse = {
     gloss_translation?: string | null
     pos_tag?: string | null
     morphology?: string | null
+    categories?: string[]
     verification?: VerificationResult | null
     surface_forms: Array<{
       form: string

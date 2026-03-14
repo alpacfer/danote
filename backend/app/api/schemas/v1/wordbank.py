@@ -180,6 +180,22 @@ class VerifyWordResponse(BaseModel):
     stored_lemma: str
     stored_surface_form: str | None
     verification: VerificationResult
+    applied_categories: list[str] = Field(default_factory=list)
+
+
+class RethinkCategoriesRequest(BaseModel):
+    stored_lemma: str = Field(..., min_length=1)
+    stored_surface_form: str | None = None
+    meaning_id: int | None = None
+
+
+class RethinkCategoriesResponse(BaseModel):
+    status: Literal["updated", "skipped", "error"]
+    stored_lemma: str
+    stored_surface_form: str | None
+    meaning_id: int | None = None
+    applied_categories: list[str] = Field(default_factory=list)
+    message: str
 
 
 class GeneratePronunciationRequest(BaseModel):
@@ -311,12 +327,14 @@ class LemmaDetailsResponse(BaseModel):
         gloss_translation: str | None = None
         pos_tag: str | None = None
         morphology: str | None = None
+        categories: list[str] = Field(default_factory=list)
         verification: VerificationResult | None = None
         surface_forms: list["LemmaDetailsResponse.SurfaceFormDetails"] = Field(default_factory=list)
 
     lemma: str
     english_translation: str | None
     is_sectioned: bool = False
+    categories: list[str] = Field(default_factory=list)
     verification: VerificationResult | None = None
     meaning_sections: list[MeaningSection] = Field(default_factory=list)
     surface_forms: list[SurfaceFormDetails]

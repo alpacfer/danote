@@ -142,6 +142,8 @@ export function useAppController() {
       playPronunciation: wordbank.playPronunciation,
       isRegeneratingLemmaPronunciation: wordbank.isRegeneratingLemmaPronunciation,
       regenerateSelectedLemmaPronunciation: wordbank.regenerateSelectedLemmaPronunciation,
+      isRethinkingCategories: wordbank.isRethinkingCategories,
+      rethinkCategories: wordbank.rethinkCategories,
       verificationOverview: wordbank.verificationOverview,
       isApplyingVerificationChanges: wordbank.isApplyingVerificationChanges,
       applyVerificationAction: wordbank.applyVerificationAction,

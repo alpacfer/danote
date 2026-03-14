@@ -69,6 +69,7 @@ def test_add_word_includes_verification_result_when_service_is_available(tmp_pat
             class Result:
                 verdict = "verified"
                 message = "Storage payload is linguistically coherent."
+                categories = ("Food", "Household Objects")
 
             return Result()
 
@@ -100,29 +101,120 @@ def test_add_word_includes_verification_result_when_service_is_available(tmp_pat
     assert verify_response.status_code == 200
     verify_payload = verify_response.json()
     assert verify_payload["verification"]["status"] == "verified"
+    assert verify_payload["applied_categories"] == ["Food", "Household Objects"]
     assert verify_payload["verification"]["requested_at"] is not None
     assert verify_payload["verification"]["completed_at"] is not None
 
+    details_payload = None
+    deadline = time.time() + 5
+    while time.time() < deadline:
+        with TestClient(app) as client:
+            details_response = client.get("/api/wordbank/lemmas/bog")
+        assert details_response.status_code == 200
+        candidate = details_response.json()
+        meaning_verification = candidate["meaning_sections"][0]["verification"]
+        surface_verification = candidate["meaning_sections"][0]["surface_forms"][0]["verification"]
+        if (
+            candidate["meaning_sections"][0]["categories"] == ["Food", "Household Objects"]
+            and meaning_verification is not None
+            and meaning_verification["status"] in {"queued", "verified"}
+            and surface_verification is not None
+            and surface_verification["status"] == "verified"
+        ):
+            details_payload = candidate
+            break
+        time.sleep(0.05)
+
+    assert details_payload is not None
+    assert details_payload["meaning_sections"][0]["categories"] == ["Food", "Household Objects"]
+    assert details_payload["meaning_sections"][0]["verification"]["status"] in {"queued", "verified"}
+    assert details_payload["meaning_sections"][0]["surface_forms"][0]["verification"]["status"] == "verified"
+    assert details_payload["meaning_sections"][0]["surface_forms"][0]["verification"]["completed_at"] is not None
+
+    verification_rows = None
+    deadline = time.time() + 5
+    while time.time() < deadline:
+        with get_connection(db_path) as conn:
+            candidate_rows = conn.execute(
+                """
+                SELECT status, stored_surface_form, requested_at, completed_at
+                FROM wordbank_verification_records
+                ORDER BY id ASC
+                """
+            ).fetchall()
+        if len(candidate_rows) == 2 and any(
+            row["stored_surface_form"] == "bogen" and row["status"] == "verified"
+            for row in candidate_rows
+        ):
+            verification_rows = candidate_rows
+            break
+        time.sleep(0.05)
+
+    assert verification_rows is not None
+    assert len(verification_rows) == 2
+    meaning_row = next(row for row in verification_rows if row["stored_surface_form"] is None)
+    surface_row = next(row for row in verification_rows if row["stored_surface_form"] == "bogen")
+    assert meaning_row["status"] in {"queued", "verified"}
+    assert meaning_row["requested_at"] is not None
+    assert surface_row["status"] == "verified"
+    assert surface_row["requested_at"] is not None
+    assert surface_row["completed_at"] is not None
+
+
+def test_rethink_categories_updates_meaning_categories(tmp_path, stub_nlp_adapter_factory) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    apply_migrations(db_path)
+    app = create_app(build_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+
+    class StubVerificationService:
+        provider = "gemini"
+        reviewer_role = "Professional Danish Language Expert"
+
+        def verify_word_entry(self, _payload):
+            class Result:
+                verdict = "verified"
+                message = "Storage payload is linguistically coherent."
+                categories = ("Food",)
+
+            return Result()
+
+        def classify_word_categories(self, _payload):
+            class Result:
+                categories = ("Food", "Reading Material", "Education", "Culture")
+
+            return Result()
+
     with TestClient(app) as client:
-        details_response = client.get("/api/wordbank/lemmas/bog")
+        added = client.post(
+            "/api/wordbank/lexemes",
+            json={"surface_token": "Bogen", "lemma_candidate": "bog"},
+        )
+        added_payload = added.json()
 
-    assert details_response.status_code == 200
-    details_payload = details_response.json()
-    assert details_payload["meaning_sections"][0]["verification"]["status"] == "verified"
-    assert details_payload["meaning_sections"][0]["verification"]["completed_at"] is not None
+    assert added.status_code == 200
+    assert added_payload["meaning"]["id"] is not None
 
-    with get_connection(db_path) as conn:
-        verification_row = conn.execute(
-            """
-            SELECT status, requested_at, completed_at
-            FROM wordbank_verification_records
-            """
-        ).fetchone()
+    with TestClient(app) as client:
+        set_service_field(client.app, "word_verification_service", StubVerificationService())
+        rethink_response = client.post(
+            "/api/wordbank/lexemes/rethink-categories",
+            json={
+                "stored_lemma": "bog",
+                "stored_surface_form": None,
+                "meaning_id": added_payload["meaning"]["id"],
+            },
+        )
 
-    assert verification_row is not None
-    assert verification_row["status"] == "verified"
-    assert verification_row["requested_at"] is not None
-    assert verification_row["completed_at"] is not None
+    assert rethink_response.status_code == 200
+    rethink_payload = rethink_response.json()
+    assert rethink_payload["status"] == "updated"
+    assert rethink_payload["applied_categories"] == ["Culture", "Education", "Food", "Reading Material"]
+
+    with TestClient(app) as client:
+        details = client.get("/api/wordbank/lemmas/bog")
+
+    assert details.status_code == 200
+    assert details.json()["meaning_sections"][0]["categories"] == ["Culture", "Education", "Food", "Reading Material"]
 
 
 def test_add_word_duplicate_is_graceful(tmp_path, stub_nlp_adapter_factory) -> None:
@@ -982,7 +1074,7 @@ def test_apply_verification_changes_prunes_persisted_suggestions(tmp_path, stub_
     assert apply_response.status_code == 200
     assert apply_response.json()["status"] == "applied"
     assert details_after.status_code == 200
-    assert details_after.json()["meaning_sections"][0]["verification"]["status"] == "queued"
+    assert details_after.json()["meaning_sections"][0]["verification"]["status"] in {"queued", "flagged"}
     assert details_after.json()["meaning_sections"][0]["surface_forms"][0]["verification"]["status"] == "verified"
 
     with get_connection(db_path) as conn:

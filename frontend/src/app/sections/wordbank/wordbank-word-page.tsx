@@ -18,6 +18,8 @@ type WordbankWordPageProps = Pick<
   | "onPlayPronunciation"
   | "isRegeneratingLemmaPronunciation"
   | "onRegenerateSelectedLemmaPronunciation"
+  | "isRethinkingCategories"
+  | "onRethinkCategories"
   | "verificationOverview"
   | "isApplyingVerificationChanges"
   | "onApplyVerificationAction"
@@ -34,6 +36,8 @@ export function WordbankWordPage({
   onPlayPronunciation,
   isRegeneratingLemmaPronunciation,
   onRegenerateSelectedLemmaPronunciation,
+  isRethinkingCategories,
+  onRethinkCategories,
   verificationOverview,
   isApplyingVerificationChanges,
   onApplyVerificationAction,
@@ -83,6 +87,8 @@ export function WordbankWordPage({
             onPlayPronunciation={onPlayPronunciation}
             isRegeneratingLemmaPronunciation={isRegeneratingLemmaPronunciation}
             onRegenerateSelectedLemmaPronunciation={onRegenerateSelectedLemmaPronunciation}
+            isRethinkingCategories={isRethinkingCategories}
+            onRethinkCategories={onRethinkCategories}
             verificationOverview={verificationOverview}
             isApplyingVerificationChanges={isApplyingVerificationChanges}
             onApplyVerificationAction={onApplyVerificationAction}
@@ -95,6 +101,8 @@ export function WordbankWordPage({
               selectedMeaningId={selectedMeaningId}
               pronunciationLoadingByForm={pronunciationLoadingByForm}
               onPlayPronunciation={onPlayPronunciation}
+              isRethinkingCategories={isRethinkingCategories}
+              onRethinkCategories={onRethinkCategories}
             />
           ) : (
             <WordbankVariationGrid

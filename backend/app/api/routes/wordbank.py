@@ -28,6 +28,8 @@ from app.api.schemas.v1.wordbank import (
     ResetDatabaseResponse,
     ResolveQueryRequest,
     ResolveQueryResponse,
+    RethinkCategoriesRequest,
+    RethinkCategoriesResponse,
     VerifyWordRequest,
     VerifyWordResponse,
     WordbankSearchResponse,
@@ -65,6 +67,20 @@ def verify_added_word(payload: VerifyWordRequest, request: Request) -> VerifyWor
             payload.stored_surface_form,
             meaning_id=payload.meaning_id,
         ),
+        error_log_name="wordbank_db_operational_error",
+    )
+
+
+@router.post("/wordbank/lexemes/rethink-categories", response_model=RethinkCategoriesResponse)
+def rethink_categories(payload: RethinkCategoriesRequest, request: Request) -> RethinkCategoriesResponse:
+    return run_db_operation(
+        request,
+        lambda: build_wordbank_use_case(request).rethink_categories(
+            payload.stored_lemma,
+            payload.stored_surface_form,
+            meaning_id=payload.meaning_id,
+        ),
+        include_lookup_error=True,
         error_log_name="wordbank_db_operational_error",
     )
 

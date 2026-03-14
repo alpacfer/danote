@@ -91,6 +91,7 @@ export function mockFetchImplementation(options?: {
       pos_tag?: string | null
       morphology?: string | null
       is_sectioned?: boolean
+      categories?: string[]
       verification?: {
         status: "verified" | "flagged" | "error" | "skipped" | "queued"
         provider: string | null
@@ -124,6 +125,7 @@ export function mockFetchImplementation(options?: {
         gloss_translation?: string | null
         pos_tag?: string | null
         morphology?: string | null
+        categories?: string[]
         verification?: {
           status: "verified" | "flagged" | "error" | "skipped" | "queued"
           provider: string | null
@@ -252,8 +254,18 @@ export function mockFetchImplementation(options?: {
         target_morphology?: string | null
       }> | null
     }
+    applied_categories?: string[]
   }
   verifyWordHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+  rethinkCategoriesResponse?: {
+    status: "updated" | "skipped" | "error"
+    stored_lemma: string
+    stored_surface_form: string | null
+    meaning_id: number | null
+    applied_categories: string[]
+    message: string
+  }
+  rethinkCategoriesHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
   applyVerificationChangesResponse?: {
     status: "applied" | "skipped"
     stored_lemma: string
@@ -321,6 +333,7 @@ export function mockFetchImplementation(options?: {
     lemma: string
     english_translation?: string | null
     is_sectioned?: boolean
+    categories?: string[]
     verification?: {
       status: "verified" | "flagged" | "error" | "skipped" | "queued"
       provider: string | null
@@ -354,6 +367,7 @@ export function mockFetchImplementation(options?: {
       gloss_translation?: string | null
       pos_tag?: string | null
       morphology?: string | null
+      categories?: string[]
       verification?: {
         status: "verified" | "flagged" | "error" | "skipped" | "queued"
         provider: string | null
@@ -610,6 +624,15 @@ export function mockFetchImplementation(options?: {
       message: "Entry looks correct.",
       composed_word_count: 1,
     },
+    applied_categories: [],
+  }
+  const rethinkCategoriesResponse = options?.rethinkCategoriesResponse ?? {
+    status: "updated" as const,
+    stored_lemma: addWordResponse.stored_lemma,
+    stored_surface_form: null,
+    meaning_id: null,
+    applied_categories: ["Animals"],
+    message: `Updated categories for '${addWordResponse.stored_lemma}'.`,
   }
   const applyVerificationChangesResponse = options?.applyVerificationChangesResponse ?? {
     status: "applied" as const,
@@ -843,6 +866,13 @@ export function mockFetchImplementation(options?: {
         return options.verifyWordHandler(input, init)
       }
       return responseOf(verifyWordResponse)
+    }
+
+    if (url.endsWith("/api/wordbank/lexemes/rethink-categories")) {
+      if (options?.rethinkCategoriesHandler) {
+        return options.rethinkCategoriesHandler(input, init)
+      }
+      return responseOf(rethinkCategoriesResponse)
     }
 
     if (url.endsWith("/api/wordbank/lexemes/apply-verification-changes")) {

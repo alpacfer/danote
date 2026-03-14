@@ -291,7 +291,7 @@ class WordbankReadRepository:
                         requested_at,
                         completed_at
                     FROM wordbank_verification_records
-                    WHERE lexeme_id = ? AND meaning_id = ?
+                    WHERE lexeme_id = ? AND meaning_id = ? AND stored_surface_form IS NULL
                     LIMIT 1
                     """,
                     (lexeme_id, meaning_id),

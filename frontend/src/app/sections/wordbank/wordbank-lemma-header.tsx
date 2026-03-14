@@ -1,6 +1,7 @@
 import type { LemmaDetailsResponse, VerificationOverview } from "@/app/core"
-import { badgesForSavedForm, corSecondaryBadgeClass, posBadgeClass } from "@/app/core"
+import { badgesForSavedForm, corSecondaryBadgeClass, posBadgeClass, semanticCategoryBadgeClass } from "@/app/core"
 import { WordbankPronunciationWord } from "@/app/sections/wordbank/wordbank-pronunciation-word"
+import { WordbankScopeContextMenu } from "@/app/sections/wordbank/wordbank-scope-context-menu"
 import { WordbankVerificationPopover } from "@/app/sections/wordbank/wordbank-verification-popover"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -16,6 +17,8 @@ type WordbankLemmaHeaderProps = {
   onPlayPronunciation: (form: string) => void
   isRegeneratingLemmaPronunciation: boolean
   onRegenerateSelectedLemmaPronunciation: () => void
+  isRethinkingCategories: boolean
+  onRethinkCategories: (meaningId: number | null) => void
   verificationOverview: VerificationOverview
   isApplyingVerificationChanges: boolean
   onApplyVerificationAction: (targetKey: string, actionIndex: number) => void
@@ -30,6 +33,8 @@ export function WordbankLemmaHeader({
   onPlayPronunciation,
   isRegeneratingLemmaPronunciation,
   onRegenerateSelectedLemmaPronunciation,
+  isRethinkingCategories,
+  onRethinkCategories,
   verificationOverview,
   isApplyingVerificationChanges,
   onApplyVerificationAction,
@@ -65,7 +70,7 @@ export function WordbankLemmaHeader({
       gram_raw: lemmaSurfaceDetails?.gram_raw ?? null,
     })
     : []
-  return (
+  const content = (
     <div>
       <div className="flex items-start justify-between gap-3">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
@@ -119,7 +124,35 @@ export function WordbankLemmaHeader({
       {headerTranslation && (showSupplementaryMetadata || selectedMeaningSection) ? (
         <p className="text-muted-foreground mt-1 pl-1 text-sm italic">{headerTranslation}</p>
       ) : null}
+      {lemmaDetails.categories && lemmaDetails.categories.length > 0 ? (
+        <div data-testid="wordbank-lemma-category-badges" className="mt-2 flex flex-wrap justify-end gap-1.5">
+          {lemmaDetails.categories.map((category) => (
+            <Badge
+              key={`lemma-category-${category}`}
+              variant="outline"
+              className={`text-xs ${semanticCategoryBadgeClass(category)}`.trim()}
+            >
+              {category}
+            </Badge>
+          ))}
+        </div>
+      ) : null}
     </div>
+  )
+
+  if (lemmaDetails.is_sectioned) {
+    return content
+  }
+
+  return (
+    <WordbankScopeContextMenu
+      isBusy={isRethinkingCategories}
+      onRethinkCategories={() => onRethinkCategories(null)}
+    >
+      <div data-testid="wordbank-lemma-scope-card">
+        {content}
+      </div>
+    </WordbankScopeContextMenu>
   )
 }
 

@@ -19,6 +19,7 @@ import {
 } from "@/app/core"
 import { toast } from "sonner"
 
+import { useCategoryRethinkingWorkflow } from "./wordbank/use-category-rethinking-workflow"
 import { usePronunciationWorkflow } from "./wordbank/use-pronunciation-workflow"
 import { useVerificationWorkflow } from "./wordbank/use-verification-workflow"
 
@@ -84,6 +85,16 @@ export function useWordbankWorkflows({
     selectedLemma,
     selectedMeaningId,
     lemmaDetails,
+    setWordbankRefreshTick,
+  })
+
+  const {
+    isRethinkingCategories,
+    rethinkCategories,
+  } = useCategoryRethinkingWorkflow({
+    backendUrl,
+    extractErrorMessage,
+    selectedLemma,
     setWordbankRefreshTick,
   })
 
@@ -257,6 +268,7 @@ export function useWordbankWorkflows({
     isSavingSentence,
     pronunciationLoadingByForm,
     isRegeneratingLemmaPronunciation,
+    isRethinkingCategories,
     isApplyingVerificationChanges,
     isVerifyingWords,
     verificationOverview,
@@ -265,6 +277,7 @@ export function useWordbankWorkflows({
     addSentenceToSentencebank,
     playPronunciation,
     regenerateSelectedLemmaPronunciation,
+    rethinkCategories,
     applyVerificationAction,
     clearVerificationErrors,
   }

@@ -21,6 +21,8 @@ export type WordbankSectionProps = {
   onPlayPronunciation: (form: string) => void
   isRegeneratingLemmaPronunciation: boolean
   onRegenerateSelectedLemmaPronunciation: () => void
+  isRethinkingCategories: boolean
+  onRethinkCategories: (meaningId: number | null) => void
   verificationOverview: VerificationOverview
   isApplyingVerificationChanges: boolean
   onApplyVerificationAction: (targetKey: string, actionIndex: number) => void

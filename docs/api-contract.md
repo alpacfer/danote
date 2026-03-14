@@ -111,6 +111,21 @@ Route decorators are the source of truth in `backend/app/api/routes/`, and API D
   - `400` for invalid inputs.
   - successful responses persist the verification result for the matching `(lemma, meaning_id, stored_surface_form)` target.
   - `verification` may include `stored_surface_form`, `requested_at`, and `completed_at`.
+  - `applied_categories` lists the semantic categories persisted for the reviewed root / meaning scope.
+  - Gemini may reuse multiple existing categories and may mint up to 3 new broad categories when the shared catalog has no good fit.
+  - category classification runs inside the same verification call and uses the full saved word scope context: reviewed gloss/translation metadata, canonical lemma metadata, selected surface metadata, sibling meaning sections, and saved surface forms for the lemma.
+
+### POST `/api/wordbank/lexemes/rethink-categories`
+- **Request model:** `RethinkCategoriesRequest`.
+- **Response model:** `RethinkCategoriesResponse`.
+- **Notable status/error behavior:**
+  - `503` when DB unavailable/locked.
+  - `404` when the target lemma cannot be found.
+  - `400` for invalid inputs.
+  - body `status` can be `updated`, `skipped`, or `error`.
+  - successful responses replace the persisted category set for the requested root / meaning scope without mutating verification records.
+  - the rethink route reuses the same Gemini categorization flow and whole-word context payload as initial verification; it is just manually triggered.
+  - `applied_categories` returns the normalized persisted category labels after the rethink run.
 
 ### POST `/api/wordbank/lexemes/pronunciation`
 - **Request model:** `GeneratePronunciationRequest`.
@@ -205,7 +220,9 @@ Route decorators are the source of truth in `backend/app/api/routes/`, and API D
 - **Request model:** none (`lemma` path parameter).
 - **Response model:** `LemmaDetailsResponse`.
 - **Notable response behavior:**
+  - root payload may include `categories` for non-sectioned/root meaning badges.
   - root payload may include `verification` for non-sectioned/root targets.
+  - each `meaning_sections[]` item may include its own `categories`.
   - each `meaning_sections[]` item may include its own `verification`.
   - each `surface_forms[]` item may include its own `verification` for variation-scoped Gemini results.
   - for sectioned lemmas, top-level `surface_forms[]` may include the saved lemma form itself
@@ -222,6 +239,7 @@ Route decorators are the source of truth in `backend/app/api/routes/`, and API D
       "pos_tag": "VERB",
       "morphology": "Tense=Pres|VerbForm=Fin|Voice=Act",
       "is_sectioned": false,
+      "categories": ["Actions", "School"],
       "verification": {
         "status": "queued",
         "provider": "gemini",
@@ -270,6 +288,7 @@ Route decorators are the source of truth in `backend/app/api/routes/`, and API D
           "gloss_translation": "book",
           "pos_tag": "NOUN",
           "morphology": "Gender=Com|Number=Sing|Definite=Def",
+          "categories": ["Household Objects"],
           "verification": {
             "status": "verified",
             "provider": "gemini",

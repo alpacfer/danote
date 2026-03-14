@@ -4,22 +4,25 @@ import json
 import logging
 from dataclasses import asdict
 from pathlib import Path
-from typing import Literal
 
 from app.api.schemas.v1.wordbank import (
     ApplyVerificationChangesResponse,
+    RethinkCategoriesResponse,
     VerificationAction,
     VerificationResult,
     VerifyWordResponse,
 )
-from app.db.migrations import get_connection
 from app.db.repositories.wordbank import WordbankRepository
 from app.services.token_classifier import normalize_token
 from app.services.use_cases.wordbank.collaborators.cor import CorResolutionCollaborator
 from app.services.use_cases.wordbank.collaborators.nlp import NLPCollaborator
+from app.services.use_cases.wordbank.verification_input_builder import build_verification_input
 from app.services.use_cases.wordbank.verification_actions import apply_verification_action
 from app.services.use_cases.wordbank.verification_apply_resolution import (
     update_persisted_verification_after_apply,
+)
+from app.services.use_cases.wordbank.verification_categories import (
+    persist_category_labels_for_scope,
 )
 from app.services.use_cases.wordbank.verification_records import (
     now_utc_iso,
@@ -28,7 +31,6 @@ from app.services.use_cases.wordbank.verification_records import (
 from app.services.verification import (
     WordVerificationAction,
     WordVerificationInput,
-    WordVerificationMeaningSection,
     WordVerificationService,
 )
 
@@ -69,17 +71,19 @@ class VerificationCollaborator:
             stored_surface_form=normalized_surface,
             meaning_id=meaning_id,
         )
-        verification = self._verify_added_word(payload)
-        self._persist_verification_result(
+        verification, category_labels = self._verify_added_word(payload)
+        applied_categories = self._persist_verification_result(
             stored_lemma=normalized_lemma,
             meaning_id=meaning_id,
             stored_surface_form=normalized_surface,
             verification=verification,
+            category_labels=category_labels,
         )
         return VerifyWordResponse(
             stored_lemma=normalized_lemma,
             stored_surface_form=normalized_surface,
             verification=verification,
+            applied_categories=applied_categories,
         )
 
     def verify_added_word_if_current(
@@ -101,14 +105,67 @@ class VerificationCollaborator:
         )
         if self._verification_payload_hash(payload) != expected_snapshot_hash:
             return False
-        verification = self._verify_added_word(payload)
+        verification, category_labels = self._verify_added_word(payload)
         self._persist_verification_result(
             stored_lemma=normalized_lemma,
             meaning_id=meaning_id,
             stored_surface_form=normalized_surface,
             verification=verification,
+            category_labels=category_labels,
         )
         return True
+
+    def rethink_categories(
+        self,
+        stored_lemma: str,
+        stored_surface_form: str | None,
+        *,
+        meaning_id: int | None = None,
+    ) -> RethinkCategoriesResponse:
+        normalized_lemma = normalize_token(stored_lemma)
+        normalized_surface = normalize_token(stored_surface_form or "") or None
+        if not normalized_lemma:
+            raise ValueError("stored_lemma is required")
+        payload = self._build_verification_input(
+            stored_lemma=normalized_lemma,
+            stored_surface_form=normalized_surface,
+            meaning_id=meaning_id,
+        )
+        if self._verification_service is None:
+            return RethinkCategoriesResponse(
+                status="skipped",
+                stored_lemma=normalized_lemma,
+                stored_surface_form=normalized_surface,
+                meaning_id=meaning_id,
+                applied_categories=[],
+                message="Word categorization is disabled.",
+            )
+
+        try:
+            classification = self._verification_service.classify_word_categories(payload)
+        except Exception as exc:
+            return RethinkCategoriesResponse(
+                status="error",
+                stored_lemma=normalized_lemma,
+                stored_surface_form=normalized_surface,
+                meaning_id=meaning_id,
+                applied_categories=[],
+                message=f"Category rethink failed: {exc}",
+            )
+
+        applied_categories = self._persist_categories_for_scope(
+            stored_lemma=normalized_lemma,
+            meaning_id=meaning_id,
+            labels=list(getattr(classification, "categories", ()) or ()),
+        )
+        return RethinkCategoriesResponse(
+            status="updated",
+            stored_lemma=normalized_lemma,
+            stored_surface_form=normalized_surface,
+            meaning_id=meaning_id,
+            applied_categories=applied_categories,
+            message=_rethink_categories_message(normalized_lemma, applied_categories),
+        )
 
     def build_verification_snapshot_hash(
         self,
@@ -283,284 +340,29 @@ class VerificationCollaborator:
         stored_lemma: str,
         stored_surface_form: str | None,
         meaning_id: int | None,
-    ) -> WordVerificationInput:
-        lexeme_source = "manual"
-        selected_translation: str | None = None
-        selected_translation_scope: Literal["lemma", "meaning_section"] | None = None
-        surface_source: str | None = None
-        meaning_key: str | None = None
-        meaning_gloss: str | None = None
-        sibling_meaning_sections: list[WordVerificationMeaningSection] = []
-        lexeme_pos_tag: str | None = None
-        lexeme_morphology: str | None = None
-        selected_meaning_pos_tag: str | None = None
-        selected_meaning_morphology: str | None = None
-        selected_surface_pos_tag: str | None = None
-        selected_surface_morphology: str | None = None
-        selected_surface_row = None
-        surface_cor_entry = None
-        canonical_lemma_entry = None
-
-        with get_connection(self._db_path) as conn:
-            lexeme_row = conn.execute(
-                """
-                SELECT id, source, english_translation, pos_tag, morphology
-                FROM lexemes
-                WHERE lemma = ?
-                LIMIT 1
-                """,
-                (stored_lemma,),
-            ).fetchone()
-
-            if lexeme_row is not None:
-                lexeme_source = lexeme_row["source"]
-                lexeme_pos_tag = lexeme_row["pos_tag"]
-                lexeme_morphology = lexeme_row["morphology"]
-                meaning_rows = conn.execute(
-                    """
-                    SELECT id, meaning_key, cor_lemma_idx, gloss, english_translation, pos_tag, morphology
-                    FROM lexeme_meanings
-                    WHERE lexeme_id = ?
-                    ORDER BY id ASC
-                    """,
-                    (int(lexeme_row["id"]),),
-                ).fetchall()
-                surface_rows = conn.execute(
-                    """
-                    SELECT
-                        sf.form,
-                        sf.meaning_id,
-                        sf.source,
-                        sf.pos_tag,
-                        sf.morphology,
-                        (
-                            SELECT sfcv.cor_id
-                            FROM surface_form_cor_variants sfcv
-                            WHERE sfcv.surface_form_id = sf.id
-                            ORDER BY sfcv.id ASC
-                            LIMIT 1
-                        ) AS cor_id
-                    FROM surface_forms sf
-                    WHERE sf.lexeme_id = ?
-                    ORDER BY sf.id ASC
-                    """,
-                    (int(lexeme_row["id"]),),
-                ).fetchall()
-                forms_by_meaning: dict[int, list[str]] = {}
-                for row in surface_rows:
-                    if row["meaning_id"] is None:
-                        continue
-                    forms_by_meaning.setdefault(int(row["meaning_id"]), []).append(str(row["form"]))
-
-                meaning_row = self._load_meaning_row(
-                    conn,
-                    lexeme_id=int(lexeme_row["id"]),
-                    requested_meaning_id=meaning_id,
-                    normalized_lemma=stored_lemma,
-                )
-                if meaning_row is not None:
-                    selected_translation = meaning_row["english_translation"]
-                    selected_translation_scope = "meaning_section" if selected_translation else None
-                    meaning_key = meaning_row["meaning_key"]
-                    meaning_gloss = meaning_row["gloss"]
-                    selected_meaning_pos_tag = meaning_row["pos_tag"]
-                    selected_meaning_morphology = meaning_row["morphology"]
-                else:
-                    selected_translation = lexeme_row["english_translation"]
-                    selected_translation_scope = "lemma" if selected_translation else None
-
-                sibling_meaning_sections = [
-                    WordVerificationMeaningSection(
-                        id=int(row["id"]),
-                        meaning_key=str(row["meaning_key"]),
-                        gloss=row["gloss"],
-                        english_translation=row["english_translation"],
-                        pos_tag=row["pos_tag"],
-                        morphology=row["morphology"],
-                        surface_forms=tuple(forms_by_meaning.get(int(row["id"]), [])),
-                    )
-                    for row in meaning_rows
-                ]
-
-                if stored_surface_form:
-                    selected_surface_row = self._select_surface_row(
-                        surface_rows,
-                        stored_surface_form=stored_surface_form,
-                        meaning_id=meaning_id,
-                    )
-                    if selected_surface_row is not None:
-                        surface_source = selected_surface_row["source"]
-                        selected_surface_pos_tag = selected_surface_row["pos_tag"]
-                        selected_surface_morphology = selected_surface_row["morphology"]
-                        surface_cor_entry = self._cor.cor_local_entry_for_cor_id(
-                            cor_id=selected_surface_row["cor_id"]
-                        ) if selected_surface_row["cor_id"] else None
-
-                canonical_lemma_entry = self._resolve_canonical_lemma_entry(
-                    stored_lemma=stored_lemma,
-                    meaning_row=meaning_row,
-                    selected_surface_row=selected_surface_row,
-                    fallback_pos_tag=selected_meaning_pos_tag or lexeme_pos_tag,
-                )
-                if stored_surface_form and surface_cor_entry is None:
-                    surface_cor_entry = self._cor.best_cor_local_entry_for_form(
-                        form=stored_surface_form,
-                        lemma=stored_lemma,
-                        preferred_pos_tag=selected_surface_pos_tag or selected_meaning_pos_tag or lexeme_pos_tag,
-                    )
-
-        canonical_lemma_pos_tag, canonical_lemma_morphology = self._resolve_canonical_lemma_metadata(
-            stored_lemma=stored_lemma,
-            lexeme_pos_tag=lexeme_pos_tag,
-            lexeme_morphology=lexeme_morphology,
-            selected_meaning_pos_tag=selected_meaning_pos_tag,
-            selected_meaning_morphology=selected_meaning_morphology,
-            canonical_lemma_entry=canonical_lemma_entry,
-        )
-        if selected_meaning_pos_tag is None:
-            selected_meaning_pos_tag = canonical_lemma_entry.pos_tag if canonical_lemma_entry is not None else None
-        if selected_meaning_morphology is None:
-            selected_meaning_morphology = (
-                canonical_lemma_entry.morphology if canonical_lemma_entry is not None else None
-            )
-        if stored_surface_form and selected_surface_pos_tag is None:
-            selected_surface_pos_tag = surface_cor_entry.pos_tag if surface_cor_entry is not None else None
-        if stored_surface_form and selected_surface_morphology is None:
-            selected_surface_morphology = surface_cor_entry.morphology if surface_cor_entry is not None else None
-        if canonical_lemma_pos_tag is None or canonical_lemma_morphology is None:
-            inferred_lemma_pos_tag, inferred_lemma_morphology = self._nlp.extract_pos_and_morphology(stored_lemma)
-            canonical_lemma_pos_tag = canonical_lemma_pos_tag or inferred_lemma_pos_tag
-            canonical_lemma_morphology = canonical_lemma_morphology or inferred_lemma_morphology
-        if stored_surface_form and (selected_surface_pos_tag is None or selected_surface_morphology is None):
-            inferred_surface_pos_tag, inferred_surface_morphology = self._nlp.extract_pos_and_morphology(
-                stored_surface_form
-            )
-            selected_surface_pos_tag = selected_surface_pos_tag or inferred_surface_pos_tag
-            selected_surface_morphology = selected_surface_morphology or inferred_surface_morphology
-
-        return WordVerificationInput(
+    ):
+        return build_verification_input(
+            db_path=self._db_path,
+            nlp=self._nlp,
+            cor=self._cor,
             stored_lemma=stored_lemma,
             stored_surface_form=stored_surface_form,
             meaning_id=meaning_id,
-            meaning_key=meaning_key,
-            meaning_gloss=meaning_gloss,
-            lexeme_source=lexeme_source,
-            selected_translation=selected_translation,
-            selected_translation_scope=selected_translation_scope,
-            surface_source=surface_source,
-            canonical_lemma_pos_tag=canonical_lemma_pos_tag,
-            canonical_lemma_morphology=canonical_lemma_morphology,
-            selected_meaning_pos_tag=selected_meaning_pos_tag,
-            selected_meaning_morphology=selected_meaning_morphology,
-            selected_surface_pos_tag=selected_surface_pos_tag,
-            selected_surface_morphology=selected_surface_morphology,
-            sibling_meaning_sections=tuple(sibling_meaning_sections),
         )
-
-    def _select_surface_row(self, surface_rows, *, stored_surface_form: str, meaning_id: int | None):
-        for row in surface_rows:
-            if str(row["form"]) != stored_surface_form:
-                continue
-            row_meaning_id = int(row["meaning_id"]) if row["meaning_id"] is not None else None
-            if row_meaning_id == meaning_id:
-                return row
-        return None
-
-    def _resolve_canonical_lemma_entry(
-        self,
-        *,
-        stored_lemma: str,
-        meaning_row,
-        selected_surface_row,
-        fallback_pos_tag: str | None,
-    ):
-        cor_lemma_idx = int(meaning_row["cor_lemma_idx"]) if meaning_row is not None and meaning_row["cor_lemma_idx"] is not None else None
-        if cor_lemma_idx is not None:
-            entry = self._cor.best_cor_local_lemma_entry(
-                lemma_idx=cor_lemma_idx,
-                lemma=stored_lemma,
-                preferred_pos_tag=fallback_pos_tag,
-            )
-            if entry is not None:
-                return entry
-        if selected_surface_row is None or not selected_surface_row["cor_id"]:
-            return None
-        surface_entry = self._cor.cor_local_entry_for_cor_id(cor_id=str(selected_surface_row["cor_id"]))
-        if surface_entry is None:
-            return None
-        return self._cor.best_cor_local_lemma_entry(
-            lemma_idx=surface_entry.lemma_idx,
-            lemma=stored_lemma,
-            preferred_pos_tag=fallback_pos_tag or surface_entry.pos_tag,
-        )
-
-    def _resolve_canonical_lemma_metadata(
-        self,
-        *,
-        stored_lemma: str,
-        lexeme_pos_tag: str | None,
-        lexeme_morphology: str | None,
-        selected_meaning_pos_tag: str | None,
-        selected_meaning_morphology: str | None,
-        canonical_lemma_entry,
-    ) -> tuple[str | None, str | None]:
-        canonical_pos_tag = (
-            canonical_lemma_entry.pos_tag if canonical_lemma_entry is not None else None
-        ) or lexeme_pos_tag or selected_meaning_pos_tag
-        canonical_morphology = (
-            canonical_lemma_entry.morphology if canonical_lemma_entry is not None else None
-        ) or lexeme_morphology or selected_meaning_morphology
-        if canonical_pos_tag is not None and canonical_morphology is not None:
-            return canonical_pos_tag, canonical_morphology
-        inferred_pos_tag, inferred_morphology = self._nlp.extract_pos_and_morphology(stored_lemma)
-        return canonical_pos_tag or inferred_pos_tag, canonical_morphology or inferred_morphology
-
-    def _load_meaning_row(
-        self,
-        conn,
-        *,
-        lexeme_id: int,
-        requested_meaning_id: int | None,
-        normalized_lemma: str,
-    ):
-        if requested_meaning_id is not None:
-            meaning_row = conn.execute(
-                """
-                SELECT id, meaning_key, cor_lemma_idx, gloss, english_translation, pos_tag, morphology
-                FROM lexeme_meanings
-                WHERE id = ? AND lexeme_id = ?
-                LIMIT 1
-                """,
-                (requested_meaning_id, lexeme_id),
-            ).fetchone()
-            if meaning_row is None:
-                raise LookupError(f"Meaning '{requested_meaning_id}' was not found for '{normalized_lemma}'")
-            return meaning_row
-
-        meaning_rows = conn.execute(
-            """
-            SELECT id, meaning_key, cor_lemma_idx, gloss, english_translation, pos_tag, morphology
-            FROM lexeme_meanings
-            WHERE lexeme_id = ?
-            ORDER BY id ASC
-            LIMIT 2
-            """,
-            (lexeme_id,),
-        ).fetchall()
-        if len(meaning_rows) == 1:
-            return meaning_rows[0]
-        return None
 
     def _verify_added_word(
         self,
         payload: WordVerificationInput,
-    ) -> VerificationResult:
+    ) -> tuple[VerificationResult, list[str]]:
         if self._verification_service is None:
-            return VerificationResult(
-                status="skipped",
-                provider=None,
-                reviewer_role=None,
-                message="Word verification is disabled.",
+            return (
+                VerificationResult(
+                    status="skipped",
+                    provider=None,
+                    reviewer_role=None,
+                    message="Word verification is disabled.",
+                ),
+                [],
             )
 
         provider_name, reviewer_name = self._verification_metadata()
@@ -568,36 +370,42 @@ class VerificationCollaborator:
         try:
             verdict = self._verification_service.verify_word_entry(payload)
         except Exception as exc:
-            return VerificationResult(
-                status="error",
-                provider=provider_name,
-                reviewer_role=reviewer_name,
-                message=f"Verification task failed: {exc}",
-                composed_word_count=None,
-                stored_surface_form=payload.stored_surface_form,
-                requested_at=now_utc_iso(),
-                completed_at=now_utc_iso(),
-                problem=str(exc),
-                change_to_implement="Fix Gemini verification setup or provider errors, then run verification again.",
-                suggested_actions=[],
+            return (
+                VerificationResult(
+                    status="error",
+                    provider=provider_name,
+                    reviewer_role=reviewer_name,
+                    message=f"Verification task failed: {exc}",
+                    composed_word_count=None,
+                    stored_surface_form=payload.stored_surface_form,
+                    requested_at=now_utc_iso(),
+                    completed_at=now_utc_iso(),
+                    problem=str(exc),
+                    change_to_implement="Fix Gemini verification setup or provider errors, then run verification again.",
+                    suggested_actions=[],
+                ),
+                [],
             )
 
         completed_at = now_utc_iso()
-        return VerificationResult(
-            status=verdict.verdict,
-            provider=provider_name,
-            reviewer_role=reviewer_name,
-            message=verdict.message,
-            composed_word_count=getattr(verdict, "composed_word_count", None),
-            stored_surface_form=payload.stored_surface_form,
-            requested_at=completed_at,
-            completed_at=completed_at,
-            problem=getattr(verdict, "problem", None),
-            change_to_implement=getattr(verdict, "change_to_implement", None),
-            suggested_actions=[
-                _verification_action_to_schema(action)
-                for action in getattr(verdict, "suggested_actions", ()) or ()
-            ],
+        return (
+            VerificationResult(
+                status=verdict.verdict,
+                provider=provider_name,
+                reviewer_role=reviewer_name,
+                message=verdict.message,
+                composed_word_count=getattr(verdict, "composed_word_count", None),
+                stored_surface_form=payload.stored_surface_form,
+                requested_at=completed_at,
+                completed_at=completed_at,
+                problem=getattr(verdict, "problem", None),
+                change_to_implement=getattr(verdict, "change_to_implement", None),
+                suggested_actions=[
+                    _verification_action_to_schema(action)
+                    for action in getattr(verdict, "suggested_actions", ()) or ()
+                ],
+            ),
+            list(getattr(verdict, "categories", ()) or ()),
         )
 
     def _persist_verification_result(
@@ -607,11 +415,12 @@ class VerificationCollaborator:
         meaning_id: int | None,
         stored_surface_form: str | None,
         verification: VerificationResult,
-    ) -> None:
+        category_labels: list[str],
+    ) -> list[str]:
         repository = WordbankRepository(self._db_path)
         lexeme = repository.get_lexeme(stored_lemma)
         if lexeme is None:
-            return
+            return []
         record = repository.get_verification_record(
             lexeme_id=lexeme.id,
             meaning_id=meaning_id,
@@ -634,6 +443,31 @@ class VerificationCollaborator:
         )
         verification.requested_at = record.requested_at
         verification.completed_at = record.completed_at
+        if verification.status not in {"verified", "flagged"}:
+            return []
+        return self._persist_categories_for_scope(
+            stored_lemma=stored_lemma,
+            meaning_id=meaning_id,
+            labels=category_labels,
+        )
+
+    def _persist_categories_for_scope(
+        self,
+        *,
+        stored_lemma: str,
+        meaning_id: int | None,
+        labels: list[str],
+    ) -> list[str]:
+        repository = WordbankRepository(self._db_path)
+        lexeme = repository.get_lexeme(stored_lemma)
+        if lexeme is None:
+            raise LookupError(f"Lemma '{stored_lemma}' was not found")
+        return persist_category_labels_for_scope(
+            repository,
+            lexeme_id=lexeme.id,
+            meaning_id=meaning_id,
+            labels=labels,
+        )
 
     def _verification_payload_hash(self, payload: WordVerificationInput) -> str:
         serialized = {
@@ -657,3 +491,11 @@ def _verification_action_to_schema(action: WordVerificationAction) -> Verificati
         target_pos_tag=action.target_pos_tag,
         target_morphology=action.target_morphology,
     )
+
+
+def _rethink_categories_message(stored_lemma: str, applied_categories: list[str]) -> str:
+    if not applied_categories:
+        return f"Updated categories for '{stored_lemma}'. No categories are currently assigned."
+    if len(applied_categories) == 1:
+        return f"Updated categories for '{stored_lemma}' to {applied_categories[0]}."
+    return f"Updated categories for '{stored_lemma}'."

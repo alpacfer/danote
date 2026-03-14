@@ -100,20 +100,40 @@ class FakeVerificationService:
     provider = "gemini"
     reviewer_role = "Professional Danish Language Expert"
 
-    def __init__(self, verdict: str = "verified", message: str = "Entry is consistent."):
+    def __init__(
+        self,
+        verdict: str = "verified",
+        message: str = "Entry is consistent.",
+        *,
+        categories: tuple[str, ...] = (),
+        recategorized_categories: tuple[str, ...] | None = None,
+    ):
         self._verdict = verdict
         self._message = message
+        self._categories = categories
+        self._recategorized_categories = recategorized_categories
         self.calls = []
+        self.category_calls = []
 
     def verify_word_entry(self, payload):
         self.calls.append(payload)
 
         class Result:
-            def __init__(self, verdict: str, message: str):
+            def __init__(self, verdict: str, message: str, categories: tuple[str, ...]):
                 self.verdict = verdict
                 self.message = message
+                self.categories = categories
 
-        return Result(self._verdict, self._message)
+        return Result(self._verdict, self._message, self._categories)
+
+    def classify_word_categories(self, payload):
+        self.category_calls.append(payload)
+
+        class Result:
+            def __init__(self, categories: tuple[str, ...]):
+                self.categories = categories
+
+        return Result(self._recategorized_categories or self._categories)
 
 
 class FakeGeminiWordTranslationService:

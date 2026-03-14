@@ -22,6 +22,18 @@ class WordVerificationMeaningSection:
 
 
 @dataclass(frozen=True)
+class WordVerificationSurfaceForm:
+    form: str
+    meaning_id: int | None
+    meaning_key: str | None
+    gloss: str | None
+    english_translation: str | None
+    pos_tag: str | None
+    morphology: str | None
+    source: str | None
+
+
+@dataclass(frozen=True)
 class WordVerificationInput:
     stored_lemma: str
     stored_surface_form: str | None
@@ -38,7 +50,10 @@ class WordVerificationInput:
     selected_meaning_morphology: str | None
     selected_surface_pos_tag: str | None
     selected_surface_morphology: str | None
+    current_categories: tuple[str, ...] = ()
+    available_categories: tuple[str, ...] = ()
     sibling_meaning_sections: tuple[WordVerificationMeaningSection, ...] = ()
+    available_surface_forms: tuple[WordVerificationSurfaceForm, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -63,7 +78,13 @@ class WordVerificationResult:
     composed_word_count: int | None = None
     problem: str | None = None
     change_to_implement: str | None = None
+    categories: tuple[str, ...] = ()
     suggested_actions: tuple[WordVerificationAction, ...] = ()
+
+
+@dataclass(frozen=True)
+class WordCategoryClassificationResult:
+    categories: tuple[str, ...] = ()
 
 
 class WordVerificationService(Protocol):
@@ -71,6 +92,7 @@ class WordVerificationService(Protocol):
     reviewer_role: str
 
     def verify_word_entry(self, payload: WordVerificationInput) -> WordVerificationResult: ...
+    def classify_word_categories(self, payload: WordVerificationInput) -> WordCategoryClassificationResult: ...
 
 
 @dataclass
@@ -127,6 +149,7 @@ class GeminiWordVerificationService:
         change_to_implement = (
             parsed.get("change_to_implement") if isinstance(parsed.get("change_to_implement"), str) else None
         )
+        categories = tuple(self._parse_categories(parsed, payload.available_categories))
         suggested_actions = tuple(self._parse_suggested_actions(parsed.get("suggested_actions")))
 
         if verdict == "incorrect":
@@ -139,13 +162,92 @@ class GeminiWordVerificationService:
                     change_to_implement
                     or "Review the suggested action list and apply the change that makes lemma, meaning section, and forms coherent."
                 ),
+                categories=categories,
                 suggested_actions=suggested_actions,
             )
-        return WordVerificationResult(verdict="verified", message="OK", composed_word_count=word_count)
+        return WordVerificationResult(
+            verdict="verified",
+            message="OK",
+            composed_word_count=word_count,
+            categories=categories,
+        )
+
+    def classify_word_categories(self, payload: WordVerificationInput) -> WordCategoryClassificationResult:
+        raw = self._generate_text(self._category_prompt(payload))
+        if not raw:
+            return WordCategoryClassificationResult(categories=tuple())
+        parsed = self._parse_response(raw)
+        return WordCategoryClassificationResult(
+            categories=tuple(self._parse_categories(parsed, payload.available_categories)),
+        )
 
     def _verification_prompt(self, payload: WordVerificationInput) -> str:
-        entry = {
+        entry = self._scope_context(payload)
+        return (
+            "You are a Professional Danish Language Expert.\n"
+            "Review the current wordbank entry using the model lemma page -> meaning sections -> surface forms.\n"
+            "Translations belong to the lemma or a meaning section only. Surface forms do not carry independent translations.\n"
+            "Meaning glosses are immutable COR labels used only to disambiguate senses. Never suggest editing a gloss.\n"
+            "Treat canonical lemma metadata separately from the selected surface-form metadata.\n"
+            "Use all provided context together: lemma, reviewed scope, gloss, translation scope, morphology, saved surface forms, and sibling meaning sections.\n"
+            "Classify the reviewed word meaning into broad semantic categories.\n"
+            "Count if the reviewed entry is composed of multiple words.\n"
+            "Return JSON only.\n"
+            "{"
+            '"verdict":"correct|incorrect",'
+            '"word_count":0,'
+            '"problem":"...",'
+            '"change_to_implement":"...",'
+            '"existing_categories":["..."],'
+            '"new_categories":["..."],'
+            '"suggested_actions":['
+            '{"action_type":"fix_translation","reason":"...","english_translation":"..."},'
+            '{"action_type":"move_to_meaning_section","reason":"...","target_meaning_id":0},'
+            '{"action_type":"move_to_lemma","reason":"...","target_lemma":"...",'
+            '"target_meaning_key":"...","target_gloss":"...",'
+            '"target_english_translation":"...","target_pos_tag":"...",'
+            '"target_morphology":"..."}'
+            "]}\n"
+            "Rules:\n"
+            "- Use only these three action types: fix_translation, move_to_meaning_section, move_to_lemma.\n"
+            "- If verdict=correct, return suggested_actions as [].\n"
+            "- existing_categories must be chosen from available_categories.\n"
+            "- existing_categories may include multiple items, but never duplicates.\n"
+            "- You may return up to 3 broad new_categories when they are genuinely useful. Otherwise return [] or omit the field.\n"
+            "- New categories must be broad, reusable, and user-facing. Never return morphology, part-of-speech, or overly narrow labels.\n"
+            "- If action_type=move_to_meaning_section, target_meaning_id must be one of the available meaning ids.\n"
+            "- If action_type=move_to_lemma, include target_lemma and target_meaning_key.\n"
+            "- Never propose gloss edits; use gloss only to identify the intended meaning section.\n"
+            "- Discard no uncertainty into prose; use reason and structured fields instead.\n"
+            f"Entry:\n{json.dumps(entry, ensure_ascii=False)}"
+        )
+
+    def _category_prompt(self, payload: WordVerificationInput) -> str:
+        entry = self._scope_context(payload)
+        return (
+            "You are a Professional Danish Language Expert.\n"
+            "Review the current wordbank scope and classify it into broad semantic categories.\n"
+            "Use all provided context together: lemma, reviewed scope, gloss, translation scope, morphology, saved surface forms, and sibling meaning sections.\n"
+            "Treat categories as reusable user-facing groups for many related words.\n"
+            "Prefer matching existing categories whenever they fit.\n"
+            "Return JSON only.\n"
+            "{"
+            '"existing_categories":["..."],'
+            '"new_categories":["..."]'
+            "}\n"
+            "Rules:\n"
+            "- existing_categories must be chosen from available_categories.\n"
+            "- existing_categories may include multiple items, but never duplicates.\n"
+            "- You may return up to 3 broad new_categories when they are genuinely useful.\n"
+            "- New categories must be broad, reusable, and user-facing. Never return morphology, part-of-speech, or overly narrow labels.\n"
+            "- If existing categories fully cover the scope, return new_categories as [] or omit it.\n"
+            f"Entry:\n{json.dumps(entry, ensure_ascii=False)}"
+        )
+
+    def _scope_context(self, payload: WordVerificationInput) -> dict[str, object]:
+        return {
             "current_entry": {
+                "scope_type": "meaning_section" if payload.meaning_id is not None else "lemma_root",
                 "lemma": payload.stored_lemma,
                 "surface_form": payload.stored_surface_form,
                 "meaning_id": payload.meaning_id,
@@ -161,7 +263,9 @@ class GeminiWordVerificationService:
                 "selected_meaning_morphology": payload.selected_meaning_morphology,
                 "selected_surface_pos_tag": payload.selected_surface_pos_tag,
                 "selected_surface_morphology": payload.selected_surface_morphology,
+                "current_categories": list(payload.current_categories),
             },
+            "available_categories": list(payload.available_categories),
             "available_meaning_sections": [
                 {
                     "id": section.id,
@@ -174,37 +278,20 @@ class GeminiWordVerificationService:
                 }
                 for section in payload.sibling_meaning_sections
             ],
+            "available_surface_forms": [
+                {
+                    "form": form.form,
+                    "meaning_id": form.meaning_id,
+                    "meaning_key": form.meaning_key,
+                    "gloss": form.gloss,
+                    "english_translation": form.english_translation,
+                    "pos_tag": form.pos_tag,
+                    "morphology": form.morphology,
+                    "source": form.source,
+                }
+                for form in payload.available_surface_forms
+            ],
         }
-        return (
-            "You are a Professional Danish Language Expert.\n"
-            "Review the current wordbank entry using the model lemma page -> meaning sections -> surface forms.\n"
-            "Translations belong to the lemma or a meaning section only. Surface forms do not carry independent translations.\n"
-            "Meaning glosses are immutable COR labels used only to disambiguate senses. Never suggest editing a gloss.\n"
-            "Treat canonical lemma metadata separately from the selected surface-form metadata.\n"
-            "Count if the reviewed entry is composed of multiple words.\n"
-            "Return JSON only.\n"
-            "{"
-            '"verdict":"correct|incorrect",'
-            '"word_count":0,'
-            '"problem":"...",'
-            '"change_to_implement":"...",'
-            '"suggested_actions":['
-            '{"action_type":"fix_translation","reason":"...","english_translation":"..."},'
-            '{"action_type":"move_to_meaning_section","reason":"...","target_meaning_id":0},'
-            '{"action_type":"move_to_lemma","reason":"...","target_lemma":"...",'
-            '"target_meaning_key":"...","target_gloss":"...",'
-            '"target_english_translation":"...","target_pos_tag":"...",'
-            '"target_morphology":"..."}'
-            "]}\n"
-            "Rules:\n"
-            "- Use only these three action types: fix_translation, move_to_meaning_section, move_to_lemma.\n"
-            "- If verdict=correct, return suggested_actions as [].\n"
-            "- If action_type=move_to_meaning_section, target_meaning_id must be one of the available meaning ids.\n"
-            "- If action_type=move_to_lemma, include target_lemma and target_meaning_key.\n"
-            "- Never propose gloss edits; use gloss only to identify the intended meaning section.\n"
-            "- Discard no uncertainty into prose; use reason and structured fields instead.\n"
-            f"Entry:\n{json.dumps(entry, ensure_ascii=False)}"
-        )
 
     def _parse_response(self, raw: str) -> dict[str, object]:
         cleaned = raw.strip()
@@ -235,9 +322,58 @@ class GeminiWordVerificationService:
             out["problem"] = parsed["problem"]
         if isinstance(parsed.get("change_to_implement"), str):
             out["change_to_implement"] = parsed["change_to_implement"]
+        if isinstance(parsed.get("existing_categories"), list):
+            out["existing_categories"] = parsed["existing_categories"]
+        if isinstance(parsed.get("new_categories"), list):
+            out["new_categories"] = parsed["new_categories"]
+        if parsed.get("new_category") is None or isinstance(parsed.get("new_category"), str):
+            out["new_category"] = parsed.get("new_category")
         if isinstance(parsed.get("suggested_actions"), list):
             out["suggested_actions"] = parsed["suggested_actions"]
         return out
+
+    def _parse_categories(
+        self,
+        parsed: dict[str, object],
+        available_categories: tuple[str, ...],
+    ) -> list[str]:
+        available_lookup = {
+            " ".join(label.strip().split()).casefold(): label
+            for label in available_categories
+        }
+        categories: list[str] = []
+        seen: set[str] = set()
+        raw_existing = parsed.get("existing_categories")
+        if isinstance(raw_existing, list):
+            for item in raw_existing:
+                if not isinstance(item, str):
+                    continue
+                normalized = " ".join(item.strip().split()).casefold()
+                if not normalized or normalized in seen:
+                    continue
+                matched = available_lookup.get(normalized)
+                if matched is None:
+                    continue
+                seen.add(normalized)
+                categories.append(matched)
+        raw_new_categories = parsed.get("new_categories")
+        if isinstance(raw_new_categories, list):
+            for item in raw_new_categories[:3]:
+                if not isinstance(item, str):
+                    continue
+                normalized_new = " ".join(item.strip().split())
+                normalized_key = normalized_new.casefold()
+                if not normalized_new or normalized_key in seen or normalized_key in available_lookup:
+                    continue
+                seen.add(normalized_key)
+                categories.append(normalized_new)
+        elif isinstance(parsed.get("new_category"), str):
+            normalized_new = " ".join(str(parsed["new_category"]).strip().split())
+            normalized_key = normalized_new.casefold()
+            if normalized_new and normalized_key not in seen and normalized_key not in available_lookup:
+                seen.add(normalized_key)
+                categories.append(normalized_new)
+        return categories
 
     def _parse_suggested_actions(self, raw: object) -> list[WordVerificationAction]:
         if not isinstance(raw, list):

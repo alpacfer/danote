@@ -40,6 +40,23 @@ def test_wordbank_use_case_round_trip(tmp_path: Path) -> None:
     assert listing.items[0].variation_count == 1
     assert listing.items[0].english_translation is None
 
+
+def test_wordbank_starter_categories_are_seeded_once(tmp_path: Path) -> None:
+    db_path = _db_path(tmp_path)
+    _ = WordbankUseCase(db_path)
+
+    with get_connection(db_path) as conn:
+        count_before = conn.execute("SELECT COUNT(*) AS count FROM wordbank_categories").fetchone()
+    assert count_before is not None
+    assert count_before["count"] == 20
+
+    _ = WordbankUseCase(db_path)
+
+    with get_connection(db_path) as conn:
+        count_after = conn.execute("SELECT COUNT(*) AS count FROM wordbank_categories").fetchone()
+    assert count_after is not None
+    assert count_after["count"] == 20
+
 def test_wordbank_use_case_facade_delegates_across_extracted_workflows(tmp_path: Path) -> None:
     use_case = WordbankUseCase(
         _db_path(tmp_path),

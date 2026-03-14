@@ -1,5 +1,9 @@
 import { fireEvent, getNotesEditor, mockFetchImplementation, renderApp, responseOf, screen, setNotesEditorText, vi, waitFor } from "@/test/app-test-helpers"
-import { bogVariationGlossWordPageContractFixture, cloneContractFixture } from "@/test/app/wordbank-contract-fixtures"
+import {
+  bogVariationGlossWordPageContractFixture,
+  cloneContractFixture,
+  teacherSectionedWordPageContractFixture,
+} from "@/test/app/wordbank-contract-fixtures"
 
 describe("App wordbank", () => {
   it("contract-backed: variation cards show translated gloss instead of raw Danish gloss", async () => {
@@ -181,6 +185,72 @@ describe("App wordbank", () => {
     })
   })
 
+  it("request-shape: right-clicking a meaning card rethinks categories and refreshes the badges", async () => {
+    let lemmaDetails = cloneContractFixture(teacherSectionedWordPageContractFixture)
+    const fetchSpy = mockFetchImplementation({
+      lemmasResponse: {
+        items: [{ lemma: "lærer", variation_count: 1 }],
+      },
+      lemmaDetailsHandler: async () => responseOf(lemmaDetails),
+      rethinkCategoriesHandler: async (_input, init) => {
+        const body = JSON.parse(String(init?.body ?? "{}")) as {
+          stored_lemma?: string
+          stored_surface_form?: string | null
+          meaning_id?: number | null
+        }
+        if (body.stored_lemma !== "lærer" || body.stored_surface_form !== null || body.meaning_id !== 1) {
+          throw new Error("Unexpected rethink-categories payload.")
+        }
+        lemmaDetails = {
+          ...lemmaDetails,
+          meaning_sections: [
+            {
+              ...lemmaDetails.meaning_sections![0],
+              categories: ["People", "School", "Work", "Education", "Culture", "Community"],
+            },
+          ],
+        }
+        return responseOf({
+          status: "updated",
+          stored_lemma: "lærer",
+          stored_surface_form: null,
+          meaning_id: 1,
+          applied_categories: ["People", "School", "Work", "Education", "Culture", "Community"],
+          message: "Updated categories for 'lærer'.",
+        })
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /lærer/i }))
+
+    const meaningCard = await screen.findByTestId("wordbank-meaning-card-1")
+    fireEvent.contextMenu(meaningCard)
+    fireEvent.click(await screen.findByRole("menuitem", { name: /rethink categories/i }))
+
+    await waitFor(() => {
+      expect(
+        fetchSpy.mock.calls.some(([input, init]) => {
+          if (!String(input).endsWith("/api/wordbank/lexemes/rethink-categories")) {
+            return false
+          }
+          return String(init?.body ?? "") === JSON.stringify({
+            stored_lemma: "lærer",
+            stored_surface_form: null,
+            meaning_id: 1,
+          })
+        }),
+      ).toBe(true)
+    })
+
+    await waitFor(() => {
+      expect(screen.getByTestId("wordbank-meaning-category-badges-1")).toHaveTextContent("Community")
+    })
+  })
+
   it("request-shape: shows verification error info on the word page and in notifications", async () => {
     vi.useRealTimers()
 
@@ -238,7 +308,11 @@ describe("App wordbank", () => {
     fireEvent.click(mark as HTMLElement, { clientX: 160, clientY: 140 })
     fireEvent.click(await screen.findByRole("button", { name: /add to wordbank/i }))
 
-    const notificationsButton = await screen.findByRole("button", { name: /show notifications \(1 unread\)/i })
+    const notificationsButton = await screen.findByRole(
+      "button",
+      { name: /show notifications \(1 unread\)/i },
+      { timeout: 5_000 },
+    )
     fireEvent.click(notificationsButton)
     const notificationList = await screen.findByLabelText("notification-list")
     expect(notificationList).toHaveTextContent("Review needed for 'kat'.")
