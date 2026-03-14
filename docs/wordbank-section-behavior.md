@@ -1,14 +1,14 @@
 # Wordbank section behavior deep dive
 
-This document describes the current, exact behavior of the **Wordbank section** in the frontend UI, including list mode, details mode, meaning sections, pronunciation flows, and Gemini verification interactions.
+This document describes the current, exact behavior of the **Wordbank section** in the frontend UI, including list mode, the lemma **word page**, meaning sections, pronunciation flows, and Gemini verification interactions.
 
 ## Entry points and ownership
 
-- Section switch (list vs details): `frontend/src/app/sections/wordbank-section.tsx`
+- Section switch (list vs word page): `frontend/src/app/sections/wordbank-section.tsx`
 - Wordbank data loading and detail fetches: `frontend/src/app/hooks/use-lexicon-data.ts`
 - Wordbank workflows (add/pronunciation/verification wiring): `frontend/src/app/hooks/use-wordbank-workflows.ts`
-- Details view composition:
-  - `frontend/src/app/sections/wordbank/wordbank-details-view.tsx`
+- Word page composition:
+  - `frontend/src/app/sections/wordbank/wordbank-word-page.tsx`
   - `frontend/src/app/sections/wordbank/wordbank-lemma-header.tsx`
   - `frontend/src/app/sections/wordbank/wordbank-verification-popover.tsx`
   - `frontend/src/app/sections/wordbank/wordbank-meaning-sections.tsx`
@@ -21,9 +21,9 @@ This document describes the current, exact behavior of the **Wordbank section** 
 The Wordbank section has two UI modes:
 
 1. **List mode** when no lemma is selected.
-2. **Details mode** when a lemma is selected.
+2. **Word page mode** when a lemma is selected.
 
-`WordbankSection` makes this switch purely from `selectedLemma`: no lemma => `WordbankListView`, otherwise `WordbankDetailsView`.
+`WordbankSection` makes this switch purely from `selectedLemma`: no lemma => `WordbankListView`, otherwise `WordbankWordPage`.
 
 ## Data loading lifecycle
 
@@ -70,9 +70,9 @@ Per-lemma chip behavior:
 - Unread verification markers:
   - unread `1` => small dot indicator
   - unread `>1` => numeric badge pill
-- Clicking a chip calls `onSelectLemma(lemma)` and moves to details mode.
+- Clicking a chip calls `onSelectLemma(lemma)` and opens that lemma's word page.
 
-## Details mode behavior (WordbankDetailsView)
+## Word page behavior (WordbankWordPage)
 
 Primary flow:
 
@@ -145,7 +145,7 @@ Meaning auto-scroll behavior:
   - ordinal badge (1-based index)
   - lemma label
   - section-level badges from section POS/morphology
-  - optional combined translation line (`english_translation + gloss_translation`) only when a real English translation exists
+  - optional combined translation line in `translation, gloss translation` format when a real English translation exists
   - gloss translation is supplemental disambiguation text; it does not replace a missing translation
 - Surface forms under each meaning:
   - rendered in a divided list
@@ -251,6 +251,7 @@ Pronunciation behavior is shared by header + section rows + variation rows.
   - lemma/root and newly created meaning-section tags come from the canonical COR lemma when `cor_lemma_idx` is available
   - the stored selected surface form keeps the chosen variant tags from the search result
   - saved `english_translation` comes only from the COR lemma translation; gloss translation remains separate disambiguation context
+  - the word page now computes and returns gloss translations for search-saved meaning sections too, so homograph meanings can render `translation, gloss translation`
   - only the selected surface form is stored; search save does not hydrate the full paradigm into wordbank
 
 ## Behavioral test coverage map

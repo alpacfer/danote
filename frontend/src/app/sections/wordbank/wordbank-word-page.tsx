@@ -6,7 +6,7 @@ import { WordbankMeaningSections } from "@/app/sections/wordbank/wordbank-meanin
 import { WordbankVariationGrid } from "@/app/sections/wordbank/wordbank-variation-grid"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
-type WordbankDetailsViewProps = Pick<
+type WordbankWordPageProps = Pick<
   WordbankSectionProps,
   | "selectedLemma"
   | "selectedMeaningId"
@@ -26,7 +26,7 @@ type WordbankDetailsViewProps = Pick<
   | "onApplySelectedLemmaVerificationAction"
 >
 
-export function WordbankDetailsView({
+export function WordbankWordPage({
   selectedLemma,
   selectedMeaningId,
   lemmaDetails,
@@ -43,7 +43,7 @@ export function WordbankDetailsView({
   hasSuggestedVerificationActions,
   isApplyingVerificationChanges,
   onApplySelectedLemmaVerificationAction,
-}: WordbankDetailsViewProps) {
+}: WordbankWordPageProps) {
   const normalizedSelectedLemma = (lemmaDetails?.lemma ?? selectedLemma ?? "").trim().toLocaleLowerCase("da-DK")
   const variationForms = (lemmaDetails?.surface_forms ?? []).filter(
     (form) => form.form.trim().toLocaleLowerCase("da-DK") !== normalizedSelectedLemma,

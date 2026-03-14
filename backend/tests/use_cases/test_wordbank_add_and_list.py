@@ -601,3 +601,81 @@ def test_wordbank_search_seed_repeat_save_repairs_surface_derived_meaning_metada
     assert details.morphology == "Gender=Com|Number=Sing|Definite=Ind"
     assert details.meaning_sections[0].morphology == "Gender=Com|Number=Sing|Definite=Ind"
     assert details.meaning_sections[0].surface_forms[0].morphology == "Gender=Com|Number=Plur|Definite=Ind"
+
+
+def test_word_page_search_seed_meanings_include_gloss_translation(tmp_path: Path) -> None:
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_local_lexicon_service=FakeCORLocalLexiconService(
+            by_lemma_idx={
+                123: [
+                    _cor_local_entry(
+                        cor_id="COR.BOG.READING.LEM",
+                        lemma="bog",
+                        gloss="til læsning",
+                        form="bog",
+                        lemma_idx=123,
+                        pos_tag="NOUN",
+                        morphology="Gender=Com|Number=Sing|Definite=Ind",
+                        gram_raw="sb.fk.sg.ubest",
+                    ),
+                ],
+                124: [
+                    _cor_local_entry(
+                        cor_id="COR.BOG.BEECHMAST.LEM",
+                        lemma="bog",
+                        gloss="frugt fra et bøgetræ",
+                        form="bog",
+                        lemma_idx=124,
+                        pos_tag="NOUN",
+                        morphology="Gender=Neut|Number=Sing|Definite=Ind",
+                        gram_raw="sb.itk.sg.ubest",
+                    ),
+                ],
+            },
+        ),
+        translation_service=FakeTranslationService({
+            "til læsning": "for reading",
+            "frugt fra et bøgetræ": "fruit from a beech tree",
+        }),
+    )
+
+    use_case.add_word(
+        "bog",
+        "bog",
+        search_seed={
+            "lemma": "bog",
+            "surface": "bog",
+            "cor_id": "COR.BOG.READING.LEM",
+            "cor_lemma_idx": 123,
+            "meaning_key": "for-reading",
+            "gloss": "til læsning",
+            "english_translation": "book",
+            "pos_tag": "NOUN",
+            "morphology": "Gender=Com|Number=Sing|Definite=Ind",
+        },
+    )
+    use_case.add_word(
+        "bog",
+        "bog",
+        search_seed={
+            "lemma": "bog",
+            "surface": "bog",
+            "cor_id": "COR.BOG.BEECHMAST.LEM",
+            "cor_lemma_idx": 124,
+            "meaning_key": "beechmast",
+            "gloss": "frugt fra et bøgetræ",
+            "english_translation": "beechmast",
+            "pos_tag": "NOUN",
+            "morphology": "Gender=Neut|Number=Sing|Definite=Ind",
+        },
+    )
+
+    details = use_case.get_lemma_details("bog")
+
+    assert details.is_sectioned is True
+    assert [section.english_translation for section in details.meaning_sections] == ["book", "beechmast"]
+    assert [section.gloss_translation for section in details.meaning_sections] == [
+        "for reading",
+        "fruit from a beech tree",
+    ]

@@ -96,6 +96,7 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
             if row.form == lexeme.lemma
         ]
     )
+    gloss_translation_cache: dict[tuple[str, str, str | None, str | None, str, str | None, str | None], str | None] = {}
 
     return LemmaDetailsResponse(
         lemma=lexeme.lemma,
@@ -110,7 +111,13 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
                 meaning_key=meaning.meaning_key,
                 gloss=meaning.gloss,
                 english_translation=meaning.english_translation,
-                gloss_translation=None,
+                gloss_translation=_meaning_gloss_translation(
+                    runtime,
+                    lexeme_lemma=lexeme.lemma,
+                    lexeme_pos_tag=lexeme.pos_tag,
+                    meaning=meaning,
+                    cache=gloss_translation_cache,
+                ),
                 pos_tag=meaning.pos_tag,
                 morphology=meaning.morphology,
                 verification=verification_records.get(meaning.id),
