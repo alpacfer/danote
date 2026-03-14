@@ -256,9 +256,10 @@ Pronunciation behavior is shared by header + section rows + variation rows.
 
 ## Behavioral test coverage map
 
-The behaviors above are exercised across wordbank-focused UI tests:
+The behaviors above are exercised across wordbank-focused tests with explicit roles:
 
-- `frontend/src/test/app/app-wordbank-details.test.tsx`
-- `frontend/src/test/app/app-wordbank-actions.test.tsx`
-- `frontend/src/test/app/app-shell-search-actions.test.tsx` (search-to-wordbank transitions)
-- `frontend/src/test/app/app-shell-search-ranking-order.test.tsx` (open selected meaning from search)
+- `renderer-only`: `frontend/src/test/app/app-wordbank-details.test.tsx`, `frontend/src/test/app/app-wordbank-actions.test.tsx`
+- `request-shape`: `frontend/src/test/app/app-shell-search-actions.test.tsx`
+- `contract`: `backend/tests/use_cases/test_wordbank_translation_details.py`, `backend/tests/api/test_wordbank_add_and_list_endpoint.py`
+- `round-trip`: `backend/tests/use_cases/test_wordbank_add_and_list.py`, `backend/tests/api/test_wordbank_add_and_list_endpoint.py`
+- shared contract fixtures for the frontend word page/search assertions live in `frontend/src/test/app/wordbank-contract-fixtures.ts`

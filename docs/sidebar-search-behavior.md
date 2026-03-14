@@ -208,6 +208,10 @@ The search behavior above is validated by dedicated app-shell tests:
   - `frontend/src/test/app/app-shell-search-actions.test.tsx`
 - Error handling:
   - `frontend/src/test/app/app-shell-search-errors.test.tsx`
+- Wordbank/Search semantic contract coverage:
+  - `backend/tests/api/test_wordbank_add_and_list_endpoint.py`
+  - `backend/tests/use_cases/test_wordbank_add_and_list.py`
+  - frontend search hydration/polling tests consume typed fixtures from `frontend/src/test/app/wordbank-contract-fixtures.ts`
 - Ranking/order:
   - `frontend/src/test/app/app-shell-search-ranking-order.test.tsx`
   - `frontend/src/test/app/app-shell-search-ranking-selection.test.tsx`

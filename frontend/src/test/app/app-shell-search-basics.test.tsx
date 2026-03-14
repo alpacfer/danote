@@ -1,4 +1,5 @@
 import { fireEvent, getNotesEditor, mockFetchImplementation, renderApp, screen, seedSavedNotes, waitFor, within } from "@/test/app-test-helpers"
+import { bogVariationGlossWordPageContractFixture, cloneContractFixture } from "@/test/app/wordbank-contract-fixtures"
 
 describe("App shell and search", () => {
   it("renders header, lesson notes card, and backend status badge", async () => {
@@ -73,6 +74,7 @@ describe("App shell and search", () => {
           },
         ],
       },
+      lemmaDetailsResponse: cloneContractFixture(bogVariationGlossWordPageContractFixture),
     })
     seedSavedNotes([
         {
@@ -128,6 +130,7 @@ describe("App shell and search", () => {
           },
         ],
       },
+      lemmaDetailsResponse: cloneContractFixture(bogVariationGlossWordPageContractFixture),
     })
 
     renderApp()

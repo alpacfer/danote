@@ -8,7 +8,12 @@ from app.core.app_state import set_service_field
 from app.db.migrations import apply_migrations, get_connection
 from app.main import create_app
 from app.services.verification import WordVerificationAction
-from tests.api.wordbank_test_support import build_test_settings, seed_cor_local_bog_senses, seed_cor_local_db
+from tests.api.wordbank_test_support import (
+    build_test_settings,
+    seed_cor_local_bog_senses,
+    seed_cor_local_db,
+    seed_cor_local_word_page_gloss_cases,
+)
 
 
 def test_add_word_inserts_lemma_and_surface_form(tmp_path, stub_nlp_adapter_factory) -> None:
@@ -494,7 +499,10 @@ def test_wordbank_endpoints_require_reset_for_legacy_non_verb_rows(tmp_path, stu
     assert "reset the database" in add_response.json()["detail"].lower()
 
 
-def test_add_word_search_seed_returns_saved_snapshot_and_stores_only_selected_surface(tmp_path, stub_nlp_adapter_factory) -> None:
+def test_contract_add_word_search_seed_returns_saved_snapshot_and_stores_only_selected_surface(
+    tmp_path,
+    stub_nlp_adapter_factory,
+) -> None:
     db_path = tmp_path / "danote.sqlite3"
     cor_db_path = tmp_path / "cor.sqlite"
     apply_migrations(db_path)
@@ -546,6 +554,122 @@ def test_add_word_search_seed_returns_saved_snapshot_and_stores_only_selected_su
             ("lærer",),
         ).fetchall()
     assert [str(row["form"]) for row in rows] == ["lærere"]
+
+
+def test_contract_search_seed_saved_snapshot_and_word_page_include_gloss_translation_for_homographs(
+    tmp_path,
+    stub_nlp_adapter_factory,
+) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    cor_db_path = tmp_path / "cor.sqlite"
+    apply_migrations(db_path)
+    seed_cor_local_word_page_gloss_cases(cor_db_path)
+    app = create_app(
+        build_test_settings(db_path, cor_local_db_path=cor_db_path),
+        nlp_adapter_factory=stub_nlp_adapter_factory,
+    )
+
+    class StubTranslationService:
+        def translate_da_to_en(self, text: str) -> str | None:
+            return {
+                "til læsning": "for reading",
+                "frugt fra et bøgetræ": "fruit from a beech tree",
+            }.get(text)
+
+    with TestClient(app) as client:
+        set_service_field(client.app, "translation_service", StubTranslationService())
+        first = client.post(
+            "/api/wordbank/lexemes",
+            json={
+                "surface_token": "bog",
+                "lemma_candidate": "bog",
+                "search_seed": {
+                    "lemma": "bog",
+                    "surface": "bog",
+                    "cor_id": "COR.BOG.READING.LEM",
+                    "cor_lemma_idx": 123,
+                    "meaning_key": "for-reading",
+                    "gloss": "til læsning",
+                    "english_translation": "book",
+                    "pos_tag": "NOUN",
+                    "morphology": "Gender=Com|Number=Sing|Definite=Ind",
+                },
+            },
+        )
+        second = client.post(
+            "/api/wordbank/lexemes",
+            json={
+                "surface_token": "bog",
+                "lemma_candidate": "bog",
+                "search_seed": {
+                    "lemma": "bog",
+                    "surface": "bog",
+                    "cor_id": "COR.BOG.BEECHMAST.LEM",
+                    "cor_lemma_idx": 124,
+                    "meaning_key": "beechmast",
+                    "gloss": "frugt fra et bøgetræ",
+                    "english_translation": "beechmast",
+                    "pos_tag": "NOUN",
+                    "morphology": "Gender=Neut|Number=Sing|Definite=Ind",
+                },
+            },
+        )
+        details = client.get("/api/wordbank/lemmas/bog")
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert details.status_code == 200
+    first_snapshot = first.json()["saved_snapshot"]
+    assert first_snapshot["meaning_sections"][0]["english_translation"] == "book"
+    assert first_snapshot["meaning_sections"][0]["gloss_translation"] == "for reading"
+    sections = details.json()["meaning_sections"]
+    assert [section["english_translation"] for section in sections] == ["book", "beechmast"]
+    assert [section["gloss_translation"] for section in sections] == [
+        "for reading",
+        "fruit from a beech tree",
+    ]
+
+
+def test_contract_word_page_details_keep_translation_and_translated_gloss_for_mor_homographs(
+    tmp_path,
+    stub_nlp_adapter_factory,
+) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    cor_db_path = tmp_path / "cor.sqlite"
+    apply_migrations(db_path)
+    seed_cor_local_word_page_gloss_cases(cor_db_path)
+    app = create_app(
+        build_test_settings(db_path, cor_local_db_path=cor_db_path),
+        nlp_adapter_factory=stub_nlp_adapter_factory,
+    )
+
+    class StubTranslationService:
+        def translate_da_to_en(self, text: str) -> str | None:
+            return {
+                "en mor": "a mother",
+                "person": "person",
+                "jordlag": "soil layer",
+            }.get(text)
+
+    with TestClient(app) as client:
+        set_service_field(client.app, "translation_service", StubTranslationService())
+        first = client.post(
+            "/api/wordbank/lexemes",
+            json={"surface_token": "Mor", "lemma_candidate": "mor", "cor_id": "COR.MOR.PERSON.LEM"},
+        )
+        second = client.post(
+            "/api/wordbank/lexemes",
+            json={"surface_token": "Mor", "lemma_candidate": "mor", "cor_id": "COR.MOR.SOIL.LEM"},
+        )
+        details = client.get("/api/wordbank/lemmas/mor")
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert details.status_code == 200
+    payload = details.json()
+    assert payload["english_translation"] is None
+    assert [section["english_translation"] for section in payload["meaning_sections"]] == ["mother", "mother"]
+    assert [section["gloss_translation"] for section in payload["meaning_sections"]] == ["person", "soil layer"]
 
 
 def test_add_word_search_seed_repeat_save_repairs_surface_derived_metadata(tmp_path, stub_nlp_adapter_factory) -> None:

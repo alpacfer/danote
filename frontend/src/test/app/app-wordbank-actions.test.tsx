@@ -1,30 +1,13 @@
 import { fireEvent, getNotesEditor, mockFetchImplementation, renderApp, responseOf, screen, setNotesEditorText, vi, waitFor } from "@/test/app-test-helpers"
+import { bogVariationGlossWordPageContractFixture, cloneContractFixture } from "@/test/app/wordbank-contract-fixtures"
 
 describe("App wordbank", () => {
-  it("variation cards show translated gloss instead of raw Danish gloss", async () => {
+  it("contract-backed: variation cards show translated gloss instead of raw Danish gloss", async () => {
     mockFetchImplementation({
       lemmasResponse: {
         items: [{ lemma: "bog", variation_count: 1 }],
       },
-      lemmaDetailsResponse: {
-        lemma: "bog",
-        english_translation: "book",
-        is_sectioned: false,
-        pos_tag: "NOUN",
-        morphology: "Gender=Com|Number=Sing|Definite=Ind",
-        surface_forms: [
-          {
-            form: "bogen",
-            lemma: "bog",
-            lemma_translation: "book",
-            gloss: "til læsning",
-            gloss_translation: "for reading",
-            pos_tag: "NOUN",
-            morphology: "Gender=Com|Number=Sing|Definite=Def",
-            has_pronunciation: true,
-          },
-        ],
-      },
+      lemmaDetailsResponse: cloneContractFixture(bogVariationGlossWordPageContractFixture),
     })
 
     renderApp()
@@ -37,7 +20,7 @@ describe("App wordbank", () => {
     expect(screen.queryByText(/\(book, til læsning\)/i)).not.toBeInTheDocument()
   }, 10_000)
 
-  it("does not render an empty-variation message when there are no saved variations", async () => {
+  it("renderer-only: does not render an empty-variation message when there are no saved variations", async () => {
     mockFetchImplementation({
       lemmasResponse: {
         items: [{ lemma: "lære", variation_count: 0 }],
@@ -61,7 +44,7 @@ describe("App wordbank", () => {
     expect(screen.queryByText(/no saved variations for this lemma/i)).not.toBeInTheDocument()
   })
 
-  it("defers loading the full wordbank list until the wordbank section opens", async () => {
+  it("renderer-only: defers loading the full wordbank list until the wordbank section opens", async () => {
     const fetchSpy = mockFetchImplementation({
       lemmasResponse: {
         items: [{ lemma: "bog", variation_count: 1 }],
@@ -83,7 +66,7 @@ describe("App wordbank", () => {
     ).toHaveLength(1)
   })
 
-  it("regenerates pronunciation from the word page action", async () => {
+  it("request-shape: regenerates pronunciation from the word page action", async () => {
     const fetchSpy = mockFetchImplementation({
       lemmasResponse: {
         items: [{ lemma: "bog", variation_count: 1 }],
@@ -124,7 +107,7 @@ describe("App wordbank", () => {
     })
   })
 
-  it("shows verification progress in the unified popover while Gemini is still processing", async () => {
+  it("renderer-only: shows verification progress in the unified popover while Gemini is still processing", async () => {
     mockFetchImplementation({
       lemmasResponse: {
         items: [{ lemma: "kat", variation_count: 1 }],
@@ -161,7 +144,7 @@ describe("App wordbank", () => {
     expect(screen.getByText(/requested/i)).toBeInTheDocument()
   })
 
-  it("keeps the lemma pronunciation action playable when the only saved form is hidden from details", async () => {
+  it("renderer-only: keeps the lemma pronunciation action playable when the only saved form is hidden from details", async () => {
     const fetchSpy = mockFetchImplementation({
       lemmasResponse: {
         items: [{ lemma: "kone", variation_count: 0 }],
@@ -194,7 +177,7 @@ describe("App wordbank", () => {
     })
   })
 
-  it("shows verification error info on the word page and in notifications", async () => {
+  it("request-shape: shows verification error info on the word page and in notifications", async () => {
     vi.useRealTimers()
 
     const fetchSpy = mockFetchImplementation({

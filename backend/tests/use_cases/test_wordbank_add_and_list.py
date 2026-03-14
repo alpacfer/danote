@@ -603,7 +603,7 @@ def test_wordbank_search_seed_repeat_save_repairs_surface_derived_meaning_metada
     assert details.meaning_sections[0].surface_forms[0].morphology == "Gender=Com|Number=Plur|Definite=Ind"
 
 
-def test_word_page_search_seed_meanings_include_gloss_translation(tmp_path: Path) -> None:
+def test_round_trip_word_page_search_seed_meanings_include_gloss_translation(tmp_path: Path) -> None:
     use_case = WordbankUseCase(
         _db_path(tmp_path),
         cor_local_lexicon_service=FakeCORLocalLexiconService(

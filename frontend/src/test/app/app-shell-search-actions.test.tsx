@@ -1,7 +1,14 @@
 import { fireEvent, mockFetchImplementation, renderApp, responseOf, screen, waitFor, within } from "@/test/app-test-helpers"
+import {
+  cloneContractFixture,
+  teacherQueuedSearchAddResponseContractFixture,
+  teacherQueuedWordPageContractFixture,
+  teacherSectionedWordPageContractFixture,
+  teacherVerifiedWordPageContractFixture,
+} from "@/test/app/wordbank-contract-fixtures"
 
 describe("App shell and search", () => {
-  it("command search uses local COR endpoint, renders grouped variants, and adds selected variant", async () => {
+  it("request-shape: command search uses local COR endpoint, renders grouped variants, and adds selected variant", async () => {
     const fetchSpy = mockFetchImplementation({
       lemmasResponse: { items: [] },
       corSearchFormResponse: {
@@ -167,7 +174,7 @@ describe("App shell and search", () => {
     ).toBe(false)
   })
 
-  it("opening a newly added sectioned word keeps translation on the lemma and badges on the surface row only", async () => {
+  it("renderer-only: opening a newly added sectioned word keeps translation on the lemma and badges on the surface row only", async () => {
     mockFetchImplementation({
       lemmasResponse: { items: [] },
       searchWordbankResponse: { items: [] },
@@ -212,34 +219,7 @@ describe("App shell and search", () => {
           english_translation: "teacher",
         },
       },
-      lemmaDetailsResponse: {
-        lemma: "lærer",
-        english_translation: "teacher",
-        is_sectioned: true,
-        meaning_sections: [
-          {
-            id: 1,
-            meaning_key: "teacher",
-            gloss: "teacher",
-            english_translation: "teacher",
-            pos_tag: "NOUN",
-            morphology: "Gender=Com|Number=Sing|Definite=Ind",
-            surface_forms: [
-              {
-                form: "lærere",
-                english_translation: null,
-                gloss: "teacher",
-                gloss_translation: "teacher",
-                pos_tag: "NOUN",
-                morphology: "Gender=Com|Number=Plur|Definite=Ind",
-                gram_raw: "sb.fk.pl.ubest",
-                has_pronunciation: false,
-              },
-            ],
-          },
-        ],
-        surface_forms: [],
-      },
+      lemmaDetailsResponse: cloneContractFixture(teacherSectionedWordPageContractFixture),
     })
 
     renderApp()
@@ -263,7 +243,7 @@ describe("App shell and search", () => {
     expect(screen.queryByText(/^No translation available\.$/i)).not.toBeInTheDocument()
   })
 
-  it("COR search save does not use gloss translation as english translation", async () => {
+  it("request-shape: COR search save does not use gloss translation as english translation", async () => {
     const fetchSpy = mockFetchImplementation({
       lemmasResponse: { items: [] },
       corSearchFormResponse: {
@@ -398,7 +378,7 @@ describe("App shell and search", () => {
     })
   })
 
-  it("opens the word page from saved snapshot before lemma details reload completes", async () => {
+  it("request-shape: opens the word page from saved snapshot before lemma details reload completes", async () => {
     mockFetchImplementation({
       lemmasResponse: { items: [] },
       searchWordbankResponse: { items: [] },
@@ -430,71 +410,10 @@ describe("App shell and search", () => {
           },
         ],
       },
-      addWordResponse: {
-        status: "inserted",
-        stored_lemma: "lærer",
-        stored_surface_form: "lærere",
-        source: "manual",
-        message: "Added 'lærer' to wordbank.",
-        meaning: {
-          id: 1,
-          meaning_key: "teacher",
-          gloss: "teacher",
-          english_translation: "teacher",
-        },
-        saved_snapshot: {
-          lemma: "lærer",
-          english_translation: "teacher",
-          is_sectioned: true,
-          meaning_sections: [
-            {
-              id: 1,
-              meaning_key: "teacher",
-              gloss: "teacher",
-              english_translation: "teacher",
-              pos_tag: "NOUN",
-              morphology: "Gender=Com|Number=Sing|Definite=Ind",
-              surface_forms: [
-                {
-                  form: "lærere",
-                  gloss: "teacher",
-                  pos_tag: "NOUN",
-                  morphology: "Gender=Com|Number=Plur|Definite=Ind",
-                  has_pronunciation: false,
-                },
-              ],
-            },
-          ],
-          surface_forms: [],
-        },
-      },
+      addWordResponse: cloneContractFixture(teacherQueuedSearchAddResponseContractFixture),
       lemmaDetailsHandler: async () => {
         await new Promise((resolve) => window.setTimeout(resolve, 300))
-        return responseOf({
-          lemma: "lærer",
-          english_translation: "teacher",
-          is_sectioned: true,
-          meaning_sections: [
-            {
-              id: 1,
-              meaning_key: "teacher",
-              gloss: "teacher",
-              english_translation: "teacher",
-              pos_tag: "NOUN",
-              morphology: "Gender=Com|Number=Sing|Definite=Ind",
-              surface_forms: [
-                {
-                  form: "lærere",
-                  gloss: "teacher",
-                  pos_tag: "NOUN",
-                  morphology: "Gender=Com|Number=Plur|Definite=Ind",
-                  has_pronunciation: false,
-                },
-              ],
-            },
-          ],
-          surface_forms: [],
-        })
+        return responseOf(cloneContractFixture(teacherSectionedWordPageContractFixture))
       },
     })
 
@@ -512,7 +431,7 @@ describe("App shell and search", () => {
     expect(screen.getByText(/^lærere$/i)).toBeInTheDocument()
   })
 
-  it("auto-updates the word page when sidebar-search verification finishes in the background", async () => {
+  it("request-shape: auto-updates the word page when sidebar-search verification finishes in the background", async () => {
     let lemmaDetailsRequestCount = 0
     mockFetchImplementation({
       lemmasResponse: { items: [] },
@@ -545,129 +464,13 @@ describe("App shell and search", () => {
           },
         ],
       },
-      addWordResponse: {
-        status: "inserted",
-        stored_lemma: "lærer",
-        stored_surface_form: "lærere",
-        source: "manual",
-        message: "Added 'lærer' to wordbank.",
-        meaning: {
-          id: 1,
-          meaning_key: "teacher",
-          gloss: "teacher",
-          english_translation: "teacher",
-        },
-        saved_snapshot: {
-          lemma: "lærer",
-          english_translation: "teacher",
-          is_sectioned: true,
-          meaning_sections: [
-            {
-              id: 1,
-              meaning_key: "teacher",
-              gloss: "teacher",
-              english_translation: "teacher",
-              pos_tag: "NOUN",
-              morphology: "Gender=Com|Number=Sing|Definite=Ind",
-              verification: {
-                status: "queued",
-                provider: "gemini",
-                reviewer_role: "Professional Danish Language Expert",
-                message: "Word verification queued.",
-                composed_word_count: null,
-                stored_surface_form: "lærere",
-                requested_at: "2026-03-13T12:00:00.000Z",
-                suggested_actions: [],
-              },
-              surface_forms: [
-                {
-                  form: "lærere",
-                  gloss: "teacher",
-                  pos_tag: "NOUN",
-                  morphology: "Gender=Com|Number=Plur|Definite=Ind",
-                  has_pronunciation: false,
-                },
-              ],
-            },
-          ],
-          surface_forms: [],
-        },
-      },
+      addWordResponse: cloneContractFixture(teacherQueuedSearchAddResponseContractFixture),
       lemmaDetailsHandler: async () => {
         lemmaDetailsRequestCount += 1
         if (lemmaDetailsRequestCount === 1) {
-          return responseOf({
-            lemma: "lærer",
-            english_translation: "teacher",
-            is_sectioned: true,
-            meaning_sections: [
-              {
-                id: 1,
-                meaning_key: "teacher",
-                gloss: "teacher",
-                english_translation: "teacher",
-                pos_tag: "NOUN",
-                morphology: "Gender=Com|Number=Sing|Definite=Ind",
-                verification: {
-                  status: "queued",
-                  provider: "gemini",
-                  reviewer_role: "Professional Danish Language Expert",
-                  message: "Word verification queued.",
-                  composed_word_count: null,
-                  stored_surface_form: "lærere",
-                  requested_at: "2026-03-13T12:00:00.000Z",
-                  suggested_actions: [],
-                },
-                surface_forms: [
-                  {
-                    form: "lærere",
-                    gloss: "teacher",
-                    pos_tag: "NOUN",
-                    morphology: "Gender=Com|Number=Plur|Definite=Ind",
-                    has_pronunciation: false,
-                  },
-                ],
-              },
-            ],
-            surface_forms: [],
-          })
+          return responseOf(cloneContractFixture(teacherQueuedWordPageContractFixture))
         }
-        return responseOf({
-          lemma: "lærer",
-          english_translation: "teacher",
-          is_sectioned: true,
-          meaning_sections: [
-            {
-              id: 1,
-              meaning_key: "teacher",
-              gloss: "teacher",
-              english_translation: "teacher",
-              pos_tag: "NOUN",
-              morphology: "Gender=Com|Number=Sing|Definite=Ind",
-              verification: {
-                status: "verified",
-                provider: "gemini",
-                reviewer_role: "Professional Danish Language Expert",
-                message: "Verification passed.",
-                composed_word_count: null,
-                stored_surface_form: "lærere",
-                requested_at: "2026-03-13T12:00:00.000Z",
-                completed_at: "2026-03-13T12:00:03.000Z",
-                suggested_actions: [],
-              },
-              surface_forms: [
-                {
-                  form: "lærere",
-                  gloss: "teacher",
-                  pos_tag: "NOUN",
-                  morphology: "Gender=Com|Number=Plur|Definite=Ind",
-                  has_pronunciation: false,
-                },
-              ],
-            },
-          ],
-          surface_forms: [],
-        })
+        return responseOf(cloneContractFixture(teacherVerifiedWordPageContractFixture))
       },
     })
 

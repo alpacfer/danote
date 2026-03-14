@@ -1,7 +1,12 @@
 import { fireEvent, mockFetchImplementation, renderApp, screen } from "@/test/app-test-helpers"
+import {
+  bogHomographWordPageContractFixture,
+  cloneContractFixture,
+  morHomographWordPageContractFixture,
+} from "@/test/app/wordbank-contract-fixtures"
 
 describe("App wordbank", () => {
-  it("shows saved lemmas in wordbank and opens the word page", async () => {
+  it("renderer-only: shows saved lemmas in wordbank and opens the word page", async () => {
     mockFetchImplementation({
       lemmasResponse: {
         items: [
@@ -45,7 +50,7 @@ describe("App wordbank", () => {
     expect(screen.queryByText(/^book's$/i)).not.toBeInTheDocument()
   }, 10_000)
 
-  it("non-verb word pages render meaning sections and remove duplicated top metadata", async () => {
+  it("renderer-only: non-verb word pages render meaning sections and remove duplicated top metadata", async () => {
     mockFetchImplementation({
       lemmasResponse: {
         items: [{ lemma: "bog", variation_count: 2 }],
@@ -79,7 +84,7 @@ describe("App wordbank", () => {
     expect(screen.getAllByText(/^n-word$/i)).toHaveLength(1)
   })
 
-  it("meaning-section surface forms show badges without rendering surface translations", async () => {
+  it("renderer-only: meaning-section surface forms show badges without rendering surface translations", async () => {
     mockFetchImplementation({
       lemmasResponse: {
         items: [{ lemma: "lærer", variation_count: 1 }],
@@ -125,29 +130,19 @@ describe("App wordbank", () => {
     expect(screen.getByText(/^Plural$/i)).toBeInTheDocument()
   })
 
-  it("meaning-section translation combines lemma translation with gloss when they differ", async () => {
+  it("contract-backed: word page renders translation comma gloss translation when the backend supplies both", async () => {
+    const singleMeaningFixture = cloneContractFixture(bogHomographWordPageContractFixture)
+    const firstMeaningSection = singleMeaningFixture.meaning_sections?.[0]
+    if (!firstMeaningSection) {
+      throw new Error("Expected bog contract fixture to include at least one meaning section.")
+    }
+    singleMeaningFixture.meaning_sections = [firstMeaningSection]
+
     mockFetchImplementation({
       lemmasResponse: {
         items: [{ lemma: "bog", variation_count: 0 }],
       },
-      lemmaDetailsResponse: {
-        lemma: "bog",
-        english_translation: null,
-        is_sectioned: true,
-        meaning_sections: [
-          {
-            id: 1,
-            meaning_key: "for-reading",
-            gloss: "for reading",
-            english_translation: "book",
-            gloss_translation: "for reading",
-            pos_tag: "NOUN",
-            morphology: "Gender=Com|Number=Sing|Definite=Ind",
-            surface_forms: [],
-          },
-        ],
-        surface_forms: [],
-      },
+      lemmaDetailsResponse: singleMeaningFixture,
     })
 
     renderApp()
@@ -159,36 +154,19 @@ describe("App wordbank", () => {
     expect(screen.getByText(/^book, for reading$/i)).toBeInTheDocument()
   })
 
-  it("meaning-section translation shows lemma translation plus translated gloss, not raw Danish gloss", async () => {
+  it("contract-backed: word page renders translated gloss text instead of the raw Danish gloss", async () => {
+    const singleMeaningFixture = cloneContractFixture(bogHomographWordPageContractFixture)
+    const firstMeaningSection = singleMeaningFixture.meaning_sections?.[0]
+    if (!firstMeaningSection) {
+      throw new Error("Expected bog contract fixture to include at least one meaning section.")
+    }
+    singleMeaningFixture.meaning_sections = [firstMeaningSection]
+
     mockFetchImplementation({
       lemmasResponse: {
         items: [{ lemma: "bog", variation_count: 1 }],
       },
-      lemmaDetailsResponse: {
-        lemma: "bog",
-        english_translation: null,
-        is_sectioned: true,
-        meaning_sections: [
-          {
-            id: 1,
-            meaning_key: "for-reading",
-            gloss: "til læsning",
-            english_translation: "book",
-            gloss_translation: "for reading",
-            pos_tag: "NOUN",
-            morphology: "Gender=Com|Number=Sing|Definite=Ind",
-            surface_forms: [
-              {
-                form: "bogen",
-                gloss: "til læsning",
-                gloss_translation: "for reading",
-                has_pronunciation: true,
-              },
-            ],
-          },
-        ],
-        surface_forms: [],
-      },
+      lemmaDetailsResponse: singleMeaningFixture,
     })
 
     renderApp()
@@ -201,39 +179,12 @@ describe("App wordbank", () => {
     expect(screen.queryByText(/^book, til læsning$/i)).not.toBeInTheDocument()
   })
 
-  it("word page shows translation comma gloss translation for each meaning section", async () => {
+  it("contract-backed: word page shows translation comma gloss translation for each homograph meaning", async () => {
     mockFetchImplementation({
       lemmasResponse: {
         items: [{ lemma: "bog", variation_count: 2 }],
       },
-      lemmaDetailsResponse: {
-        lemma: "bog",
-        english_translation: null,
-        is_sectioned: true,
-        meaning_sections: [
-          {
-            id: 1,
-            meaning_key: "for-reading",
-            gloss: "til læsning",
-            english_translation: "book",
-            gloss_translation: "for reading",
-            pos_tag: "NOUN",
-            morphology: "Gender=Com|Number=Sing|Definite=Ind",
-            surface_forms: [],
-          },
-          {
-            id: 2,
-            meaning_key: "beechmast",
-            gloss: "frugt fra et bøgetræ",
-            english_translation: "beechmast",
-            gloss_translation: "fruit from a beech tree",
-            pos_tag: "NOUN",
-            morphology: "Gender=Neut|Number=Sing|Definite=Ind",
-            surface_forms: [],
-          },
-        ],
-        surface_forms: [],
-      },
+      lemmaDetailsResponse: cloneContractFixture(bogHomographWordPageContractFixture),
     })
 
     renderApp()
@@ -246,29 +197,12 @@ describe("App wordbank", () => {
     expect(screen.getByText(/^beechmast, fruit from a beech tree$/i)).toBeInTheDocument()
   })
 
-  it("meaning-section translation does not fall back to gloss translation alone", async () => {
+  it("contract-backed: word page keeps the translation and uses the gloss only as disambiguation context", async () => {
     mockFetchImplementation({
       lemmasResponse: {
         items: [{ lemma: "mor", variation_count: 2 }],
       },
-      lemmaDetailsResponse: {
-        lemma: "mor",
-        english_translation: null,
-        is_sectioned: true,
-        meaning_sections: [
-          {
-            id: 1,
-            meaning_key: "person",
-            gloss: "person",
-            english_translation: null,
-            gloss_translation: "person",
-            pos_tag: "NOUN",
-            morphology: "Gender=Com|Number=Sing|Definite=Ind",
-            surface_forms: [],
-          },
-        ],
-        surface_forms: [],
-      },
+      lemmaDetailsResponse: cloneContractFixture(morHomographWordPageContractFixture),
     })
 
     renderApp()
@@ -277,10 +211,12 @@ describe("App wordbank", () => {
     fireEvent.click(await screen.findByRole("button", { name: /mor/i }))
 
     expect(await screen.findByRole("heading", { name: /^mor$/i })).toBeInTheDocument()
+    expect(screen.getByText(/^mother, person$/i)).toBeInTheDocument()
+    expect(screen.getByText(/^mother, soil layer$/i)).toBeInTheDocument()
     expect(screen.queryByText(/^person$/i)).not.toBeInTheDocument()
   })
 
-  it("verb word pages keep flat variation layout without surface translations", async () => {
+  it("renderer-only: verb word pages keep flat variation layout without surface translations", async () => {
     mockFetchImplementation({
       lemmasResponse: {
         items: [{ lemma: "lære", variation_count: 1 }],

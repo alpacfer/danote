@@ -383,7 +383,7 @@ export function mockFetchImplementation(options?: {
     en_to_da_morphology: string | null
     query_language: "en" | "da" | "ambiguous" | null
     query_language_confidence: number | null
-    word_actions?: Array<{
+    word_actions: Array<{
       action_type: "open_wordbank" | "add_as_new" | "add_variation"
       surface: string
       lemma: string
@@ -552,11 +552,7 @@ export function mockFetchImplementation(options?: {
     groups: [],
   }
   const lemmaDetailsOk = options?.lemmaDetailsOk ?? true
-  const lemmaDetailsResponse = options?.lemmaDetailsResponse ?? {
-    lemma: "bog",
-    english_translation: null,
-    surface_forms: [{ form: "bogen" }],
-  }
+  const lemmaDetailsResponse = options?.lemmaDetailsResponse
   const resetDbOk = options?.resetDbOk ?? true
   const resetDbResponse = options?.resetDbResponse ?? { status: "reset" as const, message: "Database reset complete." }
   const developerApiKeysResponse = options?.developerApiKeysResponse ?? {
@@ -634,6 +630,17 @@ export function mockFetchImplementation(options?: {
         show_lemma: false,
       },
     ],
+  }
+  if (options?.resolveQueryResponse && !options.resolveQueryResponse.word_actions) {
+    throw new Error(
+      "mockFetchImplementation requires explicit resolveQueryResponse.word_actions to avoid drifting from backend behavior.",
+    )
+  }
+  if (lemmaDetailsResponse) {
+    assertWordbankContractDetails("lemmaDetailsResponse", lemmaDetailsResponse)
+  }
+  if (addWordResponse.saved_snapshot) {
+    assertWordbankContractDetails("addWordResponse.saved_snapshot", addWordResponse.saved_snapshot)
   }
   const detectLanguageResponse = options?.detectLanguageResponse ?? {
     source_word: "house",
@@ -826,6 +833,11 @@ export function mockFetchImplementation(options?: {
       if (!lemmaDetailsOk) {
         throw new Error("word details request failed")
       }
+      if (!lemmaDetailsResponse) {
+        throw new Error(
+          "mockFetchImplementation requires explicit lemmaDetailsResponse or lemmaDetailsHandler for /api/wordbank/lemmas/* requests.",
+        )
+      }
       return responseOf(lemmaDetailsResponse)
     }
 
@@ -853,10 +865,7 @@ export function mockFetchImplementation(options?: {
         return options.resolveQueryHandler(input, init)
       }
       if (options?.resolveQueryResponse) {
-        return responseOf({
-        ...resolveQueryResponse,
-        word_actions: resolveQueryResponse.word_actions ?? buildWordActionsFromResolvePayload(resolveQueryResponse),
-      })
+        return responseOf(resolveQueryResponse)
       }
 
       const body = JSON.parse(String(init?.body ?? "{}")) as { query_text?: string }
@@ -1006,4 +1015,43 @@ export function mockFetchImplementation(options?: {
 
     return { ok: false, status: 404 } as Response
   })
+}
+
+function assertWordbankContractDetails(name: string, payload: unknown) {
+  if (!payload || typeof payload !== "object") {
+    throw new Error(`mockFetchImplementation expected ${name} to be an object.`)
+  }
+  const candidate = payload as {
+    lemma?: unknown
+    surface_forms?: unknown
+    meaning_sections?: unknown
+    is_sectioned?: unknown
+  }
+  if (typeof candidate.lemma !== "string" || candidate.lemma.trim().length === 0) {
+    throw new Error(`mockFetchImplementation expected ${name}.lemma to be a non-empty string.`)
+  }
+  if (!Array.isArray(candidate.surface_forms)) {
+    throw new Error(`mockFetchImplementation expected ${name}.surface_forms to be an array.`)
+  }
+  if (candidate.is_sectioned === true && !Array.isArray(candidate.meaning_sections)) {
+    throw new Error(`mockFetchImplementation expected ${name}.meaning_sections to be an array for sectioned word pages.`)
+  }
+  if (!Array.isArray(candidate.meaning_sections ?? [])) {
+    throw new Error(`mockFetchImplementation expected ${name}.meaning_sections to be an array when provided.`)
+  }
+  for (const [index, section] of (candidate.meaning_sections ?? []).entries()) {
+    if (!section || typeof section !== "object") {
+      throw new Error(`mockFetchImplementation expected ${name}.meaning_sections[${index}] to be an object.`)
+    }
+    const typedSection = section as { id?: unknown; meaning_key?: unknown; surface_forms?: unknown }
+    if (typeof typedSection.id !== "number") {
+      throw new Error(`mockFetchImplementation expected ${name}.meaning_sections[${index}].id to be a number.`)
+    }
+    if (typeof typedSection.meaning_key !== "string" || typedSection.meaning_key.trim().length === 0) {
+      throw new Error(`mockFetchImplementation expected ${name}.meaning_sections[${index}].meaning_key to be a non-empty string.`)
+    }
+    if (!Array.isArray(typedSection.surface_forms)) {
+      throw new Error(`mockFetchImplementation expected ${name}.meaning_sections[${index}].surface_forms to be an array.`)
+    }
+  }
 }

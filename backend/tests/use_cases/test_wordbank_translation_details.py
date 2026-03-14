@@ -94,7 +94,7 @@ def test_add_word_persists_gemini_gloss_aware_translations(tmp_path: Path) -> No
     assert surface_row is not None
     assert surface_row["form"] == "bogen"
 
-def test_wordbank_sectioned_details_keep_lemma_translation_and_expose_translated_gloss(
+def test_contract_wordbank_sectioned_details_keep_lemma_translation_and_expose_translated_gloss(
     tmp_path: Path,
 ) -> None:
     db_path = _db_path(tmp_path)
@@ -167,7 +167,7 @@ def test_wordbank_sectioned_details_keep_lemma_translation_and_expose_translated
         )
     ]
 
-def test_wordbank_sectioned_details_do_not_overwrite_lemma_translation_with_english_gloss(
+def test_contract_wordbank_sectioned_details_do_not_overwrite_lemma_translation_with_english_gloss(
     tmp_path: Path,
 ) -> None:
     db_path = _db_path(tmp_path)
