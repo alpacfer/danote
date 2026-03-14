@@ -29,7 +29,7 @@ def test_wordbank_use_case_round_trip(tmp_path: Path) -> None:
     details = use_case.get_lemma_details("bog")
     assert details.lemma == "bog"
     assert details.is_sectioned is True
-    assert details.surface_forms == []
+    assert [item.form for item in details.surface_forms] == ["bog"]
     assert len(details.meaning_sections) == 1
     assert details.meaning_sections[0].meaning_key == "bog"
     assert [item.form for item in details.meaning_sections[0].surface_forms] == ["bogen"]
@@ -93,7 +93,10 @@ def test_wordbank_use_case_includes_pos_and_morphology_when_nlp_available(tmp_pa
     assert details.pos_tag == "NOUN"
     assert details.morphology == "Gender=Com|Number=Sing"
     assert details.is_sectioned is True
-    assert details.surface_forms == []
+    assert len(details.surface_forms) == 1
+    assert details.surface_forms[0].form == "bog"
+    assert details.surface_forms[0].pos_tag == "NOUN"
+    assert details.surface_forms[0].morphology == "Gender=Com|Number=Sing"
     assert len(details.meaning_sections) == 1
     assert details.meaning_sections[0].pos_tag == "NOUN"
     assert details.meaning_sections[0].morphology == "Gender=Com|Number=Sing"

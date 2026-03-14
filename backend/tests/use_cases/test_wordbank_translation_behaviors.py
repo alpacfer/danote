@@ -30,7 +30,8 @@ def test_wordbank_use_case_stores_lemma_translation_on_meaning_sections_only(
     details = use_case.get_lemma_details("bog")
     assert details.english_translation == "book"
     assert details.is_sectioned is True
-    assert details.surface_forms == []
+    assert [item.form for item in details.surface_forms] == ["bog"]
+    assert details.surface_forms[0].lemma_translation is None
     assert len(details.meaning_sections) == 1
     assert details.meaning_sections[0].english_translation == "book"
     assert details.meaning_sections[0].surface_forms == [

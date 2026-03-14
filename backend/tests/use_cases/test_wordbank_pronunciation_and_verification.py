@@ -164,6 +164,24 @@ def test_wordbank_use_case_generates_distinct_lemma_and_surface_pronunciation(tm
     assert surface_audio.audio_bytes == b"surface-wav"
     assert tts_service.calls == ["bog", "bogen"]
 
+
+def test_wordbank_use_case_exposes_generated_lemma_audio_in_sectioned_details(tmp_path: Path) -> None:
+    db_path = _db_path(tmp_path)
+    use_case = WordbankUseCase(db_path)
+    use_case.add_word("Bogen", "bog")
+
+    tts_service = FakeTTSService({"bog": b"lemma-wav", "bogen": b"surface-wav"})
+    use_case = WordbankUseCase(db_path, tts_service=tts_service)
+
+    use_case.generate_pronunciation_for_added_word("bog", "bogen")
+    details = use_case.get_lemma_details("bog")
+
+    assert [item.form for item in details.surface_forms] == ["bog"]
+    assert details.surface_forms[0].has_pronunciation is True
+    assert [item.form for item in details.meaning_sections[0].surface_forms] == ["bogen"]
+    assert details.meaning_sections[0].surface_forms[0].has_pronunciation is True
+
+
 def test_wordbank_use_case_force_regenerates_pronunciation(tmp_path: Path) -> None:
     db_path = _db_path(tmp_path)
     use_case = WordbankUseCase(db_path)

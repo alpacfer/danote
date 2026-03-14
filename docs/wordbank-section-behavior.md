@@ -99,6 +99,9 @@ Meaning auto-scroll behavior:
   1. exact normalized match to selected lemma among selected-meaning forms + top-level forms + all section forms, with pronunciation available
   2. first available pronunciation form from that combined search list
   3. no pronunciation icon/action when none exist
+- For sectioned lemmas, backend detail payloads may keep the lemma form in top-level `surface_forms`
+  even while meaning-section lists continue to show only non-lemma variations. This preserves exact
+  lemma pronunciation playback without duplicating the lemma row inside each section card.
 
 ## Header metadata and translation
 
@@ -146,6 +149,7 @@ Meaning auto-scroll behavior:
 - Surface forms under each meaning:
   - rendered in a divided list
   - each row uses `WordbankPronunciationWord`
+  - section lists exclude the lemma form itself; exact lemma audio/metadata can come from top-level `surface_forms`
   - form-level badges are filtered to avoid repeating section-level badge labels
 
 ## Body mode B: flat variations (WordbankVariationGrid)

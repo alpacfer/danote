@@ -84,6 +84,19 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
         top_level_pos_tag = None
         top_level_morphology = None
 
+    top_level_surface_forms = _dedupe_surface_form_details(
+        [
+            _sectioned_lemma_surface_form_details(
+                form=row.form,
+                pos_tag=row.pos_tag,
+                morphology=row.morphology,
+                has_pronunciation=row.has_pronunciation,
+            )
+            for row in form_rows
+            if row.form == lexeme.lemma
+        ]
+    )
+
     return LemmaDetailsResponse(
         lemma=lexeme.lemma,
         english_translation=top_level_translation,
@@ -105,7 +118,7 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
             )
             for meaning in meaning_rows
         ],
-        surface_forms=[],
+        surface_forms=top_level_surface_forms,
     )
 
 
@@ -159,6 +172,18 @@ def _get_manual_lemma_details(runtime: WordbankRuntime, lexeme, form_rows, meani
         top_level_morphology = None
 
     gloss_translation_cache: dict[tuple[str, str, str | None, str | None, str, str | None, str | None], str | None] = {}
+    top_level_surface_forms = _dedupe_surface_form_details(
+        [
+            _manual_sectioned_lemma_surface_form_details(
+                runtime,
+                lexeme=lexeme,
+                form_row=row,
+                meaning=meaning_by_id.get(row.meaning_id) if row.meaning_id is not None else None,
+            )
+            for row in form_rows
+            if row.form == lexeme.lemma
+        ]
+    )
     return LemmaDetailsResponse(
         lemma=lexeme.lemma,
         english_translation=top_level_translation,
@@ -186,7 +211,7 @@ def _get_manual_lemma_details(runtime: WordbankRuntime, lexeme, form_rows, meani
             )
             for meaning in meaning_rows
         ],
-        surface_forms=[],
+        surface_forms=top_level_surface_forms,
     )
 
 
@@ -234,6 +259,71 @@ def _manual_surface_form_details(runtime: WordbankRuntime, *, lexeme, form_row, 
         ),
         gram_raw=cor_entry.gram_raw if cor_entry is not None else None,
         has_pronunciation=form_row.has_pronunciation,
+    )
+
+
+def _sectioned_lemma_surface_form_details(
+    *,
+    form: str,
+    pos_tag: str | None,
+    morphology: str | None,
+    has_pronunciation: bool,
+) -> LemmaDetailsResponse.SurfaceFormDetails:
+    return LemmaDetailsResponse.SurfaceFormDetails(
+        form=form,
+        pos_tag=pos_tag,
+        morphology=morphology,
+        has_pronunciation=has_pronunciation,
+    )
+
+
+def _manual_sectioned_lemma_surface_form_details(
+    runtime: WordbankRuntime,
+    *,
+    lexeme,
+    form_row,
+    meaning,
+) -> LemmaDetailsResponse.SurfaceFormDetails:
+    cor_entry = None
+    if meaning is not None and meaning.cor_lemma_idx is not None:
+        cor_entry = runtime.cor.best_cor_local_lemma_entry(
+            lemma_idx=meaning.cor_lemma_idx,
+            lemma=lexeme.lemma,
+            preferred_pos_tag=meaning.pos_tag or lexeme.pos_tag,
+        )
+    if cor_entry is None:
+        cor_entry = _resolve_cor_entry(runtime, lexeme=lexeme, form_row=form_row, meaning=meaning)
+    return LemmaDetailsResponse.SurfaceFormDetails(
+        form=form_row.form,
+        pos_tag=cor_entry.pos_tag if cor_entry is not None else form_row.pos_tag,
+        morphology=cor_entry.morphology if cor_entry is not None else form_row.morphology,
+        gram_raw=cor_entry.gram_raw if cor_entry is not None else None,
+        has_pronunciation=form_row.has_pronunciation,
+    )
+
+
+def _dedupe_surface_form_details(
+    forms: list[LemmaDetailsResponse.SurfaceFormDetails],
+) -> list[LemmaDetailsResponse.SurfaceFormDetails]:
+    deduped: dict[str, LemmaDetailsResponse.SurfaceFormDetails] = {}
+    for form in forms:
+        existing = deduped.get(form.form)
+        if existing is None or _surface_form_detail_priority(form) > _surface_form_detail_priority(existing):
+            deduped[form.form] = form
+    return list(deduped.values())
+
+
+def _surface_form_detail_priority(
+    detail: LemmaDetailsResponse.SurfaceFormDetails,
+) -> tuple[int, int, int, int, int, int, int]:
+    return (
+        int(detail.has_pronunciation),
+        int(bool(detail.gram_raw)),
+        int(bool(detail.gloss_translation)),
+        int(bool(detail.gloss)),
+        int(bool(detail.lemma_translation)),
+        int(bool(detail.morphology)),
+        int(bool(detail.pos_tag)),
     )
 
 

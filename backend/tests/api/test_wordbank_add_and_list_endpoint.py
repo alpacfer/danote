@@ -343,7 +343,12 @@ def test_get_lemma_details_returns_all_saved_variations(tmp_path, stub_nlp_adapt
     assert payload["lemma"] == "bog"
     assert payload["english_translation"] is None
     assert payload["is_sectioned"] is True
-    assert payload["surface_forms"] == []
+    assert payload["surface_forms"] == [
+        {
+            "form": "bog",
+            "has_pronunciation": False,
+        }
+    ]
     section = payload["meaning_sections"][0]
     assert [item["form"] for item in section["surface_forms"]] == ["bogen", "bogens"]
     assert all(item["has_pronunciation"] is False for item in section["surface_forms"])
@@ -416,7 +421,11 @@ def test_get_lemma_details_sectioned_payload_preserves_section_surface_fields(tm
     assert response.status_code == 200
     payload = response.json()
     assert payload["is_sectioned"] is True
-    assert payload["surface_forms"] == []
+    assert len(payload["surface_forms"]) == 1
+    assert payload["surface_forms"][0]["form"] == "bog"
+    assert payload["surface_forms"][0]["pos_tag"] == "NOUN"
+    assert payload["surface_forms"][0]["has_pronunciation"] is False
+    assert "gram_raw" in payload["surface_forms"][0]
     section_surface_form = payload["meaning_sections"][0]["surface_forms"][0]
     assert section_surface_form["form"] == "bogen"
     assert section_surface_form["lemma"] == "bog"

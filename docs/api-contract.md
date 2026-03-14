@@ -201,6 +201,9 @@ Route decorators are the source of truth in `backend/app/api/routes/`, and API D
 - **Notable response behavior:**
   - root payload may include `verification` for non-sectioned/root targets.
   - each `meaning_sections[]` item may include its own `verification`.
+  - for sectioned lemmas, top-level `surface_forms[]` may include the saved lemma form itself
+    so the client can bind exact-lemma pronunciation and metadata without duplicating that row
+    inside every meaning section.
   - verification objects use the same additive fields as add/verify responses:
     `stored_surface_form`, `requested_at`, `completed_at`, and `suggested_actions`.
 - **Canonical response examples:**
@@ -276,7 +279,15 @@ Route decorators are the source of truth in `backend/app/api/routes/`, and API D
           ]
         }
       ],
-      "surface_forms": []
+      "surface_forms": [
+        {
+          "form": "bog",
+          "pos_tag": "NOUN",
+          "morphology": "Gender=Com|Number=Sing|Definite=Def",
+          "gram_raw": "sb. fk. sg. best",
+          "has_pronunciation": false
+        }
+      ]
     }
     ```
 - **Notable status/error behavior:**
