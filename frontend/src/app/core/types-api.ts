@@ -63,6 +63,10 @@ export type AddWordResponse = {
     english_translation?: string | null
   } | null
   verification?: VerificationResult | null
+  queued_verification_targets?: Array<{
+    meaning_id: number | null
+    stored_surface_form: string | null
+  }>
   pronunciation?: {
     status: "queued" | "skipped"
     form: string | null
@@ -208,6 +212,7 @@ export type LemmaDetailsResponse = {
       gloss_translation?: string | null
       gram_raw?: string | null
       has_pronunciation?: boolean
+      verification?: VerificationResult | null
     }>
   }>
   surface_forms: Array<{
@@ -220,6 +225,7 @@ export type LemmaDetailsResponse = {
     gloss_translation?: string | null
     gram_raw?: string | null
     has_pronunciation?: boolean
+    verification?: VerificationResult | null
   }>
 }
 

@@ -1,8 +1,6 @@
 import type {
   LemmaDetailsResponse,
-  VerificationErrorDetail,
-  VerificationQueuedDetail,
-  VerificationSuccessDetail,
+  VerificationOverview,
   WordbankLemma,
 } from "@/app/core"
 
@@ -23,10 +21,7 @@ export type WordbankSectionProps = {
   onPlayPronunciation: (form: string) => void
   isRegeneratingLemmaPronunciation: boolean
   onRegenerateSelectedLemmaPronunciation: () => void
-  selectedLemmaVerificationError: VerificationErrorDetail | null
-  selectedLemmaVerificationQueued: VerificationQueuedDetail | null
-  selectedLemmaVerificationSuccess: VerificationSuccessDetail | null
-  hasSuggestedVerificationActions: (detail: VerificationErrorDetail | null) => boolean
+  verificationOverview: VerificationOverview
   isApplyingVerificationChanges: boolean
-  onApplySelectedLemmaVerificationAction: (actionIndex: number) => void
+  onApplyVerificationAction: (targetKey: string, actionIndex: number) => void
 }

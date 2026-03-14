@@ -68,10 +68,10 @@ class VerificationRecord:
     id: int
     lexeme_id: int
     meaning_id: int | None
+    stored_surface_form: str | None
     status: str
     provider: str | None
     reviewer_role: str | None
-    stored_surface_form: str | None
     message: str
     problem: str | None
     change_to_implement: str | None
@@ -115,10 +115,10 @@ def verification_record_from_row(row) -> VerificationRecord:
         id=int(row["id"]),
         lexeme_id=int(row["lexeme_id"]),
         meaning_id=int(row["meaning_id"]) if row["meaning_id"] is not None else None,
+        stored_surface_form=row["stored_surface_form"],
         status=str(row["status"]),
         provider=row["provider"],
         reviewer_role=row["reviewer_role"],
-        stored_surface_form=row["stored_surface_form"],
         message=str(row["message"]),
         problem=row["problem"],
         change_to_implement=row["change_to_implement"],

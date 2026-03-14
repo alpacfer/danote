@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 
-from app.api.schemas.v1.wordbank import LemmaDetailsResponse
+from app.api.schemas.v1.wordbank import LemmaDetailsResponse, VerificationResult
 from app.services.token_classifier import normalize_token
 from app.services.use_cases.wordbank.meaning_sections import ensure_wordbank_meaning_compatibility
 from app.services.use_cases.wordbank.runtime import WordbankRuntime
@@ -24,7 +24,10 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
     form_rows = runtime.repository.list_surface_forms(lexeme.id)
     meaning_rows = runtime.repository.list_lexeme_meanings(lexeme.id)
     verification_records = {
-        record.meaning_id: verification_record_to_schema(record)
+        (
+            record.meaning_id,
+            normalize_token(record.stored_surface_form or "") or None,
+        ): verification_record_to_schema(record)
         for record in runtime.repository.list_verification_records(lexeme.id)
     }
     if lexeme.source != "search":
@@ -37,7 +40,7 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
             pos_tag=lexeme.pos_tag,
             morphology=lexeme.morphology,
             is_sectioned=False,
-            verification=verification_records.get(None),
+            verification=verification_records.get((None, None)),
             meaning_sections=[],
             surface_forms=[
                 _surface_form_details(
@@ -48,6 +51,7 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
                     lemma_translation=lexeme.english_translation,
                     gloss=None,
                     has_pronunciation=row.has_pronunciation,
+                    verification=verification_records.get((None, normalize_token(row.form))),
                 )
                 for row in form_rows
             ],
@@ -72,6 +76,7 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
                 lemma_translation=meaning.english_translation or lexeme.english_translation,
                 gloss=meaning.gloss,
                 has_pronunciation=row.has_pronunciation,
+                verification=verification_records.get((row.meaning_id, normalize_token(row.form))),
             )
         )
 
@@ -104,7 +109,7 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
         pos_tag=top_level_pos_tag,
         morphology=top_level_morphology,
         is_sectioned=True,
-        verification=verification_records.get(None),
+        verification=verification_records.get((None, None)),
         meaning_sections=[
             LemmaDetailsResponse.MeaningSection(
                 id=meaning.id,
@@ -120,7 +125,7 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
                 ),
                 pos_tag=meaning.pos_tag,
                 morphology=meaning.morphology,
-                verification=verification_records.get(meaning.id),
+                verification=verification_records.get((meaning.id, None)),
                 surface_forms=section_forms.get(meaning.id, []),
             )
             for meaning in meaning_rows
@@ -137,7 +142,7 @@ def _get_manual_lemma_details(runtime: WordbankRuntime, lexeme, form_rows, meani
             pos_tag=lexeme.pos_tag,
             morphology=lexeme.morphology,
             is_sectioned=False,
-            verification=verification_records.get(None),
+            verification=verification_records.get((None, None)),
             meaning_sections=[],
             surface_forms=[
                 _manual_surface_form_details(
@@ -145,6 +150,7 @@ def _get_manual_lemma_details(runtime: WordbankRuntime, lexeme, form_rows, meani
                     lexeme=lexeme,
                     form_row=row,
                     meaning=None,
+                    verification=verification_records.get((None, normalize_token(row.form))),
                 )
                 for row in form_rows
             ],
@@ -166,6 +172,7 @@ def _get_manual_lemma_details(runtime: WordbankRuntime, lexeme, form_rows, meani
                 lexeme=lexeme,
                 form_row=row,
                 meaning=meaning,
+                verification=verification_records.get((row.meaning_id, normalize_token(row.form))),
             )
         )
 
@@ -197,7 +204,7 @@ def _get_manual_lemma_details(runtime: WordbankRuntime, lexeme, form_rows, meani
         pos_tag=top_level_pos_tag,
         morphology=top_level_morphology,
         is_sectioned=True,
-        verification=verification_records.get(None),
+        verification=verification_records.get((None, None)),
         meaning_sections=[
             LemmaDetailsResponse.MeaningSection(
                 id=meaning.id,
@@ -213,7 +220,7 @@ def _get_manual_lemma_details(runtime: WordbankRuntime, lexeme, form_rows, meani
                 ),
                 pos_tag=meaning.pos_tag,
                 morphology=meaning.morphology,
-                verification=verification_records.get(meaning.id),
+                verification=verification_records.get((meaning.id, None)),
                 surface_forms=section_forms.get(meaning.id, []),
             )
             for meaning in meaning_rows
@@ -231,6 +238,7 @@ def _surface_form_details(
     lemma_translation: str | None,
     gloss: str | None,
     has_pronunciation: bool,
+    verification: VerificationResult | None = None,
 ) -> LemmaDetailsResponse.SurfaceFormDetails:
     return LemmaDetailsResponse.SurfaceFormDetails(
         form=form,
@@ -242,10 +250,18 @@ def _surface_form_details(
         gloss_translation=None,
         gram_raw=None,
         has_pronunciation=has_pronunciation,
+        verification=verification,
     )
 
 
-def _manual_surface_form_details(runtime: WordbankRuntime, *, lexeme, form_row, meaning) -> LemmaDetailsResponse.SurfaceFormDetails:
+def _manual_surface_form_details(
+    runtime: WordbankRuntime,
+    *,
+    lexeme,
+    form_row,
+    meaning,
+    verification: VerificationResult | None = None,
+) -> LemmaDetailsResponse.SurfaceFormDetails:
     cor_entry = _resolve_cor_entry(runtime, lexeme=lexeme, form_row=form_row, meaning=meaning)
     gloss = cor_entry.gloss if cor_entry is not None else (meaning.gloss if meaning is not None else None)
     lemma_translation = (
@@ -266,6 +282,7 @@ def _manual_surface_form_details(runtime: WordbankRuntime, *, lexeme, form_row, 
         ),
         gram_raw=cor_entry.gram_raw if cor_entry is not None else None,
         has_pronunciation=form_row.has_pronunciation,
+        verification=verification,
     )
 
 

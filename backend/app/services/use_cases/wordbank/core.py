@@ -126,6 +126,21 @@ class WordbankUseCase:
             meaning_id=meaning_id,
         )
 
+    def verify_added_word_if_current(
+        self,
+        stored_lemma: str,
+        stored_surface_form: str | None,
+        *,
+        meaning_id: int | None = None,
+        expected_snapshot_hash: str,
+    ) -> bool:
+        return self._runtime.verification.verify_added_word_if_current(
+            stored_lemma,
+            stored_surface_form,
+            meaning_id=meaning_id,
+            expected_snapshot_hash=expected_snapshot_hash,
+        )
+
     def apply_verification_changes(
         self,
         *,

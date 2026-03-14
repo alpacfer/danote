@@ -4,6 +4,34 @@ import { responseOf } from "./render-helpers"
 
 import { type AnalyzeToken, buildWordActionsFromResolvePayload, type ResolveQueryPayload } from "./mock-fetch-types"
 
+function buildQueuedVerificationTargets(response: {
+  stored_lemma: string
+  stored_surface_form: string | null
+  meaning?: { id: number } | null
+}) {
+  const targets: Array<{ meaning_id: number | null; stored_surface_form: string | null }> = []
+  const pushTarget = (meaningId: number | null, storedSurfaceForm: string | null) => {
+    if (targets.some((target) => target.meaning_id === meaningId && target.stored_surface_form === storedSurfaceForm)) {
+      return
+    }
+    targets.push({ meaning_id: meaningId, stored_surface_form: storedSurfaceForm })
+  }
+
+  if (response.meaning?.id != null) {
+    pushTarget(response.meaning.id, null)
+    if (response.stored_surface_form && response.stored_surface_form !== response.stored_lemma) {
+      pushTarget(response.meaning.id, response.stored_surface_form)
+    }
+    return targets
+  }
+
+  pushTarget(null, null)
+  if (response.stored_surface_form && response.stored_surface_form !== response.stored_lemma) {
+    pushTarget(null, response.stored_surface_form)
+  }
+  return targets
+}
+
 export function mockFetchImplementation(options?: {
   healthOk?: boolean
   healthStatus?: "ok" | "degraded"
@@ -53,6 +81,10 @@ export function mockFetchImplementation(options?: {
       status: "queued" | "skipped"
       form: string | null
     } | null
+    queued_verification_targets?: Array<{
+      meaning_id?: number | null
+      stored_surface_form?: string | null
+    }>
     saved_snapshot?: {
       lemma: string
       english_translation?: string | null
@@ -127,6 +159,31 @@ export function mockFetchImplementation(options?: {
           gloss?: string | null
           gloss_translation?: string | null
           gram_raw?: string | null
+          verification?: {
+            status: "verified" | "flagged" | "error" | "skipped" | "queued"
+            provider: string | null
+            reviewer_role: string | null
+            message: string
+            composed_word_count: number | null
+            stored_surface_form?: string | null
+            requested_at?: string | null
+            completed_at?: string | null
+            problem?: string | null
+            change_to_implement?: string | null
+            suggested_actions?: Array<{
+              action_type: "fix_translation" | "fix_gloss" | "move_to_meaning_section" | "move_to_lemma"
+              reason?: string | null
+              english_translation?: string | null
+              gloss?: string | null
+              target_meaning_id?: number | null
+              target_lemma?: string | null
+              target_meaning_key?: string | null
+              target_gloss?: string | null
+              target_english_translation?: string | null
+              target_pos_tag?: string | null
+              target_morphology?: string | null
+            }> | null
+          } | null
         }>
       }>
       surface_forms: Array<{
@@ -139,6 +196,31 @@ export function mockFetchImplementation(options?: {
         gloss?: string | null
         gloss_translation?: string | null
         gram_raw?: string | null
+        verification?: {
+          status: "verified" | "flagged" | "error" | "skipped" | "queued"
+          provider: string | null
+          reviewer_role: string | null
+          message: string
+          composed_word_count: number | null
+          stored_surface_form?: string | null
+          requested_at?: string | null
+          completed_at?: string | null
+          problem?: string | null
+          change_to_implement?: string | null
+          suggested_actions?: Array<{
+            action_type: "fix_translation" | "fix_gloss" | "move_to_meaning_section" | "move_to_lemma"
+            reason?: string | null
+            english_translation?: string | null
+            gloss?: string | null
+            target_meaning_id?: number | null
+            target_lemma?: string | null
+            target_meaning_key?: string | null
+            target_gloss?: string | null
+            target_english_translation?: string | null
+            target_pos_tag?: string | null
+            target_morphology?: string | null
+          }> | null
+        } | null
       }>
     } | null
   }
@@ -498,7 +580,7 @@ export function mockFetchImplementation(options?: {
   const analyzeOk = options?.analyzeOk ?? true
   const analyzeTokens = options?.analyzeTokens ?? []
   const addWordOk = options?.addWordOk ?? true
-  const addWordResponse = options?.addWordResponse ?? {
+  const addWordResponseBase = options?.addWordResponse ?? {
     status: "inserted" as const,
     stored_lemma: "kat",
     stored_surface_form: "kat",
@@ -511,6 +593,10 @@ export function mockFetchImplementation(options?: {
       message: "Word verification queued.",
       composed_word_count: null,
     },
+  }
+  const addWordResponse = {
+    ...addWordResponseBase,
+    queued_verification_targets: addWordResponseBase.queued_verification_targets ?? buildQueuedVerificationTargets(addWordResponseBase),
   }
   const verifyWordResponse = options?.verifyWordResponse ?? {
     stored_lemma: addWordResponse.stored_lemma,

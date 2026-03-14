@@ -84,6 +84,7 @@ Notes:
 | Variable | Default | Accepted values | Interactions / fallbacks |
 | --- | --- | --- | --- |
 | `DANOTE_WORD_VERIFICATION_ENABLED` | `1` | Boolean-like (`1/0`, `true/false`, `yes/no`) | Disables Gemini-based word verification when falsey. |
+| `DANOTE_WORDBANK_BACKGROUND_JOB_WORKERS` | `4` | Integer string parseable by Python `int()` | Controls the maximum number of queued wordbank background jobs processed concurrently by the backend dispatcher. Values below `1` are clamped to `1`. |
 | `DANOTE_WORD_VERIFICATION_GEMINI_API_KEY` | fallback chain | Gemini API key string | Resolution order: explicit `DANOTE_WORD_VERIFICATION_GEMINI_API_KEY` -> fallback `DANOTE_GEMINI_API_KEY` -> unset. |
 | `DANOTE_WORD_VERIFICATION_GEMINI_MODEL` | `gemini-3.1-flash-lite-preview` (via alias fallback) | Gemini model name string | Resolution order: explicit `DANOTE_WORD_VERIFICATION_GEMINI_MODEL` -> fallback `DANOTE_GEMINI_MODEL` -> built-in default. |
 | `DANOTE_GEMINI_API_KEY` | fallback chain | Gemini API key string | Resolution order: explicit `DANOTE_GEMINI_API_KEY` -> fallback `DANOTE_WORD_VERIFICATION_GEMINI_API_KEY` -> unset. Acts as alias for shared Gemini credentials. |

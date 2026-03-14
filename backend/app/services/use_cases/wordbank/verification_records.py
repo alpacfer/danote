@@ -36,10 +36,15 @@ def persist_verification_result(
     *,
     lexeme_id: int,
     meaning_id: int | None,
+    stored_surface_form: str | None,
     verification: VerificationResult,
     requested_at: str | None = None,
 ) -> VerificationRecord:
-    existing = repository.get_verification_record(lexeme_id=lexeme_id, meaning_id=meaning_id)
+    existing = repository.get_verification_record(
+        lexeme_id=lexeme_id,
+        meaning_id=meaning_id,
+        stored_surface_form=stored_surface_form,
+    )
     return repository.upsert_verification_record(
         lexeme_id=lexeme_id,
         meaning_id=meaning_id,
@@ -65,9 +70,14 @@ def prune_verification_record_action(
     *,
     lexeme_id: int,
     meaning_id: int | None,
+    stored_surface_form: str | None,
     action: dict[str, object],
 ) -> None:
-    record = repository.get_verification_record(lexeme_id=lexeme_id, meaning_id=meaning_id)
+    record = repository.get_verification_record(
+        lexeme_id=lexeme_id,
+        meaning_id=meaning_id,
+        stored_surface_form=stored_surface_form,
+    )
     if record is None:
         return
     remaining_actions = [
@@ -76,7 +86,11 @@ def prune_verification_record_action(
         if action_signature(candidate) != action_signature(action)
     ]
     if not remaining_actions:
-        repository.delete_verification_record(lexeme_id=lexeme_id, meaning_id=meaning_id)
+        repository.delete_verification_record(
+            lexeme_id=lexeme_id,
+            meaning_id=meaning_id,
+            stored_surface_form=stored_surface_form,
+        )
         return
     repository.upsert_verification_record(
         lexeme_id=record.lexeme_id,

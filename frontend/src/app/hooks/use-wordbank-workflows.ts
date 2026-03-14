@@ -90,18 +90,14 @@ export function useWordbankWorkflows({
   const {
     isApplyingVerificationChanges,
     isVerifyingWords,
-    selectedLemmaVerificationError,
-    selectedLemmaVerificationQueued,
-    selectedLemmaVerificationSuccess,
-    hasSuggestedVerificationActions,
-    verifyWordInBackground,
-    applySelectedLemmaVerificationAction,
+    verificationOverview,
+    trackQueuedVerifications,
+    applyVerificationAction,
     clearVerificationErrors,
   } = useVerificationWorkflow({
     backendUrl,
     extractErrorMessage,
     selectedLemma,
-    selectedMeaningId,
     lemmaDetails,
     setWordbankRefreshTick,
     pushNotification,
@@ -155,11 +151,7 @@ export function useWordbankWorkflows({
         corId: action?.cor_id ?? null,
       })
       toast.success(payload.message)
-      void verifyWordInBackground(
-        payload.stored_lemma,
-        payload.stored_surface_form,
-        payload.meaning?.id ?? null,
-      )
+      trackQueuedVerifications(payload.stored_lemma, payload)
       void generatePronunciationInBackground(payload.stored_lemma, payload.stored_surface_form)
       void postTokenFeedback({
         raw_token: token.surface_token,
@@ -198,12 +190,8 @@ export function useWordbankWorkflows({
     try {
       const payload = await addWordToWordbank(surfaceToken, lemmaCandidate, metadata, searchSeed)
       toast.success(payload.message)
+      trackQueuedVerifications(payload.stored_lemma, payload)
       if (!searchSeed) {
-        void verifyWordInBackground(
-          payload.stored_lemma,
-          payload.stored_surface_form,
-          payload.meaning?.id ?? null,
-        )
         void generatePronunciationInBackground(payload.stored_lemma, payload.stored_surface_form)
       }
       void postTokenFeedback({
@@ -271,16 +259,13 @@ export function useWordbankWorkflows({
     isRegeneratingLemmaPronunciation,
     isApplyingVerificationChanges,
     isVerifyingWords,
-    selectedLemmaVerificationError,
-    selectedLemmaVerificationQueued,
-    selectedLemmaVerificationSuccess,
-    hasSuggestedVerificationActions,
+    verificationOverview,
     addTokenToWordbank,
     addWordFromSearch,
     addSentenceToSentencebank,
     playPronunciation,
     regenerateSelectedLemmaPronunciation,
-    applySelectedLemmaVerificationAction,
+    applyVerificationAction,
     clearVerificationErrors,
   }
 }

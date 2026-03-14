@@ -136,6 +136,7 @@ def map_lemma_details_response(response: LemmaDetailsResponse) -> LemmaDetailsRe
                 gloss_translation=form.gloss_translation,
                 gram_raw=form.gram_raw,
                 has_pronunciation=form.has_pronunciation,
+                verification=form.verification,
             )
         )
 

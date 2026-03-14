@@ -1,5 +1,6 @@
 import {
   type AnalyzedToken,
+  type VerificationResult,
   type VerificationAction,
   type WordActionSuggestion,
 } from "@/app/core/types-api"
@@ -91,4 +92,24 @@ export type VerificationQueuedDetail = {
   storedSurfaceForm: string | null
   meaningId: number | null
   requestedAt: string
+}
+
+export type VerificationTargetView = {
+  key: string
+  label: string
+  scopeLabel: string
+  meaningId: number | null
+  storedSurfaceForm: string | null
+  verification: VerificationResult | null
+  errorDetail: VerificationErrorDetail | null
+  successDetail: VerificationSuccessDetail | null
+  queuedDetail: VerificationQueuedDetail | null
+}
+
+export type VerificationOverview = {
+  targets: VerificationTargetView[]
+  queuedCount: number
+  verifiedCount: number
+  reviewCount: number
+  totalSuggestedActions: number
 }

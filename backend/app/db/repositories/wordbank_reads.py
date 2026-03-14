@@ -222,11 +222,12 @@ class WordbankReadRepository:
         *,
         lexeme_id: int,
         meaning_id: int | None,
+        stored_surface_form: str | None,
     ) -> VerificationRecord | None:
         with timed_db_operation("wordbank.get_verification_record"), get_connection(
             self._db_path, read_only=True
         ) as conn:
-            if meaning_id is None:
+            if meaning_id is None and stored_surface_form is None:
                 row = conn.execute(
                     """
                     SELECT
@@ -249,7 +250,30 @@ class WordbankReadRepository:
                     """,
                     (lexeme_id,),
                 ).fetchone()
-            else:
+            elif meaning_id is None:
+                row = conn.execute(
+                    """
+                    SELECT
+                        id,
+                        lexeme_id,
+                        meaning_id,
+                        status,
+                        provider,
+                        reviewer_role,
+                        stored_surface_form,
+                        message,
+                        problem,
+                        change_to_implement,
+                        suggested_actions_json,
+                        requested_at,
+                        completed_at
+                    FROM wordbank_verification_records
+                    WHERE lexeme_id = ? AND meaning_id IS NULL AND stored_surface_form = ?
+                    LIMIT 1
+                    """,
+                    (lexeme_id, stored_surface_form),
+                ).fetchone()
+            elif stored_surface_form is None:
                 row = conn.execute(
                     """
                     SELECT
@@ -271,6 +295,29 @@ class WordbankReadRepository:
                     LIMIT 1
                     """,
                     (lexeme_id, meaning_id),
+                ).fetchone()
+            else:
+                row = conn.execute(
+                    """
+                    SELECT
+                        id,
+                        lexeme_id,
+                        meaning_id,
+                        status,
+                        provider,
+                        reviewer_role,
+                        stored_surface_form,
+                        message,
+                        problem,
+                        change_to_implement,
+                        suggested_actions_json,
+                        requested_at,
+                        completed_at
+                    FROM wordbank_verification_records
+                    WHERE lexeme_id = ? AND meaning_id = ? AND stored_surface_form = ?
+                    LIMIT 1
+                    """,
+                    (lexeme_id, meaning_id, stored_surface_form),
                 ).fetchone()
         return verification_record_from_row(row) if row is not None else None
 

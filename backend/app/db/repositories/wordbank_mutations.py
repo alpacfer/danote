@@ -408,25 +408,45 @@ class WordbankMutationRepository:
         completed_at: str | None,
     ) -> VerificationRecord:
         with timed_db_operation("wordbank.upsert_verification_record"), get_connection(self._db_path) as conn:
-            if meaning_id is None:
+            if meaning_id is None and stored_surface_form is None:
                 existing_row = conn.execute(
                     """
                     SELECT id
                     FROM wordbank_verification_records
-                    WHERE lexeme_id = ? AND meaning_id IS NULL
+                    WHERE lexeme_id = ? AND meaning_id IS NULL AND stored_surface_form IS NULL
                     LIMIT 1
                     """,
                     (lexeme_id,),
+                ).fetchone()
+            elif meaning_id is None:
+                existing_row = conn.execute(
+                    """
+                    SELECT id
+                    FROM wordbank_verification_records
+                    WHERE lexeme_id = ? AND meaning_id IS NULL AND stored_surface_form = ?
+                    LIMIT 1
+                    """,
+                    (lexeme_id, stored_surface_form),
+                ).fetchone()
+            elif stored_surface_form is None:
+                existing_row = conn.execute(
+                    """
+                    SELECT id
+                    FROM wordbank_verification_records
+                    WHERE lexeme_id = ? AND meaning_id = ? AND stored_surface_form IS NULL
+                    LIMIT 1
+                    """,
+                    (lexeme_id, meaning_id),
                 ).fetchone()
             else:
                 existing_row = conn.execute(
                     """
                     SELECT id
                     FROM wordbank_verification_records
-                    WHERE lexeme_id = ? AND meaning_id = ?
+                    WHERE lexeme_id = ? AND meaning_id = ? AND stored_surface_form = ?
                     LIMIT 1
                     """,
-                    (lexeme_id, meaning_id),
+                    (lexeme_id, meaning_id, stored_surface_form),
                 ).fetchone()
 
             actions_json = json.dumps(suggested_actions, ensure_ascii=True, sort_keys=True)
@@ -526,23 +546,45 @@ class WordbankMutationRepository:
             raise RuntimeError("Failed to upsert verification record")
         return verification_record_from_row(row)
 
-    def delete_verification_record(self, *, lexeme_id: int, meaning_id: int | None) -> None:
+    def delete_verification_record(
+        self,
+        *,
+        lexeme_id: int,
+        meaning_id: int | None,
+        stored_surface_form: str | None,
+    ) -> None:
         with timed_db_operation("wordbank.delete_verification_record"), get_connection(self._db_path) as conn:
-            if meaning_id is None:
+            if meaning_id is None and stored_surface_form is None:
                 conn.execute(
                     """
                     DELETE FROM wordbank_verification_records
-                    WHERE lexeme_id = ? AND meaning_id IS NULL
+                    WHERE lexeme_id = ? AND meaning_id IS NULL AND stored_surface_form IS NULL
                     """,
                     (lexeme_id,),
+                )
+            elif meaning_id is None:
+                conn.execute(
+                    """
+                    DELETE FROM wordbank_verification_records
+                    WHERE lexeme_id = ? AND meaning_id IS NULL AND stored_surface_form = ?
+                    """,
+                    (lexeme_id, stored_surface_form),
+                )
+            elif stored_surface_form is None:
+                conn.execute(
+                    """
+                    DELETE FROM wordbank_verification_records
+                    WHERE lexeme_id = ? AND meaning_id = ? AND stored_surface_form IS NULL
+                    """,
+                    (lexeme_id, meaning_id),
                 )
             else:
                 conn.execute(
                     """
                     DELETE FROM wordbank_verification_records
-                    WHERE lexeme_id = ? AND meaning_id = ?
+                    WHERE lexeme_id = ? AND meaning_id = ? AND stored_surface_form = ?
                     """,
-                    (lexeme_id, meaning_id),
+                    (lexeme_id, meaning_id, stored_surface_form),
                 )
 
 

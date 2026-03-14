@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import json
 import logging
+from dataclasses import asdict
 from pathlib import Path
+from typing import Literal
 
 from app.api.schemas.v1.wordbank import (
     ApplyVerificationChangesResponse,
@@ -10,16 +12,18 @@ from app.api.schemas.v1.wordbank import (
     VerificationResult,
     VerifyWordResponse,
 )
-from app.db.repositories.wordbank import WordbankRepository
 from app.db.migrations import get_connection
+from app.db.repositories.wordbank import WordbankRepository
 from app.services.token_classifier import normalize_token
 from app.services.use_cases.wordbank.collaborators.cor import CorResolutionCollaborator
 from app.services.use_cases.wordbank.collaborators.nlp import NLPCollaborator
 from app.services.use_cases.wordbank.verification_actions import apply_verification_action
+from app.services.use_cases.wordbank.verification_apply_resolution import (
+    update_persisted_verification_after_apply,
+)
 from app.services.use_cases.wordbank.verification_records import (
     now_utc_iso,
     persist_verification_result,
-    prune_verification_record_action,
 )
 from app.services.verification import (
     WordVerificationAction,
@@ -69,6 +73,7 @@ class VerificationCollaborator:
         self._persist_verification_result(
             stored_lemma=normalized_lemma,
             meaning_id=meaning_id,
+            stored_surface_form=normalized_surface,
             verification=verification,
         )
         return VerifyWordResponse(
@@ -76,6 +81,52 @@ class VerificationCollaborator:
             stored_surface_form=normalized_surface,
             verification=verification,
         )
+
+    def verify_added_word_if_current(
+        self,
+        stored_lemma: str,
+        stored_surface_form: str | None,
+        *,
+        meaning_id: int | None = None,
+        expected_snapshot_hash: str,
+    ) -> bool:
+        normalized_lemma = normalize_token(stored_lemma)
+        normalized_surface = normalize_token(stored_surface_form or "") or None
+        if not normalized_lemma:
+            raise ValueError("stored_lemma is required")
+        payload = self._build_verification_input(
+            stored_lemma=normalized_lemma,
+            stored_surface_form=normalized_surface,
+            meaning_id=meaning_id,
+        )
+        if self._verification_payload_hash(payload) != expected_snapshot_hash:
+            return False
+        verification = self._verify_added_word(payload)
+        self._persist_verification_result(
+            stored_lemma=normalized_lemma,
+            meaning_id=meaning_id,
+            stored_surface_form=normalized_surface,
+            verification=verification,
+        )
+        return True
+
+    def build_verification_snapshot_hash(
+        self,
+        *,
+        stored_lemma: str,
+        stored_surface_form: str | None,
+        meaning_id: int | None,
+    ) -> str:
+        normalized_lemma = normalize_token(stored_lemma)
+        normalized_surface = normalize_token(stored_surface_form or "") or None
+        if not normalized_lemma:
+            raise ValueError("stored_lemma is required")
+        payload = self._build_verification_input(
+            stored_lemma=normalized_lemma,
+            stored_surface_form=normalized_surface,
+            meaning_id=meaning_id,
+        )
+        return self._verification_payload_hash(payload)
 
     def apply_verification_changes(
         self,
@@ -91,7 +142,7 @@ class VerificationCollaborator:
         if not normalized_lemma:
             raise ValueError("stored_lemma is required")
 
-        provider_name, _ = self._verification_metadata(provider_override=provider)
+        provider_name, reviewer_name = self._verification_metadata(provider_override=provider)
         result = apply_verification_action(
             db_path=self._db_path,
             stored_lemma=normalized_lemma,
@@ -114,13 +165,18 @@ class VerificationCollaborator:
                 }
             )
 
-        self._update_persisted_verification_after_apply(
+        update_persisted_verification_after_apply(
+            db_path=self._db_path,
+            status=result.status,
             stored_lemma=normalized_lemma,
+            stored_surface_form=normalized_surface,
             meaning_id=meaning_id,
             action=action,
             applied_action_type=result.applied_action_type,
             target_lemma=result.target_lemma,
             target_meaning_id=result.target_meaning_id,
+            provider_name=provider_name,
+            reviewer_name=reviewer_name,
         )
 
         return ApplyVerificationChangesResponse(
@@ -177,6 +233,7 @@ class VerificationCollaborator:
             repository,
             lexeme_id=lexeme.id,
             meaning_id=meaning_id,
+            stored_surface_form=normalize_token(stored_surface_form or "") or None,
             verification=verification.model_copy(
                 update={
                     "stored_surface_form": normalize_token(stored_surface_form or "") or None,
@@ -229,7 +286,7 @@ class VerificationCollaborator:
     ) -> WordVerificationInput:
         lexeme_source = "manual"
         selected_translation: str | None = None
-        selected_translation_scope: str | None = None
+        selected_translation_scope: Literal["lemma", "meaning_section"] | None = None
         surface_source: str | None = None
         meaning_key: str | None = None
         meaning_gloss: str | None = None
@@ -548,13 +605,18 @@ class VerificationCollaborator:
         *,
         stored_lemma: str,
         meaning_id: int | None,
+        stored_surface_form: str | None,
         verification: VerificationResult,
     ) -> None:
         repository = WordbankRepository(self._db_path)
         lexeme = repository.get_lexeme(stored_lemma)
         if lexeme is None:
             return
-        record = repository.get_verification_record(lexeme_id=lexeme.id, meaning_id=meaning_id)
+        record = repository.get_verification_record(
+            lexeme_id=lexeme.id,
+            meaning_id=meaning_id,
+            stored_surface_form=stored_surface_form,
+        )
         requested_at = record.requested_at if record is not None else verification.requested_at
         persisted = verification.model_copy(
             update={
@@ -566,41 +628,19 @@ class VerificationCollaborator:
             repository,
             lexeme_id=lexeme.id,
             meaning_id=meaning_id,
+            stored_surface_form=stored_surface_form,
             verification=persisted,
             requested_at=requested_at,
         )
         verification.requested_at = record.requested_at
         verification.completed_at = record.completed_at
 
-    def _update_persisted_verification_after_apply(
-        self,
-        *,
-        stored_lemma: str,
-        meaning_id: int | None,
-        action: dict[str, object],
-        applied_action_type: str | None,
-        target_lemma: str | None,
-        target_meaning_id: int | None,
-    ) -> None:
-        repository = WordbankRepository(self._db_path)
-        lexeme = repository.get_lexeme(stored_lemma)
-        if lexeme is None:
-            return
-        if applied_action_type in {"move_to_meaning_section", "move_to_lemma"}:
-            repository.delete_verification_record(lexeme_id=lexeme.id, meaning_id=meaning_id)
-            return
-        if target_lemma is not None and target_lemma != stored_lemma:
-            repository.delete_verification_record(lexeme_id=lexeme.id, meaning_id=meaning_id)
-            return
-        if (target_meaning_id if target_meaning_id is not None else None) != (meaning_id if meaning_id is not None else None):
-            repository.delete_verification_record(lexeme_id=lexeme.id, meaning_id=meaning_id)
-            return
-        prune_verification_record_action(
-            repository,
-            lexeme_id=lexeme.id,
-            meaning_id=meaning_id,
-            action=action,
-        )
+    def _verification_payload_hash(self, payload: WordVerificationInput) -> str:
+        serialized = {
+            key: value
+            for key, value in asdict(payload).items()
+        }
+        return json.dumps(serialized, ensure_ascii=True, sort_keys=True)
 
 
 def _verification_action_to_schema(action: WordVerificationAction) -> VerificationAction:

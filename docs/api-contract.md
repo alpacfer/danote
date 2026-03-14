@@ -100,6 +100,7 @@ Route decorators are the source of truth in `backend/app/api/routes/`, and API D
   - `400` for invalid inputs.
   - body `status` may be `inserted` or `exists`.
   - when `verification` is present, it may include `stored_surface_form`, `requested_at`, and `completed_at`.
+  - `queued_verification_targets` lists each backend-queued word-page verification target using `meaning_id` plus `stored_surface_form`.
 
 ### POST `/api/wordbank/lexemes/verify`
 - **Request model:** `VerifyWordRequest`.
@@ -108,7 +109,7 @@ Route decorators are the source of truth in `backend/app/api/routes/`, and API D
   - `503` when DB unavailable/locked.
   - `404` when target lemma/surface/meaning cannot be found.
   - `400` for invalid inputs.
-  - successful responses persist the verification result for the matching lemma/meaning target.
+  - successful responses persist the verification result for the matching `(lemma, meaning_id, stored_surface_form)` target.
   - `verification` may include `stored_surface_form`, `requested_at`, and `completed_at`.
 
 ### POST `/api/wordbank/lexemes/pronunciation`
@@ -201,6 +202,7 @@ Route decorators are the source of truth in `backend/app/api/routes/`, and API D
 - **Notable response behavior:**
   - root payload may include `verification` for non-sectioned/root targets.
   - each `meaning_sections[]` item may include its own `verification`.
+  - each `surface_forms[]` item may include its own `verification` for variation-scoped Gemini results.
   - for sectioned lemmas, top-level `surface_forms[]` may include the saved lemma form itself
     so the client can bind exact-lemma pronunciation and metadata without duplicating that row
     inside every meaning section.
@@ -231,7 +233,17 @@ Route decorators are the source of truth in `backend/app/api/routes/`, and API D
           "form": "lærer",
           "pos_tag": "VERB",
           "morphology": "Tense=Pres|VerbForm=Fin|Voice=Act",
-          "has_pronunciation": false
+          "has_pronunciation": false,
+          "verification": {
+            "status": "queued",
+            "provider": "gemini",
+            "reviewer_role": "Professional Danish Language Expert",
+            "message": "Word verification queued.",
+            "composed_word_count": null,
+            "stored_surface_form": "lærer",
+            "requested_at": "2026-03-13T12:00:00+00:00",
+            "suggested_actions": []
+          }
         }
       ]
     }
@@ -259,7 +271,7 @@ Route decorators are the source of truth in `backend/app/api/routes/`, and API D
             "reviewer_role": "Professional Danish Language Expert",
             "message": "Verification passed.",
             "composed_word_count": null,
-            "stored_surface_form": "bogen",
+            "stored_surface_form": null,
             "requested_at": "2026-03-13T12:00:00+00:00",
             "completed_at": "2026-03-13T12:00:03+00:00",
             "suggested_actions": []
@@ -274,7 +286,25 @@ Route decorators are the source of truth in `backend/app/api/routes/`, and API D
               "gloss": "book",
               "gloss_translation": "book",
               "gram_raw": "sb. fk. sg. best",
-              "has_pronunciation": false
+              "has_pronunciation": false,
+              "verification": {
+                "status": "flagged",
+                "provider": "gemini",
+                "reviewer_role": "Professional Danish Language Expert",
+                "message": "Review needed.",
+                "composed_word_count": 1,
+                "stored_surface_form": "bogen",
+                "requested_at": "2026-03-13T12:00:00+00:00",
+                "completed_at": "2026-03-13T12:00:04+00:00",
+                "problem": "Saved variation translation does not match this meaning.",
+                "change_to_implement": "Move the variation to another meaning section.",
+                "suggested_actions": [
+                  {
+                    "action_type": "move_to_meaning_section",
+                    "target_meaning_id": 2
+                  }
+                ]
+              }
             }
           ]
         }

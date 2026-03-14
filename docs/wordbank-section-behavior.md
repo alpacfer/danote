@@ -47,7 +47,7 @@ The Wordbank section has two UI modes:
 - Details are fetched only when:
   - active section is `wordbank`
   - and `selectedLemma` is present
-- If the selected lemma/meaning verification is still `queued`, details are polled every 1.5s until the verification reaches a final state.
+- If any verification target on the open word page is still `queued`, details are polled every 1.5s until all visible targets reach a final state.
 - Leaving wordbank or clearing selection resets details state (`lemmaDetails`, loading/error/skeleton flags).
 - A loading skeleton is intentionally delayed by 180ms:
   - avoids flicker for fast responses
@@ -121,18 +121,26 @@ Meaning auto-scroll behavior:
   - header actions use the same nested `ButtonGroup` composition pattern as Playground so the audio button and verification button look grouped but visually separated
 - **Verification trigger button**:
   - always rendered next to `Regenerate Audio`
-  - icon is dynamic by selected target verification state:
+  - icon is dynamic by the aggregated word-page verification state:
     - idle/no record -> info icon
     - queued -> spinner
     - verified -> success/check icon
     - error/flagged -> alert icon
-  - review-needed state shows the suggested-action count inline on the trigger when actions are present
+  - trigger priority is:
+    - `review` if any target is flagged or errored
+    - otherwise `queued` if any target is queued
+    - otherwise `verified` if all available targets are verified
+    - otherwise neutral
+  - review-needed state shows the total suggested-action count inline on the trigger when actions are present
 - **Verification popover**:
   - is the single surface for verification status/details; the old standalone status line and success/queued badges are not rendered anymore
-  - includes provider metadata, an indeterminate progress/status summary card, and the relevant timestamp for the selected state
-  - queued state shows verification-in-progress copy and requested time
-  - verified state shows completion copy and verified time
-  - error/flagged state shows reviewed time, problem, change-to-implement text, and action cards
+  - includes provider metadata, an aggregated progress/status summary card, and state counts for all rendered targets
+  - renders one target card per visible verification target in word-page order:
+    - non-sectioned page: lemma/root target plus each non-lemma variation target that has verification data
+    - sectioned page: each meaning-section target plus each verified/queued/reviewable variation target inside that meaning
+  - queued target cards show verification-in-progress copy and requested time
+  - verified target cards show completion copy and verified time
+  - error/flagged target cards show reviewed time, problem, change-to-implement text, and action cards inline on that target
   - no-record state shows a neutral empty state explaining that verification details will appear here once Gemini runs
   - each action card uses an `Apply change` button that is disabled while apply is in progress
 
@@ -191,10 +199,15 @@ Pronunciation behavior is shared by header + section rows + variation rows.
 
 ## Verification workflow behavior
 
-## Background verify (`POST /api/wordbank/lexemes/verify`)
+## Background verify
 
-- Triggered in background after add flows (except certain search-seed save paths).
-- Results are persisted by backend target scope `(lemma, meaningId)` and returned through subsequent lemma-detail fetches.
+- Add flows no longer trigger browser-side Gemini verification calls.
+- After every successful add, the backend enumerates the current saved word page and queues verification for each visible target.
+- Target discovery rules:
+  - non-sectioned page: one lemma/root target plus one target per non-lemma saved variation
+  - sectioned page: one target per meaning section plus one target per saved variation within that meaning
+  - no synthetic root target is added for sectioned pages unless a root-level saved record actually exists
+- Results are persisted by backend target scope `(lemma, meaning_id, stored_surface_form)` and returned through subsequent lemma-detail fetches.
 - Verification evaluates the current persisted wordbank structure:
   lemma page -> meaning sections -> surface forms.
 - Translation context comes only from the lemma or meaning section.
@@ -202,16 +215,22 @@ Pronunciation behavior is shared by header + section rows + variation rows.
 - Meaning glosses are treated as immutable COR disambiguators.
   Gemini may use them to identify the intended sense, but it does not propose gloss edits.
 - Canonical lemma metadata is evaluated separately from the selected saved surface-form metadata.
+- Queue execution is backend-driven through the shared wordbank background-job runner.
+  Multiple verification targets can execute in parallel through a bounded worker pool.
+- Queued verification payloads carry a target snapshot hash.
+  If the word page changes before a queued job runs, that stale job is skipped instead of overwriting a newer verification result.
 - Success path stores a persisted verification success record with `requested_at` / `completed_at`.
 - Error path stores a persisted verification error record with timestamps and suggested actions.
-- When the open word page observes a queued-to-final transition, the app pushes an in-session notification.
+- When a queued target reaches a final state, the app pushes a target-specific in-session notification.
 
 ## Action apply (`POST /api/wordbank/lexemes/apply-verification-changes`)
 
 - Accepting a popover action calls apply endpoint with selected target and action payload.
+- Apply requests always include the exact verification scope: `stored_lemma`, `meaning_id`, and `stored_surface_form`.
 - On applied status:
   - success toast text depends on action type
-  - backend persisted verification detail is pruned (remove applied action or delete the record when it is fully resolved / moved)
+  - backend persisted verification detail is pruned action-by-action
+  - when the last Gemini suggestion for a target has been applied, backend persistence flips that resolved target to `verified` instead of removing verification state entirely
   - `wordbankRefreshTick` increments
   - app navigates to returned target lemma/meaning
 - On failure:
@@ -231,7 +250,8 @@ Pronunciation behavior is shared by header + section rows + variation rows.
 - `POST /api/wordbank/lexemes`
 - On success:
   - success toast
-  - background verify + pronunciation generation
+  - backend queues verification for the full current word page
+  - pronunciation generation may also queue separately
   - token feedback submission (`source: "playground"`)
   - analysis + wordbank refresh ticks increment
 
@@ -240,11 +260,13 @@ Pronunciation behavior is shared by header + section rows + variation rows.
 - `POST /api/wordbank/lexemes`
 - On success:
   - success toast
-  - optional background verify/pronunciation (skipped when `searchSeed` is present)
+  - backend queues verification for the full current word page
+  - pronunciation generation remains best-effort in the background
   - token feedback submission (`source: "search"`)
   - if response includes `saved_snapshot`, details pane is hydrated immediately from snapshot
+  - response also includes `queued_verification_targets`, which seed off-page verification tracking
   - if that snapshot includes queued verification, the header immediately shows `Verifying...`
-  - while that queued verification remains selected, the word page polls until the persisted result becomes final
+  - while any open-page target remains queued, the word page polls until the persisted results become final
   - analysis + wordbank refresh ticks increment
   - app navigates to wordbank and selects stored lemma/meaning
 - For `search_seed` saves, backend persistence separates canonical lemma metadata from selected surface metadata:
@@ -262,4 +284,5 @@ The behaviors above are exercised across wordbank-focused tests with explicit ro
 - `request-shape`: `frontend/src/test/app/app-shell-search-actions.test.tsx`
 - `contract`: `backend/tests/use_cases/test_wordbank_translation_details.py`, `backend/tests/api/test_wordbank_add_and_list_endpoint.py`
 - `round-trip`: `backend/tests/use_cases/test_wordbank_add_and_list.py`, `backend/tests/api/test_wordbank_add_and_list_endpoint.py`
+- `queue/orchestration`: `backend/tests/use_cases/test_wordbank_pronunciation_and_verification.py`
 - shared contract fixtures for the frontend word page/search assertions live in `frontend/src/test/app/wordbank-contract-fixtures.ts`

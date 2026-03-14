@@ -69,17 +69,20 @@ describe("section prop adapters", () => {
       playPronunciation,
       isRegeneratingLemmaPronunciation: false,
       regenerateSelectedLemmaPronunciation: regenerate,
-      selectedLemmaVerificationError: null,
-      selectedLemmaVerificationQueued: null,
-      selectedLemmaVerificationSuccess: null,
-      hasSuggestedVerificationActions: () => false,
+      verificationOverview: {
+        targets: [],
+        queuedCount: 0,
+        verifiedCount: 0,
+        reviewCount: 0,
+        totalSuggestedActions: 0,
+      },
       isApplyingVerificationChanges: false,
-      applySelectedLemmaVerificationAction: apply,
+      applyVerificationAction: apply,
     })
 
     result.onPlayPronunciation("bog")
     result.onRegenerateSelectedLemmaPronunciation()
-    result.onApplySelectedLemmaVerificationAction(0)
+    result.onApplyVerificationAction("bog::root::root", 0)
 
     await Promise.resolve()
 

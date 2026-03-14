@@ -1,7 +1,13 @@
 import { buildVerificationErrorDetail, compactMessage } from "@/app/core/audio-verification"
 import { normalizeSearchWord } from "@/app/core/text-utils"
 import type { LemmaDetailsResponse, VerificationResult } from "@/app/core/types-api"
-import type { VerificationErrorDetail, VerificationQueuedDetail, VerificationSuccessDetail } from "@/app/core/types-ui"
+import type {
+  VerificationErrorDetail,
+  VerificationOverview,
+  VerificationQueuedDetail,
+  VerificationSuccessDetail,
+  VerificationTargetView,
+} from "@/app/core/types-ui"
 
 export function getSelectedLemmaVerificationResult(args: {
   lemmaDetails: LemmaDetailsResponse | null
@@ -88,6 +94,7 @@ export function mapVerificationResultToQueuedDetail(
 export function verificationResultSignature(
   verification: VerificationResult | null,
   meaningId: number | null,
+  storedSurfaceForm: string | null = null,
 ): string | null {
   if (!verification) {
     return null
@@ -95,13 +102,129 @@ export function verificationResultSignature(
   const timestamp = verification.completed_at || verification.requested_at || ""
   return JSON.stringify({
     meaningId,
+    storedSurfaceForm,
     status: verification.status,
     provider: verification.provider,
     message: verification.message,
     requestedAt: verification.requested_at,
     completedAt: verification.completed_at,
-    storedSurfaceForm: verification.stored_surface_form,
+    verificationStoredSurfaceForm: verification.stored_surface_form,
     timestamp,
     suggestedActions: verification.suggested_actions ?? [],
   })
+}
+
+export function verificationTargetKey(
+  lemma: string,
+  meaningId: number | null,
+  storedSurfaceForm: string | null,
+): string {
+  const normalizedLemma = normalizeSearchWord(lemma) || lemma
+  const normalizedSurface = normalizeSearchWord(storedSurfaceForm ?? "") || null
+  return `${normalizedLemma}::${meaningId ?? "root"}::${normalizedSurface ?? "root"}`
+}
+
+export function collectLemmaVerificationOverview(
+  lemmaDetails: LemmaDetailsResponse | null,
+): VerificationOverview {
+  const targets = collectLemmaVerificationTargets(lemmaDetails)
+  let queuedCount = 0
+  let verifiedCount = 0
+  let reviewCount = 0
+  let totalSuggestedActions = 0
+
+  for (const target of targets) {
+    if (target.queuedDetail) {
+      queuedCount += 1
+    } else if (target.errorDetail) {
+      reviewCount += 1
+      totalSuggestedActions += target.errorDetail.suggestedActions.length
+    } else if (target.successDetail) {
+      verifiedCount += 1
+    }
+  }
+
+  return {
+    targets,
+    queuedCount,
+    verifiedCount,
+    reviewCount,
+    totalSuggestedActions,
+  }
+}
+
+export function hasQueuedVerificationTargets(lemmaDetails: LemmaDetailsResponse | null): boolean {
+  return collectLemmaVerificationOverview(lemmaDetails).queuedCount > 0
+}
+
+export function collectLemmaVerificationTargets(
+  lemmaDetails: LemmaDetailsResponse | null,
+): VerificationTargetView[] {
+  if (!lemmaDetails) {
+    return []
+  }
+
+  const targets: VerificationTargetView[] = []
+  const pushTarget = (
+    label: string,
+    scopeLabel: string,
+    meaningId: number | null,
+    storedSurfaceForm: string | null,
+    verification: VerificationResult | null | undefined,
+  ) => {
+    const normalizedSurface = normalizeSearchWord(storedSurfaceForm ?? "") || null
+    targets.push({
+      key: verificationTargetKey(lemmaDetails.lemma, meaningId, normalizedSurface),
+      label,
+      scopeLabel,
+      meaningId,
+      storedSurfaceForm: normalizedSurface,
+      verification: verification ?? null,
+      errorDetail: mapVerificationResultToErrorDetail(verification ?? null, meaningId),
+      successDetail: mapVerificationResultToSuccessDetail(verification ?? null, meaningId),
+      queuedDetail: mapVerificationResultToQueuedDetail(verification ?? null, meaningId),
+    })
+  }
+
+  if (lemmaDetails.verification) {
+    pushTarget(lemmaDetails.lemma, "Lemma", null, null, lemmaDetails.verification)
+  }
+
+  for (const section of lemmaDetails.meaning_sections ?? []) {
+    pushTarget(
+      section.english_translation?.trim() || section.gloss?.trim() || section.meaning_key,
+      `Meaning #${section.id}`,
+      section.id,
+      null,
+      section.verification,
+    )
+    for (const form of section.surface_forms) {
+      if (!form.verification) {
+        continue
+      }
+      pushTarget(form.form, `Variation in meaning #${section.id}`, section.id, form.form, form.verification)
+    }
+  }
+
+  if (!(lemmaDetails.meaning_sections?.length ?? 0)) {
+    for (const form of lemmaDetails.surface_forms) {
+      if (!form.verification) {
+        continue
+      }
+      const normalizedForm = normalizeSearchWord(form.form)
+      if (normalizedForm === normalizeSearchWord(lemmaDetails.lemma)) {
+        continue
+      }
+      pushTarget(form.form, "Variation", null, form.form, form.verification)
+    }
+  }
+
+  return targets
+}
+
+export function findVerificationTarget(
+  lemmaDetails: LemmaDetailsResponse | null,
+  targetKey: string,
+): VerificationTargetView | null {
+  return collectLemmaVerificationTargets(lemmaDetails).find((target) => target.key === targetKey) ?? null
 }

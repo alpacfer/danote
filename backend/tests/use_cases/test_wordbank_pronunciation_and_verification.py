@@ -8,6 +8,7 @@ from app.db.migrations import get_connection
 from app.nlp.adapter import NLPToken
 from app.services.tts import PronunciationAudio
 from app.services.use_cases.wordbank import WordbankUseCase
+from app.services.verification import WordVerificationAction
 from tests.helpers.factories import _bog_homograph_cor_local, _cor_local_entry, _db_path
 from tests.helpers.fakes import (
     FakeCORLocalLexiconService,
@@ -50,7 +51,9 @@ def test_wordbank_use_case_runs_verification_task_and_returns_result(tmp_path: P
 
     details_after_verify = use_case.get_lemma_details("bog")
     assert details_after_verify.meaning_sections[0].verification is not None
-    assert details_after_verify.meaning_sections[0].verification.status == "verified"
+    assert details_after_verify.meaning_sections[0].verification.status == "queued"
+    assert details_after_verify.meaning_sections[0].surface_forms[0].verification is not None
+    assert details_after_verify.meaning_sections[0].surface_forms[0].verification.status == "verified"
 
 
 def test_word_verification_payload_uses_saved_and_canonical_metadata_for_search_seed_entries(tmp_path: Path) -> None:
@@ -330,6 +333,60 @@ def test_wordbank_use_case_moves_surface_to_another_meaning_section(tmp_path: Pa
     by_key = {section.meaning_key: section for section in details.meaning_sections}
     assert [item.form for item in by_key["book"].surface_forms] == []
     assert [item.form for item in by_key["swamp"].surface_forms] == ["bogen", "moser"]
+
+
+def test_wordbank_use_case_marks_moved_surface_as_verified_after_apply(tmp_path: Path) -> None:
+    class FlaggedMoveVerificationService:
+        provider = "gemini"
+        reviewer_role = "Professional Danish Language Expert"
+
+        def verify_word_entry(self, _payload):
+            class Result:
+                verdict = "flagged"
+                message = "Review needed."
+                problem = "This form belongs in another meaning section."
+                change_to_implement = "Move the form to the swamp meaning."
+                suggested_actions = (
+                    WordVerificationAction(
+                        action_type="move_to_meaning_section",
+                        target_meaning_id=2,
+                        reason="The saved form matches the swamp meaning.",
+                    ),
+                )
+
+            return Result()
+
+    db_path = _db_path(tmp_path)
+    use_case = WordbankUseCase(
+        db_path,
+        cor_local_lexicon_service=_bog_homograph_cor_local(),
+        translation_service=FakeTranslationService({"bog": "book", "bogen": "book", "moser": "swamp"}),
+        verification_service=FlaggedMoveVerificationService(),
+    )
+    first = use_case.add_word("Bogen", "bog", cor_id="COR.BOG.BOOK.DEF")
+    second = use_case.add_word("Moser", "bog", cor_id="COR.BOG.SWAMP.PL")
+
+    verified = use_case.verify_added_word("bog", "bogen", meaning_id=first.meaning.id if first.meaning else None)
+    assert verified.verification.status == "flagged"
+
+    response = use_case.apply_verification_changes(
+        stored_lemma="bog",
+        stored_surface_form="bogen",
+        meaning_id=first.meaning.id if first.meaning else None,
+        action={
+            "action_type": "move_to_meaning_section",
+            "target_meaning_id": second.meaning.id if second.meaning else None,
+        },
+        provider="gemini",
+    )
+
+    assert response.status == "applied"
+    details = use_case.get_lemma_details("bog")
+    swamp_section = next(section for section in details.meaning_sections if section.id == second.meaning.id)
+    moved_surface = next(item for item in swamp_section.surface_forms if item.form == "bogen")
+    assert moved_surface.verification is not None
+    assert moved_surface.verification.status == "verified"
+    assert moved_surface.verification.suggested_actions == []
 
 
 def test_wordbank_use_case_moves_meaning_section_to_new_lemma(tmp_path: Path) -> None:

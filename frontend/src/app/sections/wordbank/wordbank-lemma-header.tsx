@@ -1,4 +1,4 @@
-import type { LemmaDetailsResponse, VerificationErrorDetail, VerificationQueuedDetail, VerificationSuccessDetail } from "@/app/core"
+import type { LemmaDetailsResponse, VerificationOverview } from "@/app/core"
 import { badgesForSavedForm, corSecondaryBadgeClass, posBadgeClass } from "@/app/core"
 import { WordbankPronunciationWord } from "@/app/sections/wordbank/wordbank-pronunciation-word"
 import { WordbankVerificationPopover } from "@/app/sections/wordbank/wordbank-verification-popover"
@@ -16,12 +16,9 @@ type WordbankLemmaHeaderProps = {
   onPlayPronunciation: (form: string) => void
   isRegeneratingLemmaPronunciation: boolean
   onRegenerateSelectedLemmaPronunciation: () => void
-  selectedLemmaVerificationError: VerificationErrorDetail | null
-  selectedLemmaVerificationQueued: VerificationQueuedDetail | null
-  selectedLemmaVerificationSuccess: VerificationSuccessDetail | null
-  hasSuggestedVerificationActions: (detail: VerificationErrorDetail | null) => boolean
+  verificationOverview: VerificationOverview
   isApplyingVerificationChanges: boolean
-  onApplySelectedLemmaVerificationAction: (actionIndex: number) => void
+  onApplyVerificationAction: (targetKey: string, actionIndex: number) => void
   showSupplementaryMetadata: boolean
 }
 
@@ -33,12 +30,9 @@ export function WordbankLemmaHeader({
   onPlayPronunciation,
   isRegeneratingLemmaPronunciation,
   onRegenerateSelectedLemmaPronunciation,
-  selectedLemmaVerificationError,
-  selectedLemmaVerificationQueued,
-  selectedLemmaVerificationSuccess,
-  hasSuggestedVerificationActions,
+  verificationOverview,
   isApplyingVerificationChanges,
-  onApplySelectedLemmaVerificationAction,
+  onApplyVerificationAction,
   showSupplementaryMetadata,
 }: WordbankLemmaHeaderProps) {
   const normalizedSelectedLemma = (lemmaDetails.lemma ?? selectedLemma).trim().toLocaleLowerCase("da-DK")
@@ -71,13 +65,6 @@ export function WordbankLemmaHeader({
       gram_raw: lemmaSurfaceDetails?.gram_raw ?? null,
     })
     : []
-  const selectedVerificationTimestamp =
-    selectedMeaningSection?.verification?.completed_at
-    ?? selectedMeaningSection?.verification?.requested_at
-    ?? lemmaDetails.verification?.completed_at
-    ?? lemmaDetails.verification?.requested_at
-    ?? new Date().toISOString()
-
   return (
     <div>
       <div className="flex items-start justify-between gap-3">
@@ -122,13 +109,9 @@ export function WordbankLemmaHeader({
           </ButtonGroup>
           <ButtonGroup>
             <WordbankVerificationPopover
-              selectedLemmaVerificationError={selectedLemmaVerificationError}
-              selectedLemmaVerificationQueued={selectedLemmaVerificationQueued}
-              selectedLemmaVerificationSuccess={selectedLemmaVerificationSuccess}
-              selectedVerificationTimestamp={selectedVerificationTimestamp}
-              hasSuggestedVerificationActions={hasSuggestedVerificationActions}
+              verificationOverview={verificationOverview}
               isApplyingVerificationChanges={isApplyingVerificationChanges}
-              onApplySelectedLemmaVerificationAction={onApplySelectedLemmaVerificationAction}
+              onApplyVerificationAction={onApplyVerificationAction}
             />
           </ButtonGroup>
         </ButtonGroup>

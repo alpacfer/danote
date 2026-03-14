@@ -25,6 +25,10 @@ from app.services.use_cases.wordbank.meaning_sections import (
     resolve_non_verb_meaning,
 )
 from app.services.use_cases.wordbank.runtime import WordbankRuntime
+from app.services.use_cases.wordbank.verification_targets import (
+    discover_word_page_verification_targets,
+    queue_verification_targets,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -236,17 +240,20 @@ def _add_meaning_scoped_word(
     verification = runtime.verification.queued_verification_result(
         stored_surface_form=inputs.normalized_surface or inputs.stored_lemma,
     )
-    runtime.verification.persist_queued_verification(
+    queued_verification_targets = queue_verification_targets(
+        runtime,
         stored_lemma=inputs.stored_lemma,
-        stored_surface_form=inputs.normalized_surface or inputs.stored_lemma,
-        meaning_id=meaning_assignment.id,
-        verification=verification,
+        targets=discover_word_page_verification_targets(
+            runtime,
+            stored_lemma=inputs.stored_lemma,
+        ),
     )
     return _build_add_word_response(
         inputs=inputs,
         write_result=write_result,
         meaning=meaning_assignment,
         verification=verification,
+        queued_verification_targets=queued_verification_targets,
     )
 
 
@@ -313,17 +320,20 @@ def _add_unsectioned_word(
     verification = runtime.verification.queued_verification_result(
         stored_surface_form=inputs.normalized_surface or inputs.stored_lemma,
     )
-    runtime.verification.persist_queued_verification(
+    queued_verification_targets = queue_verification_targets(
+        runtime,
         stored_lemma=inputs.stored_lemma,
-        stored_surface_form=inputs.normalized_surface or inputs.stored_lemma,
-        meaning_id=None,
-        verification=verification,
+        targets=discover_word_page_verification_targets(
+            runtime,
+            stored_lemma=inputs.stored_lemma,
+        ),
     )
     return _build_add_word_response(
         inputs=inputs,
         write_result=write_result,
         meaning=None,
         verification=verification,
+        queued_verification_targets=queued_verification_targets,
     )
 
 
@@ -634,6 +644,7 @@ def _build_add_word_response(
     write_result: _AddWordWriteResult,
     meaning,
     verification: VerificationResult | None,
+    queued_verification_targets,
 ) -> AddWordResponse:
     status: Literal["inserted", "exists"] = "inserted" if write_result.inserted_any else "exists"
     message = (
@@ -658,4 +669,5 @@ def _build_add_word_response(
             else None
         ),
         verification=verification,
+        queued_verification_targets=queued_verification_targets,
     )

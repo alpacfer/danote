@@ -1,58 +1,28 @@
-import type { VerificationErrorDetail, VerificationQueuedDetail, VerificationSuccessDetail } from "@/app/core"
-import { formatSavedNoteTimestamp } from "@/app/core"
+import {
+  formatSavedNoteTimestamp,
+  type VerificationAction,
+  type VerificationOverview,
+  type VerificationTargetView,
+} from "@/app/core"
 
 export type WordbankVerificationViewState = "idle" | "queued" | "verified" | "review"
 
-export function getVerificationViewState(args: {
-  selectedLemmaVerificationError: VerificationErrorDetail | null
-  selectedLemmaVerificationQueued: VerificationQueuedDetail | null
-  selectedLemmaVerificationSuccess: VerificationSuccessDetail | null
-}): WordbankVerificationViewState {
-  if (args.selectedLemmaVerificationQueued) {
+export function getVerificationViewState(overview: VerificationOverview): WordbankVerificationViewState {
+  if (overview.reviewCount > 0) {
+    return "review"
+  }
+  if (overview.queuedCount > 0) {
     return "queued"
   }
-  if (args.selectedLemmaVerificationSuccess) {
+  if (overview.targets.length > 0 && overview.verifiedCount === overview.targets.length) {
     return "verified"
-  }
-  if (args.selectedLemmaVerificationError) {
-    return "review"
   }
   return "idle"
 }
 
-export function getVerificationTimestampMeta(args: {
-  selectedLemmaVerificationError: VerificationErrorDetail | null
-  selectedLemmaVerificationQueued: VerificationQueuedDetail | null
-  selectedLemmaVerificationSuccess: VerificationSuccessDetail | null
-  selectedVerificationTimestamp: string
-}): { label: string; value: string } {
-  if (args.selectedLemmaVerificationQueued) {
-    return {
-      label: "Requested",
-      value: formatSavedNoteTimestamp(args.selectedLemmaVerificationQueued.requestedAt),
-    }
-  }
-  if (args.selectedLemmaVerificationSuccess) {
-    return {
-      label: "Verified",
-      value: formatSavedNoteTimestamp(args.selectedLemmaVerificationSuccess.verifiedAt),
-    }
-  }
-  if (args.selectedLemmaVerificationError) {
-    return {
-      label: "Reviewed",
-      value: formatSavedNoteTimestamp(args.selectedVerificationTimestamp),
-    }
-  }
-  return {
-    label: "Updated",
-    value: "Not verified yet",
-  }
-}
-
 export function verificationTriggerLabel(state: WordbankVerificationViewState): string {
   if (state === "queued") {
-    return "Show verification details (verification is running)"
+    return "Show verification details (word verification is running)"
   }
   if (state === "review") {
     return "Show verification review details"
@@ -87,7 +57,7 @@ export function verificationBadgeVariant(
 
 export function verificationHeadline(state: WordbankVerificationViewState): string {
   if (state === "queued") {
-    return "Gemini is verifying this word"
+    return "Gemini is verifying this word page"
   }
   if (state === "verified") {
     return "Verification completed"
@@ -95,41 +65,108 @@ export function verificationHeadline(state: WordbankVerificationViewState): stri
   if (state === "review") {
     return "Verification needs review"
   }
-  return "No verification record yet"
+  return "No verification records yet"
 }
 
-export function verificationSummary(args: {
-  viewState: WordbankVerificationViewState
-  selectedLemmaVerificationError: VerificationErrorDetail | null
-  selectedLemmaVerificationQueued: VerificationQueuedDetail | null
-  selectedLemmaVerificationSuccess: VerificationSuccessDetail | null
-}): string {
-  if (args.viewState === "queued") {
-    return "Gemini is still processing this entry. The latest status and any suggested fixes will appear here."
-  }
-  if (args.viewState === "verified") {
-    return args.selectedLemmaVerificationSuccess?.rawMessage || "Gemini verified this entry successfully."
-  }
-  if (args.viewState === "review") {
-    return args.selectedLemmaVerificationError?.rawMessage || args.selectedLemmaVerificationError?.problem || "Gemini found an issue that needs review."
-  }
-  return "Verification details, progress, and suggested changes will appear here after Gemini processes this entry."
-}
-
-export function verificationProgressLabel(state: WordbankVerificationViewState): string {
+export function verificationSummary(
+  _overview: VerificationOverview,
+  state: WordbankVerificationViewState,
+): string {
   if (state === "queued") {
-    return "Verification in progress"
+    return "Gemini is still processing one or more targets. Results and suggested fixes will appear here as they finish."
   }
   if (state === "verified") {
-    return "Verification complete"
+    return "Gemini verified every visible target on this word page."
   }
   if (state === "review") {
-    return "Review needed"
+    return "One or more targets need review. Apply the suggested changes from the cards below."
+  }
+  return "Verification details, progress, and suggested changes will appear here after Gemini processes this word page."
+}
+
+export function verificationProgressLabel(
+  overview: VerificationOverview,
+  state: WordbankVerificationViewState,
+): string {
+  if (state === "queued") {
+    return `${overview.queuedCount} running`
+  }
+  if (state === "verified") {
+    return `${overview.verifiedCount} verified`
+  }
+  if (state === "review") {
+    return `${overview.reviewCount} need review`
   }
   return "Waiting to run"
 }
 
-export function verificationActionTitle(action: VerificationErrorDetail["suggestedActions"][number]): string {
+export function verificationCountsSummary(overview: VerificationOverview): string {
+  const parts: string[] = []
+  if (overview.queuedCount > 0) {
+    parts.push(`${overview.queuedCount} queued`)
+  }
+  if (overview.verifiedCount > 0) {
+    parts.push(`${overview.verifiedCount} verified`)
+  }
+  if (overview.reviewCount > 0) {
+    parts.push(`${overview.reviewCount} review`)
+  }
+  return parts.join(" · ") || "No completed targets"
+}
+
+export function verificationTargetState(target: VerificationTargetView): WordbankVerificationViewState {
+  if (target.errorDetail) {
+    return "review"
+  }
+  if (target.queuedDetail) {
+    return "queued"
+  }
+  if (target.successDetail) {
+    return "verified"
+  }
+  return "idle"
+}
+
+export function verificationTargetTimestampMeta(target: VerificationTargetView): { label: string; value: string } {
+  if (target.queuedDetail) {
+    return {
+      label: "Requested",
+      value: formatSavedNoteTimestamp(target.queuedDetail.requestedAt),
+    }
+  }
+  if (target.successDetail) {
+    return {
+      label: "Verified",
+      value: formatSavedNoteTimestamp(target.successDetail.verifiedAt),
+    }
+  }
+  if (target.errorDetail) {
+    const timestamp = target.verification?.completed_at || target.verification?.requested_at || new Date().toISOString()
+    return {
+      label: "Reviewed",
+      value: formatSavedNoteTimestamp(timestamp),
+    }
+  }
+  return {
+    label: "Updated",
+    value: "Not verified yet",
+  }
+}
+
+export function verificationTargetSummary(target: VerificationTargetView): string {
+  if (target.queuedDetail) {
+    return "Gemini is still processing this target."
+  }
+  if (target.successDetail) {
+    return target.successDetail.rawMessage || "Verification passed."
+  }
+  if (target.errorDetail) {
+    return target.errorDetail.rawMessage || target.errorDetail.problem
+  }
+  return "Waiting for verification."
+}
+
+export function verificationActionTitle(action: VerificationAction) {
   if (action.action_type === "fix_translation") {
     return "Fix translation"
   }
@@ -145,7 +182,7 @@ export function verificationActionTitle(action: VerificationErrorDetail["suggest
   return "Review action"
 }
 
-export function verificationActionSummary(action: VerificationErrorDetail["suggestedActions"][number]): string {
+export function verificationActionSummary(action: VerificationAction) {
   if (action.action_type === "fix_translation") {
     return `Set translation to '${action.english_translation ?? ""}'.`
   }

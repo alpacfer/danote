@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import {
   type AppSection,
   createApiClient,
-  getSelectedLemmaVerificationResult,
+  hasQueuedVerificationTargets,
   type LemmaDetailsResponse,
   type LemmaListResponse,
   type SentenceListResponse,
@@ -186,11 +186,7 @@ export function useLexiconData({
     if (activeSection !== "wordbank" || !selectedLemma) {
       return
     }
-    const selectedVerification = getSelectedLemmaVerificationResult({
-      lemmaDetails,
-      selectedMeaningId,
-    })
-    if (selectedVerification?.status !== "queued") {
+    if (!hasQueuedVerificationTargets(lemmaDetails)) {
       return
     }
     const timeoutId = window.setTimeout(() => {

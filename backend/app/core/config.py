@@ -38,6 +38,7 @@ class Settings:
     word_verification_enabled: bool = False
     word_verification_gemini_api_key: str | None = None
     word_verification_gemini_model: str = "gemini-3-flash-preview"
+    wordbank_background_job_workers: int = 4
     tts_enabled: bool = True
     tts_provider: str = "azure"
     tts_azure_api_key: str | None = None
@@ -103,6 +104,9 @@ def load_settings(*, env_file: Path | None = None) -> Settings:
             "DANOTE_WORD_VERIFICATION_GEMINI_MODEL",
             env_values,
             _required_env("DANOTE_GEMINI_MODEL", env_values, "gemini-3.1-flash-lite-preview"),
+        ),
+        wordbank_background_job_workers=int(
+            _required_env("DANOTE_WORDBANK_BACKGROUND_JOB_WORKERS", env_values, "4")
         ),
         tts_enabled=_required_env("DANOTE_TTS_ENABLED", env_values, "1").lower() not in {"0", "false", "no"},
         tts_provider=_required_env("DANOTE_TTS_PROVIDER", env_values, "azure"),

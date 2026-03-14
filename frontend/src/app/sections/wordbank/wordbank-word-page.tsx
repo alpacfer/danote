@@ -18,12 +18,9 @@ type WordbankWordPageProps = Pick<
   | "onPlayPronunciation"
   | "isRegeneratingLemmaPronunciation"
   | "onRegenerateSelectedLemmaPronunciation"
-  | "selectedLemmaVerificationError"
-  | "selectedLemmaVerificationQueued"
-  | "selectedLemmaVerificationSuccess"
-  | "hasSuggestedVerificationActions"
+  | "verificationOverview"
   | "isApplyingVerificationChanges"
-  | "onApplySelectedLemmaVerificationAction"
+  | "onApplyVerificationAction"
 >
 
 export function WordbankWordPage({
@@ -37,12 +34,9 @@ export function WordbankWordPage({
   onPlayPronunciation,
   isRegeneratingLemmaPronunciation,
   onRegenerateSelectedLemmaPronunciation,
-  selectedLemmaVerificationError,
-  selectedLemmaVerificationQueued,
-  selectedLemmaVerificationSuccess,
-  hasSuggestedVerificationActions,
+  verificationOverview,
   isApplyingVerificationChanges,
-  onApplySelectedLemmaVerificationAction,
+  onApplyVerificationAction,
 }: WordbankWordPageProps) {
   const normalizedSelectedLemma = (lemmaDetails?.lemma ?? selectedLemma ?? "").trim().toLocaleLowerCase("da-DK")
   const variationForms = (lemmaDetails?.surface_forms ?? []).filter(
@@ -89,12 +83,9 @@ export function WordbankWordPage({
             onPlayPronunciation={onPlayPronunciation}
             isRegeneratingLemmaPronunciation={isRegeneratingLemmaPronunciation}
             onRegenerateSelectedLemmaPronunciation={onRegenerateSelectedLemmaPronunciation}
-            selectedLemmaVerificationError={selectedLemmaVerificationError}
-            selectedLemmaVerificationQueued={selectedLemmaVerificationQueued}
-            selectedLemmaVerificationSuccess={selectedLemmaVerificationSuccess}
-            hasSuggestedVerificationActions={hasSuggestedVerificationActions}
+            verificationOverview={verificationOverview}
             isApplyingVerificationChanges={isApplyingVerificationChanges}
-            onApplySelectedLemmaVerificationAction={onApplySelectedLemmaVerificationAction}
+            onApplyVerificationAction={onApplyVerificationAction}
             showSupplementaryMetadata={!isSectioned}
           />
           {isSectioned ? (

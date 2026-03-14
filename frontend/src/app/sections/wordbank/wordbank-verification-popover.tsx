@@ -1,14 +1,17 @@
-import type { VerificationErrorDetail, VerificationQueuedDetail, VerificationSuccessDetail } from "@/app/core"
+import type { VerificationOverview, VerificationTargetView } from "@/app/core"
 import {
-  getVerificationTimestampMeta,
   getVerificationViewState,
   verificationActionSummary,
   verificationActionTitle,
   verificationBadgeLabel,
   verificationBadgeVariant,
+  verificationCountsSummary,
   verificationHeadline,
   verificationProgressLabel,
   verificationSummary,
+  verificationTargetState,
+  verificationTargetSummary,
+  verificationTargetTimestampMeta,
   verificationTriggerLabel,
   type WordbankVerificationViewState,
 } from "@/app/sections/wordbank/wordbank-verification-view"
@@ -22,41 +25,18 @@ import { Spinner } from "@/components/ui/spinner"
 import { BadgeCheck, CircleAlert, Info } from "lucide-react"
 
 type WordbankVerificationPopoverProps = {
-  selectedLemmaVerificationError: VerificationErrorDetail | null
-  selectedLemmaVerificationQueued: VerificationQueuedDetail | null
-  selectedLemmaVerificationSuccess: VerificationSuccessDetail | null
-  selectedVerificationTimestamp: string
-  hasSuggestedVerificationActions: (detail: VerificationErrorDetail | null) => boolean
+  verificationOverview: VerificationOverview
   isApplyingVerificationChanges: boolean
-  onApplySelectedLemmaVerificationAction: (actionIndex: number) => void
+  onApplyVerificationAction: (targetKey: string, actionIndex: number) => void
 }
 
 export function WordbankVerificationPopover({
-  selectedLemmaVerificationError,
-  selectedLemmaVerificationQueued,
-  selectedLemmaVerificationSuccess,
-  selectedVerificationTimestamp,
-  hasSuggestedVerificationActions,
+  verificationOverview,
   isApplyingVerificationChanges,
-  onApplySelectedLemmaVerificationAction,
+  onApplyVerificationAction,
 }: WordbankVerificationPopoverProps) {
-  const viewState = getVerificationViewState({
-    selectedLemmaVerificationError,
-    selectedLemmaVerificationQueued,
-    selectedLemmaVerificationSuccess,
-  })
-  const providerLabel =
-    selectedLemmaVerificationError?.provider
-    ?? selectedLemmaVerificationQueued?.provider
-    ?? selectedLemmaVerificationSuccess?.provider
-    ?? "gemini"
-  const timestampMeta = getVerificationTimestampMeta({
-    selectedLemmaVerificationError,
-    selectedLemmaVerificationQueued,
-    selectedLemmaVerificationSuccess,
-    selectedVerificationTimestamp,
-  })
-  const countLabel = selectedLemmaVerificationError?.suggestedActions.length
+  const viewState = getVerificationViewState(verificationOverview)
+  const providerLabel = verificationOverview.targets.find((target) => target.verification?.provider)?.verification?.provider ?? "gemini"
 
   return (
     <Popover>
@@ -69,12 +49,12 @@ export function WordbankVerificationPopover({
           aria-label={verificationTriggerLabel(viewState)}
         >
           <VerificationStateIcon state={viewState} className="size-4" />
-          {viewState === "review" && countLabel ? (
-            <span className="text-[11px] leading-none">{countLabel}</span>
+          {verificationOverview.totalSuggestedActions > 0 ? (
+            <span className="text-[11px] leading-none">{verificationOverview.totalSuggestedActions}</span>
           ) : null}
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-96 space-y-3">
+      <PopoverContent align="end" className="w-[28rem] space-y-3">
         <div className="space-y-1">
           <div className="flex items-center justify-between gap-2">
             <p className="text-sm font-semibold">Verification</p>
@@ -90,70 +70,118 @@ export function WordbankVerificationPopover({
               <div className="space-y-1">
                 <p className="text-sm font-medium">{verificationHeadline(viewState)}</p>
                 <p className="text-muted-foreground text-sm">
-                  {verificationSummary({
-                    viewState,
-                    selectedLemmaVerificationError,
-                    selectedLemmaVerificationQueued,
-                    selectedLemmaVerificationSuccess,
-                  })}
+                  {verificationSummary(verificationOverview, viewState)}
                 </p>
               </div>
             </div>
             <Separator />
             <div className="space-y-2 text-sm">
-              <VerificationMetaRow label="Progress" value={verificationProgressLabel(viewState)} />
-              <VerificationMetaRow label={timestampMeta.label} value={timestampMeta.value} />
+              <VerificationMetaRow
+                label="Progress"
+                value={verificationProgressLabel(verificationOverview, viewState)}
+              />
+              <VerificationMetaRow
+                label="Targets"
+                value={verificationCountsSummary(verificationOverview)}
+              />
             </div>
           </CardContent>
         </Card>
 
-        {selectedLemmaVerificationError ? (
+        {verificationOverview.targets.length > 0 ? (
+          <div className="space-y-2">
+            {verificationOverview.targets.map((target) => (
+              <VerificationTargetCard
+                key={target.key}
+                target={target}
+                isApplyingVerificationChanges={isApplyingVerificationChanges}
+                onApplyVerificationAction={onApplyVerificationAction}
+              />
+            ))}
+          </div>
+        ) : (
+          <p className="text-muted-foreground text-sm">
+            Verification details, progress, and suggested changes will appear here after Gemini processes this word page.
+          </p>
+        )}
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+function VerificationTargetCard({
+  target,
+  isApplyingVerificationChanges,
+  onApplyVerificationAction,
+}: {
+  target: VerificationTargetView
+  isApplyingVerificationChanges: boolean
+  onApplyVerificationAction: (targetKey: string, actionIndex: number) => void
+}) {
+  const state = verificationTargetState(target)
+  const timestampMeta = verificationTargetTimestampMeta(target)
+
+  return (
+    <Card className="gap-3 py-3 shadow-none">
+      <CardContent className="space-y-3 px-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-1">
+            <p className="text-sm font-medium">{target.label}</p>
+            <p className="text-muted-foreground text-xs">{target.scopeLabel}</p>
+          </div>
+          <Badge variant={verificationBadgeVariant(state)}>{verificationBadgeLabel(state)}</Badge>
+        </div>
+        <p className="text-muted-foreground text-sm">{verificationTargetSummary(target)}</p>
+        <div className="space-y-2 text-sm">
+          <VerificationMetaRow label="Progress" value={verificationBadgeLabel(state)} />
+          <VerificationMetaRow label={timestampMeta.label} value={timestampMeta.value} />
+        </div>
+        {target.errorDetail ? (
           <>
+            <Separator />
             <div className="space-y-1">
               <p className="text-muted-foreground text-[11px] font-semibold tracking-wide uppercase">Problem</p>
-              <p className="text-sm">{selectedLemmaVerificationError.problem}</p>
+              <p className="text-sm">{target.errorDetail.problem}</p>
             </div>
             <div className="space-y-1">
               <p className="text-muted-foreground text-[11px] font-semibold tracking-wide uppercase">Change to implement</p>
-              <p className="text-sm">{selectedLemmaVerificationError.changeToImplement}</p>
+              <p className="text-sm">{target.errorDetail.changeToImplement}</p>
             </div>
-            {hasSuggestedVerificationActions(selectedLemmaVerificationError) ? (
+            {target.errorDetail.suggestedActions.length > 0 ? (
               <div className="space-y-2">
                 <p className="text-muted-foreground text-[11px] font-semibold tracking-wide uppercase">Apply changes</p>
-                <div className="space-y-2">
-                  {selectedLemmaVerificationError.suggestedActions.map((action, index) => (
-                    <Card key={`${action.action_type}-${index}`} className="gap-3 py-3 shadow-none">
-                      <CardContent className="space-y-3 px-3">
-                        <div className="space-y-1">
-                          <p className="text-sm font-medium">{verificationActionTitle(action)}</p>
-                          <p className="text-muted-foreground text-xs">
-                            {action.reason?.trim() || verificationActionSummary(action)}
-                          </p>
-                          {!action.reason?.trim() ? null : (
-                            <p className="text-sm">{verificationActionSummary(action)}</p>
-                          )}
-                        </div>
-                        <ButtonGroup>
-                          <Button
-                            type="button"
-                            size="sm"
-                            className="w-full"
-                            disabled={isApplyingVerificationChanges}
-                            onClick={() => onApplySelectedLemmaVerificationAction(index)}
-                          >
-                            {isApplyingVerificationChanges ? "Applying..." : "Apply change"}
-                          </Button>
-                        </ButtonGroup>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
+                {target.errorDetail.suggestedActions.map((action, index) => (
+                  <Card key={`${target.key}-${action.action_type}-${index}`} className="gap-3 py-3 shadow-none">
+                    <CardContent className="space-y-3 px-3">
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium">{verificationActionTitle(action)}</p>
+                        <p className="text-muted-foreground text-xs">
+                          {action.reason?.trim() || verificationActionSummary(action)}
+                        </p>
+                        {!action.reason?.trim() ? null : (
+                          <p className="text-sm">{verificationActionSummary(action)}</p>
+                        )}
+                      </div>
+                      <ButtonGroup>
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="w-full"
+                          disabled={isApplyingVerificationChanges}
+                          onClick={() => onApplyVerificationAction(target.key, index)}
+                        >
+                          {isApplyingVerificationChanges ? "Applying..." : "Apply change"}
+                        </Button>
+                      </ButtonGroup>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
             ) : null}
           </>
         ) : null}
-      </PopoverContent>
-    </Popover>
+      </CardContent>
+    </Card>
   )
 }
 

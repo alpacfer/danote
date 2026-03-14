@@ -13,6 +13,10 @@ from app.services.use_cases.wordbank.meaning_sections import (
 )
 from app.services.use_cases.wordbank.queries_details import get_lemma_details
 from app.services.use_cases.wordbank.runtime import WordbankRuntime
+from app.services.use_cases.wordbank.verification_targets import (
+    discover_word_page_verification_targets,
+    queue_verification_targets,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -108,19 +112,19 @@ def add_word_from_search_seed(
     verification = runtime.verification.queued_verification_result(
         stored_surface_form=seed.surface,
     )
-    runtime.verification.persist_queued_verification(
+    queued_verification_targets = queue_verification_targets(
+        runtime,
         stored_lemma=seed.lemma,
-        stored_surface_form=seed.surface,
-        meaning_id=meaning.id if meaning is not None else None,
-        verification=verification,
+        targets=discover_word_page_verification_targets(
+            runtime,
+            stored_lemma=seed.lemma,
+        ),
     )
     pronunciation = runtime.pronunciation.queued_pronunciation_result(seed.lemma, seed.surface)
     _enqueue_background_jobs(
         runtime,
         stored_lemma=seed.lemma,
         stored_surface_form=seed.surface,
-        meaning_id=meaning.id if meaning is not None else None,
-        verification=verification,
         pronunciation=pronunciation,
     )
     saved_snapshot = get_lemma_details(runtime, seed.lemma)
@@ -146,6 +150,7 @@ def add_word_from_search_seed(
             else None
         ),
         verification=verification,
+        queued_verification_targets=queued_verification_targets,
         pronunciation=pronunciation,
         saved_snapshot=saved_snapshot,
     )
@@ -301,22 +306,10 @@ def _enqueue_background_jobs(
     *,
     stored_lemma: str,
     stored_surface_form: str | None,
-    meaning_id: int | None,
-    verification: VerificationResult | None,
     pronunciation: QueuedBackgroundTask | None,
 ) -> None:
     repository = WordbankBackgroundJobRepository(runtime.db_path)
     normalized_surface = normalize_token(stored_surface_form or "") or None
-    if verification is not None and verification.status == "queued":
-        repository.enqueue(
-            job_type="verify_word",
-            dedupe_key=f"verify_word::{stored_lemma}::{meaning_id or 'root'}::{normalized_surface or ''}",
-            payload={
-                "stored_lemma": stored_lemma,
-                "stored_surface_form": normalized_surface,
-                "meaning_id": meaning_id,
-            },
-        )
     if pronunciation is not None and pronunciation.status == "queued":
         repository.enqueue(
             job_type="generate_pronunciation",

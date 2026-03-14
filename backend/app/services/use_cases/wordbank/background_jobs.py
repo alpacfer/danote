@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 import logging
 import threading
 from pathlib import Path
@@ -18,14 +19,20 @@ class WordbankBackgroundJobRunner:
         db_path: Path,
         services: Any,
         gemini_changes_log_path: Path | None,
+        max_workers: int = 4,
         poll_interval_seconds: float = 0.25,
     ) -> None:
         self._db_path = db_path
         self._repository = WordbankBackgroundJobRepository(db_path)
         self._services = services
         self._gemini_changes_log_path = gemini_changes_log_path
+        self._max_workers = max(1, int(max_workers))
         self._poll_interval_seconds = poll_interval_seconds
         self._stop_event = threading.Event()
+        self._executor = ThreadPoolExecutor(
+            max_workers=self._max_workers,
+            thread_name_prefix="wordbank-job",
+        )
         self._thread = threading.Thread(
             target=self._run,
             name="wordbank-background-jobs",
@@ -39,15 +46,36 @@ class WordbankBackgroundJobRunner:
         self._stop_event.set()
         if self._thread.is_alive():
             self._thread.join(timeout=2)
+        self._executor.shutdown(wait=False, cancel_futures=True)
 
     def _run(self) -> None:
-        while not self._stop_event.is_set():
-            job = self._repository.claim_next()
-            if job is None:
-                self._stop_event.wait(self._poll_interval_seconds)
-                continue
+        in_flight: dict[Future[None], object] = {}
+        try:
+            while not self._stop_event.is_set() or in_flight:
+                self._collect_completed_jobs(in_flight)
+                if self._stop_event.is_set():
+                    if in_flight:
+                        self._wait_for_completion(in_flight)
+                    continue
+                while len(in_flight) < self._max_workers:
+                    job = self._repository.claim_next()
+                    if job is None:
+                        break
+                    future = self._executor.submit(self._handle_job, job.job_type, job.payload)
+                    in_flight[future] = job
+                if in_flight:
+                    self._wait_for_completion(in_flight)
+                else:
+                    self._stop_event.wait(self._poll_interval_seconds)
+        finally:
+            self._executor.shutdown(wait=True, cancel_futures=False)
+
+    def _collect_completed_jobs(self, in_flight: dict[Future[None], object]) -> None:
+        completed = [future for future in in_flight if future.done()]
+        for future in completed:
+            job = in_flight.pop(future)
             try:
-                self._handle_job(job.job_type, job.payload)
+                future.result()
             except Exception as exc:  # pragma: no cover - exercised through queue state assertions
                 logger.exception(
                     "wordbank_background_job_failed",
@@ -56,6 +84,16 @@ class WordbankBackgroundJobRunner:
                 self._repository.mark_retryable_failure(job, error_message=str(exc))
                 continue
             self._repository.mark_completed(job.id)
+
+    def _wait_for_completion(self, in_flight: dict[Future[None], object]) -> None:
+        if not in_flight:
+            return
+        wait(
+            tuple(in_flight),
+            timeout=self._poll_interval_seconds,
+            return_when=FIRST_COMPLETED,
+        )
+        self._collect_completed_jobs(in_flight)
 
     def _handle_job(self, job_type: str, payload: dict[str, object]) -> None:
         use_case = WordbankUseCase(
@@ -73,10 +111,11 @@ class WordbankBackgroundJobRunner:
         stored_lemma = _string_value(payload, "stored_lemma")
         stored_surface_form = _optional_string_value(payload, "stored_surface_form")
         if job_type == "verify_word":
-            use_case.verify_added_word(
+            use_case.verify_added_word_if_current(
                 stored_lemma,
                 stored_surface_form,
                 meaning_id=_optional_int_value(payload, "meaning_id"),
+                expected_snapshot_hash=_string_value(payload, "snapshot_hash"),
             )
             return
         if job_type == "generate_pronunciation":

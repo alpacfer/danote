@@ -31,19 +31,51 @@ class WordbankBackgroundJobRepository:
         max_attempts: int = 3,
     ) -> bool:
         with timed_db_operation("wordbank_background_jobs.enqueue"), get_connection(self._db_path) as conn:
-            cursor = conn.execute(
+            payload_json = json.dumps(payload, ensure_ascii=True, sort_keys=True)
+            existing = conn.execute(
                 """
-                INSERT OR IGNORE INTO wordbank_background_jobs (
-                    job_type,
-                    dedupe_key,
-                    payload_json,
-                    max_attempts
-                )
-                VALUES (?, ?, ?, ?)
+                SELECT id, status
+                FROM wordbank_background_jobs
+                WHERE dedupe_key = ?
+                LIMIT 1
                 """,
-                (job_type, dedupe_key, json.dumps(payload, ensure_ascii=True, sort_keys=True), max_attempts),
+                (dedupe_key,),
+            ).fetchone()
+            if existing is None:
+                cursor = conn.execute(
+                    """
+                    INSERT INTO wordbank_background_jobs (
+                        job_type,
+                        dedupe_key,
+                        payload_json,
+                        max_attempts
+                    )
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    (job_type, dedupe_key, payload_json, max_attempts),
+                )
+                return cursor.rowcount == 1
+
+            if str(existing["status"]) in {"pending", "running"}:
+                return False
+
+            conn.execute(
+                """
+                UPDATE wordbank_background_jobs
+                SET job_type = ?,
+                    payload_json = ?,
+                    status = 'pending',
+                    attempt_count = 0,
+                    max_attempts = ?,
+                    available_at = CURRENT_TIMESTAMP,
+                    last_error = NULL,
+                    completed_at = NULL,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (job_type, payload_json, max_attempts, int(existing["id"])),
             )
-        return cursor.rowcount == 1
+        return True
 
     def claim_next(self) -> WordbankBackgroundJobRecord | None:
         with get_connection(self._db_path) as conn:

@@ -964,7 +964,7 @@ def test_apply_verification_changes_prunes_persisted_suggestions(tmp_path, stub_
         assert verify.status_code == 200
         details_before = client.get("/api/wordbank/lemmas/bog")
         assert details_before.status_code == 200
-        action = details_before.json()["meaning_sections"][0]["verification"]["suggested_actions"][0]
+        action = details_before.json()["meaning_sections"][0]["surface_forms"][0]["verification"]["suggested_actions"][0]
 
         apply_response = client.post(
             "/api/wordbank/lexemes/apply-verification-changes",
@@ -982,7 +982,8 @@ def test_apply_verification_changes_prunes_persisted_suggestions(tmp_path, stub_
     assert apply_response.status_code == 200
     assert apply_response.json()["status"] == "applied"
     assert details_after.status_code == 200
-    assert details_after.json()["meaning_sections"][0].get("verification") is None
+    assert details_after.json()["meaning_sections"][0]["verification"]["status"] == "queued"
+    assert details_after.json()["meaning_sections"][0]["surface_forms"][0]["verification"]["status"] == "verified"
 
     with get_connection(db_path) as conn:
         remaining_rows = conn.execute(
@@ -990,4 +991,4 @@ def test_apply_verification_changes_prunes_persisted_suggestions(tmp_path, stub_
         ).fetchone()
 
     assert remaining_rows is not None
-    assert int(remaining_rows["count"]) == 0
+    assert int(remaining_rows["count"]) == 2

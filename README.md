@@ -75,9 +75,13 @@ Example (`.env.local`):
 DANOTE_TTS_AZURE_API_KEY=your-speech-key
 DANOTE_TTS_AZURE_REGION=your-speech-region
 DANOTE_WORD_VERIFICATION_GEMINI_API_KEY=your-gemini-key
+DANOTE_WORDBANK_BACKGROUND_JOB_WORKERS=4
 ```
 
 See the full per-variable reference (defaults, accepted values, and fallback interactions) in [`docs/configuration-reference.md`](docs/configuration-reference.md).
+
+Word verification and pronunciation background jobs now run through the shared wordbank queue.
+`DANOTE_WORDBANK_BACKGROUND_JOB_WORKERS` controls how many queued wordbank jobs can execute in parallel.
 
 One-command setup for the pinned DaCy model `da_dacy_small_trf-0.2.0`:
 

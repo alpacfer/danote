@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
-import sqlite3
+from typing import Literal
 
 from app.db.migrations import get_connection
 from app.services.token_classifier import normalize_token
@@ -26,7 +27,7 @@ from app.services.use_cases.wordbank.verification_action_support import (
 
 @dataclass(frozen=True)
 class VerificationActionExecutionResult:
-    status: str
+    status: Literal["applied", "skipped"]
     applied_action_type: str | None
     target_lemma: str | None
     target_meaning_id: int | None

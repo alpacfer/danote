@@ -152,6 +152,11 @@ class VerificationResult(BaseModel):
     suggested_actions: list[VerificationAction] = Field(default_factory=list)
 
 
+class VerificationTargetRef(BaseModel):
+    meaning_id: int | None = None
+    stored_surface_form: str | None = None
+
+
 class AddWordResponse(BaseModel):
     status: Literal["inserted", "exists"]
     stored_lemma: str
@@ -160,6 +165,7 @@ class AddWordResponse(BaseModel):
     message: str
     meaning: MeaningContext | None = None
     verification: VerificationResult | None = None
+    queued_verification_targets: list[VerificationTargetRef] = Field(default_factory=list)
     pronunciation: QueuedBackgroundTask | None = None
     saved_snapshot: LemmaDetailsResponse | None = None
 
@@ -285,6 +291,7 @@ class LemmaDetailsResponse(BaseModel):
         gloss_translation: str | None = None
         gram_raw: str | None = None
         has_pronunciation: bool = False
+        verification: VerificationResult | None = None
 
         @model_serializer(mode="wrap")
         def _serialize_without_empty_fields(self, handler):
