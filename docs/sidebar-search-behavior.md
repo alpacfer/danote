@@ -82,7 +82,7 @@ Behavior:
 - Full payload is cached by normalized query.
 - If translation fetch fails, a toast error is shown and already-fetched partial results remain visible.
 - Single-word translation labels are normalized after provider lookup:
-  content-word results prefer headword-only English output,
+  content-word results drop obvious frame scaffolding but may keep short multi-word phrases,
   while function words keep only minimal lexicalized context when needed.
 
 ## Cache invalidation behavior
@@ -136,6 +136,8 @@ COR groups are sorted by best variant score in each group:
   3. `display_lemma`
   4. `lemma`
 - "from <lemma>" hint appears when a linked lemma context exists.
+- Saved-row translation text uses `english_translation` alone, or `english_translation, gloss_translation` when both exist and differ.
+- Raw `gloss` is never appended to saved-row translation text.
 - Second line is hidden for exact saved-surface links without gloss.
 - Badges:
   - from linked variant `gram_raw` when a display variant is used
@@ -174,6 +176,10 @@ COR groups are sorted by best variant score in each group:
 - Search-save payload keeps lemma translation and gloss separate:
   - `search_seed.english_translation` is populated only from the lemma translation
   - gloss/gloss translation remain disambiguation metadata and are not promoted into `english_translation`
+- Saved search responses follow the same invariant:
+  - `english_translation` remains the lemma translation
+  - `gloss_translation` is returned separately when available
+  - untranslated raw gloss is omitted from translation lines
 - Dialog closes only when add succeeds.
 - If the backend returns `saved_snapshot` with queued verification on the selected target:
   - the word page opens immediately from that snapshot,

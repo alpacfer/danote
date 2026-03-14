@@ -279,6 +279,7 @@ export function mockFetchImplementation(options?: {
       meaning_id?: number | null
       meaning_key?: string | null
       gloss?: string | null
+      gloss_translation?: string | null
       cor_lemma_idx?: number | null
       variation_count: number
       english_translation?: string | null
@@ -299,6 +300,7 @@ export function mockFetchImplementation(options?: {
         form: string
         lemma: string
         gloss?: string | null
+        gloss_translation?: string | null
         lemma_translation?: string | null
         gram_raw: string
         norm?: string | null

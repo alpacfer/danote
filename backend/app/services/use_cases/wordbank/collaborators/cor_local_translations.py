@@ -131,7 +131,7 @@ def lookup_translation_for_cor_local_entry(
             return _resolve_contextual_lemma_translation(
                 entry,
                 contextual_translation=contextual_formatted,
-                gloss_translation_hint=gloss_translation_hint,
+                provider_translation=cleaned_translation,
             )
     return _format_lemma_translation(entry, cleaned_translation)
 
@@ -358,21 +358,14 @@ def _resolve_contextual_lemma_translation(
     entry: CORLocalEntry,
     *,
     contextual_translation: str | None,
-    gloss_translation_hint: str | None,
+    provider_translation: str | None,
 ) -> str | None:
     normalized_contextual = normalize_token(contextual_translation or "")
     if not normalized_contextual:
         return None
     normalized_lemma = normalize_token(entry.lemma)
-    normalized_hint = normalize_token(gloss_translation_hint or "")
-    if (
-        entry.pos_tag != "VERB"
-        and normalized_lemma
-        and normalized_hint
-        and normalized_contextual == normalized_lemma
-        and normalized_hint != normalized_lemma
-    ):
-        return normalized_hint
+    if entry.pos_tag != "VERB" and normalized_lemma and normalized_contextual == normalized_lemma:
+        return normalize_token(provider_translation or "") or None
     return normalized_contextual
 
 

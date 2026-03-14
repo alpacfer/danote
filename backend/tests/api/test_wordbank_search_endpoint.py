@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
+from app.core.app_state import set_service_field
 from app.db.migrations import apply_migrations
 from app.main import create_app
 from tests.api.support import build_api_test_app
@@ -9,6 +10,7 @@ from tests.api.wordbank_test_support import (
     build_test_settings,
     seed_cor_local_bog_senses,
     seed_cor_local_db,
+    seed_cor_local_word_page_gloss_cases,
 )
 
 
@@ -110,6 +112,68 @@ def test_search_lemmas_returns_two_rows_for_exact_homograph_lemma(tmp_path, stub
     assert [(item["meaning_key"], item["match_surface"], item["english_translation"]) for item in response.json()["items"]] == [
         ("book", "bog", "book"),
         ("swamp", "bog", "swamp"),
+    ]
+
+
+def test_search_lemmas_returns_gloss_translation_without_promoting_it_to_english_translation(
+    tmp_path,
+    stub_nlp_adapter_factory,
+) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    cor_db_path = tmp_path / "cor.sqlite"
+    apply_migrations(db_path)
+    seed_cor_local_word_page_gloss_cases(cor_db_path)
+    app = create_app(
+        build_test_settings(db_path, cor_local_db_path=cor_db_path),
+        nlp_adapter_factory=stub_nlp_adapter_factory,
+    )
+
+    class StubTranslationService:
+        def translate_da_to_en(self, text: str) -> str | None:
+            return {
+                "jordlag": "soil layer",
+            }.get(text)
+
+    with TestClient(app) as client:
+        set_service_field(client.app, "translation_service", StubTranslationService())
+        save_response = client.post(
+            "/api/wordbank/lexemes",
+            json={
+                "surface_token": "mor",
+                "lemma_candidate": "mor",
+                "search_seed": {
+                    "lemma": "mor",
+                    "surface": "mor",
+                    "cor_id": "COR.MOR.SOIL.LEM",
+                    "cor_lemma_idx": 51047,
+                    "meaning_key": "soil-layer",
+                    "gloss": "jordlag",
+                    "english_translation": "mother",
+                    "pos_tag": "NOUN",
+                    "morphology": "Gender=Com|Number=Sing|Definite=Ind",
+                },
+            },
+        )
+        response = client.get("/api/wordbank/search", params={"query": "mor"})
+
+    assert save_response.status_code == 200
+    assert response.status_code == 200
+    assert response.json()["items"] == [
+        {
+            "lemma": "mor",
+            "display_lemma": "mor",
+            "meaning_id": 1,
+            "meaning_key": "soil-layer",
+            "gloss": "jordlag",
+            "gloss_translation": "soil layer",
+            "cor_lemma_idx": 51047,
+            "english_translation": "mother",
+            "variation_count": 1,
+            "match_surface": "mor",
+            "query_cor_ids": ["COR.MOR.SOIL.LEM"],
+            "pos_tag": "NOUN",
+            "morphology": "Gender=Com|Number=Sing|Definite=Ind",
+        }
     ]
 
 

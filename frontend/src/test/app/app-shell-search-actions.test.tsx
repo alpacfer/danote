@@ -1,6 +1,7 @@
 import { fireEvent, mockFetchImplementation, renderApp, responseOf, screen, waitFor, within } from "@/test/app-test-helpers"
 import {
   cloneContractFixture,
+  morHomographWordPageContractFixture,
   teacherQueuedSearchAddResponseContractFixture,
   teacherQueuedWordPageContractFixture,
   teacherSectionedWordPageContractFixture,
@@ -243,27 +244,46 @@ describe("App shell and search", () => {
     expect(screen.queryByText(/^No translation available\.$/i)).not.toBeInTheDocument()
   })
 
-  it("request-shape: COR search save does not use gloss translation as english translation", async () => {
+  it("request-shape: COR search save keeps lemma translation separate from gloss translation end to end", async () => {
+    const savedSearchResponse = {
+      items: [] as Array<{
+        lemma: string
+        display_lemma: string
+        meaning_id: number
+        meaning_key: string
+        gloss: string | null
+        gloss_translation: string | null
+        cor_lemma_idx: number
+        variation_count: number
+        english_translation: string | null
+        match_surface: string | null
+        query_cor_ids: string[]
+        pos_tag: string | null
+        morphology: string | null
+      }>,
+    }
+    let hasSavedMorMeaning = false
     const fetchSpy = mockFetchImplementation({
       lemmasResponse: { items: [] },
+      searchWordbankResponse: savedSearchResponse,
       corSearchFormResponse: {
         form: "mor",
         groups: [
           {
             lemma: "mor",
-            gloss: "person",
+            gloss: "jordlag",
             pos_tag: "NOUN",
             variants: [
               {
-                cor_id: "COR.MOR.PERSON.01",
+                cor_id: "COR.MOR.SOIL.01",
                 form: "mor",
                 lemma: "mor",
-                gloss: "person",
-                gloss_translation: "person",
-                lemma_translation: null,
+                gloss: "jordlag",
+                gloss_translation: "soil layer",
+                lemma_translation: "mother",
                 gram_raw: "sb.fk.sg.ubest",
                 norm: "N",
-                lemma_idx: 12345,
+                lemma_idx: 51047,
                 gram_code: 110,
                 variation: 1,
                 pos_tag: "NOUN",
@@ -275,12 +295,83 @@ describe("App shell and search", () => {
           },
         ],
       },
-      addWordResponse: {
-        status: "inserted",
-        stored_lemma: "mor",
-        stored_surface_form: "mor",
-        source: "manual",
-        message: "Added 'mor' to wordbank.",
+      corSearchFormHandler: async (input) => {
+        const url = new URL(String(input), "http://localhost")
+        const form = (url.searchParams.get("form") ?? "").trim().toLocaleLowerCase("da-DK")
+        if (form !== "mor" || hasSavedMorMeaning) {
+          return responseOf({ form, groups: [] })
+        }
+        return responseOf({
+          form: "mor",
+          groups: [
+            {
+              lemma: "mor",
+              gloss: "jordlag",
+              pos_tag: "NOUN",
+              variants: [
+                {
+                  cor_id: "COR.MOR.SOIL.01",
+                  form: "mor",
+                  lemma: "mor",
+                  gloss: "jordlag",
+                  gloss_translation: "soil layer",
+                  lemma_translation: "mother",
+                  gram_raw: "sb.fk.sg.ubest",
+                  norm: "N",
+                  lemma_idx: 51047,
+                  gram_code: 110,
+                  variation: 1,
+                  pos_tag: "NOUN",
+                  morphology: "Gender=Com|Number=Sing|Definite=Ind",
+                  features: { Gender: "Com", Number: "Sing", Definite: "Ind" },
+                  extra_tags: [],
+                },
+              ],
+            },
+          ],
+        })
+      },
+      addWordHandler: async (_input, init) => {
+        const body = JSON.parse(String(init?.body ?? "{}")) as {
+          search_seed?: {
+            gloss?: string | null
+            english_translation?: string | null
+          }
+        }
+        if (body.search_seed?.gloss === "jordlag" && body.search_seed?.english_translation === "mother") {
+          hasSavedMorMeaning = true
+          savedSearchResponse.items = [
+            {
+              lemma: "mor",
+              display_lemma: "mor",
+              meaning_id: 2,
+              meaning_key: "soil-layer",
+              gloss: "jordlag",
+              gloss_translation: "soil layer",
+              cor_lemma_idx: 51047,
+              variation_count: 1,
+              english_translation: "mother",
+              match_surface: null,
+              query_cor_ids: ["COR.MOR.SOIL.01"],
+              pos_tag: "NOUN",
+              morphology: "Gender=Com|Number=Sing|Definite=Ind",
+            },
+          ]
+        }
+        return responseOf({
+          status: "inserted",
+          stored_lemma: "mor",
+          stored_surface_form: "mor",
+          source: "manual",
+          message: "Added 'mor' to wordbank.",
+          meaning: {
+            id: 2,
+            meaning_key: "soil-layer",
+            gloss: "jordlag",
+            english_translation: "mother",
+          },
+          saved_snapshot: cloneContractFixture(morHomographWordPageContractFixture),
+        })
       },
     })
 
@@ -292,7 +383,7 @@ describe("App shell and search", () => {
     const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
     fireEvent.change(searchInput, { target: { value: "mor" } })
 
-    const glossLine = await within(commandDialog).findByText(/^person$/i)
+    const glossLine = await within(commandDialog).findByText(/^soil layer$/i)
     const corRow = glossLine.closest("[cmdk-item]")
     expect(corRow).toBeTruthy()
     fireEvent.click(corRow as HTMLElement)
@@ -309,10 +400,22 @@ describe("App shell and search", () => {
               english_translation?: string | null
             }
           }
-          return body.search_seed?.gloss === "person" && body.search_seed?.english_translation === null
+          return body.search_seed?.gloss === "jordlag" && body.search_seed?.english_translation === "mother"
         }),
       ).toBe(true)
     })
+
+    expect(await screen.findByRole("heading", { name: /^mor$/i })).toBeInTheDocument()
+    expect(screen.getByText(/^mother, soil layer$/i)).toBeInTheDocument()
+    expect(screen.queryByText(/^mother, jordlag$/i)).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    const reopenedDialog = await screen.findByRole("dialog")
+    const reopenedInput = within(reopenedDialog).getByPlaceholderText(/search words and notes/i)
+    fireEvent.change(reopenedInput, { target: { value: "mor" } })
+
+    expect(await within(reopenedDialog).findByText(/^mother, soil layer$/i)).toBeInTheDocument()
+    expect(within(reopenedDialog).queryByText(/^mother, jordlag$/i)).not.toBeInTheDocument()
   })
 
   it("command search debounces local COR requests and caches repeated queries", async () => {

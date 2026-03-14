@@ -7,6 +7,7 @@ from app.api.schemas.v1.wordbank import (
     WordbankSearchResponse,
 )
 from app.services.token_classifier import normalize_token
+from app.services.use_cases.wordbank.gloss_translations import meaning_gloss_translation
 from app.services.use_cases.wordbank.meaning_sections import ensure_wordbank_meaning_compatibility
 from app.services.use_cases.wordbank.runtime import WordbankRuntime
 
@@ -37,6 +38,7 @@ def search_lemmas(runtime: WordbankRuntime, query: str, *, limit: int = 8) -> Wo
         raise ValueError("limit must be at least 1")
 
     rows = runtime.repository.search_lemmas(normalized_query, limit=limit)
+    gloss_translation_cache: dict[tuple[str, str, str | None, str | None, str, str | None, str | None], str | None] = {}
 
     return WordbankSearchResponse(
         items=[
@@ -46,6 +48,20 @@ def search_lemmas(runtime: WordbankRuntime, query: str, *, limit: int = 8) -> Wo
                 meaning_id=row.meaning_id,
                 meaning_key=row.meaning_key,
                 gloss=row.gloss,
+                gloss_translation=(
+                    meaning_gloss_translation(
+                        runtime,
+                        lexeme_lemma=row.lemma,
+                        lexeme_pos_tag=row.pos_tag,
+                        meaning_gloss=row.gloss,
+                        meaning_translation=row.english_translation,
+                        meaning_pos_tag=row.pos_tag,
+                        cor_lemma_idx=row.cor_lemma_idx,
+                        cache=gloss_translation_cache,
+                    )
+                    if row.meaning_id is not None
+                    else None
+                ),
                 cor_lemma_idx=row.cor_lemma_idx,
                 english_translation=row.english_translation,
                 variation_count=row.variation_count,

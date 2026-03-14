@@ -244,6 +244,44 @@ def test_wordbank_generate_translation_strips_framed_noun_context_for_all_provid
 
 
 @pytest.mark.parametrize("provider", ["azure_translator", "deepl_translator"])
+def test_wordbank_generate_translation_keeps_multi_word_noun_phrase_for_all_providers(
+    tmp_path: Path,
+    provider: str,
+) -> None:
+    local_cor = FakeCORLocalLexiconService(
+        by_form={
+            "glatis": [
+                CORLocalEntry(
+                    cor_id="COR.GLATIS.110.01",
+                    lemma="glatis",
+                    gloss=None,
+                    gram_raw="sb.fk.sg.ubest",
+                    form="glatis",
+                    norm="N",
+                    lemma_idx=61411,
+                    gram_code=110,
+                    variation=1,
+                    pos_tag="NOUN",
+                    morphology="Gender=Com|Number=Sing|Definite=Ind",
+                    features={"Gender": "Com", "Number": "Sing", "Definite": "Ind"},
+                    extra_tags=[],
+                ),
+            ]
+        }
+    )
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_local_lexicon_service=local_cor,
+        translation_service=FakeTranslationService({"en glatis": "black ice"}, provider=provider),
+    )
+
+    generated = use_case.generate_translation("Glatis", "glatis")
+
+    assert generated.status == "generated"
+    assert generated.english_translation == "black ice"
+
+
+@pytest.mark.parametrize("provider", ["azure_translator", "deepl_translator"])
 def test_wordbank_generate_translation_keeps_only_minimal_preposition_context_for_all_providers(
     tmp_path: Path,
     provider: str,

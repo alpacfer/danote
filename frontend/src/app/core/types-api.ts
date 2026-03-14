@@ -143,6 +143,7 @@ export type WordbankSearchItem = {
   meaning_id: number | null
   meaning_key: string | null
   gloss: string | null
+  gloss_translation?: string | null
   cor_lemma_idx: number | null
   english_translation: string | null
   variation_count: number

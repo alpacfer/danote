@@ -1,14 +1,15 @@
 from __future__ import annotations
 
-import re
-
 from app.api.schemas.v1.wordbank import LemmaDetailsResponse, VerificationResult
 from app.services.token_classifier import normalize_token
+from app.services.use_cases.wordbank.gloss_translations import (
+    gloss_translation as resolve_gloss_translation,
+    is_likely_english_gloss,
+    meaning_gloss_translation,
+)
 from app.services.use_cases.wordbank.meaning_sections import ensure_wordbank_meaning_compatibility
 from app.services.use_cases.wordbank.runtime import WordbankRuntime
 from app.services.use_cases.wordbank.verification_records import verification_record_to_schema
-
-_LIKELY_ENGLISH_GLOSS_RE = re.compile(r"^[A-Za-z][A-Za-z ',-]*$")
 
 
 def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsResponse:
@@ -372,20 +373,14 @@ def _meaning_gloss_translation(
     meaning,
     cache: dict[tuple[str, str, str | None, str | None, str, str | None, str | None], str | None],
 ) -> str | None:
-    if _is_likely_english_gloss(meaning.gloss):
-        return normalize_token(meaning.gloss or "") or None
-    if meaning.cor_lemma_idx is None:
-        return None
-    cor_entry = runtime.cor.best_cor_local_lemma_entry(
-        lemma_idx=meaning.cor_lemma_idx,
-        lemma=lexeme_lemma,
-        preferred_pos_tag=meaning.pos_tag or lexeme_pos_tag,
-    )
-    return _gloss_translation(
+    return meaning_gloss_translation(
         runtime,
-        cor_entry=cor_entry,
-        gloss=meaning.gloss,
-        lemma_translation=meaning.english_translation,
+        lexeme_lemma=lexeme_lemma,
+        lexeme_pos_tag=lexeme_pos_tag,
+        meaning_gloss=meaning.gloss,
+        meaning_translation=meaning.english_translation,
+        meaning_pos_tag=meaning.pos_tag,
+        cor_lemma_idx=meaning.cor_lemma_idx,
         cache=cache,
     )
 
@@ -398,19 +393,14 @@ def _gloss_translation(
     lemma_translation: str | None,
     cache: dict[tuple[str, str, str | None, str | None, str, str | None, str | None], str | None] | None = None,
 ) -> str | None:
-    if _is_likely_english_gloss(gloss):
-        return normalize_token(gloss or "") or None
-    if cor_entry is None:
-        return None
-    return runtime.cor.lookup_translation_for_cor_gloss(
-        entry=cor_entry,
+    return resolve_gloss_translation(
+        runtime,
+        cor_entry=cor_entry,
+        gloss=gloss,
         lemma_translation=lemma_translation,
-        cache=cache if cache is not None else {},
+        cache=cache,
     )
 
 
 def _is_likely_english_gloss(gloss: str | None) -> bool:
-    normalized_gloss = normalize_token(gloss or "")
-    if not normalized_gloss:
-        return False
-    return _LIKELY_ENGLISH_GLOSS_RE.fullmatch(normalized_gloss) is not None
+    return is_likely_english_gloss(gloss)

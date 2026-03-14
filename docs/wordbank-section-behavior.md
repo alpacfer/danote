@@ -241,7 +241,7 @@ Pronunciation behavior is shared by header + section rows + variation rows.
 ## Single-word translation normalization
 
 - Word-level provider translations used by Wordbank are normalized after lookup.
-- Content words (for example nouns and verbs) prefer headword-only English output.
+- Content words (for example nouns and verbs) remove obvious frame scaffolding, but noun phrases may stay multi-word when cleanup is not clearly safe.
 - Function words (for example prepositions and conjunctions) may keep only short lexicalized context when removing all context would lose the meaning.
 - Phrase translation is not part of this cleanup path.
 
@@ -274,6 +274,7 @@ Pronunciation behavior is shared by header + section rows + variation rows.
   - the stored selected surface form keeps the chosen variant tags from the search result
   - saved `english_translation` comes only from the COR lemma translation; gloss translation remains separate disambiguation context
   - the word page now computes and returns gloss translations for search-saved meaning sections too, so homograph meanings can render `translation, gloss translation`
+  - raw gloss text is not promoted into `english_translation`, and the UI omits untranslated gloss from translation lines
   - only the selected surface form is stored; search save does not hydrate the full paradigm into wordbank
 
 ## Behavioral test coverage map

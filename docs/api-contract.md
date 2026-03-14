@@ -135,7 +135,7 @@ Route decorators are the source of truth in `backend/app/api/routes/`, and API D
   - `503` when DB unavailable/locked.
   - body `status` can be `generated` or `unavailable`.
   - Single-word translations are normalized after provider lookup:
-    content words are returned as headword-first English output when cleanup is confident,
+    content words drop obvious frame scaffolding but may keep short multi-word phrases when cleanup is uncertain,
     while function words may retain only short lexicalized context such as `because of`.
 
 ### POST `/api/wordbank/reverse-translation`
@@ -179,6 +179,11 @@ Route decorators are the source of truth in `backend/app/api/routes/`, and API D
   - query validation failures return `422` (e.g., empty query or limit out of range).
   - `503` when DB unavailable/locked.
   - `503` for runtime errors surfaced by use case.
+- **Field invariants:**
+  - saved search rows keep lemma translation and gloss translation separate
+  - `english_translation` is only the saved lemma translation
+  - `gloss_translation` is optional disambiguation context for `gloss`
+  - raw `gloss` is not promoted into `english_translation`
 
 ### GET `/api/wordbank/search/cor-form`
 - **Request model:** none (`form`, `limit`, `include_translations` query parameters).

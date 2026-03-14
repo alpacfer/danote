@@ -122,6 +122,44 @@ def test_wordbank_search_cor_form_keeps_noun_articles_when_provider_returns_them
     assert response.groups[0].variants[0].lemma_translation == "the book"
     assert response.groups[0].variants[0].gloss_translation == "book"
 
+
+def test_wordbank_search_cor_form_keeps_multi_word_noun_phrase_from_provider(tmp_path: Path) -> None:
+    local_cor = FakeCORLocalLexiconService(
+        by_form={
+            "glatis": [
+                CORLocalEntry(
+                    cor_id="COR.61411.110.01",
+                    lemma="glatis",
+                    gloss=None,
+                    gram_raw="sb.fk.sg.ubest",
+                    form="glatis",
+                    norm="N",
+                    lemma_idx=61411,
+                    gram_code=110,
+                    variation=1,
+                    pos_tag="NOUN",
+                    morphology="Gender=Com|Number=Sing|Definite=Ind",
+                    features={"Gender": "Com", "Number": "Sing", "Definite": "Ind"},
+                    extra_tags=[],
+                ),
+            ]
+        }
+    )
+    translation_service = FakeTranslationService({"en glatis": "black ice"})
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_local_lexicon_service=local_cor,
+        translation_service=translation_service,
+        gemini_word_translation_service=FakeGeminiWordTranslationService({}),
+    )
+
+    response = use_case.search_cor_form("glatis", limit=100)
+
+    assert response.groups[0].variants[0].lemma_translation == "black ice"
+    assert response.groups[0].variants[0].gloss_translation is None
+    assert translation_service.calls == ["en glatis"]
+
+
 def test_wordbank_search_cor_form_does_not_retry_missing_batch_items_with_single_calls(tmp_path: Path) -> None:
     local_cor = FakeCORLocalLexiconService(
         by_form={

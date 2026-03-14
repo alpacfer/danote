@@ -6,8 +6,9 @@ from app.nlp.adapter import NLPToken
 from app.services.cor import COREntry
 from app.services.use_cases.analyze import AnalyzeNoteUseCase
 from app.services.use_cases.wordbank import WordbankUseCase
-from tests.helpers.factories import _bog_homograph_cor_local, _db_path
+from tests.helpers.factories import _bog_homograph_cor_local, _cor_local_entry, _db_path
 from tests.helpers.fakes import (
+    FakeCORLocalLexiconService,
     FakeCORLexiconService,
     FakeGeminiWordTranslationService,
     FakeTranslationService,
@@ -72,6 +73,81 @@ def test_wordbank_search_lemmas_returns_two_saved_rows_for_exact_homograph_lemma
     assert [(item.meaning_key, item.match_surface, item.english_translation) for item in result.items] == [
         ("book", "bog", "book"),
         ("swamp", "bog", "swamp"),
+    ]
+
+
+def test_wordbank_search_lemmas_keeps_translation_separate_from_translated_gloss(tmp_path: Path) -> None:
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_local_lexicon_service=FakeCORLocalLexiconService(
+            by_lemma_idx={
+                51046: [
+                    _cor_local_entry(
+                        cor_id="COR.MOR.PERSON.LEM",
+                        lemma="mor",
+                        gloss="person",
+                        form="mor",
+                        lemma_idx=51046,
+                        pos_tag="NOUN",
+                        morphology="Gender=Com|Number=Sing|Definite=Ind",
+                        gram_raw="sb.fk.sg.ubest",
+                    ),
+                ],
+                51047: [
+                    _cor_local_entry(
+                        cor_id="COR.MOR.SOIL.LEM",
+                        lemma="mor",
+                        gloss="jordlag",
+                        form="mor",
+                        lemma_idx=51047,
+                        pos_tag="NOUN",
+                        morphology="Gender=Com|Number=Sing|Definite=Ind",
+                        gram_raw="sb.fk.sg.ubest",
+                    ),
+                ],
+            }
+        ),
+        translation_service=FakeTranslationService({"person": "person", "jordlag": "soil layer"}),
+    )
+    use_case.add_word(
+        "mor",
+        "mor",
+        search_seed={
+            "lemma": "mor",
+            "surface": "mor",
+            "cor_id": "COR.MOR.PERSON.LEM",
+            "cor_lemma_idx": 51046,
+            "meaning_key": "person",
+            "gloss": "person",
+            "english_translation": "mother",
+            "pos_tag": "NOUN",
+            "morphology": "Gender=Com|Number=Sing|Definite=Ind",
+        },
+    )
+    use_case.add_word(
+        "mor",
+        "mor",
+        search_seed={
+            "lemma": "mor",
+            "surface": "mor",
+            "cor_id": "COR.MOR.SOIL.LEM",
+            "cor_lemma_idx": 51047,
+            "meaning_key": "soil-layer",
+            "gloss": "jordlag",
+            "english_translation": "mother",
+            "pos_tag": "NOUN",
+            "morphology": "Gender=Com|Number=Sing|Definite=Ind",
+        },
+    )
+
+    result = use_case.search_lemmas("mor")
+
+    assert [
+        (item.meaning_key, item.english_translation, item.gloss, item.gloss_translation)
+        for item in result.items
+    ] == [
+        ("person", "mother", "person", "person"),
+        ("soil-layer", "mother", "jordlag", "soil layer"),
     ]
 
 def test_wordbank_search_lemmas_prefers_exact_surface_match_and_stable_variation_count(tmp_path: Path) -> None:
@@ -439,4 +515,3 @@ def test_wordbank_action_payload_is_consistent_between_resolve_query_and_analyze
     assert [action.action_type for action in resolved.word_actions] == ["add_as_new"]
     assert resolved.word_actions[0].surface == "house"
     assert resolved.word_actions[0].lemma == "house"
-

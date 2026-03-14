@@ -201,7 +201,7 @@ def test_wordbank_search_cor_form_normalizes_verb_frame_artifacts_from_translati
 
     assert response.groups[0].variants[0].lemma_translation == "to water"
 
-def test_wordbank_search_cor_form_prefers_gloss_hint_when_gemini_echoes_noun_lemma(tmp_path: Path) -> None:
+def test_wordbank_search_cor_form_keeps_lemma_translation_when_gemini_echoes_noun_lemma(tmp_path: Path) -> None:
     local_cor = FakeCORLocalLexiconService(
         by_form={
             "mor": [
@@ -233,7 +233,7 @@ def test_wordbank_search_cor_form_prefers_gloss_hint_when_gemini_echoes_noun_lem
 
     response = use_case.search_cor_form("mor", limit=100)
 
-    assert response.groups[0].variants[0].lemma_translation == "soil layer"
+    assert response.groups[0].variants[0].lemma_translation == "mother"
     assert response.groups[0].variants[0].gloss_translation == "soil layer"
     assert gemini_translation.batch_calls == [[("mor", "mor", "jordlag")]]
 

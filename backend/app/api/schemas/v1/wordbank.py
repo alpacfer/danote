@@ -229,6 +229,7 @@ class WordbankSearchItem(BaseModel):
     meaning_id: int | None = None
     meaning_key: str | None = None
     gloss: str | None = None
+    gloss_translation: str | None = None
     cor_lemma_idx: int | None = None
     english_translation: str | None
     variation_count: int

@@ -12,6 +12,12 @@ def test_cleanup_framed_word_translation_reduces_noun_to_headword() -> None:
     assert cleanup_framed_word_translation(frame, "in wine") == "wine"
 
 
+def test_cleanup_framed_word_translation_keeps_multi_word_noun_phrase() -> None:
+    frame = WordTranslationFrame(kind="noun", text="en glatis")
+
+    assert cleanup_framed_word_translation(frame, "black ice") == "black ice"
+
+
 def test_cleanup_framed_word_translation_normalizes_verb_to_infinitive() -> None:
     frame = WordTranslationFrame(kind="verb", text="at vande")
 

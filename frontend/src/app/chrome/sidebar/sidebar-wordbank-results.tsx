@@ -9,6 +9,7 @@ import {
   glossDisplayForVariant,
   lemmaDisplayForVariant,
   lemmaTranslationForVariant,
+  lemmaTranslationWithGloss,
   normalizeSearchWord,
   posBadgeClass,
   type SearchSaveSeed,
@@ -133,16 +134,20 @@ export function SidebarWordbankResults({
                   : (showMatchedSurface || showExactSavedLink)
                     ? (result.display_lemma?.trim() || result.lemma)
                     : null
+                const savedTranslationLine = lemmaTranslationWithGloss(
+                  result.english_translation ?? null,
+                  result.gloss_translation ?? null,
+                )
                 const linkedLemmaTranslation = displayVariant
-                  ? (lemmaTranslationForVariant(displayVariant) ?? result.english_translation ?? null)
+                  ? (lemmaTranslationForVariant(displayVariant) ?? savedTranslationLine)
                   : (showMatchedSurface || showExactSavedLink)
-                    ? result.english_translation
+                    ? savedTranslationLine
                     : null
                 const detailLine = displayVariant
                   ? glossDisplayForVariant(displayVariant)
                   : (showMatchedSurface || showExactSavedLink)
                     ? null
-                    : (result.gloss?.trim() || result.english_translation || null)
+                    : savedTranslationLine
                 const badges = displayVariant
                   ? badgesFromGramRaw(displayVariant.gram_raw)
                   : badgesForSavedForm({

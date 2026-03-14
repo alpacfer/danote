@@ -209,6 +209,11 @@ def _cleanup_noun(value: str) -> str | None:
     tokens = _drop_leading_tokens(tokens, _LEADING_FUNCTION_TOKENS)
     if not tokens:
         return None
+    candidate_tokens = _drop_trailing_tokens(tokens, _GENERIC_SUFFIX_NOUNS)
+    if candidate_tokens:
+        candidate = " ".join(candidate_tokens).strip()
+        if candidate and _looks_like_english_phrase(candidate):
+            return candidate
     for token in reversed(tokens):
         if token in _GENERIC_SUFFIX_NOUNS or token in _LEADING_FUNCTION_TOKENS:
             continue

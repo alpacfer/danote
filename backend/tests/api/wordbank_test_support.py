@@ -92,6 +92,6 @@ def seed_cor_local_word_page_gloss_cases(db_path) -> None:
                 ("COR.BOG.BEECHMAST.LEM", "bog", "frugt fra et bøgetræ", "sb.itk.sg.ubest", "bog", "N", 124, 110, 1),
                 ("COR.BOG.BEECHMAST.DEF", "bog", "frugt fra et bøgetræ", "sb.itk.sg.best", "boget", "N", 124, 111, 1),
                 ("COR.MOR.PERSON.LEM", "mor", "person", "sb.fk.sg.ubest", "mor", "N", 51046, 110, 1),
-                ("COR.MOR.SOIL.LEM", "mor", "soil layer", "sb.fk.sg.ubest", "mor", "N", 51047, 110, 1),
+                ("COR.MOR.SOIL.LEM", "mor", "jordlag", "sb.fk.sg.ubest", "mor", "N", 51047, 110, 1),
             ),
         )

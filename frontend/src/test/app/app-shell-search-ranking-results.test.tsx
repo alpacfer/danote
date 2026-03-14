@@ -40,6 +40,87 @@ describe("App shell and search", () => {
     })
   })
 
+  it("shows saved-word rows as translation plus gloss translation without raw gloss fallback", async () => {
+    mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      searchWordbankResponse: {
+        items: [
+          {
+            lemma: "mor",
+            display_lemma: "mor",
+            meaning_id: 2,
+            meaning_key: "soil-layer",
+            gloss: "jordlag",
+            gloss_translation: "soil layer",
+            cor_lemma_idx: 51047,
+            variation_count: 1,
+            english_translation: "mother",
+            match_surface: null,
+            query_cor_ids: ["COR.MOR.SOIL.LEM"],
+            pos_tag: "NOUN",
+            morphology: "Gender=Com|Number=Sing|Definite=Ind",
+          },
+        ],
+      },
+      corSearchFormResponse: {
+        form: "mor",
+        groups: [],
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    const commandDialog = await screen.findByRole("dialog")
+    const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
+    fireEvent.change(searchInput, { target: { value: "mor" } })
+
+    expect(await within(commandDialog).findByText(/^mother, soil layer$/i)).toBeInTheDocument()
+    expect(within(commandDialog).queryByText(/^mother, jordlag$/i)).not.toBeInTheDocument()
+  })
+
+  it("omits raw gloss from saved-word translation lines when gloss translation is missing", async () => {
+    mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      searchWordbankResponse: {
+        items: [
+          {
+            lemma: "mor",
+            display_lemma: "mor",
+            meaning_id: 2,
+            meaning_key: "soil-layer",
+            gloss: "jordlag",
+            gloss_translation: null,
+            cor_lemma_idx: 51047,
+            variation_count: 1,
+            english_translation: "mother",
+            match_surface: null,
+            query_cor_ids: ["COR.MOR.SOIL.LEM"],
+            pos_tag: "NOUN",
+            morphology: "Gender=Com|Number=Sing|Definite=Ind",
+          },
+        ],
+      },
+      corSearchFormResponse: {
+        form: "mor",
+        groups: [],
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    const commandDialog = await screen.findByRole("dialog")
+    const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
+    fireEvent.change(searchInput, { target: { value: "mor" } })
+
+    expect(await within(commandDialog).findByText(/^mother$/i)).toBeInTheDocument()
+    expect(within(commandDialog).queryByText(/^mother, jordlag$/i)).not.toBeInTheDocument()
+    expect(within(commandDialog).queryByText(/^jordlag$/i)).not.toBeInTheDocument()
+  })
+
   it("hides the second line for COR search results without a gloss", async () => {
     const fetchSpy = mockFetchImplementation({
       lemmasResponse: { items: [] },
