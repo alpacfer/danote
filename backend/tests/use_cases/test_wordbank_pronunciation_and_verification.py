@@ -8,8 +8,9 @@ from app.db.migrations import get_connection
 from app.nlp.adapter import NLPToken
 from app.services.tts import PronunciationAudio
 from app.services.use_cases.wordbank import WordbankUseCase
-from tests.helpers.factories import _bog_homograph_cor_local, _db_path
+from tests.helpers.factories import _bog_homograph_cor_local, _cor_local_entry, _db_path
 from tests.helpers.fakes import (
+    FakeCORLocalLexiconService,
     FakeGeminiWordTranslationService,
     FakeTranslationService,
     FakeTTSService,
@@ -50,6 +51,69 @@ def test_wordbank_use_case_runs_verification_task_and_returns_result(tmp_path: P
     details_after_verify = use_case.get_lemma_details("bog")
     assert details_after_verify.meaning_sections[0].verification is not None
     assert details_after_verify.meaning_sections[0].verification.status == "verified"
+
+
+def test_word_verification_payload_uses_saved_and_canonical_metadata_for_search_seed_entries(tmp_path: Path) -> None:
+    verification_service = FakeVerificationService(
+        verdict="verified",
+        message="Entry is consistent.",
+    )
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        verification_service=verification_service,
+        cor_local_lexicon_service=FakeCORLocalLexiconService(
+            by_lemma_idx={
+                30686: [
+                    _cor_local_entry(
+                        cor_id="COR.30686.200.01",
+                        lemma="lære",
+                        gloss="learn",
+                        form="lære",
+                        lemma_idx=30686,
+                        pos_tag="VERB",
+                        morphology="VerbForm=Inf|Voice=Act",
+                        gram_raw="vb.inf.akt",
+                    ),
+                    _cor_local_entry(
+                        cor_id="COR.30686.203.01",
+                        lemma="lære",
+                        gloss="learn",
+                        form="lærer",
+                        lemma_idx=30686,
+                        pos_tag="VERB",
+                        morphology="Tense=Pres|VerbForm=Fin|Voice=Act",
+                        gram_raw="vb.præs.akt",
+                    ),
+                ],
+            },
+        ),
+    )
+
+    use_case.add_word(
+        "lærer",
+        "lære",
+        search_seed={
+            "lemma": "lære",
+            "surface": "lærer",
+            "cor_id": "COR.30686.203.01",
+            "cor_lemma_idx": 30686,
+            "meaning_key": "learn",
+            "gloss": "learn",
+            "english_translation": None,
+            "pos_tag": "VERB",
+            "morphology": "Tense=Pres|VerbForm=Fin|Voice=Act",
+        },
+    )
+
+    use_case.verify_added_word("lære", "lærer", meaning_id=None)
+
+    payload = verification_service.calls[0]
+    assert payload.selected_translation is None
+    assert payload.selected_translation_scope is None
+    assert payload.canonical_lemma_pos_tag == "VERB"
+    assert payload.canonical_lemma_morphology == "VerbForm=Inf|Voice=Act"
+    assert payload.selected_surface_pos_tag == "VERB"
+    assert payload.selected_surface_morphology == "Tense=Pres|VerbForm=Fin|Voice=Act"
 
 def test_wordbank_use_case_stores_and_returns_surface_pronunciation(tmp_path: Path) -> None:
     tts_service = FakeTTSService({"bogen": b"fake-wav-bytes"})

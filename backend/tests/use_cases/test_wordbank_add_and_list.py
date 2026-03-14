@@ -390,6 +390,32 @@ def test_wordbank_search_seed_add_stores_only_selected_search_payload(tmp_path: 
         nlp_adapter=nlp_adapter,
         translation_service=translation_service,
         gemini_word_translation_service=gemini_service,
+        cor_local_lexicon_service=FakeCORLocalLexiconService(
+            by_lemma_idx={
+                49032: [
+                    _cor_local_entry(
+                        cor_id="COR.49032.110.01",
+                        lemma="lærer",
+                        gloss="teacher",
+                        form="lærer",
+                        lemma_idx=49032,
+                        pos_tag="NOUN",
+                        morphology="Gender=Com|Number=Sing|Definite=Ind",
+                        gram_raw="sb.fk.sg.ubest",
+                    ),
+                    _cor_local_entry(
+                        cor_id="COR.49032.112.01",
+                        lemma="lærer",
+                        gloss="teacher",
+                        form="lærere",
+                        lemma_idx=49032,
+                        pos_tag="NOUN",
+                        morphology="Gender=Com|Number=Plur|Definite=Ind",
+                        gram_raw="sb.fk.pl.ubest",
+                    ),
+                ],
+            },
+        ),
     )
 
     added = use_case.add_word(
@@ -416,8 +442,12 @@ def test_wordbank_search_seed_add_stores_only_selected_search_payload(tmp_path: 
     assert gemini_service.batch_calls == []
     assert nlp_adapter.calls == 0
     assert details.is_sectioned is True
+    assert details.pos_tag == "NOUN"
+    assert details.morphology == "Gender=Com|Number=Sing|Definite=Ind"
     assert details.meaning_sections[0].english_translation == "teacher"
+    assert details.meaning_sections[0].morphology == "Gender=Com|Number=Sing|Definite=Ind"
     assert [item.form for item in details.meaning_sections[0].surface_forms] == ["lærere"]
+    assert details.meaning_sections[0].surface_forms[0].morphology == "Gender=Com|Number=Plur|Definite=Ind"
 
     with get_connection(db_path) as conn:
         rows = conn.execute(
@@ -431,3 +461,140 @@ def test_wordbank_search_seed_add_stores_only_selected_search_payload(tmp_path: 
             ("lærer",),
         ).fetchall()
     assert [str(row["form"]) for row in rows] == ["lærere"]
+
+
+def test_wordbank_search_seed_add_uses_canonical_lemma_metadata_for_verbs(tmp_path: Path) -> None:
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_local_lexicon_service=FakeCORLocalLexiconService(
+            by_lemma_idx={
+                30686: [
+                    _cor_local_entry(
+                        cor_id="COR.30686.200.01",
+                        lemma="lære",
+                        gloss="learn",
+                        form="lære",
+                        lemma_idx=30686,
+                        pos_tag="VERB",
+                        morphology="VerbForm=Inf|Voice=Act",
+                        gram_raw="vb.inf.akt",
+                    ),
+                    _cor_local_entry(
+                        cor_id="COR.30686.203.01",
+                        lemma="lære",
+                        gloss="learn",
+                        form="lærer",
+                        lemma_idx=30686,
+                        pos_tag="VERB",
+                        morphology="Tense=Pres|VerbForm=Fin|Voice=Act",
+                        gram_raw="vb.præs.akt",
+                    ),
+                ],
+            },
+        ),
+    )
+
+    added = use_case.add_word(
+        "lærer",
+        "lære",
+        search_seed={
+            "lemma": "lære",
+            "surface": "lærer",
+            "cor_id": "COR.30686.203.01",
+            "cor_lemma_idx": 30686,
+            "meaning_key": "learn",
+            "gloss": "learn",
+            "english_translation": None,
+            "pos_tag": "VERB",
+            "morphology": "Tense=Pres|VerbForm=Fin|Voice=Act",
+        },
+    )
+
+    details = use_case.get_lemma_details("lære")
+
+    assert added.saved_snapshot is not None
+    assert added.saved_snapshot.pos_tag == "VERB"
+    assert added.saved_snapshot.morphology == "VerbForm=Inf|Voice=Act"
+    assert details.pos_tag == "VERB"
+    assert details.morphology == "VerbForm=Inf|Voice=Act"
+    assert details.surface_forms == [
+        LemmaDetailsResponse.SurfaceFormDetails(
+            form="lærer",
+            pos_tag="VERB",
+            morphology="Tense=Pres|VerbForm=Fin|Voice=Act",
+            lemma="lære",
+            lemma_translation=None,
+        )
+    ]
+
+
+def test_wordbank_search_seed_repeat_save_repairs_surface_derived_meaning_metadata(tmp_path: Path) -> None:
+    db_path = _db_path(tmp_path)
+    initial_use_case = WordbankUseCase(db_path)
+    initial_use_case.add_word(
+        "lærere",
+        "lærer",
+        search_seed={
+            "lemma": "lærer",
+            "surface": "lærere",
+            "cor_id": "COR.49032.112.01",
+            "cor_lemma_idx": 49032,
+            "meaning_key": "teacher",
+            "gloss": "teacher",
+            "english_translation": "teacher",
+            "pos_tag": "NOUN",
+            "morphology": "Gender=Com|Number=Plur|Definite=Ind",
+        },
+    )
+
+    repaired_use_case = WordbankUseCase(
+        db_path,
+        cor_local_lexicon_service=FakeCORLocalLexiconService(
+            by_lemma_idx={
+                49032: [
+                    _cor_local_entry(
+                        cor_id="COR.49032.110.01",
+                        lemma="lærer",
+                        gloss="teacher",
+                        form="lærer",
+                        lemma_idx=49032,
+                        pos_tag="NOUN",
+                        morphology="Gender=Com|Number=Sing|Definite=Ind",
+                        gram_raw="sb.fk.sg.ubest",
+                    ),
+                    _cor_local_entry(
+                        cor_id="COR.49032.112.01",
+                        lemma="lærer",
+                        gloss="teacher",
+                        form="lærere",
+                        lemma_idx=49032,
+                        pos_tag="NOUN",
+                        morphology="Gender=Com|Number=Plur|Definite=Ind",
+                        gram_raw="sb.fk.pl.ubest",
+                    ),
+                ],
+            },
+        ),
+    )
+
+    repaired_use_case.add_word(
+        "lærere",
+        "lærer",
+        search_seed={
+            "lemma": "lærer",
+            "surface": "lærere",
+            "cor_id": "COR.49032.112.01",
+            "cor_lemma_idx": 49032,
+            "meaning_key": "teacher",
+            "gloss": "teacher",
+            "english_translation": "teacher",
+            "pos_tag": "NOUN",
+            "morphology": "Gender=Com|Number=Plur|Definite=Ind",
+        },
+    )
+
+    details = repaired_use_case.get_lemma_details("lærer")
+
+    assert details.morphology == "Gender=Com|Number=Sing|Definite=Ind"
+    assert details.meaning_sections[0].morphology == "Gender=Com|Number=Sing|Definite=Ind"
+    assert details.meaning_sections[0].surface_forms[0].morphology == "Gender=Com|Number=Plur|Definite=Ind"

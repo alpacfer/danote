@@ -29,13 +29,15 @@ class WordVerificationInput:
     meaning_key: str | None
     meaning_gloss: str | None
     lexeme_source: str
-    lexeme_translation: str | None
-    lexeme_translation_provider: str | None
+    selected_translation: str | None
+    selected_translation_scope: Literal["lemma", "meaning_section"] | None
     surface_source: str | None
-    lemma_pos_tag: str | None
-    lemma_morphology: str | None
-    surface_pos_tag: str | None
-    surface_morphology: str | None
+    canonical_lemma_pos_tag: str | None
+    canonical_lemma_morphology: str | None
+    selected_meaning_pos_tag: str | None
+    selected_meaning_morphology: str | None
+    selected_surface_pos_tag: str | None
+    selected_surface_morphology: str | None
     sibling_meaning_sections: tuple[WordVerificationMeaningSection, ...] = ()
 
 
@@ -149,14 +151,16 @@ class GeminiWordVerificationService:
                 "meaning_id": payload.meaning_id,
                 "meaning_key": payload.meaning_key,
                 "gloss": payload.meaning_gloss,
-                "english_translation": payload.lexeme_translation,
+                "selected_translation": payload.selected_translation,
+                "selected_translation_scope": payload.selected_translation_scope,
                 "lexeme_source": payload.lexeme_source,
-                "translation_provider": payload.lexeme_translation_provider,
                 "surface_source": payload.surface_source,
-                "lemma_pos_tag": payload.lemma_pos_tag,
-                "lemma_morphology": payload.lemma_morphology,
-                "surface_pos_tag": payload.surface_pos_tag,
-                "surface_morphology": payload.surface_morphology,
+                "canonical_lemma_pos_tag": payload.canonical_lemma_pos_tag,
+                "canonical_lemma_morphology": payload.canonical_lemma_morphology,
+                "selected_meaning_pos_tag": payload.selected_meaning_pos_tag,
+                "selected_meaning_morphology": payload.selected_meaning_morphology,
+                "selected_surface_pos_tag": payload.selected_surface_pos_tag,
+                "selected_surface_morphology": payload.selected_surface_morphology,
             },
             "available_meaning_sections": [
                 {
@@ -174,6 +178,8 @@ class GeminiWordVerificationService:
         return (
             "You are a Professional Danish Language Expert.\n"
             "Review the current wordbank entry using the model lemma page -> meaning sections -> surface forms.\n"
+            "Translations belong to the lemma or a meaning section only. Surface forms do not carry independent translations.\n"
+            "Treat canonical lemma metadata separately from the selected surface-form metadata.\n"
             "Count if the reviewed entry is composed of multiple words.\n"
             "Return JSON only.\n"
             "{"

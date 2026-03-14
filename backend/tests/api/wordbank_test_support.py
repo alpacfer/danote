@@ -48,6 +48,7 @@ def seed_cor_local_db(db_path) -> None:
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
+                ("COR.30686.200.01", "lære", "learn", "vb.inf.akt", "lære", "N", 30686, 200, 1),
                 ("COR.49032.110.01", "lærer", "teacher", "sb.fk.sg.ubest", "lærer", "N", 49032, 110, 1),
                 ("COR.49032.112.01", "lærer", "teacher", "sb.fk.pl.ubest", "lærere", "N", 49032, 112, 1),
                 ("COR.30686.203.01", "lære", "learn", "vb.præs.akt", "lærer", "N", 30686, 203, 1),

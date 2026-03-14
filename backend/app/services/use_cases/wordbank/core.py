@@ -70,6 +70,7 @@ class WordbankUseCase:
             db_path,
             gemini_changes_log_path,
             nlp,
+            cor,
         )
         self._runtime = WordbankRuntime(
             db_path=db_path,

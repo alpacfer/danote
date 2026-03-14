@@ -13,6 +13,7 @@ from app.api.schemas.v1.wordbank import (
 from app.db.repositories.wordbank import WordbankRepository
 from app.db.migrations import get_connection
 from app.services.token_classifier import normalize_token
+from app.services.use_cases.wordbank.collaborators.cor import CorResolutionCollaborator
 from app.services.use_cases.wordbank.collaborators.nlp import NLPCollaborator
 from app.services.use_cases.wordbank.verification_actions import apply_verification_action
 from app.services.use_cases.wordbank.verification_records import (
@@ -39,11 +40,13 @@ class VerificationCollaborator:
         db_path: Path,
         gemini_changes_log_path: Path | None,
         nlp: NLPCollaborator,
+        cor: CorResolutionCollaborator,
     ) -> None:
         self._verification_service = verification_service
         self._db_path = db_path
         self._gemini_changes_log_path = gemini_changes_log_path
         self._nlp = nlp
+        self._cor = cor
 
     def verify_added_word(
         self,
@@ -225,17 +228,26 @@ class VerificationCollaborator:
         meaning_id: int | None,
     ) -> WordVerificationInput:
         lexeme_source = "manual"
-        lexeme_translation: str | None = None
-        lexeme_translation_provider: str | None = None
+        selected_translation: str | None = None
+        selected_translation_scope: str | None = None
         surface_source: str | None = None
         meaning_key: str | None = None
         meaning_gloss: str | None = None
         sibling_meaning_sections: list[WordVerificationMeaningSection] = []
+        lexeme_pos_tag: str | None = None
+        lexeme_morphology: str | None = None
+        selected_meaning_pos_tag: str | None = None
+        selected_meaning_morphology: str | None = None
+        selected_surface_pos_tag: str | None = None
+        selected_surface_morphology: str | None = None
+        selected_surface_row = None
+        surface_cor_entry = None
+        canonical_lemma_entry = None
 
         with get_connection(self._db_path) as conn:
             lexeme_row = conn.execute(
                 """
-                SELECT id, source, english_translation, translation_provider
+                SELECT id, source, english_translation, pos_tag, morphology
                 FROM lexemes
                 WHERE lemma = ?
                 LIMIT 1
@@ -245,9 +257,11 @@ class VerificationCollaborator:
 
             if lexeme_row is not None:
                 lexeme_source = lexeme_row["source"]
+                lexeme_pos_tag = lexeme_row["pos_tag"]
+                lexeme_morphology = lexeme_row["morphology"]
                 meaning_rows = conn.execute(
                     """
-                    SELECT id, meaning_key, gloss, english_translation, pos_tag, morphology
+                    SELECT id, meaning_key, cor_lemma_idx, gloss, english_translation, pos_tag, morphology
                     FROM lexeme_meanings
                     WHERE lexeme_id = ?
                     ORDER BY id ASC
@@ -256,10 +270,22 @@ class VerificationCollaborator:
                 ).fetchall()
                 surface_rows = conn.execute(
                     """
-                    SELECT form, meaning_id
-                    FROM surface_forms
-                    WHERE lexeme_id = ?
-                    ORDER BY id ASC
+                    SELECT
+                        sf.form,
+                        sf.meaning_id,
+                        sf.source,
+                        sf.pos_tag,
+                        sf.morphology,
+                        (
+                            SELECT sfcv.cor_id
+                            FROM surface_form_cor_variants sfcv
+                            WHERE sfcv.surface_form_id = sf.id
+                            ORDER BY sfcv.id ASC
+                            LIMIT 1
+                        ) AS cor_id
+                    FROM surface_forms sf
+                    WHERE sf.lexeme_id = ?
+                    ORDER BY sf.id ASC
                     """,
                     (int(lexeme_row["id"]),),
                 ).fetchall()
@@ -276,13 +302,15 @@ class VerificationCollaborator:
                     normalized_lemma=stored_lemma,
                 )
                 if meaning_row is not None:
-                    lexeme_translation = meaning_row["english_translation"]
-                    lexeme_translation_provider = "meaning_section"
+                    selected_translation = meaning_row["english_translation"]
+                    selected_translation_scope = "meaning_section" if selected_translation else None
                     meaning_key = meaning_row["meaning_key"]
                     meaning_gloss = meaning_row["gloss"]
+                    selected_meaning_pos_tag = meaning_row["pos_tag"]
+                    selected_meaning_morphology = meaning_row["morphology"]
                 else:
-                    lexeme_translation = lexeme_row["english_translation"]
-                    lexeme_translation_provider = lexeme_row["translation_provider"]
+                    selected_translation = lexeme_row["english_translation"]
+                    selected_translation_scope = "lemma" if selected_translation else None
 
                 sibling_meaning_sections = [
                     WordVerificationMeaningSection(
@@ -298,34 +326,60 @@ class VerificationCollaborator:
                 ]
 
                 if stored_surface_form:
-                    if meaning_id is not None:
-                        surface_row = conn.execute(
-                            """
-                            SELECT source
-                            FROM surface_forms
-                            WHERE meaning_id = ? AND form = ?
-                            LIMIT 1
-                            """,
-                            (meaning_id, stored_surface_form),
-                        ).fetchone()
-                    else:
-                        surface_row = conn.execute(
-                            """
-                            SELECT source
-                            FROM surface_forms
-                            WHERE lexeme_id = ? AND meaning_id IS NULL AND form = ?
-                            LIMIT 1
-                            """,
-                            (lexeme_row["id"], stored_surface_form),
-                        ).fetchone()
-                    if surface_row is not None:
-                        surface_source = surface_row["source"]
+                    selected_surface_row = self._select_surface_row(
+                        surface_rows,
+                        stored_surface_form=stored_surface_form,
+                        meaning_id=meaning_id,
+                    )
+                    if selected_surface_row is not None:
+                        surface_source = selected_surface_row["source"]
+                        selected_surface_pos_tag = selected_surface_row["pos_tag"]
+                        selected_surface_morphology = selected_surface_row["morphology"]
+                        surface_cor_entry = self._cor.cor_local_entry_for_cor_id(
+                            cor_id=selected_surface_row["cor_id"]
+                        ) if selected_surface_row["cor_id"] else None
 
-        lemma_pos_tag, lemma_morphology = self._nlp.extract_pos_and_morphology(stored_lemma)
-        surface_pos_tag: str | None = None
-        surface_morphology: str | None = None
-        if stored_surface_form:
-            surface_pos_tag, surface_morphology = self._nlp.extract_pos_and_morphology(stored_surface_form)
+                canonical_lemma_entry = self._resolve_canonical_lemma_entry(
+                    stored_lemma=stored_lemma,
+                    meaning_row=meaning_row,
+                    selected_surface_row=selected_surface_row,
+                    fallback_pos_tag=selected_meaning_pos_tag or lexeme_pos_tag,
+                )
+                if stored_surface_form and surface_cor_entry is None:
+                    surface_cor_entry = self._cor.best_cor_local_entry_for_form(
+                        form=stored_surface_form,
+                        lemma=stored_lemma,
+                        preferred_pos_tag=selected_surface_pos_tag or selected_meaning_pos_tag or lexeme_pos_tag,
+                    )
+
+        canonical_lemma_pos_tag, canonical_lemma_morphology = self._resolve_canonical_lemma_metadata(
+            stored_lemma=stored_lemma,
+            lexeme_pos_tag=lexeme_pos_tag,
+            lexeme_morphology=lexeme_morphology,
+            selected_meaning_pos_tag=selected_meaning_pos_tag,
+            selected_meaning_morphology=selected_meaning_morphology,
+            canonical_lemma_entry=canonical_lemma_entry,
+        )
+        if selected_meaning_pos_tag is None:
+            selected_meaning_pos_tag = canonical_lemma_entry.pos_tag if canonical_lemma_entry is not None else None
+        if selected_meaning_morphology is None:
+            selected_meaning_morphology = (
+                canonical_lemma_entry.morphology if canonical_lemma_entry is not None else None
+            )
+        if stored_surface_form and selected_surface_pos_tag is None:
+            selected_surface_pos_tag = surface_cor_entry.pos_tag if surface_cor_entry is not None else None
+        if stored_surface_form and selected_surface_morphology is None:
+            selected_surface_morphology = surface_cor_entry.morphology if surface_cor_entry is not None else None
+        if canonical_lemma_pos_tag is None or canonical_lemma_morphology is None:
+            inferred_lemma_pos_tag, inferred_lemma_morphology = self._nlp.extract_pos_and_morphology(stored_lemma)
+            canonical_lemma_pos_tag = canonical_lemma_pos_tag or inferred_lemma_pos_tag
+            canonical_lemma_morphology = canonical_lemma_morphology or inferred_lemma_morphology
+        if stored_surface_form and (selected_surface_pos_tag is None or selected_surface_morphology is None):
+            inferred_surface_pos_tag, inferred_surface_morphology = self._nlp.extract_pos_and_morphology(
+                stored_surface_form
+            )
+            selected_surface_pos_tag = selected_surface_pos_tag or inferred_surface_pos_tag
+            selected_surface_morphology = selected_surface_morphology or inferred_surface_morphology
 
         return WordVerificationInput(
             stored_lemma=stored_lemma,
@@ -334,15 +388,75 @@ class VerificationCollaborator:
             meaning_key=meaning_key,
             meaning_gloss=meaning_gloss,
             lexeme_source=lexeme_source,
-            lexeme_translation=lexeme_translation,
-            lexeme_translation_provider=lexeme_translation_provider,
+            selected_translation=selected_translation,
+            selected_translation_scope=selected_translation_scope,
             surface_source=surface_source,
-            lemma_pos_tag=lemma_pos_tag,
-            lemma_morphology=lemma_morphology,
-            surface_pos_tag=surface_pos_tag,
-            surface_morphology=surface_morphology,
+            canonical_lemma_pos_tag=canonical_lemma_pos_tag,
+            canonical_lemma_morphology=canonical_lemma_morphology,
+            selected_meaning_pos_tag=selected_meaning_pos_tag,
+            selected_meaning_morphology=selected_meaning_morphology,
+            selected_surface_pos_tag=selected_surface_pos_tag,
+            selected_surface_morphology=selected_surface_morphology,
             sibling_meaning_sections=tuple(sibling_meaning_sections),
         )
+
+    def _select_surface_row(self, surface_rows, *, stored_surface_form: str, meaning_id: int | None):
+        for row in surface_rows:
+            if str(row["form"]) != stored_surface_form:
+                continue
+            row_meaning_id = int(row["meaning_id"]) if row["meaning_id"] is not None else None
+            if row_meaning_id == meaning_id:
+                return row
+        return None
+
+    def _resolve_canonical_lemma_entry(
+        self,
+        *,
+        stored_lemma: str,
+        meaning_row,
+        selected_surface_row,
+        fallback_pos_tag: str | None,
+    ):
+        cor_lemma_idx = int(meaning_row["cor_lemma_idx"]) if meaning_row is not None and meaning_row["cor_lemma_idx"] is not None else None
+        if cor_lemma_idx is not None:
+            entry = self._cor.best_cor_local_lemma_entry(
+                lemma_idx=cor_lemma_idx,
+                lemma=stored_lemma,
+                preferred_pos_tag=fallback_pos_tag,
+            )
+            if entry is not None:
+                return entry
+        if selected_surface_row is None or not selected_surface_row["cor_id"]:
+            return None
+        surface_entry = self._cor.cor_local_entry_for_cor_id(cor_id=str(selected_surface_row["cor_id"]))
+        if surface_entry is None:
+            return None
+        return self._cor.best_cor_local_lemma_entry(
+            lemma_idx=surface_entry.lemma_idx,
+            lemma=stored_lemma,
+            preferred_pos_tag=fallback_pos_tag or surface_entry.pos_tag,
+        )
+
+    def _resolve_canonical_lemma_metadata(
+        self,
+        *,
+        stored_lemma: str,
+        lexeme_pos_tag: str | None,
+        lexeme_morphology: str | None,
+        selected_meaning_pos_tag: str | None,
+        selected_meaning_morphology: str | None,
+        canonical_lemma_entry,
+    ) -> tuple[str | None, str | None]:
+        canonical_pos_tag = (
+            canonical_lemma_entry.pos_tag if canonical_lemma_entry is not None else None
+        ) or lexeme_pos_tag or selected_meaning_pos_tag
+        canonical_morphology = (
+            canonical_lemma_entry.morphology if canonical_lemma_entry is not None else None
+        ) or lexeme_morphology or selected_meaning_morphology
+        if canonical_pos_tag is not None and canonical_morphology is not None:
+            return canonical_pos_tag, canonical_morphology
+        inferred_pos_tag, inferred_morphology = self._nlp.extract_pos_and_morphology(stored_lemma)
+        return canonical_pos_tag or inferred_pos_tag, canonical_morphology or inferred_morphology
 
     def _load_meaning_row(
         self,
@@ -355,7 +469,7 @@ class VerificationCollaborator:
         if requested_meaning_id is not None:
             meaning_row = conn.execute(
                 """
-                SELECT id, meaning_key, gloss, english_translation, pos_tag, morphology
+                SELECT id, meaning_key, cor_lemma_idx, gloss, english_translation, pos_tag, morphology
                 FROM lexeme_meanings
                 WHERE id = ? AND lexeme_id = ?
                 LIMIT 1
@@ -368,7 +482,7 @@ class VerificationCollaborator:
 
         meaning_rows = conn.execute(
             """
-            SELECT id, meaning_key, gloss, english_translation, pos_tag, morphology
+            SELECT id, meaning_key, cor_lemma_idx, gloss, english_translation, pos_tag, morphology
             FROM lexeme_meanings
             WHERE lexeme_id = ?
             ORDER BY id ASC

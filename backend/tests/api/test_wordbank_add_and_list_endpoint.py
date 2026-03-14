@@ -8,7 +8,7 @@ from app.core.app_state import set_service_field
 from app.db.migrations import apply_migrations, get_connection
 from app.main import create_app
 from app.services.verification import WordVerificationAction
-from tests.api.wordbank_test_support import build_test_settings, seed_cor_local_bog_senses
+from tests.api.wordbank_test_support import build_test_settings, seed_cor_local_bog_senses, seed_cor_local_db
 
 
 def test_add_word_inserts_lemma_and_surface_form(tmp_path, stub_nlp_adapter_factory) -> None:
@@ -351,8 +351,13 @@ def test_get_lemma_details_returns_all_saved_variations(tmp_path, stub_nlp_adapt
 
 def test_get_lemma_details_non_sectioned_payload_omits_optional_surface_fields(tmp_path, stub_nlp_adapter_factory) -> None:
     db_path = tmp_path / "danote.sqlite3"
+    cor_db_path = tmp_path / "cor.sqlite"
     apply_migrations(db_path)
-    app = create_app(build_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+    seed_cor_local_db(cor_db_path)
+    app = create_app(
+        build_test_settings(db_path, cor_local_db_path=cor_db_path),
+        nlp_adapter_factory=stub_nlp_adapter_factory,
+    )
 
     with TestClient(app) as client:
         client.post(
@@ -379,6 +384,8 @@ def test_get_lemma_details_non_sectioned_payload_omits_optional_surface_fields(t
     payload = response.json()
     assert payload["is_sectioned"] is False
     assert payload["meaning_sections"] == []
+    assert payload["pos_tag"] == "VERB"
+    assert payload["morphology"] == "VerbForm=Inf|Voice=Act"
     assert payload["surface_forms"] == [
         {
             "form": "lærer",
@@ -480,8 +487,13 @@ def test_wordbank_endpoints_require_reset_for_legacy_non_verb_rows(tmp_path, stu
 
 def test_add_word_search_seed_returns_saved_snapshot_and_stores_only_selected_surface(tmp_path, stub_nlp_adapter_factory) -> None:
     db_path = tmp_path / "danote.sqlite3"
+    cor_db_path = tmp_path / "cor.sqlite"
     apply_migrations(db_path)
-    app = create_app(build_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+    seed_cor_local_db(cor_db_path)
+    app = create_app(
+        build_test_settings(db_path, cor_local_db_path=cor_db_path),
+        nlp_adapter_factory=stub_nlp_adapter_factory,
+    )
 
     with TestClient(app) as client:
         response = client.post(
@@ -506,8 +518,12 @@ def test_add_word_search_seed_returns_saved_snapshot_and_stores_only_selected_su
     assert response.status_code == 200
     payload = response.json()
     assert payload["saved_snapshot"]["lemma"] == "lærer"
+    assert payload["saved_snapshot"]["pos_tag"] == "NOUN"
+    assert payload["saved_snapshot"]["morphology"] == "Gender=Com|Number=Sing|Definite=Ind"
     assert payload["saved_snapshot"]["meaning_sections"][0]["english_translation"] == "teacher"
+    assert payload["saved_snapshot"]["meaning_sections"][0]["morphology"] == "Gender=Com|Number=Sing|Definite=Ind"
     assert [item["form"] for item in payload["saved_snapshot"]["meaning_sections"][0]["surface_forms"]] == ["lærere"]
+    assert payload["saved_snapshot"]["meaning_sections"][0]["surface_forms"][0]["morphology"] == "Gender=Com|Number=Plur|Definite=Ind"
 
     with get_connection(db_path) as conn:
         rows = conn.execute(
@@ -521,6 +537,69 @@ def test_add_word_search_seed_returns_saved_snapshot_and_stores_only_selected_su
             ("lærer",),
         ).fetchall()
     assert [str(row["form"]) for row in rows] == ["lærere"]
+
+
+def test_add_word_search_seed_repeat_save_repairs_surface_derived_metadata(tmp_path, stub_nlp_adapter_factory) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    cor_db_path = tmp_path / "cor.sqlite"
+    apply_migrations(db_path)
+    seed_cor_local_db(cor_db_path)
+
+    initial_app = create_app(
+        build_test_settings(db_path, cor_local_db_path=tmp_path / "missing-cor.sqlite"),
+        nlp_adapter_factory=stub_nlp_adapter_factory,
+    )
+    with TestClient(initial_app) as client:
+        initial = client.post(
+            "/api/wordbank/lexemes",
+            json={
+                "surface_token": "lærere",
+                "lemma_candidate": "lærer",
+                "search_seed": {
+                    "lemma": "lærer",
+                    "surface": "lærere",
+                    "cor_id": "COR.49032.112.01",
+                    "cor_lemma_idx": 49032,
+                    "meaning_key": "teacher",
+                    "gloss": "teacher",
+                    "english_translation": "teacher",
+                    "pos_tag": "NOUN",
+                    "morphology": "Gender=Com|Number=Plur|Definite=Ind",
+                },
+            },
+        )
+        initial_details = client.get("/api/wordbank/lemmas/lærer")
+
+    repaired_app = create_app(
+        build_test_settings(db_path, cor_local_db_path=cor_db_path),
+        nlp_adapter_factory=stub_nlp_adapter_factory,
+    )
+    with TestClient(repaired_app) as client:
+        repeated = client.post(
+            "/api/wordbank/lexemes",
+            json={
+                "surface_token": "lærere",
+                "lemma_candidate": "lærer",
+                "search_seed": {
+                    "lemma": "lærer",
+                    "surface": "lærere",
+                    "cor_id": "COR.49032.112.01",
+                    "cor_lemma_idx": 49032,
+                    "meaning_key": "teacher",
+                    "gloss": "teacher",
+                    "english_translation": "teacher",
+                    "pos_tag": "NOUN",
+                    "morphology": "Gender=Com|Number=Plur|Definite=Ind",
+                },
+            },
+        )
+        repaired_details = client.get("/api/wordbank/lemmas/lærer")
+
+    assert initial.status_code == 200
+    assert repeated.status_code == 200
+    assert initial_details.json()["meaning_sections"][0]["morphology"] == "Gender=Com|Number=Plur|Definite=Ind"
+    assert repaired_details.json()["meaning_sections"][0]["morphology"] == "Gender=Com|Number=Sing|Definite=Ind"
+    assert repaired_details.json()["meaning_sections"][0]["surface_forms"][0]["morphology"] == "Gender=Com|Number=Plur|Definite=Ind"
 
 
 def test_add_word_search_seed_routes_variation_to_target_meaning(tmp_path, stub_nlp_adapter_factory) -> None:

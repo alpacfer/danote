@@ -29,6 +29,18 @@ class WordbankMutationRepository:
                 (pos_tag, morphology, lexeme_id),
             )
 
+    def replace_lexeme_metadata(self, *, lexeme_id: int, pos_tag: str | None, morphology: str | None) -> None:
+        with timed_db_operation("wordbank.replace_lexeme_metadata"), get_connection(self._db_path) as conn:
+            conn.execute(
+                """
+                UPDATE lexemes
+                SET pos_tag = ?,
+                    morphology = ?
+                WHERE id = ?
+                """,
+                (pos_tag, morphology, lexeme_id),
+            )
+
     def update_surface_form_metadata(
         self,
         *,
@@ -45,6 +57,25 @@ class WordbankMutationRepository:
                 WHERE id = ?
                 """,
                 (pos_tag, morphology, surface_form_id),
+            )
+
+    def replace_lexeme_meaning_metadata(
+        self,
+        *,
+        meaning_id: int,
+        pos_tag: str | None,
+        morphology: str | None,
+    ) -> None:
+        with timed_db_operation("wordbank.replace_lexeme_meaning_metadata"), get_connection(self._db_path) as conn:
+            conn.execute(
+                """
+                UPDATE lexeme_meanings
+                SET pos_tag = ?,
+                    morphology = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (pos_tag, morphology, meaning_id),
             )
 
     def insert_or_load_lexeme(

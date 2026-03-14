@@ -190,6 +190,11 @@ Pronunciation behavior is shared by header + section rows + variation rows.
 
 - Triggered in background after add flows (except certain search-seed save paths).
 - Results are persisted by backend target scope `(lemma, meaningId)` and returned through subsequent lemma-detail fetches.
+- Verification evaluates the current persisted wordbank structure:
+  lemma page -> meaning sections -> surface forms.
+- Translation context comes only from the lemma or meaning section.
+  Surface forms do not have independent translations in the verification model.
+- Canonical lemma metadata is evaluated separately from the selected saved surface-form metadata.
 - Success path stores a persisted verification success record with `requested_at` / `completed_at`.
 - Error path stores a persisted verification error record with timestamps and suggested actions.
 - When the open word page observes a queued-to-final transition, the app pushes an in-session notification.
@@ -235,6 +240,10 @@ Pronunciation behavior is shared by header + section rows + variation rows.
   - while that queued verification remains selected, the word page polls until the persisted result becomes final
   - analysis + wordbank refresh ticks increment
   - app navigates to wordbank and selects stored lemma/meaning
+- For `search_seed` saves, backend persistence separates canonical lemma metadata from selected surface metadata:
+  - lemma/root and newly created meaning-section tags come from the canonical COR lemma when `cor_lemma_idx` is available
+  - the stored selected surface form keeps the chosen variant tags from the search result
+  - only the selected surface form is stored; search save does not hydrate the full paradigm into wordbank
 
 ## Behavioral test coverage map
 

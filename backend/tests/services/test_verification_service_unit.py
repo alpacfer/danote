@@ -11,13 +11,15 @@ def _payload() -> WordVerificationInput:
         meaning_key="book",
         meaning_gloss="book",
         lexeme_source="manual",
-        lexeme_translation="book",
-        lexeme_translation_provider="meaning_section",
+        selected_translation="book",
+        selected_translation_scope="meaning_section",
         surface_source="manual",
-        lemma_pos_tag="NOUN",
-        lemma_morphology="Gender=Com|Number=Sing",
-        surface_pos_tag="NOUN",
-        surface_morphology="Definite=Def|Number=Sing",
+        canonical_lemma_pos_tag="NOUN",
+        canonical_lemma_morphology="Gender=Com|Number=Sing",
+        selected_meaning_pos_tag="NOUN",
+        selected_meaning_morphology="Gender=Com|Number=Sing",
+        selected_surface_pos_tag="NOUN",
+        selected_surface_morphology="Definite=Def|Number=Sing",
         sibling_meaning_sections=(),
     )
 
@@ -61,3 +63,13 @@ def test_gemini_verification_service_discards_malformed_actions(monkeypatch) -> 
 
     assert result.verdict == "flagged"
     assert result.suggested_actions == ()
+
+
+def test_gemini_verification_prompt_matches_wordbank_translation_model() -> None:
+    service = GeminiWordVerificationService(api_key="test-key")
+
+    prompt = service._verification_prompt(_payload())
+
+    assert "lemma or a meaning section only" in prompt
+    assert "Surface forms do not carry independent translations" in prompt
+    assert "canonical lemma metadata" in prompt
