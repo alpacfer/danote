@@ -15,6 +15,7 @@ def _payload() -> WordVerificationInput:
         meaning_id=1,
         meaning_key="book",
         meaning_gloss="book",
+        meaning_gloss_translation="book",
         lexeme_source="manual",
         selected_translation="book",
         selected_translation_scope="meaning_section",
@@ -32,6 +33,7 @@ def _payload() -> WordVerificationInput:
                 id=1,
                 meaning_key="book",
                 gloss="book",
+                gloss_translation="book",
                 english_translation="book",
                 pos_tag="NOUN",
                 morphology="Gender=Com|Number=Sing",
@@ -44,6 +46,7 @@ def _payload() -> WordVerificationInput:
                 meaning_id=1,
                 meaning_key="book",
                 gloss="book",
+                gloss_translation="book",
                 english_translation="book",
                 pos_tag="NOUN",
                 morphology="Gender=Com|Number=Sing",
@@ -54,10 +57,68 @@ def _payload() -> WordVerificationInput:
                 meaning_id=1,
                 meaning_key="book",
                 gloss="book",
+                gloss_translation="book",
                 english_translation="book",
                 pos_tag="NOUN",
                 morphology="Definite=Def|Number=Sing",
                 source="manual",
+            ),
+        ),
+    )
+
+
+def _mor_payload() -> WordVerificationInput:
+    return WordVerificationInput(
+        stored_lemma="mor",
+        stored_surface_form=None,
+        meaning_id=2,
+        meaning_key="soil-layer",
+        meaning_gloss="jordlag",
+        meaning_gloss_translation="soil layer",
+        lexeme_source="search",
+        selected_translation="mother",
+        selected_translation_scope="meaning_section",
+        surface_source=None,
+        canonical_lemma_pos_tag="NOUN",
+        canonical_lemma_morphology="Gender=Com|Number=Sing|Definite=Ind",
+        selected_meaning_pos_tag="NOUN",
+        selected_meaning_morphology="Gender=Com|Number=Sing|Definite=Ind",
+        selected_surface_pos_tag=None,
+        selected_surface_morphology=None,
+        sibling_meaning_sections=(
+            WordVerificationMeaningSection(
+                id=1,
+                meaning_key="person",
+                gloss="person",
+                gloss_translation="person",
+                english_translation="mother",
+                pos_tag="NOUN",
+                morphology="Gender=Com|Number=Sing|Definite=Ind",
+                surface_forms=("mor",),
+            ),
+        ),
+        available_surface_forms=(
+            WordVerificationSurfaceForm(
+                form="mor",
+                meaning_id=1,
+                meaning_key="person",
+                gloss="person",
+                gloss_translation="person",
+                english_translation="mother",
+                pos_tag="NOUN",
+                morphology="Gender=Com|Number=Sing|Definite=Ind",
+                source="search",
+            ),
+            WordVerificationSurfaceForm(
+                form="mor",
+                meaning_id=2,
+                meaning_key="soil-layer",
+                gloss="jordlag",
+                gloss_translation="soil layer",
+                english_translation="mother",
+                pos_tag="NOUN",
+                morphology="Gender=Com|Number=Sing|Definite=Ind",
+                source="search",
             ),
         ),
     )
@@ -105,6 +166,25 @@ def test_gemini_verification_service_discards_malformed_actions(monkeypatch) -> 
     assert result.suggested_actions == ()
 
 
+def test_gemini_verification_service_discards_danish_self_translation_actions(monkeypatch) -> None:
+    service = GeminiWordVerificationService(api_key="test-key")
+    monkeypatch.setattr(
+        service,
+        "_generate_text",
+        lambda prompt: (
+            '{"verdict":"incorrect","word_count":1,"problem":"mismatch","change_to_implement":"fix it",'
+            '"suggested_actions":['
+            '{"action_type":"fix_translation","english_translation":"mor","reason":"translation mismatch"}'
+            ']}'
+        ),
+    )
+
+    result = service.verify_word_entry(_mor_payload())
+
+    assert result.verdict == "flagged"
+    assert result.suggested_actions == ()
+
+
 def test_gemini_verification_prompt_matches_wordbank_translation_model() -> None:
     service = GeminiWordVerificationService(api_key="test-key")
 
@@ -118,6 +198,9 @@ def test_gemini_verification_prompt_matches_wordbank_translation_model() -> None
     assert "Never suggest editing a gloss" in prompt
     assert "canonical lemma metadata" in prompt
     assert "Use all provided context together" in prompt
+    assert "idiomatic English" in prompt
+    assert "meaning_gloss_translation" in prompt
+    assert "gloss_translation" in prompt
     assert "available_categories" in prompt
     assert "current_categories" in prompt
     assert "available_surface_forms" in prompt

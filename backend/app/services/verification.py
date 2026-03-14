@@ -5,6 +5,8 @@ import json
 import time
 from typing import Any, Literal, Protocol
 
+from app.services.token_classifier import normalize_token
+
 
 class VerificationError(RuntimeError):
     """Raised when verification cannot be completed by the provider."""
@@ -15,6 +17,7 @@ class WordVerificationMeaningSection:
     id: int
     meaning_key: str
     gloss: str | None
+    gloss_translation: str | None
     english_translation: str | None
     pos_tag: str | None
     morphology: str | None
@@ -27,6 +30,7 @@ class WordVerificationSurfaceForm:
     meaning_id: int | None
     meaning_key: str | None
     gloss: str | None
+    gloss_translation: str | None
     english_translation: str | None
     pos_tag: str | None
     morphology: str | None
@@ -40,6 +44,7 @@ class WordVerificationInput:
     meaning_id: int | None
     meaning_key: str | None
     meaning_gloss: str | None
+    meaning_gloss_translation: str | None
     lexeme_source: str
     selected_translation: str | None
     selected_translation_scope: Literal["lemma", "meaning_section"] | None
@@ -150,7 +155,7 @@ class GeminiWordVerificationService:
             parsed.get("change_to_implement") if isinstance(parsed.get("change_to_implement"), str) else None
         )
         categories = tuple(self._parse_categories(parsed, payload.available_categories))
-        suggested_actions = tuple(self._parse_suggested_actions(parsed.get("suggested_actions")))
+        suggested_actions = tuple(self._parse_suggested_actions(parsed.get("suggested_actions"), payload))
 
         if verdict == "incorrect":
             return WordVerificationResult(
@@ -189,7 +194,7 @@ class GeminiWordVerificationService:
             "Translations belong to the lemma or a meaning section only. Surface forms do not carry independent translations.\n"
             "Meaning glosses are immutable COR labels used only to disambiguate senses. Never suggest editing a gloss.\n"
             "Treat canonical lemma metadata separately from the selected surface-form metadata.\n"
-            "Use all provided context together: lemma, reviewed scope, gloss, translation scope, morphology, saved surface forms, and sibling meaning sections.\n"
+            "Use all provided context together: lemma, reviewed scope, gloss, gloss translation, translation scope, morphology, saved surface forms, and sibling meaning sections.\n"
             "Classify the reviewed word meaning into broad semantic categories.\n"
             "Count if the reviewed entry is composed of multiple words.\n"
             "Return JSON only.\n"
@@ -218,6 +223,8 @@ class GeminiWordVerificationService:
             "- If action_type=move_to_meaning_section, target_meaning_id must be one of the available meaning ids.\n"
             "- If action_type=move_to_lemma, include target_lemma and target_meaning_key.\n"
             "- Never propose gloss edits; use gloss only to identify the intended meaning section.\n"
+            "- If action_type=fix_translation, english_translation must be idiomatic English. Never repeat the Danish lemma or surface form unless the translated gloss explicitly matches it.\n"
+            "- When meaning_gloss_translation or section gloss_translation is present, use it as the primary sense clue for homographs.\n"
             "- Discard no uncertainty into prose; use reason and structured fields instead.\n"
             f"Entry:\n{json.dumps(entry, ensure_ascii=False)}"
         )
@@ -227,7 +234,7 @@ class GeminiWordVerificationService:
         return (
             "You are a Professional Danish Language Expert.\n"
             "Review the current wordbank scope and classify it into broad semantic categories.\n"
-            "Use all provided context together: lemma, reviewed scope, gloss, translation scope, morphology, saved surface forms, and sibling meaning sections.\n"
+            "Use all provided context together: lemma, reviewed scope, gloss, gloss translation, translation scope, morphology, saved surface forms, and sibling meaning sections.\n"
             "Treat categories as reusable user-facing groups for many related words.\n"
             "Prefer matching existing categories whenever they fit.\n"
             "Return JSON only.\n"
@@ -253,6 +260,7 @@ class GeminiWordVerificationService:
                 "meaning_id": payload.meaning_id,
                 "meaning_key": payload.meaning_key,
                 "gloss": payload.meaning_gloss,
+                "meaning_gloss_translation": payload.meaning_gloss_translation,
                 "selected_translation": payload.selected_translation,
                 "selected_translation_scope": payload.selected_translation_scope,
                 "lexeme_source": payload.lexeme_source,
@@ -271,6 +279,7 @@ class GeminiWordVerificationService:
                     "id": section.id,
                     "meaning_key": section.meaning_key,
                     "gloss": section.gloss,
+                    "gloss_translation": section.gloss_translation,
                     "english_translation": section.english_translation,
                     "pos_tag": section.pos_tag,
                     "morphology": section.morphology,
@@ -284,6 +293,7 @@ class GeminiWordVerificationService:
                     "meaning_id": form.meaning_id,
                     "meaning_key": form.meaning_key,
                     "gloss": form.gloss,
+                    "gloss_translation": form.gloss_translation,
                     "english_translation": form.english_translation,
                     "pos_tag": form.pos_tag,
                     "morphology": form.morphology,
@@ -375,17 +385,25 @@ class GeminiWordVerificationService:
                 categories.append(normalized_new)
         return categories
 
-    def _parse_suggested_actions(self, raw: object) -> list[WordVerificationAction]:
+    def _parse_suggested_actions(
+        self,
+        raw: object,
+        payload: WordVerificationInput,
+    ) -> list[WordVerificationAction]:
         if not isinstance(raw, list):
             return []
         actions: list[WordVerificationAction] = []
         for item in raw:
-            action = self._normalize_action(item)
+            action = self._normalize_action(item, payload)
             if action is not None:
                 actions.append(action)
         return actions
 
-    def _normalize_action(self, raw: object) -> WordVerificationAction | None:
+    def _normalize_action(
+        self,
+        raw: object,
+        payload: WordVerificationInput,
+    ) -> WordVerificationAction | None:
         if not isinstance(raw, dict):
             return None
         action_type = raw.get("action_type")
@@ -403,6 +421,11 @@ class GeminiWordVerificationService:
         if normalized_type == "fix_translation":
             english_translation = _optional_clean_str(raw.get("english_translation"))
             if not english_translation:
+                return None
+            if self._looks_like_danish_self_translation(
+                english_translation=english_translation,
+                payload=payload,
+            ):
                 return None
             return WordVerificationAction(
                 action_type="fix_translation",
@@ -434,6 +457,28 @@ class GeminiWordVerificationService:
             target_pos_tag=_optional_clean_str(raw.get("target_pos_tag")),
             target_morphology=_optional_clean_str(raw.get("target_morphology")),
         )
+
+    def _looks_like_danish_self_translation(
+        self,
+        *,
+        english_translation: str,
+        payload: WordVerificationInput,
+    ) -> bool:
+        normalized_translation = normalize_token(english_translation)
+        if not normalized_translation:
+            return True
+        normalized_gloss_translation = normalize_token(payload.meaning_gloss_translation or "")
+        if not normalized_gloss_translation:
+            return False
+        for candidate in (payload.stored_lemma, payload.stored_surface_form):
+            normalized_candidate = normalize_token(candidate or "")
+            if (
+                normalized_candidate
+                and normalized_translation == normalized_candidate
+                and normalized_translation != normalized_gloss_translation
+            ):
+                return True
+        return False
 
     def _infer_word_count(self, payload: WordVerificationInput) -> int:
         source_text = payload.stored_surface_form or payload.stored_lemma

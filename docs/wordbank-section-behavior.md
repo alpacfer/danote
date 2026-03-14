@@ -236,6 +236,8 @@ Pronunciation behavior is shared by header + section rows + variation rows.
   Surface forms do not have independent translations in the verification model.
 - Meaning glosses are treated as immutable COR disambiguators.
   Gemini may use them to identify the intended sense, but it does not propose gloss edits.
+- For meaning-section verification, the reviewed section is sent as the current scope and not duplicated in the sibling-meaning list.
+- When available, Gemini also receives translated gloss hints for the reviewed meaning, sibling meanings, and scoped surface forms to disambiguate homographs such as `mor`.
 - Canonical lemma metadata is evaluated separately from the selected saved surface-form metadata.
 - The same Gemini verification call also classifies the reviewed root / meaning scope into semantic categories.
   - Gemini receives the shared persisted category list plus the categories already assigned to that scope.

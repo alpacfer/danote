@@ -219,6 +219,90 @@ def test_word_verification_payload_uses_saved_and_canonical_metadata_for_search_
     details = use_case.get_lemma_details("lære")
     assert details.categories == ["Actions", "School"]
 
+
+def test_word_verification_payload_for_homograph_meaning_uses_translated_gloss_context(tmp_path: Path) -> None:
+    verification_service = FakeVerificationService(
+        verdict="verified",
+        message="Entry is consistent.",
+    )
+    person = _cor_local_entry(
+        cor_id="COR.MOR.PERSON.LEM",
+        lemma="mor",
+        gloss="person",
+        form="mor",
+        lemma_idx=51046,
+        pos_tag="NOUN",
+        morphology="Gender=Com|Number=Sing|Definite=Ind",
+        gram_raw="sb.fk.sg.ubest",
+    )
+    soil = _cor_local_entry(
+        cor_id="COR.MOR.SOIL.LEM",
+        lemma="mor",
+        gloss="jordlag",
+        form="mor",
+        lemma_idx=51047,
+        pos_tag="NOUN",
+        morphology="Gender=Com|Number=Sing|Definite=Ind",
+        gram_raw="sb.fk.sg.ubest",
+    )
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_local_lexicon_service=FakeCORLocalLexiconService(
+            by_form={"mor": [person, soil]},
+            by_lemma_idx={51046: [person], 51047: [soil]},
+        ),
+        translation_service=FakeTranslationService({"person": "person", "jordlag": "soil layer"}),
+        verification_service=verification_service,
+    )
+
+    use_case.add_word(
+        "mor",
+        "mor",
+        search_seed={
+            "lemma": "mor",
+            "surface": "mor",
+            "cor_id": "COR.MOR.PERSON.LEM",
+            "cor_lemma_idx": 51046,
+            "meaning_key": "person",
+            "gloss": "person",
+            "english_translation": "mother",
+            "pos_tag": "NOUN",
+            "morphology": "Gender=Com|Number=Sing|Definite=Ind",
+        },
+    )
+    added = use_case.add_word(
+        "mor",
+        "mor",
+        search_seed={
+            "lemma": "mor",
+            "surface": "mor",
+            "cor_id": "COR.MOR.SOIL.LEM",
+            "cor_lemma_idx": 51047,
+            "meaning_key": "soil-layer",
+            "gloss": "jordlag",
+            "english_translation": "mother",
+            "pos_tag": "NOUN",
+            "morphology": "Gender=Com|Number=Sing|Definite=Ind",
+        },
+    )
+
+    use_case.verify_added_word("mor", None, meaning_id=added.meaning.id if added.meaning else None)
+
+    payload = verification_service.calls[-1]
+    assert payload.meaning_gloss == "jordlag"
+    assert payload.meaning_gloss_translation == "soil layer"
+    assert [(section.id, section.meaning_key, section.gloss_translation) for section in payload.sibling_meaning_sections] == [
+        (1, "person", "person")
+    ]
+    assert [
+        (form.meaning_id, form.form, form.gloss_translation)
+        for form in payload.available_surface_forms
+    ] == [
+        (1, "mor", "person"),
+        (2, "mor", "soil layer"),
+    ]
+
+
 def test_wordbank_use_case_stores_and_returns_surface_pronunciation(tmp_path: Path) -> None:
     tts_service = FakeTTSService({"bogen": b"fake-wav-bytes"})
     use_case = WordbankUseCase(_db_path(tmp_path), tts_service=tts_service)

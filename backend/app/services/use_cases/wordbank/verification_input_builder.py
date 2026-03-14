@@ -5,6 +5,7 @@ from typing import Literal
 from app.db.migrations import get_connection
 from app.db.repositories.wordbank import WordbankRepository
 from app.services.use_cases.wordbank.collaborators.cor import CorResolutionCollaborator
+from app.services.use_cases.wordbank.gloss_translations import is_likely_english_gloss
 from app.services.use_cases.wordbank.collaborators.nlp import NLPCollaborator
 from app.services.use_cases.wordbank.verification_categories import (
     persisted_category_labels_for_scope,
@@ -31,6 +32,7 @@ def build_verification_input(
     surface_source: str | None = None
     meaning_key: str | None = None
     meaning_gloss: str | None = None
+    meaning_gloss_translation: str | None = None
     sibling_meaning_sections: list[WordVerificationMeaningSection] = []
     lexeme_pos_tag: str | None = None
     lexeme_morphology: str | None = None
@@ -42,6 +44,7 @@ def build_verification_input(
     surface_cor_entry = None
     canonical_lemma_entry = None
     meaning_rows_by_id: dict[int, object] = {}
+    meaning_gloss_translations_by_id: dict[int, str | None] = {}
     surface_rows = []
 
     with get_connection(db_path) as conn:
@@ -98,6 +101,27 @@ def build_verification_input(
                 if row["meaning_id"] is None:
                     continue
                 forms_by_meaning.setdefault(int(row["meaning_id"]), []).append(str(row["form"]))
+            gloss_translation_cache: dict[
+                tuple[str, str, str | None, str | None, str, str | None, str | None],
+                str | None,
+            ] = {}
+            meaning_gloss_translations_by_id = {
+                int(row["id"]): _meaning_gloss_translation(
+                    cor=cor,
+                    lexeme_lemma=stored_lemma,
+                    lexeme_pos_tag=lexeme_pos_tag,
+                    meaning_gloss=row["gloss"],
+                    meaning_translation=row["english_translation"],
+                    meaning_pos_tag=row["pos_tag"],
+                    cor_lemma_idx=(
+                        int(row["cor_lemma_idx"])
+                        if row["cor_lemma_idx"] is not None
+                        else None
+                    ),
+                    cache=gloss_translation_cache,
+                )
+                for row in meaning_rows
+            }
 
             meaning_row = _load_meaning_row(
                 conn,
@@ -110,6 +134,7 @@ def build_verification_input(
                 selected_translation_scope = "meaning_section" if selected_translation else None
                 meaning_key = meaning_row["meaning_key"]
                 meaning_gloss = meaning_row["gloss"]
+                meaning_gloss_translation = meaning_gloss_translations_by_id.get(int(meaning_row["id"]))
                 selected_meaning_pos_tag = meaning_row["pos_tag"]
                 selected_meaning_morphology = meaning_row["morphology"]
             else:
@@ -121,12 +146,14 @@ def build_verification_input(
                     id=int(row["id"]),
                     meaning_key=str(row["meaning_key"]),
                     gloss=row["gloss"],
+                    gloss_translation=meaning_gloss_translations_by_id.get(int(row["id"])),
                     english_translation=row["english_translation"],
                     pos_tag=row["pos_tag"],
                     morphology=row["morphology"],
                     surface_forms=tuple(forms_by_meaning.get(int(row["id"]), [])),
                 )
                 for row in meaning_rows
+                if meaning_id is None or int(row["id"]) != meaning_id
             ]
 
             if stored_surface_form:
@@ -187,6 +214,11 @@ def build_verification_input(
                     if row["meaning_id"] is not None and int(row["meaning_id"]) in meaning_rows_by_id
                     else None
                 ),
+                gloss_translation=(
+                    meaning_gloss_translations_by_id.get(int(row["meaning_id"]))
+                    if row["meaning_id"] is not None
+                    else None
+                ),
                 english_translation=(
                     meaning_rows_by_id[int(row["meaning_id"])]["english_translation"]
                     if row["meaning_id"] is not None and int(row["meaning_id"]) in meaning_rows_by_id
@@ -235,6 +267,7 @@ def build_verification_input(
         meaning_id=meaning_id,
         meaning_key=meaning_key,
         meaning_gloss=meaning_gloss,
+        meaning_gloss_translation=meaning_gloss_translation,
         lexeme_source=lexeme_source,
         selected_translation=selected_translation,
         selected_translation_scope=selected_translation_scope,
@@ -250,6 +283,43 @@ def build_verification_input(
         sibling_meaning_sections=tuple(sibling_meaning_sections),
         available_surface_forms=available_surface_forms,
     )
+
+
+def _meaning_gloss_translation(
+    *,
+    cor: CorResolutionCollaborator,
+    lexeme_lemma: str,
+    lexeme_pos_tag: str | None,
+    meaning_gloss: str | None,
+    meaning_translation: str | None,
+    meaning_pos_tag: str | None,
+    cor_lemma_idx: int | None,
+    cache: dict[tuple[str, str, str | None, str | None, str, str | None, str | None], str | None],
+) -> str | None:
+    normalized_meaning_gloss = " ".join((meaning_gloss or "").strip().split()).lower()
+    normalized_meaning_translation = " ".join((meaning_translation or "").strip().split()).lower()
+    if normalized_meaning_gloss and normalized_meaning_gloss == normalized_meaning_translation:
+        return meaning_gloss
+    if cor_lemma_idx is None:
+        return meaning_gloss if is_likely_english_gloss(meaning_gloss) else None
+    cor_entry = cor.best_cor_local_lemma_entry(
+        lemma_idx=cor_lemma_idx,
+        lemma=lexeme_lemma,
+        preferred_pos_tag=meaning_pos_tag or lexeme_pos_tag,
+    )
+    if cor_entry is None:
+        return meaning_gloss if is_likely_english_gloss(meaning_gloss) else None
+    translated = cor.lookup_translation_for_cor_gloss(
+        entry=cor_entry,
+        lemma_translation=meaning_translation,
+        cache=cache,
+    )
+    normalized_translated = " ".join((translated or "").strip().split()).lower()
+    if normalized_translated and normalized_translated != normalized_meaning_gloss:
+        return translated
+    if normalized_translated and is_likely_english_gloss(meaning_gloss):
+        return translated
+    return meaning_gloss if is_likely_english_gloss(meaning_gloss) else None
 
 
 def _select_surface_row(surface_rows, *, stored_surface_form: str, meaning_id: int | None):
