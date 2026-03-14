@@ -142,6 +142,10 @@ describe("App wordbank", () => {
     expect(screen.getByText(/gemini is verifying this word page/i)).toBeInTheDocument()
     expect(screen.getByText(/1 running/i)).toBeInTheDocument()
     expect(screen.getByText(/requested/i)).toBeInTheDocument()
+    expect(screen.getByText("Verification").closest("[data-slot='popover-content']")).toHaveClass(
+      "h-[32rem]",
+      "overflow-y-auto",
+    )
   })
 
   it("renderer-only: keeps the lemma pronunciation action playable when the only saved form is hidden from details", async () => {

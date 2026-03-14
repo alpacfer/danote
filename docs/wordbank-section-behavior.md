@@ -134,6 +134,7 @@ Meaning auto-scroll behavior:
   - review-needed state shows the total suggested-action count inline on the trigger when actions are present
 - **Verification popover**:
   - is the single surface for verification status/details; the old standalone status line and success/queued badges are not rendered anymore
+  - uses a fixed-height scrollable content area so long verification histories and action lists stay contained
   - includes provider metadata, an aggregated progress/status summary card, and state counts for all rendered targets
   - renders one target card per visible verification target in word-page order:
     - non-sectioned page: lemma/root target plus each non-lemma variation target that has verification data

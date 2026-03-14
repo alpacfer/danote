@@ -54,7 +54,7 @@ export function WordbankVerificationPopover({
           ) : null}
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-[28rem] space-y-3">
+      <PopoverContent align="end" className="h-[32rem] max-h-[70vh] w-[28rem] overflow-y-auto overscroll-contain space-y-3">
         <div className="space-y-1">
           <div className="flex items-center justify-between gap-2">
             <p className="text-sm font-semibold">Verification</p>
