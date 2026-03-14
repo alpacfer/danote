@@ -148,6 +148,7 @@ COR groups are sorted by best variant score in each group:
 
 - Always show `variant.form` as primary title.
 - May show "from <lemma>" with translation in parentheses when available.
+- Sense-level gloss translation is rendered as separate disambiguation text, not as a fallback English translation.
 - During translation loading, translation-dependent text uses skeleton placeholders.
 - Right icon:
   - `variation + Plus` when the COR candidate meaning matches a saved wordbank entry
@@ -170,6 +171,9 @@ COR groups are sorted by best variant score in each group:
 - Always triggers `onAddWordFromSearch(...)` with `predictedStatus`:
   - `variation` when the COR candidate meaning matches a saved wordbank entry
   - `new` otherwise
+- Search-save payload keeps lemma translation and gloss separate:
+  - `search_seed.english_translation` is populated only from the lemma translation
+  - gloss/gloss translation remain disambiguation metadata and are not promoted into `english_translation`
 - Dialog closes only when add succeeds.
 - If the backend returns `saved_snapshot` with queued verification on the selected target:
   - the word page opens immediately from that snapshot,

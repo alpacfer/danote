@@ -38,6 +38,10 @@ make test
 make docs-smoke
 ```
 
+Backend pytest restores the tracked Gemini audit log
+`backend/data/gemini-applied-changes.jsonl` when the session finishes, so
+verification/apply-change tests do not require manual cleanup.
+
 If backend orchestration changed, also run:
 
 ```bash

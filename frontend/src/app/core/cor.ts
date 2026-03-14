@@ -179,13 +179,16 @@ export function lemmaTranslationWithGloss(
 ): string | null {
   const normalizedLemmaTranslation = normalizedGlossPart(lemmaTranslation)
   const normalizedGlossTranslation = normalizedGlossPart(glossTranslation)
-  if (normalizedLemmaTranslation && normalizedGlossTranslation) {
-    if (normalizedLemmaTranslation.localeCompare(normalizedGlossTranslation, "en", { sensitivity: "base" }) === 0) {
-      return normalizedLemmaTranslation
-    }
-    return `${normalizedLemmaTranslation}, ${normalizedGlossTranslation}`
+  if (!normalizedLemmaTranslation) {
+    return null
   }
-  return normalizedLemmaTranslation ?? normalizedGlossTranslation ?? null
+  if (!normalizedGlossTranslation) {
+    return normalizedLemmaTranslation
+  }
+  if (normalizedLemmaTranslation.localeCompare(normalizedGlossTranslation, "en", { sensitivity: "base" }) === 0) {
+    return normalizedLemmaTranslation
+  }
+  return `${normalizedLemmaTranslation}, ${normalizedGlossTranslation}`
 }
 
 export function glossDisplayForVariant(variant: CORSearchVariant): string | null {

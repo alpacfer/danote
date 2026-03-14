@@ -33,6 +33,10 @@ cd <repo-root>
 make docs-smoke
 ```
 
+Backend pytest sessions automatically restore the tracked Gemini audit log
+`backend/data/gemini-applied-changes.jsonl` at session end so test runs do not
+leave that file dirty.
+
 For AI-agent focused verification:
 
 ```bash

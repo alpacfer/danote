@@ -95,7 +95,7 @@ export function SidebarCorResults({
                           cor_lemma_idx: variant.lemma_idx,
                           meaning_key: group.gloss ?? variant.lemma,
                           gloss: group.gloss ?? variant.gloss ?? null,
-                          english_translation: lemmaTranslationForVariant(variant) ?? glossDisplayForVariant(variant),
+                          english_translation: lemmaTranslationForVariant(variant),
                           pos_tag: variant.pos_tag ?? group.pos_tag ?? null,
                           morphology: variant.morphology ?? null,
                           target_meaning_id: null,

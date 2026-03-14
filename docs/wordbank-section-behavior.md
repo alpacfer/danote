@@ -145,7 +145,8 @@ Meaning auto-scroll behavior:
   - ordinal badge (1-based index)
   - lemma label
   - section-level badges from section POS/morphology
-  - optional combined translation line (`english_translation + gloss_translation`)
+  - optional combined translation line (`english_translation + gloss_translation`) only when a real English translation exists
+  - gloss translation is supplemental disambiguation text; it does not replace a missing translation
 - Surface forms under each meaning:
   - rendered in a divided list
   - each row uses `WordbankPronunciationWord`
@@ -159,7 +160,7 @@ Meaning auto-scroll behavior:
 - Each variation tile includes:
   - pronunciation-enabled form title
   - form badges from saved-form metadata
-  - optional `from <lemma>` line with merged lemma translation+gloss
+  - optional `from <lemma>` line with merged lemma translation+gloss when lemma translation exists
   - POS-colored left border
 
 ## Pronunciation workflow behavior
@@ -198,6 +199,8 @@ Pronunciation behavior is shared by header + section rows + variation rows.
   lemma page -> meaning sections -> surface forms.
 - Translation context comes only from the lemma or meaning section.
   Surface forms do not have independent translations in the verification model.
+- Meaning glosses are treated as immutable COR disambiguators.
+  Gemini may use them to identify the intended sense, but it does not propose gloss edits.
 - Canonical lemma metadata is evaluated separately from the selected saved surface-form metadata.
 - Success path stores a persisted verification success record with `requested_at` / `completed_at`.
 - Error path stores a persisted verification error record with timestamps and suggested actions.
@@ -247,6 +250,7 @@ Pronunciation behavior is shared by header + section rows + variation rows.
 - For `search_seed` saves, backend persistence separates canonical lemma metadata from selected surface metadata:
   - lemma/root and newly created meaning-section tags come from the canonical COR lemma when `cor_lemma_idx` is available
   - the stored selected surface form keeps the chosen variant tags from the search result
+  - saved `english_translation` comes only from the COR lemma translation; gloss translation remains separate disambiguation context
   - only the selected surface form is stored; search save does not hydrate the full paradigm into wordbank
 
 ## Behavioral test coverage map

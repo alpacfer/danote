@@ -263,6 +263,78 @@ describe("App shell and search", () => {
     expect(screen.queryByText(/^No translation available\.$/i)).not.toBeInTheDocument()
   })
 
+  it("COR search save does not use gloss translation as english translation", async () => {
+    const fetchSpy = mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      corSearchFormResponse: {
+        form: "mor",
+        groups: [
+          {
+            lemma: "mor",
+            gloss: "person",
+            pos_tag: "NOUN",
+            variants: [
+              {
+                cor_id: "COR.MOR.PERSON.01",
+                form: "mor",
+                lemma: "mor",
+                gloss: "person",
+                gloss_translation: "person",
+                lemma_translation: null,
+                gram_raw: "sb.fk.sg.ubest",
+                norm: "N",
+                lemma_idx: 12345,
+                gram_code: 110,
+                variation: 1,
+                pos_tag: "NOUN",
+                morphology: "Gender=Com|Number=Sing|Definite=Ind",
+                features: { Gender: "Com", Number: "Sing", Definite: "Ind" },
+                extra_tags: [],
+              },
+            ],
+          },
+        ],
+      },
+      addWordResponse: {
+        status: "inserted",
+        stored_lemma: "mor",
+        stored_surface_form: "mor",
+        source: "manual",
+        message: "Added 'mor' to wordbank.",
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    const commandDialog = await screen.findByRole("dialog")
+    const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
+    fireEvent.change(searchInput, { target: { value: "mor" } })
+
+    const glossLine = await within(commandDialog).findByText(/^person$/i)
+    const corRow = glossLine.closest("[cmdk-item]")
+    expect(corRow).toBeTruthy()
+    fireEvent.click(corRow as HTMLElement)
+
+    await waitFor(() => {
+      expect(
+        fetchSpy.mock.calls.some(([input, init]) => {
+          if (!String(input).endsWith("/api/wordbank/lexemes")) {
+            return false
+          }
+          const body = JSON.parse(String(init?.body ?? "{}")) as {
+            search_seed?: {
+              gloss?: string | null
+              english_translation?: string | null
+            }
+          }
+          return body.search_seed?.gloss === "person" && body.search_seed?.english_translation === null
+        }),
+      ).toBe(true)
+    })
+  })
+
   it("command search debounces local COR requests and caches repeated queries", async () => {
     let corRequestCount = 0
     mockFetchImplementation({

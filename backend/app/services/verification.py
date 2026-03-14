@@ -179,6 +179,7 @@ class GeminiWordVerificationService:
             "You are a Professional Danish Language Expert.\n"
             "Review the current wordbank entry using the model lemma page -> meaning sections -> surface forms.\n"
             "Translations belong to the lemma or a meaning section only. Surface forms do not carry independent translations.\n"
+            "Meaning glosses are immutable COR labels used only to disambiguate senses. Never suggest editing a gloss.\n"
             "Treat canonical lemma metadata separately from the selected surface-form metadata.\n"
             "Count if the reviewed entry is composed of multiple words.\n"
             "Return JSON only.\n"
@@ -189,7 +190,6 @@ class GeminiWordVerificationService:
             '"change_to_implement":"...",'
             '"suggested_actions":['
             '{"action_type":"fix_translation","reason":"...","english_translation":"..."},'
-            '{"action_type":"fix_gloss","reason":"...","gloss":"..."},'
             '{"action_type":"move_to_meaning_section","reason":"...","target_meaning_id":0},'
             '{"action_type":"move_to_lemma","reason":"...","target_lemma":"...",'
             '"target_meaning_key":"...","target_gloss":"...",'
@@ -197,10 +197,11 @@ class GeminiWordVerificationService:
             '"target_morphology":"..."}'
             "]}\n"
             "Rules:\n"
-            "- Use only these four action types: fix_translation, fix_gloss, move_to_meaning_section, move_to_lemma.\n"
+            "- Use only these three action types: fix_translation, move_to_meaning_section, move_to_lemma.\n"
             "- If verdict=correct, return suggested_actions as [].\n"
             "- If action_type=move_to_meaning_section, target_meaning_id must be one of the available meaning ids.\n"
             "- If action_type=move_to_lemma, include target_lemma and target_meaning_key.\n"
+            "- Never propose gloss edits; use gloss only to identify the intended meaning section.\n"
             "- Discard no uncertainty into prose; use reason and structured fields instead.\n"
             f"Entry:\n{json.dumps(entry, ensure_ascii=False)}"
         )
@@ -257,7 +258,6 @@ class GeminiWordVerificationService:
         normalized_type = action_type.strip().lower()
         if normalized_type not in {
             "fix_translation",
-            "fix_gloss",
             "move_to_meaning_section",
             "move_to_lemma",
         }:
@@ -272,16 +272,6 @@ class GeminiWordVerificationService:
                 action_type="fix_translation",
                 reason=reason,
                 english_translation=english_translation,
-            )
-
-        if normalized_type == "fix_gloss":
-            gloss = _optional_clean_str(raw.get("gloss"))
-            if not gloss:
-                return None
-            return WordVerificationAction(
-                action_type="fix_gloss",
-                reason=reason,
-                gloss=gloss,
             )
 
         if normalized_type == "move_to_meaning_section":

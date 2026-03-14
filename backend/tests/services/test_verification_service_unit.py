@@ -33,6 +33,7 @@ def test_gemini_verification_service_keeps_only_supported_actions(monkeypatch) -
             '{"verdict":"incorrect","word_count":1,"problem":"mismatch","change_to_implement":"fix it",'
             '"suggested_actions":['
             '{"action_type":"fix_translation","english_translation":"book","reason":"translation mismatch"},'
+            '{"action_type":"fix_gloss","gloss":"reading material","reason":"should be ignored"},'
             '{"action_type":"rename_everything","target":"ignored"}'
             ']}'
         ),
@@ -72,4 +73,6 @@ def test_gemini_verification_prompt_matches_wordbank_translation_model() -> None
 
     assert "lemma or a meaning section only" in prompt
     assert "Surface forms do not carry independent translations" in prompt
+    assert "immutable COR labels" in prompt
+    assert "Never suggest editing a gloss" in prompt
     assert "canonical lemma metadata" in prompt
