@@ -451,7 +451,7 @@ def test_get_lemma_details_returns_all_saved_variations(tmp_path, stub_nlp_adapt
     assert all(item["has_pronunciation"] is False for item in section["surface_forms"])
 
 
-def test_get_lemma_details_non_sectioned_payload_omits_optional_surface_fields(tmp_path, stub_nlp_adapter_factory) -> None:
+def test_get_lemma_details_non_sectioned_payload_includes_cor_grammar_when_available(tmp_path, stub_nlp_adapter_factory) -> None:
     db_path = tmp_path / "danote.sqlite3"
     cor_db_path = tmp_path / "cor.sqlite"
     apply_migrations(db_path)
@@ -493,6 +493,7 @@ def test_get_lemma_details_non_sectioned_payload_omits_optional_surface_fields(t
             "form": "lærer",
             "pos_tag": "VERB",
             "morphology": "Tense=Pres|VerbForm=Fin|Voice=Act",
+            "gram_raw": "vb. præs. akt",
             "has_pronunciation": False,
         }
     ]

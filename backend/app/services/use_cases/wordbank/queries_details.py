@@ -55,12 +55,14 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
             meaning_sections=[],
             surface_forms=[
                 _surface_form_details(
+                    runtime,
                     form=row.form,
                     pos_tag=row.pos_tag,
                     morphology=row.morphology,
                     lemma=lexeme.lemma,
                     lemma_translation=lexeme.english_translation,
                     gloss=None,
+                    meaning=None,
                     has_pronunciation=row.has_pronunciation,
                     verification=verification_records.get((None, normalize_token(row.form))),
                 )
@@ -80,12 +82,14 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
             continue
         section_forms[row.meaning_id].append(
             _surface_form_details(
+                runtime,
                 form=row.form,
                 pos_tag=row.pos_tag,
                 morphology=row.morphology,
                 lemma=lexeme.lemma,
                 lemma_translation=meaning.english_translation or lexeme.english_translation,
                 gloss=meaning.gloss,
+                meaning=meaning,
                 has_pronunciation=row.has_pronunciation,
                 verification=verification_records.get((row.meaning_id, normalize_token(row.form))),
             )
@@ -103,6 +107,9 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
     top_level_surface_forms = _dedupe_surface_form_details(
         [
             _sectioned_lemma_surface_form_details(
+                runtime,
+                lexeme=lexeme,
+                meaning=meaning_by_id.get(row.meaning_id) if row.meaning_id is not None else None,
                 form=row.form,
                 pos_tag=row.pos_tag,
                 morphology=row.morphology,
@@ -137,6 +144,7 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
                 ),
                 pos_tag=meaning.pos_tag,
                 morphology=meaning.morphology,
+                gram_raw=_meaning_gram_raw(runtime, lexeme=lexeme, meaning=meaning),
                 categories=category_assignments.get(meaning.id, []),
                 verification=verification_records.get((meaning.id, None)),
                 surface_forms=section_forms.get(meaning.id, []),
@@ -242,6 +250,7 @@ def _get_manual_lemma_details(
                 ),
                 pos_tag=meaning.pos_tag,
                 morphology=meaning.morphology,
+                gram_raw=_meaning_gram_raw(runtime, lexeme=lexeme, meaning=meaning),
                 categories=category_assignments.get(meaning.id, []),
                 verification=verification_records.get((meaning.id, None)),
                 surface_forms=section_forms.get(meaning.id, []),
@@ -253,6 +262,7 @@ def _get_manual_lemma_details(
 
 
 def _surface_form_details(
+    runtime: WordbankRuntime,
     *,
     form: str,
     pos_tag: str | None,
@@ -260,9 +270,17 @@ def _surface_form_details(
     lemma: str,
     lemma_translation: str | None,
     gloss: str | None,
+    meaning,
     has_pronunciation: bool,
     verification: VerificationResult | None = None,
 ) -> LemmaDetailsResponse.SurfaceFormDetails:
+    cor_entry = _best_cor_entry_for_saved_form(
+        runtime,
+        lemma=lemma,
+        form=form,
+        pos_tag=pos_tag,
+        meaning=meaning,
+    )
     return LemmaDetailsResponse.SurfaceFormDetails(
         form=form,
         pos_tag=pos_tag,
@@ -271,7 +289,7 @@ def _surface_form_details(
         lemma_translation=lemma_translation,
         gloss=gloss,
         gloss_translation=None,
-        gram_raw=None,
+        gram_raw=cor_entry.gram_raw if cor_entry is not None else None,
         has_pronunciation=has_pronunciation,
         verification=verification,
     )
@@ -310,16 +328,27 @@ def _manual_surface_form_details(
 
 
 def _sectioned_lemma_surface_form_details(
+    runtime: WordbankRuntime,
     *,
+    lexeme,
+    meaning,
     form: str,
     pos_tag: str | None,
     morphology: str | None,
     has_pronunciation: bool,
 ) -> LemmaDetailsResponse.SurfaceFormDetails:
+    cor_entry = _best_cor_entry_for_saved_form(
+        runtime,
+        lemma=lexeme.lemma,
+        form=form,
+        pos_tag=pos_tag,
+        meaning=meaning,
+    )
     return LemmaDetailsResponse.SurfaceFormDetails(
         form=form,
         pos_tag=pos_tag,
         morphology=morphology,
+        gram_raw=cor_entry.gram_raw if cor_entry is not None else None,
         has_pronunciation=has_pronunciation,
     )
 
@@ -385,6 +414,41 @@ def _resolve_cor_entry(runtime: WordbankRuntime, *, lexeme, form_row, meaning):
         preferred_pos_tag=form_row.pos_tag,
         preferred_lemma_idx=meaning.cor_lemma_idx if meaning is not None else None,
     )
+
+
+def _best_cor_entry_for_saved_form(
+    runtime: WordbankRuntime,
+    *,
+    lemma: str,
+    form: str,
+    pos_tag: str | None,
+    meaning,
+):
+    if meaning is not None and meaning.cor_lemma_idx is not None:
+        cor_entry = runtime.cor.best_cor_local_lemma_entry(
+            lemma_idx=meaning.cor_lemma_idx,
+            lemma=lemma,
+            preferred_pos_tag=meaning.pos_tag or pos_tag,
+        )
+        if cor_entry is not None and normalize_token(cor_entry.form) == normalize_token(form):
+            return cor_entry
+    return runtime.cor.best_cor_local_entry_for_form(
+        form=form,
+        lemma=lemma,
+        preferred_pos_tag=pos_tag,
+        preferred_lemma_idx=meaning.cor_lemma_idx if meaning is not None else None,
+    )
+
+
+def _meaning_gram_raw(runtime: WordbankRuntime, *, lexeme, meaning) -> str | None:
+    if meaning.cor_lemma_idx is None:
+        return None
+    cor_entry = runtime.cor.best_cor_local_lemma_entry(
+        lemma_idx=meaning.cor_lemma_idx,
+        lemma=lexeme.lemma,
+        preferred_pos_tag=meaning.pos_tag or lexeme.pos_tag,
+    )
+    return cor_entry.gram_raw if cor_entry is not None else None
 
 
 def _meaning_gloss_translation(

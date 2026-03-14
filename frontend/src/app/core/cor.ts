@@ -1,5 +1,15 @@
 import { type CORSearchVariant } from "@/app/core/types-api"
-import { secondaryTagsForPos } from "@/app/core/morphology"
+import {
+  caseFromMorphology,
+  definitenessFromMorphology,
+  degreeFromMorphology,
+  determinerWordTypeFromMorphology,
+  numberFromMorphology,
+  personFromMorphology,
+  secondaryTagsForPos,
+  verbFormFromMorphology,
+  voiceFromMorphology,
+} from "@/app/core/morphology"
 
 export const GRAM_POS_LABELS: Record<string, string> = {
   sb: "Noun",
@@ -109,7 +119,7 @@ export function badgesFromGramRaw(gramRaw: string): CorSearchBadge[] {
   const labels: CorSearchBadge[] = []
 
   for (const gram of grams) {
-    const rawChunks = gram.split(".").filter(Boolean)
+    const rawChunks = gram.split(".").map((chunk) => chunk.trim()).filter(Boolean)
     const chunks: string[] = []
     for (let index = 0; index < rawChunks.length; index += 1) {
       const current = rawChunks[index]
@@ -228,9 +238,51 @@ export function badgesForSavedForm(form: {
   }
   return [
     ...(form.pos_tag ? [{ label: primaryPosLabel(form.pos_tag) ?? form.pos_tag, tone: "primary" as const }] : []),
-    ...secondaryTagsForPos(form.pos_tag ?? null, form.morphology ?? null).map((tag) => ({
+    ...savedSecondaryTagsForPos(form.pos_tag ?? null, form.morphology ?? null).map((tag) => ({
       label: tag,
       tone: "secondary" as const,
     })),
   ]
+}
+
+function savedSecondaryTagsForPos(posTag: string | null, morphology: string | null): string[] {
+  if (!posTag) {
+    return []
+  }
+
+  const tags: Array<string | null> = []
+  const wordType = determinerWordTypeFromMorphology(morphology)
+  const number = numberFromMorphology(morphology)
+  const definiteness = definitenessFromMorphology(morphology)
+  const caseLabel = caseFromMorphology(morphology)
+  const person = personFromMorphology(morphology)
+  const verbForm = verbFormFromMorphology(morphology)
+  const voice = voiceFromMorphology(morphology)
+  const degree = degreeFromMorphology(morphology)
+  const comparableDegree = degree === "Positive" ? null : degree
+
+  if (posTag === "VERB" || posTag === "AUX") {
+    tags.push(verbForm, voice)
+  }
+  if (posTag === "NOUN") {
+    tags.push(wordType, number, definiteness, caseLabel)
+  }
+  if (posTag === "DET") {
+    tags.push(wordType, number, definiteness)
+  }
+  if (posTag === "ADJ") {
+    tags.push(wordType, number, definiteness, comparableDegree)
+  }
+  if (posTag === "PRON") {
+    tags.push(wordType, person, number, caseLabel)
+  }
+  if (posTag === "ADV") {
+    tags.push(comparableDegree)
+  }
+
+  if (tags.length === 0) {
+    return secondaryTagsForPos(posTag, morphology)
+  }
+
+  return tags.filter((tag, index, values): tag is string => Boolean(tag) && values.indexOf(tag) === index)
 }

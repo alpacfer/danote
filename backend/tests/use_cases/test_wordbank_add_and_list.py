@@ -548,6 +548,128 @@ def test_wordbank_search_seed_add_uses_canonical_lemma_metadata_for_verbs(tmp_pa
     ]
 
 
+def test_wordbank_search_seed_details_preserve_merged_gram_raw_for_adjective_lemma_forms(tmp_path: Path) -> None:
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_local_lexicon_service=FakeCORLocalLexiconService(
+            by_lemma_idx={
+                20408: [
+                    _cor_local_entry(
+                        cor_id="COR.20408.300.01",
+                        lemma="orange",
+                        gloss="orange",
+                        form="orange",
+                        lemma_idx=20408,
+                        pos_tag="ADJ",
+                        morphology="Gender=Com|Number=Sing|Definite=Ind",
+                        gram_raw="adj.sg.ubest.fk",
+                    ),
+                    _cor_local_entry(
+                        cor_id="COR.20408.301.01",
+                        lemma="orange",
+                        gloss="orange",
+                        form="orange",
+                        lemma_idx=20408,
+                        pos_tag="ADJ",
+                        morphology="Gender=Neut|Number=Sing|Definite=Ind",
+                        gram_raw="adj.sg.ubest.itk",
+                    ),
+                    _cor_local_entry(
+                        cor_id="COR.20408.302.01",
+                        lemma="orange",
+                        gloss="orange",
+                        form="orange",
+                        lemma_idx=20408,
+                        pos_tag="ADJ",
+                        morphology="Number=Sing|Definite=Def",
+                        gram_raw="adj.sg.best",
+                    ),
+                    _cor_local_entry(
+                        cor_id="COR.20408.303.01",
+                        lemma="orange",
+                        gloss="orange",
+                        form="orange",
+                        lemma_idx=20408,
+                        pos_tag="ADJ",
+                        morphology="Number=Plur",
+                        gram_raw="adj.pl",
+                    ),
+                ],
+            },
+            by_form={
+                "orange": [
+                    _cor_local_entry(
+                        cor_id="COR.20408.300.01",
+                        lemma="orange",
+                        gloss="orange",
+                        form="orange",
+                        lemma_idx=20408,
+                        pos_tag="ADJ",
+                        morphology="Gender=Com|Number=Sing|Definite=Ind",
+                        gram_raw="adj.sg.ubest.fk",
+                    ),
+                    _cor_local_entry(
+                        cor_id="COR.20408.301.01",
+                        lemma="orange",
+                        gloss="orange",
+                        form="orange",
+                        lemma_idx=20408,
+                        pos_tag="ADJ",
+                        morphology="Gender=Neut|Number=Sing|Definite=Ind",
+                        gram_raw="adj.sg.ubest.itk",
+                    ),
+                    _cor_local_entry(
+                        cor_id="COR.20408.302.01",
+                        lemma="orange",
+                        gloss="orange",
+                        form="orange",
+                        lemma_idx=20408,
+                        pos_tag="ADJ",
+                        morphology="Number=Sing|Definite=Def",
+                        gram_raw="adj.sg.best",
+                    ),
+                    _cor_local_entry(
+                        cor_id="COR.20408.303.01",
+                        lemma="orange",
+                        gloss="orange",
+                        form="orange",
+                        lemma_idx=20408,
+                        pos_tag="ADJ",
+                        morphology="Number=Plur",
+                        gram_raw="adj.pl",
+                    ),
+                ],
+            },
+        ),
+    )
+
+    use_case.add_word(
+        "orange",
+        "orange",
+        search_seed={
+            "lemma": "orange",
+            "surface": "orange",
+            "cor_id": "COR.20408.300.01",
+            "cor_lemma_idx": 20408,
+            "meaning_key": "orange",
+            "gloss": "orange",
+            "english_translation": "orange",
+            "pos_tag": "ADJ",
+            "morphology": "Gender=Com|Number=Sing|Definite=Ind",
+        },
+    )
+
+    details = use_case.get_lemma_details("orange")
+
+    assert details.is_sectioned is True
+    assert details.meaning_sections[0].gram_raw == (
+        "adj.sg.ubest.fk | adj.sg.ubest.itk | adj.sg.best | adj.pl"
+    )
+    assert details.surface_forms[0].gram_raw == (
+        "adj.sg.ubest.fk | adj.sg.ubest.itk | adj.sg.best | adj.pl"
+    )
+
+
 def test_wordbank_search_seed_repeat_save_repairs_surface_derived_meaning_metadata(tmp_path: Path) -> None:
     db_path = _db_path(tmp_path)
     initial_use_case = WordbankUseCase(db_path)

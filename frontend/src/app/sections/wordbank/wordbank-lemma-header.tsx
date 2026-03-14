@@ -67,7 +67,7 @@ export function WordbankLemmaHeader({
     ? badgesForSavedForm({
       pos_tag: headerPosTag ?? null,
       morphology: headerMorphology ?? null,
-      gram_raw: lemmaSurfaceDetails?.gram_raw ?? null,
+      gram_raw: selectedMeaningSection?.gram_raw ?? lemmaSurfaceDetails?.gram_raw ?? null,
     })
     : []
   const content = (

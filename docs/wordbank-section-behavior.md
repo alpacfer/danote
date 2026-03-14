@@ -170,6 +170,7 @@ Meaning auto-scroll behavior:
   - left border color from POS class
   - selected-meaning highlight ring when `selectedMeaningId` matches section id
   - left-side metadata cluster: ordinal badge (1-based index), lemma label, section-level POS/morphology badges
+  - when backend detail payloads include section `gram_raw`, the section badge set is derived from that COR grammar so invariant lemma forms (for example `orange`) keep the same merged badge set shown in search
   - right-side semantic category badge cluster from `meaning_sections[].categories`
   - category badges stay right-aligned on wider layouts and wrap below the header content on narrow screens
   - optional combined translation line in `translation, gloss translation` format when a real English translation exists
@@ -178,6 +179,8 @@ Meaning auto-scroll behavior:
   - rendered in a divided list
   - each row uses `WordbankPronunciationWord`
   - section lists exclude the lemma form itself; exact lemma audio/metadata can come from top-level `surface_forms`
+  - saved POS/morphology badges normalize to the same reader-facing label style used in COR search where morphology allows it (for example adjective agreement uses `n-word` / `t-word` rather than `Common` / `Neuter`)
+  - when a saved surface form has COR context, its details payload may also include `gram_raw`; those rows render badges from `gram_raw` first so search and word-page badges stay aligned
   - form-level badges are filtered to avoid repeating section-level badge labels
 
 ## Body mode B: flat variations (WordbankVariationGrid)

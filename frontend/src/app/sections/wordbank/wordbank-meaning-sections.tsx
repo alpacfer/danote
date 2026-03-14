@@ -41,6 +41,7 @@ export function WordbankMeaningSections({
         const sectionBadges = badgesForSavedForm({
           pos_tag: section.pos_tag ?? null,
           morphology: section.morphology ?? null,
+          gram_raw: section.gram_raw ?? null,
         })
         const sectionTranslation = lemmaTranslationWithGloss(
           section.english_translation ?? null,

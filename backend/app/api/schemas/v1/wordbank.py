@@ -327,9 +327,19 @@ class LemmaDetailsResponse(BaseModel):
         gloss_translation: str | None = None
         pos_tag: str | None = None
         morphology: str | None = None
+        gram_raw: str | None = None
         categories: list[str] = Field(default_factory=list)
         verification: VerificationResult | None = None
         surface_forms: list["LemmaDetailsResponse.SurfaceFormDetails"] = Field(default_factory=list)
+
+        @model_serializer(mode="wrap")
+        def _serialize_without_empty_fields(self, handler):
+            data = handler(self)
+            gram_raw = data.get("gram_raw")
+            if isinstance(gram_raw, str) and gram_raw.strip():
+                parts = [part.strip() for part in gram_raw.split(".") if part.strip()]
+                data["gram_raw"] = ". ".join(parts) if parts else gram_raw
+            return {key: value for key, value in data.items() if value is not None}
 
     lemma: str
     english_translation: str | None

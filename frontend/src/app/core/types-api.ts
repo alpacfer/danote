@@ -213,6 +213,7 @@ export type LemmaDetailsResponse = {
     gloss_translation?: string | null
     pos_tag?: string | null
     morphology?: string | null
+    gram_raw?: string | null
     categories?: string[]
     verification?: VerificationResult | null
     surface_forms: Array<{

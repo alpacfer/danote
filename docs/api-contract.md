@@ -224,7 +224,9 @@ Route decorators are the source of truth in `backend/app/api/routes/`, and API D
   - root payload may include `verification` for non-sectioned/root targets.
   - each `meaning_sections[]` item may include its own `categories`.
   - each `meaning_sections[]` item may include its own `verification`.
+  - each `meaning_sections[]` item may include `gram_raw` when the backend can resolve merged COR grammar for that saved meaning scope.
   - each `surface_forms[]` item may include its own `verification` for variation-scoped Gemini results.
+  - each `surface_forms[]` item may include `gram_raw` when the backend can resolve COR grammar for that saved form.
   - for sectioned lemmas, top-level `surface_forms[]` may include the saved lemma form itself
     so the client can bind exact-lemma pronunciation and metadata without duplicating that row
     inside every meaning section.
@@ -256,6 +258,7 @@ Route decorators are the source of truth in `backend/app/api/routes/`, and API D
           "form": "lærer",
           "pos_tag": "VERB",
           "morphology": "Tense=Pres|VerbForm=Fin|Voice=Act",
+          "gram_raw": "vb. præs. akt",
           "has_pronunciation": false,
           "verification": {
             "status": "queued",
@@ -288,6 +291,7 @@ Route decorators are the source of truth in `backend/app/api/routes/`, and API D
           "gloss_translation": "book",
           "pos_tag": "NOUN",
           "morphology": "Gender=Com|Number=Sing|Definite=Def",
+          "gram_raw": "sb. fk. sg. best",
           "categories": ["Household Objects"],
           "verification": {
             "status": "verified",

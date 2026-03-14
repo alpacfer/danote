@@ -57,13 +57,22 @@ export function degreeFromMorphology(morphology: string | null): DegreeLabel | n
   return null
 }
 
-export type VerbFormLabel = "Infinitive" | "Present" | "Past (preterite)" | "Past participle"
+export type VerbFormLabel = "Infinitive" | "Present" | "Past (preterite)" | "Past participle" | "Imperative"
 export function verbFormFromMorphology(morphology: string | null): VerbFormLabel | null {
   if (!morphology) return null
   if (/(^|\|)VerbForm=Part(\||$)/u.test(morphology)) return "Past participle"
   if (/(^|\|)VerbForm=Inf(\||$)/u.test(morphology)) return "Infinitive"
+  if (/(^|\|)Mood=Imp(\||$)/u.test(morphology)) return "Imperative"
   if (/(^|\|)Tense=Past(\||$)/u.test(morphology)) return "Past (preterite)"
   if (/(^|\|)Tense=Pres(\||$)/u.test(morphology)) return "Present"
+  return null
+}
+
+export type VoiceLabel = "Active" | "Passive"
+export function voiceFromMorphology(morphology: string | null): VoiceLabel | null {
+  if (!morphology) return null
+  if (/(^|\|)Voice=Act(\||$)/u.test(morphology)) return "Active"
+  if (/(^|\|)Voice=Pass(\||$)/u.test(morphology)) return "Passive"
   return null
 }
 

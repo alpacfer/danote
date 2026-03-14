@@ -132,6 +132,52 @@ describe("App wordbank", () => {
     expect(screen.getByText(/^Plural$/i)).toBeInTheDocument()
   })
 
+  it("renderer-only: sectioned word pages use section gram_raw so adjective cards keep the full search badge set", async () => {
+    mockFetchImplementation({
+      lemmasResponse: {
+        items: [{ lemma: "orange", variation_count: 0 }],
+      },
+      lemmaDetailsResponse: {
+        lemma: "orange",
+        english_translation: "orange",
+        is_sectioned: true,
+        meaning_sections: [
+          {
+            id: 1,
+            meaning_key: "orange",
+            gloss: "orange",
+            english_translation: "orange",
+            pos_tag: "ADJ",
+            morphology: "Gender=Com|Number=Sing|Definite=Ind",
+            gram_raw: "adj. sg. ubest. fk | adj. sg. ubest. itk | adj. sg. best | adj. pl",
+            surface_forms: [],
+          },
+        ],
+        surface_forms: [
+          {
+            form: "orange",
+            pos_tag: "ADJ",
+            morphology: "Gender=Com|Number=Sing|Definite=Ind",
+            gram_raw: "adj. sg. ubest. fk | adj. sg. ubest. itk | adj. sg. best | adj. pl",
+            has_pronunciation: false,
+          },
+        ],
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+    fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /orange/i }))
+
+    expect(await screen.findByRole("heading", { name: /^orange$/i })).toBeInTheDocument()
+    expect(screen.getByText(/^n-word$/i)).toBeInTheDocument()
+    expect(screen.getByText(/^t-word$/i)).toBeInTheDocument()
+    expect(screen.getByText(/^Singular$/i)).toBeInTheDocument()
+    expect(screen.getByText(/^Plural$/i)).toBeInTheDocument()
+    expect(screen.getByText(/^Definite$/i)).toBeInTheDocument()
+  })
+
   it("contract-backed: sectioned word page shows right-aligned meaning category badges on the meaning card", async () => {
     mockFetchImplementation({
       lemmasResponse: {
