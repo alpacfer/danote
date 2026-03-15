@@ -28,6 +28,7 @@ type WordbankVerificationPopoverProps = {
   verificationOverview: VerificationOverview
   isApplyingVerificationChanges: boolean
   isRetryingVerification: boolean
+  onOpenChange?: (open: boolean) => void
   onApplyVerificationAction: (targetKey: string, actionIndex: number) => void
   onRetryVerificationTarget: (targetKey: string) => void
 }
@@ -36,6 +37,7 @@ export function WordbankVerificationPopover({
   verificationOverview,
   isApplyingVerificationChanges,
   isRetryingVerification,
+  onOpenChange,
   onApplyVerificationAction,
   onRetryVerificationTarget,
 }: WordbankVerificationPopoverProps) {
@@ -43,7 +45,7 @@ export function WordbankVerificationPopover({
   const providerLabel = verificationOverview.targets.find((target) => target.verification?.provider)?.verification?.provider ?? "gemini"
 
   return (
-    <Popover>
+    <Popover onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>
         <Button
           type="button"

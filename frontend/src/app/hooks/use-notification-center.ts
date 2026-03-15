@@ -35,28 +35,59 @@ export function useNotificationCenter() {
       lemma?: string
       meaningId?: number | null
       surfaceForm?: string | null
+      targetKey?: string
+      status?: "queued" | "verified" | "flagged" | "error"
+      signature?: string | null
       actionCount?: number
     },
   ) => {
-    const nextNotification: AppNotification = options?.kind === "word_verification" && options.lemma
-      ? {
-          id: createNotificationId(),
+    if (options?.kind === "word_verification" && options.lemma && options.targetKey && options.status) {
+      const createdAt = new Date().toISOString()
+      setNotifications((current) => {
+        const existingIndex = current.findIndex(
+          (notification) => notification.kind === "word_verification" && notification.targetKey === options.targetKey,
+        )
+        const nextNotification: WordVerificationNotification = {
+          id: existingIndex >= 0 ? current[existingIndex].id : createNotificationId(),
           message,
-          createdAt: new Date().toISOString(),
+          createdAt,
           read: false,
           kind: "word_verification",
           lemma: options.lemma,
           meaningId: options.meaningId ?? null,
           surfaceForm: options.surfaceForm ?? null,
+          targetKey: options.targetKey,
+          status: options.status,
+          signature: options.signature ?? null,
           actionCount: options.actionCount ?? 0,
         }
-      : {
-          id: createNotificationId(),
-          message,
-          createdAt: new Date().toISOString(),
-          read: false,
-          kind: "info",
+        if (existingIndex < 0) {
+          return [nextNotification, ...current]
         }
+        const existing = current[existingIndex]
+        if (
+          existing.kind === "word_verification"
+          && existing.signature === nextNotification.signature
+          && existing.message === nextNotification.message
+          && existing.actionCount === nextNotification.actionCount
+          && existing.status === nextNotification.status
+          && existing.read === nextNotification.read
+        ) {
+          return current
+        }
+        const next = [...current]
+        next[existingIndex] = nextNotification
+        return next
+      })
+      return
+    }
+    const nextNotification: AppNotification = {
+      id: createNotificationId(),
+      message,
+      createdAt: new Date().toISOString(),
+      read: false,
+      kind: "info",
+    }
     setNotifications((current) => [nextNotification, ...current])
   }, [])
 
@@ -69,17 +100,18 @@ export function useNotificationCenter() {
     })
   }, [])
 
-  const markWordVerificationNotificationsAsRead = useCallback((lemma: string, meaningId: number | null) => {
+  const markWordVerificationNotificationsAsRead = useCallback((targetKeys: string[]) => {
+    if (targetKeys.length === 0) {
+      return
+    }
+    const targetKeySet = new Set(targetKeys)
     setNotifications((current) => {
       let changed = false
       const next = current.map((notification) => {
         if (notification.kind !== "word_verification" || notification.read) {
           return notification
         }
-        if (notification.lemma !== lemma) {
-          return notification
-        }
-        if (meaningId !== null && notification.meaningId !== meaningId) {
+        if (!targetKeySet.has(notification.targetKey)) {
           return notification
         }
         changed = true

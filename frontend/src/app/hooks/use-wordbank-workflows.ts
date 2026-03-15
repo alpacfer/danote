@@ -27,6 +27,7 @@ import { useVerificationWorkflow } from "./wordbank/use-verification-workflow"
 type UseWordbankWorkflowsParams = {
   backendUrl: string
   extractErrorMessage: (response: Response, fallback: string) => Promise<string>
+  activeSection: AppSection
   selectedLemma: string | null
   selectedMeaningId: number | null
   lemmaDetails: LemmaDetailsResponse | null
@@ -43,12 +44,26 @@ type UseWordbankWorkflowsParams = {
   setSelectedMeaningId: (value: number | null) => void
   postTokenFeedback: (payload: TokenFeedbackPayload) => Promise<void>
   onSentenceSaved?: () => void
-  pushNotification: (message: string) => void
+  pushNotification: (
+    message: string,
+    options?: {
+      kind?: "info" | "word_verification"
+      lemma?: string
+      meaningId?: number | null
+      surfaceForm?: string | null
+      targetKey?: string
+      status?: "queued" | "verified" | "flagged" | "error"
+      signature?: string | null
+      actionCount?: number
+    },
+  ) => void
+  markWordVerificationNotificationsAsRead: (targetKeys: string[]) => void
 }
 
 export function useWordbankWorkflows({
   backendUrl,
   extractErrorMessage,
+  activeSection,
   selectedLemma,
   selectedMeaningId,
   lemmaDetails,
@@ -66,6 +81,7 @@ export function useWordbankWorkflows({
   postTokenFeedback,
   onSentenceSaved,
   pushNotification,
+  markWordVerificationNotificationsAsRead,
 }: UseWordbankWorkflowsParams) {
   const [addingTokens, setAddingTokens] = useState<Record<string, boolean>>({})
   const [isSavingSentence, setIsSavingSentence] = useState(false)
@@ -100,6 +116,33 @@ export function useWordbankWorkflows({
   })
 
   const {
+    isApplyingVerificationChanges,
+    isRetryingVerification,
+    isVerifyingWords,
+    verificationOverview,
+    trackQueuedVerifications,
+    trackQueuedVerificationTargets,
+    applyVerificationAction,
+    retryVerificationTarget,
+    markVisibleVerificationNotificationsAsRead,
+    clearVerificationErrors,
+  } = useVerificationWorkflow({
+    backendUrl,
+    extractErrorMessage,
+    activeSection,
+    selectedLemma,
+    lemmaDetails,
+    setWordbankRefreshTick,
+    pushNotification,
+    markWordVerificationNotificationsAsRead,
+    onOpenWordbankTarget: (lemma, meaningId) => {
+      setActiveSection("wordbank")
+      setSelectedLemma(lemma)
+      setSelectedMeaningId(meaningId)
+    },
+  })
+
+  const {
     isCompletingMeaningVariations,
     completeMeaningVariations,
   } = useCompleteVariationsWorkflow({
@@ -107,29 +150,7 @@ export function useWordbankWorkflows({
     extractErrorMessage,
     selectedLemma,
     setWordbankRefreshTick,
-  })
-
-  const {
-    isApplyingVerificationChanges,
-    isRetryingVerification,
-    isVerifyingWords,
-    verificationOverview,
-    trackQueuedVerifications,
-    applyVerificationAction,
-    retryVerificationTarget,
-    clearVerificationErrors,
-  } = useVerificationWorkflow({
-    backendUrl,
-    extractErrorMessage,
-    selectedLemma,
-    lemmaDetails,
-    setWordbankRefreshTick,
-    pushNotification,
-    onOpenWordbankTarget: (lemma, meaningId) => {
-      setActiveSection("wordbank")
-      setSelectedLemma(lemma)
-      setSelectedMeaningId(meaningId)
-    },
+    trackQueuedVerificationTargets,
   })
 
   async function addWordToWordbank(
@@ -287,6 +308,7 @@ export function useWordbankWorkflows({
     isRetryingVerification,
     isVerifyingWords,
     verificationOverview,
+    markVisibleVerificationNotificationsAsRead,
     addTokenToWordbank,
     addWordFromSearch,
     addSentenceToSentencebank,

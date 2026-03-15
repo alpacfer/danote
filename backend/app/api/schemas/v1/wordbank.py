@@ -228,6 +228,7 @@ class CompleteVariationsResponse(BaseModel):
     meaning_id: int
     added_surface_forms: list[str] = Field(default_factory=list)
     queued_pronunciation_forms: list[str] = Field(default_factory=list)
+    queued_verification_targets: list[VerificationTargetRef] = Field(default_factory=list)
     message: str
 
 

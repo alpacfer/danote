@@ -152,10 +152,30 @@ def test_gemini_verification_service_keeps_only_supported_actions(monkeypatch) -
     result = service.verify_word_entry(replace(_payload(), review_intent="complete_variations"))
 
     assert result.verdict == "flagged"
-    assert [action.action_type for action in result.suggested_actions] == ["fix_translation", "fix_variations"]
-    assert result.suggested_actions[0].english_translation == "book"
-    assert result.suggested_actions[1].plural_indefinite_form == "mødre"
-    assert result.suggested_actions[1].plural_definite_form == "mødrene"
+    assert [action.action_type for action in result.suggested_actions] == ["fix_variations"]
+    assert result.suggested_actions[0].plural_indefinite_form == "mødre"
+    assert result.suggested_actions[0].plural_definite_form == "mødrene"
+
+
+def test_gemini_complete_variations_discards_non_variation_actions(monkeypatch) -> None:
+    service = GeminiWordVerificationService(api_key="test-key")
+    monkeypatch.setattr(
+        service,
+        "_generate_text",
+        lambda prompt: (
+            '{"verdict":"incorrect","word_count":1,"problem":"mismatch","change_to_implement":"fix it",'
+            '"suggested_actions":['
+            '{"action_type":"fix_translation","english_translation":"mother","reason":"ignored"},'
+            '{"action_type":"move_to_meaning_section","target_meaning_id":1,"reason":"ignored"},'
+            '{"action_type":"move_to_lemma","target_lemma":"moder","target_meaning_key":"person","reason":"ignored"}'
+            ']}'
+        ),
+    )
+
+    result = service.verify_word_entry(_mor_payload(review_intent="complete_variations"))
+
+    assert result.verdict == "flagged"
+    assert result.suggested_actions == ()
 
 
 def test_gemini_verification_service_discards_malformed_actions(monkeypatch) -> None:
@@ -245,10 +265,13 @@ def test_gemini_complete_variations_prompt_keeps_saved_lemma_fixed() -> None:
 
     assert '"review_intent": "complete_variations"' in prompt
     assert "Keep the saved lemma and meaning section fixed" in prompt
-    assert "Do not suggest move_to_lemma solely because of that mismatch" in prompt
+    assert "Use only this action type: fix_variations" in prompt
     assert "fix_variations" in prompt
     assert "plural_indefinite_form" in prompt
     assert "plural_definite_form" in prompt
+    assert '{"action_type":"fix_translation"' not in prompt
+    assert '{"action_type":"move_to_meaning_section"' not in prompt
+    assert '{"action_type":"move_to_lemma"' not in prompt
     assert "suggest move_to_lemma to canonical_lemma" not in prompt
 
 

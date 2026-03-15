@@ -136,6 +136,10 @@ export type CompleteVariationsResponse = {
   meaning_id: number
   added_surface_forms: string[]
   queued_pronunciation_forms: string[]
+  queued_verification_targets: Array<{
+    meaning_id: number | null
+    stored_surface_form: string | null
+  }>
   message: string
 }
 

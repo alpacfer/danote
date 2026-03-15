@@ -63,6 +63,9 @@ export type WordVerificationNotification = BaseNotification & {
   lemma: string
   meaningId: number | null
   surfaceForm: string | null
+  targetKey: string
+  status: "queued" | "verified" | "flagged" | "error"
+  signature: string | null
   actionCount: number
 }
 

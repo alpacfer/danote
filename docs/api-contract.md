@@ -161,8 +161,10 @@ Route decorators are the source of truth in `backend/app/api/routes/`, and API D
     singular-definite, plural-indefinite, and plural-definite.
   - `added_surface_forms` lists the forms inserted by this call.
   - `queued_pronunciation_forms` lists the newly added forms queued for background pronunciation generation.
+  - `queued_verification_targets` lists the meaning-level completion-review target(s) queued by this call so the frontend can keep polling even after leaving the lemma page.
   - the command also requeues one meaning-level verification review for the updated meaning.
     That completion review becomes the active verification source of truth for the meaning until it settles.
+  - completion follow-up verification is intentionally narrow: it may only emit and later apply `fix_variations`.
 
 ### POST `/api/wordbank/lexemes/pronunciation`
 - **Request model:** `GeneratePronunciationRequest`.
@@ -179,6 +181,7 @@ Route decorators are the source of truth in `backend/app/api/routes/`, and API D
   - `action.action_type` supports `fix_translation`, `fix_gloss`, `fix_variations`, `move_to_meaning_section`, and `move_to_lemma`.
   - completion-review records may expose a meaning-level `fix_variations` action that reconciles the whole saved noun variation set for that meaning in one apply request.
   - `fix_variations` is reserved for the `Complete variations` follow-up review; normal save verification does not emit that action type.
+  - when the persisted verification record has `review_intent = "complete_variations"`, the backend rejects any apply attempt whose `action.action_type` is not `fix_variations`, even if the client sends it manually.
   - when Gemini provides them, `fix_variations` actions may include `singular_definite_form`, `plural_indefinite_form`, and `plural_definite_form` so apply uses the reviewed surface set directly instead of re-deriving it from COR.
   - if those structured noun-slot fields are missing on an older saved completion review, the backend will try to recover them from the persisted review text before applying.
 - **Notable status/error behavior:**

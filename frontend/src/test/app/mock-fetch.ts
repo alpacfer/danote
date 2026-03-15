@@ -296,6 +296,10 @@ export function mockFetchImplementation(options?: {
     meaning_id: number
     added_surface_forms: string[]
     queued_pronunciation_forms: string[]
+    queued_verification_targets: Array<{
+      meaning_id: number | null
+      stored_surface_form: string | null
+    }>
     message: string
   }
   completeVariationsHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
@@ -691,6 +695,7 @@ export function mockFetchImplementation(options?: {
     meaning_id: addWordResponse.meaning?.id ?? 1,
     added_surface_forms: [],
     queued_pronunciation_forms: [],
+    queued_verification_targets: [{ meaning_id: addWordResponse.meaning?.id ?? 1, stored_surface_form: null }],
     message: `Completed noun variations for '${addWordResponse.stored_lemma}'.`,
   }
   const rethinkCategoriesResponse = options?.rethinkCategoriesResponse ?? {

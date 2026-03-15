@@ -61,36 +61,29 @@ def completion_review_actions(
         parse_fix_variations_text_slot_forms(change_to_implement)
         or parse_fix_variations_text_slot_forms(problem)
     )
-    enriched_actions: list[VerificationAction] = []
-    fix_variations_found = False
+    fix_variations_action: VerificationAction | None = None
     for action in suggested_actions:
         if action.action_type != "fix_variations":
-            enriched_actions.append(action)
             continue
-        fix_variations_found = True
         action_slot_forms = extract_fix_variations_action_slot_forms(action.model_dump(exclude_none=True))
         merged_slot_forms = action_slot_forms or text_slot_forms
-        enriched_actions.append(
-            action.model_copy(
-                update={
-                    "singular_definite_form": merged_slot_forms.get("singular_definite"),
-                    "plural_indefinite_form": merged_slot_forms.get("plural_indefinite"),
-                    "plural_definite_form": merged_slot_forms.get("plural_definite"),
-                }
-            )
+        fix_variations_action = action.model_copy(
+            update={
+                "singular_definite_form": merged_slot_forms.get("singular_definite"),
+                "plural_indefinite_form": merged_slot_forms.get("plural_indefinite"),
+                "plural_definite_form": merged_slot_forms.get("plural_definite"),
+            }
         )
-    if fix_variations_found:
-        return enriched_actions
-    return [
-        VerificationAction(
+        break
+    if fix_variations_action is not None:
+        return [fix_variations_action]
+    return [VerificationAction(
             action_type="fix_variations",
             reason="Replace the completed variation set with the reviewed noun forms for this meaning.",
             singular_definite_form=text_slot_forms.get("singular_definite"),
             plural_indefinite_form=text_slot_forms.get("plural_indefinite"),
             plural_definite_form=text_slot_forms.get("plural_definite"),
-        ),
-        *enriched_actions,
-    ]
+        )]
 
 
 def find_fix_variations_action_fields(actions: list[dict[str, object]]) -> dict[str, str]:

@@ -40,6 +40,7 @@ def complete_meaning_variations(
             meaning_id=meaning_id,
             added_surface_forms=[],
             queued_pronunciation_forms=[],
+            queued_verification_targets=[],
             message=completion_gate_message,
         )
     slot_entries = resolve_target_noun_slot_entries(runtime.cor, context=context)
@@ -50,6 +51,7 @@ def complete_meaning_variations(
             meaning_id=meaning_id,
             added_surface_forms=[],
             queued_pronunciation_forms=[],
+            queued_verification_targets=[],
             message=f"No COR noun paradigm entries were found for meaning #{meaning_id}.",
         )
 
@@ -108,11 +110,12 @@ def complete_meaning_variations(
             meaning_id=meaning_id,
             added_surface_forms=[],
             queued_pronunciation_forms=[],
+            queued_verification_targets=[],
             message=f"No missing noun variations were found for '{normalized_lemma}'.",
         )
 
     _delete_meaning_surface_verification_records(runtime, context=context)
-    queue_verification_targets(
+    queued_verification_targets = queue_verification_targets(
         runtime,
         stored_lemma=context.lemma,
         targets=(VerificationTarget(meaning_id=context.meaning_id, stored_surface_form=None),),
@@ -124,6 +127,7 @@ def complete_meaning_variations(
         meaning_id=meaning_id,
         added_surface_forms=added_surface_forms,
         queued_pronunciation_forms=queued_pronunciation_forms,
+        queued_verification_targets=queued_verification_targets,
         message=_updated_message(normalized_lemma, added_surface_forms),
     )
 

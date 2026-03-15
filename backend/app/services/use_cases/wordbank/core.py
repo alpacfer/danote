@@ -138,6 +138,7 @@ class WordbankUseCase:
                     meaning_id=meaning_id,
                     added_surface_forms=[],
                     queued_pronunciation_forms=[],
+                    queued_verification_targets=[],
                     message="Complete variations is only available for noun meanings.",
                 )
             raise
@@ -149,6 +150,7 @@ class WordbankUseCase:
                     meaning_id=meaning_id,
                     added_surface_forms=[],
                     queued_pronunciation_forms=[],
+                    queued_verification_targets=[],
                     message="This meaning does not have enough COR identity to complete noun variations.",
                 )
             raise

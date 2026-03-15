@@ -212,16 +212,10 @@ class GeminiWordVerificationService:
         completion_review = payload.review_intent == "complete_variations"
         if completion_review:
             action_examples = (
-                '{"action_type":"fix_translation","reason":"...","english_translation":"..."},'
                 '{"action_type":"fix_variations","reason":"...",'
                 '"singular_definite_form":"...",'
                 '"plural_indefinite_form":"...",'
-                '"plural_definite_form":"..."},'
-                '{"action_type":"move_to_meaning_section","reason":"...","target_meaning_id":0},'
-                '{"action_type":"move_to_lemma","reason":"...","target_lemma":"...",'
-                '"target_meaning_key":"...","target_gloss":"...",'
-                '"target_english_translation":"...","target_pos_tag":"...",'
-                '"target_morphology":"..."}'
+                '"plural_definite_form":"..."}'
             )
             fix_variations_rule = (
                 "- If action_type=fix_variations, include the complete noun variation set in singular_definite_form, plural_indefinite_form, and plural_definite_form whenever those slots are known.\n"
@@ -239,14 +233,14 @@ class GeminiWordVerificationService:
         action_type_rule = (
             "- Use only these action types: fix_translation, move_to_meaning_section, move_to_lemma.\n"
             if not completion_review
-            else "- Use only these action types: fix_translation, fix_variations, move_to_meaning_section, move_to_lemma.\n"
+            else "- Use only this action type: fix_variations.\n"
         )
         variation_scope_rule = (
             "- This is normal save verification. Verify only whether the saved lemma/meaning/surface placement is correct.\n"
             "- Do not require missing paradigm forms or suggest adding/correcting other variations here. Variation completeness is handled only by the Complete variations workflow.\n"
             if not completion_review
             else "- This review was triggered by Complete variations. Keep the saved lemma and meaning section fixed; verify whether the saved surface forms are valid variations for that lemma in this meaning.\n"
-            "- If canonical_lemma differs from lemma during Complete variations review, treat that as a clue to re-check the completed variation set. Do not suggest move_to_lemma solely because of that mismatch.\n"
+            "- If canonical_lemma differs from lemma during Complete variations review, treat that as a clue to re-check the completed variation set only.\n"
             "- When the completed variation set is wrong, describe the surface-form problem in problem/change_to_implement and use action_type=fix_variations.\n"
         )
         canonical_rule = (
@@ -495,6 +489,8 @@ class GeminiWordVerificationService:
                 plural_indefinite_form=_optional_clean_str(raw.get("plural_indefinite_form")),
                 plural_definite_form=_optional_clean_str(raw.get("plural_definite_form")),
             )
+        if payload.review_intent == "complete_variations":
+            return None
         if normalized_type == "fix_translation":
             english_translation = _optional_clean_str(raw.get("english_translation"))
             if not english_translation:

@@ -429,6 +429,10 @@ def test_complete_meaning_variations_backfills_missing_noun_slots_for_search_see
     response = use_case.complete_meaning_variations("bog", meaning_id=added.meaning.id)
 
     assert response.status == "updated"
+    assert [
+        (target.meaning_id, target.stored_surface_form)
+        for target in response.queued_verification_targets
+    ] == [(added.meaning.id, None)]
     assert response.added_surface_forms == ["bogen", "bøgerne"]
     assert response.queued_pronunciation_forms == ["bogen", "bøgerne"]
 

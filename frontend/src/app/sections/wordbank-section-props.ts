@@ -26,6 +26,7 @@ export type WordbankSectionAdapterArgs = {
   verificationOverview: ComponentProps<typeof WordbankSection>["verificationOverview"]
   isApplyingVerificationChanges: boolean
   isRetryingVerification: boolean
+  markVisibleVerificationNotificationsAsRead: () => void
   applyVerificationAction: (targetKey: string, actionIndex: number) => Promise<void>
   retryVerificationTarget: (targetKey: string) => Promise<void>
 }
@@ -65,6 +66,7 @@ export function buildWordbankSectionProps(
     verificationOverview: args.verificationOverview,
     isApplyingVerificationChanges: args.isApplyingVerificationChanges,
     isRetryingVerification: args.isRetryingVerification,
+    onMarkVisibleVerificationNotificationsAsRead: args.markVisibleVerificationNotificationsAsRead,
     onApplyVerificationAction: (targetKey: string, actionIndex: number) => {
       void args.applyVerificationAction(targetKey, actionIndex)
     },

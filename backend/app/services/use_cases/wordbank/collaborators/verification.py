@@ -292,6 +292,12 @@ class VerificationCollaborator:
             raise ValueError("stored_lemma is required")
 
         provider_name, reviewer_name = self._verification_metadata(provider_override=provider)
+        self._assert_apply_action_allowed(
+            stored_lemma=normalized_lemma,
+            stored_surface_form=normalized_surface,
+            meaning_id=meaning_id,
+            action=action,
+        )
         resolved_action = self._resolve_apply_action(
             stored_lemma=normalized_lemma,
             stored_surface_form=normalized_surface,
@@ -384,6 +390,29 @@ class VerificationCollaborator:
                 if (field_name := NOUN_SLOT_ACTION_FIELDS.get(slot_name)) is not None
             },
         }
+
+    def _assert_apply_action_allowed(
+        self,
+        *,
+        stored_lemma: str,
+        stored_surface_form: str | None,
+        meaning_id: int | None,
+        action: dict[str, object],
+    ) -> None:
+        repository = WordbankRepository(self._db_path)
+        lexeme = repository.get_lexeme(stored_lemma)
+        if lexeme is None:
+            return
+        record = repository.get_verification_record(
+            lexeme_id=lexeme.id,
+            meaning_id=meaning_id,
+            stored_surface_form=stored_surface_form,
+        )
+        if record is None or record.review_intent != "complete_variations":
+            return
+        if action.get("action_type") == "fix_variations":
+            return
+        raise ValueError("Only fix_variations can be applied for complete-variations reviews.")
 
     def queued_verification_result(
         self,

@@ -58,10 +58,10 @@ This index is the canonical entry point for repository documentation. It is orga
 
 | Document | Intended audience | Source modules | Last verification date/checkpoint | Owning area |
 | --- | --- | --- | --- | --- |
-| [App shell behavior](./app-shell-behavior.md) | Frontend engineers, maintainers | `frontend/src/App.tsx`, `frontend/src/app/layout/section-content.tsx`, `frontend/src/app/chrome/*` | Shell title removal and search-first sidebar header update (2026-03-15) | Frontend |
+| [App shell behavior](./app-shell-behavior.md) | Frontend engineers, maintainers | `frontend/src/App.tsx`, `frontend/src/app/layout/section-content.tsx`, `frontend/src/app/chrome/*` | Verification notification current-state and popover read-targeting update (2026-03-15) | Frontend |
 | [Playground section behavior](./playground-section-behavior.md) | Frontend engineers, QA | `frontend/src/app/sections/playground-section.tsx`, `frontend/src/app/hooks/playground/*` | Checkpoint 18 baseline and docs smoke alignment (2026-03-06) | Frontend |
 | [Sidebar search behavior](./sidebar-search-behavior.md) | Frontend engineers, product QA | `frontend/src/app/chrome/sidebar/*`, `frontend/src/app/hooks/sidebar/*` | Search-save translation gating and open-vs-add fallback update (2026-03-15) | Frontend |
-| [Wordbank section behavior](./wordbank-section-behavior.md) | Frontend engineers, backend integrators | `frontend/src/app/sections/wordbank/*`, `backend/app/api/routes/wordbank.py` | Verification retry queueing and complete-variations gating update (2026-03-15) | Shared |
+| [Wordbank section behavior](./wordbank-section-behavior.md) | Frontend engineers, backend integrators | `frontend/src/app/sections/wordbank/*`, `backend/app/api/routes/wordbank.py` | Strict complete-variations follow-up review and off-page tracking update (2026-03-15) | Shared |
 | [Sentencebank section behavior](./sentencebank-section-behavior.md) | Frontend engineers, backend integrators | `frontend/src/app/sections/sentencebank/*`, `backend/app/api/routes/sentencebank.py` | Checkpoint 18 baseline and docs smoke alignment (2026-03-06) | Shared |
 | [Developer section behavior](./developer-section-behavior.md) | Frontend engineers, platform maintainers | `frontend/src/app/sections/developer-section.tsx`, `frontend/src/app/hooks/app/use-developer-settings.ts`, `backend/app/api/routes/developer.py` | Checkpoint 18 baseline and docs smoke alignment (2026-03-06) | Shared |
 

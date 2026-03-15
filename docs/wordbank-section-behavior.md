@@ -135,6 +135,7 @@ Meaning auto-scroll behavior:
   - review-needed state shows the total suggested-action count inline on the trigger when actions are present
 - **Verification popover**:
   - is the single surface for verification status/details; the old standalone status line and success/queued badges are not rendered anymore
+  - opening the popover marks only the currently visible verification targets as read in the app notification center
   - uses a fixed-height scrollable content area so long verification histories and action lists stay contained
   - includes provider metadata, an aggregated progress/status summary card, and state counts for all rendered targets
   - renders one target card per visible verification target in word-page order:
@@ -144,7 +145,8 @@ Meaning auto-scroll behavior:
   - verified target cards show completion copy and verified time
   - error/flagged target cards show reviewed time, problem, change-to-implement text, and action cards inline on that target
   - error target cards also expose `Retry verification`, which queues that exact target again through the backend queue-only endpoint and keeps the page in polling mode until the refreshed run finishes
-  - completion-review meaning cards may expose a single `Fix variations` action card that rewrites the whole saved noun variation set for that meaning in one apply
+  - completion-review meaning cards may expose exactly one `Fix variations` action card that rewrites the whole saved noun variation set for that meaning in one apply
+  - completion-review meaning cards never expose `Move to lemma`, `Move to different meaning`, or translation-fix actions
   - no-record state shows a neutral empty state explaining that verification details will appear here once Gemini runs
   - each action card uses an `Apply change` button that is disabled while apply is in progress
 
@@ -177,8 +179,9 @@ Meaning auto-scroll behavior:
   - `Complete variations unavailable` for any other non-verified state
 - The completion action queues pronunciation generation only for newly added forms.
 - After completion, Gemini re-verification is requeued as a single meaning-scoped review for that updated meaning section, not one request per variation row.
+- The completion API response includes `queued_verification_targets`; the frontend registers those meaning targets with background tracking so the follow-up review continues to drive spinner state and final notifications even after the user leaves the lemma page.
 - That completion-specific review keeps the saved lemma fixed and checks whether the completed surface forms fit that lemma/meaning; it does not use canonical-lemma mismatch alone as a reason to suggest moving the lemma.
-- When that review flags the completed set, the backend exposes one meaning-level `Fix variations` apply action instead of per-variation actions.
+- When that review flags the completed set, the backend exposes one meaning-level `Fix variations` apply action instead of per-variation actions or relocation actions.
 - Existing per-surface verification records for that meaning are cleared before the completion review is requeued, so the refreshed page shows the meaning-level review as the source of truth for that completion pass.
 - If the meaning lacks enough saved COR identity to resolve a noun paradigm, the action is skipped with a user-facing message.
 
@@ -252,12 +255,17 @@ Pronunciation behavior is shared by header + section rows + variation rows.
 - `Complete variations` uses a narrower follow-up path: it queues one meaning-level verification request for the updated meaning instead of requeueing each variation target separately.
 - Only that completion-specific follow-up review is allowed to question or rewrite the generated variation set.
   The initial verification run after save is not allowed to suggest completing or correcting other paradigm members.
+- Completion follow-up reviews are strict `fix_variations` workflows:
+  - Gemini prompt examples only advertise `fix_variations`
+  - backend normalization drops any other returned action types
+  - apply rejects any non-`fix_variations` action for persisted `review_intent = "complete_variations"` records
 - Target discovery rules:
   - non-sectioned page: one lemma/root target plus one target per non-lemma saved variation
   - sectioned page: one target per meaning section plus one target per saved variation within that meaning
   - no synthetic root target is added for sectioned pages unless a root-level saved record actually exists
 - Results are persisted by backend target scope `(lemma, meaning_id, stored_surface_form)` and returned through subsequent lemma-detail fetches.
 - Queue dedupe is stable per verification target, not per snapshot hash.
+- Completion follow-up review records remain meaning-scoped only; once requeued, they replace stale per-surface completion records for that meaning instead of coexisting with them.
   Repeated edits or retries to the same target update the queued request generation instead of spawning competing duplicate jobs.
 - Verification persistence is newest-request-wins:
   if a target changes while Gemini is already running, the stale run is discarded at persist time and the queue immediately keeps the latest request pending for the next worker claim.

@@ -28,6 +28,7 @@ export type WordbankSectionProps = {
   verificationOverview: VerificationOverview
   isApplyingVerificationChanges: boolean
   isRetryingVerification: boolean
+  onMarkVisibleVerificationNotificationsAsRead: () => void
   onApplyVerificationAction: (targetKey: string, actionIndex: number) => void
   onRetryVerificationTarget: (targetKey: string) => void
 }

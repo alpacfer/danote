@@ -16,6 +16,7 @@ export function useWordbankComposition({ foundation, onSentenceSaved }: UseWordb
   return useWordbankWorkflows({
     backendUrl,
     extractErrorMessage,
+    activeSection: navigation.activeSection,
     selectedLemma: navigation.selectedLemma,
     selectedMeaningId: navigation.selectedMeaningId,
     lemmaDetails: lexiconData.lemmaDetails,
@@ -35,5 +36,6 @@ export function useWordbankComposition({ foundation, onSentenceSaved }: UseWordb
     },
     onSentenceSaved,
     pushNotification: notifications.pushNotification,
+    markWordVerificationNotificationsAsRead: notifications.markWordVerificationNotificationsAsRead,
   })
 }

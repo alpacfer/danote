@@ -8,6 +8,10 @@ type UseCompleteVariationsWorkflowParams = {
   extractErrorMessage: (response: Response, fallback: string) => Promise<string>
   selectedLemma: string | null
   setWordbankRefreshTick: Dispatch<SetStateAction<number>>
+  trackQueuedVerificationTargets: (
+    storedLemma: string,
+    queuedTargets: Array<{ meaning_id: number | null; stored_surface_form: string | null }>,
+  ) => void
 }
 
 export function useCompleteVariationsWorkflow({
@@ -15,6 +19,7 @@ export function useCompleteVariationsWorkflow({
   extractErrorMessage,
   selectedLemma,
   setWordbankRefreshTick,
+  trackQueuedVerificationTargets,
 }: UseCompleteVariationsWorkflowParams) {
   const [isCompletingMeaningVariations, setIsCompletingMeaningVariations] = useState(false)
   const apiClient = useMemo(
@@ -42,6 +47,7 @@ export function useCompleteVariationsWorkflow({
         toast.info(payload.message)
         return
       }
+      trackQueuedVerificationTargets(lemma, payload.queued_verification_targets ?? [])
       toast.success(payload.message)
       setWordbankRefreshTick((current) => current + 1)
     } catch (error) {
@@ -50,7 +56,7 @@ export function useCompleteVariationsWorkflow({
     } finally {
       setIsCompletingMeaningVariations(false)
     }
-  }, [apiClient, selectedLemma, setWordbankRefreshTick])
+  }, [apiClient, selectedLemma, setWordbankRefreshTick, trackQueuedVerificationTargets])
 
   return {
     isCompletingMeaningVariations,

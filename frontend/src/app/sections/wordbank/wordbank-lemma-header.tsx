@@ -18,6 +18,7 @@ type WordbankLemmaHeaderProps = {
   verificationOverview: VerificationOverview
   isApplyingVerificationChanges: boolean
   isRetryingVerification: boolean
+  onMarkVisibleVerificationNotificationsAsRead: () => void
   onApplyVerificationAction: (targetKey: string, actionIndex: number) => void
   onRetryVerificationTarget: (targetKey: string) => void
   showSupplementaryMetadata: boolean
@@ -36,6 +37,7 @@ export function WordbankLemmaHeader({
   verificationOverview,
   isApplyingVerificationChanges,
   isRetryingVerification,
+  onMarkVisibleVerificationNotificationsAsRead,
   onApplyVerificationAction,
   onRetryVerificationTarget,
   showSupplementaryMetadata,
@@ -120,6 +122,11 @@ export function WordbankLemmaHeader({
             verificationOverview={verificationOverview}
             isApplyingVerificationChanges={isApplyingVerificationChanges}
             isRetryingVerification={isRetryingVerification}
+            onOpenChange={(open) => {
+              if (open) {
+                onMarkVisibleVerificationNotificationsAsRead()
+              }
+            }}
             onApplyVerificationAction={onApplyVerificationAction}
             onRetryVerificationTarget={onRetryVerificationTarget}
           />

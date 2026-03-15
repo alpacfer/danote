@@ -53,6 +53,8 @@ describe("section prop adapters", () => {
     const rethinkCategories = vi.fn(async () => undefined)
     const completeMeaningVariations = vi.fn(async () => undefined)
     const apply = vi.fn(async () => undefined)
+    const retry = vi.fn(async () => undefined)
+    const markVisibleVerificationNotificationsAsRead = vi.fn()
 
     const result = buildWordbankSectionProps({
       selectedLemma: "bog",
@@ -83,14 +85,19 @@ describe("section prop adapters", () => {
         totalSuggestedActions: 0,
       },
       isApplyingVerificationChanges: false,
+      isRetryingVerification: false,
+      markVisibleVerificationNotificationsAsRead,
       applyVerificationAction: apply,
+      retryVerificationTarget: retry,
     })
 
     result.onPlayPronunciation("bog")
     result.onRegeneratePronunciation("bog")
     result.onRethinkCategories(12)
     result.onCompleteMeaningVariations(12)
+    result.onMarkVisibleVerificationNotificationsAsRead()
     result.onApplyVerificationAction("bog::root::root", 0)
+    result.onRetryVerificationTarget("bog::root::root")
 
     await Promise.resolve()
 
@@ -98,7 +105,9 @@ describe("section prop adapters", () => {
     expect(regenerate).toHaveBeenCalledTimes(1)
     expect(rethinkCategories).toHaveBeenCalledWith(12)
     expect(completeMeaningVariations).toHaveBeenCalledWith(12)
+    expect(markVisibleVerificationNotificationsAsRead).toHaveBeenCalledTimes(1)
     expect(apply).toHaveBeenCalledTimes(1)
+    expect(retry).toHaveBeenCalledTimes(1)
     expect(result.selectedMeaningId).toBe(12)
   })
 

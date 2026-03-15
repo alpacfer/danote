@@ -8,6 +8,7 @@ import {
   normalizeSearchWord,
   type AddWordResponse,
   type ApplyVerificationChangesResponse,
+  type AppSection,
   type LemmaDetailsResponse,
   type QueueVerificationResponse,
   type VerificationOverview,
@@ -20,6 +21,7 @@ import { toast } from "sonner"
 type UseVerificationWorkflowParams = {
   backendUrl: string
   extractErrorMessage: (response: Response, fallback: string) => Promise<string>
+  activeSection: AppSection
   selectedLemma: string | null
   lemmaDetails: LemmaDetailsResponse | null
   setWordbankRefreshTick: Dispatch<SetStateAction<number>>
@@ -30,9 +32,13 @@ type UseVerificationWorkflowParams = {
       lemma?: string
       meaningId?: number | null
       surfaceForm?: string | null
+      targetKey?: string
+      status?: "queued" | "verified" | "flagged" | "error"
+      signature?: string | null
       actionCount?: number
     },
   ) => void
+  markWordVerificationNotificationsAsRead: (targetKeys: string[]) => void
   onOpenWordbankTarget: (lemma: string, meaningId: number | null) => void
 }
 
@@ -45,10 +51,12 @@ type TrackedQueuedVerification = {
 export function useVerificationWorkflow({
   backendUrl,
   extractErrorMessage,
+  activeSection,
   selectedLemma,
   lemmaDetails,
   setWordbankRefreshTick,
   pushNotification,
+  markWordVerificationNotificationsAsRead,
   onOpenWordbankTarget,
 }: UseVerificationWorkflowParams) {
   const [isApplyingVerificationChanges, setIsApplyingVerificationChanges] = useState(false)
@@ -59,7 +67,6 @@ export function useVerificationWorkflow({
     [backendUrl, extractErrorMessage],
   )
   const notifiedVerificationSignaturesRef = useRef<Record<string, string>>({})
-  const previousVerificationStatusesRef = useRef<Record<string, string | null>>({})
 
   const verificationOverview = useMemo(
     () => collectLemmaVerificationOverview(lemmaDetails),
@@ -68,7 +75,7 @@ export function useVerificationWorkflow({
 
   const notifyVerificationTarget = useCallback((storedLemma: string, target: VerificationTargetView) => {
     const verification = target.verification
-    if (!verification || verification.status === "skipped" || verification.status === "queued") {
+    if (!verification || verification.status === "skipped") {
       return
     }
     const lemmaKey = normalizeSearchWord(storedLemma)
@@ -80,12 +87,29 @@ export function useVerificationWorkflow({
       notifiedVerificationSignaturesRef.current[target.key] = signature
     }
 
+    if (verification.status === "queued") {
+      pushNotification(`Verification running for '${target.label}'.`, {
+        kind: "word_verification",
+        lemma: lemmaKey || storedLemma,
+        meaningId: target.meaningId,
+        surfaceForm: target.storedSurfaceForm,
+        targetKey: target.key,
+        status: "queued",
+        signature,
+        actionCount: 0,
+      })
+      return
+    }
+
     if (verification.status === "verified") {
       pushNotification(`Verification passed for '${target.label}'.`, {
         kind: "word_verification",
         lemma: lemmaKey || storedLemma,
         meaningId: target.meaningId,
         surfaceForm: target.storedSurfaceForm,
+        targetKey: target.key,
+        status: "verified",
+        signature,
         actionCount: 0,
       })
       return
@@ -96,6 +120,9 @@ export function useVerificationWorkflow({
       lemma: lemmaKey || storedLemma,
       meaningId: target.meaningId,
       surfaceForm: target.storedSurfaceForm,
+      targetKey: target.key,
+      status: verification.status,
+      signature,
       actionCount: target.errorDetail?.suggestedActions.length ?? 0,
     })
   }, [pushNotification])
@@ -125,9 +152,9 @@ export function useVerificationWorkflow({
     const completedKeys: string[] = []
     for (const target of verificationOverview.targets) {
       const currentStatus = target.verification?.status ?? null
-      const previousStatus = previousVerificationStatusesRef.current[target.key] ?? null
-      previousVerificationStatusesRef.current[target.key] = currentStatus
-      if (previousStatus === "queued" && currentStatus !== "queued" && currentStatus !== "skipped" && target.verification) {
+      const isTrackedTarget = target.key in trackedQueuedVerifications
+      const hasExistingNotification = target.key in notifiedVerificationSignaturesRef.current
+      if (target.verification && (isTrackedTarget || hasExistingNotification)) {
         notifyVerificationTarget(lemmaKey, target)
       }
       if (currentStatus !== null && currentStatus !== "queued") {
@@ -140,11 +167,12 @@ export function useVerificationWorkflow({
     notifyVerificationTarget,
     removeTrackedVerificationKeys,
     selectedLemma,
+    trackedQueuedVerifications,
     verificationOverview.targets,
   ])
 
   useEffect(() => {
-    const openLemmaKey = normalizeSearchWord(selectedLemma ?? "")
+    const openLemmaKey = activeSection === "wordbank" ? normalizeSearchWord(selectedLemma ?? "") : ""
     const trackedByLemma = new Map<string, TrackedQueuedVerification[]>()
     for (const tracked of Object.values(trackedQueuedVerifications)) {
       if (tracked.lemma === openLemmaKey) {
@@ -192,11 +220,7 @@ export function useVerificationWorkflow({
             const key = verificationTargetKey(tracked.lemma, tracked.meaningId, tracked.storedSurfaceForm)
             const target = targetsByKey.get(key) ?? null
             const currentStatus = target?.verification?.status ?? null
-            const previousStatus = previousVerificationStatusesRef.current[key] ?? "queued"
-            if (currentStatus) {
-              previousVerificationStatusesRef.current[key] = currentStatus
-            }
-            if (previousStatus === "queued" && currentStatus !== "queued" && currentStatus !== "skipped" && target?.verification) {
+            if (target?.verification) {
               notifyVerificationTarget(lemma, target)
             }
             if (target === null || (currentStatus !== null && currentStatus !== "queued")) {
@@ -219,6 +243,7 @@ export function useVerificationWorkflow({
       window.clearInterval(intervalId)
     }
   }, [
+    activeSection,
     apiClient,
     notifyVerificationTarget,
     removeTrackedVerificationKeys,
@@ -244,7 +269,6 @@ export function useVerificationWorkflow({
           meaningId: target.meaning_id ?? null,
           storedSurfaceForm: normalizeSearchWord(target.stored_surface_form ?? "") || null,
         }
-        previousVerificationStatusesRef.current[key] = "queued"
       }
       return next
     })
@@ -265,8 +289,34 @@ export function useVerificationWorkflow({
         storedSurfaceForm: normalizedSurface,
       },
     }))
-    previousVerificationStatusesRef.current[key] = "queued"
   }, [])
+
+  const trackQueuedVerificationTargets = useCallback((
+    storedLemma: string,
+    queuedTargets: Array<{ meaning_id: number | null; stored_surface_form: string | null }>,
+  ) => {
+    const lemmaKey = normalizeSearchWord(storedLemma)
+    if (!lemmaKey || queuedTargets.length === 0) {
+      return
+    }
+    setTrackedQueuedVerifications((current) => {
+      const next = { ...current }
+      for (const target of queuedTargets) {
+        const normalizedSurface = normalizeSearchWord(target.stored_surface_form ?? "") || null
+        const key = verificationTargetKey(lemmaKey, target.meaning_id ?? null, normalizedSurface)
+        next[key] = {
+          lemma: lemmaKey,
+          meaningId: target.meaning_id ?? null,
+          storedSurfaceForm: normalizedSurface,
+        }
+      }
+      return next
+    })
+  }, [])
+
+  const markVisibleVerificationNotificationsAsRead = useCallback(() => {
+    markWordVerificationNotificationsAsRead(verificationOverview.targets.map((target) => target.key))
+  }, [markWordVerificationNotificationsAsRead, verificationOverview.targets])
 
   async function applyVerificationAction(targetKey: string, actionIndex: number) {
     const lemma = normalizeSearchWord(lemmaDetails?.lemma ?? selectedLemma ?? "")
@@ -341,7 +391,6 @@ export function useVerificationWorkflow({
 
   function clearVerificationErrors() {
     notifiedVerificationSignaturesRef.current = {}
-    previousVerificationStatusesRef.current = {}
     setTrackedQueuedVerifications({})
   }
 
@@ -351,8 +400,10 @@ export function useVerificationWorkflow({
     isVerifyingWords: Object.keys(trackedQueuedVerifications).length > 0 || verificationOverview.queuedCount > 0,
     verificationOverview: verificationOverview as VerificationOverview,
     trackQueuedVerifications,
+    trackQueuedVerificationTargets,
     applyVerificationAction,
     retryVerificationTarget,
+    markVisibleVerificationNotificationsAsRead,
     clearVerificationErrors,
   }
 }

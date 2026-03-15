@@ -155,6 +155,10 @@ Notification state is managed by `useNotificationCenter()` and surfaced through 
 - `hasUnreadNotifications` drives bell styling (`default` variant when unread, otherwise `outline`).
 - Unread count shown on bell comes from `unreadNotifications.length`.
 - Wordbank-specific unread badge in sidebar comes from unread `kind === "word_verification"` notifications.
+- Word verification notifications are current-state records, not an append-only event log:
+  - each target is keyed by `(lemma, meaningId, surfaceForm)` via `targetKey`
+  - queued, review-needed, retry, and verified updates upsert the same notification row for that target
+  - sidebar lemma badges are derived from unread current-state verification targets grouped by lemma
 
 ### Open/close
 
@@ -162,20 +166,17 @@ Notification state is managed by `useNotificationCenter()` and surfaced through 
 - Bell button is disabled only when there are no unread notifications and verification is not currently running.
 - If verification is running, bell shows spinner icon and remains available as status affordance.
 - Verification-running state can come from backend-queued wordbank jobs even when the user has already navigated away from that lemma page; the frontend tracks queued targets returned from add responses and polls those lemmas until each target settles.
+- Completion-variations follow-up reviews participate in the same off-page tracking flow using the explicit `queued_verification_targets` returned by the complete-variations API response.
 
 ### Mark-read behavior
 
 - Global mark-read API exists: `markAllNotificationsAsRead()`.
-- Automatic targeted mark-read is applied for word verification notifications:
-  - when user is in `wordbank` section
-  - and a `selectedLemma` exists
-  - and there are unread word-verification notifications for that lemma
-  - then `markWordVerificationNotificationsAsRead(selectedLemma, selectedMeaningId)` is invoked.
+- Automatic read-on-navigation is no longer used for word verification notifications.
+- Targeted mark-read now happens only when the user opens the word-page verification popover.
 - Matching rules for targeted mark-read:
-  - only unread `word_verification` notifications are eligible.
-  - lemma must match.
-  - if `selectedMeaningId` is non-null, notification meaning must also match.
-  - notifications may also carry `surfaceForm` for variation-scoped verification results, but read targeting still keys on lemma plus optional meaning.
+  - only unread `word_verification` notifications are eligible
+  - the popover marks read only the verification targets currently visible on that word page
+  - matching uses the same per-target `targetKey` used for notification upserts, so meaning-level and surface-level verification rows stay distinct
 
 ## 5. Shared refresh ticks and propagation
 

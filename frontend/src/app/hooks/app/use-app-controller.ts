@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useState } from "react"
 
 import { type DeveloperServiceProbeResponse } from "@/app/core"
 import { useApiStatusItems, useGroupedWordbankLemmas } from "@/app/hooks/app/use-app-derived-data"
@@ -19,7 +19,7 @@ export function useAppController() {
   const [apiProbeStatuses, setApiProbeStatuses] = useState<Record<string, DeveloperServiceProbeResponse | null>>({})
   const foundation = useAppFoundation()
   const { navigation, health, analysis, discoveredTokenMetadataState, notesPersistence, lexiconData, notifications } = foundation
-  const { markWordVerificationNotificationsAsRead, unreadWordbankLemmaCounts, unreadWordbankNotificationCount } = notifications
+  const { unreadWordbankLemmaCounts, unreadWordbankNotificationCount } = notifications
 
   const { popovers, workspace } = usePlaygroundComposition({ foundation })
 
@@ -55,22 +55,6 @@ export function useAppController() {
 
   const groupedWordbankLemmas = useGroupedWordbankLemmas(lexiconData.lemmas)
   const apiStatusItems = useApiStatusItems(health.healthPayload, health.status, apiProbeStatuses)
-
-  useEffect(() => {
-    if (navigation.activeSection !== "wordbank" || !navigation.selectedLemma) {
-      return
-    }
-    if ((unreadWordbankLemmaCounts.get(navigation.selectedLemma) ?? 0) === 0) {
-      return
-    }
-    markWordVerificationNotificationsAsRead(navigation.selectedLemma, navigation.selectedMeaningId)
-  }, [
-    markWordVerificationNotificationsAsRead,
-    navigation.activeSection,
-    navigation.selectedLemma,
-    navigation.selectedMeaningId,
-    unreadWordbankLemmaCounts,
-  ])
 
   const sectionProps = {
     autosaveStatusLabel: notesPersistence.autosaveStatus === "saving"
@@ -149,6 +133,7 @@ export function useAppController() {
       verificationOverview: wordbank.verificationOverview,
       isApplyingVerificationChanges: wordbank.isApplyingVerificationChanges,
       isRetryingVerification: wordbank.isRetryingVerification,
+      markVisibleVerificationNotificationsAsRead: wordbank.markVisibleVerificationNotificationsAsRead,
       applyVerificationAction: wordbank.applyVerificationAction,
       retryVerificationTarget: wordbank.retryVerificationTarget,
     }),

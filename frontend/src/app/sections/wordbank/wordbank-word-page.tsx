@@ -25,6 +25,7 @@ type WordbankWordPageProps = Pick<
   | "verificationOverview"
   | "isApplyingVerificationChanges"
   | "isRetryingVerification"
+  | "onMarkVisibleVerificationNotificationsAsRead"
   | "onApplyVerificationAction"
   | "onRetryVerificationTarget"
 >
@@ -47,6 +48,7 @@ export function WordbankWordPage({
   verificationOverview,
   isApplyingVerificationChanges,
   isRetryingVerification,
+  onMarkVisibleVerificationNotificationsAsRead,
   onApplyVerificationAction,
   onRetryVerificationTarget,
 }: WordbankWordPageProps) {
@@ -100,6 +102,7 @@ export function WordbankWordPage({
             verificationOverview={verificationOverview}
             isApplyingVerificationChanges={isApplyingVerificationChanges}
             isRetryingVerification={isRetryingVerification}
+            onMarkVisibleVerificationNotificationsAsRead={onMarkVisibleVerificationNotificationsAsRead}
             onApplyVerificationAction={onApplyVerificationAction}
             onRetryVerificationTarget={onRetryVerificationTarget}
             showSupplementaryMetadata={!isSectioned}

@@ -450,6 +450,7 @@ describe("App wordbank", () => {
           meaning_id: 1,
           added_surface_forms: ["bogen", "bøgerne"],
           queued_pronunciation_forms: ["bogen", "bøgerne"],
+          queued_verification_targets: [{ meaning_id: 1, stored_surface_form: null }],
           message: "Completed noun variations for 'bog'.",
         })
       },
@@ -665,6 +666,7 @@ describe("App wordbank", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
     fireEvent.click(await screen.findByRole("button", { name: /kat/i }))
+    expect(screen.getAllByRole("button", { name: /wordbank/i })[0]).toHaveTextContent("1")
     const infoButton = await screen.findByRole("button", { name: /show verification review details/i })
     expect(infoButton).toBeEnabled()
     fireEvent.click(infoButton)
@@ -678,6 +680,7 @@ describe("App wordbank", () => {
     expect(screen.getByText(/apply changes/i)).toBeInTheDocument()
     expect(screen.getByText(/fix translation/i)).toBeInTheDocument()
     expect(screen.getByText(/set translation to 'cat'/i)).toBeInTheDocument()
+    expect(screen.getAllByRole("button", { name: /wordbank/i })[0]).not.toHaveTextContent("1")
 
     const applyButton = screen.getByRole("button", { name: /apply change/i })
     expect(applyButton).toBeEnabled()
@@ -789,5 +792,131 @@ describe("App wordbank", () => {
     expect(screen.getByText(/verification completed/i)).toBeInTheDocument()
     expect(screen.getAllByText(/1 verified/i).length).toBeGreaterThan(0)
     expect(screen.getByText(/verification passed\./i)).toBeInTheDocument()
+  }, 15_000)
+
+  it("keeps one current-state notification per target for complete-variations reviews even after leaving the lemma page", async () => {
+    vi.useRealTimers()
+    let completionSettled = false
+    let lemmaDetails = {
+      lemma: "bog",
+      english_translation: null,
+      is_sectioned: true,
+      meaning_sections: [
+        {
+          id: 1,
+          meaning_key: "book",
+          gloss: "book",
+          english_translation: "book",
+          verification: {
+            status: "verified" as const,
+            provider: "gemini",
+            reviewer_role: "Professional Danish Language Expert",
+            message: "Verified.",
+            requested_at: "2026-03-15T10:00:00Z",
+            completed_at: "2026-03-15T10:00:05Z",
+          },
+          pos_tag: "NOUN",
+          morphology: "Gender=Com|Number=Sing|Definite=Ind",
+          surface_forms: [
+            {
+              form: "bøger",
+              verification: {
+                status: "verified" as const,
+                provider: "gemini",
+                reviewer_role: "Professional Danish Language Expert",
+                message: "Verified.",
+                requested_at: "2026-03-15T10:00:00Z",
+                completed_at: "2026-03-15T10:00:05Z",
+              },
+              pos_tag: "NOUN",
+              morphology: "Gender=Com|Number=Plur|Definite=Ind",
+              has_pronunciation: false,
+            },
+          ],
+        },
+      ],
+      surface_forms: [],
+    }
+
+    mockFetchImplementation({
+      lemmasResponse: {
+        items: [{ lemma: "bog", variation_count: 1 }],
+      },
+      lemmaDetailsHandler: async () => responseOf(
+        completionSettled
+          ? {
+              ...lemmaDetails,
+              meaning_sections: [
+                {
+                  ...lemmaDetails.meaning_sections[0],
+                  verification: {
+                    status: "error" as const,
+                    provider: "gemini",
+                    reviewer_role: "Professional Danish Language Expert",
+                    review_intent: "complete_variations",
+                    message: "Review needed.",
+                    requested_at: "2026-03-15T10:00:00Z",
+                    completed_at: "2026-03-15T10:00:05Z",
+                    problem: "Completed variations are incorrect.",
+                    change_to_implement: "Replace the saved variation set with the reviewed noun forms.",
+                    suggested_actions: [{ action_type: "fix_variations", reason: "Replace the saved variation set." }],
+                  },
+                },
+              ],
+            }
+          : lemmaDetails,
+      ),
+      completeVariationsHandler: async () => {
+        lemmaDetails = {
+          ...lemmaDetails,
+          meaning_sections: [
+            {
+              ...lemmaDetails.meaning_sections[0],
+              verification: {
+                status: "queued" as const,
+                provider: "gemini",
+                reviewer_role: "Professional Danish Language Expert",
+                review_intent: "complete_variations",
+                message: "Word verification queued.",
+                requested_at: "2026-03-15T10:00:00Z",
+                suggested_actions: [],
+              },
+            },
+          ],
+        }
+        return responseOf({
+          status: "updated",
+          stored_lemma: "bog",
+          meaning_id: 1,
+          added_surface_forms: ["bogen", "bøgerne"],
+          queued_pronunciation_forms: ["bogen", "bøgerne"],
+          queued_verification_targets: [{ meaning_id: 1, stored_surface_form: null }],
+          message: "Completed noun variations for 'bog'.",
+        })
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /bog/i }))
+
+    const meaningCard = await screen.findByTestId("wordbank-meaning-card-1")
+    fireEvent.contextMenu(meaningCard)
+    fireEvent.click(await screen.findByRole("menuitem", { name: /complete variations/i }))
+
+    fireEvent.click(screen.getByRole("button", { name: /playground/i }))
+
+    completionSettled = true
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /show notifications \(1 unread\)/i })).toBeEnabled()
+    }, { timeout: 5_000 })
+
+    fireEvent.click(screen.getByRole("button", { name: /show notifications \(1 unread\)/i }))
+    const notificationList = await screen.findByLabelText("notification-list")
+    expect(notificationList).toHaveTextContent("Review needed for 'book'.")
+    expect(notificationList.querySelectorAll("li")).toHaveLength(1)
   }, 15_000)
 })

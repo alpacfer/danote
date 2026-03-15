@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from app.api.schemas.v1.wordbank import LemmaDetailsResponse
 from app.db.migrations import get_connection
 from app.nlp.adapter import NLPToken
@@ -474,6 +476,45 @@ def test_complete_variations_review_adds_fix_variations_action(tmp_path: Path) -
     assert verified.verification.suggested_actions[0].plural_definite_form == "mødrene"
 
 
+def test_complete_variations_review_discards_move_to_lemma_actions(tmp_path: Path) -> None:
+    class FlaggedCompletionVerificationService:
+        provider = "gemini"
+        reviewer_role = "Professional Danish Language Expert"
+
+        def verify_word_entry(self, _payload):
+            class Result:
+                verdict = "flagged"
+                message = "Review needed."
+                problem = "Plural forms are wrong."
+                change_to_implement = "Replace the plural forms with the reviewed noun variations."
+                suggested_actions = (
+                    WordVerificationAction(
+                        action_type="move_to_lemma",
+                        target_lemma="moder",
+                        target_meaning_key="person",
+                        reason="Ignored for completion review.",
+                    ),
+                )
+
+            return Result()
+
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        verification_service=FlaggedCompletionVerificationService(),
+    )
+
+    added = use_case.add_word("mor", "mor")
+    verified = use_case.verify_added_word(
+        "mor",
+        None,
+        meaning_id=added.meaning.id if added.meaning else None,
+        review_intent="complete_variations",
+    )
+
+    assert verified.verification.status == "flagged"
+    assert [action.action_type for action in verified.verification.suggested_actions] == ["fix_variations"]
+
+
 def test_wordbank_use_case_applies_fix_variations_action_for_completion_review(tmp_path: Path) -> None:
     db_path = _db_path(tmp_path)
     canonical_lemma = _cor_local_entry(
@@ -752,6 +793,34 @@ def test_wordbank_use_case_hydrates_fix_variations_apply_from_saved_review_text(
     assert response.applied_action_type == "fix_variations"
     details = use_case.get_lemma_details("mor")
     assert sorted(form.form for form in details.meaning_sections[0].surface_forms) == ["moren", "mødre", "mødrene"]
+
+
+def test_complete_variations_apply_rejects_non_fix_variations_actions(tmp_path: Path) -> None:
+    db_path = _db_path(tmp_path)
+    use_case = WordbankUseCase(db_path)
+    added = use_case.add_word("mor", "mor")
+    assert added.meaning is not None
+
+    verified = use_case.verify_added_word(
+        "mor",
+        None,
+        meaning_id=added.meaning.id,
+        review_intent="complete_variations",
+    )
+    assert verified.verification.review_intent == "complete_variations"
+
+    with pytest.raises(ValueError, match="Only fix_variations can be applied"):
+        use_case.apply_verification_changes(
+            stored_lemma="mor",
+            stored_surface_form=None,
+            meaning_id=added.meaning.id,
+            action={
+                "action_type": "move_to_lemma",
+                "target_lemma": "moder",
+                "target_meaning_key": "person",
+            },
+            provider="gemini",
+        )
 
 
 def test_wordbank_use_case_stores_and_returns_surface_pronunciation(tmp_path: Path) -> None:
