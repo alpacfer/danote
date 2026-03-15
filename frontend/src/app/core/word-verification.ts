@@ -9,6 +9,11 @@ import type {
   VerificationTargetView,
 } from "@/app/core/types-ui"
 
+export type MeaningVerificationGate = {
+  isLocked: boolean
+  label: string
+}
+
 export function getSelectedLemmaVerificationResult(args: {
   lemmaDetails: LemmaDetailsResponse | null
   selectedMeaningId: number | null
@@ -105,6 +110,7 @@ export function verificationResultSignature(
     storedSurfaceForm,
     status: verification.status,
     provider: verification.provider,
+    reviewIntent: verification.review_intent,
     message: verification.message,
     requestedAt: verification.requested_at,
     completedAt: verification.completed_at,
@@ -227,4 +233,36 @@ export function findVerificationTarget(
   targetKey: string,
 ): VerificationTargetView | null {
   return collectLemmaVerificationTargets(lemmaDetails).find((target) => target.key === targetKey) ?? null
+}
+
+export function getMeaningVerificationGate(
+  lemmaDetails: LemmaDetailsResponse | null,
+  meaningId: number | null,
+): MeaningVerificationGate {
+  if (!lemmaDetails || meaningId === null) {
+    return { isLocked: true, label: "Complete variations unavailable" }
+  }
+  const section = (lemmaDetails.meaning_sections ?? []).find((item) => item.id === meaningId) ?? null
+  if (!section) {
+    return { isLocked: true, label: "Complete variations unavailable" }
+  }
+
+  const statuses: Array<string | null> = [section.verification?.status ?? null]
+  for (const form of section.surface_forms) {
+    statuses.push(form.verification?.status ?? null)
+  }
+
+  if (statuses.some((status) => status === "queued")) {
+    return { isLocked: true, label: "Waiting for verification..." }
+  }
+  if (statuses.some((status) => status === "error")) {
+    return { isLocked: true, label: "Retry verification first" }
+  }
+  if (statuses.some((status) => status === "flagged")) {
+    return { isLocked: true, label: "Resolve verification review first" }
+  }
+  if (statuses.some((status) => status !== "verified")) {
+    return { isLocked: true, label: "Complete variations unavailable" }
+  }
+  return { isLocked: false, label: "Complete variations" }
 }

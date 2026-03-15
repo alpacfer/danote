@@ -7,7 +7,7 @@ describe("App shell and search", () => {
 
     renderApp()
 
-    expect(screen.getAllByText(/danote/i).length).toBeGreaterThan(0)
+    expect(screen.queryByText(/^danote$/i)).not.toBeInTheDocument()
     expect(screen.getAllByText(/lesson notes/i).length).toBeGreaterThan(0)
     expect(getNotesEditor()).toBeInTheDocument()
     const statusBadge = await screen.findByLabelText("backend-connection-status")

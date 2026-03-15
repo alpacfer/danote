@@ -1,27 +1,25 @@
 import type { LemmaDetailsResponse, VerificationOverview } from "@/app/core"
-import { badgesForSavedForm, corSecondaryBadgeClass, posBadgeClass, semanticCategoryBadgeClass } from "@/app/core"
+import { badgesForSavedForm, corSecondaryBadgeClass, normalizeSearchWord, posBadgeClass, semanticCategoryBadgeClass } from "@/app/core"
 import { WordbankPronunciationWord } from "@/app/sections/wordbank/wordbank-pronunciation-word"
-import { WordbankScopeContextMenu } from "@/app/sections/wordbank/wordbank-scope-context-menu"
 import { WordbankVerificationPopover } from "@/app/sections/wordbank/wordbank-verification-popover"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { ButtonGroup } from "@/components/ui/button-group"
 import { Skeleton } from "@/components/ui/skeleton"
-import { RefreshCw } from "lucide-react"
 
 type WordbankLemmaHeaderProps = {
   selectedLemma: string
   selectedMeaningId: number | null
   lemmaDetails: LemmaDetailsResponse
   pronunciationLoadingByForm: Record<string, boolean>
+  regeneratingPronunciationByForm: Record<string, boolean>
   onPlayPronunciation: (form: string) => void
-  isRegeneratingLemmaPronunciation: boolean
-  onRegenerateSelectedLemmaPronunciation: () => void
+  onRegeneratePronunciation: (form: string) => void
   isRethinkingCategories: boolean
   onRethinkCategories: (meaningId: number | null) => void
   verificationOverview: VerificationOverview
   isApplyingVerificationChanges: boolean
+  isRetryingVerification: boolean
   onApplyVerificationAction: (targetKey: string, actionIndex: number) => void
+  onRetryVerificationTarget: (targetKey: string) => void
   showSupplementaryMetadata: boolean
 }
 
@@ -30,14 +28,16 @@ export function WordbankLemmaHeader({
   selectedMeaningId,
   lemmaDetails,
   pronunciationLoadingByForm,
+  regeneratingPronunciationByForm,
   onPlayPronunciation,
-  isRegeneratingLemmaPronunciation,
-  onRegenerateSelectedLemmaPronunciation,
+  onRegeneratePronunciation,
   isRethinkingCategories,
   onRethinkCategories,
   verificationOverview,
   isApplyingVerificationChanges,
+  isRetryingVerification,
   onApplyVerificationAction,
+  onRetryVerificationTarget,
   showSupplementaryMetadata,
 }: WordbankLemmaHeaderProps) {
   const normalizedSelectedLemma = (lemmaDetails.lemma ?? selectedLemma).trim().toLocaleLowerCase("da-DK")
@@ -65,13 +65,29 @@ export function WordbankLemmaHeader({
   const headerMorphology = selectedMeaningSection?.morphology ?? lemmaDetails.morphology
   const headerBadges = showSupplementaryMetadata
     ? badgesForSavedForm({
-      pos_tag: headerPosTag ?? null,
-      morphology: headerMorphology ?? null,
-      gram_raw: selectedMeaningSection?.gram_raw ?? lemmaSurfaceDetails?.gram_raw ?? null,
-    })
+        pos_tag: headerPosTag ?? null,
+        morphology: headerMorphology ?? null,
+        gram_raw: selectedMeaningSection?.gram_raw ?? lemmaSurfaceDetails?.gram_raw ?? null,
+      })
     : []
+  const isRegeneratingLemma = Boolean(regeneratingPronunciationByForm[normalizeSearchWord(lemmaDetails.lemma)])
+  const lemmaContextMenuItems = [
+    {
+      label: isRegeneratingLemma ? "Regenerating audio..." : "Regenerate audio",
+      disabled: isRegeneratingLemma,
+      onSelect: () => onRegeneratePronunciation(lemmaDetails.lemma),
+    },
+    ...(!lemmaDetails.is_sectioned
+      ? [{
+          label: isRethinkingCategories ? "Rethinking categories..." : "Rethink categories",
+          disabled: isRethinkingCategories,
+          onSelect: () => onRethinkCategories(null),
+        }]
+      : []),
+  ]
+
   const content = (
-    <div>
+    <div data-testid={!lemmaDetails.is_sectioned ? "wordbank-lemma-scope-card" : undefined}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
           <WordbankPronunciationWord
@@ -80,6 +96,7 @@ export function WordbankLemmaHeader({
             hasPronunciation={Boolean(lemmaPronunciationForm)}
             pronunciationLoadingByForm={pronunciationLoadingByForm}
             onPlayPronunciation={onPlayPronunciation}
+            contextMenuItems={lemmaContextMenuItems}
             className="text-3xl font-bold leading-tight"
             iconClassName="size-4"
             as="h2"
@@ -98,28 +115,15 @@ export function WordbankLemmaHeader({
             </span>
           ) : null}
         </div>
-        <ButtonGroup className="shrink-0">
-          <ButtonGroup>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="gap-1.5"
-              disabled={isRegeneratingLemmaPronunciation}
-              onClick={onRegenerateSelectedLemmaPronunciation}
-            >
-              <RefreshCw className={isRegeneratingLemmaPronunciation ? "animate-spin" : ""} />
-              Regenerate Audio
-            </Button>
-          </ButtonGroup>
-          <ButtonGroup>
-            <WordbankVerificationPopover
-              verificationOverview={verificationOverview}
-              isApplyingVerificationChanges={isApplyingVerificationChanges}
-              onApplyVerificationAction={onApplyVerificationAction}
-            />
-          </ButtonGroup>
-        </ButtonGroup>
+        <div className="shrink-0">
+          <WordbankVerificationPopover
+            verificationOverview={verificationOverview}
+            isApplyingVerificationChanges={isApplyingVerificationChanges}
+            isRetryingVerification={isRetryingVerification}
+            onApplyVerificationAction={onApplyVerificationAction}
+            onRetryVerificationTarget={onRetryVerificationTarget}
+          />
+        </div>
       </div>
       {headerTranslation && (showSupplementaryMetadata || selectedMeaningSection) ? (
         <p className="text-muted-foreground mt-1 pl-1 text-sm italic">{headerTranslation}</p>
@@ -144,30 +148,50 @@ export function WordbankLemmaHeader({
     return content
   }
 
-  return (
-    <WordbankScopeContextMenu
-      isRethinkingCategories={isRethinkingCategories}
-      onRethinkCategories={() => onRethinkCategories(null)}
-    >
-      <div data-testid="wordbank-lemma-scope-card">
-        {content}
-      </div>
-    </WordbankScopeContextMenu>
-  )
+  return content
 }
 
 export function WordbankDetailsLoadingSkeleton() {
   return (
-    <div className="space-y-3">
-      <div className="space-y-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <Skeleton className="h-9 w-36" />
-          <Skeleton className="h-5 w-14 rounded-full" />
-          <Skeleton className="h-5 w-20 rounded-full" />
-          <Skeleton className="h-5 w-16 rounded-full" />
+    <div data-testid="wordbank-details-loading-skeleton" className="space-y-4">
+      <div className="space-y-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <Skeleton className="h-9 w-36" />
+              <Skeleton className="h-5 w-14 rounded-full" />
+              <Skeleton className="h-5 w-20 rounded-full" />
+              <Skeleton className="h-5 w-16 rounded-full" />
+            </div>
+            <Skeleton className="h-4 w-40" />
+          </div>
+          <Skeleton className="h-9 w-12 rounded-md" />
         </div>
-        <Skeleton className="h-4 w-32" />
+        <div className="flex flex-wrap justify-end gap-1.5">
+          <Skeleton className="h-5 w-20 rounded-full" />
+          <Skeleton className="h-5 w-24 rounded-full" />
+        </div>
       </div>
+      {[0, 1, 2].map((item) => (
+        <div
+          key={`wordbank-details-loading-card-${item}`}
+          data-testid="wordbank-details-loading-card"
+          className="space-y-3 rounded-md border border-border/70 p-4"
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            <Skeleton className="h-5 w-6 rounded-full" />
+            <Skeleton className="h-6 w-28" />
+            <Skeleton className="h-5 w-16 rounded-full" />
+            <Skeleton className="h-5 w-20 rounded-full" />
+          </div>
+          <Skeleton className="h-4 w-44" />
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-4 w-40" />
+            <Skeleton className="h-4 w-36" />
+          </div>
+        </div>
+      ))}
     </div>
   )
 }

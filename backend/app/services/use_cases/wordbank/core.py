@@ -13,6 +13,7 @@ from app.api.schemas.v1.wordbank import (
     GenerateTranslationResponse,
     LemmaDetailsResponse,
     LemmaListResponse,
+    QueueVerificationResponse,
     ResetDatabaseResponse,
     RethinkCategoriesResponse,
     ResolveQueryResponse,
@@ -36,6 +37,7 @@ from app.services.use_cases.wordbank.collaborators.verification import Verificat
 from app.services.use_cases.wordbank.queries_details import get_lemma_details
 from app.services.use_cases.wordbank.queries_lemmas import list_lemmas, search_lemmas
 from app.services.use_cases.wordbank.runtime import WordbankRuntime
+from app.services.use_cases.wordbank.verification_targets import VerificationTarget, queue_verification_targets
 from app.services.verification import WordVerificationService
 
 
@@ -186,6 +188,7 @@ class WordbankUseCase:
         *,
         meaning_id: int | None = None,
         expected_snapshot_hash: str,
+        expected_generation: int | None = None,
         review_intent: str = "general",
     ) -> bool:
         return self._runtime.verification.verify_added_word_if_current(
@@ -193,8 +196,51 @@ class WordbankUseCase:
             stored_surface_form,
             meaning_id=meaning_id,
             expected_snapshot_hash=expected_snapshot_hash,
+            expected_generation=expected_generation,
             review_intent=review_intent,
         )
+
+    def process_queued_verification_if_current(
+        self,
+        stored_lemma: str,
+        stored_surface_form: str | None,
+        *,
+        meaning_id: int | None = None,
+        expected_snapshot_hash: str,
+        expected_generation: int | None = None,
+        review_intent: str = "general",
+    ) -> str:
+        return self._runtime.verification.process_queued_verification_if_current(
+            stored_lemma,
+            stored_surface_form,
+            meaning_id=meaning_id,
+            expected_snapshot_hash=expected_snapshot_hash,
+            expected_generation=expected_generation,
+            review_intent=review_intent,
+        )
+
+    def queue_verification(
+        self,
+        stored_lemma: str,
+        stored_surface_form: str | None,
+        *,
+        meaning_id: int | None = None,
+        review_intent: str = "general",
+    ) -> QueueVerificationResponse:
+        response = self._runtime.verification.queue_verification_request(
+            stored_lemma,
+            stored_surface_form,
+            meaning_id=meaning_id,
+            review_intent=review_intent,
+            persist=False,
+        )
+        queue_verification_targets(
+            self._runtime,
+            stored_lemma=stored_lemma,
+            targets=(VerificationTarget(meaning_id=meaning_id, stored_surface_form=stored_surface_form),),
+            review_intent=review_intent,
+        )
+        return response
 
     def apply_verification_changes(
         self,

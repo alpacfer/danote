@@ -16,16 +16,18 @@ export type WordbankSectionAdapterArgs = {
   isLemmaDetailsLoading: boolean
   showLemmaDetailsLoadingSkeleton: boolean
   pronunciationLoadingByForm: ComponentProps<typeof WordbankSection>["pronunciationLoadingByForm"]
+  regeneratingPronunciationByForm: ComponentProps<typeof WordbankSection>["regeneratingPronunciationByForm"]
   playPronunciation: (form: string) => Promise<void>
-  isRegeneratingLemmaPronunciation: boolean
-  regenerateSelectedLemmaPronunciation: () => Promise<void>
+  regeneratePronunciation: (form: string) => Promise<void>
   isRethinkingCategories: boolean
   rethinkCategories: (meaningId: number | null) => Promise<void>
   isCompletingMeaningVariations: boolean
   completeMeaningVariations: (meaningId: number | null) => Promise<void>
   verificationOverview: ComponentProps<typeof WordbankSection>["verificationOverview"]
   isApplyingVerificationChanges: boolean
+  isRetryingVerification: boolean
   applyVerificationAction: (targetKey: string, actionIndex: number) => Promise<void>
+  retryVerificationTarget: (targetKey: string) => Promise<void>
 }
 
 export function buildWordbankSectionProps(
@@ -45,12 +47,12 @@ export function buildWordbankSectionProps(
     isLemmaDetailsLoading: args.isLemmaDetailsLoading,
     showLemmaDetailsLoadingSkeleton: args.showLemmaDetailsLoadingSkeleton,
     pronunciationLoadingByForm: args.pronunciationLoadingByForm,
+    regeneratingPronunciationByForm: args.regeneratingPronunciationByForm,
     onPlayPronunciation: (form: string) => {
       void args.playPronunciation(form)
     },
-    isRegeneratingLemmaPronunciation: args.isRegeneratingLemmaPronunciation,
-    onRegenerateSelectedLemmaPronunciation: () => {
-      void args.regenerateSelectedLemmaPronunciation()
+    onRegeneratePronunciation: (form: string) => {
+      void args.regeneratePronunciation(form)
     },
     isRethinkingCategories: args.isRethinkingCategories,
     onRethinkCategories: (meaningId: number | null) => {
@@ -62,8 +64,12 @@ export function buildWordbankSectionProps(
     },
     verificationOverview: args.verificationOverview,
     isApplyingVerificationChanges: args.isApplyingVerificationChanges,
+    isRetryingVerification: args.isRetryingVerification,
     onApplyVerificationAction: (targetKey: string, actionIndex: number) => {
       void args.applyVerificationAction(targetKey, actionIndex)
+    },
+    onRetryVerificationTarget: (targetKey: string) => {
+      void args.retryVerificationTarget(targetKey)
     },
   }
 }

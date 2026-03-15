@@ -316,7 +316,18 @@ def test_complete_variations_endpoint_adds_missing_forms_and_enqueues_jobs(tmp_p
                 },
             },
         )
+        assert added.status_code == 200
         meaning_id = added.json()["meaning"]["id"]
+        meaning_verify = client.post(
+            "/api/wordbank/lexemes/verify",
+            json={"stored_lemma": "bog", "stored_surface_form": None, "meaning_id": meaning_id},
+        )
+        surface_verify = client.post(
+            "/api/wordbank/lexemes/verify",
+            json={"stored_lemma": "bog", "stored_surface_form": "bøger", "meaning_id": meaning_id},
+        )
+        assert meaning_verify.status_code == 200
+        assert surface_verify.status_code == 200
         response = client.post(
             "/api/wordbank/lexemes/complete-variations",
             json={
@@ -359,7 +370,19 @@ def test_complete_variations_endpoint_scopes_to_selected_homograph_meaning(tmp_p
         nlp_adapter_factory=stub_nlp_adapter_factory,
     )
 
+    class StubVerificationService:
+        provider = "gemini"
+        reviewer_role = "Professional Danish Language Expert"
+
+        def verify_word_entry(self, _payload):
+            class Result:
+                verdict = "verified"
+                message = "Looks good."
+
+            return Result()
+
     with TestClient(app) as client:
+        set_service_field(client.app, "word_verification_service", StubVerificationService())
         first = client.post(
             "/api/wordbank/lexemes",
             json={
@@ -378,7 +401,7 @@ def test_complete_variations_endpoint_scopes_to_selected_homograph_meaning(tmp_p
                 },
             },
         )
-        client.post(
+        second = client.post(
             "/api/wordbank/lexemes",
             json={
                 "surface_token": "bogen",
@@ -396,11 +419,24 @@ def test_complete_variations_endpoint_scopes_to_selected_homograph_meaning(tmp_p
                 },
             },
         )
+        assert first.status_code == 200
+        assert second.status_code == 200
+        meaning_id = first.json()["meaning"]["id"]
+        meaning_verify = client.post(
+            "/api/wordbank/lexemes/verify",
+            json={"stored_lemma": "bog", "stored_surface_form": None, "meaning_id": meaning_id},
+        )
+        surface_verify = client.post(
+            "/api/wordbank/lexemes/verify",
+            json={"stored_lemma": "bog", "stored_surface_form": "bogen", "meaning_id": meaning_id},
+        )
+        assert meaning_verify.status_code == 200
+        assert surface_verify.status_code == 200
         response = client.post(
             "/api/wordbank/lexemes/complete-variations",
             json={
                 "stored_lemma": "bog",
-                "meaning_id": first.json()["meaning"]["id"],
+                "meaning_id": meaning_id,
             },
         )
         details = client.get("/api/wordbank/lemmas/bog")
@@ -717,7 +753,7 @@ def test_get_lemma_details_non_sectioned_payload_includes_cor_grammar_when_avail
                     "cor_lemma_idx": 30686,
                     "meaning_key": "learn",
                     "gloss": "learn",
-                    "english_translation": None,
+                    "english_translation": "learn",
                     "pos_tag": "VERB",
                     "morphology": "Tense=Pres|VerbForm=Fin|Voice=Act",
                 },
@@ -1125,7 +1161,9 @@ def test_add_word_search_seed_routes_variation_to_target_meaning(tmp_path, stub_
     assert [item["form"] for item in section["surface_forms"]] == ["bogen", "bøger"]
 
 
-def test_add_word_search_seed_keeps_partial_translation_data(tmp_path, stub_nlp_adapter_factory) -> None:
+def test_add_word_search_seed_rejects_missing_translation_until_generation_finishes(
+    tmp_path, stub_nlp_adapter_factory
+) -> None:
     db_path = tmp_path / "danote.sqlite3"
     apply_migrations(db_path)
     app = create_app(build_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
@@ -1151,10 +1189,9 @@ def test_add_word_search_seed_keeps_partial_translation_data(tmp_path, stub_nlp_
         )
         details = client.get("/api/wordbank/lemmas/lære")
 
-    assert response.status_code == 200
-    assert response.json()["saved_snapshot"]["english_translation"] is None
-    assert details.json()["english_translation"] is None
-    assert [item["form"] for item in details.json()["surface_forms"]] == ["lærer"]
+    assert response.status_code == 409
+    assert "translation finishes generating" in response.json()["detail"]
+    assert details.status_code == 404
 
 
 def test_add_word_search_seed_enqueues_and_runs_background_jobs(tmp_path, stub_nlp_adapter_factory) -> None:

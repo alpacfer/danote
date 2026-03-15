@@ -208,7 +208,10 @@ class WordbankReadRepository:
                     change_to_implement,
                     suggested_actions_json,
                     requested_at,
-                    completed_at
+                    completed_at,
+                    review_intent,
+                    latest_snapshot_hash,
+                    request_generation
                 FROM wordbank_verification_records
                 WHERE lexeme_id = ?
                 ORDER BY meaning_id IS NULL DESC, meaning_id ASC, id ASC
@@ -243,7 +246,10 @@ class WordbankReadRepository:
                         change_to_implement,
                         suggested_actions_json,
                         requested_at,
-                        completed_at
+                        completed_at,
+                        review_intent,
+                        latest_snapshot_hash,
+                        request_generation
                     FROM wordbank_verification_records
                     WHERE lexeme_id = ? AND meaning_id IS NULL
                     LIMIT 1
@@ -266,7 +272,10 @@ class WordbankReadRepository:
                         change_to_implement,
                         suggested_actions_json,
                         requested_at,
-                        completed_at
+                        completed_at,
+                        review_intent,
+                        latest_snapshot_hash,
+                        request_generation
                     FROM wordbank_verification_records
                     WHERE lexeme_id = ? AND meaning_id IS NULL AND stored_surface_form = ?
                     LIMIT 1
@@ -289,7 +298,10 @@ class WordbankReadRepository:
                         change_to_implement,
                         suggested_actions_json,
                         requested_at,
-                        completed_at
+                        completed_at,
+                        review_intent,
+                        latest_snapshot_hash,
+                        request_generation
                     FROM wordbank_verification_records
                     WHERE lexeme_id = ? AND meaning_id = ? AND stored_surface_form IS NULL
                     LIMIT 1
@@ -312,7 +324,10 @@ class WordbankReadRepository:
                         change_to_implement,
                         suggested_actions_json,
                         requested_at,
-                        completed_at
+                        completed_at,
+                        review_intent,
+                        latest_snapshot_hash,
+                        request_generation
                     FROM wordbank_verification_records
                     WHERE lexeme_id = ? AND meaning_id = ? AND stored_surface_form = ?
                     LIMIT 1

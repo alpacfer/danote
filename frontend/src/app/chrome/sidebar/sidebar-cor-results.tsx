@@ -69,11 +69,19 @@ export function SidebarCorResults({
               const lemmaDisplay = lemmaDisplayForVariant(variant)
               const lemmaTranslation = lemmaTranslationForVariant(variant)
               const hasGloss = Boolean(variant.gloss?.trim())
+              const isSaveBlocked = isTranslationsLoading || !lemmaTranslation
+              const saveBlockedReason = !isTranslationsLoading && !lemmaTranslation
+                ? "Translation required before saving."
+                : null
               return (
                 <CommandItem
                   key={`cor-variant-${variant.cor_id}`}
                   value={corVariantItemValue(variant)}
+                  disabled={isSaveBlocked}
                   onSelect={() => {
+                    if (saveBlockedReason) {
+                      return
+                    }
                     void (async () => {
                       const addedLemma = await onAddWordFromSearch(
                         variant.form,
@@ -134,6 +142,9 @@ export function SidebarCorResults({
                       </span>
                     ) : detailLine ? (
                       <span className="text-muted-foreground text-xs leading-4">{detailLine}</span>
+                    ) : null}
+                    {saveBlockedReason ? (
+                      <span className="text-muted-foreground text-xs leading-4">{saveBlockedReason}</span>
                     ) : null}
                     {badgesFromGramRaw(variant.gram_raw).length > 0 ? (
                       <div className="mt-1 flex flex-wrap gap-1.5">

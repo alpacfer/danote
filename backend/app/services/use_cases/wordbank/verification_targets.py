@@ -88,32 +88,36 @@ def queue_verification_targets(
     for target in targets:
         verification = runtime.verification.queued_verification_result(
             stored_surface_form=target.stored_surface_form,
+            review_intent=review_intent,
         )
-        runtime.verification.persist_queued_verification(
-            stored_lemma=normalized_lemma,
-            stored_surface_form=target.stored_surface_form,
-            meaning_id=target.meaning_id,
-            verification=verification,
-        )
-        if verification.status != "queued":
-            continue
         snapshot_hash = runtime.verification.build_verification_snapshot_hash(
             stored_lemma=normalized_lemma,
             stored_surface_form=target.stored_surface_form,
             meaning_id=target.meaning_id,
             review_intent=review_intent,
         )
+        request_generation = runtime.verification.persist_queued_verification(
+            stored_lemma=normalized_lemma,
+            stored_surface_form=target.stored_surface_form,
+            meaning_id=target.meaning_id,
+            verification=verification,
+            review_intent=review_intent,
+            latest_snapshot_hash=snapshot_hash,
+        )
+        if verification.status != "queued":
+            continue
         repository.enqueue(
             job_type="verify_word",
             dedupe_key=(
                 f"verify_word::{normalized_lemma}::{target.meaning_id or 'root'}::"
-                f"{target.stored_surface_form or ''}::{review_intent}::{snapshot_hash}"
+                f"{target.stored_surface_form or ''}::{review_intent}"
             ),
             payload={
                 "stored_lemma": normalized_lemma,
                 "stored_surface_form": target.stored_surface_form,
                 "meaning_id": target.meaning_id,
                 "snapshot_hash": snapshot_hash,
+                "request_generation": request_generation,
                 "review_intent": review_intent,
             },
         )

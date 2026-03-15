@@ -77,7 +77,7 @@ Per-lemma chip behavior:
 Primary flow:
 
 - Shows top-level details error alert when `lemmaDetailsError` exists.
-- If loading and delayed skeleton gate is open and details are still absent, shows header skeleton.
+- If loading and delayed skeleton gate is open and details are still absent, shows a full word-page skeleton with header chrome and repeated body cards.
 - If loading but skeleton gate has not opened yet, renders `null` (no placeholder yet).
 - If not loading and no details found, renders `No details found for this lemma.`
 - With details payload:
@@ -95,6 +95,7 @@ Meaning auto-scroll behavior:
 ## Title/pronunciation source selection
 
 - Header title always uses `lemmaDetails.lemma` (via `WordbankPronunciationWord`).
+- Right-clicking the header word opens its contextual audio menu.
 - Header chooses a pronunciation playback form with this precedence:
   1. exact normalized match to selected lemma among selected-meaning forms + top-level forms + all section forms, with pronunciation available
   2. first available pronunciation form from that combined search list
@@ -115,17 +116,12 @@ Meaning auto-scroll behavior:
   - render from top-level `lemmaDetails.categories`
   - appear in their own header row below the title/translation block
   - use dedicated outline styling distinct from POS/morphology badges
-  - the non-sectioned header block also acts as the root-scope right-click target for category recategorization
+  - non-sectioned root-scope recategorization moved onto the lemma word's own right-click menu instead of the whole header block
 
 ## Header actions
 
-- **Regenerate Audio** button:
-  - disabled while regeneration request is in progress
-  - spinner icon while active
-- **Action cluster layout**:
-  - header actions use the same nested `ButtonGroup` composition pattern as Playground so the audio button and verification button look grouped but visually separated
 - **Verification trigger button**:
-  - always rendered next to `Regenerate Audio`
+  - remains the only visible header action button
   - icon is dynamic by the aggregated word-page verification state:
     - idle/no record -> info icon
     - queued -> spinner
@@ -147,26 +143,38 @@ Meaning auto-scroll behavior:
   - queued target cards show verification-in-progress copy and requested time
   - verified target cards show completion copy and verified time
   - error/flagged target cards show reviewed time, problem, change-to-implement text, and action cards inline on that target
+  - error target cards also expose `Retry verification`, which queues that exact target again through the backend queue-only endpoint and keeps the page in polling mode until the refreshed run finishes
   - completion-review meaning cards may expose a single `Fix variations` action card that rewrites the whole saved noun variation set for that meaning in one apply
   - no-record state shows a neutral empty state explaining that verification details will appear here once Gemini runs
   - each action card uses an `Apply change` button that is disabled while apply is in progress
 
 ## Word-card context menu
 
-- Wordbank word pages use the shadcn `ContextMenu` primitive for right-click actions on category-bearing scopes.
+- Wordbank word pages use the shadcn `ContextMenu` primitive for both word-specific audio actions and category-bearing scopes.
+- Every pronunciation-enabled word trigger uses the same tooltip copy (`Click to listen`) and the tooltip opens on the left side of the word.
 - Sectioned pages:
+  - the header lemma word exposes `Regenerate audio`
   - each meaning card is a context-menu trigger
   - noun meaning cards expose `Rethink categories` and `Complete variations`
   - non-noun meaning cards expose only `Rethink categories`
+  - each surface-form word inside a meaning card also exposes its own `Regenerate audio` action from a nested right-click menu
 - Non-sectioned pages:
-  - the lemma header block is the context-menu trigger for the root scope
-  - only `Rethink categories` is available there
+  - the lemma word is the combined context-menu trigger for root-scope actions
+  - that menu exposes `Regenerate audio` plus `Rethink categories`
+  - each flat variation word tile also exposes its own `Regenerate audio` action from the word trigger
 - `Rethink categories` immediately calls the backend recategorization endpoint for that root / meaning scope and refreshes lemma details after success.
 - The action does not open a confirmation flow and does not apply Gemini verification suggestions; it only recalculates semantic category assignments.
 - The manual rethink path uses the same Gemini category-classification flow as initial verification; the only difference is that this one is user-triggered.
 - `Complete variations` is noun-only and meaning-only in v1.
   It uses the saved meaning's COR identity to fill any missing non-lemma noun variations:
   singular-definite, plural-indefinite, and plural-definite.
+- The action is gated by verification state for that meaning section.
+  It is enabled only when the meaning target and every currently saved variation target in that meaning are `verified`.
+- When gated, the context-menu item stays visible but disabled with one of these labels:
+  - `Waiting for verification...` when any target in the meaning is `queued`
+  - `Retry verification first` when any target is `error`
+  - `Resolve verification review first` when any target is `flagged`
+  - `Complete variations unavailable` for any other non-verified state
 - The completion action queues pronunciation generation only for newly added forms.
 - After completion, Gemini re-verification is requeued as a single meaning-scoped review for that updated meaning section, not one request per variation row.
 - That completion-specific review keeps the saved lemma fixed and checks whether the completed surface forms fit that lemma/meaning; it does not use canonical-lemma mismatch alone as a reason to suggest moving the lemma.
@@ -191,6 +199,7 @@ Meaning auto-scroll behavior:
   - each row uses `WordbankPronunciationWord`
   - section lists render only non-lemma variations for that meaning
   - top-level `surface_forms` may still include the lemma form as a separate deduped header/audio source
+  - noun variations are ordered with non-slot/irregular forms first, then singular-definite, plural-indefinite, and plural-definite
   - saved POS/morphology badges normalize to the same reader-facing label style used in COR search where morphology allows it (for example adjective agreement uses `n-word` / `t-word` rather than `Common` / `Neuter`)
   - when a saved surface form has COR context, its details payload may also include `gram_raw`; those rows render badges from `gram_raw` first so search and word-page badges stay aligned
   - form-level badges are filtered to avoid repeating section-level badge labels
@@ -201,6 +210,7 @@ Meaning auto-scroll behavior:
 - If there are no remaining variations, the grid renders nothing.
 - Each variation tile includes:
   - pronunciation-enabled form title
+  - right-click `Regenerate audio` on that specific word
   - form badges from saved-form metadata
   - optional `from <lemma>` line with merged lemma translation+gloss when lemma translation exists
   - POS-colored left border
@@ -225,7 +235,7 @@ Pronunciation behavior is shared by header + section rows + variation rows.
 ## Regenerate flow (`POST /api/wordbank/lexemes/pronunciation`)
 
 - Can run as background best-effort after add operations.
-- For explicit user regeneration, notification-enabled path is used.
+- For explicit user regeneration, notification-enabled path is used and the request targets the exact right-clicked word (`stored_surface_form`) instead of a header-only lemma action.
 - On `status === "generated"`:
   - cached pronunciation for that form is invalidated
   - `wordbankRefreshTick` increments
@@ -237,6 +247,8 @@ Pronunciation behavior is shared by header + section rows + variation rows.
 
 - Add flows no longer trigger browser-side Gemini verification calls.
 - After every successful add, the backend enumerates the current saved word page and queues verification for each visible target.
+- Manual retries also use backend queueing only:
+  `POST /api/wordbank/lexemes/queue-verification` requeues one exact target by `(stored_lemma, meaning_id, stored_surface_form, review_intent)`.
 - `Complete variations` uses a narrower follow-up path: it queues one meaning-level verification request for the updated meaning instead of requeueing each variation target separately.
 - Only that completion-specific follow-up review is allowed to question or rewrite the generated variation set.
   The initial verification run after save is not allowed to suggest completing or correcting other paradigm members.
@@ -245,6 +257,10 @@ Pronunciation behavior is shared by header + section rows + variation rows.
   - sectioned page: one target per meaning section plus one target per saved variation within that meaning
   - no synthetic root target is added for sectioned pages unless a root-level saved record actually exists
 - Results are persisted by backend target scope `(lemma, meaning_id, stored_surface_form)` and returned through subsequent lemma-detail fetches.
+- Queue dedupe is stable per verification target, not per snapshot hash.
+  Repeated edits or retries to the same target update the queued request generation instead of spawning competing duplicate jobs.
+- Verification persistence is newest-request-wins:
+  if a target changes while Gemini is already running, the stale run is discarded at persist time and the queue immediately keeps the latest request pending for the next worker claim.
 - Verification evaluates the current persisted wordbank structure:
   lemma page -> meaning sections -> surface forms.
 - Normal verification after save checks only whether the saved lemma / meaning / selected surface placement is correct.

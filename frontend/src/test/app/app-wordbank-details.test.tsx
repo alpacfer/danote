@@ -1,4 +1,4 @@
-import { fireEvent, mockFetchImplementation, renderApp, screen } from "@/test/app-test-helpers"
+import { fireEvent, mockFetchImplementation, renderApp, screen, waitFor } from "@/test/app-test-helpers"
 import {
   bogHomographWordPageContractFixture,
   bogVariationGlossWordPageContractFixture,
@@ -6,6 +6,10 @@ import {
   morHomographWordPageContractFixture,
   teacherSectionedWordPageContractFixture,
 } from "@/test/app/wordbank-contract-fixtures"
+
+function expectToAppearBefore(first: HTMLElement, second: HTMLElement) {
+  expect(first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+}
 
 describe("App wordbank", () => {
   it("renderer-only: shows saved lemmas in wordbank and opens the word page", async () => {
@@ -132,6 +136,27 @@ describe("App wordbank", () => {
     expect(screen.getByText(/^Plural$/i)).toBeInTheDocument()
   })
 
+  it("renderer-only: pronunciation tooltip opens on the left of the word trigger", async () => {
+    mockFetchImplementation({
+      lemmasResponse: {
+        items: [{ lemma: "bog", variation_count: 1 }],
+      },
+      lemmaDetailsResponse: cloneContractFixture(bogVariationGlossWordPageContractFixture),
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+    fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /bog/i }))
+
+    const listenButton = await screen.findByRole("button", { name: /^listen to bog$/i })
+    fireEvent.focus(listenButton)
+
+    await waitFor(() => {
+      expect(document.querySelector("[data-slot='tooltip-content']")).toHaveAttribute("data-side", "left")
+    })
+  })
+
   it("renderer-only: sectioned word pages use section gram_raw so adjective cards keep the full search badge set", async () => {
     mockFetchImplementation({
       lemmasResponse: {
@@ -196,6 +221,28 @@ describe("App wordbank", () => {
     expect(categoryContainer).toHaveTextContent("People")
     expect(categoryContainer).toHaveTextContent("School")
     expect(categoryContainer).toHaveTextContent("Work")
+  })
+
+  it("renderer-only: word page loading uses the redesigned skeleton layout", async () => {
+    mockFetchImplementation({
+      lemmasResponse: {
+        items: [{ lemma: "bog", variation_count: 1 }],
+      },
+      lemmaDetailsHandler: async () => new Promise<Response>(() => {}),
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+    fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /bog/i }))
+
+    await waitFor(
+      () => {
+        expect(screen.getByTestId("wordbank-details-loading-skeleton")).toBeInTheDocument()
+      },
+      { timeout: 1000 },
+    )
+    expect(screen.getAllByTestId("wordbank-details-loading-card")).toHaveLength(3)
   })
 
   it("contract-backed: word page renders translation comma gloss translation when the backend supplies both", async () => {
@@ -327,5 +374,83 @@ describe("App wordbank", () => {
     expect(await screen.findByText(/^learn$/i)).toBeInTheDocument()
     expect(screen.getByText(/^lærer$/i)).toBeInTheDocument()
     expect(screen.queryByText(/^learns$/i)).not.toBeInTheDocument()
+  })
+
+  it("renderer-only: sectioned noun word pages render irregular variations before the standard noun slots", async () => {
+    mockFetchImplementation({
+      lemmasResponse: {
+        items: [{ lemma: "fader", variation_count: 4 }],
+      },
+      lemmaDetailsResponse: {
+        lemma: "fader",
+        is_sectioned: true,
+        meaning_sections: [
+          {
+            id: 1,
+            meaning_key: "father",
+            gloss: "father",
+            english_translation: "father",
+            pos_tag: "NOUN",
+            morphology: "Gender=Com|Number=Sing|Definite=Ind",
+            surface_forms: [
+              { form: "far", pos_tag: "NOUN", morphology: "Gender=Com|Number=Sing|Definite=Ind", has_pronunciation: false },
+              { form: "faderen", pos_tag: "NOUN", morphology: "Gender=Com|Number=Sing|Definite=Def", has_pronunciation: false },
+              { form: "fædre", pos_tag: "NOUN", morphology: "Gender=Com|Number=Plur|Definite=Ind", has_pronunciation: false },
+              { form: "fædrene", pos_tag: "NOUN", morphology: "Gender=Com|Number=Plur|Definite=Def", has_pronunciation: false },
+            ],
+          },
+        ],
+        surface_forms: [],
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+    fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /fader/i }))
+
+    const far = await screen.findByText(/^far$/i)
+    const faderen = screen.getByText(/^faderen$/i)
+    const fædre = screen.getByText(/^fædre$/i)
+    const fædrene = screen.getByText(/^fædrene$/i)
+
+    expectToAppearBefore(far, faderen)
+    expectToAppearBefore(faderen, fædre)
+    expectToAppearBefore(fædre, fædrene)
+  })
+
+  it("renderer-only: flat variation cards render irregular variations before the standard noun slots", async () => {
+    mockFetchImplementation({
+      lemmasResponse: {
+        items: [{ lemma: "fader", variation_count: 4 }],
+      },
+      lemmaDetailsResponse: {
+        lemma: "fader",
+        english_translation: "father",
+        is_sectioned: false,
+        pos_tag: "NOUN",
+        morphology: "Gender=Com|Number=Sing|Definite=Ind",
+        surface_forms: [
+          { form: "far", pos_tag: "NOUN", morphology: "Gender=Com|Number=Sing|Definite=Ind", has_pronunciation: false },
+          { form: "faderen", pos_tag: "NOUN", morphology: "Gender=Com|Number=Sing|Definite=Def", has_pronunciation: false },
+          { form: "fædre", pos_tag: "NOUN", morphology: "Gender=Com|Number=Plur|Definite=Ind", has_pronunciation: false },
+          { form: "fædrene", pos_tag: "NOUN", morphology: "Gender=Com|Number=Plur|Definite=Def", has_pronunciation: false },
+        ],
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+    fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /fader/i }))
+
+    const far = await screen.findByText(/^far$/i)
+    const faderen = screen.getByText(/^faderen$/i)
+    const fædre = screen.getByText(/^fædre$/i)
+    const fædrene = screen.getByText(/^fædrene$/i)
+
+    expectToAppearBefore(far, faderen)
+    expectToAppearBefore(faderen, fædre)
+    expectToAppearBefore(fædre, fædrene)
   })
 })

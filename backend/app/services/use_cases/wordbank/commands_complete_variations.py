@@ -32,6 +32,16 @@ def complete_meaning_variations(
         raise ValueError("meaning_id must be >= 1")
 
     context = _load_meaning_context(runtime, stored_lemma=normalized_lemma, meaning_id=meaning_id)
+    completion_gate_message = _complete_variations_gate_message(runtime, context=context)
+    if completion_gate_message is not None:
+        return CompleteVariationsResponse(
+            status="skipped",
+            stored_lemma=normalized_lemma,
+            meaning_id=meaning_id,
+            added_surface_forms=[],
+            queued_pronunciation_forms=[],
+            message=completion_gate_message,
+        )
     slot_entries = resolve_target_noun_slot_entries(runtime.cor, context=context)
     if not slot_entries:
         return CompleteVariationsResponse(
@@ -174,3 +184,34 @@ def _delete_meaning_surface_verification_records(
             meaning_id=context.meaning_id,
             stored_surface_form=normalized_form,
         )
+
+
+def _complete_variations_gate_message(runtime: WordbankRuntime, *, context) -> str | None:
+    meaning_record = runtime.repository.get_verification_record(
+        lexeme_id=context.lexeme_id,
+        meaning_id=context.meaning_id,
+        stored_surface_form=None,
+    )
+    target_statuses = [meaning_record.status if meaning_record is not None else None]
+    for row in runtime.repository.list_surface_forms(context.lexeme_id):
+        if row.meaning_id != context.meaning_id:
+            continue
+        normalized_form = normalize_token(row.form)
+        if not normalized_form or normalized_form == context.lemma:
+            continue
+        record = runtime.repository.get_verification_record(
+            lexeme_id=context.lexeme_id,
+            meaning_id=context.meaning_id,
+            stored_surface_form=normalized_form,
+        )
+        target_statuses.append(record.status if record is not None else None)
+
+    if any(status == "queued" for status in target_statuses):
+        return "Complete variations is unavailable while verification is still running for this meaning."
+    if any(status == "error" for status in target_statuses):
+        return "Complete variations is unavailable until you retry verification for this meaning."
+    if any(status == "flagged" for status in target_statuses):
+        return "Complete variations is unavailable until you resolve the verification review for this meaning."
+    if not target_statuses or any(status != "verified" for status in target_statuses):
+        return "Complete variations is unavailable until this meaning is fully verified."
+    return None

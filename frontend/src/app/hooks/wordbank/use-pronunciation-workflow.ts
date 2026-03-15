@@ -27,7 +27,7 @@ export function usePronunciationWorkflow({
   setWordbankRefreshTick,
 }: UsePronunciationWorkflowParams) {
   const [pronunciationLoadingByForm, setPronunciationLoadingByForm] = useState<Record<string, boolean>>({})
-  const [isRegeneratingLemmaPronunciation, setIsRegeneratingLemmaPronunciation] = useState(false)
+  const [regeneratingPronunciationByForm, setRegeneratingPronunciationByForm] = useState<Record<string, boolean>>({})
   const apiClient = useMemo(
     () => createApiClient({ backendUrl, extractErrorMessage }),
     [backendUrl, extractErrorMessage],
@@ -53,7 +53,7 @@ export function usePronunciationWorkflow({
 
   useEffect(() => {
     setPronunciationLoadingByForm({})
-    setIsRegeneratingLemmaPronunciation(false)
+    setRegeneratingPronunciationByForm({})
   }, [selectedLemma])
 
   function clearPronunciationCache(form: string | null | undefined) {
@@ -176,24 +176,29 @@ export function usePronunciationWorkflow({
     }
   }
 
-  async function regenerateSelectedLemmaPronunciation() {
-    const lemma = normalizeSearchWord(lemmaDetails?.lemma ?? selectedLemma ?? "")
-    if (!lemma) {
+  async function regeneratePronunciation(form: string) {
+    const storedLemma = normalizeSearchWord(lemmaDetails?.lemma ?? selectedLemma ?? "")
+    const storedSurfaceForm = normalizeSearchWord(form)
+    if (!storedLemma || !storedSurfaceForm) {
       return
     }
-    setIsRegeneratingLemmaPronunciation(true)
+    setRegeneratingPronunciationByForm((current) => ({ ...current, [storedSurfaceForm]: true }))
     try {
-      await generatePronunciationInBackground(lemma, lemma, { force: true, notify: true })
+      await generatePronunciationInBackground(storedLemma, storedSurfaceForm, { force: true, notify: true })
     } finally {
-      setIsRegeneratingLemmaPronunciation(false)
+      setRegeneratingPronunciationByForm((current) => {
+        const next = { ...current }
+        delete next[storedSurfaceForm]
+        return next
+      })
     }
   }
 
   return {
     pronunciationLoadingByForm,
-    isRegeneratingLemmaPronunciation,
+    regeneratingPronunciationByForm,
     generatePronunciationInBackground,
     playPronunciation,
-    regenerateSelectedLemmaPronunciation,
+    regeneratePronunciation,
   }
 }

@@ -15,16 +15,18 @@ type WordbankWordPageProps = Pick<
   | "isLemmaDetailsLoading"
   | "showLemmaDetailsLoadingSkeleton"
   | "pronunciationLoadingByForm"
+  | "regeneratingPronunciationByForm"
   | "onPlayPronunciation"
-  | "isRegeneratingLemmaPronunciation"
-  | "onRegenerateSelectedLemmaPronunciation"
+  | "onRegeneratePronunciation"
   | "isRethinkingCategories"
   | "onRethinkCategories"
   | "isCompletingMeaningVariations"
   | "onCompleteMeaningVariations"
   | "verificationOverview"
   | "isApplyingVerificationChanges"
+  | "isRetryingVerification"
   | "onApplyVerificationAction"
+  | "onRetryVerificationTarget"
 >
 
 export function WordbankWordPage({
@@ -35,16 +37,18 @@ export function WordbankWordPage({
   isLemmaDetailsLoading,
   showLemmaDetailsLoadingSkeleton,
   pronunciationLoadingByForm,
+  regeneratingPronunciationByForm,
   onPlayPronunciation,
-  isRegeneratingLemmaPronunciation,
-  onRegenerateSelectedLemmaPronunciation,
+  onRegeneratePronunciation,
   isRethinkingCategories,
   onRethinkCategories,
   isCompletingMeaningVariations,
   onCompleteMeaningVariations,
   verificationOverview,
   isApplyingVerificationChanges,
+  isRetryingVerification,
   onApplyVerificationAction,
+  onRetryVerificationTarget,
 }: WordbankWordPageProps) {
   const normalizedSelectedLemma = (lemmaDetails?.lemma ?? selectedLemma ?? "").trim().toLocaleLowerCase("da-DK")
   const variationForms = (lemmaDetails?.surface_forms ?? []).filter(
@@ -88,14 +92,16 @@ export function WordbankWordPage({
             selectedMeaningId={selectedMeaningId}
             lemmaDetails={lemmaDetails}
             pronunciationLoadingByForm={pronunciationLoadingByForm}
+            regeneratingPronunciationByForm={regeneratingPronunciationByForm}
             onPlayPronunciation={onPlayPronunciation}
-            isRegeneratingLemmaPronunciation={isRegeneratingLemmaPronunciation}
-            onRegenerateSelectedLemmaPronunciation={onRegenerateSelectedLemmaPronunciation}
+            onRegeneratePronunciation={onRegeneratePronunciation}
             isRethinkingCategories={isRethinkingCategories}
             onRethinkCategories={onRethinkCategories}
             verificationOverview={verificationOverview}
             isApplyingVerificationChanges={isApplyingVerificationChanges}
+            isRetryingVerification={isRetryingVerification}
             onApplyVerificationAction={onApplyVerificationAction}
+            onRetryVerificationTarget={onRetryVerificationTarget}
             showSupplementaryMetadata={!isSectioned}
           />
           {isSectioned ? (
@@ -104,7 +110,9 @@ export function WordbankWordPage({
               meaningSections={meaningSections}
               selectedMeaningId={selectedMeaningId}
               pronunciationLoadingByForm={pronunciationLoadingByForm}
+              regeneratingPronunciationByForm={regeneratingPronunciationByForm}
               onPlayPronunciation={onPlayPronunciation}
+              onRegeneratePronunciation={onRegeneratePronunciation}
               isRethinkingCategories={isRethinkingCategories}
               onRethinkCategories={onRethinkCategories}
               isCompletingMeaningVariations={isCompletingMeaningVariations}
@@ -114,7 +122,9 @@ export function WordbankWordPage({
             <WordbankVariationGrid
               variationForms={variationForms}
               pronunciationLoadingByForm={pronunciationLoadingByForm}
+              regeneratingPronunciationByForm={regeneratingPronunciationByForm}
               onPlayPronunciation={onPlayPronunciation}
+              onRegeneratePronunciation={onRegeneratePronunciation}
             />
           )}
         </div>

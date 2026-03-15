@@ -8,6 +8,7 @@ from typing import TypeVar
 from fastapi import HTTPException, Request
 
 from app.core.app_state import get_runtime_state, get_services, get_settings
+from app.core.errors import ConflictError
 
 logger = logging.getLogger(__name__)
 T = TypeVar("T")
@@ -41,6 +42,8 @@ def run_db_operation(
     require_db_ready(request)
     try:
         return operation()
+    except ConflictError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except LookupError as exc:
@@ -60,6 +63,7 @@ __all__ = [
     "get_runtime_state",
     "get_services",
     "get_settings",
+    "ConflictError",
     "require_db_ready",
     "require_nlp_ready",
     "run_db_operation",

@@ -2,7 +2,9 @@ import type { LemmaDetailsResponse } from "@/app/core"
 import {
   badgesForSavedForm,
   corSecondaryBadgeClass,
+  getMeaningVerificationGate,
   lemmaTranslationWithGloss,
+  normalizeSearchWord,
   posBadgeClass,
   posBorderLeftClass,
   semanticCategoryBadgeClass,
@@ -17,7 +19,9 @@ type WordbankMeaningSectionsProps = {
   meaningSections: LemmaDetailsResponse["meaning_sections"]
   selectedMeaningId: number | null
   pronunciationLoadingByForm: Record<string, boolean>
+  regeneratingPronunciationByForm: Record<string, boolean>
   onPlayPronunciation: (form: string) => void
+  onRegeneratePronunciation: (form: string) => void
   isRethinkingCategories: boolean
   onRethinkCategories: (meaningId: number | null) => void
   isCompletingMeaningVariations: boolean
@@ -29,7 +33,9 @@ export function WordbankMeaningSections({
   meaningSections,
   selectedMeaningId,
   pronunciationLoadingByForm,
+  regeneratingPronunciationByForm,
   onPlayPronunciation,
+  onRegeneratePronunciation,
   isRethinkingCategories,
   onRethinkCategories,
   isCompletingMeaningVariations,
@@ -51,15 +57,28 @@ export function WordbankMeaningSections({
           section.english_translation ?? null,
           section.gloss_translation ?? null,
         )
+        const completionGate = getMeaningVerificationGate(
+          {
+            lemma,
+            english_translation: null,
+            pos_tag: null,
+            morphology: null,
+            is_sectioned: true,
+            meaning_sections: meaningSections,
+            surface_forms: [],
+          },
+          section.id,
+        )
         const isSelected = selectedMeaningId === section.id
         return (
           <WordbankScopeContextMenu
             key={`meaning-section-${section.id}-${section.meaning_key}`}
             isRethinkingCategories={isRethinkingCategories}
             onRethinkCategories={() => onRethinkCategories(section.id)}
-            canCompleteVariations={(section.pos_tag ?? "").toUpperCase() === "NOUN"}
+            canCompleteVariations={(section.pos_tag ?? "").toUpperCase() === "NOUN" && !completionGate.isLocked}
+            completeVariationsLabel={completionGate.label}
             isCompletingVariations={isCompletingMeaningVariations}
-            onCompleteVariations={() => onCompleteMeaningVariations(section.id)}
+            onCompleteVariations={(section.pos_tag ?? "").toUpperCase() === "NOUN" ? () => onCompleteMeaningVariations(section.id) : undefined}
           >
             <Card
               id={`wordbank-meaning-${section.id}`}
@@ -108,6 +127,8 @@ export function WordbankMeaningSections({
                 {section.surface_forms.length > 0 ? (
                   <div className="ml-4 mt-3 divide-y divide-border/50">
                     {section.surface_forms.map((form) => {
+                      const normalizedForm = normalizeSearchWord(form.form)
+                      const isRegenerating = Boolean(regeneratingPronunciationByForm[normalizedForm])
                       const sectionBadgeLabels = new Set(sectionBadges.map((b) => b.label))
                       const formBadges = badgesForSavedForm(form).filter((b) => !sectionBadgeLabels.has(b.label))
                       return (
@@ -120,6 +141,13 @@ export function WordbankMeaningSections({
                             hasPronunciation={form.has_pronunciation ?? false}
                             pronunciationLoadingByForm={pronunciationLoadingByForm}
                             onPlayPronunciation={onPlayPronunciation}
+                            contextMenuItems={[
+                              {
+                                label: isRegenerating ? "Regenerating audio..." : "Regenerate audio",
+                                disabled: isRegenerating,
+                                onSelect: () => onRegeneratePronunciation(form.form),
+                              },
+                            ]}
                             className="text-sm font-semibold"
                             iconClassName="size-3"
                           />

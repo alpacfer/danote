@@ -27,6 +27,8 @@ from app.api.schemas.v1.wordbank import (
     GenerateTranslationResponse,
     LemmaDetailsResponse,
     LemmaListResponse,
+    QueueVerificationRequest,
+    QueueVerificationResponse,
     ResetDatabaseResponse,
     ResolveQueryRequest,
     ResolveQueryResponse,
@@ -69,6 +71,21 @@ def verify_added_word(payload: VerifyWordRequest, request: Request) -> VerifyWor
             payload.stored_surface_form,
             meaning_id=payload.meaning_id,
         ),
+        error_log_name="wordbank_db_operational_error",
+    )
+
+
+@router.post("/wordbank/lexemes/queue-verification", response_model=QueueVerificationResponse)
+def queue_verification(payload: QueueVerificationRequest, request: Request) -> QueueVerificationResponse:
+    return run_db_operation(
+        request,
+        lambda: build_wordbank_use_case(request).queue_verification(
+            payload.stored_lemma,
+            payload.stored_surface_form,
+            meaning_id=payload.meaning_id,
+            review_intent=payload.review_intent or "general",
+        ),
+        include_lookup_error=True,
         error_log_name="wordbank_db_operational_error",
     )
 

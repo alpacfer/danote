@@ -70,7 +70,7 @@ describe("App wordbank", () => {
     ).toHaveLength(1)
   })
 
-  it("request-shape: regenerates pronunciation from the word page action", async () => {
+  it("request-shape: regenerates pronunciation from the lemma word context menu", async () => {
     const fetchSpy = mockFetchImplementation({
       lemmasResponse: {
         items: [{ lemma: "bog", variation_count: 1 }],
@@ -87,14 +87,15 @@ describe("App wordbank", () => {
     fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
     fireEvent.click(await screen.findByRole("button", { name: /bog/i }))
 
-    const regenerateButton = await screen.findByRole("button", { name: /regenerate audio/i })
+    const listenButton = await screen.findByRole("button", { name: /^listen to bog$/i })
     const verificationButton = screen.getByRole("button", { name: /show verification details/i })
     fireEvent.click(verificationButton)
 
     expect(await screen.findByText(/no verification records yet/i)).toBeInTheDocument()
     expect(screen.getByText(/waiting to run/i)).toBeInTheDocument()
 
-    fireEvent.click(regenerateButton)
+    fireEvent.contextMenu(listenButton)
+    fireEvent.click(await screen.findByRole("menuitem", { name: /regenerate audio/i }))
 
     await waitFor(() => {
       expect(fetchSpy).toHaveBeenCalledWith(
@@ -108,6 +109,60 @@ describe("App wordbank", () => {
           }),
         }),
       )
+    })
+  })
+
+  it("request-shape: non-sectioned lemma word context menu keeps the root rethink action", async () => {
+    const fetchSpy = mockFetchImplementation({
+      lemmasResponse: {
+        items: [{ lemma: "bog", variation_count: 1 }],
+      },
+      lemmaDetailsResponse: cloneContractFixture(bogVariationGlossWordPageContractFixture),
+      rethinkCategoriesHandler: async (_input, init) => {
+        const body = JSON.parse(String(init?.body ?? "{}")) as {
+          stored_lemma?: string
+          stored_surface_form?: string | null
+          meaning_id?: number | null
+        }
+        if (body.stored_lemma !== "bog" || body.stored_surface_form !== null || body.meaning_id !== null) {
+          throw new Error("Unexpected rethink-categories payload.")
+        }
+        return responseOf({
+          status: "updated",
+          stored_lemma: "bog",
+          stored_surface_form: null,
+          meaning_id: null,
+          applied_categories: ["Food", "Household Objects"],
+          message: "Updated categories for 'bog'.",
+        })
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /bog/i }))
+
+    const listenButton = await screen.findByRole("button", { name: /^listen to bog$/i })
+    fireEvent.contextMenu(listenButton)
+
+    expect(await screen.findByRole("menuitem", { name: /regenerate audio/i })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("menuitem", { name: /rethink categories/i }))
+
+    await waitFor(() => {
+      expect(
+        fetchSpy.mock.calls.some(([input, init]) => {
+          if (!String(input).endsWith("/api/wordbank/lexemes/rethink-categories")) {
+            return false
+          }
+          return String(init?.body ?? "") === JSON.stringify({
+            stored_lemma: "bog",
+            stored_surface_form: null,
+            meaning_id: null,
+          })
+        }),
+      ).toBe(true)
     })
   })
 
@@ -181,6 +236,54 @@ describe("App wordbank", () => {
       expect(fetchSpy).toHaveBeenCalledWith(
         expect.stringContaining("/api/wordbank/pronunciation?form=kone"),
         undefined,
+      )
+    })
+  })
+
+  it("request-shape: regenerates pronunciation for a specific meaning-row word from its context menu", async () => {
+    const fetchSpy = mockFetchImplementation({
+      lemmasResponse: {
+        items: [{ lemma: "bog", variation_count: 1 }],
+      },
+      lemmaDetailsResponse: {
+        lemma: "bog",
+        is_sectioned: true,
+        meaning_sections: [
+          {
+            id: 1,
+            meaning_key: "book",
+            gloss: "book",
+            english_translation: "book",
+            pos_tag: "NOUN",
+            morphology: "Gender=Com|Number=Sing|Definite=Ind",
+            surface_forms: [{ form: "bogen", has_pronunciation: true }],
+          },
+        ],
+        surface_forms: [],
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /bog/i }))
+
+    const listenButton = await screen.findByRole("button", { name: /listen to bogen/i })
+    fireEvent.contextMenu(listenButton)
+    fireEvent.click(await screen.findByRole("menuitem", { name: /regenerate audio/i }))
+
+    await waitFor(() => {
+      expect(fetchSpy).toHaveBeenCalledWith(
+        expect.stringContaining("/api/wordbank/lexemes/pronunciation"),
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({
+            stored_lemma: "bog",
+            stored_surface_form: "bogen",
+            force: true,
+          }),
+        }),
       )
     })
   })
@@ -262,11 +365,27 @@ describe("App wordbank", () => {
           meaning_key: "book",
           gloss: "book",
           english_translation: "book",
+          verification: {
+            status: "verified",
+            provider: "gemini",
+            reviewer_role: "Professional Danish Language Expert",
+            message: "Verified.",
+            requested_at: "2026-03-15T10:00:00Z",
+            completed_at: "2026-03-15T10:00:05Z",
+          },
           pos_tag: "NOUN",
           morphology: "Gender=Com|Number=Sing|Definite=Ind",
           surface_forms: [
             {
               form: "bøger",
+              verification: {
+                status: "verified",
+                provider: "gemini",
+                reviewer_role: "Professional Danish Language Expert",
+                message: "Verified.",
+                requested_at: "2026-03-15T10:00:00Z",
+                completed_at: "2026-03-15T10:00:05Z",
+              },
               pos_tag: "NOUN",
               morphology: "Gender=Com|Number=Plur|Definite=Ind",
               has_pronunciation: false,

@@ -79,6 +79,8 @@ Behavior:
   1. Fetch partial payload without translations and render quickly.
   2. Fetch full payload with translations and replace payload.
 - While phase 2 is in-flight, `isCorTranslationsLoading=true` and result rows show skeleton placeholders for translation-dependent text.
+- While phase 2 is in-flight, COR save rows are disabled.
+  They keep the loading skeletons visible but do not render extra locked-state copy during loading.
 - Full payload is cached by normalized query.
 - If translation fetch fails, a toast error is shown and already-fetched partial results remain visible.
 - Single-word translation labels are normalized after provider lookup:
@@ -145,6 +147,10 @@ COR groups are sorted by best variant score in each group:
 - Right icon:
   - `Eye` for open existing saved item
   - `variation + Plus` when selecting row will add a new variation
+- When a saved row has a linked variation-add candidate but COR translation is still loading or ultimately unavailable,
+  the row stops acting as add-variation and falls back to opening the saved wordbank entry instead.
+  In that locked state it shows `Eye` plus inline copy:
+  - `Translation required before saving.` when the final COR payload still has no lemma translation
 
 ### COR rows
 
@@ -152,6 +158,9 @@ COR groups are sorted by best variant score in each group:
 - May show "from <lemma>" with translation in parentheses when available.
 - Sense-level gloss translation is rendered as separate disambiguation text, not as a fallback English translation.
 - During translation loading, translation-dependent text uses skeleton placeholders.
+- COR add rows are disabled until lemma translation is available.
+  They show:
+  - `Translation required before saving.` if the final payload still has no translation
 - Right icon:
   - `variation + Plus` when the COR candidate meaning matches a saved wordbank entry
   - `Plus` otherwise
@@ -163,6 +172,7 @@ COR groups are sorted by best variant score in each group:
 - If row has linked add-variation candidate and is not already an exact saved variation:
   - triggers `onAddWordFromSearch(...)` using linked COR variant metadata + search seed
   - closes dialog only on successful add
+- If that linked add-variation candidate is translation-gated, selecting the row opens the already-saved meaning / lemma instead of attempting the add.
 - Otherwise:
   - opens existing saved meaning (`onOpenWordbankMeaning`) when `meaning_id` exists
   - else opens lemma page (`onOpenWordbankLemma`)
@@ -173,6 +183,7 @@ COR groups are sorted by best variant score in each group:
 - Always triggers `onAddWordFromSearch(...)` with `predictedStatus`:
   - `variation` when the COR candidate meaning matches a saved wordbank entry
   - `new` otherwise
+- Exception: while translation is still loading, or after a no-translation final result, COR rows are disabled and do not fire save requests.
 - Search-save payload keeps lemma translation and gloss separate:
   - `search_seed.english_translation` is populated only from the lemma translation
   - gloss/gloss translation remain disambiguation metadata and are not promoted into `english_translation`
@@ -187,6 +198,9 @@ COR groups are sorted by best variant score in each group:
   - and the open word page polls lemma details until Gemini returns a final result.
 - For search-seed saves, the frontend still skips direct `/api/wordbank/lexemes/verify` and `/api/wordbank/lexemes/pronunciation` calls:
   backend background jobs perform the work and persist the result for the word page to pick up.
+- The backend also enforces the translation gate:
+  a search-seed save with empty or missing `search_seed.english_translation` returns `409`,
+  so even stale or bypassed clients cannot save before translation generation completes.
 
 ### Selecting note or page row
 

@@ -9,6 +9,7 @@ import {
   type AddWordResponse,
   type ApplyVerificationChangesResponse,
   type LemmaDetailsResponse,
+  type QueueVerificationResponse,
   type VerificationOverview,
   verificationResultSignature,
   verificationTargetKey,
@@ -51,6 +52,7 @@ export function useVerificationWorkflow({
   onOpenWordbankTarget,
 }: UseVerificationWorkflowParams) {
   const [isApplyingVerificationChanges, setIsApplyingVerificationChanges] = useState(false)
+  const [isRetryingVerification, setIsRetryingVerification] = useState(false)
   const [trackedQueuedVerifications, setTrackedQueuedVerifications] = useState<Record<string, TrackedQueuedVerification>>({})
   const apiClient = useMemo(
     () => createApiClient({ backendUrl, extractErrorMessage }),
@@ -248,6 +250,24 @@ export function useVerificationWorkflow({
     })
   }, [])
 
+  const trackQueuedVerificationTarget = useCallback((storedLemma: string, meaningId: number | null, storedSurfaceForm: string | null) => {
+    const lemmaKey = normalizeSearchWord(storedLemma)
+    if (!lemmaKey) {
+      return
+    }
+    const normalizedSurface = normalizeSearchWord(storedSurfaceForm ?? "") || null
+    const key = verificationTargetKey(lemmaKey, meaningId, normalizedSurface)
+    setTrackedQueuedVerifications((current) => ({
+      ...current,
+      [key]: {
+        lemma: lemmaKey,
+        meaningId,
+        storedSurfaceForm: normalizedSurface,
+      },
+    }))
+    previousVerificationStatusesRef.current[key] = "queued"
+  }, [])
+
   async function applyVerificationAction(targetKey: string, actionIndex: number) {
     const lemma = normalizeSearchWord(lemmaDetails?.lemma ?? selectedLemma ?? "")
     const target = findVerificationTarget(lemmaDetails, targetKey)
@@ -285,6 +305,40 @@ export function useVerificationWorkflow({
     }
   }
 
+  async function retryVerificationTarget(targetKey: string) {
+    const lemma = normalizeSearchWord(lemmaDetails?.lemma ?? selectedLemma ?? "")
+    const target = findVerificationTarget(lemmaDetails, targetKey)
+    if (!lemma || !target) {
+      return
+    }
+
+    setIsRetryingVerification(true)
+    try {
+      const payload = await apiClient.postJson<QueueVerificationResponse>(
+        "/api/wordbank/lexemes/queue-verification",
+        {
+          stored_lemma: lemma,
+          stored_surface_form: target.storedSurfaceForm,
+          meaning_id: target.meaningId,
+          review_intent: target.verification?.review_intent ?? "general",
+        },
+        "Could not retry verification.",
+      )
+      if (payload.verification.status !== "queued") {
+        toast.error(payload.verification.message || "Could not retry verification.")
+        return
+      }
+      trackQueuedVerificationTarget(lemma, target.meaningId, target.storedSurfaceForm)
+      toast.success(`Requeued verification for '${target.label}'.`)
+      setWordbankRefreshTick((current) => current + 1)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not retry verification."
+      toast.error(message)
+    } finally {
+      setIsRetryingVerification(false)
+    }
+  }
+
   function clearVerificationErrors() {
     notifiedVerificationSignaturesRef.current = {}
     previousVerificationStatusesRef.current = {}
@@ -293,10 +347,12 @@ export function useVerificationWorkflow({
 
   return {
     isApplyingVerificationChanges,
+    isRetryingVerification,
     isVerifyingWords: Object.keys(trackedQueuedVerifications).length > 0 || verificationOverview.queuedCount > 0,
     verificationOverview: verificationOverview as VerificationOverview,
     trackQueuedVerifications,
     applyVerificationAction,
+    retryVerificationTarget,
     clearVerificationErrors,
   }
 }

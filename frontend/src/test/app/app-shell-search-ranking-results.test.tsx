@@ -265,21 +265,18 @@ describe("App shell and search", () => {
     for (const skeleton of selectedSkeletons) {
       expect(skeleton.className).toContain("group-data-[selected=true]/search-item:bg-accent-foreground/20")
     }
+    expect(within(commandDialog).queryByText(/^waiting for translation\.\.\.$/i)).not.toBeInTheDocument()
 
     fireEvent.keyDown(searchInput, { key: "ArrowDown" })
 
-    const keyboardSelectedOption = await waitFor(() => {
+    await waitFor(() => {
       const options = within(commandDialog).getAllByRole("option")
-      expect(options[1]).toHaveAttribute("data-selected", "true")
-      const selectedSkeletonsAfterArrow = within(options[1]).getAllByTestId("search-translation-skeleton")
+      expect(options[0]).toHaveAttribute("aria-disabled", "true")
+      expect(options[1]).toHaveAttribute("aria-disabled", "true")
+      expect(options[0]).toHaveAttribute("data-selected", "true")
+      const selectedSkeletonsAfterArrow = within(options[0]).getAllByTestId("search-translation-skeleton")
       expect(selectedSkeletonsAfterArrow.length).toBeGreaterThan(0)
-      return options[1]
     })
-
-    const selectedSkeletonsAfterArrow = within(keyboardSelectedOption).getAllByTestId("search-translation-skeleton")
-    for (const skeleton of selectedSkeletonsAfterArrow) {
-      expect(skeleton.className).toContain("group-data-[selected=true]/search-item:bg-accent-foreground/20")
-    }
 
     resolveFullPayload?.(responseOf({
       form: "lærer",

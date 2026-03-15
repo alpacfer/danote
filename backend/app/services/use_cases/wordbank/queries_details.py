@@ -9,6 +9,7 @@ from app.services.use_cases.wordbank.gloss_translations import (
 )
 from app.services.use_cases.wordbank.meaning_sections import ensure_wordbank_meaning_compatibility
 from app.services.use_cases.wordbank.runtime import WordbankRuntime
+from app.services.use_cases.wordbank.surface_form_ordering import order_surface_form_details
 from app.services.use_cases.wordbank.verification_categories import category_labels_by_scope
 from app.services.use_cases.wordbank.verification_records import verification_record_to_schema
 
@@ -53,21 +54,23 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
             categories=category_assignments.get(None, []),
             verification=verification_records.get((None, None)),
             meaning_sections=[],
-            surface_forms=[
-                _surface_form_details(
-                    runtime,
-                    form=row.form,
-                    pos_tag=row.pos_tag,
-                    morphology=row.morphology,
-                    lemma=lexeme.lemma,
-                    lemma_translation=lexeme.english_translation,
-                    gloss=None,
-                    meaning=None,
-                    has_pronunciation=row.has_pronunciation,
-                    verification=verification_records.get((None, normalize_token(row.form))),
-                )
-                for row in form_rows
-            ],
+            surface_forms=order_surface_form_details(
+                [
+                    _surface_form_details(
+                        runtime,
+                        form=row.form,
+                        pos_tag=row.pos_tag,
+                        morphology=row.morphology,
+                        lemma=lexeme.lemma,
+                        lemma_translation=lexeme.english_translation,
+                        gloss=None,
+                        meaning=None,
+                        has_pronunciation=row.has_pronunciation,
+                        verification=verification_records.get((None, normalize_token(row.form))),
+                    )
+                    for row in form_rows
+                ]
+            ),
         )
 
     section_forms: dict[int, list[LemmaDetailsResponse.SurfaceFormDetails]] = {
@@ -106,7 +109,7 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
         top_level_pos_tag = None
         top_level_morphology = None
 
-    top_level_surface_forms = _dedupe_surface_form_details(
+    top_level_surface_forms = order_surface_form_details(_dedupe_surface_form_details(
         [
             _sectioned_lemma_surface_form_details(
                 runtime,
@@ -120,7 +123,7 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
             for row in form_rows
             if row.form == lexeme.lemma
         ]
-    )
+    ))
     gloss_translation_cache: dict[tuple[str, str, str | None, str | None, str, str | None, str | None], str | None] = {}
 
     return LemmaDetailsResponse(
@@ -149,7 +152,7 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
                 gram_raw=_meaning_gram_raw(runtime, lexeme=lexeme, meaning=meaning),
                 categories=category_assignments.get(meaning.id, []),
                 verification=verification_records.get((meaning.id, None)),
-                surface_forms=section_forms.get(meaning.id, []),
+                surface_forms=order_surface_form_details(section_forms.get(meaning.id, [])),
             )
             for meaning in meaning_rows
         ],
@@ -176,16 +179,18 @@ def _get_manual_lemma_details(
             categories=category_assignments.get(None, []),
             verification=verification_records.get((None, None)),
             meaning_sections=[],
-            surface_forms=[
-                _manual_surface_form_details(
-                    runtime,
-                    lexeme=lexeme,
-                    form_row=row,
-                    meaning=None,
-                    verification=verification_records.get((None, normalize_token(row.form))),
-                )
-                for row in form_rows
-            ],
+            surface_forms=order_surface_form_details(
+                [
+                    _manual_surface_form_details(
+                        runtime,
+                        lexeme=lexeme,
+                        form_row=row,
+                        meaning=None,
+                        verification=verification_records.get((None, normalize_token(row.form))),
+                    )
+                    for row in form_rows
+                ]
+            ),
         )
 
     meaning_by_id = {meaning.id: meaning for meaning in meaning_rows}
@@ -220,7 +225,7 @@ def _get_manual_lemma_details(
         top_level_morphology = None
 
     gloss_translation_cache: dict[tuple[str, str, str | None, str | None, str, str | None, str | None], str | None] = {}
-    top_level_surface_forms = _dedupe_surface_form_details(
+    top_level_surface_forms = order_surface_form_details(_dedupe_surface_form_details(
         [
             _manual_sectioned_lemma_surface_form_details(
                 runtime,
@@ -231,7 +236,7 @@ def _get_manual_lemma_details(
             for row in form_rows
             if row.form == lexeme.lemma
         ]
-    )
+    ))
     return LemmaDetailsResponse(
         lemma=lexeme.lemma,
         english_translation=top_level_translation,
@@ -258,7 +263,7 @@ def _get_manual_lemma_details(
                 gram_raw=_meaning_gram_raw(runtime, lexeme=lexeme, meaning=meaning),
                 categories=category_assignments.get(meaning.id, []),
                 verification=verification_records.get((meaning.id, None)),
-                surface_forms=section_forms.get(meaning.id, []),
+                surface_forms=order_surface_form_details(section_forms.get(meaning.id, [])),
             )
             for meaning in meaning_rows
         ],

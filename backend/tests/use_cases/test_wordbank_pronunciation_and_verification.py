@@ -199,7 +199,7 @@ def test_word_verification_payload_uses_saved_and_canonical_metadata_for_search_
             "cor_lemma_idx": 30686,
             "meaning_key": "learn",
             "gloss": "learn",
-            "english_translation": None,
+            "english_translation": "learn",
             "pos_tag": "VERB",
             "morphology": "Tense=Pres|VerbForm=Fin|Voice=Act",
         },
@@ -209,8 +209,8 @@ def test_word_verification_payload_uses_saved_and_canonical_metadata_for_search_
 
     payload = verification_service.calls[0]
     assert verified.applied_categories == ["Actions", "School"]
-    assert payload.selected_translation is None
-    assert payload.selected_translation_scope is None
+    assert payload.selected_translation == "learn"
+    assert payload.selected_translation_scope == "lemma"
     assert payload.available_categories
     assert [form.form for form in payload.available_surface_forms] == ["lærer"]
     assert payload.canonical_lemma_pos_tag == "VERB"

@@ -55,7 +55,6 @@ function App() {
       <SidebarInset>
         <header className="flex h-12 items-center gap-2 px-4 md:hidden">
           <SidebarTrigger />
-          <span className="text-sm font-medium">Danote</span>
         </header>
         <main className="flex min-h-0 w-full flex-1 flex-col px-1 pt-3 pb-2 md:px-2 md:pt-8 md:pb-4">
           <span className="sr-only" aria-label="backend-connection-status">{status}</span>

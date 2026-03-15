@@ -68,9 +68,9 @@ describe("section prop adapters", () => {
       isLemmaDetailsLoading: false,
       showLemmaDetailsLoadingSkeleton: false,
       pronunciationLoadingByForm: {},
+      regeneratingPronunciationByForm: {},
       playPronunciation,
-      isRegeneratingLemmaPronunciation: false,
-      regenerateSelectedLemmaPronunciation: regenerate,
+      regeneratePronunciation: regenerate,
       isRethinkingCategories: false,
       rethinkCategories,
       isCompletingMeaningVariations: false,
@@ -87,7 +87,7 @@ describe("section prop adapters", () => {
     })
 
     result.onPlayPronunciation("bog")
-    result.onRegenerateSelectedLemmaPronunciation()
+    result.onRegeneratePronunciation("bog")
     result.onRethinkCategories(12)
     result.onCompleteMeaningVariations(12)
     result.onApplyVerificationAction("bog::root::root", 0)

@@ -19,6 +19,12 @@ from tests.helpers.fakes import (
 import pytest
 
 
+def _verify_meaning_targets(use_case: WordbankUseCase, *, lemma: str, meaning_id: int, surfaces: list[str]) -> None:
+    use_case.verify_added_word(lemma, None, meaning_id=meaning_id)
+    for surface in surfaces:
+        use_case.verify_added_word(lemma, surface, meaning_id=meaning_id)
+
+
 def _bog_complete_paradigm_cor_local() -> FakeCORLocalLexiconService:
     book_entries = [
         _cor_local_entry(
@@ -118,6 +124,66 @@ def _bog_complete_paradigm_cor_local() -> FakeCORLocalLexiconService:
             124: swamp_entries,
         },
     )
+
+
+def _fader_complete_paradigm_cor_local() -> FakeCORLocalLexiconService:
+    entries = [
+        _cor_local_entry(
+            cor_id="COR.FADER.LEM",
+            lemma="fader",
+            gloss="father",
+            form="fader",
+            lemma_idx=410,
+            pos_tag="NOUN",
+            morphology="Gender=Com|Number=Sing|Definite=Ind",
+            gram_raw="sb.fk.sg.ubest",
+        ),
+        _cor_local_entry(
+            cor_id="COR.FADER.IRREG",
+            lemma="fader",
+            gloss="father",
+            form="far",
+            lemma_idx=410,
+            pos_tag="NOUN",
+            morphology="Gender=Com|Number=Sing|Definite=Ind",
+            gram_raw="sb.fk.sg.ubest",
+        ),
+        _cor_local_entry(
+            cor_id="COR.FADER.DEF",
+            lemma="fader",
+            gloss="father",
+            form="faderen",
+            lemma_idx=410,
+            pos_tag="NOUN",
+            morphology="Gender=Com|Number=Sing|Definite=Def",
+            gram_raw="sb.fk.sg.best",
+        ),
+        _cor_local_entry(
+            cor_id="COR.FADER.PL",
+            lemma="fader",
+            gloss="father",
+            form="fædre",
+            lemma_idx=410,
+            pos_tag="NOUN",
+            morphology="Gender=Com|Number=Plur|Definite=Ind",
+            gram_raw="sb.fk.pl.ubest",
+        ),
+        _cor_local_entry(
+            cor_id="COR.FADER.PLDEF",
+            lemma="fader",
+            gloss="father",
+            form="fædrene",
+            lemma_idx=410,
+            pos_tag="NOUN",
+            morphology="Gender=Com|Number=Plur|Definite=Def",
+            gram_raw="sb.fk.pl.best",
+        ),
+    ]
+    return FakeCORLocalLexiconService(
+        by_form={entry.form: [entry] for entry in entries},
+        by_lemma_idx={410: entries},
+    )
+
 
 def test_wordbank_use_case_round_trip(tmp_path: Path) -> None:
     use_case = WordbankUseCase(_db_path(tmp_path))
@@ -358,6 +424,7 @@ def test_complete_meaning_variations_backfills_missing_noun_slots_for_search_see
         },
     )
     assert added.meaning is not None
+    _verify_meaning_targets(use_case, lemma="bog", meaning_id=added.meaning.id, surfaces=["bøger"])
 
     response = use_case.complete_meaning_variations("bog", meaning_id=added.meaning.id)
 
@@ -389,6 +456,7 @@ def test_complete_meaning_variations_uses_selected_homograph_meaning_only(tmp_pa
     use_case = WordbankUseCase(
         _db_path(tmp_path),
         cor_local_lexicon_service=_bog_complete_paradigm_cor_local(),
+        verification_service=FakeVerificationService(),
     )
 
     first = use_case.add_word(
@@ -423,6 +491,7 @@ def test_complete_meaning_variations_uses_selected_homograph_meaning_only(tmp_pa
     )
     assert first.meaning is not None
     assert second.meaning is not None
+    _verify_meaning_targets(use_case, lemma="bog", meaning_id=first.meaning.id, surfaces=["bogen"])
 
     response = use_case.complete_meaning_variations("bog", meaning_id=first.meaning.id)
 
@@ -433,10 +502,77 @@ def test_complete_meaning_variations_uses_selected_homograph_meaning_only(tmp_pa
     assert [form.form for form in details.meaning_sections[1].surface_forms] == ["bogen"]
 
 
+def test_get_lemma_details_orders_standard_noun_variations_in_slot_order(tmp_path: Path) -> None:
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_local_lexicon_service=_bog_complete_paradigm_cor_local(),
+        verification_service=FakeVerificationService(),
+    )
+
+    for surface, cor_id, morphology in [
+        ("bøger", "COR.BOG.BOOK.PL", "Gender=Com|Number=Plur|Definite=Ind"),
+        ("bøgerne", "COR.BOG.BOOK.PLDEF", "Gender=Com|Number=Plur|Definite=Def"),
+        ("bogen", "COR.BOG.BOOK.DEF", "Gender=Com|Number=Sing|Definite=Def"),
+    ]:
+        use_case.add_word(
+            surface,
+            "bog",
+            search_seed={
+                "lemma": "bog",
+                "surface": surface,
+                "cor_id": cor_id,
+                "cor_lemma_idx": 123,
+                "meaning_key": "book",
+                "gloss": "book",
+                "english_translation": "book",
+                "pos_tag": "NOUN",
+                "morphology": morphology,
+            },
+        )
+
+    details = use_case.get_lemma_details("bog")
+
+    assert [form.form for form in details.meaning_sections[0].surface_forms] == ["bogen", "bøger", "bøgerne"]
+
+
+def test_get_lemma_details_keeps_irregular_other_variations_before_standard_noun_slots(tmp_path: Path) -> None:
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_local_lexicon_service=_fader_complete_paradigm_cor_local(),
+    )
+
+    for surface, cor_id, morphology in [
+        ("fædrene", "COR.FADER.PLDEF", "Gender=Com|Number=Plur|Definite=Def"),
+        ("far", "COR.FADER.IRREG", "Gender=Com|Number=Sing|Definite=Ind"),
+        ("faderen", "COR.FADER.DEF", "Gender=Com|Number=Sing|Definite=Def"),
+        ("fædre", "COR.FADER.PL", "Gender=Com|Number=Plur|Definite=Ind"),
+    ]:
+        use_case.add_word(
+            surface,
+            "fader",
+            search_seed={
+                "lemma": "fader",
+                "surface": surface,
+                "cor_id": cor_id,
+                "cor_lemma_idx": 410,
+                "meaning_key": "father",
+                "gloss": "father",
+                "english_translation": "father",
+                "pos_tag": "NOUN",
+                "morphology": morphology,
+            },
+        )
+
+    details = use_case.get_lemma_details("fader")
+
+    assert [form.form for form in details.meaning_sections[0].surface_forms] == ["far", "faderen", "fædre", "fædrene"]
+
+
 def test_complete_meaning_variations_skips_when_already_complete_or_cor_identity_missing(tmp_path: Path) -> None:
     use_case = WordbankUseCase(
         _db_path(tmp_path),
         cor_local_lexicon_service=_bog_complete_paradigm_cor_local(),
+        verification_service=FakeVerificationService(),
     )
 
     added = use_case.add_word(
@@ -455,7 +591,9 @@ def test_complete_meaning_variations_skips_when_already_complete_or_cor_identity
         },
     )
     assert added.meaning is not None
+    _verify_meaning_targets(use_case, lemma="bog", meaning_id=added.meaning.id, surfaces=["bøgerne"])
     updated = use_case.complete_meaning_variations("bog", meaning_id=added.meaning.id)
+    _verify_meaning_targets(use_case, lemma="bog", meaning_id=added.meaning.id, surfaces=["bogen", "bøger", "bøgerne"])
     skipped = use_case.complete_meaning_variations("bog", meaning_id=added.meaning.id)
 
     assert updated.status == "updated"
@@ -464,7 +602,7 @@ def test_complete_meaning_variations_skips_when_already_complete_or_cor_identity
 
     manual_dir = tmp_path / "manual"
     manual_dir.mkdir()
-    manual_use_case = WordbankUseCase(_db_path(manual_dir))
+    manual_use_case = WordbankUseCase(_db_path(manual_dir), verification_service=FakeVerificationService())
     manual = manual_use_case.add_word(
         "Bogen",
         "bog",
@@ -481,6 +619,7 @@ def test_complete_meaning_variations_skips_when_already_complete_or_cor_identity
         },
     )
     assert manual.meaning is not None
+    _verify_meaning_targets(manual_use_case, lemma="bog", meaning_id=manual.meaning.id, surfaces=["bogen"])
 
     missing_identity = manual_use_case.complete_meaning_variations("bog", meaning_id=manual.meaning.id)
 
@@ -512,6 +651,7 @@ def test_complete_meaning_variations_requeues_single_meaning_verification_review
         },
     )
     assert added.meaning is not None
+    _verify_meaning_targets(use_case, lemma="bog", meaning_id=added.meaning.id, surfaces=["bøger"])
 
     with get_connection(db_path) as conn:
         before_rows = conn.execute(
@@ -550,6 +690,7 @@ def test_complete_meaning_variations_requeues_single_meaning_verification_review
     assert "complete_variations" in str(new_job["dedupe_key"])
     assert new_payload == {
         "meaning_id": added.meaning.id,
+        "request_generation": new_payload["request_generation"],
         "review_intent": "complete_variations",
         "snapshot_hash": new_payload["snapshot_hash"],
         "stored_lemma": "bog",
@@ -857,7 +998,7 @@ def test_wordbank_search_seed_add_uses_canonical_lemma_metadata_for_verbs(tmp_pa
             "cor_lemma_idx": 30686,
             "meaning_key": "learn",
             "gloss": "learn",
-            "english_translation": None,
+            "english_translation": "learn",
             "pos_tag": "VERB",
             "morphology": "Tense=Pres|VerbForm=Fin|Voice=Act",
         },
@@ -876,7 +1017,7 @@ def test_wordbank_search_seed_add_uses_canonical_lemma_metadata_for_verbs(tmp_pa
             pos_tag="VERB",
             morphology="Tense=Pres|VerbForm=Fin|Voice=Act",
             lemma="lære",
-            lemma_translation=None,
+            lemma_translation="learn",
         )
     ]
 

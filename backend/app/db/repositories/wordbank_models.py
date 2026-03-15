@@ -78,6 +78,9 @@ class VerificationRecord:
     suggested_actions: list[dict[str, object]]
     requested_at: str
     completed_at: str | None
+    review_intent: str
+    latest_snapshot_hash: str | None
+    request_generation: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -141,6 +144,9 @@ def verification_record_from_row(row) -> VerificationRecord:
         suggested_actions=[item for item in parsed_actions if isinstance(item, dict)],
         requested_at=str(row["requested_at"]),
         completed_at=row["completed_at"],
+        review_intent=str(row["review_intent"]) if row["review_intent"] is not None else "general",
+        latest_snapshot_hash=str(row["latest_snapshot_hash"]) if row["latest_snapshot_hash"] is not None else None,
+        request_generation=int(row["request_generation"]) if row["request_generation"] is not None else 0,
     )
 
 

@@ -17,6 +17,7 @@ def verification_record_to_schema(record: VerificationRecord) -> VerificationRes
         status=record.status,
         provider=record.provider,
         reviewer_role=record.reviewer_role,
+        review_intent=record.review_intent,
         message=record.message,
         composed_word_count=None,
         stored_surface_form=record.stored_surface_form,
@@ -39,6 +40,9 @@ def persist_verification_result(
     stored_surface_form: str | None,
     verification: VerificationResult,
     requested_at: str | None = None,
+    review_intent: str | None = None,
+    latest_snapshot_hash: str | None = None,
+    request_generation: int | None = None,
 ) -> VerificationRecord:
     existing = repository.get_verification_record(
         lexeme_id=lexeme_id,
@@ -58,6 +62,17 @@ def persist_verification_result(
         suggested_actions=[action.model_dump(exclude_none=True) for action in verification.suggested_actions],
         requested_at=requested_at or existing_requested_at(existing),
         completed_at=verification.completed_at,
+        review_intent=review_intent if review_intent is not None else (existing.review_intent if existing is not None else "general"),
+        latest_snapshot_hash=(
+            latest_snapshot_hash
+            if latest_snapshot_hash is not None
+            else (existing.latest_snapshot_hash if existing is not None else None)
+        ),
+        request_generation=(
+            request_generation
+            if request_generation is not None
+            else (existing.request_generation if existing is not None else 0)
+        ),
     )
 
 
@@ -105,6 +120,9 @@ def prune_verification_record_action(
         suggested_actions=remaining_actions,
         requested_at=record.requested_at,
         completed_at=record.completed_at,
+        review_intent=record.review_intent,
+        latest_snapshot_hash=record.latest_snapshot_hash,
+        request_generation=record.request_generation,
     )
 
 

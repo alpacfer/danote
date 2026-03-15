@@ -95,6 +95,7 @@ export type VerificationResult = {
   status: "verified" | "flagged" | "error" | "skipped" | "queued"
   provider: string | null
   reviewer_role: string | null
+  review_intent?: string | null
   message: string
   composed_word_count: number | null
   stored_surface_form?: string | null
@@ -110,6 +111,14 @@ export type VerifyWordResponse = {
   stored_surface_form: string | null
   verification: VerificationResult
   applied_categories: string[]
+}
+
+export type QueueVerificationResponse = {
+  stored_lemma: string
+  stored_surface_form: string | null
+  meaning_id: number | null
+  review_intent: string
+  verification: VerificationResult
 }
 
 export type RethinkCategoriesResponse = {

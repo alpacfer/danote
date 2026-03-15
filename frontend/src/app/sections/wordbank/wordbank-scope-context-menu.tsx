@@ -12,6 +12,7 @@ type WordbankScopeContextMenuProps = {
   isRethinkingCategories: boolean
   onRethinkCategories: () => void
   canCompleteVariations?: boolean
+  completeVariationsLabel?: string
   isCompletingVariations?: boolean
   onCompleteVariations?: () => void
 }
@@ -21,6 +22,7 @@ export function WordbankScopeContextMenu({
   isRethinkingCategories,
   onRethinkCategories,
   canCompleteVariations = false,
+  completeVariationsLabel = "Complete variations",
   isCompletingVariations = false,
   onCompleteVariations,
 }: WordbankScopeContextMenuProps) {
@@ -34,12 +36,12 @@ export function WordbankScopeContextMenu({
         >
           {isRethinkingCategories ? "Rethinking categories..." : "Rethink categories"}
         </ContextMenuItem>
-        {canCompleteVariations && onCompleteVariations ? (
+        {onCompleteVariations ? (
           <ContextMenuItem
-            disabled={isCompletingVariations}
+            disabled={isCompletingVariations || !canCompleteVariations}
             onSelect={onCompleteVariations}
           >
-            {isCompletingVariations ? "Completing variations..." : "Complete variations"}
+            {isCompletingVariations ? "Completing variations..." : completeVariationsLabel}
           </ContextMenuItem>
         ) : null}
       </ContextMenuContent>

@@ -18,14 +18,16 @@ export type WordbankSectionProps = {
   isLemmaDetailsLoading: boolean
   showLemmaDetailsLoadingSkeleton: boolean
   pronunciationLoadingByForm: Record<string, boolean>
+  regeneratingPronunciationByForm: Record<string, boolean>
   onPlayPronunciation: (form: string) => void
-  isRegeneratingLemmaPronunciation: boolean
-  onRegenerateSelectedLemmaPronunciation: () => void
+  onRegeneratePronunciation: (form: string) => void
   isRethinkingCategories: boolean
   onRethinkCategories: (meaningId: number | null) => void
   isCompletingMeaningVariations: boolean
   onCompleteMeaningVariations: (meaningId: number | null) => void
   verificationOverview: VerificationOverview
   isApplyingVerificationChanges: boolean
+  isRetryingVerification: boolean
   onApplyVerificationAction: (targetKey: string, actionIndex: number) => void
+  onRetryVerificationTarget: (targetKey: string) => void
 }

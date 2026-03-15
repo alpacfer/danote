@@ -97,10 +97,12 @@ Route decorators are the source of truth in `backend/app/api/routes/`, and API D
 - **Notable status/error behavior:**
   - `503` when DB unavailable/locked.
   - `503` for runtime DB compatibility errors (e.g., reset-required conditions).
+  - `409` when a search-seed save is attempted before `search_seed.english_translation` is fully available.
   - `400` for invalid inputs.
   - body `status` may be `inserted` or `exists`.
   - when `verification` is present, it may include `stored_surface_form`, `requested_at`, and `completed_at`.
   - `queued_verification_targets` lists each backend-queued word-page verification target using `meaning_id` plus `stored_surface_form`.
+  - for search-seed saves, empty or missing `search_seed.english_translation` is rejected; the word is not persisted.
 
 ### POST `/api/wordbank/lexemes/verify`
 - **Request model:** `VerifyWordRequest`.
@@ -116,6 +118,18 @@ Route decorators are the source of truth in `backend/app/api/routes/`, and API D
   - Gemini may reuse multiple existing categories and may mint up to 3 new broad categories when the shared catalog has no good fit.
   - category classification runs inside the same verification call and uses the full saved word scope context: reviewed gloss/translation metadata, canonical lemma metadata, selected surface metadata, sibling meaning sections, and saved surface forms for the lemma.
   - when saved COR identity resolves to a different canonical lemma than the stored lemma, that canonical lemma identity is included in Gemini's verification context so lemma-correction suggestions can target the true dictionary lemma.
+
+### POST `/api/wordbank/lexemes/queue-verification`
+- **Request model:** `QueueVerificationRequest`.
+- **Response model:** `QueueVerificationResponse`.
+- **Notable status/error behavior:**
+  - `503` when DB unavailable/locked.
+  - `404` when the target lemma / meaning / surface cannot be resolved.
+  - `400` for invalid inputs.
+  - successful responses return the queued verification record for the exact target.
+  - request scope is `(stored_lemma, meaning_id, stored_surface_form, review_intent)`.
+  - `review_intent` defaults to `general` when omitted.
+  - queueing is newest-request-wins for that target scope; repeated retries/edits update the current request generation instead of creating parallel duplicate verification jobs.
 
 ### POST `/api/wordbank/lexemes/rethink-categories`
 - **Request model:** `RethinkCategoriesRequest`.
@@ -140,11 +154,15 @@ Route decorators are the source of truth in `backend/app/api/routes/`, and API D
   - v1 is meaning-scoped and noun-only; non-noun targets return `skipped`.
   - the command uses the saved meaning's `cor_lemma_idx` to resolve the noun paradigm and returns `skipped`
     when that stable COR identity is missing.
+  - the command is also gated by verification state for that meaning:
+    it returns `skipped` until the meaning target and every saved variation target in that meaning are `verified`.
+  - `queued`, `error`, and `flagged` verification states return explicit user-facing skip messages explaining whether verification is still running, needs retry, or needs review resolution.
   - successful responses add only missing non-lemma noun variations among
     singular-definite, plural-indefinite, and plural-definite.
   - `added_surface_forms` lists the forms inserted by this call.
   - `queued_pronunciation_forms` lists the newly added forms queued for background pronunciation generation.
   - the command also requeues one meaning-level verification review for the updated meaning.
+    That completion review becomes the active verification source of truth for the meaning until it settles.
 
 ### POST `/api/wordbank/lexemes/pronunciation`
 - **Request model:** `GeneratePronunciationRequest`.
@@ -256,6 +274,7 @@ Route decorators are the source of truth in `backend/app/api/routes/`, and API D
     so the client can bind exact-lemma pronunciation and metadata.
   - sectioned meaning `surface_forms[]` exclude rows whose normalized form matches the lemma;
     those lemma-form rows stay available only through top-level `surface_forms[]` when stored.
+  - noun `surface_forms[]` are ordered with non-slot/irregular forms first, then singular-definite, plural-indefinite, and plural-definite.
   - verification objects use the same additive fields as add/verify responses:
     `stored_surface_form`, `requested_at`, `completed_at`, and `suggested_actions`.
 - **Canonical response examples:**

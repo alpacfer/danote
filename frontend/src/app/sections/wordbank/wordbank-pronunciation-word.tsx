@@ -1,7 +1,19 @@
 import { normalizeSearchWord } from "@/app/core"
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { Volume2 } from "lucide-react"
 import { cn } from "@/lib/utils"
+
+export type WordbankPronunciationContextMenuItem = {
+  label: string
+  disabled?: boolean
+  onSelect: () => void
+}
 
 type WordbankPronunciationWordProps = {
   form: string
@@ -9,6 +21,7 @@ type WordbankPronunciationWordProps = {
   hasPronunciation: boolean
   pronunciationLoadingByForm: Record<string, boolean>
   onPlayPronunciation: (form: string) => void
+  contextMenuItems?: WordbankPronunciationContextMenuItem[]
   className?: string
   iconClassName?: string
   as?: "h2" | "span"
@@ -20,6 +33,7 @@ export function WordbankPronunciationWord({
   hasPronunciation,
   pronunciationLoadingByForm,
   onPlayPronunciation,
+  contextMenuItems,
   className,
   iconClassName,
   as: Wrapper,
@@ -27,39 +41,67 @@ export function WordbankPronunciationWord({
   const effectivePlayForm = playForm ?? form
   const isLoading = Boolean(pronunciationLoadingByForm[normalizeSearchWord(effectivePlayForm)])
   const isDisabled = isLoading
+  const hasContextMenu = Boolean(contextMenuItems && contextMenuItems.length > 0)
 
   const button = (
+    <button
+      type="button"
+      aria-label={`Listen to ${form}`}
+      disabled={isDisabled}
+      onClick={() => onPlayPronunciation(effectivePlayForm)}
+      onContextMenu={hasContextMenu ? (event) => {
+        event.stopPropagation()
+      } : undefined}
+      className={cn(
+        "inline-flex cursor-pointer items-center gap-1.5 rounded-md px-1 -ml-1 outline-none transition-colors",
+        "hover:bg-accent/60 focus-visible:ring-ring/50 focus-visible:ring-2",
+        "disabled:pointer-events-none disabled:opacity-70",
+      )}
+    >
+      <span className={className}>{form}</span>
+      <Volume2
+        className={cn(
+          "shrink-0 text-muted-foreground",
+          iconClassName ?? "size-3.5",
+          isLoading && "animate-pulse",
+          !hasPronunciation && "opacity-30",
+        )}
+      />
+    </button>
+  )
+
+  const interactiveButton = hasContextMenu ? (
+    <ContextMenu>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <ContextMenuTrigger asChild>
+            {button}
+          </ContextMenuTrigger>
+        </TooltipTrigger>
+        <TooltipContent side="left" sideOffset={8}><p>Click to listen</p></TooltipContent>
+      </Tooltip>
+      <ContextMenuContent>
+        {contextMenuItems?.map((item) => (
+          <ContextMenuItem
+            key={`${form}-${item.label}`}
+            disabled={item.disabled}
+            onSelect={item.onSelect}
+          >
+            {item.label}
+          </ContextMenuItem>
+        ))}
+      </ContextMenuContent>
+    </ContextMenu>
+  ) : (
     <Tooltip>
-      <TooltipTrigger asChild>
-        <button
-          type="button"
-          aria-label={`Listen to ${form}`}
-          disabled={isDisabled}
-          onClick={() => onPlayPronunciation(effectivePlayForm)}
-          className={cn(
-            "inline-flex cursor-pointer items-center gap-1.5 rounded-md px-1 -ml-1 outline-none transition-colors",
-            "hover:bg-accent/60 focus-visible:ring-ring/50 focus-visible:ring-2",
-            "disabled:pointer-events-none disabled:opacity-70",
-          )}
-        >
-          <span className={className}>{form}</span>
-          <Volume2
-            className={cn(
-              "shrink-0 text-muted-foreground",
-              iconClassName ?? "size-3.5",
-              isLoading && "animate-pulse",
-              !hasPronunciation && "opacity-30",
-            )}
-          />
-        </button>
-      </TooltipTrigger>
-      <TooltipContent side="bottom" sideOffset={4}><p>Click to listen</p></TooltipContent>
+      <TooltipTrigger asChild>{button}</TooltipTrigger>
+      <TooltipContent side="left" sideOffset={8}><p>Click to listen</p></TooltipContent>
     </Tooltip>
   )
 
   if (Wrapper) {
-    return <Wrapper className="inline">{button}</Wrapper>
+    return <Wrapper className="inline">{interactiveButton}</Wrapper>
   }
 
-  return button
+  return interactiveButton
 }

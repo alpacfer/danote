@@ -145,6 +145,7 @@ class VerificationResult(BaseModel):
     status: Literal["verified", "flagged", "error", "skipped", "queued"]
     provider: str | None = None
     reviewer_role: str | None = None
+    review_intent: str | None = None
     message: str
     composed_word_count: int | None = None
     stored_surface_form: str | None = None
@@ -184,6 +185,21 @@ class VerifyWordResponse(BaseModel):
     stored_surface_form: str | None
     verification: VerificationResult
     applied_categories: list[str] = Field(default_factory=list)
+
+
+class QueueVerificationRequest(BaseModel):
+    stored_lemma: str = Field(..., min_length=1)
+    stored_surface_form: str | None = None
+    meaning_id: int | None = None
+    review_intent: str | None = None
+
+
+class QueueVerificationResponse(BaseModel):
+    stored_lemma: str
+    stored_surface_form: str | None
+    meaning_id: int | None = None
+    review_intent: str
+    verification: VerificationResult
 
 
 class RethinkCategoriesRequest(BaseModel):

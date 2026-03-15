@@ -27,13 +27,17 @@ import { BadgeCheck, CircleAlert, Info } from "lucide-react"
 type WordbankVerificationPopoverProps = {
   verificationOverview: VerificationOverview
   isApplyingVerificationChanges: boolean
+  isRetryingVerification: boolean
   onApplyVerificationAction: (targetKey: string, actionIndex: number) => void
+  onRetryVerificationTarget: (targetKey: string) => void
 }
 
 export function WordbankVerificationPopover({
   verificationOverview,
   isApplyingVerificationChanges,
+  isRetryingVerification,
   onApplyVerificationAction,
+  onRetryVerificationTarget,
 }: WordbankVerificationPopoverProps) {
   const viewState = getVerificationViewState(verificationOverview)
   const providerLabel = verificationOverview.targets.find((target) => target.verification?.provider)?.verification?.provider ?? "gemini"
@@ -95,7 +99,9 @@ export function WordbankVerificationPopover({
                 key={target.key}
                 target={target}
                 isApplyingVerificationChanges={isApplyingVerificationChanges}
+                isRetryingVerification={isRetryingVerification}
                 onApplyVerificationAction={onApplyVerificationAction}
+                onRetryVerificationTarget={onRetryVerificationTarget}
               />
             ))}
           </div>
@@ -112,11 +118,15 @@ export function WordbankVerificationPopover({
 function VerificationTargetCard({
   target,
   isApplyingVerificationChanges,
+  isRetryingVerification,
   onApplyVerificationAction,
+  onRetryVerificationTarget,
 }: {
   target: VerificationTargetView
   isApplyingVerificationChanges: boolean
+  isRetryingVerification: boolean
   onApplyVerificationAction: (targetKey: string, actionIndex: number) => void
+  onRetryVerificationTarget: (targetKey: string) => void
 }) {
   const state = verificationTargetState(target)
   const timestampMeta = verificationTargetTimestampMeta(target)
@@ -177,6 +187,20 @@ function VerificationTargetCard({
                   </Card>
                 ))}
               </div>
+            ) : null}
+            {target.errorDetail.status === "error" ? (
+              <ButtonGroup>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="w-full"
+                  disabled={isRetryingVerification}
+                  onClick={() => onRetryVerificationTarget(target.key)}
+                >
+                  {isRetryingVerification ? "Retrying..." : "Retry verification"}
+                </Button>
+              </ButtonGroup>
             ) : null}
           </>
         ) : null}

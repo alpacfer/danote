@@ -16,6 +16,7 @@ class WordbankBackgroundJobRecord:
     status: str
     attempt_count: int
     max_attempts: int
+    rerun_requested: bool
 
 
 class WordbankBackgroundJobRepository:
@@ -56,7 +57,22 @@ class WordbankBackgroundJobRepository:
                 )
                 return cursor.rowcount == 1
 
-            if str(existing["status"]) in {"pending", "running"}:
+            existing_status = str(existing["status"])
+            if existing_status == "running":
+                conn.execute(
+                    """
+                    UPDATE wordbank_background_jobs
+                    SET job_type = ?,
+                        payload_json = ?,
+                        max_attempts = ?,
+                        rerun_requested = 1,
+                        last_error = NULL,
+                        completed_at = NULL,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                    """,
+                    (job_type, payload_json, max_attempts, int(existing["id"])),
+                )
                 return False
 
             conn.execute(
@@ -70,6 +86,7 @@ class WordbankBackgroundJobRepository:
                     available_at = CURRENT_TIMESTAMP,
                     last_error = NULL,
                     completed_at = NULL,
+                    rerun_requested = 0,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE id = ?
                 """,
@@ -79,6 +96,7 @@ class WordbankBackgroundJobRepository:
 
     def claim_next(self) -> WordbankBackgroundJobRecord | None:
         with get_connection(self._db_path) as conn:
+            conn.execute("BEGIN IMMEDIATE")
             row = conn.execute(
                 """
                 SELECT
@@ -88,7 +106,8 @@ class WordbankBackgroundJobRepository:
                     payload_json,
                     status,
                     attempt_count,
-                    max_attempts
+                    max_attempts,
+                    rerun_requested
                 FROM wordbank_background_jobs
                 WHERE status = 'pending'
                   AND available_at <= CURRENT_TIMESTAMP
@@ -98,26 +117,55 @@ class WordbankBackgroundJobRepository:
             ).fetchone()
             if row is None:
                 return None
-            conn.execute(
+            cursor = conn.execute(
                 """
                 UPDATE wordbank_background_jobs
                 SET status = 'running',
                     attempt_count = attempt_count + 1,
+                    rerun_requested = 0,
                     updated_at = CURRENT_TIMESTAMP
-                WHERE id = ?
+                WHERE id = ? AND status = 'pending'
                 """,
                 (int(row["id"]),),
             )
+            if cursor.rowcount != 1:
+                return None
         return _job_from_row(
             {
                 **dict(row),
                 "status": "running",
                 "attempt_count": int(row["attempt_count"]) + 1,
+                "rerun_requested": False,
             }
         )
 
-    def mark_completed(self, job_id: int) -> None:
+    def mark_completed(self, job_id: int) -> bool:
         with timed_db_operation("wordbank_background_jobs.mark_completed"), get_connection(self._db_path) as conn:
+            row = conn.execute(
+                """
+                SELECT rerun_requested
+                FROM wordbank_background_jobs
+                WHERE id = ?
+                LIMIT 1
+                """,
+                (job_id,),
+            ).fetchone()
+            if row is not None and bool(row["rerun_requested"]):
+                conn.execute(
+                    """
+                    UPDATE wordbank_background_jobs
+                    SET status = 'pending',
+                        attempt_count = 0,
+                        updated_at = CURRENT_TIMESTAMP,
+                        available_at = CURRENT_TIMESTAMP,
+                        last_error = NULL,
+                        completed_at = NULL,
+                        rerun_requested = 0
+                    WHERE id = ?
+                    """,
+                    (job_id,),
+                )
+                return True
             conn.execute(
                 """
                 UPDATE wordbank_background_jobs
@@ -129,10 +177,36 @@ class WordbankBackgroundJobRepository:
                 """,
                 (job_id,),
             )
+        return False
 
-    def mark_retryable_failure(self, job: WordbankBackgroundJobRecord, *, error_message: str, retry_delay_seconds: int = 1) -> None:
+    def mark_retryable_failure(self, job: WordbankBackgroundJobRecord, *, error_message: str, retry_delay_seconds: int = 1) -> bool:
         next_status = "pending" if job.attempt_count < job.max_attempts else "failed"
         with timed_db_operation("wordbank_background_jobs.mark_retryable_failure"), get_connection(self._db_path) as conn:
+            row = conn.execute(
+                """
+                SELECT rerun_requested
+                FROM wordbank_background_jobs
+                WHERE id = ?
+                LIMIT 1
+                """,
+                (job.id,),
+            ).fetchone()
+            if row is not None and bool(row["rerun_requested"]):
+                conn.execute(
+                    """
+                    UPDATE wordbank_background_jobs
+                    SET status = 'pending',
+                        attempt_count = 0,
+                        last_error = NULL,
+                        updated_at = CURRENT_TIMESTAMP,
+                        available_at = CURRENT_TIMESTAMP,
+                        completed_at = NULL,
+                        rerun_requested = 0
+                    WHERE id = ?
+                    """,
+                    (job.id,),
+                )
+                return True
             conn.execute(
                 """
                 UPDATE wordbank_background_jobs
@@ -147,6 +221,7 @@ class WordbankBackgroundJobRepository:
                 """,
                 (next_status, error_message, next_status, f"+{retry_delay_seconds} seconds", job.id),
             )
+        return False
 
 
 def _job_from_row(row: dict[str, object]) -> WordbankBackgroundJobRecord:
@@ -158,6 +233,7 @@ def _job_from_row(row: dict[str, object]) -> WordbankBackgroundJobRecord:
         status=str(row["status"]),
         attempt_count=_required_int(row, "attempt_count"),
         max_attempts=_required_int(row, "max_attempts"),
+        rerun_requested=bool(row.get("rerun_requested", False)),
     )
 
 

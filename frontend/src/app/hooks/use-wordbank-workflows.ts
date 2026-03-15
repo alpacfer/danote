@@ -76,10 +76,10 @@ export function useWordbankWorkflows({
 
   const {
     pronunciationLoadingByForm,
-    isRegeneratingLemmaPronunciation,
+    regeneratingPronunciationByForm,
     generatePronunciationInBackground,
     playPronunciation,
-    regenerateSelectedLemmaPronunciation,
+    regeneratePronunciation,
   } = usePronunciationWorkflow({
     backendUrl,
     extractErrorMessage,
@@ -111,10 +111,12 @@ export function useWordbankWorkflows({
 
   const {
     isApplyingVerificationChanges,
+    isRetryingVerification,
     isVerifyingWords,
     verificationOverview,
     trackQueuedVerifications,
     applyVerificationAction,
+    retryVerificationTarget,
     clearVerificationErrors,
   } = useVerificationWorkflow({
     backendUrl,
@@ -278,20 +280,22 @@ export function useWordbankWorkflows({
     addingTokens,
     isSavingSentence,
     pronunciationLoadingByForm,
-    isRegeneratingLemmaPronunciation,
+    regeneratingPronunciationByForm,
     isRethinkingCategories,
     isCompletingMeaningVariations,
     isApplyingVerificationChanges,
+    isRetryingVerification,
     isVerifyingWords,
     verificationOverview,
     addTokenToWordbank,
     addWordFromSearch,
     addSentenceToSentencebank,
     playPronunciation,
-    regenerateSelectedLemmaPronunciation,
+    regeneratePronunciation,
     rethinkCategories,
     completeMeaningVariations,
     applyVerificationAction,
+    retryVerificationTarget,
     clearVerificationErrors,
   }
 }

@@ -111,11 +111,12 @@ class WordbankBackgroundJobRunner:
         stored_lemma = _string_value(payload, "stored_lemma")
         stored_surface_form = _optional_string_value(payload, "stored_surface_form")
         if job_type == "verify_word":
-            use_case.verify_added_word_if_current(
+            use_case.process_queued_verification_if_current(
                 stored_lemma,
                 stored_surface_form,
                 meaning_id=_optional_int_value(payload, "meaning_id"),
                 expected_snapshot_hash=_string_value(payload, "snapshot_hash"),
+                expected_generation=_optional_int_value(payload, "request_generation"),
                 review_intent=_optional_string_value(payload, "review_intent") or "general",
             )
             return

@@ -257,6 +257,39 @@ export function mockFetchImplementation(options?: {
     applied_categories?: string[]
   }
   verifyWordHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+  queueVerificationResponse?: {
+    stored_lemma: string
+    stored_surface_form: string | null
+    meaning_id: number | null
+    review_intent: string
+    verification: {
+      status: "verified" | "flagged" | "error" | "skipped" | "queued"
+      provider: string | null
+      reviewer_role: string | null
+      review_intent?: string | null
+      message: string
+      composed_word_count: number | null
+      stored_surface_form?: string | null
+      requested_at?: string | null
+      completed_at?: string | null
+      problem?: string | null
+      change_to_implement?: string | null
+      suggested_actions?: Array<{
+        action_type: "fix_translation" | "fix_gloss" | "fix_variations" | "move_to_meaning_section" | "move_to_lemma"
+        reason?: string | null
+        english_translation?: string | null
+        gloss?: string | null
+        target_meaning_id?: number | null
+        target_lemma?: string | null
+        target_meaning_key?: string | null
+        target_gloss?: string | null
+        target_english_translation?: string | null
+        target_pos_tag?: string | null
+        target_morphology?: string | null
+      }> | null
+    }
+  }
+  queueVerificationHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
   completeVariationsResponse?: {
     status: "updated" | "skipped"
     stored_lemma: string
@@ -630,10 +663,27 @@ export function mockFetchImplementation(options?: {
       status: "verified" as const,
       provider: "gemini",
       reviewer_role: "Professional Danish Language Expert",
+      review_intent: "general",
       message: "Entry looks correct.",
       composed_word_count: 1,
     },
     applied_categories: [],
+  }
+  const queueVerificationResponse = options?.queueVerificationResponse ?? {
+    stored_lemma: addWordResponse.stored_lemma,
+    stored_surface_form: addWordResponse.stored_surface_form,
+    meaning_id: addWordResponse.meaning?.id ?? null,
+    review_intent: "general",
+    verification: {
+      status: "queued" as const,
+      provider: "gemini",
+      reviewer_role: "Professional Danish Language Expert",
+      review_intent: "general",
+      message: "Word verification queued.",
+      composed_word_count: null,
+      stored_surface_form: addWordResponse.stored_surface_form,
+      requested_at: "2026-03-15T12:00:00.000Z",
+    },
   }
   const completeVariationsResponse = options?.completeVariationsResponse ?? {
     status: "updated" as const,
@@ -883,6 +933,13 @@ export function mockFetchImplementation(options?: {
         return options.verifyWordHandler(input, init)
       }
       return responseOf(verifyWordResponse)
+    }
+
+    if (url.endsWith("/api/wordbank/lexemes/queue-verification")) {
+      if (options?.queueVerificationHandler) {
+        return options.queueVerificationHandler(input, init)
+      }
+      return responseOf(queueVerificationResponse)
     }
 
     if (url.endsWith("/api/wordbank/lexemes/complete-variations")) {

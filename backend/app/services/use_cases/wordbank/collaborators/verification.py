@@ -7,8 +7,8 @@ from pathlib import Path
 
 from app.api.schemas.v1.wordbank import (
     ApplyVerificationChangesResponse,
+    QueueVerificationResponse,
     RethinkCategoriesResponse,
-    VerificationAction,
     VerificationResult,
     VerifyWordResponse,
 )
@@ -33,24 +33,25 @@ from app.services.use_cases.wordbank.verification_records import (
     now_utc_iso,
     persist_verification_result,
 )
+from app.services.use_cases.wordbank.verification_queue import (
+    load_verification_record,
+    persist_queued_verification,
+    process_queued_verification_if_current,
+    queued_verification_result,
+)
+from app.services.use_cases.wordbank.verification_helper_logic import (
+    completion_review_actions,
+    find_fix_variations_action_fields,
+    normalize_review_intent,
+    rethink_categories_message,
+    verification_action_to_schema,
+)
 from app.services.verification import (
-    WordVerificationAction,
     WordVerificationInput,
     WordVerificationService,
 )
 
 logger = logging.getLogger(__name__)
-
-
-def _find_fix_variations_action_fields(actions: list[dict[str, object]]) -> dict[str, str]:
-    for candidate in actions:
-        if candidate.get("action_type") != "fix_variations":
-            continue
-        slot_forms = extract_fix_variations_action_slot_forms(candidate)
-        if slot_forms:
-            return slot_forms
-    return {}
-
 
 class VerificationCollaborator:
     """Handles word verification, applying changes, and the Gemini change log."""
@@ -95,6 +96,8 @@ class VerificationCollaborator:
             stored_surface_form=normalized_surface,
             verification=verification,
             category_labels=category_labels,
+            review_intent=normalize_review_intent(review_intent),
+            latest_snapshot_hash=self._verification_payload_hash(payload),
         )
         return VerifyWordResponse(
             stored_lemma=normalized_lemma,
@@ -110,29 +113,97 @@ class VerificationCollaborator:
         *,
         meaning_id: int | None = None,
         expected_snapshot_hash: str,
+        expected_generation: int | None = None,
         review_intent: str = "general",
     ) -> bool:
+        return (
+            self.process_queued_verification_if_current(
+                stored_lemma,
+                stored_surface_form,
+                meaning_id=meaning_id,
+                expected_snapshot_hash=expected_snapshot_hash,
+                expected_generation=expected_generation,
+                review_intent=review_intent,
+            )
+            == "persisted"
+        )
+
+    def process_queued_verification_if_current(
+        self,
+        stored_lemma: str,
+        stored_surface_form: str | None,
+        *,
+        meaning_id: int | None = None,
+        expected_snapshot_hash: str,
+        expected_generation: int | None = None,
+        review_intent: str = "general",
+    ) -> str:
+        normalized_review_intent = normalize_review_intent(review_intent)
+        return process_queued_verification_if_current(
+            stored_lemma=stored_lemma,
+            stored_surface_form=stored_surface_form,
+            meaning_id=meaning_id,
+            expected_snapshot_hash=expected_snapshot_hash,
+            expected_generation=expected_generation,
+            review_intent=normalized_review_intent,
+            build_input=self._build_verification_input,
+            payload_hash=self._verification_payload_hash,
+            load_record=lambda lemma, surface, current_meaning_id: load_verification_record(
+                db_path=self._db_path,
+                stored_lemma=lemma,
+                stored_surface_form=surface,
+                meaning_id=current_meaning_id,
+            ),
+            verify_payload=self._verify_added_word,
+            persist_result=lambda lemma, current_meaning_id, surface, verification, labels, current_review_intent, snapshot_hash, request_generation: self._persist_verification_result(
+                stored_lemma=lemma,
+                meaning_id=current_meaning_id,
+                stored_surface_form=surface,
+                verification=verification,
+                category_labels=labels,
+                review_intent=current_review_intent,
+                latest_snapshot_hash=snapshot_hash,
+                request_generation=request_generation,
+            ),
+        )
+
+    def queue_verification_request(
+        self,
+        stored_lemma: str,
+        stored_surface_form: str | None,
+        *,
+        meaning_id: int | None = None,
+        review_intent: str = "general",
+        persist: bool = True,
+    ) -> QueueVerificationResponse:
         normalized_lemma = normalize_token(stored_lemma)
         normalized_surface = normalize_token(stored_surface_form or "") or None
         if not normalized_lemma:
             raise ValueError("stored_lemma is required")
-        payload = self._build_verification_input(
+        normalized_review_intent = normalize_review_intent(review_intent)
+        verification = self.queued_verification_result(stored_surface_form=normalized_surface)
+        snapshot_hash = self.build_verification_snapshot_hash(
             stored_lemma=normalized_lemma,
             stored_surface_form=normalized_surface,
             meaning_id=meaning_id,
-            review_intent=review_intent,
+            review_intent=normalized_review_intent,
         )
-        if self._verification_payload_hash(payload) != expected_snapshot_hash:
-            return False
-        verification, category_labels = self._verify_added_word(payload)
-        self._persist_verification_result(
+        if persist:
+            self.persist_queued_verification(
+                stored_lemma=normalized_lemma,
+                stored_surface_form=normalized_surface,
+                meaning_id=meaning_id,
+                verification=verification,
+                review_intent=normalized_review_intent,
+                latest_snapshot_hash=snapshot_hash,
+            )
+        return QueueVerificationResponse(
             stored_lemma=normalized_lemma,
-            meaning_id=meaning_id,
             stored_surface_form=normalized_surface,
+            meaning_id=meaning_id,
+            review_intent=normalized_review_intent,
             verification=verification,
-            category_labels=category_labels,
         )
-        return True
 
     def rethink_categories(
         self,
@@ -183,7 +254,7 @@ class VerificationCollaborator:
             stored_surface_form=normalized_surface,
             meaning_id=meaning_id,
             applied_categories=applied_categories,
-            message=_rethink_categories_message(normalized_lemma, applied_categories),
+            message=rethink_categories_message(normalized_lemma, applied_categories),
         )
 
     def build_verification_snapshot_hash(
@@ -298,7 +369,7 @@ class VerificationCollaborator:
         if record is None:
             return action
 
-        hydrated_fields = _find_fix_variations_action_fields(record.suggested_actions)
+        hydrated_fields = find_fix_variations_action_fields(record.suggested_actions)
         if not hydrated_fields:
             hydrated_fields = parse_fix_variations_text_slot_forms(record.change_to_implement)
         if not hydrated_fields:
@@ -319,23 +390,14 @@ class VerificationCollaborator:
         *,
         stored_surface_form: str | None = None,
         requested_at: str | None = None,
+        review_intent: str = "general",
     ) -> VerificationResult:
-        if self._verification_service is None:
-            return VerificationResult(
-                status="skipped",
-                provider=None,
-                reviewer_role=None,
-                message="Word verification is disabled.",
-            )
-        provider_name, reviewer_name = self._verification_metadata()
-        return VerificationResult(
-            status="queued",
-            provider=provider_name,
-            reviewer_role=reviewer_name,
-            message="Word verification queued.",
-            composed_word_count=None,
+        return queued_verification_result(
+            verification_enabled=self._verification_service is not None,
+            metadata_provider=self._verification_metadata,
             stored_surface_form=stored_surface_form,
-            requested_at=requested_at or now_utc_iso(),
+            requested_at=requested_at,
+            review_intent=normalize_review_intent(review_intent),
         )
 
     def persist_queued_verification(
@@ -345,29 +407,17 @@ class VerificationCollaborator:
         stored_surface_form: str | None,
         meaning_id: int | None,
         verification: VerificationResult | None,
-    ) -> None:
-        if verification is None or verification.status != "queued":
-            return
-        normalized_lemma = normalize_token(stored_lemma)
-        if not normalized_lemma:
-            return
-        repository = WordbankRepository(self._db_path)
-        lexeme = repository.get_lexeme(normalized_lemma)
-        if lexeme is None:
-            return
-        persist_verification_result(
-            repository,
-            lexeme_id=lexeme.id,
+        review_intent: str = "general",
+        latest_snapshot_hash: str | None = None,
+    ) -> int | None:
+        return persist_queued_verification(
+            db_path=self._db_path,
+            stored_lemma=stored_lemma,
+            stored_surface_form=stored_surface_form,
             meaning_id=meaning_id,
-            stored_surface_form=normalize_token(stored_surface_form or "") or None,
-            verification=verification.model_copy(
-                update={
-                    "stored_surface_form": normalize_token(stored_surface_form or "") or None,
-                    "requested_at": verification.requested_at or now_utc_iso(),
-                    "completed_at": None,
-                }
-            ),
-            requested_at=verification.requested_at,
+            verification=verification,
+            review_intent=normalize_review_intent(review_intent),
+            latest_snapshot_hash=latest_snapshot_hash,
         )
 
     def _append_gemini_change_log(self, payload: dict[str, object]) -> None:
@@ -418,7 +468,7 @@ class VerificationCollaborator:
             stored_lemma=stored_lemma,
             stored_surface_form=stored_surface_form,
             meaning_id=meaning_id,
-            review_intent=_normalize_review_intent(review_intent),
+            review_intent=normalize_review_intent(review_intent),
         )
 
     def _verify_added_word(
@@ -431,6 +481,7 @@ class VerificationCollaborator:
                     status="skipped",
                     provider=None,
                     reviewer_role=None,
+                    review_intent=payload.review_intent,
                     message="Word verification is disabled.",
                 ),
                 [],
@@ -446,6 +497,7 @@ class VerificationCollaborator:
                     status="error",
                     provider=provider_name,
                     reviewer_role=reviewer_name,
+                    review_intent=payload.review_intent,
                     message=f"Verification task failed: {exc}",
                     composed_word_count=None,
                     stored_surface_form=payload.stored_surface_form,
@@ -460,7 +512,7 @@ class VerificationCollaborator:
 
         completed_at = now_utc_iso()
         suggested_actions = [
-            _verification_action_to_schema(action)
+            verification_action_to_schema(action)
             for action in getattr(verdict, "suggested_actions", ()) or ()
         ]
         if (
@@ -474,6 +526,7 @@ class VerificationCollaborator:
                     status="verified",
                     provider=provider_name,
                     reviewer_role=reviewer_name,
+                    review_intent=payload.review_intent,
                     message="OK",
                     composed_word_count=getattr(verdict, "composed_word_count", None),
                     stored_surface_form=payload.stored_surface_form,
@@ -483,7 +536,7 @@ class VerificationCollaborator:
                 ),
                 list(getattr(verdict, "categories", ()) or ()),
             )
-        suggested_actions = _completion_review_actions(
+        suggested_actions = completion_review_actions(
             payload=payload,
             verification_status=verdict.verdict,
             suggested_actions=suggested_actions,
@@ -495,6 +548,7 @@ class VerificationCollaborator:
                 status=verdict.verdict,
                 provider=provider_name,
                 reviewer_role=reviewer_name,
+                review_intent=payload.review_intent,
                 message=verdict.message,
                 composed_word_count=getattr(verdict, "composed_word_count", None),
                 stored_surface_form=payload.stored_surface_form,
@@ -515,6 +569,9 @@ class VerificationCollaborator:
         stored_surface_form: str | None,
         verification: VerificationResult,
         category_labels: list[str],
+        review_intent: str | None = None,
+        latest_snapshot_hash: str | None = None,
+        request_generation: int | None = None,
     ) -> list[str]:
         repository = WordbankRepository(self._db_path)
         lexeme = repository.get_lexeme(stored_lemma)
@@ -539,6 +596,9 @@ class VerificationCollaborator:
             stored_surface_form=stored_surface_form,
             verification=persisted,
             requested_at=requested_at,
+            review_intent=review_intent,
+            latest_snapshot_hash=latest_snapshot_hash,
+            request_generation=request_generation,
         )
         verification.requested_at = record.requested_at
         verification.completed_at = record.completed_at
@@ -574,87 +634,3 @@ class VerificationCollaborator:
             for key, value in asdict(payload).items()
         }
         return json.dumps(serialized, ensure_ascii=True, sort_keys=True)
-
-
-def _verification_action_to_schema(action: WordVerificationAction) -> VerificationAction:
-    return VerificationAction(
-        action_type=action.action_type,
-        reason=action.reason,
-        english_translation=action.english_translation,
-        gloss=action.gloss,
-        singular_definite_form=action.singular_definite_form,
-        plural_indefinite_form=action.plural_indefinite_form,
-        plural_definite_form=action.plural_definite_form,
-        target_meaning_id=action.target_meaning_id,
-        target_lemma=action.target_lemma,
-        target_meaning_key=action.target_meaning_key,
-        target_gloss=action.target_gloss,
-        target_english_translation=action.target_english_translation,
-        target_pos_tag=action.target_pos_tag,
-        target_morphology=action.target_morphology,
-    )
-
-
-def _rethink_categories_message(stored_lemma: str, applied_categories: list[str]) -> str:
-    if not applied_categories:
-        return f"Updated categories for '{stored_lemma}'. No categories are currently assigned."
-    if len(applied_categories) == 1:
-        return f"Updated categories for '{stored_lemma}' to {applied_categories[0]}."
-    return f"Updated categories for '{stored_lemma}'."
-
-
-def _normalize_review_intent(review_intent: str) -> str:
-    normalized = review_intent.strip().lower() if isinstance(review_intent, str) else "general"
-    if normalized == "complete_variations":
-        return "complete_variations"
-    return "general"
-
-
-def _completion_review_actions(
-    *,
-    payload: WordVerificationInput,
-    verification_status: str,
-    suggested_actions: list[VerificationAction],
-    problem: str | None,
-    change_to_implement: str | None,
-) -> list[VerificationAction]:
-    if (
-        payload.review_intent != "complete_variations"
-        or payload.meaning_id is None
-        or verification_status != "flagged"
-    ):
-        return suggested_actions
-    text_slot_forms = (
-        parse_fix_variations_text_slot_forms(change_to_implement)
-        or parse_fix_variations_text_slot_forms(problem)
-    )
-    enriched_actions: list[VerificationAction] = []
-    fix_variations_found = False
-    for action in suggested_actions:
-        if action.action_type != "fix_variations":
-            enriched_actions.append(action)
-            continue
-        fix_variations_found = True
-        action_slot_forms = extract_fix_variations_action_slot_forms(action.model_dump(exclude_none=True))
-        merged_slot_forms = action_slot_forms or text_slot_forms
-        enriched_actions.append(
-            action.model_copy(
-                update={
-                    "singular_definite_form": merged_slot_forms.get("singular_definite"),
-                    "plural_indefinite_form": merged_slot_forms.get("plural_indefinite"),
-                    "plural_definite_form": merged_slot_forms.get("plural_definite"),
-                }
-            )
-        )
-    if fix_variations_found:
-        return enriched_actions
-    return [
-        VerificationAction(
-            action_type="fix_variations",
-            reason="Replace the completed variation set with the reviewed noun forms for this meaning.",
-            singular_definite_form=text_slot_forms.get("singular_definite"),
-            plural_indefinite_form=text_slot_forms.get("plural_indefinite"),
-            plural_definite_form=text_slot_forms.get("plural_definite"),
-        ),
-        *enriched_actions,
-    ]

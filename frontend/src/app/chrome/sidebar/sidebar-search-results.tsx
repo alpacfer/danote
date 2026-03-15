@@ -89,6 +89,7 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
             addVariationBySavedResult={data.addVariationBySavedResult}
             exactSavedVariationKeySet={data.exactSavedVariationKeySet}
             normalizedQuery={state.normalizedQuery}
+            isTranslationsLoading={data.isCorTranslationsLoading}
             wordbankItemValue={data.wordbankItemValue}
             onAddWordFromSearch={actions.onAddWordFromSearch}
             onOpenWordbankLemma={actions.onOpenWordbankLemma}

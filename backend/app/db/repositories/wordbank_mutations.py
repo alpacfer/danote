@@ -406,6 +406,9 @@ class WordbankMutationRepository:
         suggested_actions: list[dict[str, object]],
         requested_at: str,
         completed_at: str | None,
+        review_intent: str = "general",
+        latest_snapshot_hash: str | None = None,
+        request_generation: int = 0,
     ) -> VerificationRecord:
         with timed_db_operation("wordbank.upsert_verification_record"), get_connection(self._db_path) as conn:
             if meaning_id is None and stored_surface_form is None:
@@ -465,9 +468,12 @@ class WordbankMutationRepository:
                         change_to_implement,
                         suggested_actions_json,
                         requested_at,
-                        completed_at
+                        completed_at,
+                        review_intent,
+                        latest_snapshot_hash,
+                        request_generation
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         lexeme_id,
@@ -482,6 +488,9 @@ class WordbankMutationRepository:
                         actions_json,
                         requested_at,
                         completed_at,
+                        review_intent,
+                        latest_snapshot_hash,
+                        request_generation,
                     ),
                 )
                 if cursor.lastrowid is None:
@@ -502,6 +511,9 @@ class WordbankMutationRepository:
                         suggested_actions_json = ?,
                         requested_at = ?,
                         completed_at = ?,
+                        review_intent = ?,
+                        latest_snapshot_hash = ?,
+                        request_generation = ?,
                         updated_at = CURRENT_TIMESTAMP
                     WHERE id = ?
                     """,
@@ -516,6 +528,9 @@ class WordbankMutationRepository:
                         actions_json,
                         requested_at,
                         completed_at,
+                        review_intent,
+                        latest_snapshot_hash,
+                        request_generation,
                         record_id,
                     ),
                 )
@@ -535,7 +550,10 @@ class WordbankMutationRepository:
                     change_to_implement,
                     suggested_actions_json,
                     requested_at,
-                    completed_at
+                    completed_at,
+                    review_intent,
+                    latest_snapshot_hash,
+                    request_generation
                 FROM wordbank_verification_records
                 WHERE id = ?
                 LIMIT 1

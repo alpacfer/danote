@@ -37,6 +37,7 @@ No additional app-shell side effects should be added here; it is intentionally a
 
 `AppSidebar` owns:
 
+- Search-first sidebar header layout with no standalone app title label.
 - Primary section navigation buttons (Playground, Notes, Wordbank, Sentencebank, Developer).
 - Wordbank unread count badge presentation in nav.
 - Command search dialog open/close state and query state.
@@ -130,7 +131,7 @@ Via shared shadcn sidebar primitives (`SidebarProvider`, `Sidebar`, `SidebarTrig
 `App.tsx` renders a header only on `md:hidden` breakpoints with:
 
 - `SidebarTrigger`
-- static `Danote` title
+- no extra app title text; the trigger stands alone
 
 This provides mobile navigation access without rendering desktop rail interactions.
 

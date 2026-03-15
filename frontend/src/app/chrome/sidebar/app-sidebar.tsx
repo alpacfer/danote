@@ -242,7 +242,6 @@ export function AppSidebar({
   return (
     <Sidebar variant="inset">
       <SidebarHeader className="gap-2">
-        <p className="px-2 text-sm font-semibold">Danote</p>
         <Button type="button" variant="outline" className="justify-between" onClick={() => setIsSearchOpen(true)}>
           Search...
           <span className="text-muted-foreground text-[10px] uppercase">Cmd/Ctrl+K</span>

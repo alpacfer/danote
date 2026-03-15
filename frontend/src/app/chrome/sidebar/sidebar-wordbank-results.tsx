@@ -26,6 +26,7 @@ type SidebarWordbankResultsProps = {
   addVariationBySavedResult: Map<string, { group: CORSearchGroup; variant: CORSearchVariant }>
   exactSavedVariationKeySet: Set<string>
   normalizedQuery: string
+  isTranslationsLoading: boolean
   wordbankItemValue: (item: WordbankSearchItem) => string
   onAddWordFromSearch: (
     surfaceToken: string,
@@ -49,6 +50,7 @@ export function SidebarWordbankResults({
   addVariationBySavedResult,
   exactSavedVariationKeySet,
   normalizedQuery,
+  isTranslationsLoading,
   wordbankItemValue,
   onAddWordFromSearch,
   onOpenWordbankLemma,
@@ -66,7 +68,12 @@ export function SidebarWordbankResults({
             onSelect={() => {
               const addVariation = addVariationBySavedResult.get(resultKey)
               const isExactSavedVariation = exactSavedVariationKeySet.has(resultKey)
-              if (addVariation && !isExactSavedVariation) {
+              const isVariationAddBlocked = Boolean(
+                addVariation && (
+                  isTranslationsLoading || !lemmaTranslationForVariant(addVariation.variant)
+                ),
+              )
+              if (addVariation && !isExactSavedVariation && !isVariationAddBlocked) {
                 void (async () => {
                   const addedLemma = await onAddWordFromSearch(
                     addVariation.variant.form,
@@ -143,6 +150,14 @@ export function SidebarWordbankResults({
                   : (showMatchedSurface || showExactSavedLink)
                     ? savedTranslationLine
                     : null
+                const linkedVariation = addVariationBySavedResult.get(resultKey)
+                const variationAddBlockedReason = linkedVariation
+                  ? (
+                      !isTranslationsLoading && !lemmaTranslationForVariant(linkedVariation.variant)
+                        ? "Translation required before saving."
+                      : null
+                    )
+                  : null
                 const detailLine = displayVariant
                   ? glossDisplayForVariant(displayVariant)
                   : (showMatchedSurface || showExactSavedLink)
@@ -169,6 +184,9 @@ export function SidebarWordbankResults({
                     {detailLine ? (
                       <span className="text-muted-foreground text-xs leading-4">{detailLine}</span>
                     ) : null}
+                    {variationAddBlockedReason ? (
+                      <span className="text-muted-foreground text-xs leading-4">{variationAddBlockedReason}</span>
+                    ) : null}
                     {badges.length > 0 ? (
                       <div className="mt-1 flex flex-wrap gap-1.5">
                         {badges.map((badge) => (
@@ -190,7 +208,12 @@ export function SidebarWordbankResults({
             {(() => {
               const linkedVariation = addVariationBySavedResult.get(resultKey)
               const isExactSavedVariation = exactSavedVariationKeySet.has(resultKey)
-              if (linkedVariation && !isExactSavedVariation) {
+              const isVariationAddBlocked = Boolean(
+                linkedVariation && (
+                  isTranslationsLoading || !lemmaTranslationForVariant(linkedVariation.variant)
+                ),
+              )
+              if (linkedVariation && !isExactSavedVariation && !isVariationAddBlocked) {
                 return (
                   <span className="text-muted-foreground flex items-center gap-1 text-xs font-semibold">
                     <span data-testid="search-add-variation-label">variation</span>

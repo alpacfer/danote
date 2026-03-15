@@ -5,6 +5,7 @@ import {
   englishGlossForSavedForm,
   lemmaDisplayForSavedForm,
   lemmaTranslationWithGloss,
+  normalizeSearchWord,
   posBadgeClass,
   posBorderLeftClass,
 } from "@/app/core"
@@ -15,13 +16,17 @@ import { cn } from "@/lib/utils"
 type WordbankVariationGridProps = {
   variationForms: LemmaDetailsResponse["surface_forms"]
   pronunciationLoadingByForm: Record<string, boolean>
+  regeneratingPronunciationByForm: Record<string, boolean>
   onPlayPronunciation: (form: string) => void
+  onRegeneratePronunciation: (form: string) => void
 }
 
 export function WordbankVariationGrid({
   variationForms,
   pronunciationLoadingByForm,
+  regeneratingPronunciationByForm,
   onPlayPronunciation,
+  onRegeneratePronunciation,
 }: WordbankVariationGridProps) {
   if (variationForms.length === 0) {
     return null
@@ -36,6 +41,8 @@ export function WordbankVariationGrid({
           englishGlossForSavedForm(form),
         )
         const formBadges = badgesForSavedForm(form)
+        const normalizedForm = normalizeSearchWord(form.form)
+        const isRegenerating = Boolean(regeneratingPronunciationByForm[normalizedForm])
         return (
           <div
             key={form.form}
@@ -50,6 +57,13 @@ export function WordbankVariationGrid({
                 hasPronunciation={form.has_pronunciation ?? false}
                 pronunciationLoadingByForm={pronunciationLoadingByForm}
                 onPlayPronunciation={onPlayPronunciation}
+                contextMenuItems={[
+                  {
+                    label: isRegenerating ? "Regenerating audio..." : "Regenerate audio",
+                    disabled: isRegenerating,
+                    onSelect: () => onRegeneratePronunciation(form.form),
+                  },
+                ]}
                 className="text-base font-bold"
                 iconClassName="size-3"
               />
