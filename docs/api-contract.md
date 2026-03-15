@@ -111,6 +111,7 @@ Route decorators are the source of truth in `backend/app/api/routes/`, and API D
   - `400` for invalid inputs.
   - successful responses persist the verification result for the matching `(lemma, meaning_id, stored_surface_form)` target.
   - `verification` may include `stored_surface_form`, `requested_at`, and `completed_at`.
+  - normal save verification checks only whether the saved lemma / meaning / selected surface placement is correct; missing paradigm members do not produce `fix_variations` suggestions in this flow.
   - `applied_categories` lists the semantic categories persisted for the reviewed root / meaning scope.
   - Gemini may reuse multiple existing categories and may mint up to 3 new broad categories when the shared catalog has no good fit.
   - category classification runs inside the same verification call and uses the full saved word scope context: reviewed gloss/translation metadata, canonical lemma metadata, selected surface metadata, sibling meaning sections, and saved surface forms for the lemma.
@@ -143,7 +144,7 @@ Route decorators are the source of truth in `backend/app/api/routes/`, and API D
     singular-definite, plural-indefinite, and plural-definite.
   - `added_surface_forms` lists the forms inserted by this call.
   - `queued_pronunciation_forms` lists the newly added forms queued for background pronunciation generation.
-  - the command also requeues word-page verification targets for the updated lemma.
+  - the command also requeues one meaning-level verification review for the updated meaning.
 
 ### POST `/api/wordbank/lexemes/pronunciation`
 - **Request model:** `GeneratePronunciationRequest`.
@@ -156,6 +157,12 @@ Route decorators are the source of truth in `backend/app/api/routes/`, and API D
 ### POST `/api/wordbank/lexemes/apply-verification-changes`
 - **Request model:** `ApplyVerificationChangesRequest`.
 - **Response model:** `ApplyVerificationChangesResponse`.
+- **Notable request/behavior details:**
+  - `action.action_type` supports `fix_translation`, `fix_gloss`, `fix_variations`, `move_to_meaning_section`, and `move_to_lemma`.
+  - completion-review records may expose a meaning-level `fix_variations` action that reconciles the whole saved noun variation set for that meaning in one apply request.
+  - `fix_variations` is reserved for the `Complete variations` follow-up review; normal save verification does not emit that action type.
+  - when Gemini provides them, `fix_variations` actions may include `singular_definite_form`, `plural_indefinite_form`, and `plural_definite_form` so apply uses the reviewed surface set directly instead of re-deriving it from COR.
+  - if those structured noun-slot fields are missing on an older saved completion review, the backend will try to recover them from the persisted review text before applying.
 - **Notable status/error behavior:**
   - `503` when DB unavailable/locked.
   - `404` when source/target meaning context cannot be resolved.
@@ -362,6 +369,74 @@ Route decorators are the source of truth in `backend/app/api/routes/`, and API D
           "pos_tag": "NOUN",
           "morphology": "Gender=Com|Number=Sing|Definite=Def",
           "gram_raw": "sb. fk. sg. best",
+          "has_pronunciation": false
+        }
+      ]
+    }
+    ```
+  - **Completion-review example** (`is_sectioned: true`, meaning-level fix action):
+    ```json
+    {
+      "lemma": "mor",
+      "english_translation": null,
+      "pos_tag": null,
+      "morphology": null,
+      "is_sectioned": true,
+      "meaning_sections": [
+        {
+          "id": 1,
+          "meaning_key": "person",
+          "gloss": "person",
+          "english_translation": "mother",
+          "pos_tag": "NOUN",
+          "morphology": "Gender=Com|Number=Sing|Definite=Ind",
+          "verification": {
+            "status": "flagged",
+            "provider": "gemini",
+            "reviewer_role": "Professional Danish Language Expert",
+            "message": "Review needed.",
+            "composed_word_count": 1,
+            "stored_surface_form": null,
+            "requested_at": "2026-03-15T10:55:00+00:00",
+            "completed_at": "2026-03-15T10:57:00+00:00",
+            "problem": "The plural surface forms provided for the noun 'mor' are incorrect.",
+            "change_to_implement": "Replace the completed variation set with the correct plural forms.",
+            "suggested_actions": [
+              {
+                "action_type": "fix_variations",
+                "reason": "Replace the saved variation set with the reviewed noun forms for this meaning.",
+                "plural_indefinite_form": "mødre",
+                "plural_definite_form": "mødrene"
+              }
+            ]
+          },
+          "surface_forms": [
+            {
+              "form": "morer",
+              "pos_tag": "NOUN",
+              "morphology": "Gender=Com|Number=Plur|Definite=Ind",
+              "lemma": "mor",
+              "lemma_translation": "mother",
+              "gloss": "person",
+              "has_pronunciation": false
+            },
+            {
+              "form": "morerne",
+              "pos_tag": "NOUN",
+              "morphology": "Gender=Com|Number=Plur|Definite=Def",
+              "lemma": "mor",
+              "lemma_translation": "mother",
+              "gloss": "person",
+              "has_pronunciation": false
+            }
+          ]
+        }
+      ],
+      "surface_forms": [
+        {
+          "form": "mor",
+          "pos_tag": "NOUN",
+          "morphology": "Gender=Com|Number=Sing|Definite=Ind",
           "has_pronunciation": false
         }
       ]

@@ -64,7 +64,7 @@ export function mockFetchImplementation(options?: {
       problem?: string | null
       change_to_implement?: string | null
       suggested_actions?: Array<{
-        action_type: "fix_translation" | "fix_gloss" | "move_to_meaning_section" | "move_to_lemma"
+        action_type: "fix_translation" | "fix_gloss" | "fix_variations" | "move_to_meaning_section" | "move_to_lemma"
         reason?: string | null
         english_translation?: string | null
         gloss?: string | null
@@ -104,7 +104,7 @@ export function mockFetchImplementation(options?: {
         problem?: string | null
         change_to_implement?: string | null
         suggested_actions?: Array<{
-          action_type: "fix_translation" | "fix_gloss" | "move_to_meaning_section" | "move_to_lemma"
+          action_type: "fix_translation" | "fix_gloss" | "fix_variations" | "move_to_meaning_section" | "move_to_lemma"
           reason?: string | null
           english_translation?: string | null
           gloss?: string | null
@@ -138,7 +138,7 @@ export function mockFetchImplementation(options?: {
           problem?: string | null
           change_to_implement?: string | null
           suggested_actions?: Array<{
-            action_type: "fix_translation" | "fix_gloss" | "move_to_meaning_section" | "move_to_lemma"
+            action_type: "fix_translation" | "fix_gloss" | "fix_variations" | "move_to_meaning_section" | "move_to_lemma"
             reason?: string | null
             english_translation?: string | null
             gloss?: string | null
@@ -173,7 +173,7 @@ export function mockFetchImplementation(options?: {
             problem?: string | null
             change_to_implement?: string | null
             suggested_actions?: Array<{
-              action_type: "fix_translation" | "fix_gloss" | "move_to_meaning_section" | "move_to_lemma"
+              action_type: "fix_translation" | "fix_gloss" | "fix_variations" | "move_to_meaning_section" | "move_to_lemma"
               reason?: string | null
               english_translation?: string | null
               gloss?: string | null
@@ -210,7 +210,7 @@ export function mockFetchImplementation(options?: {
           problem?: string | null
           change_to_implement?: string | null
           suggested_actions?: Array<{
-            action_type: "fix_translation" | "fix_gloss" | "move_to_meaning_section" | "move_to_lemma"
+            action_type: "fix_translation" | "fix_gloss" | "fix_variations" | "move_to_meaning_section" | "move_to_lemma"
             reason?: string | null
             english_translation?: string | null
             gloss?: string | null
@@ -241,7 +241,7 @@ export function mockFetchImplementation(options?: {
       problem?: string | null
       change_to_implement?: string | null
       suggested_actions?: Array<{
-        action_type: "fix_translation" | "fix_gloss" | "move_to_meaning_section" | "move_to_lemma"
+        action_type: "fix_translation" | "fix_gloss" | "fix_variations" | "move_to_meaning_section" | "move_to_lemma"
         reason?: string | null
         english_translation?: string | null
         gloss?: string | null
@@ -355,7 +355,7 @@ export function mockFetchImplementation(options?: {
       problem?: string | null
       change_to_implement?: string | null
       suggested_actions?: Array<{
-        action_type: "fix_translation" | "fix_gloss" | "move_to_meaning_section" | "move_to_lemma"
+        action_type: "fix_translation" | "fix_gloss" | "fix_variations" | "move_to_meaning_section" | "move_to_lemma"
         reason?: string | null
         english_translation?: string | null
         gloss?: string | null
@@ -389,7 +389,7 @@ export function mockFetchImplementation(options?: {
         problem?: string | null
         change_to_implement?: string | null
         suggested_actions?: Array<{
-          action_type: "fix_translation" | "fix_gloss" | "move_to_meaning_section" | "move_to_lemma"
+          action_type: "fix_translation" | "fix_gloss" | "fix_variations" | "move_to_meaning_section" | "move_to_lemma"
           reason?: string | null
           english_translation?: string | null
           gloss?: string | null

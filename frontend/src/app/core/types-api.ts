@@ -75,10 +75,13 @@ export type AddWordResponse = {
 }
 
 export type VerificationAction = {
-  action_type: "fix_translation" | "fix_gloss" | "move_to_meaning_section" | "move_to_lemma"
+  action_type: "fix_translation" | "fix_gloss" | "fix_variations" | "move_to_meaning_section" | "move_to_lemma"
   reason?: string | null
   english_translation?: string | null
   gloss?: string | null
+  singular_definite_form?: string | null
+  plural_indefinite_form?: string | null
+  plural_definite_form?: string | null
   target_meaning_id?: number | null
   target_lemma?: string | null
   target_meaning_key?: string | null

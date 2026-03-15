@@ -173,6 +173,9 @@ export function verificationActionTitle(action: VerificationAction) {
   if (action.action_type === "fix_gloss") {
     return "Fix gloss"
   }
+  if (action.action_type === "fix_variations") {
+    return "Fix variations"
+  }
   if (action.action_type === "move_to_meaning_section") {
     return "Move to different meaning"
   }
@@ -188,6 +191,9 @@ export function verificationActionSummary(action: VerificationAction) {
   }
   if (action.action_type === "fix_gloss") {
     return `Set gloss to '${action.gloss ?? ""}'.`
+  }
+  if (action.action_type === "fix_variations") {
+    return "Replace the saved variation set with the reviewed noun forms for this meaning."
   }
   if (action.action_type === "move_to_meaning_section") {
     return `Move this entry to meaning section #${action.target_meaning_id ?? "?"}.`

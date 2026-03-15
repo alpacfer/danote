@@ -157,11 +157,13 @@ class WordbankUseCase:
         stored_surface_form: str | None,
         *,
         meaning_id: int | None = None,
+        review_intent: str = "general",
     ):
         return self._runtime.verification.verify_added_word(
             stored_lemma,
             stored_surface_form,
             meaning_id=meaning_id,
+            review_intent=review_intent,
         )
 
     def rethink_categories(
@@ -184,12 +186,14 @@ class WordbankUseCase:
         *,
         meaning_id: int | None = None,
         expected_snapshot_hash: str,
+        review_intent: str = "general",
     ) -> bool:
         return self._runtime.verification.verify_added_word_if_current(
             stored_lemma,
             stored_surface_form,
             meaning_id=meaning_id,
             expected_snapshot_hash=expected_snapshot_hash,
+            review_intent=review_intent,
         )
 
     def apply_verification_changes(

@@ -308,6 +308,9 @@ function buildActionToastMessage(actionType: string, label: string): string {
   if (actionType === "fix_gloss") {
     return `Updated gloss for '${label}'.`
   }
+  if (actionType === "fix_variations") {
+    return `Updated variations for '${label}'.`
+  }
   if (actionType === "move_to_meaning_section") {
     return `Moved '${label}' to a different meaning section.`
   }

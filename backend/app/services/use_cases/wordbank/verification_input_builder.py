@@ -25,6 +25,7 @@ def build_verification_input(
     stored_lemma: str,
     stored_surface_form: str | None,
     meaning_id: int | None,
+    review_intent: Literal["general", "complete_variations"] = "general",
 ) -> WordVerificationInput:
     lexeme_source = "manual"
     selected_translation: str | None = None
@@ -285,6 +286,7 @@ def build_verification_input(
         available_categories=available_categories,
         sibling_meaning_sections=tuple(sibling_meaning_sections),
         available_surface_forms=available_surface_forms,
+        review_intent=review_intent,
     )
 
 

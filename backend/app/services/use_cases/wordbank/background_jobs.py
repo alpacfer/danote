@@ -116,6 +116,7 @@ class WordbankBackgroundJobRunner:
                 stored_surface_form,
                 meaning_id=_optional_int_value(payload, "meaning_id"),
                 expected_snapshot_hash=_string_value(payload, "snapshot_hash"),
+                review_intent=_optional_string_value(payload, "review_intent") or "general",
             )
             return
         if job_type == "generate_pronunciation":

@@ -400,6 +400,83 @@ describe("App wordbank", () => {
     expect(screen.queryByRole("menuitem", { name: /complete variations/i })).not.toBeInTheDocument()
   })
 
+  it("request-shape: completion review shows one fix-variations apply button for the meaning", async () => {
+    const fetchSpy = mockFetchImplementation({
+      lemmasResponse: {
+        items: [{ lemma: "mor", variation_count: 3 }],
+      },
+      lemmaDetailsResponse: {
+        lemma: "mor",
+        is_sectioned: true,
+        meaning_sections: [
+          {
+            id: 1,
+            meaning_key: "person",
+            gloss: "person",
+            english_translation: "mother",
+            pos_tag: "NOUN",
+            morphology: "Gender=Com|Number=Sing|Definite=Ind",
+            verification: {
+              status: "flagged",
+              provider: "gemini",
+              reviewer_role: "Professional Danish Language Expert",
+              message: "Review needed.",
+              composed_word_count: 1,
+              stored_surface_form: null,
+              requested_at: "2026-03-15T10:55:00.000Z",
+              completed_at: "2026-03-15T10:57:00.000Z",
+              problem: "The plural surface forms provided for the noun 'mor' are incorrect.",
+              change_to_implement: "Replace the completed variation set with the correct plural forms.",
+              suggested_actions: [
+                {
+                  action_type: "fix_variations",
+                  reason: "Replace the saved variation set with the reviewed noun forms for this meaning.",
+                },
+              ],
+            },
+            surface_forms: [
+              { form: "morer", pos_tag: "NOUN", morphology: "Gender=Com|Number=Plur|Definite=Ind", has_pronunciation: false },
+              { form: "morerne", pos_tag: "NOUN", morphology: "Gender=Com|Number=Plur|Definite=Def", has_pronunciation: false },
+            ],
+          },
+        ],
+        surface_forms: [{ form: "mor", has_pronunciation: false }],
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /mor/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /show verification review details/i }))
+
+    expect(await screen.findByText(/fix variations/i)).toBeInTheDocument()
+    expect(screen.getAllByText(/replace the saved variation set with the reviewed noun forms/i).length).toBeGreaterThan(0)
+
+    const applyButton = screen.getByRole("button", { name: /apply change/i })
+    fireEvent.click(applyButton)
+
+    await waitFor(() => {
+      expect(fetchSpy).toHaveBeenCalledWith(
+        expect.stringContaining("/api/wordbank/lexemes/apply-verification-changes"),
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({
+            stored_lemma: "mor",
+            stored_surface_form: null,
+            meaning_id: 1,
+            action: {
+              action_type: "fix_variations",
+              reason: "Replace the saved variation set with the reviewed noun forms for this meaning.",
+            },
+            provider: "gemini",
+          }),
+        }),
+      )
+    })
+  }, 15_000)
+
   it("request-shape: shows verification error info on the word page and in notifications", async () => {
     vi.useRealTimers()
 

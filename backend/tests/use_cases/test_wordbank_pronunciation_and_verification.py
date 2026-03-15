@@ -362,6 +362,398 @@ def test_word_verification_payload_exposes_cor_canonical_lemma_when_saved_lemma_
     assert payload.canonical_lemma == "moder"
 
 
+def test_general_save_verification_does_not_surface_fix_variations(tmp_path: Path) -> None:
+    class VariationOnlyVerificationService:
+        provider = "gemini"
+        reviewer_role = "Professional Danish Language Expert"
+
+        def verify_word_entry(self, _payload):
+            class Result:
+                verdict = "flagged"
+                message = "incorrect"
+                problem = "Plural forms are missing."
+                change_to_implement = "Add the missing plural forms."
+                suggested_actions = (
+                    WordVerificationAction(
+                        action_type="fix_variations",
+                        reason="Complete the paradigm.",
+                        plural_indefinite_form="bøger",
+                        plural_definite_form="bøgerne",
+                    ),
+                )
+                categories = ()
+
+            return Result()
+
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        translation_service=FakeTranslationService({"bog": "book", "bogen": "the book"}),
+        verification_service=VariationOnlyVerificationService(),
+    )
+
+    added = use_case.add_word("Bogen", "bog")
+    verified = use_case.verify_added_word("bog", "bogen", meaning_id=added.meaning.id if added.meaning else None)
+
+    assert verified.verification.status == "verified"
+    assert verified.verification.suggested_actions == []
+
+
+def test_complete_variations_review_adds_fix_variations_action(tmp_path: Path) -> None:
+    class FlaggedCompletionVerificationService:
+        provider = "gemini"
+        reviewer_role = "Professional Danish Language Expert"
+
+        def verify_word_entry(self, _payload):
+            class Result:
+                verdict = "flagged"
+                message = "Review needed."
+                problem = "Plural forms are wrong."
+                change_to_implement = (
+                    "The plural indefinite form should be 'mødre' instead of 'morer'. "
+                    "The plural definite form should be 'mødrene' instead of 'morerne'."
+                )
+                suggested_actions = ()
+
+            return Result()
+
+    canonical_lemma = _cor_local_entry(
+        cor_id="COR.MODER.LEM",
+        lemma="moder",
+        gloss="person",
+        form="moder",
+        lemma_idx=61046,
+        pos_tag="NOUN",
+        morphology="Gender=Com|Number=Sing|Definite=Ind",
+        gram_raw="sb.fk.sg.ubest",
+    )
+    inflected_surface = _cor_local_entry(
+        cor_id="COR.MODER.SURF",
+        lemma="moder",
+        gloss="person",
+        form="mor",
+        lemma_idx=61046,
+        pos_tag="NOUN",
+        morphology="Gender=Com|Number=Sing|Definite=Ind",
+        gram_raw="sb.fk.sg.ubest",
+    )
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_local_lexicon_service=FakeCORLocalLexiconService(
+            by_form={"mor": [inflected_surface]},
+            by_lemma_idx={61046: [canonical_lemma, inflected_surface]},
+        ),
+        verification_service=FlaggedCompletionVerificationService(),
+    )
+
+    added = use_case.add_word(
+        "mor",
+        "mor",
+        search_seed={
+            "lemma": "mor",
+            "surface": "mor",
+            "cor_id": "COR.MODER.SURF",
+            "cor_lemma_idx": 61046,
+            "meaning_key": "person",
+            "gloss": "person",
+            "english_translation": "mother",
+            "pos_tag": "NOUN",
+            "morphology": "Gender=Com|Number=Sing|Definite=Ind",
+        },
+    )
+
+    verified = use_case.verify_added_word(
+        "mor",
+        None,
+        meaning_id=added.meaning.id if added.meaning else None,
+        review_intent="complete_variations",
+    )
+
+    assert verified.verification.status == "flagged"
+    assert [action.action_type for action in verified.verification.suggested_actions] == ["fix_variations"]
+    assert verified.verification.suggested_actions[0].plural_indefinite_form == "mødre"
+    assert verified.verification.suggested_actions[0].plural_definite_form == "mødrene"
+
+
+def test_wordbank_use_case_applies_fix_variations_action_for_completion_review(tmp_path: Path) -> None:
+    db_path = _db_path(tmp_path)
+    canonical_lemma = _cor_local_entry(
+        cor_id="COR.MODER.LEM",
+        lemma="moder",
+        gloss="person",
+        form="moder",
+        lemma_idx=61046,
+        pos_tag="NOUN",
+        morphology="Gender=Com|Number=Sing|Definite=Ind",
+        gram_raw="sb.fk.sg.ubest",
+    )
+    inflected_surface = _cor_local_entry(
+        cor_id="COR.MODER.SURF",
+        lemma="moder",
+        gloss="person",
+        form="mor",
+        lemma_idx=61046,
+        pos_tag="NOUN",
+        morphology="Gender=Com|Number=Sing|Definite=Ind",
+        gram_raw="sb.fk.sg.ubest",
+    )
+    singular_definite = _cor_local_entry(
+        cor_id="COR.MODER.DEF",
+        lemma="moder",
+        gloss="person",
+        form="moren",
+        lemma_idx=61046,
+        pos_tag="NOUN",
+        morphology="Gender=Com|Number=Sing|Definite=Def",
+        gram_raw="sb.fk.sg.best",
+    )
+    plural_indefinite = _cor_local_entry(
+        cor_id="COR.MODER.PL",
+        lemma="moder",
+        gloss="person",
+        form="mødre",
+        lemma_idx=61046,
+        pos_tag="NOUN",
+        morphology="Gender=Com|Number=Plur|Definite=Ind",
+        gram_raw="sb.fk.pl.ubest",
+    )
+    plural_definite = _cor_local_entry(
+        cor_id="COR.MODER.PLDEF",
+        lemma="moder",
+        gloss="person",
+        form="mødrene",
+        lemma_idx=61046,
+        pos_tag="NOUN",
+        morphology="Gender=Com|Number=Plur|Definite=Def",
+        gram_raw="sb.fk.pl.best",
+    )
+    use_case = WordbankUseCase(
+        db_path,
+        cor_local_lexicon_service=FakeCORLocalLexiconService(
+            by_form={"mor": [inflected_surface]},
+            by_lemma_idx={61046: [canonical_lemma, inflected_surface, singular_definite, plural_indefinite, plural_definite]},
+        ),
+    )
+
+    added = use_case.add_word(
+        "mor",
+        "mor",
+        search_seed={
+            "lemma": "mor",
+            "surface": "mor",
+            "cor_id": "COR.MODER.SURF",
+            "cor_lemma_idx": 61046,
+            "meaning_key": "person",
+            "gloss": "person",
+            "english_translation": "mother",
+            "pos_tag": "NOUN",
+            "morphology": "Gender=Com|Number=Sing|Definite=Ind",
+        },
+    )
+    assert added.meaning is not None
+
+    with get_connection(db_path) as conn:
+        lexeme = conn.execute("SELECT id FROM lexemes WHERE lemma = ?", ("mor",)).fetchone()
+        assert lexeme is not None
+        conn.execute(
+            """
+            INSERT INTO surface_forms (lexeme_id, meaning_id, form, source, pos_tag, morphology)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                int(lexeme["id"]),
+                added.meaning.id,
+                "morer",
+                "search",
+                "NOUN",
+                "Gender=Com|Number=Plur|Definite=Ind",
+            ),
+        )
+        conn.execute(
+            """
+            INSERT INTO surface_forms (lexeme_id, meaning_id, form, source, pos_tag, morphology)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                int(lexeme["id"]),
+                added.meaning.id,
+                "morerne",
+                "search",
+                "NOUN",
+                "Gender=Com|Number=Plur|Definite=Def",
+            ),
+        )
+
+    response = use_case.apply_verification_changes(
+        stored_lemma="mor",
+        stored_surface_form=None,
+        meaning_id=added.meaning.id,
+        action={"action_type": "fix_variations"},
+        provider="gemini",
+    )
+
+    assert response.status == "applied"
+    assert response.applied_action_type == "fix_variations"
+    details = use_case.get_lemma_details("mor")
+    assert sorted(form.form for form in details.meaning_sections[0].surface_forms) == ["moren", "mødre", "mødrene"]
+
+
+def test_wordbank_use_case_hydrates_fix_variations_apply_from_saved_review_text(tmp_path: Path) -> None:
+    db_path = _db_path(tmp_path)
+
+    class FlaggedCompletionVerificationService:
+        provider = "gemini"
+        reviewer_role = "Professional Danish Language Expert"
+
+        def verify_word_entry(self, _payload):
+            class Result:
+                verdict = "flagged"
+                message = "Review needed."
+                problem = "The plural surface forms provided for the noun 'mor' are incorrect."
+                change_to_implement = (
+                    "The plural indefinite form should be 'mødre' instead of 'morer'. "
+                    "The plural definite form should be 'mødrene' instead of 'morerne'."
+                )
+                suggested_actions = ()
+
+            return Result()
+
+    saved_lemma = _cor_local_entry(
+        cor_id="COR.MOR.PERSON.LEM",
+        lemma="mor",
+        gloss="person",
+        form="mor",
+        lemma_idx=47530,
+        pos_tag="NOUN",
+        morphology="Gender=Com|Number=Sing|Definite=Ind",
+        gram_raw="sb.fk.sg.ubest",
+    )
+    saved_singular_definite = _cor_local_entry(
+        cor_id="COR.MOR.PERSON.DEF",
+        lemma="mor",
+        gloss="person",
+        form="moren",
+        lemma_idx=47530,
+        pos_tag="NOUN",
+        morphology="Gender=Com|Number=Sing|Definite=Def",
+        gram_raw="sb.fk.sg.best",
+    )
+    saved_plural_indefinite = _cor_local_entry(
+        cor_id="COR.MOR.PERSON.PL",
+        lemma="mor",
+        gloss="person",
+        form="morer",
+        lemma_idx=47530,
+        pos_tag="NOUN",
+        morphology="Gender=Com|Number=Plur|Definite=Ind",
+        gram_raw="sb.fk.pl.ubest",
+    )
+    saved_plural_definite = _cor_local_entry(
+        cor_id="COR.MOR.PERSON.PLDEF",
+        lemma="mor",
+        gloss="person",
+        form="morerne",
+        lemma_idx=47530,
+        pos_tag="NOUN",
+        morphology="Gender=Com|Number=Plur|Definite=Def",
+        gram_raw="sb.fk.pl.best",
+    )
+    use_case = WordbankUseCase(
+        db_path,
+        cor_local_lexicon_service=FakeCORLocalLexiconService(
+            by_form={"mor": [saved_lemma]},
+            by_lemma_idx={
+                47530: [saved_lemma, saved_singular_definite, saved_plural_indefinite, saved_plural_definite],
+            },
+        ),
+        verification_service=FlaggedCompletionVerificationService(),
+    )
+
+    added = use_case.add_word(
+        "mor",
+        "mor",
+        search_seed={
+            "lemma": "mor",
+            "surface": "mor",
+            "cor_id": "COR.MOR.PERSON.LEM",
+            "cor_lemma_idx": 47530,
+            "meaning_key": "person",
+            "gloss": "person",
+            "english_translation": "mother",
+            "pos_tag": "NOUN",
+            "morphology": "Gender=Com|Number=Sing|Definite=Ind",
+        },
+    )
+    assert added.meaning is not None
+
+    with get_connection(db_path) as conn:
+        lexeme = conn.execute("SELECT id FROM lexemes WHERE lemma = ?", ("mor",)).fetchone()
+        assert lexeme is not None
+        conn.execute(
+            """
+            INSERT INTO surface_forms (lexeme_id, meaning_id, form, source, pos_tag, morphology)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                int(lexeme["id"]),
+                added.meaning.id,
+                "moren",
+                "search",
+                "NOUN",
+                "Gender=Com|Number=Sing|Definite=Def",
+            ),
+        )
+        conn.execute(
+            """
+            INSERT INTO surface_forms (lexeme_id, meaning_id, form, source, pos_tag, morphology)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                int(lexeme["id"]),
+                added.meaning.id,
+                "morer",
+                "search",
+                "NOUN",
+                "Gender=Com|Number=Plur|Definite=Ind",
+            ),
+        )
+        conn.execute(
+            """
+            INSERT INTO surface_forms (lexeme_id, meaning_id, form, source, pos_tag, morphology)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                int(lexeme["id"]),
+                added.meaning.id,
+                "morerne",
+                "search",
+                "NOUN",
+                "Gender=Com|Number=Plur|Definite=Def",
+            ),
+        )
+
+    verified = use_case.verify_added_word(
+        "mor",
+        None,
+        meaning_id=added.meaning.id,
+        review_intent="complete_variations",
+    )
+
+    assert verified.verification.status == "flagged"
+    assert [action.action_type for action in verified.verification.suggested_actions] == ["fix_variations"]
+    response = use_case.apply_verification_changes(
+        stored_lemma="mor",
+        stored_surface_form=None,
+        meaning_id=added.meaning.id,
+        action={"action_type": "fix_variations"},
+        provider="gemini",
+    )
+
+    assert response.status == "applied"
+    assert response.applied_action_type == "fix_variations"
+    details = use_case.get_lemma_details("mor")
+    assert sorted(form.form for form in details.meaning_sections[0].surface_forms) == ["moren", "mødre", "mødrene"]
+
+
 def test_wordbank_use_case_stores_and_returns_surface_pronunciation(tmp_path: Path) -> None:
     tts_service = FakeTTSService({"bogen": b"fake-wav-bytes"})
     use_case = WordbankUseCase(_db_path(tmp_path), tts_service=tts_service)

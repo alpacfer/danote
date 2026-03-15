@@ -147,6 +147,7 @@ Meaning auto-scroll behavior:
   - queued target cards show verification-in-progress copy and requested time
   - verified target cards show completion copy and verified time
   - error/flagged target cards show reviewed time, problem, change-to-implement text, and action cards inline on that target
+  - completion-review meaning cards may expose a single `Fix variations` action card that rewrites the whole saved noun variation set for that meaning in one apply
   - no-record state shows a neutral empty state explaining that verification details will appear here once Gemini runs
   - each action card uses an `Apply change` button that is disabled while apply is in progress
 
@@ -166,7 +167,11 @@ Meaning auto-scroll behavior:
 - `Complete variations` is noun-only and meaning-only in v1.
   It uses the saved meaning's COR identity to fill any missing non-lemma noun variations:
   singular-definite, plural-indefinite, and plural-definite.
-- The completion action queues pronunciation generation only for newly added forms, requeues word-page verification for the updated lemma, and refreshes lemma details after success.
+- The completion action queues pronunciation generation only for newly added forms.
+- After completion, Gemini re-verification is requeued as a single meaning-scoped review for that updated meaning section, not one request per variation row.
+- That completion-specific review keeps the saved lemma fixed and checks whether the completed surface forms fit that lemma/meaning; it does not use canonical-lemma mismatch alone as a reason to suggest moving the lemma.
+- When that review flags the completed set, the backend exposes one meaning-level `Fix variations` apply action instead of per-variation actions.
+- Existing per-surface verification records for that meaning are cleared before the completion review is requeued, so the refreshed page shows the meaning-level review as the source of truth for that completion pass.
 - If the meaning lacks enough saved COR identity to resolve a noun paradigm, the action is skipped with a user-facing message.
 
 ## Body mode A: sectioned meanings (WordbankMeaningSections)
@@ -232,6 +237,9 @@ Pronunciation behavior is shared by header + section rows + variation rows.
 
 - Add flows no longer trigger browser-side Gemini verification calls.
 - After every successful add, the backend enumerates the current saved word page and queues verification for each visible target.
+- `Complete variations` uses a narrower follow-up path: it queues one meaning-level verification request for the updated meaning instead of requeueing each variation target separately.
+- Only that completion-specific follow-up review is allowed to question or rewrite the generated variation set.
+  The initial verification run after save is not allowed to suggest completing or correcting other paradigm members.
 - Target discovery rules:
   - non-sectioned page: one lemma/root target plus one target per non-lemma saved variation
   - sectioned page: one target per meaning section plus one target per saved variation within that meaning
@@ -239,8 +247,14 @@ Pronunciation behavior is shared by header + section rows + variation rows.
 - Results are persisted by backend target scope `(lemma, meaning_id, stored_surface_form)` and returned through subsequent lemma-detail fetches.
 - Verification evaluates the current persisted wordbank structure:
   lemma page -> meaning sections -> surface forms.
+- Normal verification after save checks only whether the saved lemma / meaning / selected surface placement is correct.
+  It does not fail just because other paradigm members are missing, and it does not suggest variation-completion work.
 - Verification payloads include both the saved lemma and the best COR-backed canonical lemma identity when that dictionary lemma can be resolved from saved COR ids / lemma indexes.
 - When COR indicates the saved lemma is an inflected form rather than the true dictionary lemma (for example `mor` vs `moder`), Gemini is prompted to flag the entry and suggest a `move_to_lemma` correction toward the canonical lemma.
+- Exception: the completion-specific meaning review for `Complete variations` keeps the saved lemma fixed and treats canonical-lemma mismatch as a signal to question the generated variation set, not to rewrite the lemma.
+- For that completion-specific review, Gemini/backend remediation is modeled as a single meaning-level `fix_variations` action that can rewrite the saved noun variations in one apply.
+- New completion-review `fix_variations` actions can carry reviewed noun-slot forms directly (`singular_definite_form`, `plural_indefinite_form`, `plural_definite_form`) so apply does not have to trust the same COR paradigm that produced the bad completion set.
+- Older saved completion reviews that only have prose in `change_to_implement` are still applyable because the backend can extract those noun-slot targets from the persisted review text before mutating the meaning.
 - Translation context comes only from the lemma or meaning section.
   Surface forms do not have independent translations in the verification model.
 - Meaning glosses are treated as immutable COR disambiguators.
@@ -275,12 +289,15 @@ Pronunciation behavior is shared by header + section rows + variation rows.
 
 - Accepting a popover action calls apply endpoint with selected target and action payload.
 - Apply requests always include the exact verification scope: `stored_lemma`, `meaning_id`, and `stored_surface_form`.
+- Meaning-level completion-review fixes use `action_type=fix_variations` with `stored_surface_form=null`; applying that action reconciles the whole saved noun variation set for that meaning.
+- `fix_variations` prefers reviewed noun-slot forms carried by the saved action, then falls back to forms recovered from the saved review text, and only uses COR slot metadata when a reviewed slot form is missing.
 - On applied status:
   - success toast text depends on action type
   - backend persisted verification detail is pruned action-by-action
   - when the last Gemini suggestion for a target has been applied, backend persistence flips that resolved target to `verified` instead of removing verification state entirely
   - `wordbankRefreshTick` increments
   - app navigates to returned target lemma/meaning
+- If apply does not change the visible variation set, the backend returns `status=skipped` and the review remains pending.
 - On failure:
   - error toast shown
 

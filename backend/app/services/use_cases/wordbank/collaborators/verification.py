@@ -16,6 +16,11 @@ from app.db.repositories.wordbank import WordbankRepository
 from app.services.token_classifier import normalize_token
 from app.services.use_cases.wordbank.collaborators.cor import CorResolutionCollaborator
 from app.services.use_cases.wordbank.collaborators.nlp import NLPCollaborator
+from app.services.use_cases.wordbank.noun_variations import (
+    NOUN_SLOT_ACTION_FIELDS,
+    extract_fix_variations_action_slot_forms,
+    parse_fix_variations_text_slot_forms,
+)
 from app.services.use_cases.wordbank.verification_input_builder import build_verification_input
 from app.services.use_cases.wordbank.verification_actions import apply_verification_action
 from app.services.use_cases.wordbank.verification_apply_resolution import (
@@ -35,6 +40,16 @@ from app.services.verification import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _find_fix_variations_action_fields(actions: list[dict[str, object]]) -> dict[str, str]:
+    for candidate in actions:
+        if candidate.get("action_type") != "fix_variations":
+            continue
+        slot_forms = extract_fix_variations_action_slot_forms(candidate)
+        if slot_forms:
+            return slot_forms
+    return {}
 
 
 class VerificationCollaborator:
@@ -60,6 +75,7 @@ class VerificationCollaborator:
         stored_surface_form: str | None,
         *,
         meaning_id: int | None = None,
+        review_intent: str = "general",
     ) -> VerifyWordResponse:
         normalized_lemma = normalize_token(stored_lemma)
         normalized_surface = normalize_token(stored_surface_form or "") or None
@@ -70,6 +86,7 @@ class VerificationCollaborator:
             stored_lemma=normalized_lemma,
             stored_surface_form=normalized_surface,
             meaning_id=meaning_id,
+            review_intent=review_intent,
         )
         verification, category_labels = self._verify_added_word(payload)
         applied_categories = self._persist_verification_result(
@@ -93,6 +110,7 @@ class VerificationCollaborator:
         *,
         meaning_id: int | None = None,
         expected_snapshot_hash: str,
+        review_intent: str = "general",
     ) -> bool:
         normalized_lemma = normalize_token(stored_lemma)
         normalized_surface = normalize_token(stored_surface_form or "") or None
@@ -102,6 +120,7 @@ class VerificationCollaborator:
             stored_lemma=normalized_lemma,
             stored_surface_form=normalized_surface,
             meaning_id=meaning_id,
+            review_intent=review_intent,
         )
         if self._verification_payload_hash(payload) != expected_snapshot_hash:
             return False
@@ -173,6 +192,7 @@ class VerificationCollaborator:
         stored_lemma: str,
         stored_surface_form: str | None,
         meaning_id: int | None,
+        review_intent: str = "general",
     ) -> str:
         normalized_lemma = normalize_token(stored_lemma)
         normalized_surface = normalize_token(stored_surface_form or "") or None
@@ -182,6 +202,7 @@ class VerificationCollaborator:
             stored_lemma=normalized_lemma,
             stored_surface_form=normalized_surface,
             meaning_id=meaning_id,
+            review_intent=review_intent,
         )
         return self._verification_payload_hash(payload)
 
@@ -200,12 +221,19 @@ class VerificationCollaborator:
             raise ValueError("stored_lemma is required")
 
         provider_name, reviewer_name = self._verification_metadata(provider_override=provider)
-        result = apply_verification_action(
-            db_path=self._db_path,
+        resolved_action = self._resolve_apply_action(
             stored_lemma=normalized_lemma,
             stored_surface_form=normalized_surface,
             meaning_id=meaning_id,
             action=action,
+        )
+        result = apply_verification_action(
+            db_path=self._db_path,
+            cor=self._cor,
+            stored_lemma=normalized_lemma,
+            stored_surface_form=normalized_surface,
+            meaning_id=meaning_id,
+            action=resolved_action,
             provider_name=provider_name,
         )
         for lemma, surface in result.invalidate_targets:
@@ -244,6 +272,47 @@ class VerificationCollaborator:
             target_lemma=result.target_lemma,
             target_meaning_id=result.target_meaning_id,
         )
+
+    def _resolve_apply_action(
+        self,
+        *,
+        stored_lemma: str,
+        stored_surface_form: str | None,
+        meaning_id: int | None,
+        action: dict[str, object],
+    ) -> dict[str, object]:
+        if action.get("action_type") != "fix_variations":
+            return action
+        if extract_fix_variations_action_slot_forms(action):
+            return action
+
+        repository = WordbankRepository(self._db_path)
+        lexeme = repository.get_lexeme(stored_lemma)
+        if lexeme is None:
+            return action
+        record = repository.get_verification_record(
+            lexeme_id=lexeme.id,
+            meaning_id=meaning_id,
+            stored_surface_form=stored_surface_form,
+        )
+        if record is None:
+            return action
+
+        hydrated_fields = _find_fix_variations_action_fields(record.suggested_actions)
+        if not hydrated_fields:
+            hydrated_fields = parse_fix_variations_text_slot_forms(record.change_to_implement)
+        if not hydrated_fields:
+            hydrated_fields = parse_fix_variations_text_slot_forms(record.problem)
+        if not hydrated_fields:
+            return action
+        return {
+            **action,
+            **{
+                field_name: form
+                for slot_name, form in hydrated_fields.items()
+                if (field_name := NOUN_SLOT_ACTION_FIELDS.get(slot_name)) is not None
+            },
+        }
 
     def queued_verification_result(
         self,
@@ -340,6 +409,7 @@ class VerificationCollaborator:
         stored_lemma: str,
         stored_surface_form: str | None,
         meaning_id: int | None,
+        review_intent: str = "general",
     ):
         return build_verification_input(
             db_path=self._db_path,
@@ -348,6 +418,7 @@ class VerificationCollaborator:
             stored_lemma=stored_lemma,
             stored_surface_form=stored_surface_form,
             meaning_id=meaning_id,
+            review_intent=_normalize_review_intent(review_intent),
         )
 
     def _verify_added_word(
@@ -388,6 +459,37 @@ class VerificationCollaborator:
             )
 
         completed_at = now_utc_iso()
+        suggested_actions = [
+            _verification_action_to_schema(action)
+            for action in getattr(verdict, "suggested_actions", ()) or ()
+        ]
+        if (
+            payload.review_intent != "complete_variations"
+            and verdict.verdict == "flagged"
+            and suggested_actions
+            and all(action.action_type == "fix_variations" for action in suggested_actions)
+        ):
+            return (
+                VerificationResult(
+                    status="verified",
+                    provider=provider_name,
+                    reviewer_role=reviewer_name,
+                    message="OK",
+                    composed_word_count=getattr(verdict, "composed_word_count", None),
+                    stored_surface_form=payload.stored_surface_form,
+                    requested_at=completed_at,
+                    completed_at=completed_at,
+                    suggested_actions=[],
+                ),
+                list(getattr(verdict, "categories", ()) or ()),
+            )
+        suggested_actions = _completion_review_actions(
+            payload=payload,
+            verification_status=verdict.verdict,
+            suggested_actions=suggested_actions,
+            problem=getattr(verdict, "problem", None),
+            change_to_implement=getattr(verdict, "change_to_implement", None),
+        )
         return (
             VerificationResult(
                 status=verdict.verdict,
@@ -400,10 +502,7 @@ class VerificationCollaborator:
                 completed_at=completed_at,
                 problem=getattr(verdict, "problem", None),
                 change_to_implement=getattr(verdict, "change_to_implement", None),
-                suggested_actions=[
-                    _verification_action_to_schema(action)
-                    for action in getattr(verdict, "suggested_actions", ()) or ()
-                ],
+                suggested_actions=suggested_actions,
             ),
             list(getattr(verdict, "categories", ()) or ()),
         )
@@ -483,6 +582,9 @@ def _verification_action_to_schema(action: WordVerificationAction) -> Verificati
         reason=action.reason,
         english_translation=action.english_translation,
         gloss=action.gloss,
+        singular_definite_form=action.singular_definite_form,
+        plural_indefinite_form=action.plural_indefinite_form,
+        plural_definite_form=action.plural_definite_form,
         target_meaning_id=action.target_meaning_id,
         target_lemma=action.target_lemma,
         target_meaning_key=action.target_meaning_key,
@@ -499,3 +601,60 @@ def _rethink_categories_message(stored_lemma: str, applied_categories: list[str]
     if len(applied_categories) == 1:
         return f"Updated categories for '{stored_lemma}' to {applied_categories[0]}."
     return f"Updated categories for '{stored_lemma}'."
+
+
+def _normalize_review_intent(review_intent: str) -> str:
+    normalized = review_intent.strip().lower() if isinstance(review_intent, str) else "general"
+    if normalized == "complete_variations":
+        return "complete_variations"
+    return "general"
+
+
+def _completion_review_actions(
+    *,
+    payload: WordVerificationInput,
+    verification_status: str,
+    suggested_actions: list[VerificationAction],
+    problem: str | None,
+    change_to_implement: str | None,
+) -> list[VerificationAction]:
+    if (
+        payload.review_intent != "complete_variations"
+        or payload.meaning_id is None
+        or verification_status != "flagged"
+    ):
+        return suggested_actions
+    text_slot_forms = (
+        parse_fix_variations_text_slot_forms(change_to_implement)
+        or parse_fix_variations_text_slot_forms(problem)
+    )
+    enriched_actions: list[VerificationAction] = []
+    fix_variations_found = False
+    for action in suggested_actions:
+        if action.action_type != "fix_variations":
+            enriched_actions.append(action)
+            continue
+        fix_variations_found = True
+        action_slot_forms = extract_fix_variations_action_slot_forms(action.model_dump(exclude_none=True))
+        merged_slot_forms = action_slot_forms or text_slot_forms
+        enriched_actions.append(
+            action.model_copy(
+                update={
+                    "singular_definite_form": merged_slot_forms.get("singular_definite"),
+                    "plural_indefinite_form": merged_slot_forms.get("plural_indefinite"),
+                    "plural_definite_form": merged_slot_forms.get("plural_definite"),
+                }
+            )
+        )
+    if fix_variations_found:
+        return enriched_actions
+    return [
+        VerificationAction(
+            action_type="fix_variations",
+            reason="Replace the completed variation set with the reviewed noun forms for this meaning.",
+            singular_definite_form=text_slot_forms.get("singular_definite"),
+            plural_indefinite_form=text_slot_forms.get("plural_indefinite"),
+            plural_definite_form=text_slot_forms.get("plural_definite"),
+        ),
+        *enriched_actions,
+    ]

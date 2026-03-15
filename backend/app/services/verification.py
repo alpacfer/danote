@@ -6,6 +6,10 @@ import time
 from typing import Any, Literal, Protocol
 
 from app.services.token_classifier import normalize_token
+from app.services.verification_review_policy import (
+    looks_like_danish_self_translation,
+    should_ignore_variation_only_review,
+)
 
 
 class VerificationError(RuntimeError):
@@ -60,14 +64,18 @@ class WordVerificationInput:
     available_categories: tuple[str, ...] = ()
     sibling_meaning_sections: tuple[WordVerificationMeaningSection, ...] = ()
     available_surface_forms: tuple[WordVerificationSurfaceForm, ...] = ()
+    review_intent: Literal["general", "complete_variations"] = "general"
 
 
 @dataclass(frozen=True)
 class WordVerificationAction:
-    action_type: Literal["fix_translation", "fix_gloss", "move_to_meaning_section", "move_to_lemma"]
+    action_type: Literal["fix_translation", "fix_gloss", "fix_variations", "move_to_meaning_section", "move_to_lemma"]
     reason: str | None = None
     english_translation: str | None = None
     gloss: str | None = None
+    singular_definite_form: str | None = None
+    plural_indefinite_form: str | None = None
+    plural_definite_form: str | None = None
     target_meaning_id: int | None = None
     target_lemma: str | None = None
     target_meaning_key: str | None = None
@@ -156,9 +164,21 @@ class GeminiWordVerificationService:
             parsed.get("change_to_implement") if isinstance(parsed.get("change_to_implement"), str) else None
         )
         categories = tuple(self._parse_categories(parsed, payload.available_categories))
-        suggested_actions = tuple(self._parse_suggested_actions(parsed.get("suggested_actions"), payload))
+        raw_suggested_actions = parsed.get("suggested_actions")
+        suggested_actions = tuple(self._parse_suggested_actions(raw_suggested_actions, payload))
 
         if verdict == "incorrect":
+            if should_ignore_variation_only_review(
+                payload=payload,
+                raw_suggested_actions=raw_suggested_actions,
+                suggested_actions=suggested_actions,
+            ):
+                return WordVerificationResult(
+                    verdict="verified",
+                    message="OK",
+                    composed_word_count=word_count,
+                    categories=categories,
+                )
             return WordVerificationResult(
                 verdict="flagged",
                 message="incorrect",
@@ -189,6 +209,51 @@ class GeminiWordVerificationService:
 
     def _verification_prompt(self, payload: WordVerificationInput) -> str:
         entry = self._scope_context(payload)
+        completion_review = payload.review_intent == "complete_variations"
+        if completion_review:
+            action_examples = (
+                '{"action_type":"fix_translation","reason":"...","english_translation":"..."},'
+                '{"action_type":"fix_variations","reason":"...",'
+                '"singular_definite_form":"...",'
+                '"plural_indefinite_form":"...",'
+                '"plural_definite_form":"..."},'
+                '{"action_type":"move_to_meaning_section","reason":"...","target_meaning_id":0},'
+                '{"action_type":"move_to_lemma","reason":"...","target_lemma":"...",'
+                '"target_meaning_key":"...","target_gloss":"...",'
+                '"target_english_translation":"...","target_pos_tag":"...",'
+                '"target_morphology":"..."}'
+            )
+            fix_variations_rule = (
+                "- If action_type=fix_variations, include the complete noun variation set in singular_definite_form, plural_indefinite_form, and plural_definite_form whenever those slots are known.\n"
+            )
+        else:
+            action_examples = (
+                '{"action_type":"fix_translation","reason":"...","english_translation":"..."},'
+                '{"action_type":"move_to_meaning_section","reason":"...","target_meaning_id":0},'
+                '{"action_type":"move_to_lemma","reason":"...","target_lemma":"...",'
+                '"target_meaning_key":"...","target_gloss":"...",'
+                '"target_english_translation":"...","target_pos_tag":"...",'
+                '"target_morphology":"..."}'
+            )
+            fix_variations_rule = ""
+        action_type_rule = (
+            "- Use only these action types: fix_translation, move_to_meaning_section, move_to_lemma.\n"
+            if not completion_review
+            else "- Use only these action types: fix_translation, fix_variations, move_to_meaning_section, move_to_lemma.\n"
+        )
+        variation_scope_rule = (
+            "- This is normal save verification. Verify only whether the saved lemma/meaning/surface placement is correct.\n"
+            "- Do not require missing paradigm forms or suggest adding/correcting other variations here. Variation completeness is handled only by the Complete variations workflow.\n"
+            if not completion_review
+            else "- This review was triggered by Complete variations. Keep the saved lemma and meaning section fixed; verify whether the saved surface forms are valid variations for that lemma in this meaning.\n"
+            "- If canonical_lemma differs from lemma during Complete variations review, treat that as a clue to re-check the completed variation set. Do not suggest move_to_lemma solely because of that mismatch.\n"
+            "- When the completed variation set is wrong, describe the surface-form problem in problem/change_to_implement and use action_type=fix_variations.\n"
+        )
+        canonical_rule = (
+            "- If canonical_lemma is present and differs from lemma, treat the saved lemma as incorrect and suggest move_to_lemma to canonical_lemma unless the entry already belongs under another provided lemma.\n"
+            if not completion_review
+            else ""
+        )
         return (
             "You are a Professional Danish Language Expert.\n"
             "Review the current wordbank entry using the model lemma page -> meaning sections -> surface forms.\n"
@@ -207,15 +272,10 @@ class GeminiWordVerificationService:
             '"existing_categories":["..."],'
             '"new_categories":["..."],'
             '"suggested_actions":['
-            '{"action_type":"fix_translation","reason":"...","english_translation":"..."},'
-            '{"action_type":"move_to_meaning_section","reason":"...","target_meaning_id":0},'
-            '{"action_type":"move_to_lemma","reason":"...","target_lemma":"...",'
-            '"target_meaning_key":"...","target_gloss":"...",'
-            '"target_english_translation":"...","target_pos_tag":"...",'
-            '"target_morphology":"..."}'
+            f"{action_examples}"
             "]}\n"
             "Rules:\n"
-            "- Use only these three action types: fix_translation, move_to_meaning_section, move_to_lemma.\n"
+            f"{action_type_rule}"
             "- If verdict=correct, return suggested_actions as [].\n"
             "- existing_categories must be chosen from available_categories.\n"
             "- existing_categories may include multiple items, but never duplicates.\n"
@@ -225,8 +285,10 @@ class GeminiWordVerificationService:
             "- If action_type=move_to_lemma, include target_lemma and target_meaning_key.\n"
             "- Never propose gloss edits; use gloss only to identify the intended meaning section.\n"
             "- If action_type=fix_translation, english_translation must be idiomatic English. Never repeat the Danish lemma or surface form unless the translated gloss explicitly matches it.\n"
+            f"{fix_variations_rule}"
             "- When meaning_gloss_translation or section gloss_translation is present, use it as the primary sense clue for homographs.\n"
-            "- If canonical_lemma is present and differs from lemma, treat the saved lemma as incorrect and suggest move_to_lemma to canonical_lemma unless the entry already belongs under another provided lemma.\n"
+            f"{variation_scope_rule}"
+            f"{canonical_rule}"
             "- Discard no uncertainty into prose; use reason and structured fields instead.\n"
             f"Entry:\n{json.dumps(entry, ensure_ascii=False)}"
         )
@@ -256,6 +318,7 @@ class GeminiWordVerificationService:
     def _scope_context(self, payload: WordVerificationInput) -> dict[str, object]:
         return {
             "current_entry": {
+                "review_intent": payload.review_intent,
                 "scope_type": "meaning_section" if payload.meaning_id is not None else "lemma_root",
                 "lemma": payload.stored_lemma,
                 "surface_form": payload.stored_surface_form,
@@ -415,17 +478,28 @@ class GeminiWordVerificationService:
         normalized_type = action_type.strip().lower()
         if normalized_type not in {
             "fix_translation",
+            "fix_variations",
             "move_to_meaning_section",
             "move_to_lemma",
         }:
             return None
 
         reason = _optional_clean_str(raw.get("reason"))
+        if normalized_type == "fix_variations":
+            if payload.review_intent != "complete_variations":
+                return None
+            return WordVerificationAction(
+                action_type="fix_variations",
+                reason=reason,
+                singular_definite_form=_optional_clean_str(raw.get("singular_definite_form")),
+                plural_indefinite_form=_optional_clean_str(raw.get("plural_indefinite_form")),
+                plural_definite_form=_optional_clean_str(raw.get("plural_definite_form")),
+            )
         if normalized_type == "fix_translation":
             english_translation = _optional_clean_str(raw.get("english_translation"))
             if not english_translation:
                 return None
-            if self._looks_like_danish_self_translation(
+            if looks_like_danish_self_translation(
                 english_translation=english_translation,
                 payload=payload,
             ):
@@ -460,28 +534,6 @@ class GeminiWordVerificationService:
             target_pos_tag=_optional_clean_str(raw.get("target_pos_tag")),
             target_morphology=_optional_clean_str(raw.get("target_morphology")),
         )
-
-    def _looks_like_danish_self_translation(
-        self,
-        *,
-        english_translation: str,
-        payload: WordVerificationInput,
-    ) -> bool:
-        normalized_translation = normalize_token(english_translation)
-        if not normalized_translation:
-            return True
-        normalized_gloss_translation = normalize_token(payload.meaning_gloss_translation or "")
-        if not normalized_gloss_translation:
-            return False
-        for candidate in (payload.stored_lemma, payload.stored_surface_form):
-            normalized_candidate = normalize_token(candidate or "")
-            if (
-                normalized_candidate
-                and normalized_translation == normalized_candidate
-                and normalized_translation != normalized_gloss_translation
-            ):
-                return True
-        return False
 
     def _infer_word_count(self, payload: WordVerificationInput) -> int:
         source_text = payload.stored_surface_form or payload.stored_lemma

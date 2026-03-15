@@ -488,6 +488,83 @@ def test_complete_meaning_variations_skips_when_already_complete_or_cor_identity
     assert "COR identity" in missing_identity.message
 
 
+def test_complete_meaning_variations_requeues_single_meaning_verification_review(tmp_path: Path) -> None:
+    db_path = _db_path(tmp_path)
+    use_case = WordbankUseCase(
+        db_path,
+        cor_local_lexicon_service=_bog_complete_paradigm_cor_local(),
+        verification_service=FakeVerificationService(),
+    )
+
+    added = use_case.add_word(
+        "bøger",
+        "bog",
+        search_seed={
+            "lemma": "bog",
+            "surface": "bøger",
+            "cor_id": "COR.BOG.BOOK.PL",
+            "cor_lemma_idx": 123,
+            "meaning_key": "book",
+            "gloss": "book",
+            "english_translation": "book",
+            "pos_tag": "NOUN",
+            "morphology": "Gender=Com|Number=Plur|Definite=Ind",
+        },
+    )
+    assert added.meaning is not None
+
+    with get_connection(db_path) as conn:
+        before_rows = conn.execute(
+            """
+            SELECT dedupe_key, payload_json
+            FROM wordbank_background_jobs
+            WHERE job_type = 'verify_word'
+            ORDER BY id ASC
+            """
+        ).fetchall()
+
+    response = use_case.complete_meaning_variations("bog", meaning_id=added.meaning.id)
+
+    assert response.status == "updated"
+
+    with get_connection(db_path) as conn:
+        after_rows = conn.execute(
+            """
+            SELECT dedupe_key, payload_json
+            FROM wordbank_background_jobs
+            WHERE job_type = 'verify_word'
+            ORDER BY id ASC
+            """
+        ).fetchall()
+        verification_rows = conn.execute(
+            """
+            SELECT meaning_id, stored_surface_form, status
+            FROM wordbank_verification_records
+            ORDER BY id ASC
+            """
+        ).fetchall()
+
+    assert len(after_rows) == len(before_rows) + 1
+    new_job = after_rows[-1]
+    new_payload = json.loads(str(new_job["payload_json"]))
+    assert "complete_variations" in str(new_job["dedupe_key"])
+    assert new_payload == {
+        "meaning_id": added.meaning.id,
+        "review_intent": "complete_variations",
+        "snapshot_hash": new_payload["snapshot_hash"],
+        "stored_lemma": "bog",
+        "stored_surface_form": None,
+    }
+    assert [(row["meaning_id"], row["stored_surface_form"], row["status"]) for row in verification_rows] == [
+        (added.meaning.id, None, "queued")
+    ]
+
+    details = use_case.get_lemma_details("bog")
+    assert details.meaning_sections[0].verification is not None
+    assert details.meaning_sections[0].verification.status == "queued"
+    assert all(form.verification is None for form in details.meaning_sections[0].surface_forms)
+
+
 @pytest.mark.parametrize("provider", ["azure_translator", "deepl_translator"])
 def test_wordbank_add_word_normalizes_framed_single_word_translation_for_all_providers(
     tmp_path: Path,

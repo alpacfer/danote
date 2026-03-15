@@ -77,6 +77,7 @@ def queue_verification_targets(
     *,
     stored_lemma: str,
     targets: tuple[VerificationTarget, ...],
+    review_intent: str = "general",
 ) -> list[VerificationTargetRef]:
     repository = WordbankBackgroundJobRepository(runtime.db_path)
     queued_refs: list[VerificationTargetRef] = []
@@ -100,18 +101,20 @@ def queue_verification_targets(
             stored_lemma=normalized_lemma,
             stored_surface_form=target.stored_surface_form,
             meaning_id=target.meaning_id,
+            review_intent=review_intent,
         )
         repository.enqueue(
             job_type="verify_word",
             dedupe_key=(
                 f"verify_word::{normalized_lemma}::{target.meaning_id or 'root'}::"
-                f"{target.stored_surface_form or ''}::{snapshot_hash}"
+                f"{target.stored_surface_form or ''}::{review_intent}::{snapshot_hash}"
             ),
             payload={
                 "stored_lemma": normalized_lemma,
                 "stored_surface_form": target.stored_surface_form,
                 "meaning_id": target.meaning_id,
                 "snapshot_hash": snapshot_hash,
+                "review_intent": review_intent,
             },
         )
         queued_refs.append(target.as_ref())
