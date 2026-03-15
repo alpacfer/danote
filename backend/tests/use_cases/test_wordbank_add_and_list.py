@@ -18,6 +18,107 @@ from tests.helpers.fakes import (
 )
 import pytest
 
+
+def _bog_complete_paradigm_cor_local() -> FakeCORLocalLexiconService:
+    book_entries = [
+        _cor_local_entry(
+            cor_id="COR.BOG.BOOK.LEM",
+            lemma="bog",
+            gloss="book",
+            form="bog",
+            lemma_idx=123,
+            pos_tag="NOUN",
+            morphology="Gender=Com|Number=Sing|Definite=Ind",
+            gram_raw="sb.fk.sg.ubest",
+        ),
+        _cor_local_entry(
+            cor_id="COR.BOG.BOOK.DEF",
+            lemma="bog",
+            gloss="book",
+            form="bogen",
+            lemma_idx=123,
+            pos_tag="NOUN",
+            morphology="Gender=Com|Number=Sing|Definite=Def",
+            gram_raw="sb.fk.sg.best",
+        ),
+        _cor_local_entry(
+            cor_id="COR.BOG.BOOK.PL",
+            lemma="bog",
+            gloss="book",
+            form="bøger",
+            lemma_idx=123,
+            pos_tag="NOUN",
+            morphology="Gender=Com|Number=Plur|Definite=Ind",
+            gram_raw="sb.fk.pl.ubest",
+        ),
+        _cor_local_entry(
+            cor_id="COR.BOG.BOOK.PLDEF",
+            lemma="bog",
+            gloss="book",
+            form="bøgerne",
+            lemma_idx=123,
+            pos_tag="NOUN",
+            morphology="Gender=Com|Number=Plur|Definite=Def",
+            gram_raw="sb.fk.pl.best",
+        ),
+    ]
+    swamp_entries = [
+        _cor_local_entry(
+            cor_id="COR.BOG.SWAMP.LEM",
+            lemma="bog",
+            gloss="swamp",
+            form="bog",
+            lemma_idx=124,
+            pos_tag="NOUN",
+            morphology="Gender=Com|Number=Sing|Definite=Ind",
+            gram_raw="sb.fk.sg.ubest",
+        ),
+        _cor_local_entry(
+            cor_id="COR.BOG.SWAMP.DEF",
+            lemma="bog",
+            gloss="swamp",
+            form="bogen",
+            lemma_idx=124,
+            pos_tag="NOUN",
+            morphology="Gender=Com|Number=Sing|Definite=Def",
+            gram_raw="sb.fk.sg.best",
+        ),
+        _cor_local_entry(
+            cor_id="COR.BOG.SWAMP.PL",
+            lemma="bog",
+            gloss="swamp",
+            form="moser",
+            lemma_idx=124,
+            pos_tag="NOUN",
+            morphology="Gender=Com|Number=Plur|Definite=Ind",
+            gram_raw="sb.fk.pl.ubest",
+        ),
+        _cor_local_entry(
+            cor_id="COR.BOG.SWAMP.PLDEF",
+            lemma="bog",
+            gloss="swamp",
+            form="moserne",
+            lemma_idx=124,
+            pos_tag="NOUN",
+            morphology="Gender=Com|Number=Plur|Definite=Def",
+            gram_raw="sb.fk.pl.best",
+        ),
+    ]
+    return FakeCORLocalLexiconService(
+        by_form={
+            "bog": [book_entries[0], swamp_entries[0]],
+            "bogen": [book_entries[1], swamp_entries[1]],
+            "bøger": [book_entries[2]],
+            "bøgerne": [book_entries[3]],
+            "moser": [swamp_entries[2]],
+            "moserne": [swamp_entries[3]],
+        },
+        by_lemma_idx={
+            123: book_entries,
+            124: swamp_entries,
+        },
+    )
+
 def test_wordbank_use_case_round_trip(tmp_path: Path) -> None:
     use_case = WordbankUseCase(_db_path(tmp_path))
 
@@ -124,7 +225,7 @@ def test_wordbank_use_case_includes_pos_and_morphology_when_nlp_available(tmp_pa
             morphology="Gender=Com|Number=Sing",
             lemma="bog",
             lemma_translation=None,
-        )
+        ),
     ]
 
 def test_wordbank_list_lemmas_displays_verbs_with_at_prefix(tmp_path: Path) -> None:
@@ -230,6 +331,161 @@ def test_wordbank_add_word_routes_variations_to_their_matching_meaning(tmp_path:
     assert [item.form for item in by_key["book"].surface_forms] == ["bogen"]
     assert [item.form for item in by_key["swamp"].surface_forms] == ["moser"]
     assert by_key["swamp"].surface_forms[0].lemma_translation == "swamp"
+
+
+def test_complete_meaning_variations_backfills_missing_noun_slots_for_search_seed_entries(tmp_path: Path) -> None:
+    db_path = _db_path(tmp_path)
+    use_case = WordbankUseCase(
+        db_path,
+        cor_local_lexicon_service=_bog_complete_paradigm_cor_local(),
+        verification_service=FakeVerificationService(),
+        tts_service=FakeTTSService({}),
+    )
+
+    added = use_case.add_word(
+        "bøger",
+        "bog",
+        search_seed={
+            "lemma": "bog",
+            "surface": "bøger",
+            "cor_id": "COR.BOG.BOOK.PL",
+            "cor_lemma_idx": 123,
+            "meaning_key": "book",
+            "gloss": "book",
+            "english_translation": "book",
+            "pos_tag": "NOUN",
+            "morphology": "Gender=Com|Number=Plur|Definite=Ind",
+        },
+    )
+    assert added.meaning is not None
+
+    response = use_case.complete_meaning_variations("bog", meaning_id=added.meaning.id)
+
+    assert response.status == "updated"
+    assert response.added_surface_forms == ["bogen", "bøgerne"]
+    assert response.queued_pronunciation_forms == ["bogen", "bøgerne"]
+
+    details = use_case.get_lemma_details("bog")
+    assert [form.form for form in details.meaning_sections[0].surface_forms] == ["bogen", "bøger", "bøgerne"]
+    assert details.surface_forms == []
+
+    with get_connection(db_path) as conn:
+        jobs = conn.execute(
+            """
+            SELECT dedupe_key
+            FROM wordbank_background_jobs
+            WHERE job_type = 'generate_pronunciation'
+            ORDER BY dedupe_key ASC
+            """
+        ).fetchall()
+    assert [str(row["dedupe_key"]) for row in jobs] == [
+        "generate_pronunciation::bog::bogen",
+        "generate_pronunciation::bog::bøger",
+        "generate_pronunciation::bog::bøgerne",
+    ]
+
+
+def test_complete_meaning_variations_uses_selected_homograph_meaning_only(tmp_path: Path) -> None:
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_local_lexicon_service=_bog_complete_paradigm_cor_local(),
+    )
+
+    first = use_case.add_word(
+        "bogen",
+        "bog",
+        search_seed={
+            "lemma": "bog",
+            "surface": "bogen",
+            "cor_id": "COR.BOG.BOOK.DEF",
+            "cor_lemma_idx": 123,
+            "meaning_key": "book",
+            "gloss": "book",
+            "english_translation": "book",
+            "pos_tag": "NOUN",
+            "morphology": "Gender=Com|Number=Sing|Definite=Def",
+        },
+    )
+    second = use_case.add_word(
+        "bogen",
+        "bog",
+        search_seed={
+            "lemma": "bog",
+            "surface": "bogen",
+            "cor_id": "COR.BOG.SWAMP.DEF",
+            "cor_lemma_idx": 124,
+            "meaning_key": "swamp",
+            "gloss": "swamp",
+            "english_translation": "swamp",
+            "pos_tag": "NOUN",
+            "morphology": "Gender=Com|Number=Sing|Definite=Def",
+        },
+    )
+    assert first.meaning is not None
+    assert second.meaning is not None
+
+    response = use_case.complete_meaning_variations("bog", meaning_id=first.meaning.id)
+
+    assert response.status == "updated"
+    details = use_case.get_lemma_details("bog")
+    assert [section.gloss for section in details.meaning_sections] == ["book", "swamp"]
+    assert [form.form for form in details.meaning_sections[0].surface_forms] == ["bogen", "bøger", "bøgerne"]
+    assert [form.form for form in details.meaning_sections[1].surface_forms] == ["bogen"]
+
+
+def test_complete_meaning_variations_skips_when_already_complete_or_cor_identity_missing(tmp_path: Path) -> None:
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_local_lexicon_service=_bog_complete_paradigm_cor_local(),
+    )
+
+    added = use_case.add_word(
+        "bøgerne",
+        "bog",
+        search_seed={
+            "lemma": "bog",
+            "surface": "bøgerne",
+            "cor_id": "COR.BOG.BOOK.PLDEF",
+            "cor_lemma_idx": 123,
+            "meaning_key": "book",
+            "gloss": "book",
+            "english_translation": "book",
+            "pos_tag": "NOUN",
+            "morphology": "Gender=Com|Number=Plur|Definite=Def",
+        },
+    )
+    assert added.meaning is not None
+    updated = use_case.complete_meaning_variations("bog", meaning_id=added.meaning.id)
+    skipped = use_case.complete_meaning_variations("bog", meaning_id=added.meaning.id)
+
+    assert updated.status == "updated"
+    assert skipped.status == "skipped"
+    assert skipped.added_surface_forms == []
+
+    manual_dir = tmp_path / "manual"
+    manual_dir.mkdir()
+    manual_use_case = WordbankUseCase(_db_path(manual_dir))
+    manual = manual_use_case.add_word(
+        "Bogen",
+        "bog",
+        search_seed={
+            "lemma": "bog",
+            "surface": "bogen",
+            "cor_id": "COR.BOG.BOOK.DEF",
+            "cor_lemma_idx": None,
+            "meaning_key": "book",
+            "gloss": "book",
+            "english_translation": "book",
+            "pos_tag": "NOUN",
+            "morphology": "Gender=Com|Number=Sing|Definite=Def",
+        },
+    )
+    assert manual.meaning is not None
+
+    missing_identity = manual_use_case.complete_meaning_variations("bog", meaning_id=manual.meaning.id)
+
+    assert missing_identity.status == "skipped"
+    assert "COR identity" in missing_identity.message
 
 
 @pytest.mark.parametrize("provider", ["azure_translator", "deepl_translator"])

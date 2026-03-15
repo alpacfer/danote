@@ -251,6 +251,155 @@ describe("App wordbank", () => {
     })
   })
 
+  it("request-shape: noun meaning cards can complete variations and refresh to show only non-lemma variations", async () => {
+    let lemmaDetails = {
+      lemma: "bog",
+      english_translation: null,
+      is_sectioned: true,
+      meaning_sections: [
+        {
+          id: 1,
+          meaning_key: "book",
+          gloss: "book",
+          english_translation: "book",
+          pos_tag: "NOUN",
+          morphology: "Gender=Com|Number=Sing|Definite=Ind",
+          surface_forms: [
+            {
+              form: "bøger",
+              pos_tag: "NOUN",
+              morphology: "Gender=Com|Number=Plur|Definite=Ind",
+              has_pronunciation: false,
+            },
+          ],
+        },
+      ],
+      surface_forms: [],
+    }
+    const fetchSpy = mockFetchImplementation({
+      lemmasResponse: {
+        items: [{ lemma: "bog", variation_count: 1 }],
+      },
+      lemmaDetailsHandler: async () => responseOf(lemmaDetails),
+      completeVariationsHandler: async (_input, init) => {
+        const body = JSON.parse(String(init?.body ?? "{}")) as {
+          stored_lemma?: string
+          meaning_id?: number
+        }
+        if (body.stored_lemma !== "bog" || body.meaning_id !== 1) {
+          throw new Error("Unexpected complete-variations payload.")
+        }
+        lemmaDetails = {
+          ...lemmaDetails,
+          meaning_sections: [
+            {
+              ...lemmaDetails.meaning_sections[0],
+              surface_forms: [
+                {
+                  form: "bogen",
+                  pos_tag: "NOUN",
+                  morphology: "Gender=Com|Number=Sing|Definite=Def",
+                  has_pronunciation: false,
+                },
+                {
+                  form: "bøger",
+                  pos_tag: "NOUN",
+                  morphology: "Gender=Com|Number=Plur|Definite=Ind",
+                  has_pronunciation: false,
+                },
+                {
+                  form: "bøgerne",
+                  pos_tag: "NOUN",
+                  morphology: "Gender=Com|Number=Plur|Definite=Def",
+                  has_pronunciation: false,
+                },
+              ],
+            },
+          ],
+          surface_forms: [
+            {
+              form: "bog",
+              pos_tag: "NOUN",
+              morphology: "Gender=Com|Number=Sing|Definite=Ind",
+              has_pronunciation: false,
+            },
+          ],
+        }
+        return responseOf({
+          status: "updated",
+          stored_lemma: "bog",
+          meaning_id: 1,
+          added_surface_forms: ["bogen", "bøgerne"],
+          queued_pronunciation_forms: ["bogen", "bøgerne"],
+          message: "Completed noun variations for 'bog'.",
+        })
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /bog/i }))
+
+    const meaningCard = await screen.findByTestId("wordbank-meaning-card-1")
+    fireEvent.contextMenu(meaningCard)
+    fireEvent.click(await screen.findByRole("menuitem", { name: /complete variations/i }))
+
+    await waitFor(() => {
+      expect(
+        fetchSpy.mock.calls.some(([input, init]) => {
+          if (!String(input).endsWith("/api/wordbank/lexemes/complete-variations")) {
+            return false
+          }
+          return String(init?.body ?? "") === JSON.stringify({
+            stored_lemma: "bog",
+            meaning_id: 1,
+          })
+        }),
+      ).toBe(true)
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText(/^bøgerne$/i)).toBeInTheDocument()
+    })
+    expect(screen.getByText(/^bogen$/i)).toBeInTheDocument()
+    expect(screen.getByText(/^bøger$/i)).toBeInTheDocument()
+  })
+
+  it("renderer-only: non-noun meaning cards do not expose complete variations in the context menu", async () => {
+    mockFetchImplementation({
+      lemmasResponse: {
+        items: [{ lemma: "orange", variation_count: 1 }],
+      },
+      lemmaDetailsResponse: {
+        lemma: "orange",
+        is_sectioned: true,
+        meaning_sections: [
+          {
+            id: 1,
+            meaning_key: "orange",
+            gloss: "orange",
+            english_translation: "orange",
+            pos_tag: "ADJ",
+            morphology: "Gender=Com|Number=Sing|Definite=Ind",
+            surface_forms: [],
+          },
+        ],
+        surface_forms: [],
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+    fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /orange/i }))
+
+    fireEvent.contextMenu(await screen.findByTestId("wordbank-meaning-card-1"))
+    expect(await screen.findByRole("menuitem", { name: /rethink categories/i })).toBeInTheDocument()
+    expect(screen.queryByRole("menuitem", { name: /complete variations/i })).not.toBeInTheDocument()
+  })
+
   it("request-shape: shows verification error info on the word page and in notifications", async () => {
     vi.useRealTimers()
 

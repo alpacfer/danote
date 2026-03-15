@@ -198,6 +198,20 @@ class RethinkCategoriesResponse(BaseModel):
     message: str
 
 
+class CompleteVariationsRequest(BaseModel):
+    stored_lemma: str = Field(..., min_length=1)
+    meaning_id: int = Field(..., ge=1)
+
+
+class CompleteVariationsResponse(BaseModel):
+    status: Literal["updated", "skipped"]
+    stored_lemma: str
+    meaning_id: int
+    added_surface_forms: list[str] = Field(default_factory=list)
+    queued_pronunciation_forms: list[str] = Field(default_factory=list)
+    message: str
+
+
 class GeneratePronunciationRequest(BaseModel):
     stored_lemma: str = Field(..., min_length=1)
     stored_surface_form: str | None = None

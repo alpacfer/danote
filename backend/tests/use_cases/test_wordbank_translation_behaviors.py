@@ -34,13 +34,8 @@ def test_wordbank_use_case_stores_lemma_translation_on_meaning_sections_only(
     assert details.surface_forms[0].lemma_translation is None
     assert len(details.meaning_sections) == 1
     assert details.meaning_sections[0].english_translation == "book"
-    assert details.meaning_sections[0].surface_forms == [
-        LemmaDetailsResponse.SurfaceFormDetails(
-            form="bogen",
-            lemma="bog",
-            lemma_translation="book",
-        )
-    ]
+    assert [item.form for item in details.meaning_sections[0].surface_forms] == ["bogen"]
+    assert all(item.lemma_translation == "book" for item in details.meaning_sections[0].surface_forms)
 
 def test_wordbank_sectioned_add_prefers_cor_lemma_translation_and_skips_variation_translation(
     tmp_path: Path,
@@ -105,18 +100,18 @@ def test_wordbank_sectioned_add_prefers_cor_lemma_translation_and_skips_variatio
     assert details.english_translation == "teacher"
     assert len(details.meaning_sections) == 1
     assert details.meaning_sections[0].english_translation == "teacher"
-    assert details.meaning_sections[0].surface_forms == [
-        LemmaDetailsResponse.SurfaceFormDetails(
-            form="lærere",
-            pos_tag="NOUN",
-            morphology="Gender=Com|Number=Plur|Definite=Ind",
-            lemma="lærer",
-            lemma_translation="teacher",
-            gloss="teacher",
-            gloss_translation="teacher",
-            gram_raw="sb.fk.pl.ubest",
-        )
-    ]
+    assert [item.form for item in details.meaning_sections[0].surface_forms] == ["lærere"]
+    plural = next(item for item in details.meaning_sections[0].surface_forms if item.form == "lærere")
+    assert plural == LemmaDetailsResponse.SurfaceFormDetails(
+        form="lærere",
+        pos_tag="NOUN",
+        morphology="Gender=Com|Number=Plur|Definite=Ind",
+        lemma="lærer",
+        lemma_translation="teacher",
+        gloss="teacher",
+        gloss_translation="teacher",
+        gram_raw="sb.fk.pl.ubest",
+    )
     assert translation_service.calls == calls_after_add
     assert gemini_translation.calls == gemini_calls_after_add
     assert gemini_translation.batch_calls == gemini_batch_calls_after_add

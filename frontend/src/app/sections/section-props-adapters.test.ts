@@ -51,6 +51,7 @@ describe("section prop adapters", () => {
     const playPronunciation = vi.fn(async () => undefined)
     const regenerate = vi.fn(async () => undefined)
     const rethinkCategories = vi.fn(async () => undefined)
+    const completeMeaningVariations = vi.fn(async () => undefined)
     const apply = vi.fn(async () => undefined)
 
     const result = buildWordbankSectionProps({
@@ -72,6 +73,8 @@ describe("section prop adapters", () => {
       regenerateSelectedLemmaPronunciation: regenerate,
       isRethinkingCategories: false,
       rethinkCategories,
+      isCompletingMeaningVariations: false,
+      completeMeaningVariations,
       verificationOverview: {
         targets: [],
         queuedCount: 0,
@@ -86,6 +89,7 @@ describe("section prop adapters", () => {
     result.onPlayPronunciation("bog")
     result.onRegenerateSelectedLemmaPronunciation()
     result.onRethinkCategories(12)
+    result.onCompleteMeaningVariations(12)
     result.onApplyVerificationAction("bog::root::root", 0)
 
     await Promise.resolve()
@@ -93,6 +97,7 @@ describe("section prop adapters", () => {
     expect(playPronunciation).toHaveBeenCalledWith("bog")
     expect(regenerate).toHaveBeenCalledTimes(1)
     expect(rethinkCategories).toHaveBeenCalledWith(12)
+    expect(completeMeaningVariations).toHaveBeenCalledWith(12)
     expect(apply).toHaveBeenCalledTimes(1)
     expect(result.selectedMeaningId).toBe(12)
   })

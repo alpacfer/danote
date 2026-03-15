@@ -153,19 +153,19 @@ def test_contract_wordbank_sectioned_details_keep_lemma_translation_and_expose_t
     assert details.meaning_sections[0].gloss == "til læsning"
     assert details.meaning_sections[0].english_translation == "book"
     assert details.meaning_sections[0].gloss_translation == "for reading"
-    assert details.meaning_sections[0].surface_forms == [
-        LemmaDetailsResponse.SurfaceFormDetails(
-            form="bogen",
-            pos_tag="NOUN",
-            morphology="Gender=Com|Number=Sing|Definite=Def",
-            lemma="bog",
-            lemma_translation="book",
-            gloss="til læsning",
-            gloss_translation="for reading",
-            gram_raw="sb.fk.sg.best",
-            has_pronunciation=False,
-        )
-    ]
+    assert [item.form for item in details.meaning_sections[0].surface_forms] == ["bogen"]
+    surface = next(item for item in details.meaning_sections[0].surface_forms if item.form == "bogen")
+    assert surface == LemmaDetailsResponse.SurfaceFormDetails(
+        form="bogen",
+        pos_tag="NOUN",
+        morphology="Gender=Com|Number=Sing|Definite=Def",
+        lemma="bog",
+        lemma_translation="book",
+        gloss="til læsning",
+        gloss_translation="for reading",
+        gram_raw="sb.fk.sg.best",
+        has_pronunciation=False,
+    )
 
 def test_contract_wordbank_sectioned_details_do_not_overwrite_lemma_translation_with_english_gloss(
     tmp_path: Path,

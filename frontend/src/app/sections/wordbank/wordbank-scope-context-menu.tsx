@@ -9,25 +9,39 @@ import {
 
 type WordbankScopeContextMenuProps = {
   children: ReactElement
-  isBusy: boolean
+  isRethinkingCategories: boolean
   onRethinkCategories: () => void
+  canCompleteVariations?: boolean
+  isCompletingVariations?: boolean
+  onCompleteVariations?: () => void
 }
 
 export function WordbankScopeContextMenu({
   children,
-  isBusy,
+  isRethinkingCategories,
   onRethinkCategories,
+  canCompleteVariations = false,
+  isCompletingVariations = false,
+  onCompleteVariations,
 }: WordbankScopeContextMenuProps) {
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
       <ContextMenuContent>
         <ContextMenuItem
-          disabled={isBusy}
+          disabled={isRethinkingCategories}
           onSelect={onRethinkCategories}
         >
-          {isBusy ? "Rethinking categories..." : "Rethink categories"}
+          {isRethinkingCategories ? "Rethinking categories..." : "Rethink categories"}
         </ContextMenuItem>
+        {canCompleteVariations && onCompleteVariations ? (
+          <ContextMenuItem
+            disabled={isCompletingVariations}
+            onSelect={onCompleteVariations}
+          >
+            {isCompletingVariations ? "Completing variations..." : "Complete variations"}
+          </ContextMenuItem>
+        ) : null}
       </ContextMenuContent>
     </ContextMenu>
   )

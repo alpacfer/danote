@@ -135,7 +135,10 @@ def test_generate_pronunciation_endpoint_generates_for_recently_added_word(tmp_p
         details_response = client.get("/api/wordbank/lemmas/kat")
 
     assert pronunciation_response.status_code == 200
-    assert details_response.json()["meaning_sections"][0]["surface_forms"][0]["has_pronunciation"] is True
+    pronounced_surface = next(
+        item for item in details_response.json()["meaning_sections"][0]["surface_forms"] if item["form"] == "katten"
+    )
+    assert pronounced_surface["has_pronunciation"] is True
     assert stub_tts.calls == ["kat", "katten"]
 
 

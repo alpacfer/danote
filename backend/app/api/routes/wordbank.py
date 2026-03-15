@@ -11,6 +11,8 @@ from app.api.schemas.v1.wordbank import (
     AddWordResponse,
     ApplyVerificationChangesRequest,
     ApplyVerificationChangesResponse,
+    CompleteVariationsRequest,
+    CompleteVariationsResponse,
     CORLemmaParadigmResponse,
     CORSearchFormResponse,
     DetectWordLanguageRequest,
@@ -78,6 +80,22 @@ def rethink_categories(payload: RethinkCategoriesRequest, request: Request) -> R
         lambda: build_wordbank_use_case(request).rethink_categories(
             payload.stored_lemma,
             payload.stored_surface_form,
+            meaning_id=payload.meaning_id,
+        ),
+        include_lookup_error=True,
+        error_log_name="wordbank_db_operational_error",
+    )
+
+
+@router.post("/wordbank/lexemes/complete-variations", response_model=CompleteVariationsResponse)
+def complete_variations(
+    payload: CompleteVariationsRequest,
+    request: Request,
+) -> CompleteVariationsResponse:
+    return run_db_operation(
+        request,
+        lambda: build_wordbank_use_case(request).complete_meaning_variations(
+            payload.stored_lemma,
             meaning_id=payload.meaning_id,
         ),
         include_lookup_error=True,

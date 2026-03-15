@@ -20,6 +20,7 @@ import {
 import { toast } from "sonner"
 
 import { useCategoryRethinkingWorkflow } from "./wordbank/use-category-rethinking-workflow"
+import { useCompleteVariationsWorkflow } from "./wordbank/use-complete-variations-workflow"
 import { usePronunciationWorkflow } from "./wordbank/use-pronunciation-workflow"
 import { useVerificationWorkflow } from "./wordbank/use-verification-workflow"
 
@@ -92,6 +93,16 @@ export function useWordbankWorkflows({
     isRethinkingCategories,
     rethinkCategories,
   } = useCategoryRethinkingWorkflow({
+    backendUrl,
+    extractErrorMessage,
+    selectedLemma,
+    setWordbankRefreshTick,
+  })
+
+  const {
+    isCompletingMeaningVariations,
+    completeMeaningVariations,
+  } = useCompleteVariationsWorkflow({
     backendUrl,
     extractErrorMessage,
     selectedLemma,
@@ -269,6 +280,7 @@ export function useWordbankWorkflows({
     pronunciationLoadingByForm,
     isRegeneratingLemmaPronunciation,
     isRethinkingCategories,
+    isCompletingMeaningVariations,
     isApplyingVerificationChanges,
     isVerifyingWords,
     verificationOverview,
@@ -278,6 +290,7 @@ export function useWordbankWorkflows({
     playPronunciation,
     regenerateSelectedLemmaPronunciation,
     rethinkCategories,
+    completeMeaningVariations,
     applyVerificationAction,
     clearVerificationErrors,
   }

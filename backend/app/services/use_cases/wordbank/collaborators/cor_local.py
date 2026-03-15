@@ -256,6 +256,35 @@ def best_cor_local_lemma_entry(
     return filtered[0] if filtered else None
 
 
+def cor_local_entries_for_lemma_idx(
+    cor_local_lexicon_service: CORLocalLexiconService | None,
+    *,
+    lemma_idx: int,
+    lemma: str,
+    preferred_pos_tag: str | None,
+) -> list[CORLocalEntry]:
+    if cor_local_lexicon_service is None or lemma_idx < 1:
+        return []
+    normalized_lemma = normalize_token(lemma)
+    if not normalized_lemma:
+        return []
+    try:
+        entries = cor_local_lexicon_service.lookup_lemma(lemma_idx, limit=1000)
+    except FileNotFoundError:
+        return []
+    filtered = [
+        entry
+        for entry in entries
+        if entry.norm == "N" and normalize_token(entry.lemma) == normalized_lemma
+    ]
+    if preferred_pos_tag:
+        preferred = [entry for entry in filtered if entry.pos_tag == preferred_pos_tag]
+        if preferred:
+            filtered = preferred
+    filtered = consolidate_cor_local_entries(filtered)
+    return drop_glossless_when_gloss_exists(filtered)
+
+
 def cor_local_entry_for_cor_id(
     cor_local_lexicon_service: CORLocalLexiconService | None,
     *,

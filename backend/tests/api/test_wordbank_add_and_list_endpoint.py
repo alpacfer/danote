@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sqlite3
 import time
 
 from fastapi.testclient import TestClient
@@ -14,6 +15,46 @@ from tests.api.wordbank_test_support import (
     seed_cor_local_db,
     seed_cor_local_word_page_gloss_cases,
 )
+
+
+def _seed_complete_bog_paradigm_cor_local(db_path) -> None:
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            """
+            CREATE TABLE cor_entries (
+                cor_id TEXT PRIMARY KEY,
+                lemma TEXT NOT NULL,
+                gloss TEXT,
+                gram TEXT NOT NULL,
+                form TEXT NOT NULL,
+                norm TEXT NOT NULL,
+                lemma_idx INTEGER NOT NULL,
+                gram_code INTEGER NOT NULL,
+                variation INTEGER NOT NULL
+            )
+            """
+        )
+        conn.execute("CREATE INDEX idx_cor_form ON cor_entries(form)")
+        conn.execute("CREATE INDEX idx_cor_form_lower ON cor_entries(lower(form))")
+        conn.execute("CREATE INDEX idx_cor_lemma_idx ON cor_entries(lemma_idx)")
+        conn.execute("CREATE INDEX idx_cor_lemma_gram ON cor_entries(lemma, gram)")
+        conn.executemany(
+            """
+            INSERT INTO cor_entries (
+                cor_id, lemma, gloss, gram, form, norm, lemma_idx, gram_code, variation
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                ("COR.BOG.BOOK.LEM", "bog", "book", "sb.fk.sg.ubest", "bog", "N", 123, 110, 1),
+                ("COR.BOG.BOOK.DEF", "bog", "book", "sb.fk.sg.best", "bogen", "N", 123, 111, 1),
+                ("COR.BOG.BOOK.PL", "bog", "book", "sb.fk.pl.ubest", "bøger", "N", 123, 112, 1),
+                ("COR.BOG.BOOK.PLDEF", "bog", "book", "sb.fk.pl.best", "bøgerne", "N", 123, 113, 1),
+                ("COR.BOG.SWAMP.LEM", "bog", "swamp", "sb.fk.sg.ubest", "bog", "N", 124, 210, 1),
+                ("COR.BOG.SWAMP.DEF", "bog", "swamp", "sb.fk.sg.best", "bogen", "N", 124, 211, 1),
+                ("COR.BOG.SWAMP.PL", "bog", "swamp", "sb.fk.pl.ubest", "moser", "N", 124, 212, 1),
+                ("COR.BOG.SWAMP.PLDEF", "bog", "swamp", "sb.fk.pl.best", "moserne", "N", 124, 213, 1),
+            ),
+        )
 
 
 def test_add_word_inserts_lemma_and_surface_form(tmp_path, stub_nlp_adapter_factory) -> None:
@@ -113,7 +154,11 @@ def test_add_word_includes_verification_result_when_service_is_available(tmp_pat
         assert details_response.status_code == 200
         candidate = details_response.json()
         meaning_verification = candidate["meaning_sections"][0]["verification"]
-        surface_verification = candidate["meaning_sections"][0]["surface_forms"][0]["verification"]
+        variation_row = next(
+            (item for item in candidate["meaning_sections"][0]["surface_forms"] if item["form"] == "bogen"),
+            None,
+        )
+        surface_verification = variation_row.get("verification") if variation_row is not None else None
         if (
             candidate["meaning_sections"][0]["categories"] == ["Food", "Household Objects"]
             and meaning_verification is not None
@@ -128,8 +173,11 @@ def test_add_word_includes_verification_result_when_service_is_available(tmp_pat
     assert details_payload is not None
     assert details_payload["meaning_sections"][0]["categories"] == ["Food", "Household Objects"]
     assert details_payload["meaning_sections"][0]["verification"]["status"] in {"queued", "verified"}
-    assert details_payload["meaning_sections"][0]["surface_forms"][0]["verification"]["status"] == "verified"
-    assert details_payload["meaning_sections"][0]["surface_forms"][0]["verification"]["completed_at"] is not None
+    verified_surface = next(
+        item for item in details_payload["meaning_sections"][0]["surface_forms"] if item["form"] == "bogen"
+    )
+    assert verified_surface["verification"]["status"] == "verified"
+    assert verified_surface["verification"]["completed_at"] is not None
 
     verification_rows = None
     deadline = time.time() + 5
@@ -215,6 +263,201 @@ def test_rethink_categories_updates_meaning_categories(tmp_path, stub_nlp_adapte
 
     assert details.status_code == 200
     assert details.json()["meaning_sections"][0]["categories"] == ["Culture", "Education", "Food", "Reading Material"]
+
+
+def test_complete_variations_endpoint_adds_missing_forms_and_enqueues_jobs(tmp_path, stub_nlp_adapter_factory) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    cor_db_path = tmp_path / "cor.sqlite"
+    apply_migrations(db_path)
+    _seed_complete_bog_paradigm_cor_local(cor_db_path)
+    app = create_app(
+        build_test_settings(db_path, cor_local_db_path=cor_db_path),
+        nlp_adapter_factory=stub_nlp_adapter_factory,
+    )
+
+    class StubVerificationService:
+        provider = "gemini"
+        reviewer_role = "Professional Danish Language Expert"
+
+        def verify_word_entry(self, _payload):
+            class Result:
+                verdict = "verified"
+                message = "Looks good."
+
+            return Result()
+
+    class StubTTSService:
+        provider = "gemini_tts"
+        model = "gemini-2.5-flash-preview-tts"
+
+        def synthesize(self, text: str):
+            from app.services.tts import PronunciationAudio
+
+            return PronunciationAudio(audio_bytes=f"{text}-wav".encode(), mime_type="audio/wav")
+
+    with TestClient(app) as client:
+        set_service_field(client.app, "word_verification_service", StubVerificationService())
+        set_service_field(client.app, "tts_service", StubTTSService())
+        added = client.post(
+            "/api/wordbank/lexemes",
+            json={
+                "surface_token": "bøger",
+                "lemma_candidate": "bog",
+                "search_seed": {
+                    "lemma": "bog",
+                    "surface": "bøger",
+                    "cor_id": "COR.BOG.BOOK.PL",
+                    "cor_lemma_idx": 123,
+                    "meaning_key": "book",
+                    "gloss": "book",
+                    "english_translation": "book",
+                    "pos_tag": "NOUN",
+                    "morphology": "Gender=Com|Number=Plur|Definite=Ind",
+                },
+            },
+        )
+        meaning_id = added.json()["meaning"]["id"]
+        response = client.post(
+            "/api/wordbank/lexemes/complete-variations",
+            json={
+                "stored_lemma": "bog",
+                "meaning_id": meaning_id,
+            },
+        )
+        details = client.get("/api/wordbank/lemmas/bog")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "updated"
+    assert payload["added_surface_forms"] == ["bogen", "bøgerne"]
+    assert payload["queued_pronunciation_forms"] == ["bogen", "bøgerne"]
+    assert [item["form"] for item in details.json()["meaning_sections"][0]["surface_forms"]] == ["bogen", "bøger", "bøgerne"]
+
+    with get_connection(db_path) as conn:
+        pronunciation_jobs = conn.execute(
+            """
+            SELECT dedupe_key
+            FROM wordbank_background_jobs
+            WHERE job_type = 'generate_pronunciation'
+            ORDER BY dedupe_key ASC
+            """
+        ).fetchall()
+    assert [str(row["dedupe_key"]) for row in pronunciation_jobs] == [
+        "generate_pronunciation::bog::bogen",
+        "generate_pronunciation::bog::bøger",
+        "generate_pronunciation::bog::bøgerne",
+    ]
+
+
+def test_complete_variations_endpoint_scopes_to_selected_homograph_meaning(tmp_path, stub_nlp_adapter_factory) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    cor_db_path = tmp_path / "cor.sqlite"
+    apply_migrations(db_path)
+    _seed_complete_bog_paradigm_cor_local(cor_db_path)
+    app = create_app(
+        build_test_settings(db_path, cor_local_db_path=cor_db_path),
+        nlp_adapter_factory=stub_nlp_adapter_factory,
+    )
+
+    with TestClient(app) as client:
+        first = client.post(
+            "/api/wordbank/lexemes",
+            json={
+                "surface_token": "bogen",
+                "lemma_candidate": "bog",
+                "search_seed": {
+                    "lemma": "bog",
+                    "surface": "bogen",
+                    "cor_id": "COR.BOG.BOOK.DEF",
+                    "cor_lemma_idx": 123,
+                    "meaning_key": "book",
+                    "gloss": "book",
+                    "english_translation": "book",
+                    "pos_tag": "NOUN",
+                    "morphology": "Gender=Com|Number=Sing|Definite=Def",
+                },
+            },
+        )
+        client.post(
+            "/api/wordbank/lexemes",
+            json={
+                "surface_token": "bogen",
+                "lemma_candidate": "bog",
+                "search_seed": {
+                    "lemma": "bog",
+                    "surface": "bogen",
+                    "cor_id": "COR.BOG.SWAMP.DEF",
+                    "cor_lemma_idx": 124,
+                    "meaning_key": "swamp",
+                    "gloss": "swamp",
+                    "english_translation": "swamp",
+                    "pos_tag": "NOUN",
+                    "morphology": "Gender=Com|Number=Sing|Definite=Def",
+                },
+            },
+        )
+        response = client.post(
+            "/api/wordbank/lexemes/complete-variations",
+            json={
+                "stored_lemma": "bog",
+                "meaning_id": first.json()["meaning"]["id"],
+            },
+        )
+        details = client.get("/api/wordbank/lemmas/bog")
+
+    assert response.status_code == 200
+    sections = details.json()["meaning_sections"]
+    assert [item["form"] for item in sections[0]["surface_forms"]] == ["bogen", "bøger", "bøgerne"]
+    assert [item["form"] for item in sections[1]["surface_forms"]] == ["bogen"]
+
+
+def test_complete_variations_endpoint_skips_without_cor_identity_and_404s_for_invalid_meaning(tmp_path, stub_nlp_adapter_factory) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    cor_db_path = tmp_path / "cor.sqlite"
+    apply_migrations(db_path)
+    _seed_complete_bog_paradigm_cor_local(cor_db_path)
+    app = create_app(
+        build_test_settings(db_path, cor_local_db_path=cor_db_path),
+        nlp_adapter_factory=stub_nlp_adapter_factory,
+    )
+
+    with TestClient(app) as client:
+        manual = client.post(
+            "/api/wordbank/lexemes",
+            json={
+                "surface_token": "bogen",
+                "lemma_candidate": "bog",
+                "search_seed": {
+                    "lemma": "bog",
+                    "surface": "bogen",
+                    "cor_id": "COR.BOG.BOOK.DEF",
+                    "meaning_key": "book",
+                    "gloss": "book",
+                    "english_translation": "book",
+                    "pos_tag": "NOUN",
+                    "morphology": "Gender=Com|Number=Sing|Definite=Def",
+                },
+            },
+        )
+        skipped = client.post(
+            "/api/wordbank/lexemes/complete-variations",
+            json={
+                "stored_lemma": "bog",
+                "meaning_id": manual.json()["meaning"]["id"],
+            },
+        )
+        missing = client.post(
+            "/api/wordbank/lexemes/complete-variations",
+            json={
+                "stored_lemma": "bog",
+                "meaning_id": 999,
+            },
+        )
+
+    assert skipped.status_code == 200
+    assert skipped.json()["status"] == "skipped"
+    assert "COR identity" in skipped.json()["message"]
+    assert missing.status_code == 404
 
 
 def test_add_word_duplicate_is_graceful(tmp_path, stub_nlp_adapter_factory) -> None:
@@ -524,7 +767,9 @@ def test_get_lemma_details_sectioned_payload_preserves_section_surface_fields(tm
     assert payload["surface_forms"][0]["pos_tag"] == "NOUN"
     assert payload["surface_forms"][0]["has_pronunciation"] is False
     assert "gram_raw" in payload["surface_forms"][0]
-    section_surface_form = payload["meaning_sections"][0]["surface_forms"][0]
+    section_surface_form = next(
+        item for item in payload["meaning_sections"][0]["surface_forms"] if item["form"] == "bogen"
+    )
     assert section_surface_form["form"] == "bogen"
     assert section_surface_form["lemma"] == "bog"
     assert section_surface_form["lemma_translation"] == "book"
@@ -1057,7 +1302,10 @@ def test_apply_verification_changes_prunes_persisted_suggestions(tmp_path, stub_
         assert verify.status_code == 200
         details_before = client.get("/api/wordbank/lemmas/bog")
         assert details_before.status_code == 200
-        action = details_before.json()["meaning_sections"][0]["surface_forms"][0]["verification"]["suggested_actions"][0]
+        verified_surface = next(
+            item for item in details_before.json()["meaning_sections"][0]["surface_forms"] if item["form"] == "bogen"
+        )
+        action = verified_surface["verification"]["suggested_actions"][0]
 
         apply_response = client.post(
             "/api/wordbank/lexemes/apply-verification-changes",
@@ -1076,7 +1324,10 @@ def test_apply_verification_changes_prunes_persisted_suggestions(tmp_path, stub_
     assert apply_response.json()["status"] == "applied"
     assert details_after.status_code == 200
     assert details_after.json()["meaning_sections"][0]["verification"]["status"] in {"queued", "flagged"}
-    assert details_after.json()["meaning_sections"][0]["surface_forms"][0]["verification"]["status"] == "verified"
+    applied_surface = next(
+        item for item in details_after.json()["meaning_sections"][0]["surface_forms"] if item["form"] == "bogen"
+    )
+    assert applied_surface["verification"]["status"] == "verified"
 
     with get_connection(db_path) as conn:
         remaining_rows = conn.execute(

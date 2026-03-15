@@ -20,6 +20,8 @@ type WordbankMeaningSectionsProps = {
   onPlayPronunciation: (form: string) => void
   isRethinkingCategories: boolean
   onRethinkCategories: (meaningId: number | null) => void
+  isCompletingMeaningVariations: boolean
+  onCompleteMeaningVariations: (meaningId: number | null) => void
 }
 
 export function WordbankMeaningSections({
@@ -30,6 +32,8 @@ export function WordbankMeaningSections({
   onPlayPronunciation,
   isRethinkingCategories,
   onRethinkCategories,
+  isCompletingMeaningVariations,
+  onCompleteMeaningVariations,
 }: WordbankMeaningSectionsProps) {
   if (!meaningSections || meaningSections.length === 0) {
     return <p className="text-muted-foreground text-sm">No saved meanings for this lemma.</p>
@@ -51,8 +55,11 @@ export function WordbankMeaningSections({
         return (
           <WordbankScopeContextMenu
             key={`meaning-section-${section.id}-${section.meaning_key}`}
-            isBusy={isRethinkingCategories}
+            isRethinkingCategories={isRethinkingCategories}
             onRethinkCategories={() => onRethinkCategories(section.id)}
+            canCompleteVariations={(section.pos_tag ?? "").toUpperCase() === "NOUN"}
+            isCompletingVariations={isCompletingMeaningVariations}
+            onCompleteVariations={() => onCompleteMeaningVariations(section.id)}
           >
             <Card
               id={`wordbank-meaning-${section.id}`}

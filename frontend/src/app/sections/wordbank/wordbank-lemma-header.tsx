@@ -146,7 +146,7 @@ export function WordbankLemmaHeader({
 
   return (
     <WordbankScopeContextMenu
-      isBusy={isRethinkingCategories}
+      isRethinkingCategories={isRethinkingCategories}
       onRethinkCategories={() => onRethinkCategories(null)}
     >
       <div data-testid="wordbank-lemma-scope-card">

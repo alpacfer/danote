@@ -1,6 +1,8 @@
 from app.api.schemas.v1 import (
     AddWordRequest,
     AddWordResponse,
+    CompleteVariationsRequest,
+    CompleteVariationsResponse,
     AnalyzedToken,
     AnalyzeRequest,
     AnalyzeResponse,
@@ -16,6 +18,8 @@ __all__ = [
     "AnalyzedToken",
     "AddWordRequest",
     "AddWordResponse",
+    "CompleteVariationsRequest",
+    "CompleteVariationsResponse",
     "LemmaSummary",
     "LemmaListResponse",
     "LemmaDetailsResponse",

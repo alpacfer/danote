@@ -118,6 +118,15 @@ export type RethinkCategoriesResponse = {
   message: string
 }
 
+export type CompleteVariationsResponse = {
+  status: "updated" | "skipped"
+  stored_lemma: string
+  meaning_id: number
+  added_surface_forms: string[]
+  queued_pronunciation_forms: string[]
+  message: string
+}
+
 export type GeneratePronunciationResponse = {
   status: "generated" | "unavailable" | "skipped"
   stored_lemma: string

@@ -15,6 +15,8 @@ from app.api.schemas.v1.sentencebank import (
 from app.api.schemas.v1.wordbank import (
     AddWordRequest,
     AddWordResponse,
+    CompleteVariationsRequest,
+    CompleteVariationsResponse,
     CORLemmaParadigmResponse,
     CORSearchFormResponse,
     CORSearchGroup,
@@ -50,6 +52,8 @@ __all__ = [
     "HealthResponse",
     "AddWordRequest",
     "AddWordResponse",
+    "CompleteVariationsRequest",
+    "CompleteVariationsResponse",
     "CORSearchVariant",
     "CORSearchGroup",
     "CORSearchFormResponse",

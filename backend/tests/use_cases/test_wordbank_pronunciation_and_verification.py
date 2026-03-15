@@ -55,8 +55,9 @@ def test_wordbank_use_case_runs_verification_task_and_returns_result(tmp_path: P
     assert details_after_verify.meaning_sections[0].categories == ["Food", "Household Objects"]
     assert details_after_verify.meaning_sections[0].verification is not None
     assert details_after_verify.meaning_sections[0].verification.status == "queued"
-    assert details_after_verify.meaning_sections[0].surface_forms[0].verification is not None
-    assert details_after_verify.meaning_sections[0].surface_forms[0].verification.status == "verified"
+    verified_surface = next(item for item in details_after_verify.meaning_sections[0].surface_forms if item.form == "bogen")
+    assert verified_surface.verification is not None
+    assert verified_surface.verification.status == "verified"
 
 
 def test_wordbank_use_case_replaces_meaning_categories_on_reverify(tmp_path: Path) -> None:
@@ -367,7 +368,7 @@ def test_wordbank_use_case_exposes_generated_lemma_audio_in_sectioned_details(tm
     assert [item.form for item in details.surface_forms] == ["bog"]
     assert details.surface_forms[0].has_pronunciation is True
     assert [item.form for item in details.meaning_sections[0].surface_forms] == ["bogen"]
-    assert details.meaning_sections[0].surface_forms[0].has_pronunciation is True
+    assert all(item.has_pronunciation for item in details.meaning_sections[0].surface_forms)
 
 
 def test_wordbank_use_case_force_regenerates_pronunciation(tmp_path: Path) -> None:
@@ -516,7 +517,7 @@ def test_wordbank_use_case_moves_surface_to_another_meaning_section(tmp_path: Pa
     assert response.target_meaning_id == second.meaning.id
     details = use_case.get_lemma_details("bog")
     by_key = {section.meaning_key: section for section in details.meaning_sections}
-    assert [item.form for item in by_key["book"].surface_forms] == []
+    assert by_key["book"].surface_forms == []
     assert [item.form for item in by_key["swamp"].surface_forms] == ["bogen", "moser"]
 
 

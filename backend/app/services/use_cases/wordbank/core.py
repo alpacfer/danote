@@ -5,6 +5,7 @@ from pathlib import Path
 from app.api.schemas.v1.wordbank import (
     CORLemmaParadigmResponse,
     CORSearchFormResponse,
+    CompleteVariationsResponse,
     DetectWordLanguageResponse,
     GeneratePhraseTranslationResponse,
     GeneratePronunciationResponse,
@@ -25,6 +26,7 @@ from app.services.gemini_translation import GeminiWordTranslationService
 from app.services.translation import TranslationService
 from app.services.tts import PronunciationAudio, TTSService
 from app.services.use_cases.wordbank.commands_add_word import add_word
+from app.services.use_cases.wordbank.commands_complete_variations import complete_meaning_variations
 from app.services.use_cases.wordbank.commands_database import reset_database
 from app.services.use_cases.wordbank.collaborators.cor import CorResolutionCollaborator
 from app.services.use_cases.wordbank.collaborators.nlp import NLPCollaborator
@@ -113,6 +115,41 @@ class WordbankUseCase:
         return self._runtime.pronunciation.generate_pronunciation_for_added_word(
             stored_lemma, stored_surface_form, force=force
         )
+
+    def complete_meaning_variations(
+        self,
+        stored_lemma: str,
+        *,
+        meaning_id: int,
+    ) -> CompleteVariationsResponse:
+        try:
+            return complete_meaning_variations(
+                self._runtime,
+                stored_lemma=stored_lemma,
+                meaning_id=meaning_id,
+            )
+        except ValueError as exc:
+            if str(exc) == "unsupported":
+                return CompleteVariationsResponse(
+                    status="skipped",
+                    stored_lemma=stored_lemma,
+                    meaning_id=meaning_id,
+                    added_surface_forms=[],
+                    queued_pronunciation_forms=[],
+                    message="Complete variations is only available for noun meanings.",
+                )
+            raise
+        except RuntimeError as exc:
+            if str(exc) == "missing_cor_identity":
+                return CompleteVariationsResponse(
+                    status="skipped",
+                    stored_lemma=stored_lemma,
+                    meaning_id=meaning_id,
+                    added_surface_forms=[],
+                    queued_pronunciation_forms=[],
+                    message="This meaning does not have enough COR identity to complete noun variations.",
+                )
+            raise
 
     def verify_added_word(
         self,

@@ -127,6 +127,23 @@ Route decorators are the source of truth in `backend/app/api/routes/`, and API D
   - the rethink route reuses the same Gemini categorization flow and whole-word context payload as initial verification; it is just manually triggered.
   - `applied_categories` returns the normalized persisted category labels after the rethink run.
 
+### POST `/api/wordbank/lexemes/complete-variations`
+- **Request model:** `CompleteVariationsRequest`.
+- **Response model:** `CompleteVariationsResponse`.
+- **Notable status/error behavior:**
+  - `503` when DB unavailable/locked.
+  - `404` when the target lemma or meaning cannot be found.
+  - `400` for invalid inputs.
+  - body `status` can be `updated` or `skipped`.
+  - v1 is meaning-scoped and noun-only; non-noun targets return `skipped`.
+  - the command uses the saved meaning's `cor_lemma_idx` to resolve the noun paradigm and returns `skipped`
+    when that stable COR identity is missing.
+  - successful responses add only missing non-lemma noun variations among
+    singular-definite, plural-indefinite, and plural-definite.
+  - `added_surface_forms` lists the forms inserted by this call.
+  - `queued_pronunciation_forms` lists the newly added forms queued for background pronunciation generation.
+  - the command also requeues word-page verification targets for the updated lemma.
+
 ### POST `/api/wordbank/lexemes/pronunciation`
 - **Request model:** `GeneratePronunciationRequest`.
 - **Response model:** `GeneratePronunciationResponse`.
@@ -228,8 +245,9 @@ Route decorators are the source of truth in `backend/app/api/routes/`, and API D
   - each `surface_forms[]` item may include its own `verification` for variation-scoped Gemini results.
   - each `surface_forms[]` item may include `gram_raw` when the backend can resolve COR grammar for that saved form.
   - for sectioned lemmas, top-level `surface_forms[]` may include the saved lemma form itself
-    so the client can bind exact-lemma pronunciation and metadata without duplicating that row
-    inside every meaning section.
+    so the client can bind exact-lemma pronunciation and metadata.
+  - sectioned meaning `surface_forms[]` exclude rows whose normalized form matches the lemma;
+    those lemma-form rows stay available only through top-level `surface_forms[]` when stored.
   - verification objects use the same additive fields as add/verify responses:
     `stored_surface_form`, `requested_at`, `completed_at`, and `suggested_actions`.
 - **Canonical response examples:**

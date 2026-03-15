@@ -23,6 +23,8 @@ export type WordbankSectionProps = {
   onRegenerateSelectedLemmaPronunciation: () => void
   isRethinkingCategories: boolean
   onRethinkCategories: (meaningId: number | null) => void
+  isCompletingMeaningVariations: boolean
+  onCompleteMeaningVariations: (meaningId: number | null) => void
   verificationOverview: VerificationOverview
   isApplyingVerificationChanges: boolean
   onApplyVerificationAction: (targetKey: string, actionIndex: number) => void

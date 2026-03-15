@@ -144,6 +144,8 @@ export function useAppController() {
       regenerateSelectedLemmaPronunciation: wordbank.regenerateSelectedLemmaPronunciation,
       isRethinkingCategories: wordbank.isRethinkingCategories,
       rethinkCategories: wordbank.rethinkCategories,
+      isCompletingMeaningVariations: wordbank.isCompletingMeaningVariations,
+      completeMeaningVariations: wordbank.completeMeaningVariations,
       verificationOverview: wordbank.verificationOverview,
       isApplyingVerificationChanges: wordbank.isApplyingVerificationChanges,
       applyVerificationAction: wordbank.applyVerificationAction,

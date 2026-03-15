@@ -155,13 +155,19 @@ Meaning auto-scroll behavior:
 - Wordbank word pages use the shadcn `ContextMenu` primitive for right-click actions on category-bearing scopes.
 - Sectioned pages:
   - each meaning card is a context-menu trigger
-  - the menu currently exposes `Rethink categories`
+  - noun meaning cards expose `Rethink categories` and `Complete variations`
+  - non-noun meaning cards expose only `Rethink categories`
 - Non-sectioned pages:
   - the lemma header block is the context-menu trigger for the root scope
-  - the same `Rethink categories` action is available there
+  - only `Rethink categories` is available there
 - `Rethink categories` immediately calls the backend recategorization endpoint for that root / meaning scope and refreshes lemma details after success.
 - The action does not open a confirmation flow and does not apply Gemini verification suggestions; it only recalculates semantic category assignments.
 - The manual rethink path uses the same Gemini category-classification flow as initial verification; the only difference is that this one is user-triggered.
+- `Complete variations` is noun-only and meaning-only in v1.
+  It uses the saved meaning's COR identity to fill any missing non-lemma noun variations:
+  singular-definite, plural-indefinite, and plural-definite.
+- The completion action queues pronunciation generation only for newly added forms, requeues word-page verification for the updated lemma, and refreshes lemma details after success.
+- If the meaning lacks enough saved COR identity to resolve a noun paradigm, the action is skipped with a user-facing message.
 
 ## Body mode A: sectioned meanings (WordbankMeaningSections)
 
@@ -178,7 +184,8 @@ Meaning auto-scroll behavior:
 - Surface forms under each meaning:
   - rendered in a divided list
   - each row uses `WordbankPronunciationWord`
-  - section lists exclude the lemma form itself; exact lemma audio/metadata can come from top-level `surface_forms`
+  - section lists render only non-lemma variations for that meaning
+  - top-level `surface_forms` may still include the lemma form as a separate deduped header/audio source
   - saved POS/morphology badges normalize to the same reader-facing label style used in COR search where morphology allows it (for example adjective agreement uses `n-word` / `t-word` rather than `Common` / `Neuter`)
   - when a saved surface form has COR context, its details payload may also include `gram_raw`; those rows render badges from `gram_raw` first so search and word-page badges stay aligned
   - form-level badges are filtered to avoid repeating section-level badge labels

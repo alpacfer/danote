@@ -75,10 +75,12 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
     }
     meaning_by_id = {meaning.id: meaning for meaning in meaning_rows}
     for row in form_rows:
-        if row.meaning_id is None or row.form == lexeme.lemma:
+        if row.meaning_id is None:
             continue
         meaning = meaning_by_id.get(row.meaning_id)
         if meaning is None:
+            continue
+        if normalize_token(row.form) == normalized_lemma:
             continue
         section_forms[row.meaning_id].append(
             _surface_form_details(
@@ -163,6 +165,7 @@ def _get_manual_lemma_details(
     verification_records,
     category_assignments: dict[int | None, list[str]],
 ) -> LemmaDetailsResponse:
+    normalized_lemma = normalize_token(lexeme.lemma)
     if not meaning_rows:
         return LemmaDetailsResponse(
             lemma=lexeme.lemma,
@@ -190,10 +193,12 @@ def _get_manual_lemma_details(
         meaning.id: [] for meaning in meaning_rows
     }
     for row in form_rows:
-        if row.meaning_id is None or row.form == lexeme.lemma:
+        if row.meaning_id is None:
             continue
         meaning = meaning_by_id.get(row.meaning_id)
         if meaning is None:
+            continue
+        if normalize_token(row.form) == normalized_lemma:
             continue
         section_forms[row.meaning_id].append(
             _manual_surface_form_details(

@@ -21,6 +21,8 @@ export type WordbankSectionAdapterArgs = {
   regenerateSelectedLemmaPronunciation: () => Promise<void>
   isRethinkingCategories: boolean
   rethinkCategories: (meaningId: number | null) => Promise<void>
+  isCompletingMeaningVariations: boolean
+  completeMeaningVariations: (meaningId: number | null) => Promise<void>
   verificationOverview: ComponentProps<typeof WordbankSection>["verificationOverview"]
   isApplyingVerificationChanges: boolean
   applyVerificationAction: (targetKey: string, actionIndex: number) => Promise<void>
@@ -53,6 +55,10 @@ export function buildWordbankSectionProps(
     isRethinkingCategories: args.isRethinkingCategories,
     onRethinkCategories: (meaningId: number | null) => {
       void args.rethinkCategories(meaningId)
+    },
+    isCompletingMeaningVariations: args.isCompletingMeaningVariations,
+    onCompleteMeaningVariations: (meaningId: number | null) => {
+      void args.completeMeaningVariations(meaningId)
     },
     verificationOverview: args.verificationOverview,
     isApplyingVerificationChanges: args.isApplyingVerificationChanges,

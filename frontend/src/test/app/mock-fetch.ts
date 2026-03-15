@@ -257,6 +257,15 @@ export function mockFetchImplementation(options?: {
     applied_categories?: string[]
   }
   verifyWordHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+  completeVariationsResponse?: {
+    status: "updated" | "skipped"
+    stored_lemma: string
+    meaning_id: number
+    added_surface_forms: string[]
+    queued_pronunciation_forms: string[]
+    message: string
+  }
+  completeVariationsHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
   rethinkCategoriesResponse?: {
     status: "updated" | "skipped" | "error"
     stored_lemma: string
@@ -626,6 +635,14 @@ export function mockFetchImplementation(options?: {
     },
     applied_categories: [],
   }
+  const completeVariationsResponse = options?.completeVariationsResponse ?? {
+    status: "updated" as const,
+    stored_lemma: addWordResponse.stored_lemma,
+    meaning_id: addWordResponse.meaning?.id ?? 1,
+    added_surface_forms: [],
+    queued_pronunciation_forms: [],
+    message: `Completed noun variations for '${addWordResponse.stored_lemma}'.`,
+  }
   const rethinkCategoriesResponse = options?.rethinkCategoriesResponse ?? {
     status: "updated" as const,
     stored_lemma: addWordResponse.stored_lemma,
@@ -866,6 +883,13 @@ export function mockFetchImplementation(options?: {
         return options.verifyWordHandler(input, init)
       }
       return responseOf(verifyWordResponse)
+    }
+
+    if (url.endsWith("/api/wordbank/lexemes/complete-variations")) {
+      if (options?.completeVariationsHandler) {
+        return options.completeVariationsHandler(input, init)
+      }
+      return responseOf(completeVariationsResponse)
     }
 
     if (url.endsWith("/api/wordbank/lexemes/rethink-categories")) {
