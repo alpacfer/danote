@@ -304,6 +304,64 @@ def test_word_verification_payload_for_homograph_meaning_uses_translated_gloss_c
     ]
 
 
+def test_word_verification_payload_exposes_cor_canonical_lemma_when_saved_lemma_is_inflected(tmp_path: Path) -> None:
+    verification_service = FakeVerificationService(
+        verdict="verified",
+        message="Entry is consistent.",
+    )
+    canonical_lemma = _cor_local_entry(
+        cor_id="COR.MODER.LEM",
+        lemma="moder",
+        gloss="person",
+        form="moder",
+        lemma_idx=61046,
+        pos_tag="NOUN",
+        morphology="Gender=Com|Number=Sing|Definite=Ind",
+        gram_raw="sb.fk.sg.ubest",
+    )
+    inflected_surface = _cor_local_entry(
+        cor_id="COR.MODER.SURF",
+        lemma="moder",
+        gloss="person",
+        form="mor",
+        lemma_idx=61046,
+        pos_tag="NOUN",
+        morphology="Gender=Com|Number=Sing|Definite=Ind",
+        gram_raw="sb.fk.sg.ubest",
+    )
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_local_lexicon_service=FakeCORLocalLexiconService(
+            by_form={"mor": [inflected_surface]},
+            by_lemma_idx={61046: [canonical_lemma, inflected_surface]},
+        ),
+        translation_service=FakeTranslationService({"person": "person"}),
+        verification_service=verification_service,
+    )
+
+    added = use_case.add_word(
+        "mor",
+        "mor",
+        search_seed={
+            "lemma": "mor",
+            "surface": "mor",
+            "cor_id": "COR.MODER.SURF",
+            "cor_lemma_idx": 61046,
+            "meaning_key": "person",
+            "gloss": "person",
+            "english_translation": "mother",
+            "pos_tag": "NOUN",
+            "morphology": "Gender=Com|Number=Sing|Definite=Ind",
+        },
+    )
+
+    use_case.verify_added_word("mor", None, meaning_id=added.meaning.id if added.meaning else None)
+
+    payload = verification_service.calls[-1]
+    assert payload.stored_lemma == "mor"
+    assert payload.canonical_lemma == "moder"
+
+
 def test_wordbank_use_case_stores_and_returns_surface_pronunciation(tmp_path: Path) -> None:
     tts_service = FakeTTSService({"bogen": b"fake-wav-bytes"})
     use_case = WordbankUseCase(_db_path(tmp_path), tts_service=tts_service)

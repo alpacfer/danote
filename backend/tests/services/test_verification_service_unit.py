@@ -20,6 +20,7 @@ def _payload() -> WordVerificationInput:
         selected_translation="book",
         selected_translation_scope="meaning_section",
         surface_source="manual",
+        canonical_lemma="bog",
         canonical_lemma_pos_tag="NOUN",
         canonical_lemma_morphology="Gender=Com|Number=Sing",
         selected_meaning_pos_tag="NOUN",
@@ -79,6 +80,7 @@ def _mor_payload() -> WordVerificationInput:
         selected_translation="mother",
         selected_translation_scope="meaning_section",
         surface_source=None,
+        canonical_lemma="moder",
         canonical_lemma_pos_tag="NOUN",
         canonical_lemma_morphology="Gender=Com|Number=Sing|Definite=Ind",
         selected_meaning_pos_tag="NOUN",
@@ -196,7 +198,8 @@ def test_gemini_verification_prompt_matches_wordbank_translation_model() -> None
     assert "Surface forms do not carry independent translations" in prompt
     assert "immutable COR labels" in prompt
     assert "Never suggest editing a gloss" in prompt
-    assert "canonical lemma metadata" in prompt
+    assert "canonical lemma identity and metadata" in prompt
+    assert "If canonical_lemma is present and differs from lemma" in prompt
     assert "Use all provided context together" in prompt
     assert "idiomatic English" in prompt
     assert "meaning_gloss_translation" in prompt
@@ -204,11 +207,22 @@ def test_gemini_verification_prompt_matches_wordbank_translation_model() -> None
     assert "available_categories" in prompt
     assert "current_categories" in prompt
     assert "available_surface_forms" in prompt
+    assert '"canonical_lemma": "bog"' in prompt
     assert '"gloss": "book"' in prompt
     assert '"morphology": "Definite=Def|Number=Sing"' in prompt
     assert "new_categories" in prompt
     assert "Use all provided context together" in category_prompt
     assert "available_surface_forms" in category_prompt
+
+
+def test_gemini_verification_prompt_includes_canonical_lemma_mismatch_context() -> None:
+    service = GeminiWordVerificationService(api_key="test-key")
+
+    prompt = service._verification_prompt(_mor_payload())
+
+    assert '"lemma": "mor"' in prompt
+    assert '"canonical_lemma": "moder"' in prompt
+    assert "suggest move_to_lemma to canonical_lemma" in prompt
 
 
 def test_gemini_verification_service_parses_existing_and_up_to_three_new_categories(monkeypatch) -> None:

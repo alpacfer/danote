@@ -114,6 +114,7 @@ Route decorators are the source of truth in `backend/app/api/routes/`, and API D
   - `applied_categories` lists the semantic categories persisted for the reviewed root / meaning scope.
   - Gemini may reuse multiple existing categories and may mint up to 3 new broad categories when the shared catalog has no good fit.
   - category classification runs inside the same verification call and uses the full saved word scope context: reviewed gloss/translation metadata, canonical lemma metadata, selected surface metadata, sibling meaning sections, and saved surface forms for the lemma.
+  - when saved COR identity resolves to a different canonical lemma than the stored lemma, that canonical lemma identity is included in Gemini's verification context so lemma-correction suggestions can target the true dictionary lemma.
 
 ### POST `/api/wordbank/lexemes/rethink-categories`
 - **Request model:** `RethinkCategoriesRequest`.

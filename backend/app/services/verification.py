@@ -49,6 +49,7 @@ class WordVerificationInput:
     selected_translation: str | None
     selected_translation_scope: Literal["lemma", "meaning_section"] | None
     surface_source: str | None
+    canonical_lemma: str | None
     canonical_lemma_pos_tag: str | None
     canonical_lemma_morphology: str | None
     selected_meaning_pos_tag: str | None
@@ -193,7 +194,7 @@ class GeminiWordVerificationService:
             "Review the current wordbank entry using the model lemma page -> meaning sections -> surface forms.\n"
             "Translations belong to the lemma or a meaning section only. Surface forms do not carry independent translations.\n"
             "Meaning glosses are immutable COR labels used only to disambiguate senses. Never suggest editing a gloss.\n"
-            "Treat canonical lemma metadata separately from the selected surface-form metadata.\n"
+            "Treat canonical lemma identity and metadata separately from the selected surface-form metadata.\n"
             "Use all provided context together: lemma, reviewed scope, gloss, gloss translation, translation scope, morphology, saved surface forms, and sibling meaning sections.\n"
             "Classify the reviewed word meaning into broad semantic categories.\n"
             "Count if the reviewed entry is composed of multiple words.\n"
@@ -225,6 +226,7 @@ class GeminiWordVerificationService:
             "- Never propose gloss edits; use gloss only to identify the intended meaning section.\n"
             "- If action_type=fix_translation, english_translation must be idiomatic English. Never repeat the Danish lemma or surface form unless the translated gloss explicitly matches it.\n"
             "- When meaning_gloss_translation or section gloss_translation is present, use it as the primary sense clue for homographs.\n"
+            "- If canonical_lemma is present and differs from lemma, treat the saved lemma as incorrect and suggest move_to_lemma to canonical_lemma unless the entry already belongs under another provided lemma.\n"
             "- Discard no uncertainty into prose; use reason and structured fields instead.\n"
             f"Entry:\n{json.dumps(entry, ensure_ascii=False)}"
         )
@@ -265,6 +267,7 @@ class GeminiWordVerificationService:
                 "selected_translation_scope": payload.selected_translation_scope,
                 "lexeme_source": payload.lexeme_source,
                 "surface_source": payload.surface_source,
+                "canonical_lemma": payload.canonical_lemma,
                 "canonical_lemma_pos_tag": payload.canonical_lemma_pos_tag,
                 "canonical_lemma_morphology": payload.canonical_lemma_morphology,
                 "selected_meaning_pos_tag": payload.selected_meaning_pos_tag,

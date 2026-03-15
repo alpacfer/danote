@@ -149,12 +149,14 @@ class CorResolutionCollaborator:
         lemma_idx: int,
         lemma: str,
         preferred_pos_tag: str | None,
+        allow_lemma_mismatch: bool = False,
     ) -> CORLocalEntry | None:
         return best_cor_local_lemma_entry(
             self._cor_local_lexicon_service,
             lemma_idx=lemma_idx,
             lemma=lemma,
             preferred_pos_tag=preferred_pos_tag,
+            allow_lemma_mismatch=allow_lemma_mismatch,
         )
 
     def cor_local_entries_for_lemma_idx(

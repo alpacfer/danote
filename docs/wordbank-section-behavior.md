@@ -239,6 +239,8 @@ Pronunciation behavior is shared by header + section rows + variation rows.
 - Results are persisted by backend target scope `(lemma, meaning_id, stored_surface_form)` and returned through subsequent lemma-detail fetches.
 - Verification evaluates the current persisted wordbank structure:
   lemma page -> meaning sections -> surface forms.
+- Verification payloads include both the saved lemma and the best COR-backed canonical lemma identity when that dictionary lemma can be resolved from saved COR ids / lemma indexes.
+- When COR indicates the saved lemma is an inflected form rather than the true dictionary lemma (for example `mor` vs `moder`), Gemini is prompted to flag the entry and suggest a `move_to_lemma` correction toward the canonical lemma.
 - Translation context comes only from the lemma or meaning section.
   Surface forms do not have independent translations in the verification model.
 - Meaning glosses are treated as immutable COR disambiguators.

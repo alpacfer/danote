@@ -272,6 +272,9 @@ def build_verification_input(
         selected_translation=selected_translation,
         selected_translation_scope=selected_translation_scope,
         surface_source=surface_source,
+        canonical_lemma=(
+            canonical_lemma_entry.lemma if canonical_lemma_entry is not None else stored_lemma
+        ),
         canonical_lemma_pos_tag=canonical_lemma_pos_tag,
         canonical_lemma_morphology=canonical_lemma_morphology,
         selected_meaning_pos_tag=selected_meaning_pos_tag,
@@ -346,6 +349,7 @@ def _resolve_canonical_lemma_entry(
             lemma_idx=cor_lemma_idx,
             lemma=stored_lemma,
             preferred_pos_tag=fallback_pos_tag,
+            allow_lemma_mismatch=True,
         )
         if entry is not None:
             return entry
@@ -358,6 +362,7 @@ def _resolve_canonical_lemma_entry(
         lemma_idx=surface_entry.lemma_idx,
         lemma=stored_lemma,
         preferred_pos_tag=fallback_pos_tag or surface_entry.pos_tag,
+        allow_lemma_mismatch=True,
     )
 
 

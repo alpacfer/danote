@@ -229,6 +229,7 @@ def best_cor_local_lemma_entry(
     lemma_idx: int,
     lemma: str,
     preferred_pos_tag: str | None,
+    allow_lemma_mismatch: bool = False,
 ) -> CORLocalEntry | None:
     if cor_local_lexicon_service is None or lemma_idx < 1:
         return None
@@ -239,11 +240,14 @@ def best_cor_local_lemma_entry(
         entries = cor_local_lexicon_service.lookup_lemma(lemma_idx, limit=1000)
     except FileNotFoundError:
         return None
-    filtered = [
-        entry
-        for entry in entries
-        if entry.norm == "N" and normalize_token(entry.lemma) == normalized_lemma
+    filtered = [entry for entry in entries if entry.norm == "N"]
+    matching_lemma_entries = [
+        entry for entry in filtered if normalize_token(entry.lemma) == normalized_lemma
     ]
+    if matching_lemma_entries:
+        filtered = matching_lemma_entries
+    elif not allow_lemma_mismatch:
+        return None
     if preferred_pos_tag:
         preferred = [entry for entry in filtered if entry.pos_tag == preferred_pos_tag]
         if preferred:
@@ -253,6 +257,12 @@ def best_cor_local_lemma_entry(
     exact_lemma_form = [entry for entry in filtered if normalize_token(entry.form) == normalized_lemma]
     if exact_lemma_form:
         return exact_lemma_form[0]
+    if allow_lemma_mismatch:
+        exact_canonical_form = [
+            entry for entry in filtered if normalize_token(entry.form) == normalize_token(entry.lemma)
+        ]
+        if exact_canonical_form:
+            return exact_canonical_form[0]
     return filtered[0] if filtered else None
 
 
