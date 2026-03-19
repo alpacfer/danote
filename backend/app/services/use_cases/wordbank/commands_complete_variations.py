@@ -159,7 +159,7 @@ def _load_meaning_context(
     )
     if meaning is None:
         raise LookupError(f"Meaning '{meaning_id}' was not found for lemma '{stored_lemma}'")
-    if (meaning.pos_tag or lexeme.pos_tag or "").upper() not in {"NOUN", "ADJ"}:
+    if (meaning.pos_tag or lexeme.pos_tag or "").upper() not in {"NOUN", "ADJ", "VERB"}:
         raise ValueError("unsupported")
     if meaning.cor_lemma_idx is None:
         raise RuntimeError("missing_cor_identity")

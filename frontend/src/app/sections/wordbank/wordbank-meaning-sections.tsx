@@ -15,7 +15,7 @@ import {
   buildAdjectiveDegreeGroups,
   buildAdjectiveParadigm,
   buildNounParadigm,
-  buildVerbFormGroups,
+  buildVerbParadigm,
 } from "@/app/sections/wordbank/wordbank-paradigm-utils"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
@@ -81,7 +81,8 @@ export function WordbankMeaningSections({
         const posTag = (section.pos_tag ?? "").toUpperCase()
         const isNoun = posTag === "NOUN"
         const isAdjective = posTag === "ADJ"
-        const canCompleteParadigm = isNoun || isAdjective
+        const isVerb = posTag === "VERB"
+        const canCompleteParadigm = isNoun || isAdjective || isVerb
         const lemmaHasPronunciation = section.surface_forms.some(
           (f) => f.form.trim().toLocaleLowerCase("da-DK") === normalizedLemma && f.has_pronunciation,
         )
@@ -97,12 +98,9 @@ export function WordbankMeaningSections({
         )]
         const nounParadigm = isNoun ? buildNounParadigm(formsWithLemma) : null
         const adjectiveParadigm = posTag === "ADJ" ? buildAdjectiveParadigm(formsWithLemma) : null
-        const formGroups = posTag === "VERB"
-          ? buildVerbFormGroups(formsWithLemma)
-          : posTag === "ADJ"
-            ? buildAdjectiveDegreeGroups(formsWithLemma)
-            : []
-        const hasRenderableForms = Boolean(nounParadigm || adjectiveParadigm || section.surface_forms.length > 0)
+        const verbParadigm = isVerb ? buildVerbParadigm(formsWithLemma) : null
+        const formGroups = posTag === "ADJ" ? buildAdjectiveDegreeGroups(formsWithLemma) : []
+        const hasRenderableForms = Boolean(nounParadigm || adjectiveParadigm || verbParadigm || section.surface_forms.length > 0)
         const sectionBadgeLabels = new Set(sectionBadges.map((b) => b.label))
 
         return (
@@ -169,9 +167,9 @@ export function WordbankMeaningSections({
                 {/* Forms section */}
                 {hasRenderableForms ? (
                   <div className="mt-2">
-                    {nounParadigm || adjectiveParadigm ? (
+                    {nounParadigm || adjectiveParadigm || verbParadigm ? (
                       <WordbankParadigmTable
-                        paradigm={nounParadigm ?? adjectiveParadigm!}
+                        paradigm={nounParadigm ?? adjectiveParadigm ?? verbParadigm!}
                         pronunciationLoadingByForm={pronunciationLoadingByForm}
                         regeneratingPronunciationByForm={regeneratingPronunciationByForm}
                         onPlayPronunciation={onPlayPronunciation}

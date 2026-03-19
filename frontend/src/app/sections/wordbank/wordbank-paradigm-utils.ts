@@ -40,6 +40,8 @@ export type FormGroup = {
 
 const PARADIGM_ROWS = ["Singular", "Plural"] as const
 const PARADIGM_COLUMNS = ["Indefinite", "Definite"] as const
+const VERB_PARADIGM_ROWS = ["Infinitive", "Present", "Past", "Imperative", "Past participle"] as const
+const VERB_PARADIGM_COLUMNS = ["Form"] as const
 
 export function buildNounParadigm(surfaceForms: SurfaceForm[]): ParadigmTableData | null {
   const cells = createEmptyCells()
@@ -116,31 +118,31 @@ export function buildAdjectiveParadigm(surfaceForms: SurfaceForm[]): ParadigmTab
   }
 }
 
-const VERB_FORM_ORDER = ["Infinitive", "Present", "Past (preterite)", "Past participle", "Imperative"]
-
-export function buildVerbFormGroups(surfaceForms: SurfaceForm[]): FormGroup[] {
-  const groups = new Map<string, SurfaceForm[]>()
-  const ungrouped: SurfaceForm[] = []
+export function buildVerbParadigm(surfaceForms: SurfaceForm[]): ParadigmTableData | null {
+  const cells = VERB_PARADIGM_ROWS.map((row) => ({ row, column: "Form", entries: [] as ParadigmCellEntry[] }))
+  const groupedOtherForms = new Map<string, SurfaceForm>()
 
   for (const form of surfaceForms) {
-    const label = verbFormFromMorphology(form.morphology)
-    if (label) {
-      const list = groups.get(label) ?? []
-      list.push(form)
-      groups.set(label, list)
-    } else {
-      ungrouped.push(form)
+    const slots = verbSlotsForForm(form)
+    if (slots.length === 0) {
+      groupedOtherForms.set(form.form, form)
+      continue
+    }
+    for (const slot of slots) {
+      findCell(cells, slot, "Form")?.entries.push({ form })
     }
   }
 
-  const sorted: FormGroup[] = VERB_FORM_ORDER
-    .filter((label) => groups.has(label))
-    .map((label) => ({ label, forms: groups.get(label)! }))
-
-  if (ungrouped.length > 0) {
-    sorted.push({ label: "Other", forms: ungrouped })
+  if (filledCellCount(cells) < 1) {
+    return null
   }
-  return sorted
+
+  return {
+    rows: [...VERB_PARADIGM_ROWS],
+    columns: [...VERB_PARADIGM_COLUMNS],
+    cells,
+    supplementaryGroups: groupedOtherForms.size > 0 ? [{ label: "Other forms", forms: [...groupedOtherForms.values()] }] : [],
+  }
 }
 
 const DEGREE_ORDER = ["Positive", "Comparative", "Superlative"]
@@ -222,6 +224,37 @@ function adjectiveSlotsForForm(form: SurfaceForm): string[] {
     return ["plural_shared"]
   }
   return []
+}
+
+function verbSlotsForForm(form: SurfaceForm): string[] {
+  const slots = new Set<string>()
+  for (const gram of splitGramRaw(form.gram_raw)) {
+    if (!gram.startsWith("vb")) {
+      continue
+    }
+    const parts = new Set(gram.split(".").map((part) => part.trim()).filter(Boolean))
+    if (parts.has("imp")) {
+      slots.add("Imperative")
+    }
+    if (parts.has("inf")) {
+      slots.add("Infinitive")
+    }
+    if (parts.has("perf") && parts.has("part")) {
+      slots.add("Past participle")
+    }
+    if (parts.has("præs") || parts.has("prs")) {
+      slots.add("Present")
+    }
+    if (parts.has("præt")) {
+      slots.add("Past")
+    }
+  }
+  if (slots.size > 0) {
+    return [...slots]
+  }
+
+  const label = verbFormFromMorphology(form.morphology)
+  return label ? [label] : []
 }
 
 function splitGramRaw(gramRaw: string | null | undefined): string[] {

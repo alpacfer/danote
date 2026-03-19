@@ -166,7 +166,7 @@ Notification state is managed by `useNotificationCenter()` and surfaced through 
 - Bell button is disabled only when there are no unread notifications and verification is not currently running.
 - If verification is running, bell shows spinner icon and remains available as status affordance.
 - Verification-running state can come from backend-queued wordbank jobs even when the user has already navigated away from that lemma page; the frontend tracks queued targets returned from add responses and polls those lemmas until each target settles.
-- Completion-variations follow-up reviews for noun and adjective meaning sections participate in the same off-page tracking flow using the explicit `queued_verification_targets` returned by the complete-variations API response.
+- Completion-variations follow-up reviews for noun, adjective, and verb meaning sections participate in the same off-page tracking flow using the explicit `queued_verification_targets` returned by the complete-variations API response.
 
 ### Mark-read behavior
 

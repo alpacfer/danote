@@ -158,7 +158,7 @@ Meaning auto-scroll behavior:
 - Sectioned pages:
   - the header lemma word exposes `Regenerate audio`
   - each meaning card is a context-menu trigger
-  - noun and adjective meaning cards expose `Rethink categories` and `Complete variations`
+  - noun, adjective, and verb meaning cards expose `Rethink categories` and `Complete variations`
   - other meaning cards expose only `Rethink categories`
   - each surface-form word inside a meaning card also exposes its own `Regenerate audio` action from a nested right-click menu
 - Non-sectioned pages:
@@ -168,12 +168,15 @@ Meaning auto-scroll behavior:
 - `Rethink categories` immediately calls the backend recategorization endpoint for that root / meaning scope and refreshes lemma details after success.
 - The action does not open a confirmation flow and does not apply Gemini verification suggestions; it only recalculates semantic category assignments.
 - The manual rethink path uses the same Gemini category-classification flow as initial verification; the only difference is that this one is user-triggered.
-- `Complete variations` is meaning-only in v1 for noun and adjective sections.
+- `Complete variations` is meaning-only in v1 for noun, adjective, and verb sections.
   - noun sections fill any missing non-lemma noun variations:
     singular-definite, plural-indefinite, and plural-definite.
   - adjective sections fill any missing non-lemma agreement forms:
     singular-indefinite `t-word`, singular-definite, and shared plural forms.
     Shared plural forms are persisted once and rendered into both plural cells on the table.
+  - verb sections fill any missing verb-table forms:
+    present, past, imperative, and past participle.
+    The infinitive row is derived from the section's canonical lemma metadata unless a distinct saved infinitive row exists.
 - The action is gated by verification state for that meaning section.
   It is enabled only when the meaning target and every currently saved variation target in that meaning are `verified`.
 - When gated, the context-menu item stays visible but disabled with one of these labels:
@@ -207,9 +210,12 @@ Meaning auto-scroll behavior:
   - section lists render only non-lemma variations for that meaning
   - top-level `surface_forms` may still include the lemma form as a separate deduped header/audio source
   - noun and adjective meanings render a shared 2x2 paradigm table as soon as at least one paradigm slot can be derived
-  - this means the initial saved noun / adjective form is shown in the table immediately, even before any additional variations are saved
+  - verb meanings render the same shared table shell with fixed rows:
+    `Infinitive`, `Present`, `Past`, `Imperative`, and `Past participle`
+  - this means the initial saved noun / adjective / verb form is shown in the table immediately, even before any additional variations are saved
   - adjective tables use number on one axis and definiteness on the other; the singular-indefinite cell contains separate `n-word` and `t-word` lines
   - adjective same-form entries (for example `store` or invariant forms like `orange`) may render into multiple cells from merged `gram_raw`
+  - verb same-form entries (for example a form whose merged `gram_raw` covers both past and imperative) may render into multiple verb rows
   - noun variations are ordered with non-slot/irregular forms first, then singular-definite, plural-indefinite, and plural-definite
   - saved POS/morphology badges normalize to the same reader-facing label style used in COR search where morphology allows it (for example adjective agreement uses `n-word` / `t-word` rather than `Common` / `Neuter`)
   - when a saved surface form has COR context, its details payload may also include `gram_raw`; those rows render badges from `gram_raw` first so search and word-page badges stay aligned
@@ -218,7 +224,7 @@ Meaning auto-scroll behavior:
 ## Body mode B: flat variations (WordbankVariationGrid)
 
 - Built from top-level `lemmaDetails.surface_forms`, excluding the normalized selected lemma form itself.
-- noun and adjective flat pages prefer the shared paradigm table even when the only saved form is the lemma itself
+- noun, adjective, and verb flat pages prefer the shared paradigm table even when the only saved form is the lemma itself
 - empty paradigm cells stay blank until manual saves or complete-variations fills them
 - For non-paradigm pages, if there are no remaining variations, the grid renders nothing.
 - Each variation tile includes:
@@ -286,7 +292,7 @@ Pronunciation behavior is shared by header + section rows + variation rows.
 - Verification payloads include both the saved lemma and the best COR-backed canonical lemma identity when that dictionary lemma can be resolved from saved COR ids / lemma indexes.
 - When COR indicates the saved lemma is an inflected form rather than the true dictionary lemma (for example `mor` vs `moder`), Gemini is prompted to flag the entry and suggest a `move_to_lemma` correction toward the canonical lemma.
 - Exception: the completion-specific meaning review for `Complete variations` keeps the saved lemma fixed and treats canonical-lemma mismatch as a signal to question the generated variation set, not to rewrite the lemma.
-- For that completion-specific review, Gemini/backend remediation is modeled as a single meaning-level `fix_variations` action that can rewrite the saved noun or adjective variations in one apply.
+- For that completion-specific review, Gemini/backend remediation is modeled as a single meaning-level `fix_variations` action that can rewrite the saved noun, adjective, or verb variations in one apply.
 - New completion-review `fix_variations` actions can carry reviewed noun-slot form lists directly (`singular_indefinite_forms`, `singular_definite_forms`, `plural_indefinite_forms`, `plural_definite_forms`) or reviewed adjective-slot form lists directly (`singular_indefinite_n_word_forms`, `singular_indefinite_t_word_forms`, `singular_definite_forms`, `plural_indefinite_forms`, `plural_definite_forms`) so apply does not have to trust the same COR paradigm that produced the bad completion set.
 - `singular_indefinite_forms` may include the saved lemma plus alternative spellings for the same slot; apply treats that reviewed list as the exact saved slot set and removes stale aliases.
 - Older saved completion reviews that only have prose in `change_to_implement` are still applyable because the backend can extract those noun-slot targets from the persisted review text before mutating the meaning.

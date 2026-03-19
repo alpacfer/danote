@@ -191,7 +191,7 @@ def test_word_verification_payload_uses_saved_and_canonical_metadata_for_search_
         ),
     )
 
-    use_case.add_word(
+    added = use_case.add_word(
         "lærer",
         "lære",
         search_seed={
@@ -207,12 +207,13 @@ def test_word_verification_payload_uses_saved_and_canonical_metadata_for_search_
         },
     )
 
-    verified = use_case.verify_added_word("lære", "lærer", meaning_id=None)
+    assert added.meaning is not None
+    verified = use_case.verify_added_word("lære", "lærer", meaning_id=added.meaning.id)
 
     payload = verification_service.calls[0]
     assert verified.applied_categories == ["Actions", "School"]
     assert payload.selected_translation == "learn"
-    assert payload.selected_translation_scope == "lemma"
+    assert payload.selected_translation_scope == "meaning_section"
     assert payload.available_categories
     assert [form.form for form in payload.available_surface_forms] == ["lærer"]
     assert payload.canonical_lemma_pos_tag == "VERB"
@@ -220,7 +221,7 @@ def test_word_verification_payload_uses_saved_and_canonical_metadata_for_search_
     assert payload.selected_surface_pos_tag == "VERB"
     assert payload.selected_surface_morphology == "Tense=Pres|VerbForm=Fin|Voice=Act"
     details = use_case.get_lemma_details("lære")
-    assert details.categories == ["Actions", "School"]
+    assert details.meaning_sections[0].categories == ["Actions", "School"]
 
 
 def test_complete_variations_verification_payload_preserves_merged_gram_raw_for_shared_adjective_forms(
@@ -679,6 +680,124 @@ def test_complete_variations_review_adds_fix_variations_action_for_adjective(tmp
     assert verified.verification.suggested_actions[0].singular_definite_forms == ["store"]
 
 
+def test_complete_variations_review_adds_fix_variations_action_for_verb(tmp_path: Path) -> None:
+    class FlaggedCompletionVerificationService:
+        provider = "gemini"
+        reviewer_role = "Professional Danish Language Expert"
+
+        def verify_word_entry(self, _payload):
+            class Result:
+                verdict = "flagged"
+                message = "Review needed."
+                problem = "The completed verb set is missing the imperative and past participle."
+                change_to_implement = (
+                    "The infinitive form should be 'lære'. "
+                    "The present form should be 'lærer'. "
+                    "The past form should be 'lærte'. "
+                    "The imperative form should be 'lær'. "
+                    "The past participle form should be 'lært'."
+                )
+                suggested_actions = ()
+
+            return Result()
+
+    laere_inf = _cor_local_entry(
+        cor_id="COR.LAERE.INF",
+        lemma="lære",
+        gloss="learn",
+        form="lære",
+        lemma_idx=30686,
+        pos_tag="VERB",
+        morphology="VerbForm=Inf|Voice=Act",
+        gram_raw="vb.inf.akt",
+    )
+    laere_pres = _cor_local_entry(
+        cor_id="COR.LAERE.PRES",
+        lemma="lære",
+        gloss="learn",
+        form="lærer",
+        lemma_idx=30686,
+        pos_tag="VERB",
+        morphology="Tense=Pres|VerbForm=Fin|Voice=Act",
+        gram_raw="vb.præs.akt",
+    )
+    laere_past = _cor_local_entry(
+        cor_id="COR.LAERE.PAST",
+        lemma="lære",
+        gloss="learn",
+        form="lærte",
+        lemma_idx=30686,
+        pos_tag="VERB",
+        morphology="Tense=Past|VerbForm=Fin|Voice=Act",
+        gram_raw="vb.præt.akt",
+    )
+    laere_imp = _cor_local_entry(
+        cor_id="COR.LAERE.IMP",
+        lemma="lære",
+        gloss="learn",
+        form="lær",
+        lemma_idx=30686,
+        pos_tag="VERB",
+        morphology="Mood=Imp|VerbForm=Fin",
+        gram_raw="vb.imp",
+    )
+    laere_part = _cor_local_entry(
+        cor_id="COR.LAERE.PART",
+        lemma="lære",
+        gloss="learn",
+        form="lært",
+        lemma_idx=30686,
+        pos_tag="VERB",
+        morphology="VerbForm=Part|Voice=Act",
+        gram_raw="vb.perf.part",
+    )
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_local_lexicon_service=FakeCORLocalLexiconService(
+            by_form={
+                "lære": [laere_inf],
+                "lærer": [laere_pres],
+                "lærte": [laere_past],
+                "lær": [laere_imp],
+                "lært": [laere_part],
+            },
+            by_lemma_idx={30686: [laere_inf, laere_pres, laere_past, laere_imp, laere_part]},
+        ),
+        verification_service=FlaggedCompletionVerificationService(),
+    )
+
+    added = use_case.add_word(
+        "lærer",
+        "lære",
+        search_seed={
+            "lemma": "lære",
+            "surface": "lærer",
+            "cor_id": "COR.LAERE.PRES",
+            "cor_lemma_idx": 30686,
+            "meaning_key": "learn",
+            "gloss": "learn",
+            "english_translation": "learn",
+            "pos_tag": "VERB",
+            "morphology": "Tense=Pres|VerbForm=Fin|Voice=Act",
+        },
+    )
+
+    verified = use_case.verify_added_word(
+        "lære",
+        None,
+        meaning_id=added.meaning.id if added.meaning else None,
+        review_intent="complete_variations",
+    )
+
+    assert verified.verification.status == "flagged"
+    assert [action.action_type for action in verified.verification.suggested_actions] == ["fix_variations"]
+    assert verified.verification.suggested_actions[0].infinitive_forms == ["lære"]
+    assert verified.verification.suggested_actions[0].present_forms == ["lærer"]
+    assert verified.verification.suggested_actions[0].past_forms == ["lærte"]
+    assert verified.verification.suggested_actions[0].imperative_forms == ["lær"]
+    assert verified.verification.suggested_actions[0].past_participle_forms == ["lært"]
+
+
 def test_complete_variations_review_discards_move_to_lemma_actions(tmp_path: Path) -> None:
     class FlaggedCompletionVerificationService:
         provider = "gemini"
@@ -943,6 +1062,126 @@ def test_wordbank_use_case_applies_fix_variations_action_for_adjective_completio
     assert response.status == "applied"
     details = use_case.get_lemma_details("stor")
     assert sorted(form.form for form in details.meaning_sections[0].surface_forms) == ["store", "stort"]
+
+
+def test_wordbank_use_case_applies_fix_variations_action_for_verb_completion_review(tmp_path: Path) -> None:
+    db_path = _db_path(tmp_path)
+    komme_inf = _cor_local_entry(
+        cor_id="COR.KOMME.INF",
+        lemma="komme",
+        gloss="come",
+        form="komme",
+        lemma_idx=30031,
+        pos_tag="VERB",
+        morphology="VerbForm=Inf|Voice=Act",
+        gram_raw="vb.inf.akt",
+    )
+    komme_pres = _cor_local_entry(
+        cor_id="COR.KOMME.PRES",
+        lemma="komme",
+        gloss="come",
+        form="kommer",
+        lemma_idx=30031,
+        pos_tag="VERB",
+        morphology="Tense=Pres|VerbForm=Fin|Voice=Act",
+        gram_raw="vb.præs.akt",
+    )
+    komme_past = _cor_local_entry(
+        cor_id="COR.KOMME.PAST",
+        lemma="komme",
+        gloss="come",
+        form="kom",
+        lemma_idx=30031,
+        pos_tag="VERB",
+        morphology="Tense=Past|VerbForm=Fin|Voice=Act",
+        gram_raw="vb.præt.akt",
+    )
+    komme_imp = _cor_local_entry(
+        cor_id="COR.KOMME.IMP",
+        lemma="komme",
+        gloss="come",
+        form="kom",
+        lemma_idx=30031,
+        pos_tag="VERB",
+        morphology="Mood=Imp|VerbForm=Fin",
+        gram_raw="vb.imp",
+    )
+    komme_part = _cor_local_entry(
+        cor_id="COR.KOMME.PART",
+        lemma="komme",
+        gloss="come",
+        form="kommet",
+        lemma_idx=30031,
+        pos_tag="VERB",
+        morphology="VerbForm=Part|Voice=Act",
+        gram_raw="vb.perf.part",
+    )
+    use_case = WordbankUseCase(
+        db_path,
+        cor_local_lexicon_service=FakeCORLocalLexiconService(
+            by_form={
+                "komme": [komme_inf],
+                "kommer": [komme_pres],
+                "kom": [komme_past, komme_imp],
+                "kommet": [komme_part],
+            },
+            by_lemma_idx={30031: [komme_inf, komme_pres, komme_past, komme_imp, komme_part]},
+        ),
+    )
+
+    added = use_case.add_word(
+        "kommer",
+        "komme",
+        search_seed={
+            "lemma": "komme",
+            "surface": "kommer",
+            "cor_id": "COR.KOMME.PRES",
+            "cor_lemma_idx": 30031,
+            "meaning_key": "come",
+            "gloss": "come",
+            "english_translation": "come",
+            "pos_tag": "VERB",
+            "morphology": "Tense=Pres|VerbForm=Fin|Voice=Act",
+        },
+    )
+    assert added.meaning is not None
+
+    with get_connection(db_path) as conn:
+        lexeme = conn.execute("SELECT id FROM lexemes WHERE lemma = ?", ("komme",)).fetchone()
+        assert lexeme is not None
+        conn.execute(
+            """
+            INSERT INTO surface_forms (lexeme_id, meaning_id, form, source, pos_tag, morphology)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                int(lexeme["id"]),
+                added.meaning.id,
+                "kommede",
+                "search",
+                "VERB",
+                "Tense=Past|VerbForm=Fin|Voice=Act",
+            ),
+        )
+
+    response = use_case.apply_verification_changes(
+        stored_lemma="komme",
+        stored_surface_form=None,
+        meaning_id=added.meaning.id,
+        action={
+            "action_type": "fix_variations",
+            "infinitive_forms": ["komme"],
+            "present_forms": ["kommer"],
+            "past_forms": ["kom"],
+            "imperative_forms": ["kom"],
+            "past_participle_forms": ["kommet"],
+        },
+        provider="gemini",
+    )
+
+    assert response.status == "applied"
+    details = use_case.get_lemma_details("komme")
+    assert sorted(form.form for form in details.meaning_sections[0].surface_forms) == ["kom", "kommer", "kommet"]
 
 
 def test_wordbank_use_case_applies_fix_variations_with_singular_indefinite_aliases(tmp_path: Path) -> None:

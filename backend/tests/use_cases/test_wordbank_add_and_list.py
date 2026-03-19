@@ -326,6 +326,65 @@ def _orange_complete_paradigm_cor_local() -> FakeCORLocalLexiconService:
     return FakeCORLocalLexiconService(by_form={"orange": entries}, by_lemma_idx={20408: entries})
 
 
+def _laere_complete_paradigm_cor_local() -> FakeCORLocalLexiconService:
+    entries = [
+        _cor_local_entry(
+            cor_id="COR.LAERE.INF",
+            lemma="lære",
+            gloss="learn",
+            form="lære",
+            lemma_idx=30686,
+            pos_tag="VERB",
+            morphology="VerbForm=Inf|Voice=Act",
+            gram_raw="vb.inf.akt",
+        ),
+        _cor_local_entry(
+            cor_id="COR.LAERE.PRES",
+            lemma="lære",
+            gloss="learn",
+            form="lærer",
+            lemma_idx=30686,
+            pos_tag="VERB",
+            morphology="Tense=Pres|VerbForm=Fin|Voice=Act",
+            gram_raw="vb.præs.akt",
+        ),
+        _cor_local_entry(
+            cor_id="COR.LAERE.PAST",
+            lemma="lære",
+            gloss="learn",
+            form="lærte",
+            lemma_idx=30686,
+            pos_tag="VERB",
+            morphology="Tense=Past|VerbForm=Fin|Voice=Act",
+            gram_raw="vb.præt.akt",
+        ),
+        _cor_local_entry(
+            cor_id="COR.LAERE.IMP",
+            lemma="lære",
+            gloss="learn",
+            form="lær",
+            lemma_idx=30686,
+            pos_tag="VERB",
+            morphology="Mood=Imp|VerbForm=Fin",
+            gram_raw="vb.imp",
+        ),
+        _cor_local_entry(
+            cor_id="COR.LAERE.PART",
+            lemma="lære",
+            gloss="learn",
+            form="lært",
+            lemma_idx=30686,
+            pos_tag="VERB",
+            morphology="VerbForm=Part|Voice=Act",
+            gram_raw="vb.perf.part",
+        ),
+    ]
+    return FakeCORLocalLexiconService(
+        by_form={entry.form: [entry] for entry in entries},
+        by_lemma_idx={30686: entries},
+    )
+
+
 def test_wordbank_use_case_round_trip(tmp_path: Path) -> None:
     use_case = WordbankUseCase(_db_path(tmp_path))
 
@@ -767,6 +826,84 @@ def test_complete_meaning_variations_uses_selected_adjective_meaning_only(tmp_pa
     assert [section.gloss for section in details.meaning_sections] == ["large", "important"]
     assert sorted(form.form for form in details.meaning_sections[0].surface_forms) == ["store", "stort"]
     assert sorted(form.form for form in details.meaning_sections[1].surface_forms) == ["store"]
+
+
+def test_complete_meaning_variations_backfills_missing_verb_slots_for_search_seed_entries(tmp_path: Path) -> None:
+    db_path = _db_path(tmp_path)
+    use_case = WordbankUseCase(
+        db_path,
+        cor_local_lexicon_service=_laere_complete_paradigm_cor_local(),
+        verification_service=FakeVerificationService(),
+        tts_service=FakeTTSService({}),
+    )
+
+    added = use_case.add_word(
+        "lærer",
+        "lære",
+        search_seed={
+            "lemma": "lære",
+            "surface": "lærer",
+            "cor_id": "COR.LAERE.PRES",
+            "cor_lemma_idx": 30686,
+            "meaning_key": "learn",
+            "gloss": "learn",
+            "english_translation": "learn",
+            "pos_tag": "VERB",
+            "morphology": "Tense=Pres|VerbForm=Fin|Voice=Act",
+        },
+    )
+    assert added.meaning is not None
+    _verify_meaning_targets(use_case, lemma="lære", meaning_id=added.meaning.id, surfaces=["lærer"])
+
+    response = use_case.complete_meaning_variations("lære", meaning_id=added.meaning.id)
+
+    assert response.status == "updated"
+    assert response.added_surface_forms == ["lærte", "lær", "lært"]
+    assert response.queued_pronunciation_forms == ["lærte", "lær", "lært"]
+    assert [(target.meaning_id, target.stored_surface_form) for target in response.queued_verification_targets] == [
+        (added.meaning.id, None),
+    ]
+
+    details = use_case.get_lemma_details("lære")
+    assert sorted(form.form for form in details.meaning_sections[0].surface_forms) == ["lær", "lærer", "lært", "lærte"]
+
+
+def test_complete_meaning_variations_skips_when_verb_slots_are_already_covered(tmp_path: Path) -> None:
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_local_lexicon_service=_laere_complete_paradigm_cor_local(),
+        verification_service=FakeVerificationService(),
+    )
+
+    for surface, cor_id, morphology in [
+        ("lærer", "COR.LAERE.PRES", "Tense=Pres|VerbForm=Fin|Voice=Act"),
+        ("lærte", "COR.LAERE.PAST", "Tense=Past|VerbForm=Fin|Voice=Act"),
+        ("lær", "COR.LAERE.IMP", "Mood=Imp|VerbForm=Fin"),
+        ("lært", "COR.LAERE.PART", "VerbForm=Part|Voice=Act"),
+    ]:
+        added = use_case.add_word(
+            surface,
+            "lære",
+            search_seed={
+                "lemma": "lære",
+                "surface": surface,
+                "cor_id": cor_id,
+                "cor_lemma_idx": 30686,
+                "meaning_key": "learn",
+                "gloss": "learn",
+                "english_translation": "learn",
+                "pos_tag": "VERB",
+                "morphology": morphology,
+            },
+        )
+    assert added.meaning is not None
+    _verify_meaning_targets(use_case, lemma="lære", meaning_id=added.meaning.id, surfaces=["lærer", "lærte", "lær", "lært"])
+
+    response = use_case.complete_meaning_variations("lære", meaning_id=added.meaning.id)
+
+    assert response.status == "skipped"
+    assert response.added_surface_forms == []
+    assert response.message == "No missing verb variations were found for 'lære'."
 
 
 def test_get_lemma_details_orders_standard_noun_variations_in_slot_order(tmp_path: Path) -> None:
@@ -1274,19 +1411,29 @@ def test_wordbank_search_seed_add_uses_canonical_lemma_metadata_for_verbs(tmp_pa
     details = use_case.get_lemma_details("lære")
 
     assert added.saved_snapshot is not None
+    assert added.meaning is not None
     assert added.saved_snapshot.pos_tag == "VERB"
     assert added.saved_snapshot.morphology == "VerbForm=Inf|Voice=Act"
     assert details.pos_tag == "VERB"
     assert details.morphology == "VerbForm=Inf|Voice=Act"
-    assert details.surface_forms == [
+    assert details.is_sectioned is True
+    assert len(details.meaning_sections) == 1
+    assert details.meaning_sections[0].id == added.meaning.id
+    assert details.meaning_sections[0].meaning_key == "learn"
+    assert details.meaning_sections[0].pos_tag == "VERB"
+    assert details.meaning_sections[0].morphology == "VerbForm=Inf|Voice=Act"
+    assert details.meaning_sections[0].gram_raw == "vb.inf.akt"
+    assert details.meaning_sections[0].surface_forms == [
         LemmaDetailsResponse.SurfaceFormDetails(
             form="lærer",
             pos_tag="VERB",
             morphology="Tense=Pres|VerbForm=Fin|Voice=Act",
             lemma="lære",
             lemma_translation="learn",
+            gloss="learn",
         )
     ]
+    assert details.surface_forms == []
 
 
 def test_wordbank_search_seed_details_preserve_merged_gram_raw_for_adjective_lemma_forms(tmp_path: Path) -> None:

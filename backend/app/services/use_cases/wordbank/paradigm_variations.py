@@ -49,6 +49,20 @@ ADJECTIVE_SLOT_ACTION_LIST_FIELDS = {
     "plural_indefinite": "plural_indefinite_forms",
     "plural_definite": "plural_definite_forms",
 }
+VERB_DISPLAY_SLOT_ORDER = (
+    "infinitive",
+    "present",
+    "past",
+    "imperative",
+    "past_participle",
+)
+VERB_SLOT_ACTION_LIST_FIELDS = {
+    "infinitive": "infinitive_forms",
+    "present": "present_forms",
+    "past": "past_forms",
+    "imperative": "imperative_forms",
+    "past_participle": "past_participle_forms",
+}
 
 _QUOTED_FORM = r"['\"`]([^'\"`]+)['\"`]"
 _SLOT_TEXT_PATTERNS = {
@@ -72,6 +86,22 @@ _SLOT_TEXT_PATTERNS = {
         re.compile(rf"singular indefinite t-word(?: form)?[^'\"`\n]*{_QUOTED_FORM}", re.IGNORECASE),
         re.compile(rf"t-word(?: form)?[^'\"`\n]*{_QUOTED_FORM}", re.IGNORECASE),
     ),
+    "infinitive": (
+        re.compile(rf"infinitive(?: form)?[^'\"`\n]*{_QUOTED_FORM}", re.IGNORECASE),
+    ),
+    "present": (
+        re.compile(rf"present(?: form)?[^'\"`\n]*{_QUOTED_FORM}", re.IGNORECASE),
+    ),
+    "past": (
+        re.compile(rf"past(?: form)?[^'\"`\n]*{_QUOTED_FORM}", re.IGNORECASE),
+    ),
+    "imperative": (
+        re.compile(rf"imperative(?: form)?[^'\"`\n]*{_QUOTED_FORM}", re.IGNORECASE),
+    ),
+    "past_participle": (
+        re.compile(rf"past participle(?: form)?[^'\"`\n]*{_QUOTED_FORM}", re.IGNORECASE),
+        re.compile(rf"participle(?: form)?[^'\"`\n]*{_QUOTED_FORM}", re.IGNORECASE),
+    ),
 }
 
 
@@ -92,6 +122,8 @@ def paradigm_kind_from_pos_tag(pos_tag: str | None) -> ParadigmKind | None:
         return "noun"
     if normalized == "ADJ":
         return "adjective"
+    if normalized == "VERB":
+        return "verb"
     return None
 
 
@@ -104,7 +136,7 @@ def meaning_context_from_rows(
         raise ValueError("fix_variations requires a meaning-scoped entry.")
     paradigm_kind = paradigm_kind_from_pos_tag(source_meaning["pos_tag"] or source_lexeme["pos_tag"])
     if paradigm_kind is None:
-        raise ValueError("fix_variations requires a noun or adjective meaning.")
+        raise ValueError("fix_variations requires a noun, adjective, or verb meaning.")
     cor_lemma_idx = source_meaning["cor_lemma_idx"]
     if cor_lemma_idx is None:
         raise RuntimeError("fix_variations requires COR identity.")
@@ -133,7 +165,7 @@ def resolve_target_slot_entries(
     allow_lemma_mismatch: bool = False,
 ) -> dict[str, list[CORLocalEntry]]:
     preferred_lemma = context.lemma
-    preferred_pos_tag = "NOUN" if context.paradigm_kind == "noun" else "ADJ"
+    preferred_pos_tag = _preferred_pos_tag_for_kind(context.paradigm_kind)
     if allow_lemma_mismatch:
         canonical_entry = cor.best_cor_local_lemma_entry(
             lemma_idx=context.cor_lemma_idx,
@@ -175,7 +207,11 @@ def resolve_target_slot_entries(
     for entry in matching_lemma:
         for slot in slots_for_entry(context.paradigm_kind, entry):
             by_slot.setdefault(slot, []).append(entry)
-    return by_slot
+    return {
+        slot_name: _preferred_slot_entries(context.paradigm_kind, slot_name, entries)
+        for slot_name, entries in by_slot.items()
+        if entries
+    }
 
 
 def resolve_target_noun_slot_entries(
@@ -196,8 +232,10 @@ def build_completion_candidate_entries(
     seen: set[str] = set()
     if context.paradigm_kind == "noun":
         slot_order = [slot_name for slot_name, _number, _definite in TARGET_NOUN_SLOTS]
-    else:
+    elif context.paradigm_kind == "adjective":
         slot_order = list(ADJECTIVE_TARGET_SLOT_ORDER)
+    else:
+        slot_order = list(VERB_DISPLAY_SLOT_ORDER)
 
     for slot_name in slot_order:
         for entry in slot_entries.get(slot_name, []):
@@ -222,6 +260,10 @@ def extract_fix_variations_action_slot_form_lists(action: Mapping[str, object]) 
         if slot_values:
             slot_forms[slot_name] = slot_values
     for slot_name, field_name in ADJECTIVE_SLOT_ACTION_LIST_FIELDS.items():
+        slot_values = _clean_string_list(action.get(field_name))
+        if slot_values:
+            slot_forms[slot_name] = slot_values
+    for slot_name, field_name in VERB_SLOT_ACTION_LIST_FIELDS.items():
         slot_values = _clean_string_list(action.get(field_name))
         if slot_values:
             slot_forms[slot_name] = slot_values
@@ -297,27 +339,78 @@ def adjective_slot_from_features(features: dict[str, str]) -> str | None:
     return None
 
 
-def slots_for_entry(paradigm_kind: ParadigmKind, entry: CORLocalEntry) -> tuple[str, ...]:
+def verb_slot_from_morphology(morphology: str | None) -> str | None:
+    return verb_slot_from_features(_morphology_features(morphology))
+
+
+def verb_slot_from_features(features: dict[str, str]) -> str | None:
+    verb_form = features.get("VerbForm")
+    mood = features.get("Mood")
+    tense = features.get("Tense")
+    if verb_form == "Part":
+        return "past_participle"
+    if verb_form == "Inf":
+        return "infinitive"
+    if mood == "Imp":
+        return "imperative"
+    if tense == "Past" and verb_form == "Fin":
+        return "past"
+    if tense == "Pres" and verb_form == "Fin":
+        return "present"
+    return None
+
+
+def slots_for_gram_raw_and_morphology(
+    paradigm_kind: ParadigmKind,
+    *,
+    gram_raw: str | None,
+    morphology: str | None,
+) -> tuple[str, ...]:
     slots: list[str] = []
-    feature_slot = (
-        noun_slot_from_features(entry.features or _morphology_features(entry.morphology))
-        if paradigm_kind == "noun"
-        else adjective_slot_from_features(entry.features or _morphology_features(entry.morphology))
-    )
+    features = _morphology_features(morphology)
+    if paradigm_kind == "noun":
+        feature_slot = noun_slot_from_features(features)
+    elif paradigm_kind == "adjective":
+        feature_slot = adjective_slot_from_features(features)
+    else:
+        feature_slot = verb_slot_from_features(features)
     if feature_slot is not None:
         slots.append(feature_slot)
 
-    for gram in _split_gram_parts(entry.gram_raw):
+    for gram in _split_gram_parts(gram_raw):
         gram_slot = _slot_from_gram(paradigm_kind, gram)
         if gram_slot is not None and gram_slot not in slots:
             slots.append(gram_slot)
     return tuple(slots)
 
 
+def slots_for_entry(paradigm_kind: ParadigmKind, entry: CORLocalEntry) -> tuple[str, ...]:
+    if entry.features:
+        if paradigm_kind == "noun":
+            feature_slot = noun_slot_from_features(entry.features)
+        elif paradigm_kind == "adjective":
+            feature_slot = adjective_slot_from_features(entry.features)
+        else:
+            feature_slot = verb_slot_from_features(entry.features)
+        gram_slots = [
+            _slot_from_gram(paradigm_kind, gram)
+            for gram in _split_gram_parts(entry.gram_raw)
+        ]
+        ordered_slots = [feature_slot, *gram_slots]
+        return tuple(slot for slot in dict.fromkeys(slot for slot in ordered_slots if slot is not None))
+    return slots_for_gram_raw_and_morphology(
+        paradigm_kind,
+        gram_raw=entry.gram_raw,
+        morphology=entry.morphology,
+    )
+
+
 def action_slot_labels_for_kind(paradigm_kind: ParadigmKind) -> tuple[str, ...]:
     if paradigm_kind == "noun":
         return tuple(slot_name for slot_name, _number, _definite in ALL_NOUN_SLOTS)
-    return ADJECTIVE_DISPLAY_SLOT_ORDER
+    if paradigm_kind == "adjective":
+        return ADJECTIVE_DISPLAY_SLOT_ORDER
+    return VERB_DISPLAY_SLOT_ORDER
 
 
 def _split_gram_parts(gram_raw: str | None) -> list[str]:
@@ -346,6 +439,17 @@ def _slot_from_gram(paradigm_kind: ParadigmKind, gram: str) -> str | None:
             return "singular_definite"
         if "pl" in parts:
             return "plural_shared"
+    if paradigm_kind == "verb" and "vb" in parts:
+        if "imp" in parts:
+            return "imperative"
+        if "inf" in parts:
+            return "infinitive"
+        if "perf" in parts and "part" in parts:
+            return "past_participle"
+        if {"præs"} <= parts or {"prs"} <= parts:
+            return "present"
+        if "præt" in parts:
+            return "past"
     return None
 
 
@@ -392,3 +496,55 @@ def _expand_adjective_plural_scalars(slot_forms: dict[str, str]) -> dict[str, st
         slot_forms.setdefault("plural_indefinite", shared)
         slot_forms.setdefault("plural_definite", shared)
     return slot_forms
+
+
+def _preferred_pos_tag_for_kind(paradigm_kind: ParadigmKind) -> str:
+    if paradigm_kind == "noun":
+        return "NOUN"
+    if paradigm_kind == "adjective":
+        return "ADJ"
+    return "VERB"
+
+
+def _preferred_slot_entries(
+    paradigm_kind: ParadigmKind,
+    slot_name: str,
+    entries: list[CORLocalEntry],
+) -> list[CORLocalEntry]:
+    if paradigm_kind != "verb":
+        return entries
+    ranked = sorted(
+        entries,
+        key=lambda entry: (_verb_entry_preference_key(slot_name, entry), normalize_token(entry.form) or entry.form),
+    )
+    if not ranked:
+        return []
+    best_form = normalize_token(ranked[0].form) or ranked[0].form
+    return [
+        entry
+        for entry in ranked
+        if (normalize_token(entry.form) or entry.form) == best_form
+    ]
+
+
+def _verb_entry_preference_key(slot_name: str, entry: CORLocalEntry) -> tuple[int, int, int]:
+    gram_parts = _verb_gram_tags(entry.gram_raw)
+    voice = (entry.features or _morphology_features(entry.morphology)).get("Voice")
+    passive_penalty = 1 if "pass" in gram_parts or voice == "Pass" else 0
+    active_penalty = 0 if "akt" in gram_parts or voice == "Act" else 1
+    if slot_name != "past_participle":
+        return passive_penalty, active_penalty, 0
+    inflection_penalty = sum(
+        1
+        for tag in ("sg", "pl", "fk", "itk", "best")
+        if tag in gram_parts
+    )
+    bare_participle_penalty = 0 if "perf" in gram_parts and "part" in gram_parts else 1
+    return bare_participle_penalty, inflection_penalty, passive_penalty
+
+
+def _verb_gram_tags(gram_raw: str | None) -> set[str]:
+    tags: set[str] = set()
+    for gram in _split_gram_parts(gram_raw):
+        tags.update(part.strip() for part in gram.split(".") if part.strip())
+    return tags

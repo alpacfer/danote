@@ -20,6 +20,7 @@ from app.services.use_cases.wordbank.paradigm_variations import (
     ADJECTIVE_SLOT_ACTION_LIST_FIELDS,
     LEGACY_NOUN_SLOT_ACTION_FIELDS,
     NOUN_SLOT_ACTION_LIST_FIELDS,
+    VERB_SLOT_ACTION_LIST_FIELDS,
     extract_fix_variations_action_slot_form_lists,
     extract_fix_variations_action_slot_forms,
     parse_fix_variations_text_slot_forms,
@@ -387,6 +388,7 @@ class VerificationCollaborator:
             field_by_slot = {
                 **NOUN_SLOT_ACTION_LIST_FIELDS,
                 **ADJECTIVE_SLOT_ACTION_LIST_FIELDS,
+                **VERB_SLOT_ACTION_LIST_FIELDS,
             }
             return {
                 **action,

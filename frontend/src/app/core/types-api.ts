@@ -85,6 +85,11 @@ export type VerificationAction = {
   singular_definite_forms?: string[] | null
   plural_indefinite_forms?: string[] | null
   plural_definite_forms?: string[] | null
+  infinitive_forms?: string[] | null
+  present_forms?: string[] | null
+  past_forms?: string[] | null
+  imperative_forms?: string[] | null
+  past_participle_forms?: string[] | null
   singular_definite_form?: string | null
   plural_indefinite_form?: string | null
   plural_definite_form?: string | null

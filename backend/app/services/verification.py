@@ -7,6 +7,10 @@ from typing import Any, Literal, Protocol
 
 from app.services.token_classifier import normalize_token
 from app.services.verification_paradigm_slots import build_completion_review_paradigm_slot_context
+from app.services.verification_prompt_templates import (
+    build_word_category_prompt,
+    build_word_verification_prompt,
+)
 from app.services.verification_review_policy import (
     looks_like_danish_self_translation,
     should_ignore_variation_only_review,
@@ -81,6 +85,11 @@ class WordVerificationAction:
     singular_definite_forms: tuple[str, ...] = ()
     plural_indefinite_forms: tuple[str, ...] = ()
     plural_definite_forms: tuple[str, ...] = ()
+    infinitive_forms: tuple[str, ...] = ()
+    present_forms: tuple[str, ...] = ()
+    past_forms: tuple[str, ...] = ()
+    imperative_forms: tuple[str, ...] = ()
+    past_participle_forms: tuple[str, ...] = ()
     singular_definite_form: str | None = None
     plural_indefinite_form: str | None = None
     plural_definite_form: str | None = None
@@ -217,111 +226,14 @@ class GeminiWordVerificationService:
 
     def _verification_prompt(self, payload: WordVerificationInput) -> str:
         entry = self._scope_context(payload)
-        completion_review = payload.review_intent == "complete_variations"
-        if completion_review:
-            action_examples = (
-                '{"action_type":"fix_variations","reason":"...",'
-                '"singular_indefinite_forms":["...", "..."],'
-                '"singular_indefinite_n_word_forms":["..."],'
-                '"singular_indefinite_t_word_forms":["..."],'
-                '"singular_definite_forms":["..."],'
-                '"plural_indefinite_forms":["..."],'
-                '"plural_definite_forms":["..."]}'
-            )
-            fix_variations_rule = (
-                "- If the reviewed meaning is a noun, include the complete noun variation set in singular_indefinite_forms, singular_definite_forms, plural_indefinite_forms, and plural_definite_forms whenever those slots are known.\n"
-                "- For noun reviews, singular_indefinite_forms must include the saved lemma and any alternative spellings that belong in that same slot.\n"
-                "- If the reviewed meaning is an adjective, include agreement forms in singular_indefinite_n_word_forms, singular_indefinite_t_word_forms, singular_definite_forms, plural_indefinite_forms, and plural_definite_forms whenever those slots are known.\n"
-                "- For adjective reviews, use n-word / t-word terminology throughout.\n"
-            )
-        else:
-            action_examples = (
-                '{"action_type":"fix_translation","reason":"...","english_translation":"..."},'
-                '{"action_type":"move_to_meaning_section","reason":"...","target_meaning_id":0},'
-                '{"action_type":"move_to_lemma","reason":"...","target_lemma":"...",'
-                '"target_meaning_key":"...","target_gloss":"...",'
-                '"target_english_translation":"...","target_pos_tag":"...",'
-                '"target_morphology":"..."}'
-            )
-            fix_variations_rule = ""
-        action_type_rule = (
-            "- Use only these action types: fix_translation, move_to_meaning_section, move_to_lemma.\n"
-            if not completion_review
-            else "- Use only this action type: fix_variations.\n"
-        )
-        variation_scope_rule = (
-            "- This is normal save verification. Verify only whether the saved lemma/meaning/surface placement is correct.\n"
-            "- Do not require missing paradigm forms or suggest adding/correcting other variations here. Variation completeness is handled only by the Complete variations workflow.\n"
-            if not completion_review
-            else "- This review was triggered by Complete variations. Keep the saved lemma and meaning section fixed; verify whether the saved surface forms are valid variations for that lemma in this meaning.\n"
-            "- If canonical_lemma differs from lemma during Complete variations review, treat that as a clue to re-check the completed variation set only.\n"
-            "- When the completed variation set is wrong, describe the surface-form problem in problem/change_to_implement and use action_type=fix_variations.\n"
-        )
-        canonical_rule = (
-            "- If canonical_lemma is present and differs from lemma, treat the saved lemma as incorrect and suggest move_to_lemma to canonical_lemma unless the entry already belongs under another provided lemma.\n"
-            if not completion_review
-            else ""
-        )
-        return (
-            "You are a Professional Danish Language Expert.\n"
-            "Review the current wordbank entry using the model lemma page -> meaning sections -> surface forms.\n"
-            "Translations belong to the lemma or a meaning section only. Surface forms do not carry independent translations.\n"
-            "Meaning glosses are immutable COR labels used only to disambiguate senses. Never suggest editing a gloss.\n"
-            "Treat canonical lemma identity and metadata separately from the selected surface-form metadata.\n"
-            "Use all provided context together: lemma, reviewed scope, gloss, gloss translation, translation scope, morphology, saved surface forms, and sibling meaning sections.\n"
-            "Classify the reviewed word meaning into broad semantic categories.\n"
-            "Count if the reviewed entry is composed of multiple words.\n"
-            "Return JSON only.\n"
-            "{"
-            '"verdict":"correct|incorrect",'
-            '"word_count":0,'
-            '"problem":"...",'
-            '"change_to_implement":"...",'
-            '"existing_categories":["..."],'
-            '"new_categories":["..."],'
-            '"suggested_actions":['
-            f"{action_examples}"
-            "]}\n"
-            "Rules:\n"
-            f"{action_type_rule}"
-            "- If verdict=correct, return suggested_actions as [].\n"
-            "- existing_categories must be chosen from available_categories.\n"
-            "- existing_categories may include multiple items, but never duplicates.\n"
-            "- You may return up to 3 broad new_categories when they are genuinely useful. Otherwise return [] or omit the field.\n"
-            "- New categories must be broad, reusable, and user-facing. Never return morphology, part-of-speech, or overly narrow labels.\n"
-            "- If action_type=move_to_meaning_section, target_meaning_id must be one of the available meaning ids.\n"
-            "- If action_type=move_to_lemma, include target_lemma and target_meaning_key.\n"
-            "- Never propose gloss edits; use gloss only to identify the intended meaning section.\n"
-            "- If action_type=fix_translation, english_translation must be idiomatic English. Never repeat the Danish lemma or surface form unless the translated gloss explicitly matches it.\n"
-            f"{fix_variations_rule}"
-            "- When meaning_gloss_translation or section gloss_translation is present, use it as the primary sense clue for homographs.\n"
-            f"{variation_scope_rule}"
-            f"{canonical_rule}"
-            "- Discard no uncertainty into prose; use reason and structured fields instead.\n"
-            f"Entry:\n{json.dumps(entry, ensure_ascii=False)}"
+        return build_word_verification_prompt(
+            entry=entry,
+            completion_review=payload.review_intent == "complete_variations",
         )
 
     def _category_prompt(self, payload: WordVerificationInput) -> str:
         entry = self._scope_context(payload)
-        return (
-            "You are a Professional Danish Language Expert.\n"
-            "Review the current wordbank scope and classify it into broad semantic categories.\n"
-            "Use all provided context together: lemma, reviewed scope, gloss, gloss translation, translation scope, morphology, saved surface forms, and sibling meaning sections.\n"
-            "Treat categories as reusable user-facing groups for many related words.\n"
-            "Prefer matching existing categories whenever they fit.\n"
-            "Return JSON only.\n"
-            "{"
-            '"existing_categories":["..."],'
-            '"new_categories":["..."]'
-            "}\n"
-            "Rules:\n"
-            "- existing_categories must be chosen from available_categories.\n"
-            "- existing_categories may include multiple items, but never duplicates.\n"
-            "- You may return up to 3 broad new_categories when they are genuinely useful.\n"
-            "- New categories must be broad, reusable, and user-facing. Never return morphology, part-of-speech, or overly narrow labels.\n"
-            "- If existing categories fully cover the scope, return new_categories as [] or omit it.\n"
-            f"Entry:\n{json.dumps(entry, ensure_ascii=False)}"
-        )
+        return build_word_category_prompt(entry=entry)
 
     def _scope_context(self, payload: WordVerificationInput) -> dict[str, object]:
         return {
@@ -509,6 +421,11 @@ class GeminiWordVerificationService:
                 singular_definite_forms=tuple(_optional_clean_str_list(raw.get("singular_definite_forms"))),
                 plural_indefinite_forms=tuple(_optional_clean_str_list(raw.get("plural_indefinite_forms"))),
                 plural_definite_forms=tuple(_optional_clean_str_list(raw.get("plural_definite_forms"))),
+                infinitive_forms=tuple(_optional_clean_str_list(raw.get("infinitive_forms"))),
+                present_forms=tuple(_optional_clean_str_list(raw.get("present_forms"))),
+                past_forms=tuple(_optional_clean_str_list(raw.get("past_forms"))),
+                imperative_forms=tuple(_optional_clean_str_list(raw.get("imperative_forms"))),
+                past_participle_forms=tuple(_optional_clean_str_list(raw.get("past_participle_forms"))),
                 singular_definite_form=_optional_clean_str(raw.get("singular_definite_form")),
                 plural_indefinite_form=_optional_clean_str(raw.get("plural_indefinite_form")),
                 plural_definite_form=_optional_clean_str(raw.get("plural_definite_form")),

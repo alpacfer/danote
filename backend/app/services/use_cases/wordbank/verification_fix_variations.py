@@ -9,14 +9,15 @@ from app.services.use_cases.wordbank.collaborators.cor import CorResolutionColla
 from app.services.use_cases.wordbank.paradigm_variations import (
     ADJECTIVE_DISPLAY_SLOT_ORDER,
     ALL_NOUN_SLOTS,
+    VERB_DISPLAY_SLOT_ORDER,
     action_slot_labels_for_kind,
-    adjective_slot_from_morphology,
     extract_fix_variations_action_slot_form_lists,
     extract_fix_variations_action_slot_forms,
     meaning_context_from_rows,
     noun_slot_from_morphology,
     paradigm_kind_from_pos_tag,
     resolve_target_slot_entries,
+    slots_for_gram_raw_and_morphology,
     slots_for_entry,
 )
 from app.services.use_cases.wordbank.verification_action_models import VerificationActionExecutionResult
@@ -55,8 +56,8 @@ def apply_fix_variations(
     )
     if not desired_slots:
         raise RuntimeError(f"No COR-backed {context.paradigm_kind} variations were found for this meaning.")
-    if context.paradigm_kind == "adjective":
-        return _apply_fix_variations_adjective(
+    if context.paradigm_kind in {"adjective", "verb"}:
+        return _apply_fix_variations_compacted(
             conn,
             cor=cor,
             context=context,
@@ -165,7 +166,7 @@ def _apply_fix_variations_noun(
     )
 
 
-def _apply_fix_variations_adjective(
+def _apply_fix_variations_compacted(
     conn: sqlite3.Connection,
     *,
     cor: CorResolutionCollaborator,
@@ -187,7 +188,7 @@ def _apply_fix_variations_adjective(
         row
         for row in current_rows
         if any(
-            slot in ADJECTIVE_DISPLAY_SLOT_ORDER or slot == "plural_shared"
+            slot in _managed_compacted_slots(context.paradigm_kind)
             for slot in _current_row_slots(
                 cor,
                 context=context,
@@ -213,7 +214,12 @@ def _apply_fix_variations_adjective(
         )
         for row in managed_rows
     )
-    desired_unique_forms = _merge_desired_forms(desired_slots, lemma=context.lemma)
+    desired_unique_forms = _merge_desired_forms(
+        desired_slots,
+        slot_order=_managed_compacted_slot_order(context.paradigm_kind),
+        lemma=context.lemma,
+        exclude_lemma=context.paradigm_kind == "adjective",
+    )
     desired_signature = sorted(
         (
             normalize_token(form.form) or form.form,
@@ -294,13 +300,15 @@ def _resolve_fix_variations_slots(
         desired_form_list = action_slot_form_lists.get(slot_name)
         if desired_form_list is None and slot_name == "singular_indefinite" and action_slot_form_lists:
             desired_form_list = [lemma]
+        if desired_form_list is None and slot_name == "infinitive" and action_slot_form_lists:
+            desired_form_list = [lemma]
         if desired_form_list is None and slot_name in action_slot_forms:
             desired_form_list = [action_slot_forms[slot_name]]
         if desired_form_list is None and (paradigm_kind != "noun" or slot_name != "singular_indefinite") and fallback_entries:
             desired_form_list = [entry.form for entry in fallback_entries]
         if desired_form_list is None:
             continue
-        if slot_name in {"singular_indefinite", "singular_indefinite_n_word"}:
+        if slot_name in {"singular_indefinite", "singular_indefinite_n_word", "infinitive"}:
             desired_form_list = _ensure_lemma_in_slot_forms(desired_form_list, normalized_lemma)
         slot_forms = []
         for desired_form in desired_form_list:
@@ -312,7 +320,7 @@ def _resolve_fix_variations_slots(
             slot_forms.append(
                 DesiredParadigmVariationForm(
                     form=desired_form,
-                    pos_tag=fallback_entry.pos_tag if fallback_entry is not None else ("NOUN" if paradigm_kind == "noun" else "ADJ"),
+                    pos_tag=fallback_entry.pos_tag if fallback_entry is not None else _default_pos_tag(paradigm_kind),
                     morphology=fallback_entry.morphology if fallback_entry is not None else None,
                     cor_ids=tuple(
                         dict.fromkeys(
@@ -409,14 +417,16 @@ def _insert_surface_form_cor_ids(
 def _merge_desired_forms(
     desired_slots: dict[str, tuple[DesiredParadigmVariationForm, ...]],
     *,
+    slot_order: tuple[str, ...],
     lemma: str,
+    exclude_lemma: bool,
 ) -> dict[str, DesiredParadigmVariationForm]:
     merged: dict[str, DesiredParadigmVariationForm] = {}
     normalized_lemma = normalize_token(lemma)
-    for slot_name in (*ADJECTIVE_DISPLAY_SLOT_ORDER, "plural_shared"):
+    for slot_name in slot_order:
         for form in desired_slots.get(slot_name, ()):
             normalized_form = normalize_token(form.form)
-            if not normalized_form or normalized_form == normalized_lemma:
+            if not normalized_form or (exclude_lemma and normalized_form == normalized_lemma):
                 continue
             existing = merged.get(normalized_form)
             cor_ids = tuple(dict.fromkeys((*(existing.cor_ids if existing else ()), *form.cor_ids)))
@@ -448,20 +458,23 @@ def _current_row_slots(
     entries = cor.cor_local_entries_for_form(
         form=form,
         lemma=context.lemma,
-        preferred_pos_tag="ADJ",
+        preferred_pos_tag=_default_pos_tag(context.paradigm_kind),
         preferred_lemma_idx=context.cor_lemma_idx,
     )
     if entries:
         slots: list[str] = []
         for entry in entries:
-            for slot in slots_for_entry("adjective", entry):
+            for slot in slots_for_entry(context.paradigm_kind, entry):
                 if slot not in slots:
                     slots.append(slot)
         return tuple(slots)
-    if paradigm_kind_from_pos_tag(pos_tag) != "adjective":
+    if paradigm_kind_from_pos_tag(pos_tag) != context.paradigm_kind:
         return ()
-    slot = adjective_slot_from_morphology(morphology)
-    return (slot,) if slot else ()
+    return slots_for_gram_raw_and_morphology(
+        context.paradigm_kind,
+        gram_raw=None,
+        morphology=morphology,
+    )
 
 
 def _fix_variations_result(
@@ -496,3 +509,23 @@ def _fix_variations_result(
         },
         invalidate_targets=tuple((lemma, form) for form in changed_forms) or ((lemma, None),),
     )
+
+
+def _default_pos_tag(paradigm_kind: str) -> str:
+    if paradigm_kind == "noun":
+        return "NOUN"
+    if paradigm_kind == "adjective":
+        return "ADJ"
+    return "VERB"
+
+
+def _managed_compacted_slots(paradigm_kind: str) -> set[str]:
+    if paradigm_kind == "adjective":
+        return {*(ADJECTIVE_DISPLAY_SLOT_ORDER), "plural_shared"}
+    return set(VERB_DISPLAY_SLOT_ORDER)
+
+
+def _managed_compacted_slot_order(paradigm_kind: str) -> tuple[str, ...]:
+    if paradigm_kind == "adjective":
+        return (*ADJECTIVE_DISPLAY_SLOT_ORDER, "plural_shared")
+    return VERB_DISPLAY_SLOT_ORDER

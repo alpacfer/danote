@@ -15,7 +15,7 @@ import {
   buildAdjectiveDegreeGroups,
   buildAdjectiveParadigm,
   buildNounParadigm,
-  buildVerbFormGroups,
+  buildVerbParadigm,
 } from "@/app/sections/wordbank/wordbank-paradigm-utils"
 import { WordbankPronunciationWord } from "@/app/sections/wordbank/wordbank-pronunciation-word"
 import { Badge } from "@/components/ui/badge"
@@ -44,11 +44,12 @@ export function WordbankVariationGrid({
   const isNoun = upperPosTag === "NOUN"
   const nounParadigm = isNoun ? buildNounParadigm(allSurfaceForms) : null
   const adjectiveParadigm = upperPosTag === "ADJ" ? buildAdjectiveParadigm(allSurfaceForms) : null
+  const verbParadigm = upperPosTag === "VERB" ? buildVerbParadigm(allSurfaceForms) : null
 
-  if (nounParadigm || adjectiveParadigm) {
+  if (nounParadigm || adjectiveParadigm || verbParadigm) {
     return (
       <WordbankParadigmTable
-        paradigm={nounParadigm ?? adjectiveParadigm!}
+        paradigm={nounParadigm ?? adjectiveParadigm ?? verbParadigm!}
         pronunciationLoadingByForm={pronunciationLoadingByForm}
         regeneratingPronunciationByForm={regeneratingPronunciationByForm}
         onPlayPronunciation={onPlayPronunciation}
@@ -62,7 +63,7 @@ export function WordbankVariationGrid({
   }
 
   const formGroups = upperPosTag === "VERB"
-    ? buildVerbFormGroups(variationForms)
+    ? []
     : upperPosTag === "ADJ"
       ? buildAdjectiveDegreeGroups(variationForms)
       : []

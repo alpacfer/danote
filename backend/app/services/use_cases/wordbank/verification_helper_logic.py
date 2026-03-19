@@ -22,6 +22,11 @@ def verification_action_to_schema(action: WordVerificationAction) -> Verificatio
         singular_definite_forms=list(action.singular_definite_forms) or None,
         plural_indefinite_forms=list(action.plural_indefinite_forms) or None,
         plural_definite_forms=list(action.plural_definite_forms) or None,
+        infinitive_forms=list(action.infinitive_forms) or None,
+        present_forms=list(action.present_forms) or None,
+        past_forms=list(action.past_forms) or None,
+        imperative_forms=list(action.imperative_forms) or None,
+        past_participle_forms=list(action.past_participle_forms) or None,
         singular_definite_form=action.singular_definite_form,
         plural_indefinite_form=action.plural_indefinite_form,
         plural_definite_form=action.plural_definite_form,
@@ -69,11 +74,14 @@ def completion_review_actions(
         or parse_fix_variations_text_slot_forms(problem)
     )
     paradigm_kind = paradigm_kind_from_pos_tag(payload.selected_meaning_pos_tag)
-    base_slot_form_lists = (
-        {"singular_indefinite": [payload.stored_lemma]}
-        if paradigm_kind == "noun"
-        else {"singular_indefinite_n_word": [payload.stored_lemma]}
-    )
+    if paradigm_kind == "noun":
+        base_slot_form_lists = {"singular_indefinite": [payload.stored_lemma]}
+    elif paradigm_kind == "adjective":
+        base_slot_form_lists = {"singular_indefinite_n_word": [payload.stored_lemma]}
+    elif paradigm_kind == "verb":
+        base_slot_form_lists = {"infinitive": [payload.stored_lemma]}
+    else:
+        base_slot_form_lists = {}
     text_slot_form_lists = {
         **base_slot_form_lists,
         **{slot_name: [form] for slot_name, form in text_slot_forms.items()},
@@ -104,6 +112,11 @@ def completion_review_actions(
                 "singular_definite_forms": merged_slot_form_lists.get("singular_definite"),
                 "plural_indefinite_forms": merged_slot_form_lists.get("plural_indefinite"),
                 "plural_definite_forms": merged_slot_form_lists.get("plural_definite"),
+                "infinitive_forms": merged_slot_form_lists.get("infinitive"),
+                "present_forms": merged_slot_form_lists.get("present"),
+                "past_forms": merged_slot_form_lists.get("past"),
+                "imperative_forms": merged_slot_form_lists.get("imperative"),
+                "past_participle_forms": merged_slot_form_lists.get("past_participle"),
                 "singular_definite_form": None,
                 "plural_indefinite_form": None,
                 "plural_definite_form": None,
@@ -117,7 +130,11 @@ def completion_review_actions(
             reason=(
                 "Replace the completed variation set with the reviewed adjective forms for this meaning."
                 if paradigm_kind == "adjective"
-                else "Replace the completed variation set with the reviewed noun forms for this meaning."
+                else (
+                    "Replace the completed variation set with the reviewed verb forms for this meaning."
+                    if paradigm_kind == "verb"
+                    else "Replace the completed variation set with the reviewed noun forms for this meaning."
+                )
             ),
             singular_indefinite_forms=text_slot_form_lists.get("singular_indefinite"),
             singular_indefinite_n_word_forms=text_slot_form_lists.get("singular_indefinite_n_word"),
@@ -125,6 +142,11 @@ def completion_review_actions(
             singular_definite_forms=text_slot_form_lists.get("singular_definite"),
             plural_indefinite_forms=text_slot_form_lists.get("plural_indefinite"),
             plural_definite_forms=text_slot_form_lists.get("plural_definite"),
+            infinitive_forms=text_slot_form_lists.get("infinitive"),
+            present_forms=text_slot_form_lists.get("present"),
+            past_forms=text_slot_form_lists.get("past"),
+            imperative_forms=text_slot_form_lists.get("imperative"),
+            past_participle_forms=text_slot_form_lists.get("past_participle"),
         )]
 
 

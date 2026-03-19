@@ -730,7 +730,7 @@ def test_get_lemma_details_returns_all_saved_variations(tmp_path, stub_nlp_adapt
     assert all(item["has_pronunciation"] is False for item in section["surface_forms"])
 
 
-def test_get_lemma_details_non_sectioned_payload_includes_cor_grammar_when_available(tmp_path, stub_nlp_adapter_factory) -> None:
+def test_get_lemma_details_sectioned_verb_payload_includes_cor_grammar_when_available(tmp_path, stub_nlp_adapter_factory) -> None:
     db_path = tmp_path / "danote.sqlite3"
     cor_db_path = tmp_path / "cor.sqlite"
     apply_migrations(db_path)
@@ -763,15 +763,22 @@ def test_get_lemma_details_non_sectioned_payload_includes_cor_grammar_when_avail
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["is_sectioned"] is False
-    assert payload["meaning_sections"] == []
+    assert payload["is_sectioned"] is True
     assert payload["pos_tag"] == "VERB"
     assert payload["morphology"] == "VerbForm=Inf|Voice=Act"
-    assert payload["surface_forms"] == [
+    assert payload["surface_forms"] == []
+    assert len(payload["meaning_sections"]) == 1
+    assert payload["meaning_sections"][0]["meaning_key"] == "learn"
+    assert payload["meaning_sections"][0]["pos_tag"] == "VERB"
+    assert payload["meaning_sections"][0]["morphology"] == "VerbForm=Inf|Voice=Act"
+    assert payload["meaning_sections"][0]["surface_forms"] == [
         {
             "form": "lærer",
             "pos_tag": "VERB",
             "morphology": "Tense=Pres|VerbForm=Fin|Voice=Act",
+            "lemma": "lære",
+            "lemma_translation": "learn",
+            "gloss": "learn",
             "gram_raw": "vb. præs. akt",
             "has_pronunciation": False,
         }

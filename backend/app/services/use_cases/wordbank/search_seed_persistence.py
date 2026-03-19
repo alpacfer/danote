@@ -7,7 +7,6 @@ from app.services.token_classifier import normalize_token
 from app.services.use_cases.wordbank.meaning_sections import (
     MeaningAssignment,
     ensure_wordbank_meaning_compatibility,
-    is_verb_like_pos_tag,
 )
 from app.services.use_cases.wordbank.runtime import WordbankRuntime
 
@@ -159,9 +158,6 @@ def _resolve_meaning_assignment(
                     False,
                 )
         raise ValueError(f"Meaning '{seed.target_meaning_id}' was not found for lemma '{seed.lemma}'")
-
-    if is_verb_like_pos_tag(seed.pos_tag):
-        return None, None, False
 
     meaning_key = seed.meaning_key or seed.gloss or seed.lemma
     record, inserted = runtime.repository.upsert_lexeme_meaning(

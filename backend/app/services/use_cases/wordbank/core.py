@@ -139,7 +139,7 @@ class WordbankUseCase:
                     added_surface_forms=[],
                     queued_pronunciation_forms=[],
                     queued_verification_targets=[],
-                    message="Complete variations is only available for noun and adjective meanings.",
+                    message="Complete variations is only available for noun, adjective, and verb meanings.",
                 )
             raise
         except RuntimeError as exc:

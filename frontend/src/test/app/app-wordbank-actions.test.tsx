@@ -617,8 +617,8 @@ describe("App wordbank", () => {
     expect(screen.getByText(/^stort$/i)).toBeInTheDocument()
   })
 
-  it("renderer-only: non-paradigm meaning cards do not expose complete variations in the context menu", async () => {
-    mockFetchImplementation({
+  it("request-shape: verb meaning cards can complete variations and render the shared verb table", async () => {
+    let lemmaDetails = {
       lemmasResponse: {
         items: [{ lemma: "lære", variation_count: 1 }],
       },
@@ -633,10 +633,93 @@ describe("App wordbank", () => {
             english_translation: "learn",
             pos_tag: "VERB",
             morphology: "VerbForm=Inf|Voice=Act",
-            surface_forms: [],
+            gram_raw: "vb.inf.akt",
+            verification: {
+              status: "verified",
+              provider: "gemini",
+              reviewer_role: "Professional Danish Language Expert",
+              message: "Verified.",
+              requested_at: "2026-03-15T10:00:00Z",
+              completed_at: "2026-03-15T10:00:05Z",
+            },
+            surface_forms: [
+              {
+                form: "lærer",
+                verification: {
+                  status: "verified",
+                  provider: "gemini",
+                  reviewer_role: "Professional Danish Language Expert",
+                  message: "Verified.",
+                  requested_at: "2026-03-15T10:00:00Z",
+                  completed_at: "2026-03-15T10:00:05Z",
+                },
+                pos_tag: "VERB",
+                morphology: "Tense=Pres|VerbForm=Fin|Voice=Act",
+                has_pronunciation: false,
+              },
+            ],
           },
         ],
         surface_forms: [],
+      },
+    }
+    const fetchSpy = mockFetchImplementation({
+      lemmasResponse: lemmaDetails.lemmasResponse,
+      lemmaDetailsHandler: async () => responseOf(lemmaDetails.lemmaDetailsResponse),
+      completeVariationsHandler: async (_input, init) => {
+        const body = JSON.parse(String(init?.body ?? "{}")) as {
+          stored_lemma?: string
+          meaning_id?: number
+        }
+        if (body.stored_lemma !== "lære" || body.meaning_id !== 1) {
+          throw new Error("Unexpected complete-variations payload.")
+        }
+        lemmaDetails = {
+          ...lemmaDetails,
+          lemmaDetailsResponse: {
+            ...lemmaDetails.lemmaDetailsResponse,
+            meaning_sections: [
+              {
+                ...lemmaDetails.lemmaDetailsResponse.meaning_sections[0],
+                surface_forms: [
+                  {
+                    form: "lærer",
+                    pos_tag: "VERB",
+                    morphology: "Tense=Pres|VerbForm=Fin|Voice=Act",
+                    has_pronunciation: false,
+                  },
+                  {
+                    form: "lærte",
+                    pos_tag: "VERB",
+                    morphology: "Tense=Past|VerbForm=Fin|Voice=Act",
+                    has_pronunciation: false,
+                  },
+                  {
+                    form: "lær",
+                    pos_tag: "VERB",
+                    morphology: "Mood=Imp|VerbForm=Fin",
+                    has_pronunciation: false,
+                  },
+                  {
+                    form: "lært",
+                    pos_tag: "VERB",
+                    morphology: "VerbForm=Part|Voice=Act",
+                    has_pronunciation: false,
+                  },
+                ],
+              },
+            ],
+          },
+        }
+        return responseOf({
+          status: "updated",
+          stored_lemma: "lære",
+          meaning_id: 1,
+          added_surface_forms: ["lærte", "lær", "lært"],
+          queued_pronunciation_forms: ["lærte", "lær", "lært"],
+          queued_verification_targets: [{ meaning_id: 1, stored_surface_form: null }],
+          message: "Completed verb variations for 'lære'.",
+        })
       },
     })
 
@@ -645,9 +728,30 @@ describe("App wordbank", () => {
     fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
     fireEvent.click(await screen.findByRole("button", { name: /lære/i }))
 
-    fireEvent.contextMenu(await screen.findByTestId("wordbank-meaning-card-1"))
-    expect(await screen.findByRole("menuitem", { name: /rethink categories/i })).toBeInTheDocument()
-    expect(screen.queryByRole("menuitem", { name: /complete variations/i })).not.toBeInTheDocument()
+    const meaningCard = await screen.findByTestId("wordbank-meaning-card-1")
+    fireEvent.contextMenu(meaningCard)
+    expect(await screen.findByRole("menuitem", { name: /complete variations/i })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("menuitem", { name: /complete variations/i }))
+
+    await waitFor(() => {
+      expect(
+        fetchSpy.mock.calls.some(([input, init]) => {
+          if (!String(input).endsWith("/api/wordbank/lexemes/complete-variations")) {
+            return false
+          }
+          return String(init?.body ?? "") === JSON.stringify({
+            stored_lemma: "lære",
+            meaning_id: 1,
+          })
+        }),
+      ).toBe(true)
+    })
+
+    await screen.findByText(/^lærte$/i)
+    const table = within(meaningCard).getByRole("table")
+    expect(within(table).getByText(/^infinitive$/i)).toBeInTheDocument()
+    expect(within(table).getByText(/^past participle$/i)).toBeInTheDocument()
+    expect(screen.getByText(/^lær$/i)).toBeInTheDocument()
   })
 
   it("request-shape: completion review shows one fix-variations apply button for the meaning", async () => {
@@ -1119,5 +1223,67 @@ describe("App wordbank", () => {
     expect(screen.getByText(/singular indefinite t-word: stort\./i)).toBeInTheDocument()
     expect(screen.getByText(/plural indefinite: store\./i)).toBeInTheDocument()
     expect(screen.getByText(/plural definite: store\./i)).toBeInTheDocument()
+  })
+
+  it("renderer-only: verb completion review summarizes verb slot labels", async () => {
+    mockFetchImplementation({
+      lemmasResponse: {
+        items: [{ lemma: "lære", variation_count: 4 }],
+      },
+      lemmaDetailsResponse: {
+        lemma: "lære",
+        is_sectioned: true,
+        meaning_sections: [
+          {
+            id: 1,
+            meaning_key: "learn",
+            gloss: "learn",
+            english_translation: "learn",
+            pos_tag: "VERB",
+            morphology: "VerbForm=Inf|Voice=Act",
+            verification: {
+              status: "flagged",
+              provider: "gemini",
+              reviewer_role: "Professional Danish Language Expert",
+              message: "Review needed.",
+              composed_word_count: 1,
+              stored_surface_form: null,
+              requested_at: "2026-03-15T10:55:00.000Z",
+              completed_at: "2026-03-15T10:57:00.000Z",
+              problem: "The completed verb set is incomplete.",
+              change_to_implement: "Replace the completed variation set with the reviewed verb forms.",
+              suggested_actions: [
+                {
+                  action_type: "fix_variations",
+                  reason: "Replace the saved variation set with the reviewed verb forms for this meaning.",
+                  infinitive_forms: ["lære"],
+                  present_forms: ["lærer"],
+                  past_forms: ["lærte"],
+                  imperative_forms: ["lær"],
+                  past_participle_forms: ["lært"],
+                },
+              ],
+            },
+            surface_forms: [
+              { form: "lærer", pos_tag: "VERB", morphology: "Tense=Pres|VerbForm=Fin|Voice=Act", has_pronunciation: false },
+              { form: "lærte", pos_tag: "VERB", morphology: "Tense=Past|VerbForm=Fin|Voice=Act", has_pronunciation: false },
+            ],
+          },
+        ],
+        surface_forms: [{ form: "lære", pos_tag: "VERB", morphology: "VerbForm=Inf|Voice=Act", has_pronunciation: false }],
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+    fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /lære/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /show verification review details/i }))
+
+    expect(await screen.findByText(/infinitive: lære\./i)).toBeInTheDocument()
+    expect(screen.getByText(/present: lærer\./i)).toBeInTheDocument()
+    expect(screen.getByText(/past: lærte\./i)).toBeInTheDocument()
+    expect(screen.getByText(/imperative: lær\./i)).toBeInTheDocument()
+    expect(screen.getByText(/past participle: lært\./i)).toBeInTheDocument()
   })
 })

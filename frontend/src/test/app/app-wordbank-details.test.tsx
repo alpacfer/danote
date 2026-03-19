@@ -353,7 +353,7 @@ describe("App wordbank", () => {
     expect(screen.queryByText(/^book's$/i)).not.toBeInTheDocument()
   })
 
-  it("renderer-only: verb word pages keep flat variation layout without surface translations", async () => {
+  it("renderer-only: verb word pages render the shared paradigm table from the first saved slot", async () => {
     mockFetchImplementation({
       lemmasResponse: {
         items: [{ lemma: "lære", variation_count: 1 }],
@@ -374,8 +374,56 @@ describe("App wordbank", () => {
     fireEvent.click(await screen.findByRole("button", { name: /lære/i }))
 
     expect(await screen.findByText(/^learn$/i)).toBeInTheDocument()
+    const table = screen.getByRole("table")
+    expect(within(table).getByText(/^infinitive$/i)).toBeInTheDocument()
+    expect(within(table).getByText(/^present$/i)).toBeInTheDocument()
+    expect(within(table).getByText(/^form$/i)).toBeInTheDocument()
     expect(screen.getByText(/^lærer$/i)).toBeInTheDocument()
     expect(screen.queryByText(/^learns$/i)).not.toBeInTheDocument()
+  })
+
+  it("renderer-only: sectioned verb pages place one saved form into multiple verb rows when gram_raw covers both", async () => {
+    mockFetchImplementation({
+      lemmasResponse: {
+        items: [{ lemma: "komme", variation_count: 1 }],
+      },
+      lemmaDetailsResponse: {
+        lemma: "komme",
+        is_sectioned: true,
+        meaning_sections: [
+          {
+            id: 1,
+            meaning_key: "come",
+            gloss: "come",
+            english_translation: "come",
+            pos_tag: "VERB",
+            morphology: "VerbForm=Inf|Voice=Act",
+            gram_raw: "vb.inf.akt",
+            surface_forms: [
+              {
+                form: "kom",
+                pos_tag: "VERB",
+                morphology: "Tense=Past|VerbForm=Fin",
+                gram_raw: "vb.præt.akt | vb.imp",
+                has_pronunciation: false,
+              },
+            ],
+          },
+        ],
+        surface_forms: [],
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+    fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /komme/i }))
+
+    const meaningCard = await screen.findByTestId("wordbank-meaning-card-1")
+    const table = within(meaningCard).getByRole("table")
+    expect(within(table).getByText(/^past$/i)).toBeInTheDocument()
+    expect(within(table).getByText(/^imperative$/i)).toBeInTheDocument()
+    expect(within(meaningCard).getAllByText(/^kom$/i).length).toBeGreaterThanOrEqual(2)
   })
 
   it("renderer-only: sectioned adjective word pages render the paradigm table from the initial saved slot", async () => {

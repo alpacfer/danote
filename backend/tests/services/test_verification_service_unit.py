@@ -133,6 +133,70 @@ def _mor_payload(
     )
 
 
+def _verb_payload(
+    *,
+    review_intent: str = "general",
+) -> WordVerificationInput:
+    return WordVerificationInput(
+        stored_lemma="lære",
+        stored_surface_form=None,
+        meaning_id=3,
+        meaning_key="learn",
+        meaning_gloss="learn",
+        meaning_gloss_translation="learn",
+        lexeme_source="search",
+        selected_translation="learn",
+        selected_translation_scope="meaning_section",
+        surface_source=None,
+        canonical_lemma="lære",
+        canonical_lemma_pos_tag="VERB",
+        canonical_lemma_morphology="VerbForm=Inf|Voice=Act",
+        selected_meaning_pos_tag="VERB",
+        selected_meaning_morphology="VerbForm=Inf|Voice=Act",
+        selected_surface_pos_tag=None,
+        selected_surface_morphology=None,
+        available_surface_forms=(
+            WordVerificationSurfaceForm(
+                form="lærer",
+                meaning_id=3,
+                meaning_key="learn",
+                gloss="learn",
+                gloss_translation="learn",
+                english_translation="learn",
+                pos_tag="VERB",
+                morphology="Tense=Pres|VerbForm=Fin|Voice=Act",
+                source="search",
+                gram_raw="vb.præs.akt",
+            ),
+            WordVerificationSurfaceForm(
+                form="kom",
+                meaning_id=3,
+                meaning_key="learn",
+                gloss="learn",
+                gloss_translation="learn",
+                english_translation="learn",
+                pos_tag="VERB",
+                morphology="Tense=Past|VerbForm=Fin",
+                source="search",
+                gram_raw="vb.præt.akt | vb.imp",
+            ),
+            WordVerificationSurfaceForm(
+                form="lært",
+                meaning_id=3,
+                meaning_key="learn",
+                gloss="learn",
+                gloss_translation="learn",
+                english_translation="learn",
+                pos_tag="VERB",
+                morphology="VerbForm=Part|Voice=Act",
+                source="search",
+                gram_raw="vb.perf.part",
+            ),
+        ),
+        review_intent=review_intent,
+    )
+
+
 def test_gemini_verification_service_keeps_only_supported_actions(monkeypatch) -> None:
     service = GeminiWordVerificationService(api_key="test-key")
     monkeypatch.setattr(
@@ -282,6 +346,18 @@ def test_gemini_complete_variations_prompt_keeps_saved_lemma_fixed() -> None:
     assert "suggest move_to_lemma to canonical_lemma" not in prompt
 
 
+def test_gemini_complete_variations_prompt_includes_verb_slot_fields() -> None:
+    service = GeminiWordVerificationService(api_key="test-key")
+
+    prompt = service._verification_prompt(_verb_payload(review_intent="complete_variations"))
+
+    assert "infinitive_forms" in prompt
+    assert "present_forms" in prompt
+    assert "past_forms" in prompt
+    assert "imperative_forms" in prompt
+    assert "past_participle_forms" in prompt
+
+
 def test_completion_review_slot_context_uses_merged_gram_raw_for_shared_adjective_forms() -> None:
     payload = WordVerificationInput(
         stored_lemma="smuk",
@@ -339,6 +415,18 @@ def test_completion_review_slot_context_uses_merged_gram_raw_for_shared_adjectiv
         "plural_shared": ["smukke"],
         "plural_indefinite": ["smukke"],
         "plural_definite": ["smukke"],
+    }
+
+
+def test_completion_review_slot_context_uses_merged_gram_raw_for_shared_verb_forms() -> None:
+    slot_context = build_completion_review_paradigm_slot_context(_verb_payload(review_intent="complete_variations"))
+
+    assert slot_context == {
+        "infinitive": ["lære"],
+        "present": ["lærer"],
+        "past": ["kom"],
+        "imperative": ["kom"],
+        "past_participle": ["lært"],
     }
 
 

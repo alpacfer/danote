@@ -135,6 +135,11 @@ class VerificationAction(BaseModel):
     singular_definite_forms: list[str] | None = None
     plural_indefinite_forms: list[str] | None = None
     plural_definite_forms: list[str] | None = None
+    infinitive_forms: list[str] | None = None
+    present_forms: list[str] | None = None
+    past_forms: list[str] | None = None
+    imperative_forms: list[str] | None = None
+    past_participle_forms: list[str] | None = None
     singular_definite_form: str | None = None
     plural_indefinite_form: str | None = None
     plural_definite_form: str | None = None

@@ -74,6 +74,11 @@ export function mockFetchImplementation(options?: {
         singular_definite_forms?: string[] | null
         plural_indefinite_forms?: string[] | null
         plural_definite_forms?: string[] | null
+        infinitive_forms?: string[] | null
+        present_forms?: string[] | null
+        past_forms?: string[] | null
+        imperative_forms?: string[] | null
+        past_participle_forms?: string[] | null
         target_meaning_id?: number | null
         target_lemma?: string | null
         target_meaning_key?: string | null
@@ -120,6 +125,11 @@ export function mockFetchImplementation(options?: {
           singular_definite_forms?: string[] | null
           plural_indefinite_forms?: string[] | null
           plural_definite_forms?: string[] | null
+          infinitive_forms?: string[] | null
+          present_forms?: string[] | null
+          past_forms?: string[] | null
+          imperative_forms?: string[] | null
+          past_participle_forms?: string[] | null
           target_meaning_id?: number | null
           target_lemma?: string | null
           target_meaning_key?: string | null
@@ -160,6 +170,11 @@ export function mockFetchImplementation(options?: {
             singular_definite_forms?: string[] | null
             plural_indefinite_forms?: string[] | null
             plural_definite_forms?: string[] | null
+            infinitive_forms?: string[] | null
+            present_forms?: string[] | null
+            past_forms?: string[] | null
+            imperative_forms?: string[] | null
+            past_participle_forms?: string[] | null
             target_meaning_id?: number | null
             target_lemma?: string | null
             target_meaning_key?: string | null
@@ -201,6 +216,11 @@ export function mockFetchImplementation(options?: {
               singular_definite_forms?: string[] | null
               plural_indefinite_forms?: string[] | null
               plural_definite_forms?: string[] | null
+              infinitive_forms?: string[] | null
+              present_forms?: string[] | null
+              past_forms?: string[] | null
+              imperative_forms?: string[] | null
+              past_participle_forms?: string[] | null
               target_meaning_id?: number | null
               target_lemma?: string | null
               target_meaning_key?: string | null
@@ -244,6 +264,11 @@ export function mockFetchImplementation(options?: {
             singular_definite_forms?: string[] | null
             plural_indefinite_forms?: string[] | null
             plural_definite_forms?: string[] | null
+            infinitive_forms?: string[] | null
+            present_forms?: string[] | null
+            past_forms?: string[] | null
+            imperative_forms?: string[] | null
+            past_participle_forms?: string[] | null
             target_meaning_id?: number | null
             target_lemma?: string | null
             target_meaning_key?: string | null
@@ -281,6 +306,11 @@ export function mockFetchImplementation(options?: {
         singular_definite_forms?: string[] | null
         plural_indefinite_forms?: string[] | null
         plural_definite_forms?: string[] | null
+        infinitive_forms?: string[] | null
+        present_forms?: string[] | null
+        past_forms?: string[] | null
+        imperative_forms?: string[] | null
+        past_participle_forms?: string[] | null
         target_meaning_id?: number | null
         target_lemma?: string | null
         target_meaning_key?: string | null
@@ -321,6 +351,11 @@ export function mockFetchImplementation(options?: {
         singular_definite_forms?: string[] | null
         plural_indefinite_forms?: string[] | null
         plural_definite_forms?: string[] | null
+        infinitive_forms?: string[] | null
+        present_forms?: string[] | null
+        past_forms?: string[] | null
+        imperative_forms?: string[] | null
+        past_participle_forms?: string[] | null
         target_meaning_id?: number | null
         target_lemma?: string | null
         target_meaning_key?: string | null
@@ -444,6 +479,11 @@ export function mockFetchImplementation(options?: {
         singular_definite_forms?: string[] | null
         plural_indefinite_forms?: string[] | null
         plural_definite_forms?: string[] | null
+        infinitive_forms?: string[] | null
+        present_forms?: string[] | null
+        past_forms?: string[] | null
+        imperative_forms?: string[] | null
+        past_participle_forms?: string[] | null
         target_meaning_id?: number | null
         target_lemma?: string | null
         target_meaning_key?: string | null
@@ -484,6 +524,11 @@ export function mockFetchImplementation(options?: {
           singular_definite_forms?: string[] | null
           plural_indefinite_forms?: string[] | null
           plural_definite_forms?: string[] | null
+          infinitive_forms?: string[] | null
+          present_forms?: string[] | null
+          past_forms?: string[] | null
+          imperative_forms?: string[] | null
+          past_participle_forms?: string[] | null
           target_meaning_id?: number | null
           target_lemma?: string | null
           target_meaning_key?: string | null

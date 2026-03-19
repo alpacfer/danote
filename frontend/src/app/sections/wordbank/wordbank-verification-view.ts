@@ -197,9 +197,13 @@ export function verificationActionSummary(action: VerificationAction) {
     if (slotSummary) {
       return slotSummary
     }
-    return hasAdjectiveFixVariationFields(action)
-      ? "Replace the saved variation set with the reviewed adjective forms for this meaning."
-      : "Replace the saved variation set with the reviewed noun forms for this meaning."
+    if (hasAdjectiveFixVariationFields(action)) {
+      return "Replace the saved variation set with the reviewed adjective forms for this meaning."
+    }
+    if (hasVerbFixVariationFields(action)) {
+      return "Replace the saved variation set with the reviewed verb forms for this meaning."
+    }
+    return "Replace the saved variation set with the reviewed noun forms for this meaning."
   }
   if (action.action_type === "move_to_meaning_section") {
     return `Move this entry to meaning section #${action.target_meaning_id ?? "?"}.`
@@ -220,6 +224,11 @@ function formatFixVariationsSlotSummary(action: VerificationAction): string | nu
     buildFixVariationsSlotLine("Singular definite", action.singular_definite_forms ?? maybeWrapLegacyValue(action.singular_definite_form)),
     buildFixVariationsSlotLine("Plural indefinite", action.plural_indefinite_forms ?? maybeWrapLegacyValue(action.plural_indefinite_form)),
     buildFixVariationsSlotLine("Plural definite", action.plural_definite_forms ?? maybeWrapLegacyValue(action.plural_definite_form)),
+    buildFixVariationsSlotLine("Infinitive", action.infinitive_forms),
+    buildFixVariationsSlotLine("Present", action.present_forms),
+    buildFixVariationsSlotLine("Past", action.past_forms),
+    buildFixVariationsSlotLine("Imperative", action.imperative_forms),
+    buildFixVariationsSlotLine("Past participle", action.past_participle_forms),
   ].filter(Boolean)
   return summaries.join(" ") || null
 }
@@ -228,6 +237,16 @@ function hasAdjectiveFixVariationFields(action: VerificationAction): boolean {
   return Boolean(
     (action.singular_indefinite_n_word_forms && action.singular_indefinite_n_word_forms.length > 0)
     || (action.singular_indefinite_t_word_forms && action.singular_indefinite_t_word_forms.length > 0),
+  )
+}
+
+function hasVerbFixVariationFields(action: VerificationAction): boolean {
+  return Boolean(
+    (action.infinitive_forms && action.infinitive_forms.length > 0)
+    || (action.present_forms && action.present_forms.length > 0)
+    || (action.past_forms && action.past_forms.length > 0)
+    || (action.imperative_forms && action.imperative_forms.length > 0)
+    || (action.past_participle_forms && action.past_participle_forms.length > 0),
   )
 }
 
