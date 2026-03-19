@@ -68,6 +68,10 @@ export function mockFetchImplementation(options?: {
         reason?: string | null
         english_translation?: string | null
         gloss?: string | null
+        singular_indefinite_forms?: string[] | null
+        singular_definite_forms?: string[] | null
+        plural_indefinite_forms?: string[] | null
+        plural_definite_forms?: string[] | null
         target_meaning_id?: number | null
         target_lemma?: string | null
         target_meaning_key?: string | null
@@ -108,6 +112,10 @@ export function mockFetchImplementation(options?: {
           reason?: string | null
           english_translation?: string | null
           gloss?: string | null
+          singular_indefinite_forms?: string[] | null
+          singular_definite_forms?: string[] | null
+          plural_indefinite_forms?: string[] | null
+          plural_definite_forms?: string[] | null
           target_meaning_id?: number | null
           target_lemma?: string | null
           target_meaning_key?: string | null
@@ -142,6 +150,10 @@ export function mockFetchImplementation(options?: {
             reason?: string | null
             english_translation?: string | null
             gloss?: string | null
+            singular_indefinite_forms?: string[] | null
+            singular_definite_forms?: string[] | null
+            plural_indefinite_forms?: string[] | null
+            plural_definite_forms?: string[] | null
             target_meaning_id?: number | null
             target_lemma?: string | null
             target_meaning_key?: string | null
@@ -177,6 +189,10 @@ export function mockFetchImplementation(options?: {
               reason?: string | null
               english_translation?: string | null
               gloss?: string | null
+              singular_indefinite_forms?: string[] | null
+              singular_definite_forms?: string[] | null
+              plural_indefinite_forms?: string[] | null
+              plural_definite_forms?: string[] | null
               target_meaning_id?: number | null
               target_lemma?: string | null
               target_meaning_key?: string | null
@@ -214,6 +230,10 @@ export function mockFetchImplementation(options?: {
             reason?: string | null
             english_translation?: string | null
             gloss?: string | null
+            singular_indefinite_forms?: string[] | null
+            singular_definite_forms?: string[] | null
+            plural_indefinite_forms?: string[] | null
+            plural_definite_forms?: string[] | null
             target_meaning_id?: number | null
             target_lemma?: string | null
             target_meaning_key?: string | null
@@ -245,6 +265,10 @@ export function mockFetchImplementation(options?: {
         reason?: string | null
         english_translation?: string | null
         gloss?: string | null
+        singular_indefinite_forms?: string[] | null
+        singular_definite_forms?: string[] | null
+        plural_indefinite_forms?: string[] | null
+        plural_definite_forms?: string[] | null
         target_meaning_id?: number | null
         target_lemma?: string | null
         target_meaning_key?: string | null
@@ -279,6 +303,10 @@ export function mockFetchImplementation(options?: {
         reason?: string | null
         english_translation?: string | null
         gloss?: string | null
+        singular_indefinite_forms?: string[] | null
+        singular_definite_forms?: string[] | null
+        plural_indefinite_forms?: string[] | null
+        plural_definite_forms?: string[] | null
         target_meaning_id?: number | null
         target_lemma?: string | null
         target_meaning_key?: string | null
@@ -396,6 +424,10 @@ export function mockFetchImplementation(options?: {
         reason?: string | null
         english_translation?: string | null
         gloss?: string | null
+        singular_indefinite_forms?: string[] | null
+        singular_definite_forms?: string[] | null
+        plural_indefinite_forms?: string[] | null
+        plural_definite_forms?: string[] | null
         target_meaning_id?: number | null
         target_lemma?: string | null
         target_meaning_key?: string | null
@@ -430,6 +462,10 @@ export function mockFetchImplementation(options?: {
           reason?: string | null
           english_translation?: string | null
           gloss?: string | null
+          singular_indefinite_forms?: string[] | null
+          singular_definite_forms?: string[] | null
+          plural_indefinite_forms?: string[] | null
+          plural_definite_forms?: string[] | null
           target_meaning_id?: number | null
           target_lemma?: string | null
           target_meaning_key?: string | null

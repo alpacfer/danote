@@ -193,6 +193,10 @@ export function verificationActionSummary(action: VerificationAction) {
     return `Set gloss to '${action.gloss ?? ""}'.`
   }
   if (action.action_type === "fix_variations") {
+    const slotSummary = formatFixVariationsSlotSummary(action)
+    if (slotSummary) {
+      return slotSummary
+    }
     return "Replace the saved variation set with the reviewed noun forms for this meaning."
   }
   if (action.action_type === "move_to_meaning_section") {
@@ -204,4 +208,28 @@ export function verificationActionSummary(action: VerificationAction) {
     return `Move this entry to '${targetLemma}' under '${targetMeaning}'.`
   }
   return "Review the Gemini recommendation."
+}
+
+function formatFixVariationsSlotSummary(action: VerificationAction): string | null {
+  const summaries = [
+    buildFixVariationsSlotLine("Singular indefinite", action.singular_indefinite_forms),
+    buildFixVariationsSlotLine("Singular definite", action.singular_definite_forms ?? maybeWrapLegacyValue(action.singular_definite_form)),
+    buildFixVariationsSlotLine("Plural indefinite", action.plural_indefinite_forms ?? maybeWrapLegacyValue(action.plural_indefinite_form)),
+    buildFixVariationsSlotLine("Plural definite", action.plural_definite_forms ?? maybeWrapLegacyValue(action.plural_definite_form)),
+  ].filter(Boolean)
+  return summaries.join(" ") || null
+}
+
+function buildFixVariationsSlotLine(label: string, forms: string[] | null | undefined): string | null {
+  if (!forms || forms.length === 0) {
+    return null
+  }
+  return `${label}: ${forms.join(", ")}.`
+}
+
+function maybeWrapLegacyValue(value: string | null | undefined): string[] | null {
+  if (!value) {
+    return null
+  }
+  return [value]
 }

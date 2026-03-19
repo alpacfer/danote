@@ -8,12 +8,20 @@ from app.services.cor_local import CORLocalEntry
 from app.services.token_classifier import normalize_token
 from app.services.use_cases.wordbank.collaborators.cor import CorResolutionCollaborator
 
-TARGET_NOUN_SLOTS = (
+ALL_NOUN_SLOTS = (
+    ("singular_indefinite", "Sing", "Ind"),
     ("singular_definite", "Sing", "Def"),
     ("plural_indefinite", "Plur", "Ind"),
     ("plural_definite", "Plur", "Def"),
 )
-NOUN_SLOT_ACTION_FIELDS = {
+TARGET_NOUN_SLOTS = tuple(slot for slot in ALL_NOUN_SLOTS if slot[0] != "singular_indefinite")
+NOUN_SLOT_ACTION_LIST_FIELDS = {
+    "singular_indefinite": "singular_indefinite_forms",
+    "singular_definite": "singular_definite_forms",
+    "plural_indefinite": "plural_indefinite_forms",
+    "plural_definite": "plural_definite_forms",
+}
+LEGACY_NOUN_SLOT_ACTION_FIELDS = {
     "singular_definite": "singular_definite_form",
     "plural_indefinite": "plural_indefinite_form",
     "plural_definite": "plural_definite_form",
@@ -74,7 +82,7 @@ def resolve_target_noun_slot_entries(
     *,
     context: NounVariationMeaningContext,
     allow_lemma_mismatch: bool = False,
-) -> dict[str, CORLocalEntry]:
+) -> dict[str, list[CORLocalEntry]]:
     preferred_lemma = context.lemma
     if allow_lemma_mismatch:
         canonical_entry = cor.best_cor_local_lemma_entry(
@@ -113,18 +121,27 @@ def resolve_target_noun_slot_entries(
         ]
         if gloss_matches:
             matching_lemma = gloss_matches
-    by_slot: dict[str, CORLocalEntry] = {}
+    by_slot: dict[str, list[CORLocalEntry]] = {}
     for entry in matching_lemma:
         slot = noun_slot_from_features(entry.features or _morphology_features(entry.morphology))
-        if slot is None or slot in by_slot:
+        if slot is None:
             continue
-        by_slot[slot] = entry
+        by_slot.setdefault(slot, []).append(entry)
     return by_slot
+
+
+def extract_fix_variations_action_slot_form_lists(action: Mapping[str, object]) -> dict[str, list[str]]:
+    slot_forms: dict[str, list[str]] = {}
+    for slot_name, field_name in NOUN_SLOT_ACTION_LIST_FIELDS.items():
+        slot_values = _clean_string_list(action.get(field_name))
+        if slot_values:
+            slot_forms[slot_name] = slot_values
+    return slot_forms
 
 
 def extract_fix_variations_action_slot_forms(action: Mapping[str, object]) -> dict[str, str]:
     slot_forms: dict[str, str] = {}
-    for slot_name, field_name in NOUN_SLOT_ACTION_FIELDS.items():
+    for slot_name, field_name in LEGACY_NOUN_SLOT_ACTION_FIELDS.items():
         raw_value = action.get(field_name)
         if not isinstance(raw_value, str):
             continue
@@ -180,3 +197,20 @@ def _morphology_features(morphology: str | None) -> dict[str, str]:
         if key and value and key not in features:
             features[key] = value
     return features
+
+
+def _clean_string_list(raw_value: object) -> list[str]:
+    if not isinstance(raw_value, list):
+        return []
+    cleaned_values: list[str] = []
+    seen: set[str] = set()
+    for item in raw_value:
+        if not isinstance(item, str):
+            continue
+        cleaned = " ".join(item.strip().split())
+        normalized = normalize_token(cleaned)
+        if not cleaned or normalized in seen:
+            continue
+        seen.add(normalized)
+        cleaned_values.append(cleaned)
+    return cleaned_values

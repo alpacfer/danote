@@ -4,13 +4,14 @@ import {
   corSecondaryBadgeClass,
   getMeaningVerificationGate,
   lemmaTranslationWithGloss,
-  normalizeSearchWord,
   posBadgeClass,
   posBorderLeftClass,
   semanticCategoryBadgeClass,
 } from "@/app/core"
-import { WordbankPronunciationWord } from "@/app/sections/wordbank/wordbank-pronunciation-word"
+import { WordbankFormList } from "@/app/sections/wordbank/wordbank-form-list"
+import { WordbankNounParadigmTable } from "@/app/sections/wordbank/wordbank-noun-paradigm-table"
 import { WordbankScopeContextMenu } from "@/app/sections/wordbank/wordbank-scope-context-menu"
+import { buildNounParadigm, buildVerbFormGroups, buildAdjectiveDegreeGroups } from "@/app/sections/wordbank/wordbank-paradigm-utils"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 
@@ -41,6 +42,8 @@ export function WordbankMeaningSections({
   isCompletingMeaningVariations,
   onCompleteMeaningVariations,
 }: WordbankMeaningSectionsProps) {
+  const normalizedLemma = lemma.trim().toLocaleLowerCase("da-DK")
+
   if (!meaningSections || meaningSections.length === 0) {
     return <p className="text-muted-foreground text-sm">No saved meanings for this lemma.</p>
   }
@@ -70,30 +73,60 @@ export function WordbankMeaningSections({
           section.id,
         )
         const isSelected = selectedMeaningId === section.id
+        const posTag = (section.pos_tag ?? "").toUpperCase()
+        const isNoun = posTag === "NOUN"
+        const lemmaHasPronunciation = section.surface_forms.some(
+          (f) => f.form.trim().toLocaleLowerCase("da-DK") === normalizedLemma && f.has_pronunciation,
+        )
+        const lemmaSyntheticForm = {
+          form: lemma,
+          pos_tag: section.pos_tag ?? null,
+          morphology: section.morphology ?? null,
+          has_pronunciation: lemmaHasPronunciation,
+        }
+        const formsWithLemma = [lemmaSyntheticForm, ...section.surface_forms.filter(
+          (f) => f.form.trim().toLocaleLowerCase("da-DK") !== normalizedLemma,
+        )]
+        const nounParadigm = isNoun ? buildNounParadigm(formsWithLemma) : null
+        const formGroups = posTag === "VERB"
+          ? buildVerbFormGroups(formsWithLemma)
+          : posTag === "ADJ"
+            ? buildAdjectiveDegreeGroups(formsWithLemma)
+            : []
+        const sectionBadgeLabels = new Set(sectionBadges.map((b) => b.label))
+
         return (
           <WordbankScopeContextMenu
             key={`meaning-section-${section.id}-${section.meaning_key}`}
             isRethinkingCategories={isRethinkingCategories}
             onRethinkCategories={() => onRethinkCategories(section.id)}
-            canCompleteVariations={(section.pos_tag ?? "").toUpperCase() === "NOUN" && !completionGate.isLocked}
+            canCompleteVariations={isNoun && !completionGate.isLocked}
             completeVariationsLabel={completionGate.label}
             isCompletingVariations={isCompletingMeaningVariations}
-            onCompleteVariations={(section.pos_tag ?? "").toUpperCase() === "NOUN" ? () => onCompleteMeaningVariations(section.id) : undefined}
+            onCompleteVariations={isNoun ? () => onCompleteMeaningVariations(section.id) : undefined}
           >
             <Card
               id={`wordbank-meaning-${section.id}`}
               data-testid={`wordbank-meaning-card-${section.id}`}
               data-meaning-id={section.id}
               data-selected={isSelected ? "true" : "false"}
-              className={`border-l-2 ${posBorderLeftClass(section.pos_tag ?? null)} ${isSelected ? "ring-primary/30 border-primary/50 ring-2" : ""}`.trim()}
+              className={`border-l-2 py-5 ${posBorderLeftClass(section.pos_tag ?? null)} ${isSelected ? "ring-primary/30 border-primary/50 ring-2" : ""}`.trim()}
             >
-              <CardContent className="space-y-2">
+              <CardContent className="space-y-3">
+                {/* Line 1: Number badge + translation | Category badges */}
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
                       <Badge variant="secondary" className="text-xs tabular-nums">{index + 1}</Badge>
                       <span className="text-lg leading-tight font-bold">{lemma}</span>
-                      {sectionBadges.map((badge) => (
+                      {sectionTranslation ? (
+                        <span className="text-muted-foreground text-sm italic">{sectionTranslation}</span>
+                      ) : null}
+                    </div>
+                    {/* Line 2: POS + morphology badges */}
+                    {sectionBadges.length > 0 ? (
+                      <div className="mt-1.5 ml-9 flex flex-wrap gap-1.5">
+                        {sectionBadges.map((badge) => (
                           <Badge
                             key={`meaning-section-${section.id}-badge-${badge.label}`}
                             variant={badge.tone === "primary" ? "default" : "secondary"}
@@ -101,10 +134,8 @@ export function WordbankMeaningSections({
                           >
                             {badge.label}
                           </Badge>
-                      ))}
-                    </div>
-                    {sectionTranslation ? (
-                      <p className="text-muted-foreground ml-9 text-sm italic">{sectionTranslation}</p>
+                        ))}
+                      </div>
                     ) : null}
                   </div>
                   {section.categories && section.categories.length > 0 ? (
@@ -124,45 +155,30 @@ export function WordbankMeaningSections({
                     </div>
                   ) : null}
                 </div>
+
+                {/* Forms section */}
                 {section.surface_forms.length > 0 ? (
-                  <div className="ml-4 mt-3 divide-y divide-border/50">
-                    {section.surface_forms.map((form) => {
-                      const normalizedForm = normalizeSearchWord(form.form)
-                      const isRegenerating = Boolean(regeneratingPronunciationByForm[normalizedForm])
-                      const sectionBadgeLabels = new Set(sectionBadges.map((b) => b.label))
-                      const formBadges = badgesForSavedForm(form).filter((b) => !sectionBadgeLabels.has(b.label))
-                      return (
-                        <div
-                          key={`${section.id}-${form.form}`}
-                          className="flex flex-wrap items-center gap-x-2 gap-y-1 py-2 first:pt-0"
-                        >
-                          <WordbankPronunciationWord
-                            form={form.form}
-                            hasPronunciation={form.has_pronunciation ?? false}
-                            pronunciationLoadingByForm={pronunciationLoadingByForm}
-                            onPlayPronunciation={onPlayPronunciation}
-                            contextMenuItems={[
-                              {
-                                label: isRegenerating ? "Regenerating audio..." : "Regenerate audio",
-                                disabled: isRegenerating,
-                                onSelect: () => onRegeneratePronunciation(form.form),
-                              },
-                            ]}
-                            className="text-sm font-semibold"
-                            iconClassName="size-3"
-                          />
-                          {formBadges.map((badge) => (
-                            <Badge
-                              key={`${section.id}-${form.form}-badge-${badge.label}`}
-                              variant={badge.tone === "primary" ? "default" : "secondary"}
-                              className={`text-[11px] ${badge.tone === "primary" ? `border ${posBadgeClass(form.pos_tag ?? section.pos_tag ?? null)}` : `border ${corSecondaryBadgeClass(badge.label)}`}`.trim()}
-                            >
-                              {badge.label}
-                            </Badge>
-                          ))}
-                        </div>
-                      )
-                    })}
+                  <div className="mt-2">
+                    {nounParadigm ? (
+                      <WordbankNounParadigmTable
+                        paradigm={nounParadigm}
+                        pronunciationLoadingByForm={pronunciationLoadingByForm}
+                        regeneratingPronunciationByForm={regeneratingPronunciationByForm}
+                        onPlayPronunciation={onPlayPronunciation}
+                        onRegeneratePronunciation={onRegeneratePronunciation}
+                      />
+                    ) : (
+                      <WordbankFormList
+                        groups={formGroups}
+                        fallbackForms={formGroups.length === 0 ? section.surface_forms : []}
+                        parentPosTag={section.pos_tag ?? null}
+                        parentBadgeLabels={sectionBadgeLabels}
+                        pronunciationLoadingByForm={pronunciationLoadingByForm}
+                        regeneratingPronunciationByForm={regeneratingPronunciationByForm}
+                        onPlayPronunciation={onPlayPronunciation}
+                        onRegeneratePronunciation={onRegeneratePronunciation}
+                      />
+                    )}
                   </div>
                 ) : null}
               </CardContent>

@@ -551,6 +551,10 @@ describe("App wordbank", () => {
                 {
                   action_type: "fix_variations",
                   reason: "Replace the saved variation set with the reviewed noun forms for this meaning.",
+                  singular_indefinite_forms: ["mor"],
+                  singular_definite_forms: ["moren"],
+                  plural_indefinite_forms: ["mødre"],
+                  plural_definite_forms: ["mødrene"],
                 },
               ],
             },
@@ -573,6 +577,8 @@ describe("App wordbank", () => {
 
     expect(await screen.findByText(/fix variations/i)).toBeInTheDocument()
     expect(screen.getAllByText(/replace the saved variation set with the reviewed noun forms/i).length).toBeGreaterThan(0)
+    expect(screen.getByText(/singular indefinite: mor\./i)).toBeInTheDocument()
+    expect(screen.getByText(/plural indefinite: mødre\./i)).toBeInTheDocument()
 
     const applyButton = screen.getByRole("button", { name: /apply change/i })
     fireEvent.click(applyButton)
@@ -589,6 +595,10 @@ describe("App wordbank", () => {
             action: {
               action_type: "fix_variations",
               reason: "Replace the saved variation set with the reviewed noun forms for this meaning.",
+              singular_indefinite_forms: ["mor"],
+              singular_definite_forms: ["moren"],
+              plural_indefinite_forms: ["mødre"],
+              plural_definite_forms: ["mødrene"],
             },
             provider: "gemini",
           }),

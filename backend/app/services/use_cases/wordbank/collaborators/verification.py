@@ -17,7 +17,9 @@ from app.services.token_classifier import normalize_token
 from app.services.use_cases.wordbank.collaborators.cor import CorResolutionCollaborator
 from app.services.use_cases.wordbank.collaborators.nlp import NLPCollaborator
 from app.services.use_cases.wordbank.noun_variations import (
-    NOUN_SLOT_ACTION_FIELDS,
+    LEGACY_NOUN_SLOT_ACTION_FIELDS,
+    NOUN_SLOT_ACTION_LIST_FIELDS,
+    extract_fix_variations_action_slot_form_lists,
     extract_fix_variations_action_slot_forms,
     parse_fix_variations_text_slot_forms,
 )
@@ -41,6 +43,7 @@ from app.services.use_cases.wordbank.verification_queue import (
 )
 from app.services.use_cases.wordbank.verification_helper_logic import (
     completion_review_actions,
+    find_fix_variations_action_form_lists,
     find_fix_variations_action_fields,
     normalize_review_intent,
     rethink_categories_message,
@@ -360,7 +363,10 @@ class VerificationCollaborator:
     ) -> dict[str, object]:
         if action.get("action_type") != "fix_variations":
             return action
-        if extract_fix_variations_action_slot_forms(action):
+        if (
+            extract_fix_variations_action_slot_form_lists(action)
+            or extract_fix_variations_action_slot_forms(action)
+        ):
             return action
 
         repository = WordbankRepository(self._db_path)
@@ -375,6 +381,17 @@ class VerificationCollaborator:
         if record is None:
             return action
 
+        hydrated_form_lists = find_fix_variations_action_form_lists(record.suggested_actions)
+        if hydrated_form_lists:
+            return {
+                **action,
+                **{
+                    field_name: form_list
+                    for slot_name, form_list in hydrated_form_lists.items()
+                    if (field_name := NOUN_SLOT_ACTION_LIST_FIELDS.get(slot_name)) is not None
+                },
+            }
+
         hydrated_fields = find_fix_variations_action_fields(record.suggested_actions)
         if not hydrated_fields:
             hydrated_fields = parse_fix_variations_text_slot_forms(record.change_to_implement)
@@ -387,7 +404,7 @@ class VerificationCollaborator:
             **{
                 field_name: form
                 for slot_name, form in hydrated_fields.items()
-                if (field_name := NOUN_SLOT_ACTION_FIELDS.get(slot_name)) is not None
+                if (field_name := LEGACY_NOUN_SLOT_ACTION_FIELDS.get(slot_name)) is not None
             },
         }
 

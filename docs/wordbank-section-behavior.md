@@ -146,6 +146,7 @@ Meaning auto-scroll behavior:
   - error/flagged target cards show reviewed time, problem, change-to-implement text, and action cards inline on that target
   - error target cards also expose `Retry verification`, which queues that exact target again through the backend queue-only endpoint and keeps the page in polling mode until the refreshed run finishes
   - completion-review meaning cards may expose exactly one `Fix variations` action card that rewrites the whole saved noun variation set for that meaning in one apply
+  - completion-review `Fix variations` summaries can describe reviewed noun-slot sets directly, including multiple spellings in one slot such as `Singular indefinite: fader, far`
   - completion-review meaning cards never expose `Move to lemma`, `Move to different meaning`, or translation-fix actions
   - no-record state shows a neutral empty state explaining that verification details will appear here once Gemini runs
   - each action card uses an `Apply change` button that is disabled while apply is in progress
@@ -277,7 +278,8 @@ Pronunciation behavior is shared by header + section rows + variation rows.
 - When COR indicates the saved lemma is an inflected form rather than the true dictionary lemma (for example `mor` vs `moder`), Gemini is prompted to flag the entry and suggest a `move_to_lemma` correction toward the canonical lemma.
 - Exception: the completion-specific meaning review for `Complete variations` keeps the saved lemma fixed and treats canonical-lemma mismatch as a signal to question the generated variation set, not to rewrite the lemma.
 - For that completion-specific review, Gemini/backend remediation is modeled as a single meaning-level `fix_variations` action that can rewrite the saved noun variations in one apply.
-- New completion-review `fix_variations` actions can carry reviewed noun-slot forms directly (`singular_definite_form`, `plural_indefinite_form`, `plural_definite_form`) so apply does not have to trust the same COR paradigm that produced the bad completion set.
+- New completion-review `fix_variations` actions can carry reviewed noun-slot form lists directly (`singular_indefinite_forms`, `singular_definite_forms`, `plural_indefinite_forms`, `plural_definite_forms`) so apply does not have to trust the same COR paradigm that produced the bad completion set.
+- `singular_indefinite_forms` may include the saved lemma plus alternative spellings for the same slot; apply treats that reviewed list as the exact saved slot set and removes stale aliases.
 - Older saved completion reviews that only have prose in `change_to_implement` are still applyable because the backend can extract those noun-slot targets from the persisted review text before mutating the meaning.
 - Translation context comes only from the lemma or meaning section.
   Surface forms do not have independent translations in the verification model.
@@ -314,7 +316,7 @@ Pronunciation behavior is shared by header + section rows + variation rows.
 - Accepting a popover action calls apply endpoint with selected target and action payload.
 - Apply requests always include the exact verification scope: `stored_lemma`, `meaning_id`, and `stored_surface_form`.
 - Meaning-level completion-review fixes use `action_type=fix_variations` with `stored_surface_form=null`; applying that action reconciles the whole saved noun variation set for that meaning.
-- `fix_variations` prefers reviewed noun-slot forms carried by the saved action, then falls back to forms recovered from the saved review text, and only uses COR slot metadata when a reviewed slot form is missing.
+- `fix_variations` prefers reviewed noun-slot form lists carried by the saved action, then falls back to legacy scalar fields or forms recovered from the saved review text, and only uses COR slot metadata when a reviewed slot form is missing.
 - On applied status:
   - success toast text depends on action type
   - backend persisted verification detail is pruned action-by-action

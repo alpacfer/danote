@@ -65,7 +65,8 @@ def complete_meaning_variations(
     pronunciation_repository = WordbankBackgroundJobRepository(runtime.db_path)
 
     for slot_name, _number, _definite in TARGET_NOUN_SLOTS:
-        entry = slot_entries.get(slot_name)
+        slot_candidates = slot_entries.get(slot_name) or []
+        entry = slot_candidates[0] if slot_candidates else None
         if entry is None:
             continue
         normalized_form = normalize_token(entry.form)

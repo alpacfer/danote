@@ -472,8 +472,9 @@ def test_complete_variations_review_adds_fix_variations_action(tmp_path: Path) -
 
     assert verified.verification.status == "flagged"
     assert [action.action_type for action in verified.verification.suggested_actions] == ["fix_variations"]
-    assert verified.verification.suggested_actions[0].plural_indefinite_form == "mødre"
-    assert verified.verification.suggested_actions[0].plural_definite_form == "mødrene"
+    assert verified.verification.suggested_actions[0].singular_indefinite_forms == ["mor"]
+    assert verified.verification.suggested_actions[0].plural_indefinite_forms == ["mødre"]
+    assert verified.verification.suggested_actions[0].plural_definite_forms == ["mødrene"]
 
 
 def test_complete_variations_review_discards_move_to_lemma_actions(tmp_path: Path) -> None:
@@ -636,6 +637,126 @@ def test_wordbank_use_case_applies_fix_variations_action_for_completion_review(t
     assert response.applied_action_type == "fix_variations"
     details = use_case.get_lemma_details("mor")
     assert sorted(form.form for form in details.meaning_sections[0].surface_forms) == ["moren", "mødre", "mødrene"]
+
+
+def test_wordbank_use_case_applies_fix_variations_with_singular_indefinite_aliases(tmp_path: Path) -> None:
+    db_path = _db_path(tmp_path)
+    fader_lemma = _cor_local_entry(
+        cor_id="COR.FADER.LEM",
+        lemma="fader",
+        gloss="father",
+        form="fader",
+        lemma_idx=410,
+        pos_tag="NOUN",
+        morphology="Gender=Com|Number=Sing|Definite=Ind",
+        gram_raw="sb.fk.sg.ubest",
+    )
+    far_alias = _cor_local_entry(
+        cor_id="COR.FADER.IRREG",
+        lemma="fader",
+        gloss="father",
+        form="far",
+        lemma_idx=410,
+        pos_tag="NOUN",
+        morphology="Gender=Com|Number=Sing|Definite=Ind",
+        gram_raw="sb.fk.sg.ubest",
+    )
+    faderen = _cor_local_entry(
+        cor_id="COR.FADER.DEF",
+        lemma="fader",
+        gloss="father",
+        form="faderen",
+        lemma_idx=410,
+        pos_tag="NOUN",
+        morphology="Gender=Com|Number=Sing|Definite=Def",
+        gram_raw="sb.fk.sg.best",
+    )
+    faedre = _cor_local_entry(
+        cor_id="COR.FADER.PL",
+        lemma="fader",
+        gloss="father",
+        form="fædre",
+        lemma_idx=410,
+        pos_tag="NOUN",
+        morphology="Gender=Com|Number=Plur|Definite=Ind",
+        gram_raw="sb.fk.pl.ubest",
+    )
+    faedrene = _cor_local_entry(
+        cor_id="COR.FADER.PLDEF",
+        lemma="fader",
+        gloss="father",
+        form="fædrene",
+        lemma_idx=410,
+        pos_tag="NOUN",
+        morphology="Gender=Com|Number=Plur|Definite=Def",
+        gram_raw="sb.fk.pl.best",
+    )
+    use_case = WordbankUseCase(
+        db_path,
+        cor_local_lexicon_service=FakeCORLocalLexiconService(
+            by_form={"fader": [fader_lemma], "far": [far_alias]},
+            by_lemma_idx={410: [fader_lemma, far_alias, faderen, faedre, faedrene]},
+        ),
+    )
+
+    added = use_case.add_word(
+        "fader",
+        "fader",
+        search_seed={
+            "lemma": "fader",
+            "surface": "fader",
+            "cor_id": "COR.FADER.LEM",
+            "cor_lemma_idx": 410,
+            "meaning_key": "father",
+            "gloss": "father",
+            "english_translation": "father",
+            "pos_tag": "NOUN",
+            "morphology": "Gender=Com|Number=Sing|Definite=Ind",
+        },
+    )
+    assert added.meaning is not None
+
+    with get_connection(db_path) as conn:
+        lexeme = conn.execute("SELECT id FROM lexemes WHERE lemma = ?", ("fader",)).fetchone()
+        assert lexeme is not None
+        for form, morphology in [
+            ("fadermand", "Gender=Com|Number=Sing|Definite=Ind"),
+            ("faderen", "Gender=Com|Number=Sing|Definite=Def"),
+            ("fædre", "Gender=Com|Number=Plur|Definite=Ind"),
+            ("fædrene", "Gender=Com|Number=Plur|Definite=Def"),
+        ]:
+            conn.execute(
+                """
+                INSERT INTO surface_forms (lexeme_id, meaning_id, form, source, pos_tag, morphology)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    int(lexeme["id"]),
+                    added.meaning.id,
+                    form,
+                    "search",
+                    "NOUN",
+                    morphology,
+                ),
+            )
+
+    response = use_case.apply_verification_changes(
+        stored_lemma="fader",
+        stored_surface_form=None,
+        meaning_id=added.meaning.id,
+        action={
+            "action_type": "fix_variations",
+            "singular_indefinite_forms": ["far"],
+            "singular_definite_forms": ["faderen"],
+            "plural_indefinite_forms": ["fædre"],
+            "plural_definite_forms": ["fædrene"],
+        },
+        provider="gemini",
+    )
+
+    assert response.status == "applied"
+    details = use_case.get_lemma_details("fader")
+    assert [form.form for form in details.meaning_sections[0].surface_forms] == ["far", "faderen", "fædre", "fædrene"]
 
 
 def test_wordbank_use_case_hydrates_fix_variations_apply_from_saved_review_text(tmp_path: Path) -> None:

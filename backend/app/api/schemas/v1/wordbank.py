@@ -129,6 +129,10 @@ class VerificationAction(BaseModel):
     reason: str | None = None
     english_translation: str | None = None
     gloss: str | None = None
+    singular_indefinite_forms: list[str] | None = None
+    singular_definite_forms: list[str] | None = None
+    plural_indefinite_forms: list[str] | None = None
+    plural_definite_forms: list[str] | None = None
     singular_definite_form: str | None = None
     plural_indefinite_form: str | None = None
     plural_definite_form: str | None = None

@@ -9,12 +9,17 @@ import {
   posBadgeClass,
   posBorderLeftClass,
 } from "@/app/core"
+import { WordbankFormList } from "@/app/sections/wordbank/wordbank-form-list"
+import { WordbankNounParadigmTable } from "@/app/sections/wordbank/wordbank-noun-paradigm-table"
+import { buildAdjectiveDegreeGroups, buildNounParadigm, buildVerbFormGroups } from "@/app/sections/wordbank/wordbank-paradigm-utils"
 import { WordbankPronunciationWord } from "@/app/sections/wordbank/wordbank-pronunciation-word"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 
 type WordbankVariationGridProps = {
+  allSurfaceForms: LemmaDetailsResponse["surface_forms"]
   variationForms: LemmaDetailsResponse["surface_forms"]
+  posTag: string | null
   pronunciationLoadingByForm: Record<string, boolean>
   regeneratingPronunciationByForm: Record<string, boolean>
   onPlayPronunciation: (form: string) => void
@@ -22,7 +27,9 @@ type WordbankVariationGridProps = {
 }
 
 export function WordbankVariationGrid({
+  allSurfaceForms,
   variationForms,
+  posTag,
   pronunciationLoadingByForm,
   regeneratingPronunciationByForm,
   onPlayPronunciation,
@@ -32,6 +39,45 @@ export function WordbankVariationGrid({
     return null
   }
 
+  const upperPosTag = (posTag ?? "").toUpperCase()
+  const isNoun = upperPosTag === "NOUN"
+  const nounParadigm = isNoun ? buildNounParadigm(allSurfaceForms) : null
+
+  if (nounParadigm) {
+    return (
+      <WordbankNounParadigmTable
+        paradigm={nounParadigm}
+        pronunciationLoadingByForm={pronunciationLoadingByForm}
+        regeneratingPronunciationByForm={regeneratingPronunciationByForm}
+        onPlayPronunciation={onPlayPronunciation}
+        onRegeneratePronunciation={onRegeneratePronunciation}
+      />
+    )
+  }
+
+  const formGroups = upperPosTag === "VERB"
+    ? buildVerbFormGroups(variationForms)
+    : upperPosTag === "ADJ"
+      ? buildAdjectiveDegreeGroups(variationForms)
+      : []
+  const hasGroups = formGroups.length > 0 && formGroups.some((g) => g.label !== "Other")
+
+  if (hasGroups) {
+    return (
+      <WordbankFormList
+        groups={formGroups}
+        fallbackForms={[]}
+        parentPosTag={posTag}
+        parentBadgeLabels={new Set()}
+        pronunciationLoadingByForm={pronunciationLoadingByForm}
+        regeneratingPronunciationByForm={regeneratingPronunciationByForm}
+        onPlayPronunciation={onPlayPronunciation}
+        onRegeneratePronunciation={onRegeneratePronunciation}
+      />
+    )
+  }
+
+  // Fallback: 2-column grid
   return (
     <div className="grid gap-3 md:grid-cols-2">
       {variationForms.map((form) => {

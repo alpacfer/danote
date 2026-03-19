@@ -6,6 +6,9 @@ import time
 from typing import Any, Literal, Protocol
 
 from app.services.token_classifier import normalize_token
+from app.services.verification_noun_slots import (
+    build_completion_review_noun_slot_context,
+)
 from app.services.verification_review_policy import (
     looks_like_danish_self_translation,
     should_ignore_variation_only_review,
@@ -73,6 +76,10 @@ class WordVerificationAction:
     reason: str | None = None
     english_translation: str | None = None
     gloss: str | None = None
+    singular_indefinite_forms: tuple[str, ...] = ()
+    singular_definite_forms: tuple[str, ...] = ()
+    plural_indefinite_forms: tuple[str, ...] = ()
+    plural_definite_forms: tuple[str, ...] = ()
     singular_definite_form: str | None = None
     plural_indefinite_form: str | None = None
     plural_definite_form: str | None = None
@@ -213,12 +220,14 @@ class GeminiWordVerificationService:
         if completion_review:
             action_examples = (
                 '{"action_type":"fix_variations","reason":"...",'
-                '"singular_definite_form":"...",'
-                '"plural_indefinite_form":"...",'
-                '"plural_definite_form":"..."}'
+                '"singular_indefinite_forms":["...", "..."],'
+                '"singular_definite_forms":["..."],'
+                '"plural_indefinite_forms":["..."],'
+                '"plural_definite_forms":["..."]}'
             )
             fix_variations_rule = (
-                "- If action_type=fix_variations, include the complete noun variation set in singular_definite_form, plural_indefinite_form, and plural_definite_form whenever those slots are known.\n"
+                "- If action_type=fix_variations, include the complete noun variation set in singular_indefinite_forms, singular_definite_forms, plural_indefinite_forms, and plural_definite_forms whenever those slots are known.\n"
+                "- singular_indefinite_forms must include the saved lemma and any alternative spellings that belong in that same slot.\n"
             )
         else:
             action_examples = (
@@ -361,6 +370,11 @@ class GeminiWordVerificationService:
                 }
                 for form in payload.available_surface_forms
             ],
+            "noun_slot_surface_forms": (
+                build_completion_review_noun_slot_context(payload)
+                if payload.review_intent == "complete_variations"
+                else {}
+            ),
         }
 
     def _parse_response(self, raw: str) -> dict[str, object]:
@@ -485,6 +499,10 @@ class GeminiWordVerificationService:
             return WordVerificationAction(
                 action_type="fix_variations",
                 reason=reason,
+                singular_indefinite_forms=tuple(_optional_clean_str_list(raw.get("singular_indefinite_forms"))),
+                singular_definite_forms=tuple(_optional_clean_str_list(raw.get("singular_definite_forms"))),
+                plural_indefinite_forms=tuple(_optional_clean_str_list(raw.get("plural_indefinite_forms"))),
+                plural_definite_forms=tuple(_optional_clean_str_list(raw.get("plural_definite_forms"))),
                 singular_definite_form=_optional_clean_str(raw.get("singular_definite_form")),
                 plural_indefinite_form=_optional_clean_str(raw.get("plural_indefinite_form")),
                 plural_definite_form=_optional_clean_str(raw.get("plural_definite_form")),
@@ -560,3 +578,17 @@ def _optional_clean_str(value: Any) -> str | None:
         return None
     cleaned = value.strip()
     return cleaned or None
+
+
+def _optional_clean_str_list(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    cleaned_values: list[str] = []
+    seen: set[str] = set()
+    for item in value:
+        cleaned = _optional_clean_str(item)
+        if cleaned is None or cleaned in seen:
+            continue
+        seen.add(cleaned)
+        cleaned_values.append(cleaned)
+    return cleaned_values

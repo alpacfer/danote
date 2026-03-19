@@ -79,6 +79,10 @@ export type VerificationAction = {
   reason?: string | null
   english_translation?: string | null
   gloss?: string | null
+  singular_indefinite_forms?: string[] | null
+  singular_definite_forms?: string[] | null
+  plural_indefinite_forms?: string[] | null
+  plural_definite_forms?: string[] | null
   singular_definite_form?: string | null
   plural_indefinite_form?: string | null
   plural_definite_form?: string | null

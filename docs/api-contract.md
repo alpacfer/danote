@@ -182,8 +182,9 @@ Route decorators are the source of truth in `backend/app/api/routes/`, and API D
   - completion-review records may expose a meaning-level `fix_variations` action that reconciles the whole saved noun variation set for that meaning in one apply request.
   - `fix_variations` is reserved for the `Complete variations` follow-up review; normal save verification does not emit that action type.
   - when the persisted verification record has `review_intent = "complete_variations"`, the backend rejects any apply attempt whose `action.action_type` is not `fix_variations`, even if the client sends it manually.
-  - when Gemini provides them, `fix_variations` actions may include `singular_definite_form`, `plural_indefinite_form`, and `plural_definite_form` so apply uses the reviewed surface set directly instead of re-deriving it from COR.
-  - if those structured noun-slot fields are missing on an older saved completion review, the backend will try to recover them from the persisted review text before applying.
+  - when Gemini provides them, `fix_variations` actions may include `singular_indefinite_forms`, `singular_definite_forms`, `plural_indefinite_forms`, and `plural_definite_forms` so apply uses the reviewed slot sets directly instead of re-deriving them from COR.
+  - `singular_indefinite_forms` may include multiple spellings for the same slot, such as `["fader", "far"]`.
+  - older saved completion reviews may still carry legacy scalar slot fields (`singular_definite_form`, `plural_indefinite_form`, `plural_definite_form`); the backend still accepts them on input and can recover them from persisted review text during apply.
 - **Notable status/error behavior:**
   - `503` when DB unavailable/locked.
   - `404` when source/target meaning context cannot be resolved.
@@ -427,8 +428,10 @@ Route decorators are the source of truth in `backend/app/api/routes/`, and API D
               {
                 "action_type": "fix_variations",
                 "reason": "Replace the saved variation set with the reviewed noun forms for this meaning.",
-                "plural_indefinite_form": "mødre",
-                "plural_definite_form": "mødrene"
+                "singular_indefinite_forms": ["mor"],
+                "singular_definite_forms": ["moren"],
+                "plural_indefinite_forms": ["mødre"],
+                "plural_definite_forms": ["mødrene"]
               }
             ]
           },

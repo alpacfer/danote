@@ -123,7 +123,9 @@ export function WordbankWordPage({
             />
           ) : (
             <WordbankVariationGrid
+              allSurfaceForms={lemmaDetails.surface_forms}
               variationForms={variationForms}
+              posTag={lemmaDetails.pos_tag}
               pronunciationLoadingByForm={pronunciationLoadingByForm}
               regeneratingPronunciationByForm={regeneratingPronunciationByForm}
               onPlayPronunciation={onPlayPronunciation}

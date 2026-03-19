@@ -10,7 +10,8 @@ from app.services.cor_local import CORLocalEntry
 from app.services.token_classifier import normalize_token
 from app.services.use_cases.wordbank.collaborators.cor import CorResolutionCollaborator
 from app.services.use_cases.wordbank.noun_variations import (
-    TARGET_NOUN_SLOTS,
+    ALL_NOUN_SLOTS,
+    extract_fix_variations_action_slot_form_lists,
     extract_fix_variations_action_slot_forms,
     noun_meaning_context_from_rows,
     noun_slot_from_morphology,
@@ -45,7 +46,7 @@ class VerificationActionExecutionResult:
 
 
 @dataclass(frozen=True)
-class DesiredNounVariationSlot:
+class DesiredNounVariationForm:
     form: str
     pos_tag: str | None
     morphology: str | None
@@ -454,6 +455,7 @@ def _apply_fix_variations(
     desired_slots = _resolve_fix_variations_slots(
         action=action,
         fallback_slot_entries=fallback_slot_entries,
+        lemma=context.lemma,
     )
     if not desired_slots:
         raise RuntimeError("No COR-backed noun variations were found for this meaning.")
@@ -470,31 +472,62 @@ def _apply_fix_variations(
     rows_by_slot: dict[str, list[sqlite3.Row]] = {}
     for row in current_rows:
         normalized_form = normalize_token(str(row["form"]))
-        if not normalized_form or normalized_form == context.lemma:
+        if not normalized_form:
             continue
         slot = noun_slot_from_morphology(row["morphology"])
         if slot is None:
             continue
         rows_by_slot.setdefault(slot, []).append(row)
 
-    changed_forms: list[str] = []
+    affected_forms: list[str] = []
     mutated = False
-    for slot_name, _number, _definite in TARGET_NOUN_SLOTS:
-        desired_slot = desired_slots.get(slot_name)
-        if desired_slot is None:
-            continue
-        desired_form = normalize_token(desired_slot.form)
-        if not desired_form:
+    for slot_name, _number, _definite in ALL_NOUN_SLOTS:
+        desired_forms = desired_slots.get(slot_name)
+        if desired_forms is None:
             continue
         slot_rows = rows_by_slot.get(slot_name, [])
-        matching_row = next(
-            (row for row in slot_rows if normalize_token(str(row["form"])) == desired_form),
-            None,
-        )
-        if matching_row is None and slot_rows:
-            matching_row = slot_rows[0]
+        current_signature = [
+            (
+                normalize_token(str(row["form"])) or str(row["form"]),
+                str(row["source"]),
+                row["pos_tag"] or None,
+                row["morphology"] or None,
+                _current_surface_form_cor_id(conn, surface_form_id=int(row["id"])),
+                row["pronunciation_audio"] is not None,
+                row["pronunciation_mime_type"] is not None,
+                row["pronunciation_provider"] is not None,
+                row["pronunciation_model"] is not None,
+                row["pronunciation_generated_at"] is not None,
+            )
+            for row in slot_rows
+        ]
+        desired_signature = [
+            (
+                normalize_token(form.form) or form.form,
+                "search",
+                form.pos_tag,
+                form.morphology,
+                form.cor_id,
+                False,
+                False,
+                False,
+                False,
+                False,
+            )
+            for form in desired_forms
+        ]
+        if current_signature == desired_signature:
+            continue
 
-        if matching_row is None:
+        mutated = True
+        affected_forms.extend(str(row["form"]) for row in slot_rows)
+        affected_forms.extend(form.form for form in desired_forms)
+
+        for row in slot_rows:
+            conn.execute("DELETE FROM surface_form_cor_variants WHERE surface_form_id = ?", (int(row["id"]),))
+            conn.execute("DELETE FROM surface_forms WHERE id = ?", (int(row["id"]),))
+
+        for desired_form in desired_forms:
             conn.execute(
                 """
                 INSERT INTO surface_forms (
@@ -512,99 +545,33 @@ def _apply_fix_variations(
                 (
                     context.lexeme_id,
                     context.meaning_id,
-                    desired_slot.form,
+                    desired_form.form,
                     "search",
                     1,
-                    desired_slot.pos_tag,
-                    desired_slot.morphology,
+                    desired_form.pos_tag,
+                    desired_form.morphology,
                 ),
             )
             surface_row = conn.execute(
                 """
-                SELECT *
+                SELECT id
                 FROM surface_forms
                 WHERE lexeme_id = ? AND meaning_id = ? AND form = ?
+                ORDER BY id DESC
                 LIMIT 1
                 """,
-                (context.lexeme_id, context.meaning_id, desired_slot.form),
+                (context.lexeme_id, context.meaning_id, desired_form.form),
             ).fetchone()
             if surface_row is None:
                 raise RuntimeError("Failed to insert corrected noun variation.")
-            matching_row = surface_row
-            mutated = True
-            changed_forms.append(desired_slot.form)
-        else:
-            current_form = normalize_token(str(matching_row["form"]))
-            current_cor_id = _current_surface_form_cor_id(conn, surface_form_id=int(matching_row["id"]))
-            needs_row_update = (
-                current_form != desired_form
-                or str(matching_row["source"]) != "search"
-                or (matching_row["pos_tag"] or None) != desired_slot.pos_tag
-                or (matching_row["morphology"] or None) != desired_slot.morphology
-                or matching_row["pronunciation_audio"] is not None
-                or matching_row["pronunciation_mime_type"] is not None
-                or matching_row["pronunciation_provider"] is not None
-                or matching_row["pronunciation_model"] is not None
-                or matching_row["pronunciation_generated_at"] is not None
-            )
-            if needs_row_update:
-                mutated = True
-                if current_form != desired_form:
-                    changed_forms.append(desired_slot.form)
+            if desired_form.cor_id:
                 conn.execute(
                     """
-                    UPDATE surface_forms
-                    SET form = ?,
-                        source = ?,
-                        pos_tag = ?,
-                        morphology = ?,
-                        pronunciation_audio = NULL,
-                        pronunciation_mime_type = NULL,
-                        pronunciation_provider = NULL,
-                        pronunciation_model = NULL,
-                        pronunciation_generated_at = NULL,
-                        last_seen_at = CURRENT_TIMESTAMP
-                    WHERE id = ?
+                    INSERT INTO surface_form_cor_variants (surface_form_id, cor_id)
+                    VALUES (?, ?)
                     """,
-                    (
-                        desired_slot.form,
-                        "search",
-                        desired_slot.pos_tag,
-                        desired_slot.morphology,
-                        int(matching_row["id"]),
-                    ),
+                    (int(surface_row["id"]), desired_form.cor_id),
                 )
-            if current_cor_id != desired_slot.cor_id:
-                mutated = True
-                conn.execute(
-                    "DELETE FROM surface_form_cor_variants WHERE surface_form_id = ?",
-                    (int(matching_row["id"]),),
-                )
-                if desired_slot.cor_id:
-                    conn.execute(
-                        """
-                        INSERT INTO surface_form_cor_variants (surface_form_id, cor_id)
-                        VALUES (?, ?)
-                        """,
-                        (int(matching_row["id"]), desired_slot.cor_id),
-                    )
-
-        if matching_row is not None and _current_surface_form_cor_id(conn, surface_form_id=int(matching_row["id"])) is None and desired_slot.cor_id:
-            conn.execute(
-                """
-                INSERT INTO surface_form_cor_variants (surface_form_id, cor_id)
-                VALUES (?, ?)
-                """,
-                (int(matching_row["id"]), desired_slot.cor_id),
-            )
-            mutated = True
-
-        preserved_row_id = int(matching_row["id"])
-        for row in slot_rows:
-            if int(row["id"]) == preserved_row_id:
-                continue
-            conn.execute("DELETE FROM surface_forms WHERE id = ?", (int(row["id"]),))
-            mutated = True
 
     lemma = str(source_lexeme["lemma"])
     meaning_id = int(source_meaning["id"])
@@ -617,7 +584,7 @@ def _apply_fix_variations(
             log_payload=None,
             invalidate_targets=((lemma, None),),
         )
-    changed_forms = sorted({normalize_token(form) or form for form in changed_forms})
+    changed_forms = sorted({normalize_token(form) or form for form in affected_forms})
     return VerificationActionExecutionResult(
         status="applied",
         applied_action_type="fix_variations",
@@ -636,45 +603,65 @@ def _apply_fix_variations(
 def _resolve_fix_variations_slots(
     *,
     action: dict[str, object],
-    fallback_slot_entries: dict[str, CORLocalEntry],
-) -> dict[str, DesiredNounVariationSlot]:
+    fallback_slot_entries: dict[str, list[CORLocalEntry]],
+    lemma: str,
+) -> dict[str, tuple[DesiredNounVariationForm, ...]]:
+    action_slot_form_lists = extract_fix_variations_action_slot_form_lists(action)
     action_slot_forms = extract_fix_variations_action_slot_forms(action)
-    if not action_slot_forms:
+    if not action_slot_form_lists and not action_slot_forms:
         return {
-            slot_name: DesiredNounVariationSlot(
-                form=entry.form,
-                pos_tag=entry.pos_tag,
-                morphology=entry.morphology,
-                cor_id=entry.cor_id,
+            slot_name: tuple(
+                DesiredNounVariationForm(
+                    form=entry.form,
+                    pos_tag=entry.pos_tag,
+                    morphology=entry.morphology,
+                    cor_id=entry.cor_id,
+                )
+                for entry in entries
             )
-            for slot_name, entry in fallback_slot_entries.items()
+            for slot_name, entries in fallback_slot_entries.items()
+            if entries and slot_name != "singular_indefinite"
         }
 
-    desired_slots: dict[str, DesiredNounVariationSlot] = {}
-    for slot_name, _number, _definite in TARGET_NOUN_SLOTS:
-        fallback_entry = fallback_slot_entries.get(slot_name)
-        desired_form = action_slot_forms.get(slot_name)
-        if desired_form is None and fallback_entry is None:
+    desired_slots: dict[str, tuple[DesiredNounVariationForm, ...]] = {}
+    normalized_lemma = normalize_token(lemma) or lemma
+    for slot_name, _number, _definite in ALL_NOUN_SLOTS:
+        fallback_entries = fallback_slot_entries.get(slot_name, [])
+        desired_form_list = action_slot_form_lists.get(slot_name)
+        if desired_form_list is None and slot_name == "singular_indefinite" and action_slot_form_lists:
+            desired_form_list = [lemma]
+        if desired_form_list is None and slot_name in action_slot_forms:
+            desired_form_list = [action_slot_forms[slot_name]]
+        if desired_form_list is None and slot_name != "singular_indefinite" and fallback_entries:
+            desired_form_list = [entry.form for entry in fallback_entries]
+        if desired_form_list is None:
             continue
-        if desired_form is None and fallback_entry is not None:
-            desired_slots[slot_name] = DesiredNounVariationSlot(
-                form=fallback_entry.form,
-                pos_tag=fallback_entry.pos_tag,
-                morphology=fallback_entry.morphology,
-                cor_id=fallback_entry.cor_id,
+        if slot_name == "singular_indefinite":
+            desired_form_list = _ensure_lemma_in_slot_forms(desired_form_list, normalized_lemma)
+        slot_forms = []
+        for desired_form in desired_form_list:
+            matching_entry = next(
+                (entry for entry in fallback_entries if normalize_token(entry.form) == normalize_token(desired_form)),
+                None,
             )
-            continue
-        desired_slots[slot_name] = DesiredNounVariationSlot(
-            form=desired_form,
-            pos_tag=fallback_entry.pos_tag if fallback_entry is not None else "NOUN",
-            morphology=fallback_entry.morphology if fallback_entry is not None else None,
-            cor_id=(
-                fallback_entry.cor_id
-                if fallback_entry is not None and normalize_token(fallback_entry.form) == normalize_token(desired_form)
-                else None
-            ),
-        )
+            fallback_entry = matching_entry or (fallback_entries[0] if fallback_entries else None)
+            slot_forms.append(
+                DesiredNounVariationForm(
+                    form=desired_form,
+                    pos_tag=fallback_entry.pos_tag if fallback_entry is not None else "NOUN",
+                    morphology=fallback_entry.morphology if fallback_entry is not None else None,
+                    cor_id=matching_entry.cor_id if matching_entry is not None else None,
+                )
+            )
+        desired_slots[slot_name] = tuple(slot_forms)
     return desired_slots
+
+
+def _ensure_lemma_in_slot_forms(desired_form_list: list[str], lemma: str) -> list[str]:
+    normalized_lemma = normalize_token(lemma) or lemma
+    if any((normalize_token(item) or item) == normalized_lemma for item in desired_form_list):
+        return desired_form_list
+    return [lemma, *desired_form_list]
 
 
 def _current_surface_form_cor_id(conn: sqlite3.Connection, *, surface_form_id: int) -> str | None:

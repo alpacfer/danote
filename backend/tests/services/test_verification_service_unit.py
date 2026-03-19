@@ -142,7 +142,10 @@ def test_gemini_verification_service_keeps_only_supported_actions(monkeypatch) -
             '"suggested_actions":['
             '{"action_type":"fix_translation","english_translation":"book","reason":"translation mismatch"},'
             '{"action_type":"fix_variations","reason":"replace the completed forms",'
-            '"singular_definite_form":"moren","plural_indefinite_form":"mødre","plural_definite_form":"mødrene"},'
+            '"singular_indefinite_forms":["mor","moder"],'
+            '"singular_definite_forms":["moren"],'
+            '"plural_indefinite_forms":["mødre"],'
+            '"plural_definite_forms":["mødrene"]},'
             '{"action_type":"fix_gloss","gloss":"reading material","reason":"should be ignored"},'
             '{"action_type":"rename_everything","target":"ignored"}'
             ']}'
@@ -153,8 +156,9 @@ def test_gemini_verification_service_keeps_only_supported_actions(monkeypatch) -
 
     assert result.verdict == "flagged"
     assert [action.action_type for action in result.suggested_actions] == ["fix_variations"]
-    assert result.suggested_actions[0].plural_indefinite_form == "mødre"
-    assert result.suggested_actions[0].plural_definite_form == "mødrene"
+    assert result.suggested_actions[0].singular_indefinite_forms == ("mor", "moder")
+    assert result.suggested_actions[0].plural_indefinite_forms == ("mødre",)
+    assert result.suggested_actions[0].plural_definite_forms == ("mødrene",)
 
 
 def test_gemini_complete_variations_discards_non_variation_actions(monkeypatch) -> None:
@@ -267,8 +271,10 @@ def test_gemini_complete_variations_prompt_keeps_saved_lemma_fixed() -> None:
     assert "Keep the saved lemma and meaning section fixed" in prompt
     assert "Use only this action type: fix_variations" in prompt
     assert "fix_variations" in prompt
-    assert "plural_indefinite_form" in prompt
-    assert "plural_definite_form" in prompt
+    assert "singular_indefinite_forms" in prompt
+    assert "plural_indefinite_forms" in prompt
+    assert "plural_definite_forms" in prompt
+    assert "noun_slot_surface_forms" in prompt
     assert '{"action_type":"fix_translation"' not in prompt
     assert '{"action_type":"move_to_meaning_section"' not in prompt
     assert '{"action_type":"move_to_lemma"' not in prompt
