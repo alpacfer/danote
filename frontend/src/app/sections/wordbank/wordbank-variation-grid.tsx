@@ -10,8 +10,13 @@ import {
   posBorderLeftClass,
 } from "@/app/core"
 import { WordbankFormList } from "@/app/sections/wordbank/wordbank-form-list"
-import { WordbankNounParadigmTable } from "@/app/sections/wordbank/wordbank-noun-paradigm-table"
-import { buildAdjectiveDegreeGroups, buildNounParadigm, buildVerbFormGroups } from "@/app/sections/wordbank/wordbank-paradigm-utils"
+import { WordbankParadigmTable } from "@/app/sections/wordbank/wordbank-paradigm-table"
+import {
+  buildAdjectiveDegreeGroups,
+  buildAdjectiveParadigm,
+  buildNounParadigm,
+  buildVerbFormGroups,
+} from "@/app/sections/wordbank/wordbank-paradigm-utils"
 import { WordbankPronunciationWord } from "@/app/sections/wordbank/wordbank-pronunciation-word"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
@@ -35,24 +40,25 @@ export function WordbankVariationGrid({
   onPlayPronunciation,
   onRegeneratePronunciation,
 }: WordbankVariationGridProps) {
-  if (variationForms.length === 0) {
-    return null
-  }
-
   const upperPosTag = (posTag ?? "").toUpperCase()
   const isNoun = upperPosTag === "NOUN"
   const nounParadigm = isNoun ? buildNounParadigm(allSurfaceForms) : null
+  const adjectiveParadigm = upperPosTag === "ADJ" ? buildAdjectiveParadigm(allSurfaceForms) : null
 
-  if (nounParadigm) {
+  if (nounParadigm || adjectiveParadigm) {
     return (
-      <WordbankNounParadigmTable
-        paradigm={nounParadigm}
+      <WordbankParadigmTable
+        paradigm={nounParadigm ?? adjectiveParadigm!}
         pronunciationLoadingByForm={pronunciationLoadingByForm}
         regeneratingPronunciationByForm={regeneratingPronunciationByForm}
         onPlayPronunciation={onPlayPronunciation}
         onRegeneratePronunciation={onRegeneratePronunciation}
       />
     )
+  }
+
+  if (variationForms.length === 0) {
+    return null
   }
 
   const formGroups = upperPosTag === "VERB"

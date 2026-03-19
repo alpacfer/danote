@@ -16,7 +16,8 @@ from app.db.repositories.wordbank import WordbankRepository
 from app.services.token_classifier import normalize_token
 from app.services.use_cases.wordbank.collaborators.cor import CorResolutionCollaborator
 from app.services.use_cases.wordbank.collaborators.nlp import NLPCollaborator
-from app.services.use_cases.wordbank.noun_variations import (
+from app.services.use_cases.wordbank.paradigm_variations import (
+    ADJECTIVE_SLOT_ACTION_LIST_FIELDS,
     LEGACY_NOUN_SLOT_ACTION_FIELDS,
     NOUN_SLOT_ACTION_LIST_FIELDS,
     extract_fix_variations_action_slot_form_lists,
@@ -383,12 +384,16 @@ class VerificationCollaborator:
 
         hydrated_form_lists = find_fix_variations_action_form_lists(record.suggested_actions)
         if hydrated_form_lists:
+            field_by_slot = {
+                **NOUN_SLOT_ACTION_LIST_FIELDS,
+                **ADJECTIVE_SLOT_ACTION_LIST_FIELDS,
+            }
             return {
                 **action,
                 **{
                     field_name: form_list
                     for slot_name, form_list in hydrated_form_lists.items()
-                    if (field_name := NOUN_SLOT_ACTION_LIST_FIELDS.get(slot_name)) is not None
+                    if (field_name := field_by_slot.get(slot_name)) is not None
                 },
             }
 

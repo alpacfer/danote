@@ -9,9 +9,14 @@ import {
   semanticCategoryBadgeClass,
 } from "@/app/core"
 import { WordbankFormList } from "@/app/sections/wordbank/wordbank-form-list"
-import { WordbankNounParadigmTable } from "@/app/sections/wordbank/wordbank-noun-paradigm-table"
+import { WordbankParadigmTable } from "@/app/sections/wordbank/wordbank-paradigm-table"
 import { WordbankScopeContextMenu } from "@/app/sections/wordbank/wordbank-scope-context-menu"
-import { buildNounParadigm, buildVerbFormGroups, buildAdjectiveDegreeGroups } from "@/app/sections/wordbank/wordbank-paradigm-utils"
+import {
+  buildAdjectiveDegreeGroups,
+  buildAdjectiveParadigm,
+  buildNounParadigm,
+  buildVerbFormGroups,
+} from "@/app/sections/wordbank/wordbank-paradigm-utils"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 
@@ -75,6 +80,8 @@ export function WordbankMeaningSections({
         const isSelected = selectedMeaningId === section.id
         const posTag = (section.pos_tag ?? "").toUpperCase()
         const isNoun = posTag === "NOUN"
+        const isAdjective = posTag === "ADJ"
+        const canCompleteParadigm = isNoun || isAdjective
         const lemmaHasPronunciation = section.surface_forms.some(
           (f) => f.form.trim().toLocaleLowerCase("da-DK") === normalizedLemma && f.has_pronunciation,
         )
@@ -82,17 +89,20 @@ export function WordbankMeaningSections({
           form: lemma,
           pos_tag: section.pos_tag ?? null,
           morphology: section.morphology ?? null,
+          gram_raw: section.gram_raw ?? null,
           has_pronunciation: lemmaHasPronunciation,
         }
         const formsWithLemma = [lemmaSyntheticForm, ...section.surface_forms.filter(
           (f) => f.form.trim().toLocaleLowerCase("da-DK") !== normalizedLemma,
         )]
         const nounParadigm = isNoun ? buildNounParadigm(formsWithLemma) : null
+        const adjectiveParadigm = posTag === "ADJ" ? buildAdjectiveParadigm(formsWithLemma) : null
         const formGroups = posTag === "VERB"
           ? buildVerbFormGroups(formsWithLemma)
           : posTag === "ADJ"
             ? buildAdjectiveDegreeGroups(formsWithLemma)
             : []
+        const hasRenderableForms = Boolean(nounParadigm || adjectiveParadigm || section.surface_forms.length > 0)
         const sectionBadgeLabels = new Set(sectionBadges.map((b) => b.label))
 
         return (
@@ -100,10 +110,10 @@ export function WordbankMeaningSections({
             key={`meaning-section-${section.id}-${section.meaning_key}`}
             isRethinkingCategories={isRethinkingCategories}
             onRethinkCategories={() => onRethinkCategories(section.id)}
-            canCompleteVariations={isNoun && !completionGate.isLocked}
+            canCompleteVariations={canCompleteParadigm && !completionGate.isLocked}
             completeVariationsLabel={completionGate.label}
             isCompletingVariations={isCompletingMeaningVariations}
-            onCompleteVariations={isNoun ? () => onCompleteMeaningVariations(section.id) : undefined}
+            onCompleteVariations={canCompleteParadigm ? () => onCompleteMeaningVariations(section.id) : undefined}
           >
             <Card
               id={`wordbank-meaning-${section.id}`}
@@ -157,11 +167,11 @@ export function WordbankMeaningSections({
                 </div>
 
                 {/* Forms section */}
-                {section.surface_forms.length > 0 ? (
+                {hasRenderableForms ? (
                   <div className="mt-2">
-                    {nounParadigm ? (
-                      <WordbankNounParadigmTable
-                        paradigm={nounParadigm}
+                    {nounParadigm || adjectiveParadigm ? (
+                      <WordbankParadigmTable
+                        paradigm={nounParadigm ?? adjectiveParadigm!}
                         pronunciationLoadingByForm={pronunciationLoadingByForm}
                         regeneratingPronunciationByForm={regeneratingPronunciationByForm}
                         onPlayPronunciation={onPlayPronunciation}

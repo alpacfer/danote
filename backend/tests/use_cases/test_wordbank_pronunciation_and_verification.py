@@ -223,6 +223,110 @@ def test_word_verification_payload_uses_saved_and_canonical_metadata_for_search_
     assert details.categories == ["Actions", "School"]
 
 
+def test_complete_variations_verification_payload_preserves_merged_gram_raw_for_shared_adjective_forms(
+    tmp_path: Path,
+) -> None:
+    verification_service = FakeVerificationService(
+        verdict="verified",
+        message="Entry is consistent.",
+    )
+    smuk_n = _cor_local_entry(
+        cor_id="COR.SMUK.N",
+        lemma="smuk",
+        gloss="beautiful",
+        form="smuk",
+        lemma_idx=221,
+        pos_tag="ADJ",
+        morphology="Gender=Com|Number=Sing|Definite=Ind",
+        gram_raw="adj.sg.ubest.fk",
+    )
+    smuk_t = _cor_local_entry(
+        cor_id="COR.SMUK.T",
+        lemma="smuk",
+        gloss="beautiful",
+        form="smukt",
+        lemma_idx=221,
+        pos_tag="ADJ",
+        morphology="Gender=Neut|Number=Sing|Definite=Ind",
+        gram_raw="adj.sg.ubest.itk",
+    )
+    smuk_def = _cor_local_entry(
+        cor_id="COR.SMUK.DEF",
+        lemma="smuk",
+        gloss="beautiful",
+        form="smukke",
+        lemma_idx=221,
+        pos_tag="ADJ",
+        morphology="Number=Sing|Definite=Def",
+        gram_raw="adj.sg.best",
+    )
+    smuk_pl = _cor_local_entry(
+        cor_id="COR.SMUK.PL",
+        lemma="smuk",
+        gloss="beautiful",
+        form="smukke",
+        lemma_idx=221,
+        pos_tag="ADJ",
+        morphology="Number=Plur",
+        gram_raw="adj.pl",
+    )
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_local_lexicon_service=FakeCORLocalLexiconService(
+            by_form={"smuk": [smuk_n], "smukt": [smuk_t], "smukke": [smuk_def, smuk_pl]},
+            by_lemma_idx={221: [smuk_n, smuk_t, smuk_def, smuk_pl]},
+        ),
+        verification_service=verification_service,
+    )
+
+    added = use_case.add_word(
+        "smukt",
+        "smuk",
+        search_seed={
+            "lemma": "smuk",
+            "surface": "smukt",
+            "cor_id": "COR.SMUK.T",
+            "cor_lemma_idx": 221,
+            "meaning_key": "beautiful",
+            "gloss": "beautiful",
+            "english_translation": "beautiful",
+            "pos_tag": "ADJ",
+            "morphology": "Gender=Neut|Number=Sing|Definite=Ind",
+        },
+    )
+    assert added.meaning is not None
+
+    with get_connection(_db_path(tmp_path)) as conn:
+        lexeme = conn.execute("SELECT id FROM lexemes WHERE lemma = ?", ("smuk",)).fetchone()
+        assert lexeme is not None
+        conn.execute(
+            """
+            INSERT INTO surface_forms (lexeme_id, meaning_id, form, source, pos_tag, morphology)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                int(lexeme["id"]),
+                added.meaning.id,
+                "smukke",
+                "search",
+                "ADJ",
+                "Number=Sing|Definite=Def",
+            ),
+        )
+
+    use_case.verify_added_word(
+        "smuk",
+        None,
+        meaning_id=added.meaning.id,
+        review_intent="complete_variations",
+    )
+
+    payload = verification_service.calls[0]
+    smukke = next(form for form in payload.available_surface_forms if form.form == "smukke")
+
+    assert smukke.gram_raw == "adj.sg.best | adj.pl"
+
+
 def test_word_verification_payload_for_homograph_meaning_uses_translated_gloss_context(tmp_path: Path) -> None:
     verification_service = FakeVerificationService(
         verdict="verified",
@@ -477,6 +581,104 @@ def test_complete_variations_review_adds_fix_variations_action(tmp_path: Path) -
     assert verified.verification.suggested_actions[0].plural_definite_forms == ["mødrene"]
 
 
+def test_complete_variations_review_adds_fix_variations_action_for_adjective(tmp_path: Path) -> None:
+    class FlaggedCompletionVerificationService:
+        provider = "gemini"
+        reviewer_role = "Professional Danish Language Expert"
+
+        def verify_word_entry(self, _payload):
+            class Result:
+                verdict = "flagged"
+                message = "Review needed."
+                problem = "The adjective agreement set is incomplete."
+                change_to_implement = (
+                    "The singular indefinite n-word form should be 'stor'. "
+                    "The singular indefinite t-word form should be 'stort'. "
+                    "The singular definite form should be 'store'."
+                )
+                suggested_actions = ()
+
+            return Result()
+
+    stor_n = _cor_local_entry(
+        cor_id="COR.STOR.N",
+        lemma="stor",
+        gloss="large",
+        form="stor",
+        lemma_idx=220,
+        pos_tag="ADJ",
+        morphology="Gender=Com|Number=Sing|Definite=Ind",
+        gram_raw="adj.sg.ubest.fk",
+    )
+    stor_t = _cor_local_entry(
+        cor_id="COR.STOR.T",
+        lemma="stor",
+        gloss="large",
+        form="stort",
+        lemma_idx=220,
+        pos_tag="ADJ",
+        morphology="Gender=Neut|Number=Sing|Definite=Ind",
+        gram_raw="adj.sg.ubest.itk",
+    )
+    stor_def = _cor_local_entry(
+        cor_id="COR.STOR.DEF",
+        lemma="stor",
+        gloss="large",
+        form="store",
+        lemma_idx=220,
+        pos_tag="ADJ",
+        morphology="Number=Sing|Definite=Def",
+        gram_raw="adj.sg.best",
+    )
+    stor_pl = _cor_local_entry(
+        cor_id="COR.STOR.PL",
+        lemma="stor",
+        gloss="large",
+        form="store",
+        lemma_idx=220,
+        pos_tag="ADJ",
+        morphology="Number=Plur",
+        gram_raw="adj.pl",
+    )
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_local_lexicon_service=FakeCORLocalLexiconService(
+            by_form={"stor": [stor_n], "stort": [stor_t], "store": [stor_def, stor_pl]},
+            by_lemma_idx={220: [stor_n, stor_t, stor_def, stor_pl]},
+        ),
+        verification_service=FlaggedCompletionVerificationService(),
+    )
+
+    added = use_case.add_word(
+        "stort",
+        "stor",
+        search_seed={
+            "lemma": "stor",
+            "surface": "stort",
+            "cor_id": "COR.STOR.T",
+            "cor_lemma_idx": 220,
+            "meaning_key": "large",
+            "gloss": "large",
+            "english_translation": "large",
+            "pos_tag": "ADJ",
+            "morphology": "Gender=Neut|Number=Sing|Definite=Ind",
+        },
+    )
+
+    verified = use_case.verify_added_word(
+        "stor",
+        None,
+        meaning_id=added.meaning.id if added.meaning else None,
+        review_intent="complete_variations",
+    )
+
+    assert verified.verification.status == "flagged"
+    assert [action.action_type for action in verified.verification.suggested_actions] == ["fix_variations"]
+    assert verified.verification.suggested_actions[0].singular_indefinite_n_word_forms == ["stor"]
+    assert verified.verification.suggested_actions[0].singular_indefinite_t_word_forms == ["stort"]
+    assert verified.verification.suggested_actions[0].singular_definite_forms == ["store"]
+
+
 def test_complete_variations_review_discards_move_to_lemma_actions(tmp_path: Path) -> None:
     class FlaggedCompletionVerificationService:
         provider = "gemini"
@@ -637,6 +839,110 @@ def test_wordbank_use_case_applies_fix_variations_action_for_completion_review(t
     assert response.applied_action_type == "fix_variations"
     details = use_case.get_lemma_details("mor")
     assert sorted(form.form for form in details.meaning_sections[0].surface_forms) == ["moren", "mødre", "mødrene"]
+
+
+def test_wordbank_use_case_applies_fix_variations_action_for_adjective_completion_review(tmp_path: Path) -> None:
+    db_path = _db_path(tmp_path)
+    stor_n = _cor_local_entry(
+        cor_id="COR.STOR.N",
+        lemma="stor",
+        gloss="large",
+        form="stor",
+        lemma_idx=220,
+        pos_tag="ADJ",
+        morphology="Gender=Com|Number=Sing|Definite=Ind",
+        gram_raw="adj.sg.ubest.fk",
+    )
+    stor_t = _cor_local_entry(
+        cor_id="COR.STOR.T",
+        lemma="stor",
+        gloss="large",
+        form="stort",
+        lemma_idx=220,
+        pos_tag="ADJ",
+        morphology="Gender=Neut|Number=Sing|Definite=Ind",
+        gram_raw="adj.sg.ubest.itk",
+    )
+    stor_def = _cor_local_entry(
+        cor_id="COR.STOR.DEF",
+        lemma="stor",
+        gloss="large",
+        form="store",
+        lemma_idx=220,
+        pos_tag="ADJ",
+        morphology="Number=Sing|Definite=Def",
+        gram_raw="adj.sg.best",
+    )
+    stor_pl = _cor_local_entry(
+        cor_id="COR.STOR.PL",
+        lemma="stor",
+        gloss="large",
+        form="store",
+        lemma_idx=220,
+        pos_tag="ADJ",
+        morphology="Number=Plur",
+        gram_raw="adj.pl",
+    )
+    use_case = WordbankUseCase(
+        db_path,
+        cor_local_lexicon_service=FakeCORLocalLexiconService(
+            by_form={"stor": [stor_n], "stort": [stor_t], "store": [stor_def, stor_pl]},
+            by_lemma_idx={220: [stor_n, stor_t, stor_def, stor_pl]},
+        ),
+    )
+
+    added = use_case.add_word(
+        "stort",
+        "stor",
+        search_seed={
+            "lemma": "stor",
+            "surface": "stort",
+            "cor_id": "COR.STOR.T",
+            "cor_lemma_idx": 220,
+            "meaning_key": "large",
+            "gloss": "large",
+            "english_translation": "large",
+            "pos_tag": "ADJ",
+            "morphology": "Gender=Neut|Number=Sing|Definite=Ind",
+        },
+    )
+    assert added.meaning is not None
+
+    with get_connection(db_path) as conn:
+        lexeme = conn.execute("SELECT id FROM lexemes WHERE lemma = ?", ("stor",)).fetchone()
+        assert lexeme is not None
+        conn.execute(
+            """
+            INSERT INTO surface_forms (lexeme_id, meaning_id, form, source, pos_tag, morphology)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                int(lexeme["id"]),
+                added.meaning.id,
+                "storre",
+                "search",
+                "ADJ",
+                "Number=Sing|Definite=Def",
+            ),
+        )
+    response = use_case.apply_verification_changes(
+        stored_lemma="stor",
+        stored_surface_form=None,
+        meaning_id=added.meaning.id,
+        action={
+            "action_type": "fix_variations",
+            "singular_indefinite_n_word_forms": ["stor"],
+            "singular_indefinite_t_word_forms": ["stort"],
+            "singular_definite_forms": ["store"],
+            "plural_indefinite_forms": ["store"],
+            "plural_definite_forms": ["store"],
+        },
+        provider="gemini",
+    )
+
+    assert response.status == "applied"
+    details = use_case.get_lemma_details("stor")
+    assert sorted(form.form for form in details.meaning_sections[0].surface_forms) == ["store", "stort"]
 
 
 def test_wordbank_use_case_applies_fix_variations_with_singular_indefinite_aliases(tmp_path: Path) -> None:

@@ -41,7 +41,7 @@ export function useCompleteVariationsWorkflow({
           stored_lemma: lemma,
           meaning_id: meaningId,
         },
-        "Could not complete noun variations.",
+        "Could not complete variations.",
       )
       if (payload.status === "skipped") {
         toast.info(payload.message)
@@ -51,7 +51,7 @@ export function useCompleteVariationsWorkflow({
       toast.success(payload.message)
       setWordbankRefreshTick((current) => current + 1)
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Could not complete noun variations."
+      const message = error instanceof Error ? error.message : "Could not complete variations."
       toast.error(message)
     } finally {
       setIsCompletingMeaningVariations(false)

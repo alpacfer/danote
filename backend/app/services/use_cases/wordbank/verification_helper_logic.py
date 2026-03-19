@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from app.api.schemas.v1.wordbank import VerificationAction
-from app.services.use_cases.wordbank.noun_variations import (
+from app.services.use_cases.wordbank.paradigm_variations import (
     extract_fix_variations_action_slot_form_lists,
     extract_fix_variations_action_slot_forms,
+    paradigm_kind_from_pos_tag,
     parse_fix_variations_text_slot_forms,
 )
 from app.services.verification import WordVerificationAction, WordVerificationInput
@@ -16,6 +17,8 @@ def verification_action_to_schema(action: WordVerificationAction) -> Verificatio
         english_translation=action.english_translation,
         gloss=action.gloss,
         singular_indefinite_forms=list(action.singular_indefinite_forms) or None,
+        singular_indefinite_n_word_forms=list(action.singular_indefinite_n_word_forms) or None,
+        singular_indefinite_t_word_forms=list(action.singular_indefinite_t_word_forms) or None,
         singular_definite_forms=list(action.singular_definite_forms) or None,
         plural_indefinite_forms=list(action.plural_indefinite_forms) or None,
         plural_definite_forms=list(action.plural_definite_forms) or None,
@@ -65,12 +68,15 @@ def completion_review_actions(
         parse_fix_variations_text_slot_forms(change_to_implement)
         or parse_fix_variations_text_slot_forms(problem)
     )
+    paradigm_kind = paradigm_kind_from_pos_tag(payload.selected_meaning_pos_tag)
+    base_slot_form_lists = (
+        {"singular_indefinite": [payload.stored_lemma]}
+        if paradigm_kind == "noun"
+        else {"singular_indefinite_n_word": [payload.stored_lemma]}
+    )
     text_slot_form_lists = {
-        "singular_indefinite": [payload.stored_lemma],
-        **{
-            slot_name: [form]
-            for slot_name, form in text_slot_forms.items()
-        },
+        **base_slot_form_lists,
+        **{slot_name: [form] for slot_name, form in text_slot_forms.items()},
     }
     fix_variations_action: VerificationAction | None = None
     for action in suggested_actions:
@@ -81,7 +87,7 @@ def completion_review_actions(
         action_slot_forms = extract_fix_variations_action_slot_forms(action_payload)
         merged_slot_form_lists = action_slot_form_lists or (
             {
-                "singular_indefinite": [payload.stored_lemma],
+                **base_slot_form_lists,
                 **{
                     slot_name: [form]
                     for slot_name, form in (action_slot_forms or text_slot_forms).items()
@@ -93,6 +99,8 @@ def completion_review_actions(
         fix_variations_action = action.model_copy(
             update={
                 "singular_indefinite_forms": merged_slot_form_lists.get("singular_indefinite"),
+                "singular_indefinite_n_word_forms": merged_slot_form_lists.get("singular_indefinite_n_word"),
+                "singular_indefinite_t_word_forms": merged_slot_form_lists.get("singular_indefinite_t_word"),
                 "singular_definite_forms": merged_slot_form_lists.get("singular_definite"),
                 "plural_indefinite_forms": merged_slot_form_lists.get("plural_indefinite"),
                 "plural_definite_forms": merged_slot_form_lists.get("plural_definite"),
@@ -106,8 +114,14 @@ def completion_review_actions(
         return [fix_variations_action]
     return [VerificationAction(
             action_type="fix_variations",
-            reason="Replace the completed variation set with the reviewed noun forms for this meaning.",
+            reason=(
+                "Replace the completed variation set with the reviewed adjective forms for this meaning."
+                if paradigm_kind == "adjective"
+                else "Replace the completed variation set with the reviewed noun forms for this meaning."
+            ),
             singular_indefinite_forms=text_slot_form_lists.get("singular_indefinite"),
+            singular_indefinite_n_word_forms=text_slot_form_lists.get("singular_indefinite_n_word"),
+            singular_indefinite_t_word_forms=text_slot_form_lists.get("singular_indefinite_t_word"),
             singular_definite_forms=text_slot_form_lists.get("singular_definite"),
             plural_indefinite_forms=text_slot_form_lists.get("plural_indefinite"),
             plural_definite_forms=text_slot_form_lists.get("plural_definite"),

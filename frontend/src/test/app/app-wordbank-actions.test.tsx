@@ -1,4 +1,4 @@
-import { fireEvent, getNotesEditor, mockFetchImplementation, renderApp, responseOf, screen, setNotesEditorText, vi, waitFor } from "@/test/app-test-helpers"
+import { fireEvent, getNotesEditor, mockFetchImplementation, renderApp, responseOf, screen, setNotesEditorText, vi, waitFor, within } from "@/test/app-test-helpers"
 import {
   bogVariationGlossWordPageContractFixture,
   cloneContractFixture,
@@ -6,7 +6,7 @@ import {
 } from "@/test/app/wordbank-contract-fixtures"
 
 describe("App wordbank", () => {
-  it("contract-backed: variation cards show translated gloss instead of raw Danish gloss", async () => {
+  it("contract-backed: noun word pages prefer the paradigm table once a saved slot exists", async () => {
     mockFetchImplementation({
       lemmasResponse: {
         items: [{ lemma: "bog", variation_count: 1 }],
@@ -20,7 +20,10 @@ describe("App wordbank", () => {
     fireEvent.click(await screen.findByRole("button", { name: /bog/i }))
 
     expect(await screen.findByRole("heading", { name: /^bog$/i })).toBeInTheDocument()
-    expect(screen.getByText(/\(book, for reading\)/i)).toBeInTheDocument()
+    const table = screen.getByRole("table")
+    expect(within(table).getByText(/^singular$/i)).toBeInTheDocument()
+    expect(within(table).getByText(/^definite$/i)).toBeInTheDocument()
+    expect(within(table).getByText(/^bogen$/i)).toBeInTheDocument()
     expect(screen.queryByText(/\(book, til læsning\)/i)).not.toBeInTheDocument()
   }, 10_000)
 
@@ -487,22 +490,149 @@ describe("App wordbank", () => {
     expect(screen.getByText(/^bøger$/i)).toBeInTheDocument()
   })
 
-  it("renderer-only: non-noun meaning cards do not expose complete variations in the context menu", async () => {
+  it("request-shape: adjective meaning cards can complete variations and render the agreement table with shared plural cells", async () => {
+    let lemmaDetails = {
+      lemma: "stor",
+      english_translation: null,
+      is_sectioned: true,
+      meaning_sections: [
+        {
+          id: 1,
+          meaning_key: "large",
+          gloss: "large",
+          english_translation: "large",
+          verification: {
+            status: "verified",
+            provider: "gemini",
+            reviewer_role: "Professional Danish Language Expert",
+            message: "Verified.",
+            requested_at: "2026-03-15T10:00:00Z",
+            completed_at: "2026-03-15T10:00:05Z",
+          },
+          pos_tag: "ADJ",
+          morphology: "Gender=Com|Number=Sing|Definite=Ind",
+          gram_raw: "adj.sg.ubest.fk | adj.sg.ubest.itk | adj.sg.best | adj.pl",
+          surface_forms: [
+            {
+              form: "stort",
+              verification: {
+                status: "verified",
+                provider: "gemini",
+                reviewer_role: "Professional Danish Language Expert",
+                message: "Verified.",
+                requested_at: "2026-03-15T10:00:00Z",
+                completed_at: "2026-03-15T10:00:05Z",
+              },
+              pos_tag: "ADJ",
+              morphology: "Gender=Neut|Number=Sing|Definite=Ind",
+              has_pronunciation: false,
+            },
+          ],
+        },
+      ],
+      surface_forms: [
+        {
+          form: "stor",
+          pos_tag: "ADJ",
+          morphology: "Gender=Com|Number=Sing|Definite=Ind",
+          gram_raw: "adj.sg.ubest.fk | adj.sg.ubest.itk | adj.sg.best | adj.pl",
+          has_pronunciation: false,
+        },
+      ],
+    }
+    const fetchSpy = mockFetchImplementation({
+      lemmasResponse: {
+        items: [{ lemma: "stor", variation_count: 1 }],
+      },
+      lemmaDetailsHandler: async () => responseOf(lemmaDetails),
+      completeVariationsHandler: async (_input, init) => {
+        const body = JSON.parse(String(init?.body ?? "{}")) as {
+          stored_lemma?: string
+          meaning_id?: number
+        }
+        if (body.stored_lemma !== "stor" || body.meaning_id !== 1) {
+          throw new Error("Unexpected complete-variations payload.")
+        }
+        lemmaDetails = {
+          ...lemmaDetails,
+          meaning_sections: [
+            {
+              ...lemmaDetails.meaning_sections[0],
+              surface_forms: [
+                {
+                  form: "store",
+                  pos_tag: "ADJ",
+                  morphology: "Number=Sing|Definite=Def",
+                  gram_raw: "adj.sg.best | adj.pl",
+                  has_pronunciation: false,
+                },
+                {
+                  form: "stort",
+                  pos_tag: "ADJ",
+                  morphology: "Gender=Neut|Number=Sing|Definite=Ind",
+                  has_pronunciation: false,
+                },
+              ],
+            },
+          ],
+        }
+        return responseOf({
+          status: "updated",
+          stored_lemma: "stor",
+          meaning_id: 1,
+          added_surface_forms: ["store"],
+          queued_pronunciation_forms: ["store"],
+          queued_verification_targets: [{ meaning_id: 1, stored_surface_form: null }],
+          message: "Completed adjective variations for 'stor'.",
+        })
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+    fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /stor/i }))
+
+    const meaningCard = await screen.findByTestId("wordbank-meaning-card-1")
+    fireEvent.contextMenu(meaningCard)
+    fireEvent.click(await screen.findByRole("menuitem", { name: /complete variations/i }))
+
+    await waitFor(() => {
+      expect(
+        fetchSpy.mock.calls.some(([input, init]) => {
+          if (!String(input).endsWith("/api/wordbank/lexemes/complete-variations")) {
+            return false
+          }
+          return String(init?.body ?? "") === JSON.stringify({
+            stored_lemma: "stor",
+            meaning_id: 1,
+          })
+        }),
+      ).toBe(true)
+    })
+
+    await screen.findByText(/^n-word:$/i)
+    expect(screen.getAllByText(/^t-word:$/i).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/^store$/i).length).toBeGreaterThanOrEqual(2)
+    expect(screen.getByText(/^stort$/i)).toBeInTheDocument()
+  })
+
+  it("renderer-only: non-paradigm meaning cards do not expose complete variations in the context menu", async () => {
     mockFetchImplementation({
       lemmasResponse: {
-        items: [{ lemma: "orange", variation_count: 1 }],
+        items: [{ lemma: "lære", variation_count: 1 }],
       },
       lemmaDetailsResponse: {
-        lemma: "orange",
+        lemma: "lære",
         is_sectioned: true,
         meaning_sections: [
           {
             id: 1,
-            meaning_key: "orange",
-            gloss: "orange",
-            english_translation: "orange",
-            pos_tag: "ADJ",
-            morphology: "Gender=Com|Number=Sing|Definite=Ind",
+            meaning_key: "learn",
+            gloss: "learn",
+            english_translation: "learn",
+            pos_tag: "VERB",
+            morphology: "VerbForm=Inf|Voice=Act",
             surface_forms: [],
           },
         ],
@@ -513,7 +643,7 @@ describe("App wordbank", () => {
     renderApp()
     await screen.findByLabelText("backend-connection-status")
     fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
-    fireEvent.click(await screen.findByRole("button", { name: /orange/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /lære/i }))
 
     fireEvent.contextMenu(await screen.findByTestId("wordbank-meaning-card-1"))
     expect(await screen.findByRole("menuitem", { name: /rethink categories/i })).toBeInTheDocument()
@@ -929,4 +1059,65 @@ describe("App wordbank", () => {
     expect(notificationList).toHaveTextContent("Review needed for 'book'.")
     expect(notificationList.querySelectorAll("li")).toHaveLength(1)
   }, 15_000)
+
+  it("renderer-only: adjective completion review summarizes n-word and t-word slots", async () => {
+    mockFetchImplementation({
+      lemmasResponse: {
+        items: [{ lemma: "stor", variation_count: 2 }],
+      },
+      lemmaDetailsResponse: {
+        lemma: "stor",
+        is_sectioned: true,
+        meaning_sections: [
+          {
+            id: 1,
+            meaning_key: "large",
+            gloss: "large",
+            english_translation: "large",
+            pos_tag: "ADJ",
+            morphology: "Gender=Com|Number=Sing|Definite=Ind",
+            verification: {
+              status: "flagged",
+              provider: "gemini",
+              reviewer_role: "Professional Danish Language Expert",
+              message: "Review needed.",
+              composed_word_count: 1,
+              stored_surface_form: null,
+              requested_at: "2026-03-15T10:55:00.000Z",
+              completed_at: "2026-03-15T10:57:00.000Z",
+              problem: "The adjective agreement set is incomplete.",
+              change_to_implement: "Replace the completed variation set with the reviewed adjective forms.",
+              suggested_actions: [
+                {
+                  action_type: "fix_variations",
+                  reason: "Replace the saved variation set with the reviewed adjective forms for this meaning.",
+                  singular_indefinite_n_word_forms: ["stor"],
+                  singular_indefinite_t_word_forms: ["stort"],
+                  singular_definite_forms: ["store"],
+                  plural_indefinite_forms: ["store"],
+                  plural_definite_forms: ["store"],
+                },
+              ],
+            },
+            surface_forms: [
+              { form: "stort", pos_tag: "ADJ", morphology: "Gender=Neut|Number=Sing|Definite=Ind", has_pronunciation: false },
+              { form: "store", pos_tag: "ADJ", morphology: "Number=Sing|Definite=Def", gram_raw: "adj.sg.best | adj.pl", has_pronunciation: false },
+            ],
+          },
+        ],
+        surface_forms: [{ form: "stor", pos_tag: "ADJ", morphology: "Gender=Com|Number=Sing|Definite=Ind", has_pronunciation: false }],
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+    fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /stor/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /show verification review details/i }))
+
+    expect(await screen.findByText(/singular indefinite n-word: stor\./i)).toBeInTheDocument()
+    expect(screen.getByText(/singular indefinite t-word: stort\./i)).toBeInTheDocument()
+    expect(screen.getByText(/plural indefinite: store\./i)).toBeInTheDocument()
+    expect(screen.getByText(/plural definite: store\./i)).toBeInTheDocument()
+  })
 })

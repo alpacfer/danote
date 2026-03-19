@@ -185,6 +185,147 @@ def _fader_complete_paradigm_cor_local() -> FakeCORLocalLexiconService:
     )
 
 
+def _stor_complete_paradigm_cor_local() -> FakeCORLocalLexiconService:
+    large_entries = [
+        _cor_local_entry(
+            cor_id="COR.STOR.N",
+            lemma="stor",
+            gloss="large",
+            form="stor",
+            lemma_idx=220,
+            pos_tag="ADJ",
+            morphology="Gender=Com|Number=Sing|Definite=Ind",
+            gram_raw="adj.sg.ubest.fk",
+        ),
+        _cor_local_entry(
+            cor_id="COR.STOR.T",
+            lemma="stor",
+            gloss="large",
+            form="stort",
+            lemma_idx=220,
+            pos_tag="ADJ",
+            morphology="Gender=Neut|Number=Sing|Definite=Ind",
+            gram_raw="adj.sg.ubest.itk",
+        ),
+        _cor_local_entry(
+            cor_id="COR.STOR.DEF",
+            lemma="stor",
+            gloss="large",
+            form="store",
+            lemma_idx=220,
+            pos_tag="ADJ",
+            morphology="Number=Sing|Definite=Def",
+            gram_raw="adj.sg.best",
+        ),
+        _cor_local_entry(
+            cor_id="COR.STOR.PL",
+            lemma="stor",
+            gloss="large",
+            form="store",
+            lemma_idx=220,
+            pos_tag="ADJ",
+            morphology="Number=Plur",
+            gram_raw="adj.pl",
+        ),
+    ]
+    important_entries = [
+        _cor_local_entry(
+            cor_id="COR.STOR2.N",
+            lemma="stor",
+            gloss="important",
+            form="stor",
+            lemma_idx=221,
+            pos_tag="ADJ",
+            morphology="Gender=Com|Number=Sing|Definite=Ind",
+            gram_raw="adj.sg.ubest.fk",
+        ),
+        _cor_local_entry(
+            cor_id="COR.STOR2.T",
+            lemma="stor",
+            gloss="important",
+            form="stort",
+            lemma_idx=221,
+            pos_tag="ADJ",
+            morphology="Gender=Neut|Number=Sing|Definite=Ind",
+            gram_raw="adj.sg.ubest.itk",
+        ),
+        _cor_local_entry(
+            cor_id="COR.STOR2.DEF",
+            lemma="stor",
+            gloss="important",
+            form="store",
+            lemma_idx=221,
+            pos_tag="ADJ",
+            morphology="Number=Sing|Definite=Def",
+            gram_raw="adj.sg.best",
+        ),
+        _cor_local_entry(
+            cor_id="COR.STOR2.PL",
+            lemma="stor",
+            gloss="important",
+            form="store",
+            lemma_idx=221,
+            pos_tag="ADJ",
+            morphology="Number=Plur",
+            gram_raw="adj.pl",
+        ),
+    ]
+    return FakeCORLocalLexiconService(
+        by_form={
+            "stor": [large_entries[0], important_entries[0]],
+            "stort": [large_entries[1], important_entries[1]],
+            "store": [large_entries[2], large_entries[3], important_entries[2], important_entries[3]],
+        },
+        by_lemma_idx={220: large_entries, 221: important_entries},
+    )
+
+
+def _orange_complete_paradigm_cor_local() -> FakeCORLocalLexiconService:
+    entries = [
+        _cor_local_entry(
+            cor_id="COR.ORANGE.N",
+            lemma="orange",
+            gloss="orange",
+            form="orange",
+            lemma_idx=20408,
+            pos_tag="ADJ",
+            morphology="Gender=Com|Number=Sing|Definite=Ind",
+            gram_raw="adj.sg.ubest.fk",
+        ),
+        _cor_local_entry(
+            cor_id="COR.ORANGE.T",
+            lemma="orange",
+            gloss="orange",
+            form="orange",
+            lemma_idx=20408,
+            pos_tag="ADJ",
+            morphology="Gender=Neut|Number=Sing|Definite=Ind",
+            gram_raw="adj.sg.ubest.itk",
+        ),
+        _cor_local_entry(
+            cor_id="COR.ORANGE.DEF",
+            lemma="orange",
+            gloss="orange",
+            form="orange",
+            lemma_idx=20408,
+            pos_tag="ADJ",
+            morphology="Number=Sing|Definite=Def",
+            gram_raw="adj.sg.best",
+        ),
+        _cor_local_entry(
+            cor_id="COR.ORANGE.PL",
+            lemma="orange",
+            gloss="orange",
+            form="orange",
+            lemma_idx=20408,
+            pos_tag="ADJ",
+            morphology="Number=Plur",
+            gram_raw="adj.pl",
+        ),
+    ]
+    return FakeCORLocalLexiconService(by_form={"orange": entries}, by_lemma_idx={20408: entries})
+
+
 def test_wordbank_use_case_round_trip(tmp_path: Path) -> None:
     use_case = WordbankUseCase(_db_path(tmp_path))
 
@@ -504,6 +645,128 @@ def test_complete_meaning_variations_uses_selected_homograph_meaning_only(tmp_pa
     assert [section.gloss for section in details.meaning_sections] == ["book", "swamp"]
     assert [form.form for form in details.meaning_sections[0].surface_forms] == ["bogen", "bøger", "bøgerne"]
     assert [form.form for form in details.meaning_sections[1].surface_forms] == ["bogen"]
+
+
+def test_complete_meaning_variations_backfills_missing_adjective_slots_for_search_seed_entries(tmp_path: Path) -> None:
+    db_path = _db_path(tmp_path)
+    use_case = WordbankUseCase(
+        db_path,
+        cor_local_lexicon_service=_stor_complete_paradigm_cor_local(),
+        verification_service=FakeVerificationService(),
+        tts_service=FakeTTSService({}),
+    )
+
+    added = use_case.add_word(
+        "stort",
+        "stor",
+        search_seed={
+            "lemma": "stor",
+            "surface": "stort",
+            "cor_id": "COR.STOR.T",
+            "cor_lemma_idx": 220,
+            "meaning_key": "large",
+            "gloss": "large",
+            "english_translation": "large",
+            "pos_tag": "ADJ",
+            "morphology": "Gender=Neut|Number=Sing|Definite=Ind",
+        },
+    )
+    assert added.meaning is not None
+    _verify_meaning_targets(use_case, lemma="stor", meaning_id=added.meaning.id, surfaces=["stort"])
+
+    response = use_case.complete_meaning_variations("stor", meaning_id=added.meaning.id)
+
+    assert response.status == "updated"
+    assert response.added_surface_forms == ["store"]
+    assert response.queued_pronunciation_forms == ["store"]
+    assert [(target.meaning_id, target.stored_surface_form) for target in response.queued_verification_targets] == [
+        (added.meaning.id, None),
+    ]
+
+    details = use_case.get_lemma_details("stor")
+    assert sorted(form.form for form in details.meaning_sections[0].surface_forms) == ["store", "stort"]
+
+
+def test_complete_meaning_variations_skips_when_adjective_slots_are_already_covered(tmp_path: Path) -> None:
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_local_lexicon_service=_orange_complete_paradigm_cor_local(),
+        verification_service=FakeVerificationService(),
+    )
+
+    added = use_case.add_word(
+        "orange",
+        "orange",
+        search_seed={
+            "lemma": "orange",
+            "surface": "orange",
+            "cor_id": "COR.ORANGE.N",
+            "cor_lemma_idx": 20408,
+            "meaning_key": "orange",
+            "gloss": "orange",
+            "english_translation": "orange",
+            "pos_tag": "ADJ",
+            "morphology": "Gender=Com|Number=Sing|Definite=Ind",
+        },
+    )
+    assert added.meaning is not None
+    _verify_meaning_targets(use_case, lemma="orange", meaning_id=added.meaning.id, surfaces=["orange"])
+
+    response = use_case.complete_meaning_variations("orange", meaning_id=added.meaning.id)
+
+    assert response.status == "skipped"
+    assert response.added_surface_forms == []
+    assert response.message == "No missing adjective variations were found for 'orange'."
+
+
+def test_complete_meaning_variations_uses_selected_adjective_meaning_only(tmp_path: Path) -> None:
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_local_lexicon_service=_stor_complete_paradigm_cor_local(),
+        verification_service=FakeVerificationService(),
+    )
+
+    first = use_case.add_word(
+        "stort",
+        "stor",
+        search_seed={
+            "lemma": "stor",
+            "surface": "stort",
+            "cor_id": "COR.STOR.T",
+            "cor_lemma_idx": 220,
+            "meaning_key": "large",
+            "gloss": "large",
+            "english_translation": "large",
+            "pos_tag": "ADJ",
+            "morphology": "Gender=Neut|Number=Sing|Definite=Ind",
+        },
+    )
+    second = use_case.add_word(
+        "store",
+        "stor",
+        search_seed={
+            "lemma": "stor",
+            "surface": "store",
+            "cor_id": "COR.STOR2.DEF",
+            "cor_lemma_idx": 221,
+            "meaning_key": "important",
+            "gloss": "important",
+            "english_translation": "important",
+            "pos_tag": "ADJ",
+            "morphology": "Number=Sing|Definite=Def",
+        },
+    )
+    assert first.meaning is not None
+    assert second.meaning is not None
+    _verify_meaning_targets(use_case, lemma="stor", meaning_id=first.meaning.id, surfaces=["stort"])
+
+    response = use_case.complete_meaning_variations("stor", meaning_id=first.meaning.id)
+
+    assert response.status == "updated"
+    details = use_case.get_lemma_details("stor")
+    assert [section.gloss for section in details.meaning_sections] == ["large", "important"]
+    assert sorted(form.form for form in details.meaning_sections[0].surface_forms) == ["store", "stort"]
+    assert sorted(form.form for form in details.meaning_sections[1].surface_forms) == ["store"]
 
 
 def test_get_lemma_details_orders_standard_noun_variations_in_slot_order(tmp_path: Path) -> None:

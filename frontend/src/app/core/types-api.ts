@@ -80,6 +80,8 @@ export type VerificationAction = {
   english_translation?: string | null
   gloss?: string | null
   singular_indefinite_forms?: string[] | null
+  singular_indefinite_n_word_forms?: string[] | null
+  singular_indefinite_t_word_forms?: string[] | null
   singular_definite_forms?: string[] | null
   plural_indefinite_forms?: string[] | null
   plural_definite_forms?: string[] | null

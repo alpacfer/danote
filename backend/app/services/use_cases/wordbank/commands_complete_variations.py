@@ -3,10 +3,10 @@ from __future__ import annotations
 from app.api.schemas.v1.wordbank import CompleteVariationsResponse
 from app.db.repositories import WordbankBackgroundJobRepository
 from app.services.token_classifier import normalize_token
-from app.services.use_cases.wordbank.noun_variations import (
-    TARGET_NOUN_SLOTS,
-    noun_meaning_context_from_rows,
-    resolve_target_noun_slot_entries,
+from app.services.use_cases.wordbank.paradigm_variations import (
+    build_completion_candidate_entries,
+    meaning_context_from_rows,
+    resolve_target_slot_entries,
 )
 from app.services.use_cases.wordbank.runtime import WordbankRuntime
 from app.services.use_cases.wordbank.search_seed_persistence import (
@@ -43,7 +43,7 @@ def complete_meaning_variations(
             queued_verification_targets=[],
             message=completion_gate_message,
         )
-    slot_entries = resolve_target_noun_slot_entries(runtime.cor, context=context)
+    slot_entries = resolve_target_slot_entries(runtime.cor, context=context)
     if not slot_entries:
         return CompleteVariationsResponse(
             status="skipped",
@@ -52,11 +52,11 @@ def complete_meaning_variations(
             added_surface_forms=[],
             queued_pronunciation_forms=[],
             queued_verification_targets=[],
-            message=f"No COR noun paradigm entries were found for meaning #{meaning_id}.",
+            message=f"No COR {context.paradigm_kind} paradigm entries were found for meaning #{meaning_id}.",
         )
 
-    existing_forms = {
-        normalize_token(row.form)
+    existing_rows = {
+        normalize_token(row.form): row
         for row in runtime.repository.list_surface_forms(context.lexeme_id)
         if row.meaning_id == meaning_id and normalize_token(row.form)
     }
@@ -64,35 +64,46 @@ def complete_meaning_variations(
     queued_pronunciation_forms: list[str] = []
     pronunciation_repository = WordbankBackgroundJobRepository(runtime.db_path)
 
-    for slot_name, _number, _definite in TARGET_NOUN_SLOTS:
-        slot_candidates = slot_entries.get(slot_name) or []
-        entry = slot_candidates[0] if slot_candidates else None
-        if entry is None:
+    for normalized_form, entries in build_completion_candidate_entries(context=context, slot_entries=slot_entries):
+        representative = entries[0] if entries else None
+        if representative is None or not normalized_form or normalized_form == context.lemma:
             continue
-        normalized_form = normalize_token(entry.form)
-        if not normalized_form or normalized_form in existing_forms:
+        existing_row = existing_rows.get(normalized_form)
+        if existing_row is not None:
+            for entry in entries:
+                if entry.cor_id:
+                    runtime.repository.insert_surface_form_cor_variant(
+                        surface_form_id=existing_row.id,
+                        cor_id=entry.cor_id,
+                    )
             continue
         persist_result = persist_search_seed_surface_form(
             runtime,
             seed=SearchSeedInputs(
                 lemma=context.lemma,
-                surface=entry.form,
-                cor_id=entry.cor_id,
+                surface=representative.form,
+                cor_id=representative.cor_id,
                 cor_lemma_idx=context.cor_lemma_idx,
                 meaning_key=None,
-                gloss=context.gloss or normalize_token(entry.gloss or ""),
+                gloss=context.gloss or normalize_token(representative.gloss or ""),
                 english_translation=context.english_translation,
-                pos_tag=entry.pos_tag,
-                morphology=entry.morphology,
+                pos_tag=representative.pos_tag,
+                morphology=representative.morphology,
                 target_meaning_id=meaning_id,
             ),
         )
+        surface_form = persist_result.surface_form
+        for entry in entries:
+            if entry.cor_id and surface_form is not None:
+                runtime.repository.insert_surface_form_cor_variant(
+                    surface_form_id=surface_form.id,
+                    cor_id=entry.cor_id,
+                )
         if not persist_result.inserted_any:
-            existing_forms.add(normalized_form)
             continue
-        existing_forms.add(normalized_form)
-        added_surface_forms.append(entry.form)
-        pronunciation = runtime.pronunciation.queued_pronunciation_result(context.lemma, entry.form)
+        existing_rows[normalized_form] = surface_form
+        added_surface_forms.append(representative.form)
+        pronunciation = runtime.pronunciation.queued_pronunciation_result(context.lemma, representative.form)
         if pronunciation.status == "queued":
             pronunciation_repository.enqueue(
                 job_type="generate_pronunciation",
@@ -102,7 +113,7 @@ def complete_meaning_variations(
                     "stored_surface_form": normalized_form,
                 },
             )
-            queued_pronunciation_forms.append(entry.form)
+            queued_pronunciation_forms.append(representative.form)
 
     if not added_surface_forms:
         return CompleteVariationsResponse(
@@ -112,7 +123,7 @@ def complete_meaning_variations(
             added_surface_forms=[],
             queued_pronunciation_forms=[],
             queued_verification_targets=[],
-            message=f"No missing noun variations were found for '{normalized_lemma}'.",
+            message=f"No missing {context.paradigm_kind} variations were found for '{normalized_lemma}'.",
         )
 
     _delete_meaning_surface_verification_records(runtime, context=context)
@@ -129,7 +140,7 @@ def complete_meaning_variations(
         added_surface_forms=added_surface_forms,
         queued_pronunciation_forms=queued_pronunciation_forms,
         queued_verification_targets=queued_verification_targets,
-        message=_updated_message(normalized_lemma, added_surface_forms),
+        message=_updated_message(normalized_lemma, added_surface_forms, paradigm_kind=context.paradigm_kind),
     )
 
 
@@ -148,11 +159,11 @@ def _load_meaning_context(
     )
     if meaning is None:
         raise LookupError(f"Meaning '{meaning_id}' was not found for lemma '{stored_lemma}'")
-    if (meaning.pos_tag or lexeme.pos_tag or "").upper() != "NOUN":
+    if (meaning.pos_tag or lexeme.pos_tag or "").upper() not in {"NOUN", "ADJ"}:
         raise ValueError("unsupported")
     if meaning.cor_lemma_idx is None:
         raise RuntimeError("missing_cor_identity")
-    return noun_meaning_context_from_rows(
+    return meaning_context_from_rows(
         source_lexeme={
             "id": lexeme.id,
             "lemma": lexeme.lemma,
@@ -167,10 +178,12 @@ def _load_meaning_context(
             "pos_tag": meaning.pos_tag,
         },
     )
-def _updated_message(stored_lemma: str, added_surface_forms: list[str]) -> str:
+
+
+def _updated_message(stored_lemma: str, added_surface_forms: list[str], *, paradigm_kind: str) -> str:
     if len(added_surface_forms) == 1:
-        return f"Completed noun variations for '{stored_lemma}' with {added_surface_forms[0]}."
-    return f"Completed noun variations for '{stored_lemma}'."
+        return f"Completed {paradigm_kind} variations for '{stored_lemma}' with {added_surface_forms[0]}."
+    return f"Completed {paradigm_kind} variations for '{stored_lemma}'."
 
 
 def _delete_meaning_surface_verification_records(

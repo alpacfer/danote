@@ -6,9 +6,7 @@ import time
 from typing import Any, Literal, Protocol
 
 from app.services.token_classifier import normalize_token
-from app.services.verification_noun_slots import (
-    build_completion_review_noun_slot_context,
-)
+from app.services.verification_paradigm_slots import build_completion_review_paradigm_slot_context
 from app.services.verification_review_policy import (
     looks_like_danish_self_translation,
     should_ignore_variation_only_review,
@@ -42,6 +40,7 @@ class WordVerificationSurfaceForm:
     pos_tag: str | None
     morphology: str | None
     source: str | None
+    gram_raw: str | None = None
 
 
 @dataclass(frozen=True)
@@ -77,6 +76,8 @@ class WordVerificationAction:
     english_translation: str | None = None
     gloss: str | None = None
     singular_indefinite_forms: tuple[str, ...] = ()
+    singular_indefinite_n_word_forms: tuple[str, ...] = ()
+    singular_indefinite_t_word_forms: tuple[str, ...] = ()
     singular_definite_forms: tuple[str, ...] = ()
     plural_indefinite_forms: tuple[str, ...] = ()
     plural_definite_forms: tuple[str, ...] = ()
@@ -221,13 +222,17 @@ class GeminiWordVerificationService:
             action_examples = (
                 '{"action_type":"fix_variations","reason":"...",'
                 '"singular_indefinite_forms":["...", "..."],'
+                '"singular_indefinite_n_word_forms":["..."],'
+                '"singular_indefinite_t_word_forms":["..."],'
                 '"singular_definite_forms":["..."],'
                 '"plural_indefinite_forms":["..."],'
                 '"plural_definite_forms":["..."]}'
             )
             fix_variations_rule = (
-                "- If action_type=fix_variations, include the complete noun variation set in singular_indefinite_forms, singular_definite_forms, plural_indefinite_forms, and plural_definite_forms whenever those slots are known.\n"
-                "- singular_indefinite_forms must include the saved lemma and any alternative spellings that belong in that same slot.\n"
+                "- If the reviewed meaning is a noun, include the complete noun variation set in singular_indefinite_forms, singular_definite_forms, plural_indefinite_forms, and plural_definite_forms whenever those slots are known.\n"
+                "- For noun reviews, singular_indefinite_forms must include the saved lemma and any alternative spellings that belong in that same slot.\n"
+                "- If the reviewed meaning is an adjective, include agreement forms in singular_indefinite_n_word_forms, singular_indefinite_t_word_forms, singular_definite_forms, plural_indefinite_forms, and plural_definite_forms whenever those slots are known.\n"
+                "- For adjective reviews, use n-word / t-word terminology throughout.\n"
             )
         else:
             action_examples = (
@@ -366,15 +371,14 @@ class GeminiWordVerificationService:
                     "english_translation": form.english_translation,
                     "pos_tag": form.pos_tag,
                     "morphology": form.morphology,
+                    "gram_raw": form.gram_raw,
                     "source": form.source,
                 }
                 for form in payload.available_surface_forms
             ],
-            "noun_slot_surface_forms": (
-                build_completion_review_noun_slot_context(payload)
-                if payload.review_intent == "complete_variations"
-                else {}
-            ),
+            "noun_slot_surface_forms": build_completion_review_paradigm_slot_context(payload)
+            if payload.review_intent == "complete_variations"
+            else {},
         }
 
     def _parse_response(self, raw: str) -> dict[str, object]:
@@ -500,6 +504,8 @@ class GeminiWordVerificationService:
                 action_type="fix_variations",
                 reason=reason,
                 singular_indefinite_forms=tuple(_optional_clean_str_list(raw.get("singular_indefinite_forms"))),
+                singular_indefinite_n_word_forms=tuple(_optional_clean_str_list(raw.get("singular_indefinite_n_word_forms"))),
+                singular_indefinite_t_word_forms=tuple(_optional_clean_str_list(raw.get("singular_indefinite_t_word_forms"))),
                 singular_definite_forms=tuple(_optional_clean_str_list(raw.get("singular_definite_forms"))),
                 plural_indefinite_forms=tuple(_optional_clean_str_list(raw.get("plural_indefinite_forms"))),
                 plural_definite_forms=tuple(_optional_clean_str_list(raw.get("plural_definite_forms"))),

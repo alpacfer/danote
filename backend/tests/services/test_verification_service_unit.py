@@ -8,6 +8,7 @@ from app.services.verification import (
     WordVerificationMeaningSection,
     WordVerificationSurfaceForm,
 )
+from app.services.verification_paradigm_slots import build_completion_review_paradigm_slot_context
 
 
 def _payload() -> WordVerificationInput:
@@ -279,6 +280,66 @@ def test_gemini_complete_variations_prompt_keeps_saved_lemma_fixed() -> None:
     assert '{"action_type":"move_to_meaning_section"' not in prompt
     assert '{"action_type":"move_to_lemma"' not in prompt
     assert "suggest move_to_lemma to canonical_lemma" not in prompt
+
+
+def test_completion_review_slot_context_uses_merged_gram_raw_for_shared_adjective_forms() -> None:
+    payload = WordVerificationInput(
+        stored_lemma="smuk",
+        stored_surface_form=None,
+        meaning_id=7,
+        meaning_key="beautiful",
+        meaning_gloss="beautiful",
+        meaning_gloss_translation="beautiful",
+        lexeme_source="search",
+        selected_translation="beautiful",
+        selected_translation_scope="meaning_section",
+        surface_source=None,
+        canonical_lemma="smuk",
+        canonical_lemma_pos_tag="ADJ",
+        canonical_lemma_morphology="Gender=Com|Number=Sing|Definite=Ind",
+        selected_meaning_pos_tag="ADJ",
+        selected_meaning_morphology="Gender=Com|Number=Sing|Definite=Ind",
+        selected_surface_pos_tag=None,
+        selected_surface_morphology=None,
+        available_surface_forms=(
+            WordVerificationSurfaceForm(
+                form="smukt",
+                meaning_id=7,
+                meaning_key="beautiful",
+                gloss="beautiful",
+                gloss_translation="beautiful",
+                english_translation="beautiful",
+                pos_tag="ADJ",
+                morphology="Gender=Neut|Number=Sing|Definite=Ind",
+                source="search",
+                gram_raw="adj.sg.ubest.itk",
+            ),
+            WordVerificationSurfaceForm(
+                form="smukke",
+                meaning_id=7,
+                meaning_key="beautiful",
+                gloss="beautiful",
+                gloss_translation="beautiful",
+                english_translation="beautiful",
+                pos_tag="ADJ",
+                morphology="Number=Sing|Definite=Def",
+                source="search",
+                gram_raw="adj.sg.best | adj.pl",
+            ),
+        ),
+        review_intent="complete_variations",
+    )
+
+    slot_context = build_completion_review_paradigm_slot_context(payload)
+
+    assert slot_context == {
+        "singular_indefinite_n_word": ["smuk"],
+        "singular_indefinite_t_word": ["smukt"],
+        "singular_definite": ["smukke"],
+        "plural_shared": ["smukke"],
+        "plural_indefinite": ["smukke"],
+        "plural_definite": ["smukke"],
+    }
 
 
 def test_gemini_general_verification_ignores_fix_variations_only_reviews(monkeypatch) -> None:

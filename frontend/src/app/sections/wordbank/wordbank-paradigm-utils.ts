@@ -3,35 +3,48 @@ import {
   caseFromMorphology,
   definitenessFromMorphology,
   degreeFromMorphology,
+  determinerWordTypeFromMorphology,
   numberFromMorphology,
   verbFormFromMorphology,
 } from "@/app/core"
 
 export type SurfaceForm = LemmaDetailsResponse["surface_forms"][number]
 
-export type NounParadigmCell = {
+export type ParadigmCellEntry = {
+  form: SurfaceForm
+  label?: string
+}
+
+export type ParadigmCell = {
   row: string
   column: string
+  entries: ParadigmCellEntry[]
+}
+
+export type ParadigmSupplementaryGroup = {
+  label: string
   forms: SurfaceForm[]
 }
 
-export type NounParadigm = {
-  cells: NounParadigmCell[]
-  genitiveForms: SurfaceForm[]
-  unclassifiedForms: SurfaceForm[]
+export type ParadigmTableData = {
   rows: string[]
   columns: string[]
+  cells: ParadigmCell[]
+  supplementaryGroups: ParadigmSupplementaryGroup[]
 }
 
-const NOUN_ROWS = ["Singular", "Plural"] as const
-const NOUN_COLUMNS = ["Indefinite", "Definite"] as const
+export type FormGroup = {
+  label: string
+  forms: SurfaceForm[]
+}
 
-export function buildNounParadigm(surfaceForms: SurfaceForm[]): NounParadigm | null {
-  const cells: NounParadigmCell[] = NOUN_ROWS.flatMap((row) =>
-    NOUN_COLUMNS.map((col) => ({ row, column: col, forms: [] })),
-  )
+const PARADIGM_ROWS = ["Singular", "Plural"] as const
+const PARADIGM_COLUMNS = ["Indefinite", "Definite"] as const
+
+export function buildNounParadigm(surfaceForms: SurfaceForm[]): ParadigmTableData | null {
+  const cells = createEmptyCells()
   const genitiveForms: SurfaceForm[] = []
-  const unclassifiedForms: SurfaceForm[] = []
+  const otherForms: SurfaceForm[] = []
 
   for (const form of surfaceForms) {
     if (caseFromMorphology(form.morphology) === "Genitive") {
@@ -41,22 +54,66 @@ export function buildNounParadigm(surfaceForms: SurfaceForm[]): NounParadigm | n
     const number = numberFromMorphology(form.morphology)
     const definiteness = definitenessFromMorphology(form.morphology)
     if (number && definiteness) {
-      const cell = cells.find((c) => c.row === number && c.column === definiteness)
-      cell?.forms.push(form)
-    } else {
-      unclassifiedForms.push(form)
+      findCell(cells, number, definiteness)?.entries.push({ form })
+      continue
+    }
+    otherForms.push(form)
+  }
+
+  if (filledCellCount(cells) < 1) {
+    return null
+  }
+
+  return {
+    rows: [...PARADIGM_ROWS],
+    columns: [...PARADIGM_COLUMNS],
+    cells,
+    supplementaryGroups: [
+      { label: "Genitive", forms: genitiveForms },
+      { label: "Other forms", forms: otherForms },
+    ].filter((group) => group.forms.length > 0),
+  }
+}
+
+export function buildAdjectiveParadigm(surfaceForms: SurfaceForm[]): ParadigmTableData | null {
+  const cells = createEmptyCells()
+  const groupedOtherForms = new Map<string, SurfaceForm>()
+
+  for (const form of surfaceForms) {
+    const slots = adjectiveSlotsForForm(form)
+    if (slots.length === 0) {
+      groupedOtherForms.set(form.form, form)
+      continue
+    }
+    let assigned = false
+    for (const slot of slots) {
+      assigned = true
+      if (slot === "singular_indefinite_n_word") {
+        findCell(cells, "Singular", "Indefinite")?.entries.push({ form, label: "n-word" })
+      } else if (slot === "singular_indefinite_t_word") {
+        findCell(cells, "Singular", "Indefinite")?.entries.push({ form, label: "t-word" })
+      } else if (slot === "singular_definite") {
+        findCell(cells, "Singular", "Definite")?.entries.push({ form })
+      } else if (slot === "plural_shared") {
+        findCell(cells, "Plural", "Indefinite")?.entries.push({ form })
+        findCell(cells, "Plural", "Definite")?.entries.push({ form })
+      }
+    }
+    if (!assigned) {
+      groupedOtherForms.set(form.form, form)
     }
   }
 
-  const filledCellCount = cells.filter((c) => c.forms.length > 0).length
-  if (filledCellCount < 2) return null
+  if (filledCellCount(cells) < 1) {
+    return null
+  }
 
-  return { cells, genitiveForms, unclassifiedForms, rows: [...NOUN_ROWS], columns: [...NOUN_COLUMNS] }
-}
-
-export type FormGroup = {
-  label: string
-  forms: SurfaceForm[]
+  return {
+    rows: [...PARADIGM_ROWS],
+    columns: [...PARADIGM_COLUMNS],
+    cells,
+    supplementaryGroups: groupedOtherForms.size > 0 ? [{ label: "Other forms", forms: [...groupedOtherForms.values()] }] : [],
+  }
 }
 
 const VERB_FORM_ORDER = ["Infinitive", "Present", "Past (preterite)", "Past participle", "Imperative"]
@@ -111,4 +168,68 @@ export function buildAdjectiveDegreeGroups(surfaceForms: SurfaceForm[]): FormGro
     sorted.push({ label: "Other", forms: ungrouped })
   }
   return sorted
+}
+
+function createEmptyCells(): ParadigmCell[] {
+  return PARADIGM_ROWS.flatMap((row) => PARADIGM_COLUMNS.map((column) => ({ row, column, entries: [] })))
+}
+
+function findCell(cells: ParadigmCell[], row: string, column: string): ParadigmCell | undefined {
+  return cells.find((cell) => cell.row === row && cell.column === column)
+}
+
+function filledCellCount(cells: ParadigmCell[]): number {
+  return cells.filter((cell) => cell.entries.length > 0).length
+}
+
+function adjectiveSlotsForForm(form: SurfaceForm): string[] {
+  const slots = new Set<string>()
+  for (const gram of splitGramRaw(form.gram_raw)) {
+    if (!gram.startsWith("adj")) {
+      continue
+    }
+    const parts = new Set(gram.split(".").map((part) => part.trim()).filter(Boolean))
+    if (parts.has("sg") && parts.has("ubest") && parts.has("fk")) {
+      slots.add("singular_indefinite_n_word")
+    }
+    if (parts.has("sg") && parts.has("ubest") && parts.has("itk")) {
+      slots.add("singular_indefinite_t_word")
+    }
+    if (parts.has("sg") && parts.has("best")) {
+      slots.add("singular_definite")
+    }
+    if (parts.has("pl")) {
+      slots.add("plural_shared")
+    }
+  }
+  if (slots.size > 0) {
+    return [...slots]
+  }
+
+  const number = numberFromMorphology(form.morphology)
+  const definiteness = definitenessFromMorphology(form.morphology)
+  const wordType = determinerWordTypeFromMorphology(form.morphology)
+  if (number === "Singular" && definiteness === "Indefinite" && wordType === "n-word") {
+    return ["singular_indefinite_n_word"]
+  }
+  if (number === "Singular" && definiteness === "Indefinite" && wordType === "t-word") {
+    return ["singular_indefinite_t_word"]
+  }
+  if (number === "Singular" && definiteness === "Definite") {
+    return ["singular_definite"]
+  }
+  if (number === "Plural") {
+    return ["plural_shared"]
+  }
+  return []
+}
+
+function splitGramRaw(gramRaw: string | null | undefined): string[] {
+  if (!gramRaw?.trim()) {
+    return []
+  }
+  return gramRaw
+    .split("|")
+    .map((item) => item.trim().toLocaleLowerCase("da-DK"))
+    .filter(Boolean)
 }

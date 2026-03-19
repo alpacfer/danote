@@ -1,4 +1,4 @@
-import { fireEvent, mockFetchImplementation, renderApp, screen, waitFor } from "@/test/app-test-helpers"
+import { fireEvent, mockFetchImplementation, renderApp, screen, waitFor, within } from "@/test/app-test-helpers"
 import {
   bogHomographWordPageContractFixture,
   bogVariationGlossWordPageContractFixture,
@@ -196,11 +196,13 @@ describe("App wordbank", () => {
     fireEvent.click(await screen.findByRole("button", { name: /orange/i }))
 
     expect(await screen.findByRole("heading", { name: /^orange$/i })).toBeInTheDocument()
-    expect(screen.getByText(/^n-word$/i)).toBeInTheDocument()
-    expect(screen.getByText(/^t-word$/i)).toBeInTheDocument()
-    expect(screen.getByText(/^Singular$/i)).toBeInTheDocument()
-    expect(screen.getByText(/^Plural$/i)).toBeInTheDocument()
-    expect(screen.getByText(/^Definite$/i)).toBeInTheDocument()
+    const meaningCard = screen.getByTestId("wordbank-meaning-card-1")
+    const table = within(meaningCard).getByRole("table")
+    expect(within(table).getByText(/^singular$/i)).toBeInTheDocument()
+    expect(within(table).getByText(/^plural$/i)).toBeInTheDocument()
+    expect(within(table).getByText(/^definite$/i)).toBeInTheDocument()
+    expect(within(meaningCard).getByText(/^n-word$/i)).toBeInTheDocument()
+    expect(within(meaningCard).getByText(/^t-word$/i)).toBeInTheDocument()
   })
 
   it("contract-backed: sectioned word page shows right-aligned meaning category badges on the meaning card", async () => {
@@ -374,6 +376,70 @@ describe("App wordbank", () => {
     expect(await screen.findByText(/^learn$/i)).toBeInTheDocument()
     expect(screen.getByText(/^lærer$/i)).toBeInTheDocument()
     expect(screen.queryByText(/^learns$/i)).not.toBeInTheDocument()
+  })
+
+  it("renderer-only: sectioned adjective word pages render the paradigm table from the initial saved slot", async () => {
+    mockFetchImplementation({
+      lemmasResponse: {
+        items: [{ lemma: "smuk", variation_count: 0 }],
+      },
+      lemmaDetailsResponse: {
+        lemma: "smuk",
+        is_sectioned: true,
+        meaning_sections: [
+          {
+            id: 1,
+            meaning_key: "beautiful",
+            gloss: "beautiful",
+            english_translation: "beautiful",
+            pos_tag: "ADJ",
+            morphology: "Gender=Com|Number=Sing|Definite=Ind",
+            gram_raw: "adj.sg.ubest.fk",
+            surface_forms: [],
+          },
+        ],
+        surface_forms: [],
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+    fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /smuk/i }))
+
+    const meaningCard = await screen.findByTestId("wordbank-meaning-card-1")
+    const table = within(meaningCard).getByRole("table")
+    expect(within(table).getByText(/^singular$/i)).toBeInTheDocument()
+    expect(within(table).getByText(/^indefinite$/i)).toBeInTheDocument()
+    expect(within(meaningCard).getByText(/^n-word:$/i)).toBeInTheDocument()
+  })
+
+  it("renderer-only: non-sectioned noun word pages render the paradigm table from the initial saved slot", async () => {
+    mockFetchImplementation({
+      lemmasResponse: {
+        items: [{ lemma: "bog", variation_count: 0 }],
+      },
+      lemmaDetailsResponse: {
+        lemma: "bog",
+        english_translation: "book",
+        is_sectioned: false,
+        pos_tag: "NOUN",
+        morphology: "Gender=Com|Number=Sing|Definite=Ind",
+        surface_forms: [
+          { form: "bog", pos_tag: "NOUN", morphology: "Gender=Com|Number=Sing|Definite=Ind", has_pronunciation: false },
+        ],
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+    fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /bog/i }))
+
+    const table = await screen.findByRole("table")
+    expect(within(table).getByText(/^singular$/i)).toBeInTheDocument()
+    expect(within(table).getByText(/^plural$/i)).toBeInTheDocument()
+    expect(within(table).getByText(/^definite$/i)).toBeInTheDocument()
   })
 
   it("renderer-only: sectioned noun word pages render irregular variations before the standard noun slots", async () => {

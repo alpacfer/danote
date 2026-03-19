@@ -414,16 +414,17 @@ def _surface_form_detail_priority(
 
 
 def _resolve_cor_entry(runtime: WordbankRuntime, *, lexeme, form_row, meaning):
-    if form_row.cor_id:
-        cor_entry = runtime.cor.cor_local_entry_for_cor_id(cor_id=form_row.cor_id)
-        if cor_entry is not None:
-            return cor_entry
-    return runtime.cor.best_cor_local_entry_for_form(
+    preferred_entry = runtime.cor.best_cor_local_entry_for_form(
         form=form_row.form,
         lemma=lexeme.lemma,
         preferred_pos_tag=form_row.pos_tag,
         preferred_lemma_idx=meaning.cor_lemma_idx if meaning is not None else None,
     )
+    if form_row.cor_id:
+        cor_entry = runtime.cor.cor_local_entry_for_cor_id(cor_id=form_row.cor_id)
+        if cor_entry is not None and preferred_entry is None:
+            return cor_entry
+    return preferred_entry
 
 
 def _best_cor_entry_for_saved_form(

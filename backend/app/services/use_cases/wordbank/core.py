@@ -139,7 +139,7 @@ class WordbankUseCase:
                     added_surface_forms=[],
                     queued_pronunciation_forms=[],
                     queued_verification_targets=[],
-                    message="Complete variations is only available for noun meanings.",
+                    message="Complete variations is only available for noun and adjective meanings.",
                 )
             raise
         except RuntimeError as exc:
@@ -151,7 +151,7 @@ class WordbankUseCase:
                     added_surface_forms=[],
                     queued_pronunciation_forms=[],
                     queued_verification_targets=[],
-                    message="This meaning does not have enough COR identity to complete noun variations.",
+                    message="This meaning does not have enough COR identity to complete variations.",
                 )
             raise
 

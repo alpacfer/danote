@@ -130,6 +130,8 @@ class VerificationAction(BaseModel):
     english_translation: str | None = None
     gloss: str | None = None
     singular_indefinite_forms: list[str] | None = None
+    singular_indefinite_n_word_forms: list[str] | None = None
+    singular_indefinite_t_word_forms: list[str] | None = None
     singular_definite_forms: list[str] | None = None
     plural_indefinite_forms: list[str] | None = None
     plural_definite_forms: list[str] | None = None

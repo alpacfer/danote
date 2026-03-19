@@ -228,6 +228,16 @@ def build_verification_input(
                 pos_tag=row["pos_tag"],
                 morphology=row["morphology"],
                 source=row["source"],
+                gram_raw=_surface_form_gram_raw(
+                    cor=cor,
+                    stored_lemma=stored_lemma,
+                    form_row=row,
+                    meaning_row=(
+                        meaning_rows_by_id.get(int(row["meaning_id"]))
+                        if row["meaning_id"] is not None
+                        else None
+                    ),
+                ),
             )
             for row in surface_rows if lexeme_row is not None
         )
@@ -334,6 +344,38 @@ def _select_surface_row(surface_rows, *, stored_surface_form: str, meaning_id: i
         row_meaning_id = int(row["meaning_id"]) if row["meaning_id"] is not None else None
         if row_meaning_id == meaning_id:
             return row
+    return None
+
+
+def _surface_form_gram_raw(
+    *,
+    cor: CorResolutionCollaborator,
+    stored_lemma: str,
+    form_row,
+    meaning_row,
+) -> str | None:
+    preferred_pos_tag = (
+        meaning_row["pos_tag"]
+        if meaning_row is not None and meaning_row["pos_tag"] is not None
+        else form_row["pos_tag"]
+    )
+    preferred_lemma_idx = (
+        int(meaning_row["cor_lemma_idx"])
+        if meaning_row is not None and meaning_row["cor_lemma_idx"] is not None
+        else None
+    )
+    cor_entry = cor.best_cor_local_entry_for_form(
+        form=str(form_row["form"]),
+        lemma=stored_lemma,
+        preferred_pos_tag=preferred_pos_tag,
+        preferred_lemma_idx=preferred_lemma_idx,
+    )
+    if cor_entry is not None:
+        return cor_entry.gram_raw
+    if form_row["cor_id"]:
+        fallback_entry = cor.cor_local_entry_for_cor_id(cor_id=str(form_row["cor_id"]))
+        if fallback_entry is not None:
+            return fallback_entry.gram_raw
     return None
 
 

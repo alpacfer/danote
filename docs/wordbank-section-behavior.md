@@ -158,8 +158,8 @@ Meaning auto-scroll behavior:
 - Sectioned pages:
   - the header lemma word exposes `Regenerate audio`
   - each meaning card is a context-menu trigger
-  - noun meaning cards expose `Rethink categories` and `Complete variations`
-  - non-noun meaning cards expose only `Rethink categories`
+  - noun and adjective meaning cards expose `Rethink categories` and `Complete variations`
+  - other meaning cards expose only `Rethink categories`
   - each surface-form word inside a meaning card also exposes its own `Regenerate audio` action from a nested right-click menu
 - Non-sectioned pages:
   - the lemma word is the combined context-menu trigger for root-scope actions
@@ -168,9 +168,12 @@ Meaning auto-scroll behavior:
 - `Rethink categories` immediately calls the backend recategorization endpoint for that root / meaning scope and refreshes lemma details after success.
 - The action does not open a confirmation flow and does not apply Gemini verification suggestions; it only recalculates semantic category assignments.
 - The manual rethink path uses the same Gemini category-classification flow as initial verification; the only difference is that this one is user-triggered.
-- `Complete variations` is noun-only and meaning-only in v1.
-  It uses the saved meaning's COR identity to fill any missing non-lemma noun variations:
-  singular-definite, plural-indefinite, and plural-definite.
+- `Complete variations` is meaning-only in v1 for noun and adjective sections.
+  - noun sections fill any missing non-lemma noun variations:
+    singular-definite, plural-indefinite, and plural-definite.
+  - adjective sections fill any missing non-lemma agreement forms:
+    singular-indefinite `t-word`, singular-definite, and shared plural forms.
+    Shared plural forms are persisted once and rendered into both plural cells on the table.
 - The action is gated by verification state for that meaning section.
   It is enabled only when the meaning target and every currently saved variation target in that meaning are `verified`.
 - When gated, the context-menu item stays visible but disabled with one of these labels:
@@ -184,7 +187,7 @@ Meaning auto-scroll behavior:
 - That completion-specific review keeps the saved lemma fixed and checks whether the completed surface forms fit that lemma/meaning; it does not use canonical-lemma mismatch alone as a reason to suggest moving the lemma.
 - When that review flags the completed set, the backend exposes one meaning-level `Fix variations` apply action instead of per-variation actions or relocation actions.
 - Existing per-surface verification records for that meaning are cleared before the completion review is requeued, so the refreshed page shows the meaning-level review as the source of truth for that completion pass.
-- If the meaning lacks enough saved COR identity to resolve a noun paradigm, the action is skipped with a user-facing message.
+- If the meaning lacks enough saved COR identity to resolve the paradigm, the action is skipped with a user-facing message.
 
 ## Body mode A: sectioned meanings (WordbankMeaningSections)
 
@@ -203,6 +206,10 @@ Meaning auto-scroll behavior:
   - each row uses `WordbankPronunciationWord`
   - section lists render only non-lemma variations for that meaning
   - top-level `surface_forms` may still include the lemma form as a separate deduped header/audio source
+  - noun and adjective meanings render a shared 2x2 paradigm table as soon as at least one paradigm slot can be derived
+  - this means the initial saved noun / adjective form is shown in the table immediately, even before any additional variations are saved
+  - adjective tables use number on one axis and definiteness on the other; the singular-indefinite cell contains separate `n-word` and `t-word` lines
+  - adjective same-form entries (for example `store` or invariant forms like `orange`) may render into multiple cells from merged `gram_raw`
   - noun variations are ordered with non-slot/irregular forms first, then singular-definite, plural-indefinite, and plural-definite
   - saved POS/morphology badges normalize to the same reader-facing label style used in COR search where morphology allows it (for example adjective agreement uses `n-word` / `t-word` rather than `Common` / `Neuter`)
   - when a saved surface form has COR context, its details payload may also include `gram_raw`; those rows render badges from `gram_raw` first so search and word-page badges stay aligned
@@ -211,7 +218,9 @@ Meaning auto-scroll behavior:
 ## Body mode B: flat variations (WordbankVariationGrid)
 
 - Built from top-level `lemmaDetails.surface_forms`, excluding the normalized selected lemma form itself.
-- If there are no remaining variations, the grid renders nothing.
+- noun and adjective flat pages prefer the shared paradigm table even when the only saved form is the lemma itself
+- empty paradigm cells stay blank until manual saves or complete-variations fills them
+- For non-paradigm pages, if there are no remaining variations, the grid renders nothing.
 - Each variation tile includes:
   - pronunciation-enabled form title
   - right-click `Regenerate audio` on that specific word
@@ -277,8 +286,8 @@ Pronunciation behavior is shared by header + section rows + variation rows.
 - Verification payloads include both the saved lemma and the best COR-backed canonical lemma identity when that dictionary lemma can be resolved from saved COR ids / lemma indexes.
 - When COR indicates the saved lemma is an inflected form rather than the true dictionary lemma (for example `mor` vs `moder`), Gemini is prompted to flag the entry and suggest a `move_to_lemma` correction toward the canonical lemma.
 - Exception: the completion-specific meaning review for `Complete variations` keeps the saved lemma fixed and treats canonical-lemma mismatch as a signal to question the generated variation set, not to rewrite the lemma.
-- For that completion-specific review, Gemini/backend remediation is modeled as a single meaning-level `fix_variations` action that can rewrite the saved noun variations in one apply.
-- New completion-review `fix_variations` actions can carry reviewed noun-slot form lists directly (`singular_indefinite_forms`, `singular_definite_forms`, `plural_indefinite_forms`, `plural_definite_forms`) so apply does not have to trust the same COR paradigm that produced the bad completion set.
+- For that completion-specific review, Gemini/backend remediation is modeled as a single meaning-level `fix_variations` action that can rewrite the saved noun or adjective variations in one apply.
+- New completion-review `fix_variations` actions can carry reviewed noun-slot form lists directly (`singular_indefinite_forms`, `singular_definite_forms`, `plural_indefinite_forms`, `plural_definite_forms`) or reviewed adjective-slot form lists directly (`singular_indefinite_n_word_forms`, `singular_indefinite_t_word_forms`, `singular_definite_forms`, `plural_indefinite_forms`, `plural_definite_forms`) so apply does not have to trust the same COR paradigm that produced the bad completion set.
 - `singular_indefinite_forms` may include the saved lemma plus alternative spellings for the same slot; apply treats that reviewed list as the exact saved slot set and removes stale aliases.
 - Older saved completion reviews that only have prose in `change_to_implement` are still applyable because the backend can extract those noun-slot targets from the persisted review text before mutating the meaning.
 - Translation context comes only from the lemma or meaning section.

@@ -1,35 +1,35 @@
 import { normalizeSearchWord } from "@/app/core"
-import type { NounParadigm, SurfaceForm } from "@/app/sections/wordbank/wordbank-paradigm-utils"
+import type { ParadigmTableData, SurfaceForm } from "@/app/sections/wordbank/wordbank-paradigm-utils"
 import { WordbankPronunciationWord } from "@/app/sections/wordbank/wordbank-pronunciation-word"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
-type WordbankNounParadigmTableProps = {
-  paradigm: NounParadigm
+type WordbankParadigmTableProps = {
+  paradigm: ParadigmTableData
   pronunciationLoadingByForm: Record<string, boolean>
   regeneratingPronunciationByForm: Record<string, boolean>
   onPlayPronunciation: (form: string) => void
   onRegeneratePronunciation: (form: string) => void
 }
 
-export function WordbankNounParadigmTable({
+export function WordbankParadigmTable({
   paradigm,
   pronunciationLoadingByForm,
   regeneratingPronunciationByForm,
   onPlayPronunciation,
   onRegeneratePronunciation,
-}: WordbankNounParadigmTableProps) {
+}: WordbankParadigmTableProps) {
   return (
     <div className="space-y-3">
       <Table>
         <TableHeader>
           <TableRow className="hover:bg-transparent">
             <TableHead className="text-muted-foreground w-24 text-[11px] font-semibold uppercase tracking-wide" />
-            {paradigm.columns.map((col) => (
+            {paradigm.columns.map((column) => (
               <TableHead
-                key={col}
+                key={column}
                 className="text-muted-foreground text-[11px] font-semibold uppercase tracking-wide"
               >
-                {col}
+                {column}
               </TableHead>
             ))}
           </TableRow>
@@ -40,16 +40,17 @@ export function WordbankNounParadigmTable({
               <TableCell className="text-muted-foreground whitespace-nowrap pr-4 text-sm font-medium">
                 {row}
               </TableCell>
-              {paradigm.columns.map((col) => {
-                const cell = paradigm.cells.find((c) => c.row === row && c.column === col)
+              {paradigm.columns.map((column) => {
+                const cell = paradigm.cells.find((item) => item.row === row && item.column === column)
                 return (
-                  <TableCell key={`${row}-${col}`} className="whitespace-normal">
-                    {cell && cell.forms.length > 0 ? (
+                  <TableCell key={`${row}-${column}`} className="whitespace-normal">
+                    {cell && cell.entries.length > 0 ? (
                       <div className="space-y-1">
-                        {cell.forms.map((form) => (
+                        {cell.entries.map((entry) => (
                           <ParadigmCellForm
-                            key={form.form}
-                            form={form}
+                            key={`${entry.label ?? "form"}-${entry.form.form}`}
+                            form={entry.form}
+                            label={entry.label}
                             pronunciationLoadingByForm={pronunciationLoadingByForm}
                             regeneratingPronunciationByForm={regeneratingPronunciationByForm}
                             onPlayPronunciation={onPlayPronunciation}
@@ -67,11 +68,11 @@ export function WordbankNounParadigmTable({
           ))}
         </TableBody>
       </Table>
-      {paradigm.genitiveForms.length > 0 ? (
-        <div className="space-y-1.5">
-          <p className="text-muted-foreground text-[11px] font-semibold uppercase tracking-wide">Genitive</p>
+      {paradigm.supplementaryGroups.map((group) => (
+        <div key={group.label} className="space-y-1.5">
+          <p className="text-muted-foreground text-[11px] font-semibold uppercase tracking-wide">{group.label}</p>
           <div className="flex flex-wrap gap-x-4 gap-y-1">
-            {paradigm.genitiveForms.map((form) => (
+            {group.forms.map((form) => (
               <ParadigmCellForm
                 key={form.form}
                 form={form}
@@ -83,36 +84,21 @@ export function WordbankNounParadigmTable({
             ))}
           </div>
         </div>
-      ) : null}
-      {paradigm.unclassifiedForms.length > 0 ? (
-        <div className="space-y-1.5">
-          <p className="text-muted-foreground text-[11px] font-semibold uppercase tracking-wide">Other forms</p>
-          <div className="flex flex-wrap gap-x-4 gap-y-1">
-            {paradigm.unclassifiedForms.map((form) => (
-              <ParadigmCellForm
-                key={form.form}
-                form={form}
-                pronunciationLoadingByForm={pronunciationLoadingByForm}
-                regeneratingPronunciationByForm={regeneratingPronunciationByForm}
-                onPlayPronunciation={onPlayPronunciation}
-                onRegeneratePronunciation={onRegeneratePronunciation}
-              />
-            ))}
-          </div>
-        </div>
-      ) : null}
+      ))}
     </div>
   )
 }
 
 function ParadigmCellForm({
   form,
+  label,
   pronunciationLoadingByForm,
   regeneratingPronunciationByForm,
   onPlayPronunciation,
   onRegeneratePronunciation,
 }: {
   form: SurfaceForm
+  label?: string
   pronunciationLoadingByForm: Record<string, boolean>
   regeneratingPronunciationByForm: Record<string, boolean>
   onPlayPronunciation: (form: string) => void
@@ -121,20 +107,23 @@ function ParadigmCellForm({
   const normalizedForm = normalizeSearchWord(form.form)
   const isRegenerating = Boolean(regeneratingPronunciationByForm[normalizedForm])
   return (
-    <WordbankPronunciationWord
-      form={form.form}
-      hasPronunciation={form.has_pronunciation ?? false}
-      pronunciationLoadingByForm={pronunciationLoadingByForm}
-      onPlayPronunciation={onPlayPronunciation}
-      contextMenuItems={[
-        {
-          label: isRegenerating ? "Regenerating audio..." : "Regenerate audio",
-          disabled: isRegenerating,
-          onSelect: () => onRegeneratePronunciation(form.form),
-        },
-      ]}
-      className="text-sm font-semibold"
-      iconClassName="size-3"
-    />
+    <div className={label ? "flex flex-wrap items-center gap-x-1.5 gap-y-1" : undefined}>
+      {label ? <span className="text-muted-foreground text-xs font-medium">{label}:</span> : null}
+      <WordbankPronunciationWord
+        form={form.form}
+        hasPronunciation={form.has_pronunciation ?? false}
+        pronunciationLoadingByForm={pronunciationLoadingByForm}
+        onPlayPronunciation={onPlayPronunciation}
+        contextMenuItems={[
+          {
+            label: isRegenerating ? "Regenerating audio..." : "Regenerate audio",
+            disabled: isRegenerating,
+            onSelect: () => onRegeneratePronunciation(form.form),
+          },
+        ]}
+        className="text-sm font-semibold"
+        iconClassName="size-3"
+      />
+    </div>
   )
 }

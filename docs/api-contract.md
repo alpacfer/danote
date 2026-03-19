@@ -151,14 +151,17 @@ Route decorators are the source of truth in `backend/app/api/routes/`, and API D
   - `404` when the target lemma or meaning cannot be found.
   - `400` for invalid inputs.
   - body `status` can be `updated` or `skipped`.
-  - v1 is meaning-scoped and noun-only; non-noun targets return `skipped`.
-  - the command uses the saved meaning's `cor_lemma_idx` to resolve the noun paradigm and returns `skipped`
+  - v1 is meaning-scoped for noun and adjective meanings; other POS targets return `skipped`.
+  - the command uses the saved meaning's `cor_lemma_idx` to resolve the paradigm and returns `skipped`
     when that stable COR identity is missing.
   - the command is also gated by verification state for that meaning:
     it returns `skipped` until the meaning target and every saved variation target in that meaning are `verified`.
   - `queued`, `error`, and `flagged` verification states return explicit user-facing skip messages explaining whether verification is still running, needs retry, or needs review resolution.
-  - successful responses add only missing non-lemma noun variations among
+  - successful noun responses add only missing non-lemma noun variations among
     singular-definite, plural-indefinite, and plural-definite.
+  - successful adjective responses add only missing non-lemma agreement forms:
+    singular-indefinite `t-word`, singular-definite, and shared plural forms.
+    Shared plural forms are persisted once even when they render into both plural table cells.
   - `added_surface_forms` lists the forms inserted by this call.
   - `queued_pronunciation_forms` lists the newly added forms queued for background pronunciation generation.
   - `queued_verification_targets` lists the meaning-level completion-review target(s) queued by this call so the frontend can keep polling even after leaving the lemma page.
@@ -179,11 +182,16 @@ Route decorators are the source of truth in `backend/app/api/routes/`, and API D
 - **Response model:** `ApplyVerificationChangesResponse`.
 - **Notable request/behavior details:**
   - `action.action_type` supports `fix_translation`, `fix_gloss`, `fix_variations`, `move_to_meaning_section`, and `move_to_lemma`.
-  - completion-review records may expose a meaning-level `fix_variations` action that reconciles the whole saved noun variation set for that meaning in one apply request.
+  - completion-review records may expose a meaning-level `fix_variations` action that reconciles the whole saved noun or adjective variation set for that meaning in one apply request.
   - `fix_variations` is reserved for the `Complete variations` follow-up review; normal save verification does not emit that action type.
   - when the persisted verification record has `review_intent = "complete_variations"`, the backend rejects any apply attempt whose `action.action_type` is not `fix_variations`, even if the client sends it manually.
-  - when Gemini provides them, `fix_variations` actions may include `singular_indefinite_forms`, `singular_definite_forms`, `plural_indefinite_forms`, and `plural_definite_forms` so apply uses the reviewed slot sets directly instead of re-deriving them from COR.
+  - when Gemini provides them, `fix_variations` actions may include noun slot fields
+    (`singular_indefinite_forms`, `singular_definite_forms`, `plural_indefinite_forms`, `plural_definite_forms`)
+    or adjective slot fields
+    (`singular_indefinite_n_word_forms`, `singular_indefinite_t_word_forms`, `singular_definite_forms`, `plural_indefinite_forms`, `plural_definite_forms`)
+    so apply uses the reviewed slot sets directly instead of re-deriving them from COR.
   - `singular_indefinite_forms` may include multiple spellings for the same slot, such as `["fader", "far"]`.
+  - adjective completion reviews use `n-word` / `t-word` terminology throughout; plural fields may carry the same written form in both plural slots when COR exposes one shared plural form.
   - older saved completion reviews may still carry legacy scalar slot fields (`singular_definite_form`, `plural_indefinite_form`, `plural_definite_form`); the backend still accepts them on input and can recover them from persisted review text during apply.
 - **Notable status/error behavior:**
   - `503` when DB unavailable/locked.

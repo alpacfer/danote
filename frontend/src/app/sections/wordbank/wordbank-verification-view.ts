@@ -197,7 +197,9 @@ export function verificationActionSummary(action: VerificationAction) {
     if (slotSummary) {
       return slotSummary
     }
-    return "Replace the saved variation set with the reviewed noun forms for this meaning."
+    return hasAdjectiveFixVariationFields(action)
+      ? "Replace the saved variation set with the reviewed adjective forms for this meaning."
+      : "Replace the saved variation set with the reviewed noun forms for this meaning."
   }
   if (action.action_type === "move_to_meaning_section") {
     return `Move this entry to meaning section #${action.target_meaning_id ?? "?"}.`
@@ -213,11 +215,20 @@ export function verificationActionSummary(action: VerificationAction) {
 function formatFixVariationsSlotSummary(action: VerificationAction): string | null {
   const summaries = [
     buildFixVariationsSlotLine("Singular indefinite", action.singular_indefinite_forms),
+    buildFixVariationsSlotLine("Singular indefinite n-word", action.singular_indefinite_n_word_forms),
+    buildFixVariationsSlotLine("Singular indefinite t-word", action.singular_indefinite_t_word_forms),
     buildFixVariationsSlotLine("Singular definite", action.singular_definite_forms ?? maybeWrapLegacyValue(action.singular_definite_form)),
     buildFixVariationsSlotLine("Plural indefinite", action.plural_indefinite_forms ?? maybeWrapLegacyValue(action.plural_indefinite_form)),
     buildFixVariationsSlotLine("Plural definite", action.plural_definite_forms ?? maybeWrapLegacyValue(action.plural_definite_form)),
   ].filter(Boolean)
   return summaries.join(" ") || null
+}
+
+function hasAdjectiveFixVariationFields(action: VerificationAction): boolean {
+  return Boolean(
+    (action.singular_indefinite_n_word_forms && action.singular_indefinite_n_word_forms.length > 0)
+    || (action.singular_indefinite_t_word_forms && action.singular_indefinite_t_word_forms.length > 0),
+  )
 }
 
 function buildFixVariationsSlotLine(label: string, forms: string[] | null | undefined): string | null {
