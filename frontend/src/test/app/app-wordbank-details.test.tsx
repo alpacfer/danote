@@ -205,6 +205,48 @@ describe("App wordbank", () => {
     expect(within(meaningCard).getByText(/^t-word$/i)).toBeInTheDocument()
   })
 
+  it("renderer-only: sectioned meaning cards inherit pronunciation availability from hidden lemma rows", async () => {
+    mockFetchImplementation({
+      lemmasResponse: {
+        items: [{ lemma: "lærer", variation_count: 1 }],
+      },
+      lemmaDetailsResponse: {
+        lemma: "lærer",
+        english_translation: "teacher",
+        is_sectioned: true,
+        meaning_sections: [
+          {
+            id: 1,
+            meaning_key: "teacher",
+            gloss: "teacher",
+            english_translation: "teacher",
+            pos_tag: "NOUN",
+            morphology: "Gender=Com|Number=Sing|Definite=Ind",
+            surface_forms: [],
+          },
+        ],
+        surface_forms: [
+          {
+            form: "lærer",
+            pos_tag: "NOUN",
+            morphology: "Gender=Com|Number=Sing|Definite=Ind",
+            has_pronunciation: true,
+          },
+        ],
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+    fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /lærer/i }))
+
+    const meaningCard = await screen.findByTestId("wordbank-meaning-card-1")
+    const cardListenButton = within(meaningCard).getByRole("button", { name: /^listen to lærer$/i })
+    const icon = cardListenButton.querySelector("svg")
+    expect(icon).not.toHaveClass("opacity-30")
+  })
+
   it("contract-backed: sectioned word page shows right-aligned meaning category badges on the meaning card", async () => {
     mockFetchImplementation({
       lemmasResponse: {

@@ -213,6 +213,7 @@ Meaning auto-scroll behavior:
   - each row uses `WordbankPronunciationWord`
   - section lists render only non-lemma variations for that meaning
   - top-level `surface_forms` may still include the lemma form as a separate deduped header/audio source
+  - pronunciation availability is resolved by normalized form across the section's visible rows plus any hidden top-level lemma rows, so matching words stay playable even when audio is stored on a different row for the same form
   - noun and adjective meanings render a shared 2x2 paradigm table as soon as at least one paradigm slot can be derived
   - verb meanings render the same shared table shell with fixed rows:
     `Infinitive`, `Present`, `Past`, `Imperative`, and `Past participle`

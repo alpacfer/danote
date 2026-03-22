@@ -115,6 +115,7 @@ export function WordbankWordPage({
           {isSectioned ? (
             <WordbankMeaningSections
               lemma={activeLemmaDetails.lemma}
+              lemmaSurfaceForms={activeLemmaDetails.surface_forms}
               meaningSections={meaningSections}
               selectedMeaningId={selectedMeaningId}
               pronunciationLoadingByForm={pronunciationLoadingByForm}

@@ -10,6 +10,11 @@ import {
 } from "@/app/core"
 import { WordbankFormList } from "@/app/sections/wordbank/wordbank-form-list"
 import { WordbankParadigmTable } from "@/app/sections/wordbank/wordbank-paradigm-table"
+import {
+  buildPronunciationAvailabilityMap,
+  hasPronunciationForForm,
+  resolvePronunciationAvailability,
+} from "@/app/sections/wordbank/wordbank-pronunciation-availability"
 import { WordbankScopeContextMenu } from "@/app/sections/wordbank/wordbank-scope-context-menu"
 import {
   buildAdjectiveDegreeGroups,
@@ -22,6 +27,7 @@ import { Card, CardContent } from "@/components/ui/card"
 
 type WordbankMeaningSectionsProps = {
   lemma: string
+  lemmaSurfaceForms: LemmaDetailsResponse["surface_forms"]
   meaningSections: LemmaDetailsResponse["meaning_sections"]
   selectedMeaningId: number | null
   pronunciationLoadingByForm: Record<string, boolean>
@@ -36,6 +42,7 @@ type WordbankMeaningSectionsProps = {
 
 export function WordbankMeaningSections({
   lemma,
+  lemmaSurfaceForms,
   meaningSections,
   selectedMeaningId,
   pronunciationLoadingByForm,
@@ -83,9 +90,15 @@ export function WordbankMeaningSections({
         const isVerb = posTag === "VERB"
         const meaningLemma = isVerb ? `at ${lemma}` : lemma
         const canCompleteParadigm = isNoun || isAdjective || isVerb
-        const lemmaHasPronunciation = section.surface_forms.some(
-          (f) => f.form.trim().toLocaleLowerCase("da-DK") === normalizedLemma && f.has_pronunciation,
+        const pronunciationAvailability = buildPronunciationAvailabilityMap([
+          ...lemmaSurfaceForms,
+          ...section.surface_forms,
+        ])
+        const resolvedSectionSurfaceForms = resolvePronunciationAvailability(
+          section.surface_forms,
+          pronunciationAvailability,
         )
+        const lemmaHasPronunciation = hasPronunciationForForm(pronunciationAvailability, lemma)
         const lemmaSyntheticForm = {
           form: lemma,
           pos_tag: section.pos_tag ?? null,
@@ -93,14 +106,14 @@ export function WordbankMeaningSections({
           gram_raw: section.gram_raw ?? null,
           has_pronunciation: lemmaHasPronunciation,
         }
-        const formsWithLemma = [lemmaSyntheticForm, ...section.surface_forms.filter(
+        const formsWithLemma = [lemmaSyntheticForm, ...resolvedSectionSurfaceForms.filter(
           (f) => f.form.trim().toLocaleLowerCase("da-DK") !== normalizedLemma,
         )]
         const nounParadigm = isNoun ? buildNounParadigm(formsWithLemma) : null
         const adjectiveParadigm = posTag === "ADJ" ? buildAdjectiveParadigm(formsWithLemma) : null
         const verbParadigm = isVerb ? buildVerbParadigm(formsWithLemma) : null
         const formGroups = posTag === "ADJ" ? buildAdjectiveDegreeGroups(formsWithLemma) : []
-        const hasRenderableForms = Boolean(nounParadigm || adjectiveParadigm || verbParadigm || section.surface_forms.length > 0)
+        const hasRenderableForms = Boolean(nounParadigm || adjectiveParadigm || verbParadigm || resolvedSectionSurfaceForms.length > 0)
         const sectionBadgeLabels = new Set(sectionBadges.map((b) => b.label))
 
         return (
@@ -175,11 +188,11 @@ export function WordbankMeaningSections({
                         onRegeneratePronunciation={onRegeneratePronunciation}
                       />
                     ) : (
-                      <WordbankFormList
-                        groups={formGroups}
-                        fallbackForms={formGroups.length === 0 ? section.surface_forms : []}
-                        parentPosTag={section.pos_tag ?? null}
-                        parentBadgeLabels={sectionBadgeLabels}
+                        <WordbankFormList
+                          groups={formGroups}
+                          fallbackForms={formGroups.length === 0 ? resolvedSectionSurfaceForms : []}
+                          parentPosTag={section.pos_tag ?? null}
+                          parentBadgeLabels={sectionBadgeLabels}
                         pronunciationLoadingByForm={pronunciationLoadingByForm}
                         regeneratingPronunciationByForm={regeneratingPronunciationByForm}
                         onPlayPronunciation={onPlayPronunciation}

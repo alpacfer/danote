@@ -17,6 +17,7 @@ import {
   buildNounParadigm,
   buildVerbParadigm,
 } from "@/app/sections/wordbank/wordbank-paradigm-utils"
+import { buildPronunciationAvailabilityMap, resolvePronunciationAvailability } from "@/app/sections/wordbank/wordbank-pronunciation-availability"
 import { WordbankPronunciationWord } from "@/app/sections/wordbank/wordbank-pronunciation-word"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
@@ -40,11 +41,14 @@ export function WordbankVariationGrid({
   onPlayPronunciation,
   onRegeneratePronunciation,
 }: WordbankVariationGridProps) {
+  const pronunciationAvailability = buildPronunciationAvailabilityMap(allSurfaceForms)
+  const resolvedAllSurfaceForms = resolvePronunciationAvailability(allSurfaceForms, pronunciationAvailability)
+  const resolvedVariationForms = resolvePronunciationAvailability(variationForms, pronunciationAvailability)
   const upperPosTag = (posTag ?? "").toUpperCase()
   const isNoun = upperPosTag === "NOUN"
-  const nounParadigm = isNoun ? buildNounParadigm(allSurfaceForms) : null
-  const adjectiveParadigm = upperPosTag === "ADJ" ? buildAdjectiveParadigm(allSurfaceForms) : null
-  const verbParadigm = upperPosTag === "VERB" ? buildVerbParadigm(allSurfaceForms) : null
+  const nounParadigm = isNoun ? buildNounParadigm(resolvedAllSurfaceForms) : null
+  const adjectiveParadigm = upperPosTag === "ADJ" ? buildAdjectiveParadigm(resolvedAllSurfaceForms) : null
+  const verbParadigm = upperPosTag === "VERB" ? buildVerbParadigm(resolvedAllSurfaceForms) : null
 
   if (nounParadigm || adjectiveParadigm || verbParadigm) {
     return (
@@ -58,14 +62,14 @@ export function WordbankVariationGrid({
     )
   }
 
-  if (variationForms.length === 0) {
+  if (resolvedVariationForms.length === 0) {
     return null
   }
 
   const formGroups = upperPosTag === "VERB"
     ? []
     : upperPosTag === "ADJ"
-      ? buildAdjectiveDegreeGroups(variationForms)
+      ? buildAdjectiveDegreeGroups(resolvedVariationForms)
       : []
   const hasGroups = formGroups.length > 0 && formGroups.some((g) => g.label !== "Other")
 
@@ -87,7 +91,7 @@ export function WordbankVariationGrid({
   // Fallback: 2-column grid
   return (
     <div className="grid gap-3 md:grid-cols-2">
-      {variationForms.map((form) => {
+      {resolvedVariationForms.map((form) => {
         const formLemmaDisplay = lemmaDisplayForSavedForm(form)
         const formLemmaTranslation = lemmaTranslationWithGloss(
           form.lemma_translation ?? null,
