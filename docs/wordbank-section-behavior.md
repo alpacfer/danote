@@ -47,6 +47,8 @@ The Wordbank section has two UI modes:
 - Details are fetched only when:
   - active section is `wordbank`
   - and `selectedLemma` is present
+- If `selectedLemma` changes to a different lemma, any still-rendered payload for the previous lemma is dropped immediately.
+  The word page waits for the new lemma response or loading skeleton instead of rendering stale layout/body data from the old lemma.
 - If any verification target on the open word page is still `queued`, details are polled every 1.5s until all visible targets reach a final state.
 - Leaving wordbank or clearing selection resets details state (`lemmaDetails`, loading/error/skeleton flags).
 - A loading skeleton is intentionally delayed by 180ms:

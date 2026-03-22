@@ -56,6 +56,7 @@ export function useLexiconData({
     [backendUrl, extractErrorMessage],
   )
   const normalizedSelectedLemma = normalizeSearchWord(selectedLemma ?? "")
+  const normalizedLoadedLemma = normalizeSearchWord(lemmaDetails?.lemma ?? "")
 
   useEffect(() => {
     const shouldLoadWordbank = activeSection === "wordbank" || Boolean(selectedLemma) || hasLoadedWordbank
@@ -144,6 +145,10 @@ export function useLexiconData({
       return
     }
 
+    if (normalizedLoadedLemma && normalizedLoadedLemma !== normalizedSelectedLemma) {
+      setLemmaDetails(null)
+    }
+
     let cancelled = false
     setIsLemmaDetailsLoading(true)
     setLemmaDetailsError(null)
@@ -187,7 +192,15 @@ export function useLexiconData({
         lemmaDetailsLoadingDelayTimeoutRef.current = null
       }
     }
-  }, [activeSection, apiClient, lemmaDetailsPollTick, selectedLemma, wordbankRefreshTick])
+  }, [
+    activeSection,
+    apiClient,
+    lemmaDetailsPollTick,
+    normalizedLoadedLemma,
+    normalizedSelectedLemma,
+    selectedLemma,
+    wordbankRefreshTick,
+  ])
 
   useEffect(() => {
     if (!normalizedSelectedLemma) {

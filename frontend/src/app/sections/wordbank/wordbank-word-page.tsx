@@ -1,5 +1,6 @@
 import { useEffect } from "react"
 
+import { normalizeSearchWord } from "@/app/core"
 import type { WordbankSectionProps } from "@/app/sections/wordbank/wordbank-section-types"
 import { WordbankDetailsLoadingSkeleton, WordbankLemmaHeader } from "@/app/sections/wordbank/wordbank-lemma-header"
 import { WordbankMeaningSections } from "@/app/sections/wordbank/wordbank-meaning-sections"
@@ -52,15 +53,19 @@ export function WordbankWordPage({
   onApplyVerificationAction,
   onRetryVerificationTarget,
 }: WordbankWordPageProps) {
-  const normalizedSelectedLemma = (lemmaDetails?.lemma ?? selectedLemma ?? "").trim().toLocaleLowerCase("da-DK")
-  const variationForms = (lemmaDetails?.surface_forms ?? []).filter(
+  const normalizedRequestedLemma = normalizeSearchWord(selectedLemma ?? "")
+  const normalizedLoadedLemma = normalizeSearchWord(lemmaDetails?.lemma ?? "")
+  const hasMatchingLemmaDetails = !normalizedRequestedLemma || normalizedRequestedLemma === normalizedLoadedLemma
+  const activeLemmaDetails = hasMatchingLemmaDetails ? lemmaDetails : null
+  const normalizedSelectedLemma = (activeLemmaDetails?.lemma ?? selectedLemma ?? "").trim().toLocaleLowerCase("da-DK")
+  const variationForms = (activeLemmaDetails?.surface_forms ?? []).filter(
     (form) => form.form.trim().toLocaleLowerCase("da-DK") !== normalizedSelectedLemma,
   )
-  const meaningSections = lemmaDetails?.meaning_sections ?? []
-  const isSectioned = Boolean(lemmaDetails?.is_sectioned)
+  const meaningSections = activeLemmaDetails?.meaning_sections ?? []
+  const isSectioned = Boolean(activeLemmaDetails?.is_sectioned)
 
   useEffect(() => {
-    if (!selectedMeaningId || !lemmaDetails || !isSectioned) {
+    if (!selectedMeaningId || !activeLemmaDetails || !isSectioned) {
       return
     }
     const frameId = window.requestAnimationFrame(() => {
@@ -70,13 +75,13 @@ export function WordbankWordPage({
     return () => {
       window.cancelAnimationFrame(frameId)
     }
-  }, [isSectioned, lemmaDetails, selectedMeaningId])
+  }, [activeLemmaDetails, isSectioned, selectedMeaningId])
 
-  if (isLemmaDetailsLoading && showLemmaDetailsLoadingSkeleton && !lemmaDetails) {
+  if (isLemmaDetailsLoading && showLemmaDetailsLoadingSkeleton && !activeLemmaDetails) {
     return <WordbankDetailsLoadingSkeleton />
   }
 
-  if (!lemmaDetails) {
+  if (!activeLemmaDetails) {
     return isLemmaDetailsLoading ? null : <p className="text-muted-foreground text-sm">No details found for this lemma.</p>
   }
 
@@ -90,9 +95,9 @@ export function WordbankWordPage({
       <ScrollArea className="min-h-0 flex-1">
         <div className="space-y-3 pr-1">
           <WordbankLemmaHeader
-            selectedLemma={selectedLemma ?? lemmaDetails.lemma}
+            selectedLemma={selectedLemma ?? activeLemmaDetails.lemma}
             selectedMeaningId={selectedMeaningId}
-            lemmaDetails={lemmaDetails}
+            lemmaDetails={activeLemmaDetails}
             pronunciationLoadingByForm={pronunciationLoadingByForm}
             regeneratingPronunciationByForm={regeneratingPronunciationByForm}
             onPlayPronunciation={onPlayPronunciation}
@@ -109,7 +114,7 @@ export function WordbankWordPage({
           />
           {isSectioned ? (
             <WordbankMeaningSections
-              lemma={lemmaDetails.lemma}
+              lemma={activeLemmaDetails.lemma}
               meaningSections={meaningSections}
               selectedMeaningId={selectedMeaningId}
               pronunciationLoadingByForm={pronunciationLoadingByForm}
@@ -123,9 +128,9 @@ export function WordbankWordPage({
             />
           ) : (
             <WordbankVariationGrid
-              allSurfaceForms={lemmaDetails.surface_forms}
+              allSurfaceForms={activeLemmaDetails.surface_forms}
               variationForms={variationForms}
-              posTag={lemmaDetails.pos_tag}
+              posTag={activeLemmaDetails.pos_tag}
               pronunciationLoadingByForm={pronunciationLoadingByForm}
               regeneratingPronunciationByForm={regeneratingPronunciationByForm}
               onPlayPronunciation={onPlayPronunciation}

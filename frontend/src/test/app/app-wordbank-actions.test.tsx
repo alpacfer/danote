@@ -1,4 +1,4 @@
-import { fireEvent, getNotesEditor, mockFetchImplementation, renderApp, responseOf, screen, setNotesEditorText, vi, waitFor, within } from "@/test/app-test-helpers"
+import { act, fireEvent, getNotesEditor, mockFetchImplementation, renderApp, responseOf, screen, setNotesEditorText, vi, waitFor, within } from "@/test/app-test-helpers"
 import {
   bogVariationGlossWordPageContractFixture,
   cloneContractFixture,
@@ -290,6 +290,122 @@ describe("App wordbank", () => {
       )
     })
   })
+
+  it("request-shape: move-to-lemma clears stale flat details until the target card layout loads", async () => {
+    let resolveFarDetails: ((response: Response) => void) | null = null
+
+    mockFetchImplementation({
+      lemmasResponse: {
+        items: [
+          { lemma: "fader", variation_count: 1 },
+          { lemma: "far", variation_count: 1 },
+        ],
+      },
+      lemmaDetailsHandler: async (input) => {
+        const url = String(input)
+        if (url.endsWith("/api/wordbank/lemmas/fader")) {
+          return responseOf({
+            lemma: "fader",
+            english_translation: "father",
+            is_sectioned: false,
+            pos_tag: "NOUN",
+            morphology: "Gender=Com|Number=Sing|Definite=Ind",
+            verification: {
+              status: "flagged",
+              provider: "gemini",
+              reviewer_role: "Professional Danish Language Expert",
+              message: "Review needed",
+              composed_word_count: 1,
+              stored_surface_form: null,
+              requested_at: "2026-03-22T10:20:00.000Z",
+              completed_at: "2026-03-22T10:21:00.000Z",
+              problem: "Saved under the wrong lemma.",
+              change_to_implement: "Move it to the canonical lemma.",
+              suggested_actions: [
+                {
+                  action_type: "move_to_lemma",
+                  reason: "This entry belongs under the lemma far.",
+                  target_lemma: "far",
+                  target_meaning_key: "father",
+                  target_english_translation: "father",
+                  target_pos_tag: "NOUN",
+                  target_morphology: "Gender=Com|Number=Sing|Definite=Ind",
+                },
+              ],
+            },
+            surface_forms: [
+              {
+                form: "faderen",
+                has_pronunciation: false,
+                pos_tag: "NOUN",
+                morphology: "Gender=Com|Number=Sing|Definite=Def",
+              },
+            ],
+          })
+        }
+        if (url.endsWith("/api/wordbank/lemmas/far")) {
+          return await new Promise<Response>((resolve) => {
+            resolveFarDetails = resolve
+          })
+        }
+        throw new Error(`Unexpected lemma details request: ${url}`)
+      },
+      applyVerificationChangesHandler: async () => responseOf({
+        status: "applied",
+        stored_lemma: "fader",
+        stored_surface_form: null,
+        applied_action_type: "move_to_lemma",
+        target_lemma: "far",
+        target_meaning_id: 2,
+      }),
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /fader/i }))
+
+    expect(await screen.findByText(/^faderen$/i)).toBeInTheDocument()
+
+    fireEvent.click(await screen.findByRole("button", { name: /show verification review details/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /apply change/i }))
+
+    await waitFor(() => {
+      expect(screen.queryByText(/^faderen$/i)).not.toBeInTheDocument()
+    })
+    expect(screen.queryByTestId("wordbank-meaning-card-2")).not.toBeInTheDocument()
+
+    await act(async () => {
+      resolveFarDetails?.(responseOf({
+        lemma: "far",
+        english_translation: "father",
+        is_sectioned: true,
+        meaning_sections: [
+          {
+            id: 2,
+            meaning_key: "father",
+            gloss: "father",
+            english_translation: "father",
+            pos_tag: "NOUN",
+            morphology: "Gender=Com|Number=Sing|Definite=Ind",
+            surface_forms: [
+              {
+                form: "faderen",
+                has_pronunciation: false,
+                pos_tag: "NOUN",
+                morphology: "Gender=Com|Number=Sing|Definite=Def",
+              },
+            ],
+          },
+        ],
+        surface_forms: [{ form: "far", has_pronunciation: false }],
+      }))
+    })
+
+    expect(await screen.findByTestId("wordbank-meaning-card-2")).toBeInTheDocument()
+    expect(screen.queryByTestId("wordbank-lemma-scope-card")).not.toBeInTheDocument()
+  }, 15_000)
 
   it("request-shape: right-clicking a meaning card rethinks categories and refreshes the badges", async () => {
     let lemmaDetails = cloneContractFixture(teacherSectionedWordPageContractFixture)
