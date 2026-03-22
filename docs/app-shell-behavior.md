@@ -157,7 +157,8 @@ Notification state is managed by `useNotificationCenter()` and surfaced through 
 - Wordbank-specific unread badge in sidebar comes from unread `kind === "word_verification"` notifications.
 - Word verification notifications are current-state records, not an append-only event log:
   - each target is keyed by `(lemma, meaningId, surfaceForm)` via `targetKey`
-  - queued, review-needed, retry, and verified updates upsert the same notification row for that target
+  - queued, review-needed, and retry updates upsert the same notification row for that target
+  - verified or skipped settlements remove any existing current-state notification row for that target, so unchanged Gemini success is silent
   - sidebar lemma badges are derived from unread current-state verification targets grouped by lemma
 
 ### Open/close

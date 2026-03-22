@@ -951,7 +951,7 @@ describe("App wordbank", () => {
     })
   }, 15_000)
 
-  it("starts Gemini verification after save, shows the spinner, and marks the word as verified after success", async () => {
+  it("starts Gemini verification after save, shows the spinner, and keeps unchanged verified results silent", async () => {
     let verificationComplete = false
 
     mockFetchImplementation({
@@ -1022,9 +1022,8 @@ describe("App wordbank", () => {
       expect(
         screen.queryByRole("button", { name: /word verification is running/i }),
       ).not.toBeInTheDocument()
-      expect(
-        screen.getByRole("button", { name: /show notifications \(1 unread\)/i }),
-      ).toBeEnabled()
+      expect(screen.queryByRole("button", { name: /show notifications/i })).not.toBeInTheDocument()
+      expect(screen.getByRole("button", { name: /no unread notifications/i })).toBeDisabled()
     }, { timeout: 4_000 })
 
     fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))

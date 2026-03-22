@@ -37,5 +37,6 @@ export function useWordbankComposition({ foundation, onSentenceSaved }: UseWordb
     onSentenceSaved,
     pushNotification: notifications.pushNotification,
     markWordVerificationNotificationsAsRead: notifications.markWordVerificationNotificationsAsRead,
+    clearWordVerificationNotification: notifications.clearWordVerificationNotification,
   })
 }

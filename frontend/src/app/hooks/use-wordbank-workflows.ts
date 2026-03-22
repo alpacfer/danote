@@ -58,6 +58,7 @@ type UseWordbankWorkflowsParams = {
     },
   ) => void
   markWordVerificationNotificationsAsRead: (targetKeys: string[]) => void
+  clearWordVerificationNotification: (targetKey: string) => void
 }
 
 export function useWordbankWorkflows({
@@ -82,6 +83,7 @@ export function useWordbankWorkflows({
   onSentenceSaved,
   pushNotification,
   markWordVerificationNotificationsAsRead,
+  clearWordVerificationNotification,
 }: UseWordbankWorkflowsParams) {
   const [addingTokens, setAddingTokens] = useState<Record<string, boolean>>({})
   const [isSavingSentence, setIsSavingSentence] = useState(false)
@@ -135,6 +137,7 @@ export function useWordbankWorkflows({
     setWordbankRefreshTick,
     pushNotification,
     markWordVerificationNotificationsAsRead,
+    clearWordVerificationNotification,
     onOpenWordbankTarget: (lemma, meaningId) => {
       setActiveSection("wordbank")
       setSelectedLemma(lemma)

@@ -121,6 +121,15 @@ export function useNotificationCenter() {
     })
   }, [])
 
+  const clearWordVerificationNotification = useCallback((targetKey: string) => {
+    setNotifications((current) => {
+      const next = current.filter(
+        (notification) => notification.kind !== "word_verification" || notification.targetKey !== targetKey,
+      )
+      return next.length === current.length ? current : next
+    })
+  }, [])
+
   return {
     notifications,
     setNotifications,
@@ -134,5 +143,6 @@ export function useNotificationCenter() {
     pushNotification,
     markAllNotificationsAsRead,
     markWordVerificationNotificationsAsRead,
+    clearWordVerificationNotification,
   }
 }

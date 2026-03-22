@@ -39,6 +39,7 @@ type UseVerificationWorkflowParams = {
     },
   ) => void
   markWordVerificationNotificationsAsRead: (targetKeys: string[]) => void
+  clearWordVerificationNotification: (targetKey: string) => void
   onOpenWordbankTarget: (lemma: string, meaningId: number | null) => void
 }
 
@@ -57,6 +58,7 @@ export function useVerificationWorkflow({
   setWordbankRefreshTick,
   pushNotification,
   markWordVerificationNotificationsAsRead,
+  clearWordVerificationNotification,
   onOpenWordbankTarget,
 }: UseVerificationWorkflowParams) {
   const [isApplyingVerificationChanges, setIsApplyingVerificationChanges] = useState(false)
@@ -75,7 +77,7 @@ export function useVerificationWorkflow({
 
   const notifyVerificationTarget = useCallback((storedLemma: string, target: VerificationTargetView) => {
     const verification = target.verification
-    if (!verification || verification.status === "skipped") {
+    if (!verification) {
       return
     }
     const lemmaKey = normalizeSearchWord(storedLemma)
@@ -101,17 +103,8 @@ export function useVerificationWorkflow({
       return
     }
 
-    if (verification.status === "verified") {
-      pushNotification(`Verification passed for '${target.label}'.`, {
-        kind: "word_verification",
-        lemma: lemmaKey || storedLemma,
-        meaningId: target.meaningId,
-        surfaceForm: target.storedSurfaceForm,
-        targetKey: target.key,
-        status: "verified",
-        signature,
-        actionCount: 0,
-      })
+    if (verification.status === "verified" || verification.status === "skipped") {
+      clearWordVerificationNotification(target.key)
       return
     }
 
@@ -125,7 +118,7 @@ export function useVerificationWorkflow({
       signature,
       actionCount: target.errorDetail?.suggestedActions.length ?? 0,
     })
-  }, [pushNotification])
+  }, [clearWordVerificationNotification, pushNotification])
 
   const removeTrackedVerificationKeys = useCallback((keys: string[]) => {
     if (!keys.length) {

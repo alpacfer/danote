@@ -145,6 +145,7 @@ Meaning auto-scroll behavior:
   - verified target cards show completion copy and verified time
   - error/flagged target cards show reviewed time, problem, change-to-implement text, and action cards inline on that target
   - error target cards also expose `Retry verification`, which queues that exact target again through the backend queue-only endpoint and keeps the page in polling mode until the refreshed run finishes
+  - unchanged `verified` results do not create or keep app-level notification rows; successful Gemini completion is silent outside the word-page popover
   - completion-review meaning cards may expose exactly one `Fix variations` action card that rewrites the whole saved noun variation set for that meaning in one apply
   - completion-review `Fix variations` summaries can describe reviewed noun-slot sets directly, including multiple spellings in one slot such as `Singular indefinite: fader, far`
   - completion-review meaning cards never expose `Move to lemma`, `Move to different meaning`, or translation-fix actions
