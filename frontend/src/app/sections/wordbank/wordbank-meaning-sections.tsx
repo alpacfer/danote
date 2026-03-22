@@ -77,7 +77,6 @@ export function WordbankMeaningSections({
           },
           section.id,
         )
-        const isSelected = selectedMeaningId === section.id
         const posTag = (section.pos_tag ?? "").toUpperCase()
         const isNoun = posTag === "NOUN"
         const isAdjective = posTag === "ADJ"
@@ -118,8 +117,8 @@ export function WordbankMeaningSections({
               id={`wordbank-meaning-${section.id}`}
               data-testid={`wordbank-meaning-card-${section.id}`}
               data-meaning-id={section.id}
-              data-selected={isSelected ? "true" : "false"}
-              className={`border-l-2 py-5 ${posBorderLeftClass(section.pos_tag ?? null)} ${isSelected ? "ring-primary/30 border-primary/50 ring-2" : ""}`.trim()}
+              data-selected={selectedMeaningId === section.id ? "true" : "false"}
+              className={`border-l-2 py-5 ${posBorderLeftClass(section.pos_tag ?? null)}`.trim()}
             >
               <CardContent className="space-y-3">
                 {/* Line 1: Lemma + translation | Category badges */}

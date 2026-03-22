@@ -197,7 +197,7 @@ Meaning auto-scroll behavior:
 - If no meaning sections exist, shows `No saved meanings for this lemma.`
 - Each section renders as a card with:
   - left border color from POS class
-  - selected-meaning highlight ring when `selectedMeaningId` matches section id
+  - no extra selected-state border or ring; `selectedMeaningId` is used for scroll targeting and header context only
   - left-side metadata cluster: lemma label and section-level POS/morphology badges
   - verb meaning cards render the lemma in infinitive display form with `at <lemma>`
   - when backend detail payloads include section `gram_raw`, the section badge set is derived from that COR grammar so invariant lemma forms (for example `orange`) keep the same merged badge set shown in search

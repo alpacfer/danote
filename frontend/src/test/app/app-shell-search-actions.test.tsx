@@ -237,11 +237,15 @@ describe("App shell and search", () => {
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
     })
     expect(await screen.findByRole("heading", { name: /^lærer$/i })).toBeInTheDocument()
+    const meaningCard = screen.getByTestId("wordbank-meaning-card-1")
     expect(screen.getByText(/^lærere$/i)).toBeInTheDocument()
     expect(screen.queryByTestId("wordbank-lemma-header-badges")).not.toBeInTheDocument()
     expect(screen.getAllByText(/^teacher$/i)).toHaveLength(1)
     expect(screen.getByText(/^Plural$/i)).toBeInTheDocument()
     expect(screen.queryByText(/^No translation available\.$/i)).not.toBeInTheDocument()
+    expect(meaningCard).toHaveAttribute("data-selected", "true")
+    expect(meaningCard).not.toHaveClass("ring-2")
+    expect(meaningCard).not.toHaveClass("border-primary/50")
   })
 
   it("request-shape: COR search save keeps lemma translation separate from gloss translation end to end", async () => {

@@ -29,7 +29,19 @@ For any frontend/UI change:
 
 ## 3) Verification strategy
 
-Run this exact sequence for deterministic confidence:
+Default to the smallest relevant verification set, not the full suite every time.
+
+Start with checks closest to the changed boundary:
+
+- docs/workflow-only changes: `make docs-smoke`
+- frontend-only changes: run the nearest affected Vitest file(s)
+- backend-only changes: run the nearest affected pytest module(s)
+
+Backend pytest restores the tracked Gemini audit log
+`backend/data/gemini-applied-changes.jsonl` when the session finishes, so
+verification/apply-change tests do not require manual cleanup.
+
+Escalate to the full suite when the change is broad, risky, or hard to isolate:
 
 ```bash
 make lint
@@ -38,11 +50,11 @@ make test
 make docs-smoke
 ```
 
-Backend pytest restores the tracked Gemini audit log
-`backend/data/gemini-applied-changes.jsonl` when the session finishes, so
-verification/apply-change tests do not require manual cleanup.
+Use the full suite for cross-cutting changes, multi-module refactors, shared
+workflow/build/dependency changes, or whenever you are not confident the impact
+is isolated.
 
-If backend orchestration changed, also run:
+If backend orchestration or API schemas changed, also run:
 
 ```bash
 bash ./scripts/pytest-backend.sh -q tests/use_cases
@@ -62,7 +74,8 @@ bash ./scripts/pytest-backend.sh -q tests/use_cases
 
 ## 6) Definition of done for agent-generated PRs
 
-- Code compiles/lints in the maintained checks.
+- Relevant verification passed for the changed boundary.
+- Broad/high-risk changes ran the full suite.
 - Existing tests pass; new behavior has tests.
 - Docs and scripts are aligned with run instructions.
 - PR summary references commands actually executed.

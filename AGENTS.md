@@ -8,15 +8,19 @@ danote is a Danish-first language-learning notes app with:
 - `frontend/`: React + Vite UI
 - `backend/`: FastAPI + SQLite + NLP/typo pipeline
 
-## Canonical workflow (run from repo root)
+## Verification workflow (run from repo root)
 
-1. `make lint`
-2. `make test`
-3. `make docs-smoke`
-
-If you change backend orchestration or API schemas, additionally run:
-
-4. `bash ./scripts/pytest-backend.sh -q tests/use_cases`
+- Default: run the smallest relevant verification set that covers the changed boundary.
+- Escalate to the full suite only when the change is broad, risky, cross-cutting, or hard to isolate:
+  1. `make lint`
+  2. `make test`
+  3. `make docs-smoke`
+- If you change backend orchestration or API schemas, additionally run:
+  `bash ./scripts/pytest-backend.sh -q tests/use_cases`
+- Typical targeted examples:
+  - frontend-only/UI change: run the nearest affected Vitest file(s)
+  - backend-only behavior change: run the nearest affected pytest module(s)
+  - docs/workflow-only change: run `make docs-smoke`
 
 ## Architecture map
 
@@ -32,6 +36,7 @@ If you change backend orchestration or API schemas, additionally run:
 - Keep route handlers thin; place orchestration in `services/use_cases/`.
 - Add/modify request-response models in `api/schemas/v1/` first; route files should import from schemas.
 - Prefer adding/expanding tests rather than changing expectations silently.
+- Prefer the smallest verification set that proves the changed behavior.
 - Update docs when command or workflow behavior changes.
 - For frontend/UI changes, default to using existing shadcn/ui components before building custom UI primitives.
 - For frontend/UI changes, first review the relevant official shadcn/ui component docs and assess the best-fit primitive before implementing.
@@ -106,16 +111,16 @@ If you change backend orchestration or API schemas, additionally run:
 
 ### Verification before finishing
 
-- Run full checks (`make lint`, `make test`, `make docs-smoke`) after refactors, not only after feature changes.
+- Run targeted checks that directly cover the changed files/behavior by default.
+- Run the full suite (`make lint`, `make test`, `make docs-smoke`) for broad or high-blast-radius changes, including refactors across multiple modules, workflow/build/dependency changes, and changes whose impact cannot be cleanly isolated.
 - If behavior was moved across files, ensure tests still cover the moved behavior.
 - In the final summary, call out major extracted modules so future contributors can find ownership quickly.
 
 ## Self-verification checklist before finishing
 
 - [ ] Related documentation reviewed before implementation (`README.md` and/or `docs/*`)
-- [ ] `make lint` passes
-- [ ] `make test` passes
-- [ ] `make docs-smoke` passes
+- [ ] Relevant verification for the changed boundary was executed and passes
+- [ ] If the change is broad/high-risk: `make lint`, `make test`, and `make docs-smoke` pass
 - [ ] If backend orchestration changed: `tests/use_cases` passes
 - [ ] Documentation parity verified (docs updated or PR includes explicit "No documentation impact" justification)
 - [ ] No unstaged/untracked scratch files remain

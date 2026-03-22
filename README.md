@@ -37,7 +37,18 @@ Backend pytest sessions automatically restore the tracked Gemini audit log
 `backend/data/gemini-applied-changes.jsonl` at session end so test runs do not
 leave that file dirty.
 
-For AI-agent focused verification:
+For day-to-day changes, do not default to the full suite every time. Run the
+smallest relevant verification set first:
+
+- docs/workflow-only changes: `make docs-smoke`
+- frontend-only changes: run the nearest affected Vitest file(s)
+- backend-only changes: run the nearest affected pytest module(s)
+
+Reserve `make lint`, `make test`, and `make docs-smoke` together for broad or
+high-risk work such as cross-cutting changes, multi-module refactors,
+dependency/build/config updates, or anything whose blast radius is unclear.
+
+For AI-agent full verification on broad changes:
 
 ```bash
 cd <repo-root>
