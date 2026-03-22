@@ -10,6 +10,10 @@ log() {
 log "checking script syntax"
 bash -n "$ROOT_DIR/scripts/run-project.sh"
 bash -n "$ROOT_DIR/scripts/e2e-regression.sh"
+bash -n "$ROOT_DIR/scripts/setup-dacy-model.sh"
+
+log "running bootstrap script tests"
+bash "$ROOT_DIR/scripts/tests/test-run-project-bootstrap.sh"
 
 log "running frontend lint"
 (

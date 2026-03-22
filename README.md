@@ -58,6 +58,11 @@ cd <repo-root>
 
 This starts backend and frontend together, checks backend health, and stops both on `Ctrl+C`.
 It also auto-loads root-level `.env` and `.env.local` files when present.
+On macOS and Linux, the script now self-heals the backend bootstrap path: it installs `uv`
+user-locally when missing, provisions Python `3.11`, recreates stale backend virtualenvs, installs
+`backend/requirements.lock.txt`, and auto-installs the pinned DaCy model when NLP is enabled.
+`node` and `npm` are still required locally; when they are missing or too old, the script prints
+platform-specific install commands and exits before partial startup.
 
 Configuration reference: [`docs/configuration-reference.md`](docs/configuration-reference.md).
 
@@ -103,7 +108,7 @@ Backend:
 
 ```bash
 cd backend
-python3 -m venv .venv
+python3.11 -m venv .venv
 source .venv/bin/activate
 pip install --upgrade pip
 pip install -r requirements.lock.txt
@@ -114,9 +119,15 @@ If `python3-venv` / `python3-pip` are missing on Linux, bootstrap with `uv` firs
 
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
+~/.local/bin/uv python install 3.11
 ~/.local/bin/uv venv --clear backend/.venv
 ~/.local/bin/uv pip install --python backend/.venv/bin/python -r backend/requirements.lock.txt
 ```
+
+Frontend runtime floor:
+
+- Node.js `>=20.19.0`
+- npm available on `PATH`
 
 Frontend:
 

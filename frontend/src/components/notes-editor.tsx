@@ -128,7 +128,7 @@ export function NotesEditor({
         autocapitalize: "off",
         autocomplete: "off",
         class: cn(
-          "danote-notes-editor border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:bg-input/30 min-h-[46vh] md:min-h-[58vh] w-full rounded-md border bg-transparent px-3 py-2 pb-8 text-base shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px]",
+          "danote-notes-editor border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:bg-input/30 min-h-[46vh] md:min-h-[58vh] w-full rounded-md border bg-transparent px-3 py-2 pb-8 text-base leading-[1.6] shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px]",
           className,
         ),
       },
@@ -232,7 +232,7 @@ export function NotesEditor({
         />
       )}
       {value.length === 0 && (
-        <span className="text-muted-foreground pointer-events-none absolute top-2 left-3 text-base">
+        <span className="text-muted-foreground pointer-events-none absolute top-2 left-3 text-base leading-[1.6] font-normal">
           {placeholder}
         </span>
       )}

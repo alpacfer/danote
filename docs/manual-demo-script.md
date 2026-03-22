@@ -7,9 +7,9 @@ Demonstrate the core loop: note analysis, add-to-wordbank, and persistence acros
 ## Preconditions
 
 - Repository cloned cleanly.
-- Backend environment installed (`backend/.venv`).
-- Frontend dependencies installed (`frontend/node_modules`).
 - Backend and frontend start script available: `./scripts/run-project.sh`.
+- Node.js `>=20.19.0` and `npm` available locally.
+- Network access available for first-run backend bootstrap (`uv`, locked Python deps, and the pinned DaCy model when missing).
 
 ## Demo Steps
 

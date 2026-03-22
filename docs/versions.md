@@ -6,8 +6,9 @@ This document tracks the baseline development environment and dependency locking
 
 - OS: `Linux 6.17.0-14-generic (Ubuntu)`
 - Node.js: `v20.20.0`
+- Minimum supported Node.js for local bootstrap: `20.19.0`
 - Package manager: `npm 10.8.2`
-- Python: `3.12.3`
+- Python: `3.11.x`
 - Linux prerequisites for backend env setup: `python3-venv`, `python3-pip`
 
 ## Frontend
@@ -19,10 +20,12 @@ This document tracks the baseline development environment and dependency locking
 - shadcn style: `new-york` (default style is deprecated upstream)
 - Alias conventions: `@/* -> src/*`, `@/components`, `@/lib`, `@/components/ui`
 - shadcn config file: `frontend/components.json` (present and used for CLI `add`)
+- App font baseline: `Source Sans 3` via `@fontsource/source-sans-3`
 - Key libraries:
   - `shadcn 3.8.5`
   - `tailwindcss 4.2.1`
   - `@tailwindcss/vite 4.2.1`
+  - `@fontsource/source-sans-3 5.2.9`
   - `radix-ui 1.4.3`
   - `class-variance-authority 0.7.1`
   - `tailwind-merge 3.5.0`
@@ -32,7 +35,8 @@ This document tracks the baseline development environment and dependency locking
 
 ## Backend
 
-- Runtime: `Python 3.12.3`
+- Runtime: `Python 3.11.x`
+- Local bootstrap/runtime target: `run-project.sh` provisions `Python 3.11.x` via `uv`
 - Framework: `FastAPI 0.116.1`
 - ASGI server: `uvicorn 0.35.0`
 - Dependency management approach: `pip + pinned requirements files`
@@ -70,6 +74,7 @@ This document tracks the baseline development environment and dependency locking
 - Frontend lockfile: `package-lock.json` (npm)
 - Backend input requirements: `backend/requirements.txt` (+ `backend/requirements-dev.txt` for dev/lock generation)
 - Backend canonical install lockfile: `backend/requirements.lock.txt`
+- First-run backend bootstrap command: `./scripts/run-project.sh` or `uv venv --python 3.11 backend/.venv`
 
 ## Current Lockfile Status
 

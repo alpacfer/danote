@@ -56,10 +56,10 @@ function App() {
         <header className="flex h-12 items-center gap-2 px-4 md:hidden">
           <SidebarTrigger />
         </header>
-        <main className="flex min-h-0 w-full flex-1 flex-col px-1 pt-3 pb-2 md:px-2 md:pt-8 md:pb-4">
+        <main className="flex min-h-0 w-full flex-1 flex-col px-[var(--danote-shell-gutter-x)] pt-[var(--danote-shell-gutter-y)] pb-[var(--danote-shell-gutter-y-compact)]">
           <span className="sr-only" aria-label="backend-connection-status">{status}</span>
           <div className="mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col">
-            <div className="mb-6 md:mb-8 flex items-center justify-between gap-3">
+            <div className="mb-[var(--danote-shell-stack-gap)] flex items-center justify-between gap-3">
               <AppBreadcrumb
                 activeSection={activeSection}
                 selectedLemma={selectedLemma}

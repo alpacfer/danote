@@ -25,7 +25,7 @@ export function AppBreadcrumb({
   if (activeSection === "playground") {
     return (
       <Breadcrumb>
-        <BreadcrumbList className="text-2xl font-semibold">
+        <BreadcrumbList className="text-2xl leading-[1.1] font-semibold tracking-tight">
           <BreadcrumbItem>
             <BreadcrumbPage>{activeNoteName?.trim() || "Playground"}</BreadcrumbPage>
           </BreadcrumbItem>
@@ -37,7 +37,7 @@ export function AppBreadcrumb({
   if (activeSection === "developer") {
     return (
       <Breadcrumb>
-        <BreadcrumbList className="text-2xl font-semibold">
+        <BreadcrumbList className="text-2xl leading-[1.1] font-semibold tracking-tight">
           <BreadcrumbItem>
             <BreadcrumbPage>Developer</BreadcrumbPage>
           </BreadcrumbItem>
@@ -49,7 +49,7 @@ export function AppBreadcrumb({
   if (activeSection === "notes") {
     return (
       <Breadcrumb>
-        <BreadcrumbList className="text-2xl font-semibold">
+        <BreadcrumbList className="text-2xl leading-[1.1] font-semibold tracking-tight">
           <BreadcrumbItem>
             <BreadcrumbPage>Notes</BreadcrumbPage>
           </BreadcrumbItem>
@@ -61,7 +61,7 @@ export function AppBreadcrumb({
   if (activeSection === "sentencebank") {
     return (
       <Breadcrumb>
-        <BreadcrumbList className="text-2xl font-semibold">
+        <BreadcrumbList className="text-2xl leading-[1.1] font-semibold tracking-tight">
           <BreadcrumbItem>
             <BreadcrumbPage>Sentencebank</BreadcrumbPage>
           </BreadcrumbItem>
@@ -72,7 +72,7 @@ export function AppBreadcrumb({
 
   return (
     <Breadcrumb>
-      <BreadcrumbList className="text-2xl font-semibold">
+      <BreadcrumbList className="text-2xl leading-[1.1] font-semibold tracking-tight">
         <BreadcrumbItem>
           {selectedLemma ? (
             <BreadcrumbLink asChild>
