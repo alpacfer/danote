@@ -16,15 +16,6 @@ from app.db.repositories.wordbank import WordbankRepository
 from app.services.token_classifier import normalize_token
 from app.services.use_cases.wordbank.collaborators.cor import CorResolutionCollaborator
 from app.services.use_cases.wordbank.collaborators.nlp import NLPCollaborator
-from app.services.use_cases.wordbank.paradigm_variations import (
-    ADJECTIVE_SLOT_ACTION_LIST_FIELDS,
-    LEGACY_NOUN_SLOT_ACTION_FIELDS,
-    NOUN_SLOT_ACTION_LIST_FIELDS,
-    VERB_SLOT_ACTION_LIST_FIELDS,
-    extract_fix_variations_action_slot_form_lists,
-    extract_fix_variations_action_slot_forms,
-    parse_fix_variations_text_slot_forms,
-)
 from app.services.use_cases.wordbank.verification_input_builder import build_verification_input
 from app.services.use_cases.wordbank.verification_actions import apply_verification_action
 from app.services.use_cases.wordbank.verification_apply_resolution import (
@@ -45,8 +36,6 @@ from app.services.use_cases.wordbank.verification_queue import (
 )
 from app.services.use_cases.wordbank.verification_helper_logic import (
     completion_review_actions,
-    find_fix_variations_action_form_lists,
-    find_fix_variations_action_fields,
     normalize_review_intent,
     rethink_categories_message,
     verification_action_to_schema,
@@ -94,15 +83,20 @@ class VerificationCollaborator:
             meaning_id=meaning_id,
             review_intent=review_intent,
         )
-        verification, category_labels = self._verify_added_word(payload)
-        applied_categories = self._persist_verification_result(
+        verification = self._verify_added_word(payload)
+        self._persist_verification_result(
             stored_lemma=normalized_lemma,
             meaning_id=meaning_id,
             stored_surface_form=normalized_surface,
             verification=verification,
-            category_labels=category_labels,
             review_intent=normalize_review_intent(review_intent),
             latest_snapshot_hash=self._verification_payload_hash(payload),
+        )
+        applied_categories = self._classify_and_persist_categories(
+            stored_lemma=normalized_lemma,
+            meaning_id=meaning_id,
+            verification=verification,
+            payload=payload,
         )
         return VerifyWordResponse(
             stored_lemma=normalized_lemma,
@@ -160,15 +154,20 @@ class VerificationCollaborator:
                 meaning_id=current_meaning_id,
             ),
             verify_payload=self._verify_added_word,
-            persist_result=lambda lemma, current_meaning_id, surface, verification, labels, current_review_intent, snapshot_hash, request_generation: self._persist_verification_result(
+            persist_result=lambda lemma, current_meaning_id, surface, verification, current_review_intent, snapshot_hash, request_generation: self._persist_verification_result(
                 stored_lemma=lemma,
                 meaning_id=current_meaning_id,
                 stored_surface_form=surface,
                 verification=verification,
-                category_labels=labels,
                 review_intent=current_review_intent,
                 latest_snapshot_hash=snapshot_hash,
                 request_generation=request_generation,
+            ),
+            classify_and_persist_categories=lambda lemma, current_meaning_id, verification, payload: self._classify_and_persist_categories(
+                stored_lemma=lemma,
+                meaning_id=current_meaning_id,
+                verification=verification,
+                payload=payload,
             ),
         )
 
@@ -233,7 +232,7 @@ class VerificationCollaborator:
                 stored_surface_form=normalized_surface,
                 meaning_id=meaning_id,
                 applied_categories=[],
-                message="Word categorization is disabled.",
+                message="Categories disabled.",
             )
 
         try:
@@ -245,7 +244,7 @@ class VerificationCollaborator:
                 stored_surface_form=normalized_surface,
                 meaning_id=meaning_id,
                 applied_categories=[],
-                message=f"Category rethink failed: {exc}",
+                message=f"Category update failed: {exc}",
             )
 
         applied_categories = self._persist_categories_for_scope(
@@ -303,19 +302,13 @@ class VerificationCollaborator:
             meaning_id=meaning_id,
             action=action,
         )
-        resolved_action = self._resolve_apply_action(
-            stored_lemma=normalized_lemma,
-            stored_surface_form=normalized_surface,
-            meaning_id=meaning_id,
-            action=action,
-        )
         result = apply_verification_action(
             db_path=self._db_path,
             cor=self._cor,
             stored_lemma=normalized_lemma,
             stored_surface_form=normalized_surface,
             meaning_id=meaning_id,
-            action=resolved_action,
+            action=action,
             provider_name=provider_name,
         )
         for lemma, surface in result.invalidate_targets:
@@ -354,66 +347,6 @@ class VerificationCollaborator:
             target_lemma=result.target_lemma,
             target_meaning_id=result.target_meaning_id,
         )
-
-    def _resolve_apply_action(
-        self,
-        *,
-        stored_lemma: str,
-        stored_surface_form: str | None,
-        meaning_id: int | None,
-        action: dict[str, object],
-    ) -> dict[str, object]:
-        if action.get("action_type") != "fix_variations":
-            return action
-        if (
-            extract_fix_variations_action_slot_form_lists(action)
-            or extract_fix_variations_action_slot_forms(action)
-        ):
-            return action
-
-        repository = WordbankRepository(self._db_path)
-        lexeme = repository.get_lexeme(stored_lemma)
-        if lexeme is None:
-            return action
-        record = repository.get_verification_record(
-            lexeme_id=lexeme.id,
-            meaning_id=meaning_id,
-            stored_surface_form=stored_surface_form,
-        )
-        if record is None:
-            return action
-
-        hydrated_form_lists = find_fix_variations_action_form_lists(record.suggested_actions)
-        if hydrated_form_lists:
-            field_by_slot = {
-                **NOUN_SLOT_ACTION_LIST_FIELDS,
-                **ADJECTIVE_SLOT_ACTION_LIST_FIELDS,
-                **VERB_SLOT_ACTION_LIST_FIELDS,
-            }
-            return {
-                **action,
-                **{
-                    field_name: form_list
-                    for slot_name, form_list in hydrated_form_lists.items()
-                    if (field_name := field_by_slot.get(slot_name)) is not None
-                },
-            }
-
-        hydrated_fields = find_fix_variations_action_fields(record.suggested_actions)
-        if not hydrated_fields:
-            hydrated_fields = parse_fix_variations_text_slot_forms(record.change_to_implement)
-        if not hydrated_fields:
-            hydrated_fields = parse_fix_variations_text_slot_forms(record.problem)
-        if not hydrated_fields:
-            return action
-        return {
-            **action,
-            **{
-                field_name: form
-                for slot_name, form in hydrated_fields.items()
-                if (field_name := LEGACY_NOUN_SLOT_ACTION_FIELDS.get(slot_name)) is not None
-            },
-        }
 
     def _assert_apply_action_allowed(
         self,
@@ -527,17 +460,14 @@ class VerificationCollaborator:
     def _verify_added_word(
         self,
         payload: WordVerificationInput,
-    ) -> tuple[VerificationResult, list[str]]:
+    ) -> VerificationResult:
         if self._verification_service is None:
-            return (
-                VerificationResult(
-                    status="skipped",
-                    provider=None,
-                    reviewer_role=None,
-                    review_intent=payload.review_intent,
-                    message="Word verification is disabled.",
-                ),
-                [],
+            return VerificationResult(
+                status="skipped",
+                provider=None,
+                reviewer_role=None,
+                review_intent=payload.review_intent,
+                message="Verification disabled.",
             )
 
         provider_name, reviewer_name = self._verification_metadata()
@@ -545,22 +475,19 @@ class VerificationCollaborator:
         try:
             verdict = self._verification_service.verify_word_entry(payload)
         except Exception as exc:
-            return (
-                VerificationResult(
-                    status="error",
-                    provider=provider_name,
-                    reviewer_role=reviewer_name,
-                    review_intent=payload.review_intent,
-                    message=f"Verification task failed: {exc}",
-                    composed_word_count=None,
-                    stored_surface_form=payload.stored_surface_form,
-                    requested_at=now_utc_iso(),
-                    completed_at=now_utc_iso(),
-                    problem=str(exc),
-                    change_to_implement="Fix Gemini verification setup or provider errors, then run verification again.",
-                    suggested_actions=[],
-                ),
-                [],
+            return VerificationResult(
+                status="error",
+                provider=provider_name,
+                reviewer_role=reviewer_name,
+                review_intent=payload.review_intent,
+                message="Verification failed",
+                composed_word_count=None,
+                stored_surface_form=payload.stored_surface_form,
+                requested_at=now_utc_iso(),
+                completed_at=now_utc_iso(),
+                problem=str(exc),
+                change_to_implement="Retry verification.",
+                suggested_actions=[],
             )
 
         completed_at = now_utc_iso()
@@ -574,20 +501,17 @@ class VerificationCollaborator:
             and suggested_actions
             and all(action.action_type == "fix_variations" for action in suggested_actions)
         ):
-            return (
-                VerificationResult(
-                    status="verified",
-                    provider=provider_name,
-                    reviewer_role=reviewer_name,
-                    review_intent=payload.review_intent,
-                    message="OK",
-                    composed_word_count=getattr(verdict, "composed_word_count", None),
-                    stored_surface_form=payload.stored_surface_form,
-                    requested_at=completed_at,
-                    completed_at=completed_at,
-                    suggested_actions=[],
-                ),
-                list(getattr(verdict, "categories", ()) or ()),
+            return VerificationResult(
+                status="verified",
+                provider=provider_name,
+                reviewer_role=reviewer_name,
+                review_intent=payload.review_intent,
+                message="OK",
+                composed_word_count=getattr(verdict, "composed_word_count", None),
+                stored_surface_form=payload.stored_surface_form,
+                requested_at=completed_at,
+                completed_at=completed_at,
+                suggested_actions=[],
             )
         suggested_actions = completion_review_actions(
             payload=payload,
@@ -596,22 +520,19 @@ class VerificationCollaborator:
             problem=getattr(verdict, "problem", None),
             change_to_implement=getattr(verdict, "change_to_implement", None),
         )
-        return (
-            VerificationResult(
-                status=verdict.verdict,
-                provider=provider_name,
-                reviewer_role=reviewer_name,
-                review_intent=payload.review_intent,
-                message=verdict.message,
-                composed_word_count=getattr(verdict, "composed_word_count", None),
-                stored_surface_form=payload.stored_surface_form,
-                requested_at=completed_at,
-                completed_at=completed_at,
-                problem=getattr(verdict, "problem", None),
-                change_to_implement=getattr(verdict, "change_to_implement", None),
-                suggested_actions=suggested_actions,
-            ),
-            list(getattr(verdict, "categories", ()) or ()),
+        return VerificationResult(
+            status=verdict.verdict,
+            provider=provider_name,
+            reviewer_role=reviewer_name,
+            review_intent=payload.review_intent,
+            message=verdict.message,
+            composed_word_count=getattr(verdict, "composed_word_count", None),
+            stored_surface_form=payload.stored_surface_form,
+            requested_at=completed_at,
+            completed_at=completed_at,
+            problem=getattr(verdict, "problem", None),
+            change_to_implement=getattr(verdict, "change_to_implement", None),
+            suggested_actions=suggested_actions,
         )
 
     def _persist_verification_result(
@@ -621,15 +542,14 @@ class VerificationCollaborator:
         meaning_id: int | None,
         stored_surface_form: str | None,
         verification: VerificationResult,
-        category_labels: list[str],
         review_intent: str | None = None,
         latest_snapshot_hash: str | None = None,
         request_generation: int | None = None,
-    ) -> list[str]:
+    ) -> None:
         repository = WordbankRepository(self._db_path)
         lexeme = repository.get_lexeme(stored_lemma)
         if lexeme is None:
-            return []
+            return
         record = repository.get_verification_record(
             lexeme_id=lexeme.id,
             meaning_id=meaning_id,
@@ -655,12 +575,30 @@ class VerificationCollaborator:
         )
         verification.requested_at = record.requested_at
         verification.completed_at = record.completed_at
+        
+    def _classify_and_persist_categories(
+        self,
+        *,
+        stored_lemma: str,
+        meaning_id: int | None,
+        verification: VerificationResult,
+        payload: WordVerificationInput,
+    ) -> list[str]:
         if verification.status not in {"verified", "flagged"}:
+            return []
+        if self._verification_service is None:
+            return []
+        classify_word_categories = getattr(self._verification_service, "classify_word_categories", None)
+        if not callable(classify_word_categories):
+            return []
+        try:
+            classification = classify_word_categories(payload)
+        except Exception:
             return []
         return self._persist_categories_for_scope(
             stored_lemma=stored_lemma,
             meaning_id=meaning_id,
-            labels=category_labels,
+            labels=list(getattr(classification, "categories", ()) or ()),
         )
 
     def _persist_categories_for_scope(

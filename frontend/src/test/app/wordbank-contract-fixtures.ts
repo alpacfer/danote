@@ -129,7 +129,7 @@ export const teacherQueuedWordPageContractFixture = {
         status: "queued",
         provider: "gemini",
         reviewer_role: "Professional Danish Language Expert",
-        message: "Word verification queued.",
+        message: "Queued",
         composed_word_count: null,
         stored_surface_form: "lærere",
         requested_at: "2026-03-13T12:00:00.000Z",

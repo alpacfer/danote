@@ -405,9 +405,6 @@ function buildActionToastMessage(actionType: string, label: string): string {
   if (actionType === "fix_translation") {
     return `Updated translation for '${label}'.`
   }
-  if (actionType === "fix_gloss") {
-    return `Updated gloss for '${label}'.`
-  }
   if (actionType === "fix_variations") {
     return `Updated variations for '${label}'.`
   }

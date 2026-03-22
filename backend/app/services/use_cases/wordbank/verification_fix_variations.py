@@ -55,7 +55,7 @@ def apply_fix_variations(
         lemma=context.lemma,
     )
     if not desired_slots:
-        raise RuntimeError(f"No COR-backed {context.paradigm_kind} variations were found for this meaning.")
+        raise ValueError("fix_variations requires structured slot forms.")
     if context.paradigm_kind in {"adjective", "verb"}:
         return _apply_fix_variations_compacted(
             conn,
@@ -277,19 +277,7 @@ def _resolve_fix_variations_slots(
     action_slot_form_lists = extract_fix_variations_action_slot_form_lists(action)
     action_slot_forms = extract_fix_variations_action_slot_forms(action)
     if not action_slot_form_lists and not action_slot_forms:
-        return {
-            slot_name: tuple(
-                DesiredParadigmVariationForm(
-                    form=entry.form,
-                    pos_tag=entry.pos_tag,
-                    morphology=entry.morphology,
-                    cor_ids=(entry.cor_id,) if entry.cor_id else (),
-                )
-                for entry in entries
-            )
-            for slot_name, entries in fallback_slot_entries.items()
-            if entries and (paradigm_kind != "noun" or slot_name != "singular_indefinite")
-        }
+        return {}
 
     desired_slots: dict[str, tuple[DesiredParadigmVariationForm, ...]] = {}
     normalized_lemma = normalize_token(lemma) or lemma

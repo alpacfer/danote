@@ -125,10 +125,9 @@ class MeaningContext(BaseModel):
 
 
 class VerificationAction(BaseModel):
-    action_type: Literal["fix_translation", "fix_gloss", "fix_variations", "move_to_meaning_section", "move_to_lemma"]
+    action_type: Literal["fix_translation", "fix_variations", "move_to_meaning_section", "move_to_lemma"]
     reason: str | None = None
     english_translation: str | None = None
-    gloss: str | None = None
     singular_indefinite_forms: list[str] | None = None
     singular_indefinite_n_word_forms: list[str] | None = None
     singular_indefinite_t_word_forms: list[str] | None = None
@@ -140,9 +139,6 @@ class VerificationAction(BaseModel):
     past_forms: list[str] | None = None
     imperative_forms: list[str] | None = None
     past_participle_forms: list[str] | None = None
-    singular_definite_form: str | None = None
-    plural_indefinite_form: str | None = None
-    plural_definite_form: str | None = None
     target_meaning_id: int | None = None
     target_lemma: str | None = None
     target_meaning_key: str | None = None

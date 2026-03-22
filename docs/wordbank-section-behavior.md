@@ -292,13 +292,15 @@ Pronunciation behavior is shared by header + section rows + variation rows.
   lemma page -> meaning sections -> surface forms.
 - Normal verification after save checks only whether the saved lemma / meaning / selected surface placement is correct.
   It does not fail just because other paradigm members are missing, and it does not suggest variation-completion work.
+- Verification prompt payloads are target-scoped and token-lean:
+  the reviewed target, relevant surface forms for that target, minimal sibling meaning context, and canonical-lemma identity when available.
 - Verification payloads include both the saved lemma and the best COR-backed canonical lemma identity when that dictionary lemma can be resolved from saved COR ids / lemma indexes.
 - When COR indicates the saved lemma is an inflected form rather than the true dictionary lemma (for example `mor` vs `moder`), Gemini is prompted to flag the entry and suggest a `move_to_lemma` correction toward the canonical lemma.
 - Exception: the completion-specific meaning review for `Complete variations` keeps the saved lemma fixed and treats canonical-lemma mismatch as a signal to question the generated variation set, not to rewrite the lemma.
 - For that completion-specific review, Gemini/backend remediation is modeled as a single meaning-level `fix_variations` action that can rewrite the saved noun, adjective, or verb variations in one apply.
 - New completion-review `fix_variations` actions can carry reviewed noun-slot form lists directly (`singular_indefinite_forms`, `singular_definite_forms`, `plural_indefinite_forms`, `plural_definite_forms`) or reviewed adjective-slot form lists directly (`singular_indefinite_n_word_forms`, `singular_indefinite_t_word_forms`, `singular_definite_forms`, `plural_indefinite_forms`, `plural_definite_forms`) so apply does not have to trust the same COR paradigm that produced the bad completion set.
 - `singular_indefinite_forms` may include the saved lemma plus alternative spellings for the same slot; apply treats that reviewed list as the exact saved slot set and removes stale aliases.
-- Older saved completion reviews that only have prose in `change_to_implement` are still applyable because the backend can extract those noun-slot targets from the persisted review text before mutating the meaning.
+- `fix_variations` is structured-only. If Gemini does not return slot lists, the review stays flagged but there is no applyable fallback from prose.
 - Translation context comes only from the lemma or meaning section.
   Surface forms do not have independent translations in the verification model.
 - Meaning glosses are treated as immutable COR disambiguators.
@@ -306,11 +308,10 @@ Pronunciation behavior is shared by header + section rows + variation rows.
 - For meaning-section verification, the reviewed section is sent as the current scope and not duplicated in the sibling-meaning list.
 - When available, Gemini also receives translated gloss hints for the reviewed meaning, sibling meanings, and scoped surface forms to disambiguate homographs such as `mor`.
 - Canonical lemma metadata is evaluated separately from the selected saved surface-form metadata.
-- The same Gemini verification call also classifies the reviewed root / meaning scope into semantic categories.
-  - Gemini receives the shared persisted category list plus the categories already assigned to that scope.
-  - Gemini also receives the whole saved-word context for that lemma: reviewed scope metadata, gloss, translation scope, sibling meaning sections, and the full saved surface-form inventory with meaning links and morphology.
-  - It may choose multiple existing categories.
-  - If needed, it may mint up to 3 new broad categories, which are stored for later runs.
+- After verification persists as `verified` or `flagged`, category classification runs as a separate Gemini step for the same root / meaning scope.
+  - The category prompt receives the shared persisted category list, the categories already assigned to that scope, and the saved-word context needed for category choice.
+  - It prefers existing categories.
+  - If needed, it may mint at most 1 new broad category, which is stored for later runs.
   - Category assignments are auto-applied with no confirmation step and show up through later lemma-detail fetches.
 - Queue execution is backend-driven through the shared wordbank background-job runner.
   Multiple verification targets can execute in parallel through a bounded worker pool.
@@ -324,8 +325,8 @@ Pronunciation behavior is shared by header + section rows + variation rows.
 
 - `POST /api/wordbank/lexemes/rethink-categories` reruns Gemini category classification for a specific root / meaning scope using the current shared category list and the categories already assigned to that scope.
 - This path is triggered manually from the word-card context menu.
-- It uses the same Gemini categorization payload as the initial verification run, including full saved surface-form context and sibling meaning context for the whole word page.
-- Gemini may reuse multiple existing categories and may mint up to 3 new broad categories when needed.
+- It uses the standalone category-classification Gemini payload for that scope.
+- Gemini may reuse multiple existing categories and may mint at most 1 new broad category when needed.
 - Successful recategorization replaces the full persisted category assignment set for that scope.
 - Recategorization does not overwrite or re-review existing verification records.
 

@@ -3,9 +3,6 @@ from __future__ import annotations
 from app.api.schemas.v1.wordbank import VerificationAction
 from app.services.use_cases.wordbank.paradigm_variations import (
     extract_fix_variations_action_slot_form_lists,
-    extract_fix_variations_action_slot_forms,
-    paradigm_kind_from_pos_tag,
-    parse_fix_variations_text_slot_forms,
 )
 from app.services.verification import WordVerificationAction, WordVerificationInput
 
@@ -15,7 +12,6 @@ def verification_action_to_schema(action: WordVerificationAction) -> Verificatio
         action_type=action.action_type,
         reason=action.reason,
         english_translation=action.english_translation,
-        gloss=action.gloss,
         singular_indefinite_forms=list(action.singular_indefinite_forms) or None,
         singular_indefinite_n_word_forms=list(action.singular_indefinite_n_word_forms) or None,
         singular_indefinite_t_word_forms=list(action.singular_indefinite_t_word_forms) or None,
@@ -27,9 +23,6 @@ def verification_action_to_schema(action: WordVerificationAction) -> Verificatio
         past_forms=list(action.past_forms) or None,
         imperative_forms=list(action.imperative_forms) or None,
         past_participle_forms=list(action.past_participle_forms) or None,
-        singular_definite_form=action.singular_definite_form,
-        plural_indefinite_form=action.plural_indefinite_form,
-        plural_definite_form=action.plural_definite_form,
         target_meaning_id=action.target_meaning_id,
         target_lemma=action.target_lemma,
         target_meaning_key=action.target_meaning_key,
@@ -69,85 +62,14 @@ def completion_review_actions(
         or verification_status != "flagged"
     ):
         return suggested_actions
-    text_slot_forms = (
-        parse_fix_variations_text_slot_forms(change_to_implement)
-        or parse_fix_variations_text_slot_forms(problem)
-    )
-    paradigm_kind = paradigm_kind_from_pos_tag(payload.selected_meaning_pos_tag)
-    if paradigm_kind == "noun":
-        base_slot_form_lists = {"singular_indefinite": [payload.stored_lemma]}
-    elif paradigm_kind == "adjective":
-        base_slot_form_lists = {"singular_indefinite_n_word": [payload.stored_lemma]}
-    elif paradigm_kind == "verb":
-        base_slot_form_lists = {"infinitive": [payload.stored_lemma]}
-    else:
-        base_slot_form_lists = {}
-    text_slot_form_lists = {
-        **base_slot_form_lists,
-        **{slot_name: [form] for slot_name, form in text_slot_forms.items()},
-    }
-    fix_variations_action: VerificationAction | None = None
     for action in suggested_actions:
         if action.action_type != "fix_variations":
             continue
         action_payload = action.model_dump(exclude_none=True)
         action_slot_form_lists = extract_fix_variations_action_slot_form_lists(action_payload)
-        action_slot_forms = extract_fix_variations_action_slot_forms(action_payload)
-        merged_slot_form_lists = action_slot_form_lists or (
-            {
-                **base_slot_form_lists,
-                **{
-                    slot_name: [form]
-                    for slot_name, form in (action_slot_forms or text_slot_forms).items()
-                },
-            }
-            if action_slot_forms or text_slot_forms
-            else {}
-        )
-        fix_variations_action = action.model_copy(
-            update={
-                "singular_indefinite_forms": merged_slot_form_lists.get("singular_indefinite"),
-                "singular_indefinite_n_word_forms": merged_slot_form_lists.get("singular_indefinite_n_word"),
-                "singular_indefinite_t_word_forms": merged_slot_form_lists.get("singular_indefinite_t_word"),
-                "singular_definite_forms": merged_slot_form_lists.get("singular_definite"),
-                "plural_indefinite_forms": merged_slot_form_lists.get("plural_indefinite"),
-                "plural_definite_forms": merged_slot_form_lists.get("plural_definite"),
-                "infinitive_forms": merged_slot_form_lists.get("infinitive"),
-                "present_forms": merged_slot_form_lists.get("present"),
-                "past_forms": merged_slot_form_lists.get("past"),
-                "imperative_forms": merged_slot_form_lists.get("imperative"),
-                "past_participle_forms": merged_slot_form_lists.get("past_participle"),
-                "singular_definite_form": None,
-                "plural_indefinite_form": None,
-                "plural_definite_form": None,
-            }
-        )
-        break
-    if fix_variations_action is not None:
-        return [fix_variations_action]
-    return [VerificationAction(
-            action_type="fix_variations",
-            reason=(
-                "Replace the completed variation set with the reviewed adjective forms for this meaning."
-                if paradigm_kind == "adjective"
-                else (
-                    "Replace the completed variation set with the reviewed verb forms for this meaning."
-                    if paradigm_kind == "verb"
-                    else "Replace the completed variation set with the reviewed noun forms for this meaning."
-                )
-            ),
-            singular_indefinite_forms=text_slot_form_lists.get("singular_indefinite"),
-            singular_indefinite_n_word_forms=text_slot_form_lists.get("singular_indefinite_n_word"),
-            singular_indefinite_t_word_forms=text_slot_form_lists.get("singular_indefinite_t_word"),
-            singular_definite_forms=text_slot_form_lists.get("singular_definite"),
-            plural_indefinite_forms=text_slot_form_lists.get("plural_indefinite"),
-            plural_definite_forms=text_slot_form_lists.get("plural_definite"),
-            infinitive_forms=text_slot_form_lists.get("infinitive"),
-            present_forms=text_slot_form_lists.get("present"),
-            past_forms=text_slot_form_lists.get("past"),
-            imperative_forms=text_slot_form_lists.get("imperative"),
-            past_participle_forms=text_slot_form_lists.get("past_participle"),
-        )]
+        if action_slot_form_lists:
+            return [action]
+    return []
 
 
 def find_fix_variations_action_form_lists(actions: list[dict[str, object]]) -> dict[str, list[str]]:
@@ -157,14 +79,4 @@ def find_fix_variations_action_form_lists(actions: list[dict[str, object]]) -> d
         slot_form_lists = extract_fix_variations_action_slot_form_lists(candidate)
         if slot_form_lists:
             return slot_form_lists
-    return {}
-
-
-def find_fix_variations_action_fields(actions: list[dict[str, object]]) -> dict[str, str]:
-    for candidate in actions:
-        if candidate.get("action_type") != "fix_variations":
-            continue
-        slot_forms = extract_fix_variations_action_slot_forms(candidate)
-        if slot_forms:
-            return slot_forms
     return {}

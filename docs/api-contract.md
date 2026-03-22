@@ -115,10 +115,13 @@ Route decorators are the source of truth in `backend/app/api/routes/`, and API D
   - `400` for invalid inputs.
   - successful responses persist the verification result for the matching `(lemma, meaning_id, stored_surface_form)` target.
   - `verification` may include `stored_surface_form`, `requested_at`, and `completed_at`.
+  - `verification.message` is intentionally short and status-like, such as `OK`, `Review needed`, `Verification failed`, or `Queued`.
+  - `verification.problem` is one short mismatch sentence and `verification.change_to_implement` is one short imperative sentence.
   - normal save verification checks only whether the saved lemma / meaning / selected surface placement is correct; missing paradigm members do not produce `fix_variations` suggestions in this flow.
+  - `verification.suggested_actions` is the only apply contract. Backend apply does not recover actions from prose fields.
   - `applied_categories` lists the semantic categories persisted for the reviewed root / meaning scope.
-  - Gemini may reuse multiple existing categories and may mint up to 3 new broad categories when the shared catalog has no good fit.
-  - category classification runs inside the same verification call and uses the full saved word scope context: reviewed gloss/translation metadata, canonical lemma metadata, selected surface metadata, sibling meaning sections, and saved surface forms for the lemma.
+  - after verification persistence succeeds for `verified` or `flagged`, category classification runs as a separate follow-up step.
+  - categorization prefers existing categories and may mint at most 1 new broad category when the shared catalog has no good fit.
   - when saved COR identity resolves to a different canonical lemma than the stored lemma, that canonical lemma identity is included in Gemini's verification context so lemma-correction suggestions can target the true dictionary lemma.
 
 ### POST `/api/wordbank/lexemes/queue-verification`
@@ -142,7 +145,8 @@ Route decorators are the source of truth in `backend/app/api/routes/`, and API D
   - `400` for invalid inputs.
   - body `status` can be `updated`, `skipped`, or `error`.
   - successful responses replace the persisted category set for the requested root / meaning scope without mutating verification records.
-  - the rethink route reuses the same Gemini categorization flow and whole-word context payload as initial verification; it is just manually triggered.
+  - the rethink route runs the standalone category-classification Gemini flow for the requested scope.
+  - classification prefers existing labels and may mint at most 1 new broad category.
   - `applied_categories` returns the normalized persisted category labels after the rethink run.
 
 ### POST `/api/wordbank/lexemes/complete-variations`
@@ -188,7 +192,7 @@ Route decorators are the source of truth in `backend/app/api/routes/`, and API D
 - **Request model:** `ApplyVerificationChangesRequest`.
 - **Response model:** `ApplyVerificationChangesResponse`.
 - **Notable request/behavior details:**
-  - `action.action_type` supports `fix_translation`, `fix_gloss`, `fix_variations`, `move_to_meaning_section`, and `move_to_lemma`.
+  - `action.action_type` supports `fix_translation`, `fix_variations`, `move_to_meaning_section`, and `move_to_lemma`.
   - completion-review records may expose a meaning-level `fix_variations` action that reconciles the whole saved noun, adjective, or verb variation set for that meaning in one apply request.
   - `fix_variations` is reserved for the `Complete variations` follow-up review; normal save verification does not emit that action type.
   - when the persisted verification record has `review_intent = "complete_variations"`, the backend rejects any apply attempt whose `action.action_type` is not `fix_variations`, even if the client sends it manually.
@@ -202,7 +206,7 @@ Route decorators are the source of truth in `backend/app/api/routes/`, and API D
   - `singular_indefinite_forms` may include multiple spellings for the same slot, such as `["fader", "far"]`.
   - adjective completion reviews use `n-word` / `t-word` terminology throughout; plural fields may carry the same written form in both plural slots when COR exposes one shared plural form.
   - verb completion reviews use the fixed row labels `Infinitive`, `Present`, `Past`, `Imperative`, and `Past participle`.
-  - older saved completion reviews may still carry legacy scalar slot fields (`singular_definite_form`, `plural_indefinite_form`, `plural_definite_form`); the backend still accepts them on input and can recover them from persisted review text during apply.
+  - `fix_variations` must be fully structured. Apply does not recover slot targets from `problem` / `change_to_implement`.
 - **Notable status/error behavior:**
   - `503` when DB unavailable/locked.
   - `404` when source/target meaning context cannot be resolved.
@@ -313,7 +317,7 @@ Route decorators are the source of truth in `backend/app/api/routes/`, and API D
         "status": "queued",
         "provider": "gemini",
         "reviewer_role": "Professional Danish Language Expert",
-        "message": "Word verification queued.",
+        "message": "Queued",
         "composed_word_count": null,
         "stored_surface_form": "lærer",
         "requested_at": "2026-03-13T12:00:00+00:00",
@@ -331,7 +335,7 @@ Route decorators are the source of truth in `backend/app/api/routes/`, and API D
             "status": "queued",
             "provider": "gemini",
             "reviewer_role": "Professional Danish Language Expert",
-            "message": "Word verification queued.",
+            "message": "Queued",
             "composed_word_count": null,
             "stored_surface_form": "lærer",
             "requested_at": "2026-03-13T12:00:00+00:00",

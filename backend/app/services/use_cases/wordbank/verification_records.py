@@ -13,6 +13,12 @@ def now_utc_iso() -> str:
 
 
 def verification_record_to_schema(record: VerificationRecord) -> VerificationResult:
+    suggested_actions: list[VerificationAction] = []
+    for action in record.suggested_actions:
+        try:
+            suggested_actions.append(VerificationAction.model_validate(action))
+        except Exception:
+            continue
     return VerificationResult(
         status=record.status,
         provider=record.provider,
@@ -25,10 +31,7 @@ def verification_record_to_schema(record: VerificationRecord) -> VerificationRes
         completed_at=record.completed_at,
         problem=record.problem,
         change_to_implement=record.change_to_implement,
-        suggested_actions=[
-            VerificationAction.model_validate(action)
-            for action in record.suggested_actions
-        ],
+        suggested_actions=suggested_actions,
     )
 
 

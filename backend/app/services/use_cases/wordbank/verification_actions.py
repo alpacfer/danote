@@ -78,14 +78,6 @@ def apply_verification_action(
                 provider_name=provider_name,
                 stored_surface_form=normalized_surface,
             )
-        elif action_type == "fix_gloss":
-            result = _apply_fix_gloss(
-                conn,
-                source_lexeme=source_lexeme,
-                source_meaning=source_meaning,
-                gloss=required_str(action.get("gloss"), "gloss"),
-                stored_surface_form=normalized_surface,
-            )
         elif action_type == "fix_variations":
             result = _apply_fix_variations(
                 conn,
@@ -196,43 +188,6 @@ def _apply_fix_translation(
         },
         invalidate_targets=((lemma, stored_surface_form),),
     )
-
-
-def _apply_fix_gloss(
-    conn: sqlite3.Connection,
-    *,
-    source_lexeme,
-    source_meaning,
-    gloss: str,
-    stored_surface_form: str | None,
-) -> VerificationActionExecutionResult:
-    if source_meaning is None:
-        raise ValueError("fix_gloss requires a meaning-scoped entry.")
-    conn.execute(
-        """
-        UPDATE lexeme_meanings
-        SET gloss = ?, updated_at = CURRENT_TIMESTAMP
-        WHERE id = ?
-        """,
-        (gloss, int(source_meaning["id"])),
-    )
-    lemma = str(source_lexeme["lemma"])
-    meaning_id = int(source_meaning["id"])
-    return VerificationActionExecutionResult(
-        status="applied",
-        applied_action_type="fix_gloss",
-        target_lemma=lemma,
-        target_meaning_id=meaning_id,
-        log_payload={
-            "action_type": "fix_gloss",
-            "source": {"lemma": lemma, "meaning_id": meaning_id, "surface_form": stored_surface_form},
-            "target": {"lemma": lemma, "meaning_id": meaning_id},
-            "action": {"gloss": gloss},
-        },
-        invalidate_targets=((lemma, stored_surface_form),),
-    )
-
-
 def _apply_move_to_meaning_section(
     conn: sqlite3.Connection,
     *,

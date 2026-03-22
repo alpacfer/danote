@@ -74,7 +74,7 @@ export function mapVerificationResultToSuccessDetail(
   }
   return {
     provider: verification.provider?.trim() || "gemini",
-    rawMessage: compactMessage(verification.message) || "Gemini verified this word.",
+    rawMessage: genericSuccessMessage(compactMessage(verification.message)),
     storedSurfaceForm: normalizeSearchWord(verification.stored_surface_form ?? "") || null,
     meaningId,
     verifiedAt: verification.completed_at || verification.requested_at || new Date().toISOString(),
@@ -94,6 +94,14 @@ export function mapVerificationResultToQueuedDetail(
     meaningId,
     requestedAt: verification.requested_at || new Date().toISOString(),
   }
+}
+
+function genericSuccessMessage(message: string): string {
+  const normalized = message.trim().toLocaleLowerCase()
+  if (!normalized || normalized === "ok" || normalized === "verified") {
+    return "Verification passed."
+  }
+  return message
 }
 
 export function verificationResultSignature(

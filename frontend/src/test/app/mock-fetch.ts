@@ -32,6 +32,45 @@ function buildQueuedVerificationTargets(response: {
   return targets
 }
 
+type MockVerificationAction = {
+  action_type: "fix_translation" | "fix_variations" | "move_to_meaning_section" | "move_to_lemma"
+  reason?: string | null
+  english_translation?: string | null
+  singular_indefinite_forms?: string[] | null
+  singular_indefinite_n_word_forms?: string[] | null
+  singular_indefinite_t_word_forms?: string[] | null
+  singular_definite_forms?: string[] | null
+  plural_indefinite_forms?: string[] | null
+  plural_definite_forms?: string[] | null
+  infinitive_forms?: string[] | null
+  present_forms?: string[] | null
+  past_forms?: string[] | null
+  imperative_forms?: string[] | null
+  past_participle_forms?: string[] | null
+  target_meaning_id?: number | null
+  target_lemma?: string | null
+  target_meaning_key?: string | null
+  target_gloss?: string | null
+  target_english_translation?: string | null
+  target_pos_tag?: string | null
+  target_morphology?: string | null
+}
+
+type MockVerification = {
+  status: "verified" | "flagged" | "error" | "skipped" | "queued"
+  provider: string | null
+  reviewer_role: string | null
+  review_intent?: string | null
+  message: string
+  composed_word_count: number | null
+  stored_surface_form?: string | null
+  requested_at?: string | null
+  completed_at?: string | null
+  problem?: string | null
+  change_to_implement?: string | null
+  suggested_actions?: MockVerificationAction[] | null
+}
+
 export function mockFetchImplementation(options?: {
   healthOk?: boolean
   healthStatus?: "ok" | "degraded"
@@ -52,42 +91,7 @@ export function mockFetchImplementation(options?: {
       gloss?: string | null
       english_translation?: string | null
     } | null
-    verification?: {
-      status: "verified" | "flagged" | "error" | "skipped" | "queued"
-      provider: string | null
-      reviewer_role: string | null
-      message: string
-      composed_word_count: number | null
-      stored_surface_form?: string | null
-      requested_at?: string | null
-      completed_at?: string | null
-      problem?: string | null
-      change_to_implement?: string | null
-      suggested_actions?: Array<{
-        action_type: "fix_translation" | "fix_gloss" | "fix_variations" | "move_to_meaning_section" | "move_to_lemma"
-        reason?: string | null
-        english_translation?: string | null
-        gloss?: string | null
-        singular_indefinite_forms?: string[] | null
-        singular_indefinite_n_word_forms?: string[] | null
-        singular_indefinite_t_word_forms?: string[] | null
-        singular_definite_forms?: string[] | null
-        plural_indefinite_forms?: string[] | null
-        plural_definite_forms?: string[] | null
-        infinitive_forms?: string[] | null
-        present_forms?: string[] | null
-        past_forms?: string[] | null
-        imperative_forms?: string[] | null
-        past_participle_forms?: string[] | null
-        target_meaning_id?: number | null
-        target_lemma?: string | null
-        target_meaning_key?: string | null
-        target_gloss?: string | null
-        target_english_translation?: string | null
-        target_pos_tag?: string | null
-        target_morphology?: string | null
-      }> | null
-    } | null
+    verification?: MockVerification | null
     pronunciation?: {
       status: "queued" | "skipped"
       form: string | null
@@ -103,42 +107,7 @@ export function mockFetchImplementation(options?: {
       morphology?: string | null
       is_sectioned?: boolean
       categories?: string[]
-      verification?: {
-        status: "verified" | "flagged" | "error" | "skipped" | "queued"
-        provider: string | null
-        reviewer_role: string | null
-        message: string
-        composed_word_count: number | null
-        stored_surface_form?: string | null
-        requested_at?: string | null
-        completed_at?: string | null
-        problem?: string | null
-        change_to_implement?: string | null
-        suggested_actions?: Array<{
-          action_type: "fix_translation" | "fix_gloss" | "fix_variations" | "move_to_meaning_section" | "move_to_lemma"
-          reason?: string | null
-          english_translation?: string | null
-          gloss?: string | null
-          singular_indefinite_forms?: string[] | null
-        singular_indefinite_n_word_forms?: string[] | null
-        singular_indefinite_t_word_forms?: string[] | null
-          singular_definite_forms?: string[] | null
-          plural_indefinite_forms?: string[] | null
-          plural_definite_forms?: string[] | null
-          infinitive_forms?: string[] | null
-          present_forms?: string[] | null
-          past_forms?: string[] | null
-          imperative_forms?: string[] | null
-          past_participle_forms?: string[] | null
-          target_meaning_id?: number | null
-          target_lemma?: string | null
-          target_meaning_key?: string | null
-          target_gloss?: string | null
-          target_english_translation?: string | null
-          target_pos_tag?: string | null
-          target_morphology?: string | null
-        }> | null
-      } | null
+      verification?: MockVerification | null
       meaning_sections?: Array<{
         id: number
         meaning_key: string
@@ -148,42 +117,7 @@ export function mockFetchImplementation(options?: {
         pos_tag?: string | null
         morphology?: string | null
         categories?: string[]
-        verification?: {
-          status: "verified" | "flagged" | "error" | "skipped" | "queued"
-          provider: string | null
-          reviewer_role: string | null
-          message: string
-          composed_word_count: number | null
-          stored_surface_form?: string | null
-          requested_at?: string | null
-          completed_at?: string | null
-          problem?: string | null
-          change_to_implement?: string | null
-          suggested_actions?: Array<{
-            action_type: "fix_translation" | "fix_gloss" | "fix_variations" | "move_to_meaning_section" | "move_to_lemma"
-            reason?: string | null
-            english_translation?: string | null
-            gloss?: string | null
-            singular_indefinite_forms?: string[] | null
-        singular_indefinite_n_word_forms?: string[] | null
-        singular_indefinite_t_word_forms?: string[] | null
-            singular_definite_forms?: string[] | null
-            plural_indefinite_forms?: string[] | null
-            plural_definite_forms?: string[] | null
-            infinitive_forms?: string[] | null
-            present_forms?: string[] | null
-            past_forms?: string[] | null
-            imperative_forms?: string[] | null
-            past_participle_forms?: string[] | null
-            target_meaning_id?: number | null
-            target_lemma?: string | null
-            target_meaning_key?: string | null
-            target_gloss?: string | null
-            target_english_translation?: string | null
-            target_pos_tag?: string | null
-            target_morphology?: string | null
-          }> | null
-        } | null
+        verification?: MockVerification | null
         surface_forms: Array<{
           form: string
           has_pronunciation?: boolean
@@ -194,42 +128,7 @@ export function mockFetchImplementation(options?: {
           gloss?: string | null
           gloss_translation?: string | null
           gram_raw?: string | null
-          verification?: {
-            status: "verified" | "flagged" | "error" | "skipped" | "queued"
-            provider: string | null
-            reviewer_role: string | null
-            message: string
-            composed_word_count: number | null
-            stored_surface_form?: string | null
-            requested_at?: string | null
-            completed_at?: string | null
-            problem?: string | null
-            change_to_implement?: string | null
-            suggested_actions?: Array<{
-              action_type: "fix_translation" | "fix_gloss" | "fix_variations" | "move_to_meaning_section" | "move_to_lemma"
-              reason?: string | null
-              english_translation?: string | null
-              gloss?: string | null
-              singular_indefinite_forms?: string[] | null
-        singular_indefinite_n_word_forms?: string[] | null
-        singular_indefinite_t_word_forms?: string[] | null
-              singular_definite_forms?: string[] | null
-              plural_indefinite_forms?: string[] | null
-              plural_definite_forms?: string[] | null
-              infinitive_forms?: string[] | null
-              present_forms?: string[] | null
-              past_forms?: string[] | null
-              imperative_forms?: string[] | null
-              past_participle_forms?: string[] | null
-              target_meaning_id?: number | null
-              target_lemma?: string | null
-              target_meaning_key?: string | null
-              target_gloss?: string | null
-              target_english_translation?: string | null
-              target_pos_tag?: string | null
-              target_morphology?: string | null
-            }> | null
-          } | null
+          verification?: MockVerification | null
         }>
       }>
       surface_forms: Array<{
@@ -242,84 +141,14 @@ export function mockFetchImplementation(options?: {
         gloss?: string | null
         gloss_translation?: string | null
         gram_raw?: string | null
-        verification?: {
-          status: "verified" | "flagged" | "error" | "skipped" | "queued"
-          provider: string | null
-          reviewer_role: string | null
-          message: string
-          composed_word_count: number | null
-          stored_surface_form?: string | null
-          requested_at?: string | null
-          completed_at?: string | null
-          problem?: string | null
-          change_to_implement?: string | null
-          suggested_actions?: Array<{
-            action_type: "fix_translation" | "fix_gloss" | "fix_variations" | "move_to_meaning_section" | "move_to_lemma"
-            reason?: string | null
-            english_translation?: string | null
-            gloss?: string | null
-            singular_indefinite_forms?: string[] | null
-        singular_indefinite_n_word_forms?: string[] | null
-        singular_indefinite_t_word_forms?: string[] | null
-            singular_definite_forms?: string[] | null
-            plural_indefinite_forms?: string[] | null
-            plural_definite_forms?: string[] | null
-            infinitive_forms?: string[] | null
-            present_forms?: string[] | null
-            past_forms?: string[] | null
-            imperative_forms?: string[] | null
-            past_participle_forms?: string[] | null
-            target_meaning_id?: number | null
-            target_lemma?: string | null
-            target_meaning_key?: string | null
-            target_gloss?: string | null
-            target_english_translation?: string | null
-            target_pos_tag?: string | null
-            target_morphology?: string | null
-          }> | null
-        } | null
+        verification?: MockVerification | null
       }>
     } | null
   }
   verifyWordResponse?: {
     stored_lemma: string
     stored_surface_form: string | null
-    verification: {
-      status: "verified" | "flagged" | "error" | "skipped" | "queued"
-      provider: string | null
-      reviewer_role: string | null
-      message: string
-      composed_word_count: number | null
-      stored_surface_form?: string | null
-      requested_at?: string | null
-      completed_at?: string | null
-      problem?: string | null
-      change_to_implement?: string | null
-      suggested_actions?: Array<{
-        action_type: "fix_translation" | "fix_gloss" | "fix_variations" | "move_to_meaning_section" | "move_to_lemma"
-        reason?: string | null
-        english_translation?: string | null
-        gloss?: string | null
-        singular_indefinite_forms?: string[] | null
-        singular_indefinite_n_word_forms?: string[] | null
-        singular_indefinite_t_word_forms?: string[] | null
-        singular_definite_forms?: string[] | null
-        plural_indefinite_forms?: string[] | null
-        plural_definite_forms?: string[] | null
-        infinitive_forms?: string[] | null
-        present_forms?: string[] | null
-        past_forms?: string[] | null
-        imperative_forms?: string[] | null
-        past_participle_forms?: string[] | null
-        target_meaning_id?: number | null
-        target_lemma?: string | null
-        target_meaning_key?: string | null
-        target_gloss?: string | null
-        target_english_translation?: string | null
-        target_pos_tag?: string | null
-        target_morphology?: string | null
-      }> | null
-    }
+    verification: MockVerification
     applied_categories?: string[]
   }
   verifyWordHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
@@ -328,43 +157,7 @@ export function mockFetchImplementation(options?: {
     stored_surface_form: string | null
     meaning_id: number | null
     review_intent: string
-    verification: {
-      status: "verified" | "flagged" | "error" | "skipped" | "queued"
-      provider: string | null
-      reviewer_role: string | null
-      review_intent?: string | null
-      message: string
-      composed_word_count: number | null
-      stored_surface_form?: string | null
-      requested_at?: string | null
-      completed_at?: string | null
-      problem?: string | null
-      change_to_implement?: string | null
-      suggested_actions?: Array<{
-        action_type: "fix_translation" | "fix_gloss" | "fix_variations" | "move_to_meaning_section" | "move_to_lemma"
-        reason?: string | null
-        english_translation?: string | null
-        gloss?: string | null
-        singular_indefinite_forms?: string[] | null
-        singular_indefinite_n_word_forms?: string[] | null
-        singular_indefinite_t_word_forms?: string[] | null
-        singular_definite_forms?: string[] | null
-        plural_indefinite_forms?: string[] | null
-        plural_definite_forms?: string[] | null
-        infinitive_forms?: string[] | null
-        present_forms?: string[] | null
-        past_forms?: string[] | null
-        imperative_forms?: string[] | null
-        past_participle_forms?: string[] | null
-        target_meaning_id?: number | null
-        target_lemma?: string | null
-        target_meaning_key?: string | null
-        target_gloss?: string | null
-        target_english_translation?: string | null
-        target_pos_tag?: string | null
-        target_morphology?: string | null
-      }> | null
-    }
+    verification: MockVerification
   }
   queueVerificationHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
   completeVariationsResponse?: {
@@ -457,42 +250,7 @@ export function mockFetchImplementation(options?: {
     english_translation?: string | null
     is_sectioned?: boolean
     categories?: string[]
-    verification?: {
-      status: "verified" | "flagged" | "error" | "skipped" | "queued"
-      provider: string | null
-      reviewer_role: string | null
-      message: string
-      composed_word_count: number | null
-      stored_surface_form?: string | null
-      requested_at?: string | null
-      completed_at?: string | null
-      problem?: string | null
-      change_to_implement?: string | null
-      suggested_actions?: Array<{
-        action_type: "fix_translation" | "fix_gloss" | "fix_variations" | "move_to_meaning_section" | "move_to_lemma"
-        reason?: string | null
-        english_translation?: string | null
-        gloss?: string | null
-        singular_indefinite_forms?: string[] | null
-        singular_indefinite_n_word_forms?: string[] | null
-        singular_indefinite_t_word_forms?: string[] | null
-        singular_definite_forms?: string[] | null
-        plural_indefinite_forms?: string[] | null
-        plural_definite_forms?: string[] | null
-        infinitive_forms?: string[] | null
-        present_forms?: string[] | null
-        past_forms?: string[] | null
-        imperative_forms?: string[] | null
-        past_participle_forms?: string[] | null
-        target_meaning_id?: number | null
-        target_lemma?: string | null
-        target_meaning_key?: string | null
-        target_gloss?: string | null
-        target_english_translation?: string | null
-        target_pos_tag?: string | null
-        target_morphology?: string | null
-      }> | null
-    } | null
+    verification?: MockVerification | null
     meaning_sections?: Array<{
       id: number
       meaning_key: string
@@ -502,42 +260,7 @@ export function mockFetchImplementation(options?: {
       pos_tag?: string | null
       morphology?: string | null
       categories?: string[]
-      verification?: {
-        status: "verified" | "flagged" | "error" | "skipped" | "queued"
-        provider: string | null
-        reviewer_role: string | null
-        message: string
-        composed_word_count: number | null
-        stored_surface_form?: string | null
-        requested_at?: string | null
-        completed_at?: string | null
-        problem?: string | null
-        change_to_implement?: string | null
-        suggested_actions?: Array<{
-          action_type: "fix_translation" | "fix_gloss" | "fix_variations" | "move_to_meaning_section" | "move_to_lemma"
-          reason?: string | null
-          english_translation?: string | null
-          gloss?: string | null
-          singular_indefinite_forms?: string[] | null
-        singular_indefinite_n_word_forms?: string[] | null
-        singular_indefinite_t_word_forms?: string[] | null
-          singular_definite_forms?: string[] | null
-          plural_indefinite_forms?: string[] | null
-          plural_definite_forms?: string[] | null
-          infinitive_forms?: string[] | null
-          present_forms?: string[] | null
-          past_forms?: string[] | null
-          imperative_forms?: string[] | null
-          past_participle_forms?: string[] | null
-          target_meaning_id?: number | null
-          target_lemma?: string | null
-          target_meaning_key?: string | null
-          target_gloss?: string | null
-          target_english_translation?: string | null
-          target_pos_tag?: string | null
-          target_morphology?: string | null
-        }> | null
-      } | null
+      verification?: MockVerification | null
       surface_forms: Array<{
         form: string
         has_pronunciation?: boolean
@@ -751,7 +474,7 @@ export function mockFetchImplementation(options?: {
       status: "queued" as const,
       provider: "gemini",
       reviewer_role: "Professional Danish Language Expert",
-      message: "Word verification queued.",
+      message: "Queued",
       composed_word_count: null,
     },
   }
@@ -783,7 +506,7 @@ export function mockFetchImplementation(options?: {
       provider: "gemini",
       reviewer_role: "Professional Danish Language Expert",
       review_intent: "general",
-      message: "Word verification queued.",
+      message: "Queued",
       composed_word_count: null,
       stored_surface_form: addWordResponse.stored_surface_form,
       requested_at: "2026-03-15T12:00:00.000Z",

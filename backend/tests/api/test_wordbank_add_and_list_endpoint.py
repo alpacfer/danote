@@ -111,7 +111,12 @@ def test_add_word_includes_verification_result_when_service_is_available(tmp_pat
         def verify_word_entry(self, _payload):
             class Result:
                 verdict = "verified"
-                message = "Storage payload is linguistically coherent."
+                message = "OK"
+
+            return Result()
+
+        def classify_word_categories(self, _payload):
+            class Result:
                 categories = ("Food", "Household Objects")
 
             return Result()
@@ -223,8 +228,7 @@ def test_rethink_categories_updates_meaning_categories(tmp_path, stub_nlp_adapte
         def verify_word_entry(self, _payload):
             class Result:
                 verdict = "verified"
-                message = "Storage payload is linguistically coherent."
-                categories = ("Food",)
+                message = "OK"
 
             return Result()
 

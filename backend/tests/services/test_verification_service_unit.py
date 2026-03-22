@@ -211,7 +211,6 @@ def test_gemini_verification_service_keeps_only_supported_actions(monkeypatch) -
             '"singular_definite_forms":["moren"],'
             '"plural_indefinite_forms":["mødre"],'
             '"plural_definite_forms":["mødrene"]},'
-            '{"action_type":"fix_gloss","gloss":"reading material","reason":"should be ignored"},'
             '{"action_type":"rename_everything","target":"ignored"}'
             ']}'
         ),
@@ -293,28 +292,27 @@ def test_gemini_verification_prompt_matches_wordbank_translation_model() -> None
     prompt = service._verification_prompt(payload)
     category_prompt = service._category_prompt(payload)
 
-    assert "lemma or a meaning section only" in prompt
-    assert "Surface forms do not carry independent translations" in prompt
-    assert "immutable COR labels" in prompt
+    assert "Translations belong to the lemma or meaning section only" in prompt
+    assert "Surface forms do not have independent translations" in prompt
     assert "Never suggest editing a gloss" in prompt
-    assert "canonical lemma identity and metadata" in prompt
+    assert "Use the reviewed target, relevant surface forms, and sibling meanings only as needed" in prompt
     assert "If canonical_lemma is present and differs from lemma" in prompt
-    assert "Use all provided context together" in prompt
     assert "idiomatic English" in prompt
     assert "meaning_gloss_translation" in prompt
     assert "gloss_translation" in prompt
-    assert "available_categories" in prompt
-    assert "current_categories" in prompt
-    assert "available_surface_forms" in prompt
+    assert "available_categories" not in prompt
+    assert "current_categories" not in prompt
+    assert "relevant_surface_forms" in prompt
     assert '"canonical_lemma": "bog"' in prompt
     assert '"gloss": "book"' in prompt
     assert '"morphology": "Definite=Def|Number=Sing"' in prompt
-    assert "new_categories" in prompt
+    assert "new_categories" not in prompt
     assert "Do not require missing paradigm forms" in prompt
     assert "Variation completeness is handled only by the Complete variations workflow" in prompt
     assert "fix_variations" not in prompt
-    assert "Use all provided context together" in category_prompt
-    assert "available_surface_forms" in category_prompt
+    assert "available_categories" in category_prompt
+    assert "current_categories" in category_prompt
+    assert "relevant_surface_forms" in category_prompt
 
 
 def test_gemini_verification_prompt_includes_canonical_lemma_mismatch_context() -> None:
@@ -441,7 +439,7 @@ def test_gemini_general_verification_ignores_fix_variations_only_reviews(monkeyp
             '"change_to_implement":"Add the missing plural forms.",'
             '"suggested_actions":['
             '{"action_type":"fix_variations","reason":"complete the paradigm",'
-            '"plural_indefinite_form":"bøger","plural_definite_form":"bøgerne"}'
+            '"plural_indefinite_forms":["bøger"],"plural_definite_forms":["bøgerne"]}'
             ']}'
         ),
     )
@@ -452,23 +450,21 @@ def test_gemini_general_verification_ignores_fix_variations_only_reviews(monkeyp
     assert result.suggested_actions == ()
 
 
-def test_gemini_verification_service_parses_existing_and_up_to_three_new_categories(monkeypatch) -> None:
+def test_gemini_category_classification_prefers_existing_and_one_new_category(monkeypatch) -> None:
     service = GeminiWordVerificationService(api_key="test-key")
     monkeypatch.setattr(
         service,
         "_generate_text",
         lambda prompt: (
-            '{"verdict":"correct","word_count":1,'
-            '"existing_categories":["Household Objects","Food","Unknown"],'
-            '"new_categories":["Reading Material","Culture","Education","Ignored"],'
-            '"suggested_actions":[]}'
+            '{"existing_categories":["Household Objects","Food","Unknown"],'
+            '"new_categories":["Reading Material","Culture","Education","Ignored"]'
+            '}'
         ),
     )
 
-    result = service.verify_word_entry(_payload())
+    result = service.classify_word_categories(_payload())
 
-    assert result.verdict == "verified"
-    assert result.categories == ("Household Objects", "Food", "Reading Material", "Culture", "Education")
+    assert result.categories == ("Household Objects", "Food", "Reading Material")
 
 
 def test_gemini_category_classification_reuses_existing_and_new_categories(monkeypatch) -> None:
@@ -484,4 +480,4 @@ def test_gemini_category_classification_reuses_existing_and_new_categories(monke
 
     result = service.classify_word_categories(_payload())
 
-    assert result.categories == ("Household Objects", "Reading Material", "Education", "Culture")
+    assert result.categories == ("Household Objects", "Reading Material")

@@ -22,7 +22,7 @@ def queued_verification_result(
             provider=None,
             reviewer_role=None,
             review_intent=review_intent,
-            message="Word verification is disabled.",
+            message="Verification disabled.",
         )
     provider_name, reviewer_name = metadata_provider()
     return VerificationResult(
@@ -30,7 +30,7 @@ def queued_verification_result(
         provider=provider_name,
         reviewer_role=reviewer_name,
         review_intent=review_intent,
-        message="Word verification queued.",
+        message="Queued",
         composed_word_count=None,
         stored_surface_form=stored_surface_form,
         requested_at=requested_at or now_utc_iso(),
@@ -96,8 +96,9 @@ def process_queued_verification_if_current(
     build_input: Callable[..., object],
     payload_hash: Callable[[object], str],
     load_record: Callable[[str, str | None, int | None], VerificationRecord | None],
-    verify_payload: Callable[[object], tuple[VerificationResult, list[str]]],
-    persist_result: Callable[[str, int | None, str | None, VerificationResult, list[str], str, str, int | None], object],
+    verify_payload: Callable[[object], VerificationResult],
+    persist_result: Callable[[str, int | None, str | None, VerificationResult, str, str, int | None], object],
+    classify_and_persist_categories: Callable[[str, int | None, VerificationResult, object], list[str]],
 ) -> str:
     normalized_lemma = normalize_token(stored_lemma)
     normalized_surface = normalize_token(stored_surface_form or "") or None
@@ -122,7 +123,7 @@ def process_queued_verification_if_current(
     ):
         return "stale"
 
-    verification, category_labels = verify_payload(payload)
+    verification = verify_payload(payload)
     current_record = load_record(normalized_lemma, normalized_surface, meaning_id)
     if not matches_current_request(
         record=current_record,
@@ -137,10 +138,23 @@ def process_queued_verification_if_current(
         meaning_id,
         normalized_surface,
         verification,
-        category_labels,
         review_intent,
         expected_snapshot_hash,
         current_record.request_generation if current_record is not None else expected_generation,
+    )
+    current_record = load_record(normalized_lemma, normalized_surface, meaning_id)
+    if not matches_current_request(
+        record=current_record,
+        expected_snapshot_hash=expected_snapshot_hash,
+        expected_generation=expected_generation,
+        review_intent=review_intent,
+    ):
+        return "stale"
+    classify_and_persist_categories(
+        normalized_lemma,
+        meaning_id,
+        verification,
+        payload,
     )
     return "persisted"
 

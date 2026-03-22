@@ -47,5 +47,5 @@ def should_ignore_variation_only_review(
     ]
     if not raw_types:
         return False
-    supported_non_variation = {"fix_translation", "fix_gloss", "move_to_meaning_section", "move_to_lemma"}
+    supported_non_variation = {"fix_translation", "move_to_meaning_section", "move_to_lemma"}
     return "fix_variations" in raw_types and not any(action_type in supported_non_variation for action_type in raw_types)

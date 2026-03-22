@@ -56,12 +56,11 @@ def build_word_verification_prompt(*, entry: dict[str, object], completion_revie
     )
     return (
         "You are a Professional Danish Language Expert.\n"
-        "Review the current wordbank entry using the model lemma page -> meaning sections -> surface forms.\n"
-        "Translations belong to the lemma or a meaning section only. Surface forms do not carry independent translations.\n"
-        "Meaning glosses are immutable COR labels used only to disambiguate senses. Never suggest editing a gloss.\n"
-        "Treat canonical lemma identity and metadata separately from the selected surface-form metadata.\n"
-        "Use all provided context together: lemma, reviewed scope, gloss, gloss translation, translation scope, morphology, saved surface forms, and sibling meaning sections.\n"
-        "Classify the reviewed word meaning into broad semantic categories.\n"
+        "Review one saved wordbank target.\n"
+        "Translations belong to the lemma or meaning section only.\n"
+        "Surface forms do not have independent translations.\n"
+        "Glosses are sense labels. Never suggest editing a gloss.\n"
+        "Use the reviewed target, relevant surface forms, and sibling meanings only as needed.\n"
         "Count if the reviewed entry is composed of multiple words.\n"
         "Return JSON only.\n"
         "{"
@@ -69,27 +68,24 @@ def build_word_verification_prompt(*, entry: dict[str, object], completion_revie
         '"word_count":0,'
         '"problem":"...",'
         '"change_to_implement":"...",'
-        '"existing_categories":["..."],'
-        '"new_categories":["..."],'
         '"suggested_actions":['
         f"{action_examples}"
         "]}\n"
         "Rules:\n"
         f"{action_type_rule}"
         "- If verdict=correct, return suggested_actions as [].\n"
-        "- existing_categories must be chosen from available_categories.\n"
-        "- existing_categories may include multiple items, but never duplicates.\n"
-        "- You may return up to 3 broad new_categories when they are genuinely useful. Otherwise return [] or omit the field.\n"
-        "- New categories must be broad, reusable, and user-facing. Never return morphology, part-of-speech, or overly narrow labels.\n"
         "- If action_type=move_to_meaning_section, target_meaning_id must be one of the available meaning ids.\n"
         "- If action_type=move_to_lemma, include target_lemma and target_meaning_key.\n"
         "- Never propose gloss edits; use gloss only to identify the intended meaning section.\n"
         "- If action_type=fix_translation, english_translation must be idiomatic English. Never repeat the Danish lemma or surface form unless the translated gloss explicitly matches it.\n"
         f"{fix_variations_rule}"
-        "- When meaning_gloss_translation or section gloss_translation is present, use it as the primary sense clue for homographs.\n"
+        '- Keep message short: use "OK" or "Review needed".\n'
+        "- Keep problem to one short sentence.\n"
+        "- Keep change_to_implement to one short imperative sentence.\n"
+        "- When meaning_gloss_translation or section gloss_translation is present, use it as the main sense clue for homographs.\n"
         f"{variation_scope_rule}"
         f"{canonical_rule}"
-        "- Discard no uncertainty into prose; use reason and structured fields instead.\n"
+        "- Suggested actions must be self-contained. Do not rely on prose fields for apply details.\n"
         f"Entry:\n{json.dumps(entry, ensure_ascii=False)}"
     )
 
@@ -97,9 +93,7 @@ def build_word_verification_prompt(*, entry: dict[str, object], completion_revie
 def build_word_category_prompt(*, entry: dict[str, object]) -> str:
     return (
         "You are a Professional Danish Language Expert.\n"
-        "Review the current wordbank scope and classify it into broad semantic categories.\n"
-        "Use all provided context together: lemma, reviewed scope, gloss, gloss translation, translation scope, morphology, saved surface forms, and sibling meaning sections.\n"
-        "Treat categories as reusable user-facing groups for many related words.\n"
+        "Classify one saved wordbank scope into broad semantic categories.\n"
         "Prefer matching existing categories whenever they fit.\n"
         "Return JSON only.\n"
         "{"
@@ -109,7 +103,7 @@ def build_word_category_prompt(*, entry: dict[str, object]) -> str:
         "Rules:\n"
         "- existing_categories must be chosen from available_categories.\n"
         "- existing_categories may include multiple items, but never duplicates.\n"
-        "- You may return up to 3 broad new_categories when they are genuinely useful.\n"
+        "- Return at most 1 new_categories item, and only when no existing category fits.\n"
         "- New categories must be broad, reusable, and user-facing. Never return morphology, part-of-speech, or overly narrow labels.\n"
         "- If existing categories fully cover the scope, return new_categories as [] or omit it.\n"
         f"Entry:\n{json.dumps(entry, ensure_ascii=False)}"

@@ -76,10 +76,9 @@ export type AddWordResponse = {
 }
 
 export type VerificationAction = {
-  action_type: "fix_translation" | "fix_gloss" | "fix_variations" | "move_to_meaning_section" | "move_to_lemma"
+  action_type: "fix_translation" | "fix_variations" | "move_to_meaning_section" | "move_to_lemma"
   reason?: string | null
   english_translation?: string | null
-  gloss?: string | null
   singular_indefinite_forms?: string[] | null
   singular_indefinite_n_word_forms?: string[] | null
   singular_indefinite_t_word_forms?: string[] | null
@@ -91,9 +90,6 @@ export type VerificationAction = {
   past_forms?: string[] | null
   imperative_forms?: string[] | null
   past_participle_forms?: string[] | null
-  singular_definite_form?: string | null
-  plural_indefinite_form?: string | null
-  plural_definite_form?: string | null
   target_meaning_id?: number | null
   target_lemma?: string | null
   target_meaning_key?: string | null

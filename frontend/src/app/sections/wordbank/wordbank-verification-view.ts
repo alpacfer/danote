@@ -170,9 +170,6 @@ export function verificationActionTitle(action: VerificationAction) {
   if (action.action_type === "fix_translation") {
     return "Fix translation"
   }
-  if (action.action_type === "fix_gloss") {
-    return "Fix gloss"
-  }
   if (action.action_type === "fix_variations") {
     return "Fix variations"
   }
@@ -188,9 +185,6 @@ export function verificationActionTitle(action: VerificationAction) {
 export function verificationActionSummary(action: VerificationAction) {
   if (action.action_type === "fix_translation") {
     return `Set translation to '${action.english_translation ?? ""}'.`
-  }
-  if (action.action_type === "fix_gloss") {
-    return `Set gloss to '${action.gloss ?? ""}'.`
   }
   if (action.action_type === "fix_variations") {
     const slotSummary = formatFixVariationsSlotSummary(action)
@@ -221,9 +215,9 @@ function formatFixVariationsSlotSummary(action: VerificationAction): string | nu
     buildFixVariationsSlotLine("Singular indefinite", action.singular_indefinite_forms),
     buildFixVariationsSlotLine("Singular indefinite n-word", action.singular_indefinite_n_word_forms),
     buildFixVariationsSlotLine("Singular indefinite t-word", action.singular_indefinite_t_word_forms),
-    buildFixVariationsSlotLine("Singular definite", action.singular_definite_forms ?? maybeWrapLegacyValue(action.singular_definite_form)),
-    buildFixVariationsSlotLine("Plural indefinite", action.plural_indefinite_forms ?? maybeWrapLegacyValue(action.plural_indefinite_form)),
-    buildFixVariationsSlotLine("Plural definite", action.plural_definite_forms ?? maybeWrapLegacyValue(action.plural_definite_form)),
+    buildFixVariationsSlotLine("Singular definite", action.singular_definite_forms),
+    buildFixVariationsSlotLine("Plural indefinite", action.plural_indefinite_forms),
+    buildFixVariationsSlotLine("Plural definite", action.plural_definite_forms),
     buildFixVariationsSlotLine("Infinitive", action.infinitive_forms),
     buildFixVariationsSlotLine("Present", action.present_forms),
     buildFixVariationsSlotLine("Past", action.past_forms),
@@ -255,11 +249,4 @@ function buildFixVariationsSlotLine(label: string, forms: string[] | null | unde
     return null
   }
   return `${label}: ${forms.join(", ")}.`
-}
-
-function maybeWrapLegacyValue(value: string | null | undefined): string[] | null {
-  if (!value) {
-    return null
-  }
-  return [value]
 }

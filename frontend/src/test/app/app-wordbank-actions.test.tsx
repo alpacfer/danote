@@ -866,7 +866,7 @@ describe("App wordbank", () => {
           status: "error",
           provider: "gemini",
           reviewer_role: "Professional Danish Language Expert",
-          message: "Verification task failed: Missing DANOTE_WORD_VERIFICATION_GEMINI_API_KEY.",
+          message: "Verification failed",
           composed_word_count: null,
           stored_surface_form: "kat",
           requested_at: "2026-03-13T12:00:00.000Z",
@@ -919,8 +919,8 @@ describe("App wordbank", () => {
     expect(screen.getByText(/verification needs review/i)).toBeInTheDocument()
     expect(screen.getByText("Problem")).toBeInTheDocument()
     expect(screen.getByText("Change to implement")).toBeInTheDocument()
-    expect(screen.getByText(/stored pos and translation are inconsistent/i)).toBeInTheDocument()
-    expect(screen.getByText(/update pos to noun and translation to 'cat'/i)).toBeInTheDocument()
+    expect(screen.getAllByText(/stored pos and translation are inconsistent/i).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/update pos to noun and translation to 'cat'/i).length).toBeGreaterThan(0)
     expect(screen.getByText(/apply changes/i)).toBeInTheDocument()
     expect(screen.getByText(/fix translation/i)).toBeInTheDocument()
     expect(screen.getByText(/set translation to 'cat'/i)).toBeInTheDocument()
@@ -1120,7 +1120,7 @@ describe("App wordbank", () => {
                 provider: "gemini",
                 reviewer_role: "Professional Danish Language Expert",
                 review_intent: "complete_variations",
-                message: "Word verification queued.",
+                message: "Queued",
                 requested_at: "2026-03-15T10:00:00Z",
                 suggested_actions: [],
               },

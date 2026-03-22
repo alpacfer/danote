@@ -185,10 +185,10 @@ def test_wordbank_use_case_rethinks_categories_without_changing_verification_sta
 
     assert rethought.status == "updated"
     assert rethought.applied_categories == ["Culture", "Education", "Food", "Reading Material"]
-    assert len(verification_service.category_calls) == 1
-    assert verification_service.calls[0].available_surface_forms == verification_service.category_calls[0].available_surface_forms
-    assert verification_service.category_calls[0].available_surface_forms[0].form == "bog"
-    assert verification_service.category_calls[0].available_surface_forms[0].english_translation == "book"
+    assert len(verification_service.category_calls) == 2
+    assert verification_service.calls[0].available_surface_forms == verification_service.category_calls[-1].available_surface_forms
+    assert verification_service.category_calls[-1].available_surface_forms[0].form == "bog"
+    assert verification_service.category_calls[-1].available_surface_forms[0].english_translation == "book"
     details_after = use_case.get_lemma_details("bog")
     assert details_after.meaning_sections[0].categories == ["Culture", "Education", "Food", "Reading Material"]
     assert details_before.meaning_sections[0].verification == details_after.meaning_sections[0].verification
@@ -207,11 +207,16 @@ def test_wordbank_use_case_keeps_existing_categories_when_verification_errors(tm
             if self.calls == 1:
                 class Result:
                     verdict = "verified"
-                    message = "Entry is consistent."
-                    categories = ("Food",)
+                    message = "OK"
 
                 return Result()
             raise RuntimeError("provider unavailable")
+
+        def classify_word_categories(self, _payload):
+            class Result:
+                categories = ("Food",)
+
+            return Result()
 
     verification_service = FlakyVerificationService()
     use_case = WordbankUseCase(
@@ -555,18 +560,17 @@ def test_general_save_verification_does_not_surface_fix_variations(tmp_path: Pat
         def verify_word_entry(self, _payload):
             class Result:
                 verdict = "flagged"
-                message = "incorrect"
+                message = "Review needed"
                 problem = "Plural forms are missing."
                 change_to_implement = "Add the missing plural forms."
                 suggested_actions = (
                     WordVerificationAction(
                         action_type="fix_variations",
                         reason="Complete the paradigm.",
-                        plural_indefinite_form="bøger",
-                        plural_definite_form="bøgerne",
+                        plural_indefinite_forms=("bøger",),
+                        plural_definite_forms=("bøgerne",),
                     ),
                 )
-                categories = ()
 
             return Result()
 
@@ -583,7 +587,7 @@ def test_general_save_verification_does_not_surface_fix_variations(tmp_path: Pat
     assert verified.verification.suggested_actions == []
 
 
-def test_complete_variations_review_adds_fix_variations_action(tmp_path: Path) -> None:
+def test_complete_variations_review_requires_structured_fix_variations_action(tmp_path: Path) -> None:
     class FlaggedCompletionVerificationService:
         provider = "gemini"
         reviewer_role = "Professional Danish Language Expert"
@@ -654,13 +658,10 @@ def test_complete_variations_review_adds_fix_variations_action(tmp_path: Path) -
     )
 
     assert verified.verification.status == "flagged"
-    assert [action.action_type for action in verified.verification.suggested_actions] == ["fix_variations"]
-    assert verified.verification.suggested_actions[0].singular_indefinite_forms == ["mor"]
-    assert verified.verification.suggested_actions[0].plural_indefinite_forms == ["mødre"]
-    assert verified.verification.suggested_actions[0].plural_definite_forms == ["mødrene"]
+    assert verified.verification.suggested_actions == []
 
 
-def test_complete_variations_review_adds_fix_variations_action_for_adjective(tmp_path: Path) -> None:
+def test_complete_variations_review_requires_structured_adjective_fix_variations_action(tmp_path: Path) -> None:
     class FlaggedCompletionVerificationService:
         provider = "gemini"
         reviewer_role = "Professional Danish Language Expert"
@@ -752,13 +753,10 @@ def test_complete_variations_review_adds_fix_variations_action_for_adjective(tmp
     )
 
     assert verified.verification.status == "flagged"
-    assert [action.action_type for action in verified.verification.suggested_actions] == ["fix_variations"]
-    assert verified.verification.suggested_actions[0].singular_indefinite_n_word_forms == ["stor"]
-    assert verified.verification.suggested_actions[0].singular_indefinite_t_word_forms == ["stort"]
-    assert verified.verification.suggested_actions[0].singular_definite_forms == ["store"]
+    assert verified.verification.suggested_actions == []
 
 
-def test_complete_variations_review_adds_fix_variations_action_for_verb(tmp_path: Path) -> None:
+def test_complete_variations_review_requires_structured_verb_fix_variations_action(tmp_path: Path) -> None:
     class FlaggedCompletionVerificationService:
         provider = "gemini"
         reviewer_role = "Professional Danish Language Expert"
@@ -868,12 +866,7 @@ def test_complete_variations_review_adds_fix_variations_action_for_verb(tmp_path
     )
 
     assert verified.verification.status == "flagged"
-    assert [action.action_type for action in verified.verification.suggested_actions] == ["fix_variations"]
-    assert verified.verification.suggested_actions[0].infinitive_forms == ["lære"]
-    assert verified.verification.suggested_actions[0].present_forms == ["lærer"]
-    assert verified.verification.suggested_actions[0].past_forms == ["lærte"]
-    assert verified.verification.suggested_actions[0].imperative_forms == ["lær"]
-    assert verified.verification.suggested_actions[0].past_participle_forms == ["lært"]
+    assert verified.verification.suggested_actions == []
 
 
 def test_complete_variations_review_discards_move_to_lemma_actions(tmp_path: Path) -> None:
@@ -912,7 +905,7 @@ def test_complete_variations_review_discards_move_to_lemma_actions(tmp_path: Pat
     )
 
     assert verified.verification.status == "flagged"
-    assert [action.action_type for action in verified.verification.suggested_actions] == ["fix_variations"]
+    assert verified.verification.suggested_actions == []
 
 
 def test_wordbank_use_case_applies_fix_variations_action_for_completion_review(tmp_path: Path) -> None:
@@ -1028,14 +1021,25 @@ def test_wordbank_use_case_applies_fix_variations_action_for_completion_review(t
         stored_lemma="mor",
         stored_surface_form=None,
         meaning_id=added.meaning.id,
-        action={"action_type": "fix_variations"},
+        action={
+            "action_type": "fix_variations",
+            "singular_indefinite_forms": ["mor", "moder"],
+            "singular_definite_forms": ["moren"],
+            "plural_indefinite_forms": ["mødre"],
+            "plural_definite_forms": ["mødrene"],
+        },
         provider="gemini",
     )
 
     assert response.status == "applied"
     assert response.applied_action_type == "fix_variations"
     details = use_case.get_lemma_details("mor")
-    assert sorted(form.form for form in details.meaning_sections[0].surface_forms) == ["moren", "mødre", "mødrene"]
+    assert sorted(form.form for form in details.meaning_sections[0].surface_forms) == [
+        "moder",
+        "moren",
+        "mødre",
+        "mødrene",
+    ]
 
 
 def test_wordbank_use_case_applies_fix_variations_action_for_adjective_completion_review(tmp_path: Path) -> None:
@@ -1382,7 +1386,7 @@ def test_wordbank_use_case_applies_fix_variations_with_singular_indefinite_alias
     assert [form.form for form in details.meaning_sections[0].surface_forms] == ["far", "faderen", "fædre", "fædrene"]
 
 
-def test_wordbank_use_case_hydrates_fix_variations_apply_from_saved_review_text(tmp_path: Path) -> None:
+def test_wordbank_use_case_rejects_fix_variations_apply_without_structured_slots(tmp_path: Path) -> None:
     db_path = _db_path(tmp_path)
 
     class FlaggedCompletionVerificationService:
@@ -1524,19 +1528,15 @@ def test_wordbank_use_case_hydrates_fix_variations_apply_from_saved_review_text(
     )
 
     assert verified.verification.status == "flagged"
-    assert [action.action_type for action in verified.verification.suggested_actions] == ["fix_variations"]
-    response = use_case.apply_verification_changes(
-        stored_lemma="mor",
-        stored_surface_form=None,
-        meaning_id=added.meaning.id,
-        action={"action_type": "fix_variations"},
-        provider="gemini",
-    )
-
-    assert response.status == "applied"
-    assert response.applied_action_type == "fix_variations"
-    details = use_case.get_lemma_details("mor")
-    assert sorted(form.form for form in details.meaning_sections[0].surface_forms) == ["moren", "mødre", "mødrene"]
+    assert verified.verification.suggested_actions == []
+    with pytest.raises(ValueError, match="structured slot forms"):
+        use_case.apply_verification_changes(
+            stored_lemma="mor",
+            stored_surface_form=None,
+            meaning_id=added.meaning.id,
+            action={"action_type": "fix_variations"},
+            provider="gemini",
+        )
 
 
 def test_complete_variations_apply_rejects_non_fix_variations_actions(tmp_path: Path) -> None:
@@ -1727,7 +1727,7 @@ def test_wordbank_use_case_applies_translation_verification_action(tmp_path: Pat
     assert meaning_row["english_translation"] == "book"
 
 
-def test_wordbank_use_case_applies_gloss_verification_action(tmp_path: Path) -> None:
+def test_wordbank_use_case_skips_deprecated_gloss_verification_action(tmp_path: Path) -> None:
     db_path = _db_path(tmp_path)
     use_case = WordbankUseCase(db_path)
     added = use_case.add_word("Bogen", "bog")
@@ -1743,15 +1743,15 @@ def test_wordbank_use_case_applies_gloss_verification_action(tmp_path: Path) -> 
         provider="gemini",
     )
 
-    assert response.status == "applied"
-    assert response.applied_action_type == "fix_gloss"
+    assert response.status == "skipped"
+    assert response.applied_action_type is None
     with get_connection(db_path) as conn:
         meaning_row = conn.execute(
             "SELECT gloss FROM lexeme_meanings WHERE id = ?",
             (added.meaning.id,),
         ).fetchone()
     assert meaning_row is not None
-    assert meaning_row["gloss"] == "reading material"
+    assert meaning_row["gloss"] is None
 
 
 def test_wordbank_use_case_moves_surface_to_another_meaning_section(tmp_path: Path) -> None:

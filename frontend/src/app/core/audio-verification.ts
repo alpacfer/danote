@@ -53,10 +53,9 @@ export function buildVerificationErrorDetail(payload: {
   problem?: string | null
   changeToImplement?: string | null
   suggestedActions?: Array<{
-    action_type: "fix_translation" | "fix_gloss" | "fix_variations" | "move_to_meaning_section" | "move_to_lemma"
+    action_type: "fix_translation" | "fix_variations" | "move_to_meaning_section" | "move_to_lemma"
     reason?: string | null
     english_translation?: string | null
-    gloss?: string | null
     singular_indefinite_forms?: string[] | null
     singular_indefinite_n_word_forms?: string[] | null
     singular_indefinite_t_word_forms?: string[] | null
@@ -68,9 +67,6 @@ export function buildVerificationErrorDetail(payload: {
     past_forms?: string[] | null
     imperative_forms?: string[] | null
     past_participle_forms?: string[] | null
-    singular_definite_form?: string | null
-    plural_indefinite_form?: string | null
-    plural_definite_form?: string | null
     target_meaning_id?: number | null
     target_lemma?: string | null
     target_meaning_key?: string | null
@@ -82,6 +78,7 @@ export function buildVerificationErrorDetail(payload: {
 }): VerificationErrorDetail {
   const providerName = payload.provider?.trim() || "gemini"
   const detail = normalizeVerificationMessage(payload.message)
+  const displayDetail = isGenericVerificationStatusMessage(detail) ? "" : detail
   const normalizedSurface = normalizeSearchWord(payload.storedSurfaceForm ?? "") || null
   const meaningId = payload.meaningId ?? null
   const explicitProblem = compactMessage(payload.problem)
@@ -96,13 +93,13 @@ export function buildVerificationErrorDetail(payload: {
       status: "flagged",
       problem:
         explicitProblem ||
-        (detail
-          ? `Gemini flagged this entry as incorrect: ${detail}.`
+        (displayDetail
+          ? `Gemini flagged this entry as incorrect: ${displayDetail}.`
           : `Gemini flagged this entry as incorrect.${composedHint}`),
       changeToImplement:
         explicitChange ||
         "Review lemma/surface form and translation, then update the entry to a valid Danish word form.",
-      rawMessage: detail || explicitProblem || "Gemini flagged the entry as incorrect.",
+      rawMessage: displayDetail || explicitProblem || "Gemini flagged the entry as incorrect.",
       storedSurfaceForm: normalizedSurface,
       meaningId,
       suggestedActions,
@@ -113,11 +110,11 @@ export function buildVerificationErrorDetail(payload: {
     return {
       provider: providerName,
       status: "error",
-      problem: explicitProblem || detail || "Gemini verification could not run because configuration is missing.",
+      problem: explicitProblem || displayDetail || "Gemini verification could not run because configuration is missing.",
       changeToImplement:
         explicitChange ||
         "Set the Gemini verification API key in Developer settings or backend env, then retry verification.",
-      rawMessage: detail || explicitProblem || "Missing Gemini verification configuration.",
+      rawMessage: displayDetail || explicitProblem || "Missing Gemini verification configuration.",
       storedSurfaceForm: normalizedSurface,
       meaningId,
       suggestedActions,
@@ -128,10 +125,10 @@ export function buildVerificationErrorDetail(payload: {
     return {
       provider: providerName,
       status: "error",
-      problem: explicitProblem || detail || "Gemini verification request was rate-limited.",
+      problem: explicitProblem || displayDetail || "Gemini verification request was rate-limited.",
       changeToImplement:
         explicitChange || "Retry verification after a short delay, or use an API key with higher quota.",
-      rawMessage: detail || explicitProblem || "Gemini verification request was rate-limited.",
+      rawMessage: displayDetail || explicitProblem || "Gemini verification request was rate-limited.",
       storedSurfaceForm: normalizedSurface,
       meaningId,
       suggestedActions,
@@ -141,12 +138,17 @@ export function buildVerificationErrorDetail(payload: {
   return {
     provider: providerName,
     status: "error",
-    problem: explicitProblem || detail || "Gemini verification failed unexpectedly.",
+    problem: explicitProblem || displayDetail || "Gemini verification failed unexpectedly.",
     changeToImplement:
       explicitChange || "Check verification input and retry. If it persists, inspect backend logs for provider errors.",
-    rawMessage: detail || explicitProblem || "Gemini verification failed unexpectedly.",
+    rawMessage: displayDetail || explicitProblem || "Gemini verification failed unexpectedly.",
     storedSurfaceForm: normalizedSurface,
     meaningId,
     suggestedActions,
   }
+}
+
+function isGenericVerificationStatusMessage(value: string): boolean {
+  const normalized = value.trim().toLocaleLowerCase()
+  return normalized === "ok" || normalized === "review needed" || normalized === "verification failed"
 }
