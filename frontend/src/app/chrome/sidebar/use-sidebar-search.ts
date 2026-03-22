@@ -17,11 +17,13 @@ import { extractErrorMessage } from "@/app/hooks/app/controller/runtime-utils"
 type UseSidebarSearchParams = {
   savedNotes: SavedNote[]
   wordbankCacheVersion: number
+  searchTranslationConfigVersion: number
 }
 
 export function useSidebarSearch({
   savedNotes,
   wordbankCacheVersion,
+  searchTranslationConfigVersion,
 }: UseSidebarSearchParams) {
   const [searchQuery, setSearchQuery] = useState("")
   const corFormSearchCacheRef = useRef<Map<string, CORSearchFormResponse>>(new Map())
@@ -60,7 +62,7 @@ export function useSidebarSearch({
     return () => {
       window.clearTimeout(clearId)
     }
-  }, [wordbankCacheVersion])
+  }, [searchTranslationConfigVersion, wordbankCacheVersion])
 
   useEffect(() => {
     let cancelled = false
@@ -126,7 +128,7 @@ export function useSidebarSearch({
       window.clearTimeout(timeoutId)
       controller.abort()
     }
-  }, [apiClient, normalizedQuery, trimmedQuery, wordbankCacheVersion])
+  }, [apiClient, normalizedQuery, searchTranslationConfigVersion, trimmedQuery, wordbankCacheVersion])
 
   useEffect(() => {
     if (!normalizedQuery || /\s/u.test(normalizedQuery) || isShortLetterWord(normalizedQuery)) {
@@ -160,7 +162,7 @@ export function useSidebarSearch({
           // Phase 2: fetch again with translations to fill in
           const fullPayload = await apiClient.getJson<CORSearchFormResponse>(
             `/api/wordbank/search/cor-form?form=${encodeURIComponent(trimmedQuery)}&limit=100`,
-            "Azure translation is unavailable.",
+            "Search translation is unavailable.",
             { signal: controller.signal },
           )
           if (cancelled) return
@@ -184,7 +186,7 @@ export function useSidebarSearch({
       controller.abort()
       setIsCorTranslationsLoading(false)
     }
-  }, [apiClient, normalizedQuery, trimmedQuery, wordbankCacheVersion])
+  }, [apiClient, normalizedQuery, searchTranslationConfigVersion, trimmedQuery, wordbankCacheVersion])
 
   const activeCorFormSearchResult = useMemo(() => {
     if (!corFormSearchResult || corFormSearchResult.query !== normalizedQuery) {

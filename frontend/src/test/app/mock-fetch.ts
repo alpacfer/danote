@@ -230,6 +230,10 @@ export function mockFetchImplementation(options?: {
         gloss?: string | null
         gloss_translation?: string | null
         lemma_translation?: string | null
+        saveable_translation?: string | null
+        lemma_translation_provider?: string | null
+        lemma_translation_status?: "provider" | "gemini" | "gloss_fallback" | "missing" | null
+        lemma_translation_reason?: string | null
         gram_raw: string
         norm?: string | null
         lemma_idx: number

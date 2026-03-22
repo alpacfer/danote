@@ -13,7 +13,7 @@ from app.services.use_cases.wordbank.collaborators.cor_local_translations import
     ContextualCacheKey,
     lemma_translation_for_entry,
     lookup_translation_for_cor_gloss,
-    lookup_translation_for_cor_local_entry,
+    search_translation_decision_for_cor_local_entry,
     prime_cor_form_contextual_translations,
 )
 from app.services.use_cases.wordbank.collaborators.translation import TranslationCollaborator
@@ -62,24 +62,24 @@ def search_cor_form(
         key = (entry.lemma, entry.gloss, entry.pos_tag)
         group_index = grouped.get(key)
         if include_translations:
-            lemma_translation = lookup_translation_for_cor_local_entry(
+            translation_decision = search_translation_decision_for_cor_local_entry(
                 translation,
                 entry,
-                lemma_translation_cache,
-                contextual_translation_cache,
+                cache=lemma_translation_cache,
+                contextual_cache=contextual_translation_cache,
                 gloss_cache=gloss_translation_cache,
                 strict_azure=True,
             )
             gloss_translation = lookup_translation_for_cor_gloss(
                 translation,
                 entry=entry,
-                lemma_translation=lemma_translation,
+                lemma_translation=translation_decision.lemma_translation,
                 cache=contextual_translation_cache,
                 strict_azure=True,
                 gloss_cache=gloss_translation_cache,
             )
         else:
-            lemma_translation = None
+            translation_decision = None
             gloss_translation = None
         if group_index is None:
             groups.append(
@@ -90,8 +90,12 @@ def search_cor_form(
                     variants=[
                         cor_local_variant(
                             entry,
-                            lemma_translation=lemma_translation,
+                            lemma_translation=translation_decision.lemma_translation if translation_decision else None,
                             gloss_translation=gloss_translation,
+                            saveable_translation=translation_decision.saveable_translation if translation_decision else None,
+                            lemma_translation_provider=translation_decision.lemma_translation_provider if translation_decision else None,
+                            lemma_translation_status=translation_decision.lemma_translation_status if translation_decision else None,
+                            lemma_translation_reason=translation_decision.lemma_translation_reason if translation_decision else None,
                         )
                     ],
                 )
@@ -101,8 +105,12 @@ def search_cor_form(
         groups[group_index].variants.append(
             cor_local_variant(
                 entry,
-                lemma_translation=lemma_translation,
+                lemma_translation=translation_decision.lemma_translation if translation_decision else None,
                 gloss_translation=gloss_translation,
+                saveable_translation=translation_decision.saveable_translation if translation_decision else None,
+                lemma_translation_provider=translation_decision.lemma_translation_provider if translation_decision else None,
+                lemma_translation_status=translation_decision.lemma_translation_status if translation_decision else None,
+                lemma_translation_reason=translation_decision.lemma_translation_reason if translation_decision else None,
             )
         )
 
@@ -395,6 +403,10 @@ def cor_local_variant(
     *,
     lemma_translation: str | None = None,
     gloss_translation: str | None = None,
+    saveable_translation: str | None = None,
+    lemma_translation_provider: str | None = None,
+    lemma_translation_status: str | None = None,
+    lemma_translation_reason: str | None = None,
 ) -> CORSearchVariant:
     return CORSearchVariant(
         cor_id=entry.cor_id,
@@ -412,4 +424,8 @@ def cor_local_variant(
         features=entry.features,
         extra_tags=entry.extra_tags,
         lemma_translation=lemma_translation,
+        saveable_translation=saveable_translation,
+        lemma_translation_provider=lemma_translation_provider,
+        lemma_translation_status=lemma_translation_status,
+        lemma_translation_reason=lemma_translation_reason,
     )

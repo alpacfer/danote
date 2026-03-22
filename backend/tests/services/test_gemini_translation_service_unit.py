@@ -100,6 +100,27 @@ def test_gemini_word_translation_service_supports_minimal_non_gloss_prompt(monke
     assert "Translate lemma_da, not surface_form_da." in str(prompt)
 
 
+def test_gemini_word_translation_service_glossless_verb_prompt_uses_danish_infinitive_frame(monkeypatch) -> None:
+    service = GeminiFlashLiteWordTranslationService(api_key="test-key")
+    fake_client = _FakeClient([_FakeResponse('{"translation":"to drive"}')])
+    monkeypatch.setattr(service, "_ensure_client", lambda: fake_client)
+
+    translated = service.translate_word(
+        ContextualWordTranslationInput(
+            surface_form="bil",
+            lemma="bile",
+            pos_tag="VERB",
+            morphology="Mood=Imp|VerbForm=Fin",
+        )
+    )
+
+    assert translated == "to drive"
+    prompt = str(fake_client.models.calls[0]["contents"])
+    assert '"lemma_frame_da": "at bile"' in prompt
+    assert "search-quality fallback after another translator returned a Danish-looking echo" in prompt
+    assert "Do not copy the Danish lemma into English framing such as 'to bile'" in prompt
+
+
 def test_gemini_word_translation_service_prompt_prioritizes_common_morphology_sense(monkeypatch) -> None:
     service = GeminiFlashLiteWordTranslationService(api_key="test-key")
     fake_client = _FakeClient([_FakeResponse('{"translation":"to bend"}')])
@@ -177,6 +198,36 @@ def test_gemini_word_translation_service_batch_prompt_prioritizes_common_morphol
     assert "Treat pos_tag and morphology as hard constraints for sense disambiguation." in prompt
     assert "choose the most common modern English meaning" in prompt
     assert "prefer 'to bend'/'to bow' over golf-specific 'to bogey'" in prompt
+
+
+def test_gemini_word_translation_service_glossless_batch_prompt_uses_danish_infinitive_frame(monkeypatch) -> None:
+    service = GeminiFlashLiteWordTranslationService(api_key="test-key")
+    fake_client = _FakeClient(
+        [
+            _FakeResponse(
+                None,
+                parsed={"items": [{"id": "0", "translation": "to drive"}]},
+            )
+        ]
+    )
+    monkeypatch.setattr(service, "_ensure_client", lambda: fake_client)
+
+    translated = service.translate_words_batch(
+        [
+            ContextualWordTranslationInput(
+                surface_form="bil",
+                lemma="bile",
+                pos_tag="VERB",
+                morphology="Mood=Imp|VerbForm=Fin",
+            )
+        ]
+    )
+
+    assert translated == ["to drive"]
+    prompt = str(fake_client.models.calls[0]["contents"])
+    assert '"lemma_frame_da": "at bile"' in prompt
+    assert "search-quality fallbacks after another translator echoed the Danish lemma" in prompt
+    assert "Do not copy the Danish lemma into English framing such as 'to bile'" in prompt
 
 
 def test_gemini_word_translation_service_selects_existing_meaning_section(monkeypatch) -> None:

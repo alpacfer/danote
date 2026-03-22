@@ -1,4 +1,4 @@
-import { act, fireEvent, mockFetchImplementation, renderApp, responseOf, screen, setNotesEditorText, toast, vi } from "@/test/app-test-helpers"
+import { act, fireEvent, mockFetchImplementation, renderApp, responseOf, screen, setNotesEditorText, toast, vi, waitFor, within } from "@/test/app-test-helpers"
 
 describe("App system state", () => {
   it("renders offline status when health check fails", async () => {
@@ -153,6 +153,140 @@ describe("App system state", () => {
 
     expect(resetMethods).toEqual(["DELETE"])
     expect(vi.mocked(toast.success)).toHaveBeenCalledWith("Database reset complete.")
+  })
+
+  it("invalidates cached COR search translations after runtime API key updates", async () => {
+    let useUpdatedSearchTranslations = false
+    const corSearchFormHandler = vi.fn(async (input: RequestInfo | URL) => {
+      const url = new URL(String(input), "http://localhost")
+      const includeTranslations = url.searchParams.get("include_translations") !== "false"
+      const partialPayload = {
+        form: "bil",
+        groups: [
+          {
+            lemma: "bile",
+            gloss: "køre i bil",
+            pos_tag: "VERB",
+            variants: [
+              {
+                cor_id: "COR.36439.209.01",
+                form: "bil",
+                lemma: "bile",
+                gloss: "køre i bil",
+                gram_raw: "vb.imp",
+                norm: "N",
+                lemma_idx: 36439,
+                gram_code: 209,
+                variation: 1,
+                pos_tag: "VERB",
+                morphology: "Mood=Imp|VerbForm=Fin",
+                features: { Mood: "Imp", VerbForm: "Fin" },
+                extra_tags: [],
+              },
+            ],
+          },
+        ],
+      }
+      const staleFullPayload = {
+        form: "bil",
+        groups: [
+          {
+            lemma: "bile",
+            gloss: "køre i bil",
+            pos_tag: "VERB",
+            variants: [
+              {
+                ...partialPayload.groups[0].variants[0],
+                gloss_translation: "go by car",
+                lemma_translation: null,
+                saveable_translation: null,
+                lemma_translation_status: "missing",
+                lemma_translation_reason: "gemini_missing",
+              },
+            ],
+          },
+        ],
+      }
+      const updatedFullPayload = {
+        form: "bil",
+        groups: [
+          {
+            lemma: "bile",
+            gloss: "køre i bil",
+            pos_tag: "VERB",
+            variants: [
+              {
+                ...partialPayload.groups[0].variants[0],
+                gloss_translation: "go by car",
+                lemma_translation: "to drive",
+                saveable_translation: "to drive",
+                lemma_translation_provider: "gemini_word_translation",
+                lemma_translation_status: "gemini",
+                lemma_translation_reason: "gemini_ok",
+              },
+            ],
+          },
+        ],
+      }
+
+      if (!includeTranslations) {
+        return responseOf(partialPayload)
+      }
+      return responseOf(useUpdatedSearchTranslations ? updatedFullPayload : staleFullPayload)
+    })
+
+    mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      searchWordbankResponse: { items: [] },
+      corSearchFormHandler,
+      developerApiKeysHandler: async () => {
+        useUpdatedSearchTranslations = true
+        return responseOf({
+          status: "updated",
+          message: "Runtime API keys updated.",
+          configured: {},
+        })
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    let commandDialog = await screen.findByRole("dialog")
+    let searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
+    fireEvent.change(searchInput, { target: { value: "bil" } })
+
+    expect(await within(commandDialog).findByText(/translation required before saving\./i)).toBeInTheDocument()
+    expect(within(commandDialog).queryByText(/\(to drive\)/i)).not.toBeInTheDocument()
+
+    fireEvent.click(within(commandDialog).getByRole("button", { name: /close/i }))
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole("button", { name: /developer/i }))
+    fireEvent.change(screen.getByLabelText(/gemini api key/i), { target: { value: "updated-gemini-key" } })
+    fireEvent.click(screen.getByRole("button", { name: /apply runtime api keys/i }))
+
+    await waitFor(() => {
+      expect(vi.mocked(toast.success)).toHaveBeenCalledWith("Runtime API keys updated.")
+    })
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    commandDialog = await screen.findByRole("dialog")
+    searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
+    fireEvent.change(searchInput, { target: { value: "bi" } })
+    fireEvent.change(searchInput, { target: { value: "bil" } })
+
+    expect(await within(commandDialog).findByText(/\(to drive\)/i)).toBeInTheDocument()
+    expect(within(commandDialog).queryByText(/translation required before saving\./i)).not.toBeInTheDocument()
+
+    const bilFetchCalls = corSearchFormHandler.mock.calls.filter(([input]) => {
+      const url = new URL(String(input), "http://localhost")
+      return url.pathname === "/api/wordbank/search/cor-form" && url.searchParams.get("form") === "bil"
+    })
+    expect(bilFetchCalls).toHaveLength(4)
   })
 
   it("renders analysis error state", async () => {

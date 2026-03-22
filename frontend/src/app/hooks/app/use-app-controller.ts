@@ -192,6 +192,7 @@ export function useAppController() {
     lemmas: lexiconData.lemmas,
     savedNotes: notesPersistence.savedNotes,
     wordbankRefreshTick: foundation.wordbankRefreshTick,
+    searchTranslationConfigVersion: foundation.searchTranslationConfigVersion,
     activeSavedNote: notesPersistence.activeSavedNote,
     isVerifyingWords: wordbank.isVerifyingWords,
     notifications: notifications.notifications,

@@ -12,6 +12,7 @@ import {
   lemmaTranslationWithGloss,
   normalizeSearchWord,
   posBadgeClass,
+  saveableTranslationForVariant,
   type SearchSaveSeed,
   type CORSearchGroup,
   type CORSearchVariant,
@@ -70,7 +71,7 @@ export function SidebarWordbankResults({
               const isExactSavedVariation = exactSavedVariationKeySet.has(resultKey)
               const isVariationAddBlocked = Boolean(
                 addVariation && (
-                  isTranslationsLoading || !lemmaTranslationForVariant(addVariation.variant)
+                  isTranslationsLoading || !saveableTranslationForVariant(addVariation.variant)
                 ),
               )
               if (addVariation && !isExactSavedVariation && !isVariationAddBlocked) {
@@ -153,7 +154,7 @@ export function SidebarWordbankResults({
                 const linkedVariation = addVariationBySavedResult.get(resultKey)
                 const variationAddBlockedReason = linkedVariation
                   ? (
-                      !isTranslationsLoading && !lemmaTranslationForVariant(linkedVariation.variant)
+                      !isTranslationsLoading && !saveableTranslationForVariant(linkedVariation.variant)
                         ? "Translation required before saving."
                       : null
                     )
@@ -210,7 +211,7 @@ export function SidebarWordbankResults({
               const isExactSavedVariation = exactSavedVariationKeySet.has(resultKey)
               const isVariationAddBlocked = Boolean(
                 linkedVariation && (
-                  isTranslationsLoading || !lemmaTranslationForVariant(linkedVariation.variant)
+                  isTranslationsLoading || !saveableTranslationForVariant(linkedVariation.variant)
                 ),
               )
               if (linkedVariation && !isExactSavedVariation && !isVariationAddBlocked) {

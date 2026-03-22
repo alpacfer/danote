@@ -171,6 +171,14 @@ export function lemmaTranslationForVariant(variant: CORSearchVariant): string | 
   return value ? value : null
 }
 
+export function saveableTranslationForVariant(variant: CORSearchVariant): string | null {
+  const explicitFallback = variant.saveable_translation?.trim()
+  if (explicitFallback) {
+    return explicitFallback
+  }
+  return lemmaTranslationForVariant(variant)
+}
+
 function normalizedGlossPart(value: string | null | undefined): string | null {
   const trimmed = value?.trim()
   return trimmed ? trimmed : null

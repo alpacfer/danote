@@ -24,7 +24,17 @@ export function useDeveloperComposition({
   clearVerificationErrors,
   setApiProbeStatuses,
 }: UseDeveloperCompositionArgs) {
-  const { backendUrl, health, navigation, lexiconData, analysis, setNoteText, setWordbankRefreshTick, setSentencebankRefreshTick } = foundation
+  const {
+    backendUrl,
+    health,
+    navigation,
+    lexiconData,
+    analysis,
+    setNoteText,
+    setWordbankRefreshTick,
+    setSentencebankRefreshTick,
+    bumpSearchTranslationConfigVersion,
+  } = foundation
 
   return useDeveloperSettings({
     backendUrl,
@@ -32,6 +42,9 @@ export function useDeveloperComposition({
     setStatus: health.setStatus,
     setHealthPayload: health.setHealthPayload,
     setApiProbeStatuses,
+    onSearchTranslationConfigSaved: () => {
+      bumpSearchTranslationConfigVersion()
+    },
     onNotifySuccess: (message) => {
       toast.success(message)
     },

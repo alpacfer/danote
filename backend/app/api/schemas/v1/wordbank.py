@@ -317,6 +317,10 @@ class CORSearchVariant(BaseModel):
     features: dict[str, str] = Field(default_factory=dict)
     extra_tags: list[str] = Field(default_factory=list)
     lemma_translation: str | None = None
+    saveable_translation: str | None = None
+    lemma_translation_provider: str | None = None
+    lemma_translation_status: Literal["provider", "gemini", "gloss_fallback", "missing"] | None = None
+    lemma_translation_reason: str | None = None
 
 
 class CORSearchGroup(BaseModel):

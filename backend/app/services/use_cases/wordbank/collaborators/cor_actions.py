@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Literal
 
@@ -12,11 +13,18 @@ from app.services.use_cases.wordbank.collaborators.translation_word_frames impor
     cor_entry_word_translation_frame,
 )
 from app.services.use_cases.wordbank.collaborators.translation import TranslationCollaborator
+from app.services.use_cases.wordbank.collaborators.translation_search_fallbacks import (
+    build_search_translation_decision,
+    evaluate_search_translation_candidate,
+    invalid_search_translation,
+)
 from app.services.use_cases.wordbank.shared import (
     _CORAddOption,
     _cor_entry_priority,
     _normalize_action_value,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def find_saved_lemma(db_path: Path, candidates: list[str]) -> str | None:
@@ -89,15 +97,15 @@ def replace_danish_add_actions(
         seen_keys.add(key)
         label = option.translation_label or fallback_translation or option.surface
         replaced_actions.append(
-                WordActionSuggestion(
-                    action_type="add_as_new",
-                    surface=option.surface,
-                    lemma=option.lemma,
-                    cor_id=option.cor_id,
-                    translation_label=label,
-                    direction="da_to_en",
-                    direction_label=default_direction_label,
-                    pos_tag=option.pos_tag,
+            WordActionSuggestion(
+                action_type="add_as_new",
+                surface=option.surface,
+                lemma=option.lemma,
+                cor_id=option.cor_id,
+                translation_label=label,
+                direction="da_to_en",
+                direction_label=default_direction_label,
+                pos_tag=option.pos_tag,
                 morphology=option.morphology,
                 show_lemma=comparable_surface != comparable_lemma,
             )
@@ -185,16 +193,38 @@ def _lookup_translation_labels_for_cor_entries(
     contextual_results = translation.batch_lookup_contextual_word_translations(payloads)
     labels: list[str | None] = []
     for entry, contextual in zip(entries, contextual_results, strict=False):
-        if contextual.translation:
-            labels.append(contextual.translation)
-            continue
-        labels.append(
-            lookup_translation_for_cor_entry(
-                translation,
-                entry,
-                normalized_query,
-            )
+        contextual_translation = _validated_search_label(
+            entry,
+            normalized_query,
+            contextual.translation,
+            provider=translation.contextual_provider_name(),
+            rejection_reason="gemini_self_translation",
         )
+        provider_translation = lookup_translation_for_cor_entry(
+            translation,
+            entry,
+            normalized_query,
+        )
+        frame = cor_entry_word_translation_frame(entry)
+        decision = build_search_translation_decision(
+            provider_candidate=evaluate_search_translation_candidate(
+                translation=provider_translation,
+                lemma=entry.lemma,
+                surface_form=normalized_query,
+                frame_text=frame.text,
+            ),
+            provider_name=translation.provider_name(),
+            contextual_candidate=evaluate_search_translation_candidate(
+                translation=contextual_translation,
+                lemma=entry.lemma,
+                surface_form=normalized_query,
+                frame_text=frame.text,
+            ),
+            contextual_provider_name=translation.contextual_provider_name(),
+            contextual_attempted=True,
+            gloss_fallback=_lookup_gloss_translation_for_cor_entry(translation, entry),
+        )
+        labels.append(decision.lemma_translation or decision.saveable_translation)
     if len(labels) < len(entries):
         labels.extend([None] * (len(entries) - len(labels)))
     return labels
@@ -226,7 +256,67 @@ def lookup_translation_for_cor_entry(
                         and framed.startswith("to ")
                         and not normalize_token(translated).startswith("to ")
                     ):
-                        return framed[3:]
-                    return framed
-            return translated
+                        framed = framed[3:]
+                    validated = _validated_search_label(
+                        entry,
+                        normalized_query,
+                        framed,
+                        provider=translation.provider_name(),
+                        rejection_reason="azure_self_translation",
+                    )
+                    if validated:
+                        return validated
+                    continue
+            validated = _validated_search_label(
+                entry,
+                normalized_query,
+                translated,
+                provider=translation.provider_name(),
+                rejection_reason="azure_self_translation",
+            )
+            if validated:
+                return validated
     return None
+
+
+def _validated_search_label(
+    entry: COREntry,
+    normalized_query: str,
+    candidate: str | None,
+    *,
+    provider: str,
+    rejection_reason: str,
+) -> str | None:
+    frame = cor_entry_word_translation_frame(entry)
+    invalid = invalid_search_translation(
+        translation=candidate,
+        lemma=entry.lemma,
+        surface_form=normalized_query,
+        frame_text=frame.text,
+    )
+    if invalid is None:
+        return candidate
+    logger.info(
+        "wordbank_search_translation_rejected",
+        extra={
+            "provider": provider,
+            "rejection_reason": rejection_reason,
+            "matched_source": invalid.matched_source,
+            "comparable_value": invalid.comparable_value,
+            "lemma": entry.lemma,
+            "surface_form": normalized_query,
+            "frame_text": frame.text,
+            "translation": normalize_token(candidate or "") or None,
+        },
+    )
+    return None
+
+
+def _lookup_gloss_translation_for_cor_entry(
+    translation: TranslationCollaborator,
+    entry: COREntry,
+) -> str | None:
+    normalized_gloss = normalize_token(entry.glosse or "")
+    if not normalized_gloss:
+        return None
+    return translation.lookup_translation(normalized_gloss)

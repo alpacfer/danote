@@ -89,13 +89,16 @@ Behavior:
 
 ## Cache invalidation behavior
 
-When `wordbankCacheVersion` changes:
+When either `wordbankCacheVersion` or `searchTranslationConfigVersion` changes:
 
 - wordbank search cache is cleared
 - COR cache is cleared
 - displayed API/COR search results are reset asynchronously
 
-This ensures new saves/edits are reflected in subsequent searches.
+This ensures both of these happen without stale sidebar rows:
+
+- new saves/edits are reflected in subsequent searches
+- changing runtime translation provider or Gemini settings forces the active search query to refetch translated COR payloads instead of reusing the old cached result
 
 ## Ranking and ordering behavior
 
@@ -147,10 +150,10 @@ COR groups are sorted by best variant score in each group:
 - Right icon:
   - `Eye` for open existing saved item
   - `variation + Plus` when selecting row will add a new variation
-- When a saved row has a linked variation-add candidate but COR translation is still loading or ultimately unavailable,
+- When a saved row has a linked variation-add candidate but COR translation is still loading or ultimately has no `saveable_translation`,
   the row stops acting as add-variation and falls back to opening the saved wordbank entry instead.
   In that locked state it shows `Eye` plus inline copy:
-  - `Translation required before saving.` when the final COR payload still has no lemma translation
+  - `Translation required before saving.` when the final COR payload still has no `saveable_translation`
 
 ### COR rows
 
@@ -158,9 +161,9 @@ COR groups are sorted by best variant score in each group:
 - May show "from <lemma>" with translation in parentheses when available.
 - Sense-level gloss translation is rendered as separate disambiguation text, not as a fallback English translation.
 - During translation loading, translation-dependent text uses skeleton placeholders.
-- COR add rows are disabled until lemma translation is available.
+- COR add rows are disabled until `saveable_translation` is available.
   They show:
-  - `Translation required before saving.` if the final payload still has no translation
+  - `Translation required before saving.` if the final payload still has no `saveable_translation`
 - Right icon:
   - `variation + Plus` when the COR candidate meaning matches a saved wordbank entry
   - `Plus` otherwise
@@ -184,12 +187,14 @@ COR groups are sorted by best variant score in each group:
   - `variation` when the COR candidate meaning matches a saved wordbank entry
   - `new` otherwise
 - Exception: while translation is still loading, COR rows stay disabled and do not fire save requests.
-- After a no-translation final result, COR rows are still saveable; backend persists the entry with blank `english_translation`.
-- Search-save payload keeps lemma translation and gloss separate:
-  - `search_seed.english_translation` is populated only from the lemma translation
-  - gloss/gloss translation remain disambiguation metadata and are not promoted into `english_translation`
-  - when the provider-side lemma translation collapses to the lemma itself (for example verb `bile -> to bile`), sidebar search prefers the Gemini contextual lemma translation instead
-  - if Gemini still has no better contextual translation for that self-translation case, sidebar search suppresses the bad lemma translation instead of showing the literal echo
+- Search-save payload keeps displayed lemma translation, gloss translation, and saveability separate:
+  - `search_seed.english_translation` is populated from backend `saveable_translation`
+  - displayed parentheses still come only from `lemma_translation`
+  - gloss/gloss translation remain disambiguation metadata and are not promoted into `lemma_translation`
+  - when the primary provider's framed lemma translation collapses to the original Danish lemma or framed source text (for example verb `bile -> to bile`), sidebar search treats that result as invalid and prefers the Gemini contextual lemma translation instead
+  - this Gemini fallback does not require a gloss; glossless entries still send lemma, POS, and morphology context, and verbs are framed as Danish infinitives such as `at bile`
+  - if Gemini still has no better contextual translation for that self-translation case, sidebar search may keep `lemma_translation` empty while using translated gloss text as `saveable_translation`
+  - if neither Gemini nor a translated gloss provides a usable fallback, the row stays blocked and shows `Translation required before saving.`
 - Saved search responses follow the same invariant:
   - `english_translation` remains the lemma translation
   - `gloss_translation` is returned separately when available
@@ -204,8 +209,8 @@ COR groups are sorted by best variant score in each group:
 - Search-save responses also return `queued_pronunciation_forms`.
   When the newly opened word page still shows those forms without audio, the same lemma-details polling loop keeps refreshing for a bounded window until pronunciation becomes playable or the timeout expires.
 - The backend also enforces the translation gate:
-  save requests are still blocked while translation is actively loading,
-  but a finalized empty `search_seed.english_translation` is now accepted and saved as blank.
+  save requests are blocked while translation is actively loading,
+  and the sidebar only submits once backend `saveable_translation` is present.
 
 ### Selecting note or page row
 

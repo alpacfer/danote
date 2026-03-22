@@ -175,7 +175,7 @@ describe("App shell and search", () => {
     })
   })
 
-  it("does not show self-translated lemma text for COR rows when lemma translation is unavailable", async () => {
+  it("keeps COR rows saveable when only a gloss fallback is available", async () => {
     mockFetchImplementation({
       lemmasResponse: { items: [] },
       searchWordbankResponse: { items: [] },
@@ -218,6 +218,10 @@ describe("App shell and search", () => {
                 gloss: "køre i bil",
                 gloss_translation: "go by car",
                 lemma_translation: null,
+                saveable_translation: "go by car",
+                lemma_translation_provider: "deepl_translator",
+                lemma_translation_status: "gloss_fallback",
+                lemma_translation_reason: "gloss_fallback_used",
                 gram_raw: "vb.imp",
                 norm: "N",
                 lemma_idx: 36439,
@@ -247,7 +251,7 @@ describe("App shell and search", () => {
     const verbRow = verbLemma.closest("[cmdk-item]")
     expect(verbRow).toBeTruthy()
     expect(verbRow).not.toHaveTextContent(/\(to bile\)/i)
-    expect(await within(commandDialog).findByText(/translation required before saving\./i)).toBeInTheDocument()
+    expect(within(commandDialog).queryByText(/translation required before saving\./i)).not.toBeInTheDocument()
     expect(await within(commandDialog).findByText(/^go by car$/i)).toBeInTheDocument()
   })
 

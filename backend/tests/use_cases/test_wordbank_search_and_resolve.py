@@ -354,6 +354,80 @@ def test_wordbank_resolve_query_batches_gemini_for_cor_options(tmp_path: Path) -
     assert gemini_translation.batch_calls == [[("gift", "gift", None), ("gift", "gifte", None)]]
     assert gemini_translation.calls == []
 
+
+def test_wordbank_resolve_query_suppresses_self_translated_cor_option_labels(tmp_path: Path) -> None:
+    cor_service = FakeCORLexiconService(
+        {
+            "bil": [
+                COREntry(
+                    cor_id="COR.verb",
+                    lemma="bile",
+                    full_form="bil",
+                    ordklasse="vb",
+                    grammatical_function="vb.imp",
+                    glosse=None,
+                    norm_status="N",
+                    pos_tag="VERB",
+                    morphology="Mood=Imp|VerbForm=Fin",
+                )
+            ]
+        }
+    )
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_lexicon_service=cor_service,
+        translation_service=FakeTranslationService({"at bile": "to bile"}),
+        gemini_word_translation_service=FakeGeminiWordTranslationService(
+            {("bil", "bile", None): "bile"},
+            batch_overrides={("bil", "bile", None): "bile"},
+        ),
+    )
+
+    resolved = use_case.resolve_query("bil", include_language_detection=False)
+
+    assert len(resolved.word_actions) == 1
+    assert resolved.word_actions[0].lemma == "bile"
+    assert resolved.word_actions[0].translation_label == "bil"
+
+
+def test_wordbank_resolve_query_uses_gemini_for_self_translated_bile_with_gloss(tmp_path: Path) -> None:
+    cor_service = FakeCORLexiconService(
+        {
+            "bil": [
+                COREntry(
+                    cor_id="COR.verb",
+                    lemma="bile",
+                    full_form="bil",
+                    ordklasse="vb",
+                    grammatical_function="vb.imp",
+                    glosse="køre i bil",
+                    norm_status="N",
+                    pos_tag="VERB",
+                    morphology="Mood=Imp|VerbForm=Fin",
+                )
+            ]
+        }
+    )
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_lexicon_service=cor_service,
+        translation_service=FakeTranslationService(
+            {"at bile": "to bile", "køre i bil": "go by car"},
+            provider="deepl_translator",
+        ),
+        gemini_word_translation_service=FakeGeminiWordTranslationService(
+            {("bil", "bile", "køre i bil"): "drive"},
+            batch_overrides={("bil", "bile", "køre i bil"): "drive"},
+        ),
+    )
+
+    resolved = use_case.resolve_query("bil", include_language_detection=False)
+
+    assert len(resolved.word_actions) == 1
+    assert resolved.word_actions[0].lemma == "bile"
+    assert resolved.word_actions[0].translation_label == "drive"
+
+
 def test_wordbank_resolve_query_uses_framed_azure_for_non_verb_pos(tmp_path: Path) -> None:
     cor_service = FakeCORLexiconService(
         {

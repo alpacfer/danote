@@ -9,6 +9,7 @@ import {
   glossDisplayForVariant,
   lemmaDisplayForVariant,
   lemmaTranslationForVariant,
+  saveableTranslationForVariant,
   posBadgeClass,
   type SearchSaveSeed,
   type CORSearchGroup,
@@ -68,9 +69,10 @@ export function SidebarCorResults({
               const detailLine = glossDisplayForVariant(variant)
               const lemmaDisplay = lemmaDisplayForVariant(variant)
               const lemmaTranslation = lemmaTranslationForVariant(variant)
+              const saveableTranslation = saveableTranslationForVariant(variant)
               const hasGloss = Boolean(variant.gloss?.trim())
-              const isSaveBlocked = isTranslationsLoading || !lemmaTranslation
-              const saveBlockedReason = !isTranslationsLoading && !lemmaTranslation
+              const isSaveBlocked = isTranslationsLoading || !saveableTranslation
+              const saveBlockedReason = !isTranslationsLoading && !saveableTranslation
                 ? "Translation required before saving."
                 : null
               return (
@@ -103,7 +105,7 @@ export function SidebarCorResults({
                           cor_lemma_idx: variant.lemma_idx,
                           meaning_key: group.gloss ?? variant.lemma,
                           gloss: group.gloss ?? variant.gloss ?? null,
-                          english_translation: lemmaTranslationForVariant(variant),
+                          english_translation: saveableTranslation,
                           pos_tag: variant.pos_tag ?? group.pos_tag ?? null,
                           morphology: variant.morphology ?? null,
                           target_meaning_id: null,

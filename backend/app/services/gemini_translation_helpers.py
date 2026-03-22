@@ -14,10 +14,22 @@ if TYPE_CHECKING:
     )
 
 
+def _danish_lemma_frame(lemma: str | None, pos_tag: str | None) -> str | None:
+    normalized_lemma = " ".join((lemma or "").strip().split())
+    normalized_pos = (pos_tag or "").strip().upper()
+    if not normalized_lemma:
+        return None
+    if normalized_pos == "VERB":
+        return f"at {normalized_lemma}"
+    return normalized_lemma
+
+
 def build_translation_prompt(payload: ContextualWordTranslationInput) -> str:
+    lemma_frame = _danish_lemma_frame(payload.lemma, payload.pos_tag)
     context = {
         "surface_form_da": payload.surface_form,
         "lemma_da": payload.lemma,
+        "lemma_frame_da": lemma_frame,
         "pos_tag": payload.pos_tag,
         "morphology": payload.morphology,
         "gloss": payload.gloss,
@@ -31,6 +43,7 @@ def build_translation_prompt(payload: ContextualWordTranslationInput) -> str:
         or payload.lemma_translation_hint
         or payload.gloss_translation_hint
     )
+    has_gloss_context = bool(payload.gloss or payload.gloss_translation_hint)
     task_instruction = (
         "You translate Danish lemmas into the exact English lemma or short phrase that matches the supplied "
         "dictionary context.\n"
@@ -38,6 +51,14 @@ def build_translation_prompt(payload: ContextualWordTranslationInput) -> str:
         if has_dictionary_context
         else "You translate a single Danish lemma into the exact English lemma or short phrase.\n"
         "Translate lemma_da, and use surface_form_da only as optional context.\n"
+    )
+    glossless_search_rules = (
+        ""
+        if has_gloss_context
+        else "- This may be a search-quality fallback after another translator returned a Danish-looking echo; prefer the real English meaning over transliteration.\n"
+        "- If lemma_frame_da is present, interpret it as the canonical Danish dictionary form to translate.\n"
+        "- For Danish verbs, treat lemma_frame_da like an infinitive such as 'at bile' and return the English infinitive meaning.\n"
+        "- Do not copy the Danish lemma into English framing such as 'to bile' unless the ordinary English lemma is genuinely the same word.\n"
     )
     return (
         task_instruction
@@ -50,12 +71,22 @@ def build_translation_prompt(payload: ContextualWordTranslationInput) -> str:
         + "- If multiple senses are possible, choose the most common modern English meaning for the given Danish lemma/POS/morphology.\n"
         + "- Avoid false-friend transliterations and niche domain senses unless gloss or hints explicitly require them.\n"
         + "- For verbs, prefer the common infinitive meaning in English (for example, prefer 'to bend'/'to bow' over golf-specific 'to bogey' unless context explicitly indicates golf).\n"
+        + glossless_search_rules
         + "- Do not explain your reasoning.\n"
         + f"Context:\n{json.dumps(context, ensure_ascii=False)}"
     )
 
 
 def build_batch_translation_prompt(items: list[BatchContextualWordTranslationRequestItem]) -> str:
+    has_gloss_context = any(item.gloss or item.gloss_translation_hint for item in items)
+    glossless_search_rules = (
+        ""
+        if has_gloss_context
+        else "- Some items may be search-quality fallbacks after another translator echoed the Danish lemma; prefer the real English meaning over transliteration.\n"
+        "- If an item has lemma_frame_da, interpret it as the canonical Danish dictionary form to translate.\n"
+        "- For Danish verbs, treat lemma_frame_da like an infinitive such as 'at bile' and return the English infinitive meaning.\n"
+        "- Do not copy the Danish lemma into English framing such as 'to bile' unless the ordinary English lemma is genuinely the same word.\n"
+    )
     return (
         "You translate Danish lemmas into the exact English lemma or short phrase that matches the supplied "
         "dictionary context.\n"
@@ -72,8 +103,9 @@ def build_batch_translation_prompt(items: list[BatchContextualWordTranslationReq
         "- If multiple senses are possible, choose the most common modern English meaning for the given Danish lemma/POS/morphology.\n"
         "- Avoid false-friend transliterations and niche domain senses unless gloss or hints explicitly require them.\n"
         "- For verbs, prefer the common infinitive meaning in English (for example, prefer 'to bend'/'to bow' over golf-specific 'to bogey' unless context explicitly indicates golf).\n"
-        "- Do not explain your reasoning.\n"
-        f"Items:\n{json.dumps([asdict(item) for item in items], ensure_ascii=False)}"
+        + glossless_search_rules
+        + "- Do not explain your reasoning.\n"
+        + f"Items:\n{json.dumps([{**asdict(item), 'lemma_frame_da': _danish_lemma_frame(item.lemma, item.pos_tag)} for item in items], ensure_ascii=False)}"
     )
 
 

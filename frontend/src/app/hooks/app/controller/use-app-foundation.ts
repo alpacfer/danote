@@ -15,6 +15,7 @@ export function useAppFoundation() {
   const [noteText, setNoteText] = useState("")
   const [wordbankRefreshTick, setWordbankRefreshTick] = useState(0)
   const [sentencebankRefreshTick, setSentencebankRefreshTick] = useState(0)
+  const [searchTranslationConfigVersion, setSearchTranslationConfigVersion] = useState(0)
 
   const navigation = useSectionNavigation()
   const health = useBackendHealth({ backendUrl: BACKEND_URL })
@@ -41,11 +42,15 @@ export function useAppFoundation() {
     setNoteText,
     wordbankRefreshTick,
     sentencebankRefreshTick,
+    searchTranslationConfigVersion,
     bumpWordbankRefreshTick: () => {
       setWordbankRefreshTick((current) => current + 1)
     },
     bumpSentencebankRefreshTick: () => {
       setSentencebankRefreshTick((current) => current + 1)
+    },
+    bumpSearchTranslationConfigVersion: () => {
+      setSearchTranslationConfigVersion((current) => current + 1)
     },
     setWordbankRefreshTick,
     setSentencebankRefreshTick,

@@ -36,6 +36,7 @@ type UseDeveloperSettingsParams = {
       | ((current: Record<string, DeveloperServiceProbeResponse | null>) => Record<string, DeveloperServiceProbeResponse | null>),
   ) => void
   onDatabaseReset: () => void
+  onSearchTranslationConfigSaved: () => void
   onNotifySuccess: (message: string) => void
   onNotifyError: (message: string) => void
 }
@@ -47,6 +48,7 @@ export function useDeveloperSettings({
   setHealthPayload,
   setApiProbeStatuses,
   onDatabaseReset,
+  onSearchTranslationConfigSaved,
   onNotifySuccess,
   onNotifyError,
 }: UseDeveloperSettingsParams) {
@@ -131,6 +133,7 @@ export function useDeveloperSettings({
               : "offline",
         )
       }
+      onSearchTranslationConfigSaved()
     } catch (error) {
       const message = error instanceof Error ? error.message : "Could not save API keys."
       onNotifyError(message)

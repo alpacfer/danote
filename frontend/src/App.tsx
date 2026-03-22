@@ -12,6 +12,7 @@ function App() {
     lemmas,
     savedNotes,
     wordbankRefreshTick,
+    searchTranslationConfigVersion,
     activeSavedNote,
     isVerifyingWords,
     notifications,
@@ -40,6 +41,7 @@ function App() {
         activeSection={activeSection}
         lemmas={lemmas}
         wordbankCacheVersion={wordbankRefreshTick}
+        searchTranslationConfigVersion={searchTranslationConfigVersion}
         savedNotes={savedNotes}
         unreadWordbankNotificationCount={unreadWordbankNotificationCount}
         onSelectPlayground={selectPlayground}

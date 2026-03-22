@@ -43,6 +43,7 @@ export type AppSidebarProps = {
   activeSection: AppSection
   lemmas: WordbankLemma[]
   wordbankCacheVersion: number
+  searchTranslationConfigVersion: number
   savedNotes: SavedNote[]
   unreadWordbankNotificationCount: number
   onSelectPlayground: () => void
@@ -70,6 +71,7 @@ export function AppSidebar({
   activeSection,
   lemmas,
   wordbankCacheVersion,
+  searchTranslationConfigVersion,
   savedNotes,
   unreadWordbankNotificationCount,
   onSelectPlayground,
@@ -98,6 +100,7 @@ export function AppSidebar({
   } = useSidebarSearch({
     savedNotes,
     wordbankCacheVersion,
+    searchTranslationConfigVersion,
   })
 
   useEffect(() => {

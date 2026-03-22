@@ -145,15 +145,68 @@ def test_wordbank_search_cor_form_uses_gemini_for_self_translated_bile(tmp_path:
     use_case = WordbankUseCase(
         _db_path(tmp_path),
         cor_local_lexicon_service=local_cor,
-        translation_service=FakeTranslationService({"at bile": "to bile", "køre i bil": "go by car"}),
+        translation_service=FakeTranslationService(
+            {"at bile": "to bile", "køre i bil": "go by car"},
+            provider="deepl_translator",
+        ),
         gemini_word_translation_service=gemini_translation,
     )
 
     response = use_case.search_cor_form("bil", limit=100)
 
-    assert response.groups[0].variants[0].lemma_translation == "to drive"
-    assert response.groups[0].variants[0].gloss_translation == "go by car"
+    variant = response.groups[0].variants[0]
+    assert variant.lemma_translation == "to drive"
+    assert variant.saveable_translation == "to drive"
+    assert variant.gloss_translation == "go by car"
+    assert variant.lemma_translation_provider == "gemini_word_translation"
+    assert variant.lemma_translation_status == "gemini"
+    assert variant.lemma_translation_reason == "gemini_ok"
     assert gemini_translation.batch_calls == [[("bil", "bile", "køre i bil")]]
+
+
+def test_wordbank_search_cor_form_uses_gemini_for_glossless_self_translated_bile(tmp_path: Path) -> None:
+    local_cor = FakeCORLocalLexiconService(
+        by_form={
+            "bil": [
+                CORLocalEntry(
+                    cor_id="COR.36439.209.01",
+                    lemma="bile",
+                    gloss=None,
+                    gram_raw="vb.imp",
+                    form="bil",
+                    norm="N",
+                    lemma_idx=36439,
+                    gram_code=209,
+                    variation=1,
+                    pos_tag="VERB",
+                    morphology="Mood=Imp|VerbForm=Fin",
+                    features={"Mood": "Imp", "VerbForm": "Fin"},
+                    extra_tags=[],
+                ),
+            ]
+        }
+    )
+    gemini_translation = FakeGeminiWordTranslationService({("bil", "bile", None): "drive"})
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_local_lexicon_service=local_cor,
+        translation_service=FakeTranslationService(
+            {"at bile": "to bile"},
+            provider="deepl_translator",
+        ),
+        gemini_word_translation_service=gemini_translation,
+    )
+
+    response = use_case.search_cor_form("bil", limit=100)
+
+    variant = response.groups[0].variants[0]
+    assert variant.lemma_translation == "to drive"
+    assert variant.saveable_translation == "to drive"
+    assert variant.gloss_translation is None
+    assert variant.lemma_translation_provider == "gemini_word_translation"
+    assert variant.lemma_translation_status == "gemini"
+    assert variant.lemma_translation_reason == "gemini_ok"
+    assert gemini_translation.batch_calls == [[("bil", "bile", None)]]
 
 
 def test_wordbank_search_cor_form_hides_self_translated_bile_when_gemini_has_no_better_result(tmp_path: Path) -> None:
@@ -185,14 +238,70 @@ def test_wordbank_search_cor_form_hides_self_translated_bile_when_gemini_has_no_
     use_case = WordbankUseCase(
         _db_path(tmp_path),
         cor_local_lexicon_service=local_cor,
-        translation_service=FakeTranslationService({"at bile": "to bile", "køre i bil": "go by car"}),
+        translation_service=FakeTranslationService(
+            {"at bile": "to bile", "køre i bil": "go by car"},
+            provider="deepl_translator",
+        ),
         gemini_word_translation_service=gemini_translation,
     )
 
     response = use_case.search_cor_form("bil", limit=100)
 
-    assert response.groups[0].variants[0].lemma_translation is None
-    assert response.groups[0].variants[0].gloss_translation == "go by car"
+    variant = response.groups[0].variants[0]
+    assert variant.lemma_translation is None
+    assert variant.saveable_translation == "go by car"
+    assert variant.gloss_translation == "go by car"
+    assert variant.lemma_translation_provider == "deepl_translator"
+    assert variant.lemma_translation_status == "gloss_fallback"
+    assert variant.lemma_translation_reason == "gloss_fallback_used"
+    assert gemini_translation.batch_calls == [[("bil", "bile", "køre i bil")]]
+
+
+def test_wordbank_search_cor_form_hides_self_translated_bile_when_gemini_echoes_too(tmp_path: Path) -> None:
+    local_cor = FakeCORLocalLexiconService(
+        by_form={
+            "bil": [
+                CORLocalEntry(
+                    cor_id="COR.36439.209.01",
+                    lemma="bile",
+                    gloss="køre i bil",
+                    gram_raw="vb.imp",
+                    form="bil",
+                    norm="N",
+                    lemma_idx=36439,
+                    gram_code=209,
+                    variation=1,
+                    pos_tag="VERB",
+                    morphology="Mood=Imp|VerbForm=Fin",
+                    features={"Mood": "Imp", "VerbForm": "Fin"},
+                    extra_tags=[],
+                ),
+            ]
+        }
+    )
+    gemini_translation = FakeGeminiWordTranslationService(
+        {("bil", "bile", "køre i bil"): "bile"},
+        batch_overrides={("bil", "bile", "køre i bil"): "bile"},
+    )
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_local_lexicon_service=local_cor,
+        translation_service=FakeTranslationService(
+            {"at bile": "to bile", "køre i bil": "go by car"},
+            provider="deepl_translator",
+        ),
+        gemini_word_translation_service=gemini_translation,
+    )
+
+    response = use_case.search_cor_form("bil", limit=100)
+
+    variant = response.groups[0].variants[0]
+    assert variant.lemma_translation is None
+    assert variant.saveable_translation == "go by car"
+    assert variant.gloss_translation == "go by car"
+    assert variant.lemma_translation_provider == "deepl_translator"
+    assert variant.lemma_translation_status == "gloss_fallback"
+    assert variant.lemma_translation_reason == "gloss_fallback_used"
     assert gemini_translation.batch_calls == [[("bil", "bile", "køre i bil")]]
 
 

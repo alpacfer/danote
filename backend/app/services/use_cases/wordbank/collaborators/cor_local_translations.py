@@ -12,25 +12,14 @@ from app.services.use_cases.wordbank.collaborators.translation_word_frames impor
     cor_local_word_translation_frame,
 )
 from app.services.use_cases.wordbank.collaborators.translation import TranslationCollaborator
+from app.services.use_cases.wordbank.collaborators.translation_search_fallbacks import (
+    SearchTranslationDecision,
+    build_search_translation_decision,
+    evaluate_search_translation_candidate,
+    invalid_search_translation,
+)
 
 logger = logging.getLogger(__name__)
-
-_SELF_TRANSLATION_HELPER_PREFIXES = {
-    "a",
-    "an",
-    "and",
-    "at",
-    "by",
-    "for",
-    "from",
-    "in",
-    "of",
-    "on",
-    "that",
-    "the",
-    "to",
-    "with",
-}
 
 ContextualCacheKey = tuple[str, str, str | None, str | None, str | None, str | None, str | None]
 WordFrameCacheKey = WordTranslationFrame
@@ -110,6 +99,24 @@ def lookup_translation_for_cor_local_entry(
     gloss_cache: dict[str, str | None] | None = None,
     strict_azure: bool = False,
 ) -> str | None:
+    return search_translation_decision_for_cor_local_entry(
+        translation,
+        entry,
+        cache=cache,
+        contextual_cache=contextual_cache,
+        gloss_cache=gloss_cache,
+        strict_azure=strict_azure,
+    ).lemma_translation
+
+
+def search_translation_decision_for_cor_local_entry(
+    translation: TranslationCollaborator,
+    entry: CORLocalEntry,
+    cache: dict[AzureFrameCacheKey, str | None] | None = None,
+    contextual_cache: dict[ContextualCacheKey, str | None] | None = None,
+    gloss_cache: dict[str, str | None] | None = None,
+    strict_azure: bool = False,
+) -> SearchTranslationDecision:
     if strict_azure:
         _require_azure_translation(translation)
         lookup_translation = translation.lookup_translation_strict
@@ -123,17 +130,21 @@ def lookup_translation_for_cor_local_entry(
         cleaned_translation = translation.cleanup_framed_word_translation(frame, translated)
         if cache is not None:
             cache[frame] = cleaned_translation
+    provider_formatted = _format_lemma_translation(entry, cleaned_translation)
     normalized_gloss = normalize_token(entry.gloss or "")
     gloss_translation_hint = (
         gloss_cache.get(normalized_gloss)
         if gloss_cache is not None and normalized_gloss
         else None
     )
+    contextual_attempted = False
+    contextual_formatted: str | None = None
     if _should_use_gemini_for_lemma(
         entry,
         frame=frame,
         provider_translation=cleaned_translation,
     ):
+        contextual_attempted = True
         contextual = translation.lookup_contextual_word_translation(
             surface_form=entry.form,
             lemma=entry.lemma,
@@ -145,15 +156,53 @@ def lookup_translation_for_cor_local_entry(
         )
         if contextual.translation:
             contextual_formatted = _format_lemma_translation(entry, contextual.translation)
-            return _resolve_contextual_lemma_translation(
-                entry,
-                contextual_translation=contextual_formatted,
-                provider_translation=cleaned_translation,
-            )
-    provider_formatted = _format_lemma_translation(entry, cleaned_translation)
-    if _should_suppress_self_translation(entry, provider_formatted):
-        return None
-    return provider_formatted
+
+    provider_candidate = evaluate_search_translation_candidate(
+        translation=provider_formatted,
+        lemma=entry.lemma,
+        surface_form=entry.form,
+        frame_text=frame.text,
+    )
+    contextual_candidate = (
+        evaluate_search_translation_candidate(
+            translation=contextual_formatted,
+            lemma=entry.lemma,
+            surface_form=entry.form,
+            frame_text=frame.text,
+        )
+        if contextual_attempted
+        else None
+    )
+    _log_rejected_search_translation(
+        entry,
+        frame=frame,
+        provider=translation.provider_name(),
+        rejection_reason="provider_self_translation",
+        candidate=provider_candidate,
+    )
+    if contextual_attempted and contextual_candidate is not None:
+        _log_rejected_search_translation(
+            entry,
+            frame=frame,
+            provider=translation.contextual_provider_name(),
+            rejection_reason="gemini_self_translation",
+            candidate=contextual_candidate,
+        )
+    decision = build_search_translation_decision(
+        provider_candidate=provider_candidate,
+        provider_name=translation.provider_name(),
+        contextual_candidate=contextual_candidate,
+        contextual_provider_name=translation.contextual_provider_name(),
+        contextual_attempted=contextual_attempted,
+        gloss_fallback=gloss_translation_hint,
+    )
+    if decision.lemma_translation_status == "gloss_fallback":
+        _log_gloss_fallback(
+            entry,
+            gloss_translation_hint=gloss_translation_hint,
+            provider=translation.provider_name(),
+        )
+    return decision
 
 
 def lemma_translation_for_entry(
@@ -162,13 +211,13 @@ def lemma_translation_for_entry(
     cache: dict[AzureFrameCacheKey, str | None],
     contextual_cache: dict[ContextualCacheKey, str | None],
 ) -> str | None:
-    return lookup_translation_for_cor_local_entry(
+    return search_translation_decision_for_cor_local_entry(
         translation,
         entry,
-        cache,
-        contextual_cache,
+        cache=cache,
+        contextual_cache=contextual_cache,
         strict_azure=False,
-    )
+    ).lemma_translation
 
 
 def prime_cor_form_contextual_translations(
@@ -344,17 +393,13 @@ def _should_use_gemini_for_lemma(
     normalized_gloss = normalize_token(entry.gloss or "")
     if normalized_gloss:
         return True
-    comparable_lemma = _content_translation_key(entry.lemma)
-    comparable_frame = _content_translation_key(frame.text)
-    comparable_translation = _content_translation_key(provider_translation)
-    return bool(
-        (comparable_lemma and comparable_translation and comparable_lemma == comparable_translation)
-        or (
-            comparable_frame
-            and comparable_translation
-            and comparable_frame == comparable_translation
-        )
+    invalid = invalid_search_translation(
+        translation=provider_translation,
+        lemma=entry.lemma,
+        surface_form=entry.form,
+        frame_text=frame.text,
     )
+    return invalid is not None
 
 
 def _format_lemma_translation(entry: CORLocalEntry, translated: str | None) -> str | None:
@@ -368,40 +413,50 @@ def _format_lemma_translation(entry: CORLocalEntry, translated: str | None) -> s
     return f"to {normalized}"
 
 
-def _resolve_contextual_lemma_translation(
+def _log_rejected_search_translation(
     entry: CORLocalEntry,
     *,
-    contextual_translation: str | None,
-    provider_translation: str | None,
-) -> str | None:
-    normalized_contextual = normalize_token(contextual_translation or "")
-    if not normalized_contextual:
-        return None
-    normalized_lemma = normalize_token(entry.lemma)
-    if entry.pos_tag != "VERB" and normalized_lemma and normalized_contextual == normalized_lemma:
-        fallback = normalize_token(provider_translation or "") or None
-        if _should_suppress_self_translation(entry, fallback):
-            return None
-        return fallback
-    return normalized_contextual
+    frame: WordTranslationFrame,
+    provider: str,
+    rejection_reason: str,
+    candidate,
+) -> None:
+    invalid = candidate.invalid
+    if invalid is None:
+        return
+    logger.info(
+        "wordbank_search_translation_rejected",
+        extra={
+            "provider": provider,
+            "rejection_reason": rejection_reason,
+            "matched_source": invalid.matched_source,
+            "comparable_value": invalid.comparable_value,
+            "lemma": entry.lemma,
+            "surface_form": entry.form,
+            "frame_text": frame.text,
+            "translation": normalize_token(candidate.translation or "") or None,
+        },
+    )
 
 
-def _should_suppress_self_translation(entry: CORLocalEntry, translation: str | None) -> bool:
-    comparable_translation = _content_translation_key(translation)
-    comparable_lemma = _content_translation_key(entry.lemma)
-    if not comparable_translation or not comparable_lemma:
-        return False
-    return comparable_translation == comparable_lemma
-
-
-def _content_translation_key(value: str | None) -> str:
-    normalized = normalize_token(value or "")
-    if not normalized:
-        return ""
-    tokens = normalized.split(" ")
-    while tokens and tokens[0] in _SELF_TRANSLATION_HELPER_PREFIXES:
-        tokens = tokens[1:]
-    return " ".join(tokens)
+def _log_gloss_fallback(
+    entry: CORLocalEntry,
+    *,
+    gloss_translation_hint: str | None,
+    provider: str,
+) -> None:
+    normalized_gloss_fallback = normalize_token(gloss_translation_hint or "") or None
+    if not normalized_gloss_fallback:
+        return
+    logger.info(
+        "wordbank_search_translation_gloss_fallback",
+        extra={
+            "provider": provider,
+            "lemma": entry.lemma,
+            "surface_form": entry.form,
+            "gloss_translation": normalized_gloss_fallback,
+        },
+    )
 
 
 def _require_azure_translation(translation: TranslationCollaborator) -> None:
