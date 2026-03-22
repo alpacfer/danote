@@ -37,6 +37,7 @@ def test_build_startup_steps_registers_expected_sequence(stub_nlp_adapter_factor
         "typo",
         "translation",
         "gemini_word_translation",
+        "related_words",
         "word_verification",
         "tts",
     ]

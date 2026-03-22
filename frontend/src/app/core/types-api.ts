@@ -235,8 +235,27 @@ export type CORSearchFormResponse = {
 }
 
 export type LemmaDetailsResponse = {
+  related_words?: {
+    status: "queued" | "ready" | "empty" | "error"
+    message?: string | null
+    items: Array<{
+      id: number
+      relation_type: "compound_component" | "compound_host"
+      lemma: string
+      english_translation?: string | null
+      pos_tag?: string | null
+      saved_match: {
+        status: "unsaved" | "saved_lemma" | "saved_variation"
+        target_lemma?: string | null
+        target_meaning_id?: number | null
+      }
+      display_variant?: CORSearchVariant | null
+      candidate_variants?: CORSearchVariant[]
+    }>
+  }
   lemma: string
   english_translation: string | null
+  additional_translations?: string[]
   pos_tag: string | null
   morphology: string | null
   is_sectioned?: boolean
@@ -247,6 +266,7 @@ export type LemmaDetailsResponse = {
     meaning_key: string
     gloss?: string | null
     english_translation?: string | null
+    additional_translations?: string[]
     gloss_translation?: string | null
     pos_tag?: string | null
     morphology?: string | null

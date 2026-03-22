@@ -4,6 +4,7 @@ import { normalizeSearchWord } from "@/app/core"
 import type { WordbankSectionProps } from "@/app/sections/wordbank/wordbank-section-types"
 import { WordbankDetailsLoadingSkeleton, WordbankLemmaHeader } from "@/app/sections/wordbank/wordbank-lemma-header"
 import { WordbankMeaningSections } from "@/app/sections/wordbank/wordbank-meaning-sections"
+import { WordbankRelatedWords } from "@/app/sections/wordbank/wordbank-related-words"
 import { WordbankVariationGrid } from "@/app/sections/wordbank/wordbank-variation-grid"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
@@ -31,6 +32,8 @@ type WordbankWordPageProps = Pick<
   | "onApplyVerificationAction"
   | "onRetryVerificationTarget"
   | "onRerunMeaningVerification"
+  | "onSaveRelatedWordFromSearchSeed"
+  | "onOpenRelatedWordTarget"
 >
 
 export function WordbankWordPage({
@@ -56,6 +59,8 @@ export function WordbankWordPage({
   onApplyVerificationAction,
   onRetryVerificationTarget,
   onRerunMeaningVerification,
+  onSaveRelatedWordFromSearchSeed,
+  onOpenRelatedWordTarget,
 }: WordbankWordPageProps) {
   const normalizedRequestedLemma = normalizeSearchWord(selectedLemma ?? "")
   const normalizedLoadedLemma = normalizeSearchWord(lemmaDetails?.lemma ?? "")
@@ -144,6 +149,11 @@ export function WordbankWordPage({
               onRegeneratePronunciation={onRegeneratePronunciation}
             />
           )}
+          <WordbankRelatedWords
+            relatedWords={activeLemmaDetails.related_words}
+            onSaveRelatedWordFromSearchSeed={onSaveRelatedWordFromSearchSeed}
+            onOpenRelatedWordTarget={onOpenRelatedWordTarget}
+          />
         </div>
       </ScrollArea>
     </div>

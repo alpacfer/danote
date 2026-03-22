@@ -30,6 +30,11 @@ export function useWordbankComposition({ foundation, onSentenceSaved }: UseWordb
     setActiveSection: navigation.setActiveSection,
     setSelectedLemma: navigation.setSelectedLemma,
     setSelectedMeaningId: navigation.setSelectedMeaningId,
+    openWordbankTarget: (lemma, meaningId) => {
+      navigation.setActiveSection("wordbank")
+      navigation.setSelectedLemma(lemma)
+      navigation.setSelectedMeaningId(meaningId)
+    },
     trackQueuedPronunciationForms: lexiconData.trackQueuedPronunciationForms,
     postTokenFeedback: async (payload) => {
       await postTokenFeedback(backendUrl, payload)

@@ -240,7 +240,7 @@ export function useLexiconData({
         || activePronunciationTracking.forms.some((form) => !lemmaDetailsHasPronunciation(lemmaDetails, form))
       ),
     )
-    if (!hasQueuedVerificationTargets(lemmaDetails) && !shouldPollPronunciations) {
+    if (!hasQueuedVerificationTargets(lemmaDetails) && !shouldPollPronunciations && !hasQueuedRelatedWords(lemmaDetails)) {
       return
     }
     const timeoutId = window.setTimeout(() => {
@@ -293,6 +293,10 @@ export function useLexiconData({
     setShowLemmaDetailsLoadingSkeleton,
     trackQueuedPronunciationForms,
   }
+}
+
+function hasQueuedRelatedWords(lemmaDetails: LemmaDetailsResponse | null): boolean {
+  return lemmaDetails?.related_words?.status === "queued"
 }
 
 function normalizeQueuedPronunciationForms(forms: string[]): string[] {

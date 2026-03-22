@@ -26,6 +26,12 @@ from app.services.verification_review_policy import (
     should_ignore_variation_only_review,
     should_expose_translation_hint,
 )
+from app.services.verification_review_text import (
+    TRANSLATION_FIX_CHANGE,
+    TRANSLATION_FIX_PROBLEM,
+    normalize_translation_review_copy,
+    should_suppress_gloss_only_feedback,
+)
 from app.services.verification_support import (
     category_surface_forms,
     is_valid_new_category,
@@ -210,11 +216,11 @@ class GeminiWordVerificationService:
         )
         if force_translation_fix:
             suggested_actions = (self._gloss_hint_translation_action(payload),)
-        if suggested_actions and suggested_actions[0].action_type == "fix_translation":
-            if not problem:
-                problem = "The English translation does not match the saved meaning."
-            if not change_to_implement:
-                change_to_implement = "Set the translation to the saved meaning."
+        problem, change_to_implement = normalize_translation_review_copy(
+            problem=problem,
+            change_to_implement=change_to_implement,
+            suggested_actions=suggested_actions,
+        )
 
         if verdict == "incorrect":
             if should_ignore_variation_only_review(
@@ -230,6 +236,10 @@ class GeminiWordVerificationService:
             ) or should_ignore_morphology_supported_move_review(
                 payload=payload,
                 raw_suggested_actions=raw_suggested_actions,
+                suggested_actions=suggested_actions,
+            ) or should_suppress_gloss_only_feedback(
+                problem=problem,
+                change_to_implement=change_to_implement,
                 suggested_actions=suggested_actions,
             ):
                 return WordVerificationResult(
@@ -253,8 +263,8 @@ class GeminiWordVerificationService:
                 verdict="flagged",
                 message="Review needed",
                 composed_word_count=word_count,
-                problem=problem or "The English translation does not match the saved meaning.",
-                change_to_implement=change_to_implement or "Set the translation to the saved meaning.",
+                problem=problem or TRANSLATION_FIX_PROBLEM,
+                change_to_implement=change_to_implement or TRANSLATION_FIX_CHANGE,
                 suggested_actions=suggested_actions,
             )
         return WordVerificationResult(

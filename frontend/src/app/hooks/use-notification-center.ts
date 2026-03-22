@@ -47,17 +47,18 @@ export function useNotificationCenter() {
         const existingIndex = current.findIndex(
           (notification) => notification.kind === "word_verification" && notification.targetKey === options.targetKey,
         )
+        const existingNotification = existingIndex >= 0 ? current[existingIndex] : null
         const nextNotification: WordVerificationNotification = {
-          id: existingIndex >= 0 ? current[existingIndex].id : createNotificationId(),
+          id: existingNotification?.id ?? createNotificationId(),
           message,
           createdAt,
           read: false,
           kind: "word_verification",
-          lemma: options.lemma,
+          lemma: options.lemma!,
           meaningId: options.meaningId ?? null,
           surfaceForm: options.surfaceForm ?? null,
-          targetKey: options.targetKey,
-          status: options.status,
+          targetKey: options.targetKey!,
+          status: options.status!,
           signature: options.signature ?? null,
           actionCount: options.actionCount ?? 0,
         }

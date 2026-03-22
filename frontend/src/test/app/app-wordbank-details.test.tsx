@@ -1,4 +1,4 @@
-import { fireEvent, mockFetchImplementation, renderApp, screen, waitFor, within } from "@/test/app-test-helpers"
+import { fireEvent, mockFetchImplementation, renderApp, responseOf, screen, waitFor, within } from "@/test/app-test-helpers"
 import {
   bogHomographWordPageContractFixture,
   bogVariationGlossWordPageContractFixture,
@@ -134,6 +134,76 @@ describe("App wordbank", () => {
     expect(screen.getByText(/^lærere$/i)).toBeInTheDocument()
     expect(screen.getAllByText(/^teacher$/i)).toHaveLength(1)
     expect(screen.getByText(/^Plural$/i)).toBeInTheDocument()
+  })
+
+  it("renderer-only: non-sectioned word pages render additional root translations", async () => {
+    mockFetchImplementation({
+      lemmasResponse: {
+        items: [{ lemma: "lege", variation_count: 0 }],
+      },
+      lemmaDetailsHandler: async (input) => {
+        const url = String(input)
+        if (url.endsWith("/api/wordbank/lemmas/lege")) {
+          return responseOf({
+            lemma: "lege",
+            english_translation: null,
+            additional_translations: ["frolic", "play"],
+            is_sectioned: false,
+            pos_tag: "VERB",
+            morphology: "VerbForm=Inf|Voice=Act",
+            surface_forms: [],
+          })
+        }
+        throw new Error(`Unexpected lemma details request: ${url}`)
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+    fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
+
+    fireEvent.click(await screen.findByRole("button", { name: /lege/i }))
+    expect(await screen.findByText(/^frolic, play$/i)).toBeInTheDocument()
+    expect(screen.queryByText(/^also:/i)).not.toBeInTheDocument()
+  })
+
+  it("renderer-only: sectioned meaning cards render additional meaning translations", async () => {
+    mockFetchImplementation({
+      lemmasResponse: {
+        items: [{ lemma: "fader", variation_count: 1 }],
+      },
+      lemmaDetailsHandler: async (input) => {
+        const url = String(input)
+        if (url.endsWith("/api/wordbank/lemmas/fader")) {
+          return responseOf({
+            lemma: "fader",
+            english_translation: null,
+            is_sectioned: true,
+            meaning_sections: [
+              {
+                id: 1,
+                meaning_key: "father",
+                gloss: "father",
+                english_translation: "father",
+                additional_translations: ["dad"],
+                pos_tag: "NOUN",
+                morphology: "Gender=Com|Number=Sing|Definite=Ind",
+                surface_forms: [{ form: "far", has_pronunciation: false }],
+              },
+            ],
+            surface_forms: [],
+          })
+        }
+        throw new Error(`Unexpected lemma details request: ${url}`)
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+    fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
+
+    fireEvent.click(await screen.findByRole("button", { name: /fader/i }))
+    expect(await screen.findByText(/^father, dad$/i)).toBeInTheDocument()
   })
 
   it("renderer-only: pronunciation tooltip opens on the right of the word trigger", async () => {

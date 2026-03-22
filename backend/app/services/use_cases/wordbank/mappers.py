@@ -143,6 +143,7 @@ def map_lemma_details_response(response: LemmaDetailsResponse) -> LemmaDetailsRe
     return LemmaDetailsResponse(
         lemma=response.lemma,
         english_translation=response.english_translation,
+        additional_translations=response.additional_translations,
         pos_tag=response.pos_tag,
         morphology=response.morphology,
         is_sectioned=False,
@@ -150,4 +151,5 @@ def map_lemma_details_response(response: LemmaDetailsResponse) -> LemmaDetailsRe
         verification=response.verification,
         meaning_sections=[],
         surface_forms=surface_forms,
+        related_words=response.related_words,
     )

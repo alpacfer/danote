@@ -10,6 +10,7 @@ from app.bootstrap.runtime_cor import initialize_cor, initialize_cor_local
 from app.bootstrap.runtime_db import initialize_database
 from app.bootstrap.runtime_gemini_word_translation import initialize_gemini_word_translation
 from app.bootstrap.runtime_nlp import initialize_nlp
+from app.bootstrap.runtime_related_words import initialize_related_words
 from app.bootstrap.runtime_steps import StartupStep, run_startup_step
 from app.bootstrap.runtime_translation import initialize_translation
 from app.bootstrap.runtime_tts import initialize_tts
@@ -67,6 +68,7 @@ def build_startup_steps(
         StartupStep("typo", initialize_typo),
         StartupStep("translation", initialize_translation),
         StartupStep("gemini_word_translation", initialize_gemini_word_translation),
+        StartupStep("related_words", initialize_related_words),
         StartupStep("word_verification", initialize_word_verification),
         StartupStep("tts", initialize_tts),
     )
@@ -102,6 +104,12 @@ def log_startup(app: FastAPI, applied: list[str]) -> None:
             "gemini_word_translation_provider": (
                 getattr(services.gemini_word_translation_service, "provider", None)
                 if services.gemini_word_translation_service
+                else None
+            ),
+            "related_words_error": runtime.related_words_error,
+            "related_words_provider": (
+                getattr(services.gemini_related_words_service, "provider", None)
+                if services.gemini_related_words_service
                 else None
             ),
             "word_verification_enabled": settings.word_verification_enabled,

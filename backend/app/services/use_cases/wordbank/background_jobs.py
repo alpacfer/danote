@@ -101,6 +101,7 @@ class WordbankBackgroundJobRunner:
             typo_engine=self._services.typo_engine,
             translation_service=self._services.translation_service,
             gemini_word_translation_service=self._services.gemini_word_translation_service,
+            gemini_related_words_service=self._services.gemini_related_words_service,
             nlp_adapter=self._services.nlp_adapter,
             cor_lexicon_service=self._services.cor_lexicon_service,
             cor_local_lexicon_service=self._services.cor_local_lexicon_service,
@@ -127,6 +128,9 @@ class WordbankBackgroundJobRunner:
                 requested_forms=requested_forms or ([stored_surface_form] if stored_surface_form else []),
                 force=_optional_bool_value(payload, "force") or False,
             )
+            return
+        if job_type == "resolve_related_words":
+            use_case.process_queued_related_words(stored_lemma)
             return
         raise ValueError(f"Unsupported background job type: {job_type}")
 

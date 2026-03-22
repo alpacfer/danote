@@ -24,6 +24,7 @@ from app.nlp.adapter import NLPAdapter
 from app.services.cor import CORLexiconService
 from app.services.cor_local import CORLocalLexiconService
 from app.services.gemini_translation import GeminiWordTranslationService
+from app.services.related_words import GeminiRelatedWordsService
 from app.services.translation import TranslationService
 from app.services.tts import PronunciationAudio, TTSService
 from app.services.use_cases.wordbank.commands_add_word import add_word
@@ -32,6 +33,7 @@ from app.services.use_cases.wordbank.commands_database import reset_database
 from app.services.use_cases.wordbank.collaborators.cor import CorResolutionCollaborator
 from app.services.use_cases.wordbank.collaborators.nlp import NLPCollaborator
 from app.services.use_cases.wordbank.collaborators.pronunciation import PronunciationCollaborator
+from app.services.use_cases.wordbank.collaborators.related_words import RelatedWordsCollaborator
 from app.services.use_cases.wordbank.collaborators.translation import TranslationCollaborator
 from app.services.use_cases.wordbank.collaborators.verification import VerificationCollaborator
 from app.services.use_cases.wordbank.queries_details import get_lemma_details
@@ -48,6 +50,7 @@ class WordbankUseCase:
         typo_engine=None,
         translation_service: TranslationService | None = None,
         gemini_word_translation_service: GeminiWordTranslationService | None = None,
+        gemini_related_words_service: GeminiRelatedWordsService | None = None,
         nlp_adapter: NLPAdapter | None = None,
         cor_lexicon_service: CORLexiconService | None = None,
         cor_local_lexicon_service: CORLocalLexiconService | None = None,
@@ -63,12 +66,19 @@ class WordbankUseCase:
             cor_local_lexicon_service,
             db_path,
         )
+        repository = WordbankRepository(db_path)
         cor = CorResolutionCollaborator(
             cor_lexicon_service,
             cor_local_lexicon_service,
             db_path,
             translation,
             nlp,
+        )
+        related_words = RelatedWordsCollaborator(
+            gemini_related_words_service,
+            cor_local_lexicon_service,
+            repository,
+            db_path,
         )
         verification = VerificationCollaborator(
             verification_service,
@@ -79,9 +89,10 @@ class WordbankUseCase:
         )
         self._runtime = WordbankRuntime(
             db_path=db_path,
-            repository=WordbankRepository(db_path),
+            repository=repository,
             nlp=nlp,
             pronunciation=pronunciation,
+            related_words=related_words,
             translation=translation,
             cor=cor,
             verification=verification,
@@ -130,6 +141,12 @@ class WordbankUseCase:
             requested_forms=requested_forms,
             force=force,
         )
+
+    def process_queued_related_words(
+        self,
+        stored_lemma: str,
+    ) -> None:
+        self._runtime.related_words.process_queued_resolution(stored_lemma=stored_lemma)
 
     def complete_meaning_variations(
         self,

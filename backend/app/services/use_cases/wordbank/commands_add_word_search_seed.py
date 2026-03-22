@@ -5,6 +5,7 @@ from app.services.token_classifier import normalize_token
 from app.services.use_cases.wordbank.meaning_sections import ensure_wordbank_meaning_compatibility
 from app.services.use_cases.wordbank.pronunciation_queue import queue_pronunciation_generation
 from app.services.use_cases.wordbank.queries_details import get_lemma_details
+from app.services.use_cases.wordbank.related_words_queue import queue_related_words_resolution
 from app.services.use_cases.wordbank.runtime import WordbankRuntime
 from app.services.use_cases.wordbank.search_seed_persistence import (
     normalize_search_seed,
@@ -48,6 +49,10 @@ def add_word_from_search_seed(
         runtime,
         stored_lemma=seed.lemma,
         requested_forms=(seed.surface,),
+    )
+    queue_related_words_resolution(
+        runtime,
+        stored_lemma=seed.lemma,
     )
     saved_snapshot = get_lemma_details(runtime, seed.lemma)
     return AddWordResponse(

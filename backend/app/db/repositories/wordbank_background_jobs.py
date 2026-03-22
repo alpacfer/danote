@@ -17,6 +17,8 @@ class WordbankBackgroundJobRecord:
     attempt_count: int
     max_attempts: int
     rerun_requested: bool
+    last_error: str | None = None
+    completed_at: str | None = None
 
 
 class WordbankBackgroundJobRepository:
@@ -231,6 +233,29 @@ class WordbankBackgroundJobRepository:
             }
         )
 
+    def get_by_dedupe_key(self, dedupe_key: str) -> WordbankBackgroundJobRecord | None:
+        with timed_db_operation("wordbank_background_jobs.get_by_dedupe_key"), get_connection(self._db_path) as conn:
+            row = conn.execute(
+                """
+                SELECT
+                    id,
+                    job_type,
+                    dedupe_key,
+                    payload_json,
+                    status,
+                    attempt_count,
+                    max_attempts,
+                    rerun_requested,
+                    last_error,
+                    completed_at
+                FROM wordbank_background_jobs
+                WHERE dedupe_key = ?
+                LIMIT 1
+                """,
+                (dedupe_key,),
+            ).fetchone()
+        return _job_from_row(dict(row)) if row is not None else None
+
     def mark_completed(self, job_id: int) -> bool:
         with timed_db_operation("wordbank_background_jobs.mark_completed"), get_connection(self._db_path) as conn:
             row = conn.execute(
@@ -326,6 +351,8 @@ def _job_from_row(row: dict[str, object]) -> WordbankBackgroundJobRecord:
         attempt_count=_required_int(row, "attempt_count"),
         max_attempts=_required_int(row, "max_attempts"),
         rerun_requested=bool(row.get("rerun_requested", False)),
+        last_error=str(row["last_error"]) if row.get("last_error") is not None else None,
+        completed_at=str(row["completed_at"]) if row.get("completed_at") is not None else None,
     )
 
 

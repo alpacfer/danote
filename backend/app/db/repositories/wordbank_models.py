@@ -64,6 +64,50 @@ class SurfaceFormRecord:
 
 
 @dataclass(frozen=True, slots=True)
+class RelatedWordRecord:
+    id: int
+    owner_lexeme_id: int
+    relation_type: str
+    sort_order: int
+    related_lemma: str
+    english_translation: str | None
+    pos_tag: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class RelatedWordWriteRecord:
+    relation_type: str
+    sort_order: int
+    related_lemma: str
+    english_translation: str | None
+    pos_tag: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class AdditionalTranslationRecord:
+    id: int
+    lexeme_id: int
+    meaning_id: int | None
+    english_translation: str
+    source: str
+
+
+@dataclass(frozen=True, slots=True)
+class SavedWordbankTargetRecord:
+    lemma: str
+    meaning_id: int | None
+
+
+@dataclass(frozen=True, slots=True)
+class SavedTranslationTargetRecord:
+    lexeme_id: int
+    lemma: str
+    meaning_id: int | None
+    english_translation: str | None
+
+
+
+@dataclass(frozen=True, slots=True)
 class VerificationRecord:
     id: int
     lexeme_id: int
@@ -147,6 +191,44 @@ def verification_record_from_row(row) -> VerificationRecord:
         review_intent=str(row["review_intent"]) if row["review_intent"] is not None else "general",
         latest_snapshot_hash=str(row["latest_snapshot_hash"]) if row["latest_snapshot_hash"] is not None else None,
         request_generation=int(row["request_generation"]) if row["request_generation"] is not None else 0,
+    )
+
+
+def related_word_from_row(row) -> RelatedWordRecord:
+    return RelatedWordRecord(
+        id=int(row["id"]),
+        owner_lexeme_id=int(row["owner_lexeme_id"]),
+        relation_type=str(row["relation_type"]),
+        sort_order=int(row["sort_order"]),
+        related_lemma=str(row["related_lemma"]),
+        english_translation=row["english_translation"],
+        pos_tag=row["pos_tag"],
+    )
+
+
+def saved_wordbank_target_from_row(row) -> SavedWordbankTargetRecord:
+    return SavedWordbankTargetRecord(
+        lemma=str(row["lemma"]),
+        meaning_id=int(row["meaning_id"]) if row["meaning_id"] is not None else None,
+    )
+
+
+def saved_translation_target_from_row(row) -> SavedTranslationTargetRecord:
+    return SavedTranslationTargetRecord(
+        lexeme_id=int(row["lexeme_id"]),
+        lemma=str(row["lemma"]),
+        meaning_id=int(row["meaning_id"]) if row["meaning_id"] is not None else None,
+        english_translation=row["english_translation"],
+    )
+
+
+def additional_translation_from_row(row) -> AdditionalTranslationRecord:
+    return AdditionalTranslationRecord(
+        id=int(row["id"]),
+        lexeme_id=int(row["lexeme_id"]),
+        meaning_id=int(row["meaning_id"]) if row["meaning_id"] is not None else None,
+        english_translation=str(row["english_translation"]),
+        source=str(row["source"]),
     )
 
 

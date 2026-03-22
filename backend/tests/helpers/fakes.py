@@ -164,6 +164,34 @@ class FakeGeminiWordTranslationService:
         ]
 
 
+class FakeGeminiRelatedWordsService:
+    provider = "gemini_related_words"
+
+    def __init__(self, mapping: dict[str, list[tuple[str, str, str]]]):
+        self._mapping = {key.lower(): value for key, value in mapping.items()}
+        self.calls: list[str] = []
+
+    def find_related_words(self, *, lemma: str):
+        self.calls.append(lemma)
+
+        class Result:
+            def __init__(self, rows: list[tuple[str, str, str]]):
+                self.items = [
+                    type(
+                        "RelatedWordItem",
+                        (),
+                        {
+                            "lemma": item_lemma,
+                            "english_translation": english_translation,
+                            "pos_tag": pos_tag,
+                        },
+                    )()
+                    for item_lemma, english_translation, pos_tag in rows
+                ]
+
+        return Result(self._mapping.get(lemma.lower(), []))
+
+
 class FakeTTSService:
     provider = "gemini_tts"
     model = "gemini-2.5-flash-preview-tts"

@@ -5,6 +5,7 @@ from pathlib import Path
 
 from app.db.repositories.wordbank_models import (
     LexemeMeaningRecord,
+    RelatedWordWriteRecord,
     SurfaceFormRecord,
     VerificationRecord,
     lexeme_meaning_from_row,
@@ -16,6 +17,43 @@ from app.db.sqlite import get_connection, timed_db_operation
 
 class WordbankMutationRepository:
     _db_path: Path
+
+    def insert_additional_translation(
+        self,
+        *,
+        lexeme_id: int,
+        meaning_id: int | None,
+        english_translation: str,
+        source: str = "related_words",
+    ) -> bool:
+        with timed_db_operation("wordbank.insert_additional_translation"), get_connection(self._db_path) as conn:
+            if meaning_id is None:
+                cursor = conn.execute(
+                    """
+                    INSERT OR IGNORE INTO wordbank_additional_translations (
+                        lexeme_id,
+                        meaning_id,
+                        english_translation,
+                        source
+                    )
+                    VALUES (?, NULL, ?, ?)
+                    """,
+                    (lexeme_id, english_translation, source),
+                )
+            else:
+                cursor = conn.execute(
+                    """
+                    INSERT OR IGNORE INTO wordbank_additional_translations (
+                        lexeme_id,
+                        meaning_id,
+                        english_translation,
+                        source
+                    )
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    (lexeme_id, meaning_id, english_translation, source),
+                )
+        return cursor.rowcount == 1
 
     def update_lexeme_metadata(self, *, lexeme_id: int, pos_tag: str | None, morphology: str | None) -> None:
         with timed_db_operation("wordbank.update_lexeme_metadata"), get_connection(self._db_path) as conn:
@@ -563,6 +601,43 @@ class WordbankMutationRepository:
         if row is None:
             raise RuntimeError("Failed to upsert verification record")
         return verification_record_from_row(row)
+
+    def replace_related_words(
+        self,
+        *,
+        owner_lexeme_id: int,
+        items: list[RelatedWordWriteRecord],
+    ) -> None:
+        with timed_db_operation("wordbank.replace_related_words"), get_connection(self._db_path) as conn:
+            conn.execute(
+                """
+                DELETE FROM wordbank_related_words
+                WHERE owner_lexeme_id = ?
+                """,
+                (owner_lexeme_id,),
+            )
+            for item in items:
+                conn.execute(
+                    """
+                    INSERT INTO wordbank_related_words (
+                        owner_lexeme_id,
+                        relation_type,
+                        sort_order,
+                        related_lemma,
+                        english_translation,
+                        pos_tag
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        owner_lexeme_id,
+                        item.relation_type,
+                        item.sort_order,
+                        item.related_lemma,
+                        item.english_translation,
+                        item.pos_tag,
+                    ),
+                )
 
     def delete_verification_record(
         self,

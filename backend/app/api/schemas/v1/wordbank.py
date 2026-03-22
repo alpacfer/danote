@@ -370,6 +370,7 @@ class LemmaDetailsResponse(BaseModel):
         meaning_key: str
         gloss: str | None = None
         english_translation: str | None = None
+        additional_translations: list[str] = Field(default_factory=list)
         gloss_translation: str | None = None
         pos_tag: str | None = None
         morphology: str | None = None
@@ -387,13 +388,52 @@ class LemmaDetailsResponse(BaseModel):
                 data["gram_raw"] = ". ".join(parts) if parts else gram_raw
             return {key: value for key, value in data.items() if value is not None}
 
+    class RelatedWordSavedMatch(BaseModel):
+        status: Literal["unsaved", "saved_lemma", "saved_variation"]
+        target_lemma: str | None = None
+        target_meaning_id: int | None = None
+
+        @model_serializer(mode="wrap")
+        def _serialize_without_empty_fields(self, handler):
+            data = handler(self)
+            return {key: value for key, value in data.items() if value is not None}
+
+    class RelatedWord(BaseModel):
+        id: int
+        relation_type: Literal["compound_component", "compound_host"]
+        lemma: str
+        english_translation: str | None = None
+        pos_tag: str | None = None
+        saved_match: "LemmaDetailsResponse.RelatedWordSavedMatch"
+        display_variant: CORSearchVariant | None = None
+        candidate_variants: list[CORSearchVariant] = Field(default_factory=list)
+
+        @model_serializer(mode="wrap")
+        def _serialize_without_empty_fields(self, handler):
+            data = handler(self)
+            return {key: value for key, value in data.items() if value is not None}
+
+    class RelatedWordsSection(BaseModel):
+        status: Literal["queued", "ready", "empty", "error"]
+        message: str | None = None
+        items: list["LemmaDetailsResponse.RelatedWord"] = Field(default_factory=list)
+
+        @model_serializer(mode="wrap")
+        def _serialize_without_empty_fields(self, handler):
+            data = handler(self)
+            return {key: value for key, value in data.items() if value is not None}
+
     lemma: str
     english_translation: str | None
+    additional_translations: list[str] = Field(default_factory=list)
     is_sectioned: bool = False
     categories: list[str] = Field(default_factory=list)
     verification: VerificationResult | None = None
     meaning_sections: list[MeaningSection] = Field(default_factory=list)
     surface_forms: list[SurfaceFormDetails]
+    related_words: RelatedWordsSection = Field(
+        default_factory=lambda: LemmaDetailsResponse.RelatedWordsSection(status="empty", items=[])
+    )
 
 
 class ResetDatabaseResponse(BaseModel):

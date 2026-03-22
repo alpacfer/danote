@@ -1,5 +1,6 @@
 import type {
   LemmaDetailsResponse,
+  SearchSaveSeed,
   VerificationOverview,
   WordbankLemma,
 } from "@/app/core"
@@ -33,4 +34,15 @@ export type WordbankSectionProps = {
   onApplyVerificationAction: (targetKey: string, actionIndex: number) => void
   onRetryVerificationTarget: (targetKey: string) => void
   onRerunMeaningVerification: (meaningId: number) => void
+  onSaveRelatedWordFromSearchSeed: (
+    surfaceToken: string,
+    lemmaCandidate: string | null,
+    metadata?: {
+      posTag?: string | null
+      morphology?: string | null
+      corId?: string | null
+    },
+    searchSeed?: SearchSaveSeed | null,
+  ) => Promise<string | null>
+  onOpenRelatedWordTarget: (lemma: string, meaningId: number | null) => void
 }

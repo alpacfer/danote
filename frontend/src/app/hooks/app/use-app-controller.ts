@@ -138,6 +138,8 @@ export function useAppController() {
       applyVerificationAction: wordbank.applyVerificationAction,
       retryVerificationTarget: wordbank.retryVerificationTarget,
       rerunMeaningVerification: wordbank.rerunMeaningVerification,
+      saveRelatedWordFromSearchSeed: wordbank.saveRelatedWordFromSearchSeed,
+      openRelatedWordTarget: wordbank.openRelatedWordTarget,
     }),
     sentencebankSectionProps: buildSentencebankSectionProps({
       sentencebankError: lexiconData.sentencebankError,

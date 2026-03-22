@@ -102,6 +102,13 @@ Route decorators are the source of truth in `backend/app/api/routes/`, and API D
   - when `verification` is present, it may include `stored_surface_form`, `requested_at`, and `completed_at`.
   - `queued_pronunciation_forms` lists the normalized lemma/surface forms queued for automatic background pronunciation generation.
     Automatic add/save flows now use the shared backend pronunciation queue instead of browser-side pronunciation requests.
+  - `saved_snapshot` now includes `related_words`, a lemma-scoped enrichment object with:
+    - `status`: `queued | ready | empty | error`
+    - optional `message`
+    - `items[]` for compound-component related words
+  - add/save responses return `saved_snapshot.related_words.status = "queued"` immediately after a successful enqueue when related-word enrichment is active for that lemma.
+  - word-page payloads now also include `additional_translations` on the root payload and on each meaning section.
+    These hold valid alternate English translations persisted for that saved target scope.
   - `queued_verification_targets` lists each backend-queued word-page verification target using `meaning_id` plus `stored_surface_form`.
   - for search-seed saves, empty or missing `search_seed.english_translation` is allowed; the word is still persisted with a blank saved translation.
   - for low-confidence glossless verb seeds whose translation collapses to the lemma itself (for example `to bile` for `bile`), backend persistence drops the search-seed translation and saves the entry with blank `english_translation` instead of persisting the literal self-translation.
@@ -126,6 +133,8 @@ Route decorators are the source of truth in `backend/app/api/routes/`, and API D
     Relocation suggestions that contradict that saved paradigm evidence are discarded before persistence.
   - if a meaning-level review tries to move the lemma even though the saved paradigm evidence still matches the current lemma, and a translated gloss hint exists for that meaning, backend backfills a `fix_translation` action from that hint instead of persisting the contradictory lemma move.
   - if a meaning/lemma review still has a missing or low-confidence translation but a translated gloss hint exists for the saved meaning, backend persists a `fix_translation` suggestion from that hint even when Gemini otherwise returns `correct`.
+  - COR glosses and translated glosses may be supplied as sense-disambiguation context, but persisted review prose is restricted to translation or placement feedback.
+    Backend suppresses gloss-only critique and rewrites translation-fix review copy so the user never gets a suggestion to change the gloss itself.
   - `verification.suggested_actions` is the only apply contract. Backend apply does not recover actions from prose fields.
   - `applied_categories` lists the semantic categories persisted for the reviewed root / meaning scope.
   - after verification persistence succeeds for `verified` or `flagged`, category classification runs as a separate follow-up step.
@@ -328,6 +337,23 @@ Route decorators are the source of truth in `backend/app/api/routes/`, and API D
   - noun `surface_forms[]` are ordered with non-slot/irregular forms first, then singular-definite, plural-indefinite, and plural-definite.
   - verification objects use the same additive fields as add/verify responses:
     `stored_surface_form`, `requested_at`, `completed_at`, and `suggested_actions`.
+  - root payload now includes `related_words`:
+    - `status = "queued"` while backend compound decomposition is still running
+    - `status = "ready"` when `items[]` contains persisted related words
+    - `status = "empty"` when no compound components survive Gemini + COR filtering
+    - `status = "error"` when the background job failed
+  - root payload also includes `additional_translations: string[]` for alternate valid translations stored at lemma scope.
+  - each `related_words.items[]` row includes:
+    - `relation_type = "compound_component" | "compound_host"`
+    - Gemini-provided `lemma`, `english_translation`, and `pos_tag`
+    - verb `english_translation` values are normalized to infinitive English (`to <verb>`)
+    - `compound_host` rows are reverse links synthesized from other saved compounds that include this lemma as a component
+    - `saved_match.status = unsaved | saved_lemma | saved_variation`
+    - `saved_match.target_lemma` / `target_meaning_id` for eye/open actions
+    - `display_variant` when COR resolves to one saveable match
+    - `candidate_variants[]` when multiple same-POS COR matches remain and the client must let the user choose inline
+  - each `meaning_sections[]` item now includes `additional_translations: string[]` for alternate valid translations stored at that meaning scope.
+  - when related-word enrichment resolves a saved target and the new related translation differs from the saved primary translation, that translation is added directly to `additional_translations` for the saved target scope without requiring a manual related-word add from the UI.
 - **Canonical response examples:**
   - **Non-sectioned** (`is_sectioned: false`):
     ```json

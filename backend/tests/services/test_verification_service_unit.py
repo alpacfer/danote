@@ -344,6 +344,31 @@ def test_gemini_verification_service_allows_fix_translation_for_meaning_reviews(
     assert result.verdict == "flagged"
     assert [action.action_type for action in result.suggested_actions] == ["fix_translation"]
     assert result.suggested_actions[0].english_translation == "mother"
+    assert result.problem == "The English translation does not match the saved meaning."
+    assert result.change_to_implement == "Set the translation to the saved meaning."
+
+
+def test_gemini_verification_service_rewrites_gloss_critique_as_translation_review(monkeypatch) -> None:
+    service = GeminiWordVerificationService(api_key="test-key")
+    monkeypatch.setattr(
+        service,
+        "_generate_text",
+        lambda prompt: (
+            '{"verdict":"incorrect","word_count":1,'
+            '"problem":"The gloss \'person\' is too generic and inaccurate for the lemma.",'
+            '"change_to_implement":"Update the gloss-aware translation.",'
+            '"suggested_actions":['
+            '{"action_type":"fix_translation","english_translation":"mother","reason":"use the noun translation"}'
+            ']}'
+        ),
+    )
+
+    result = service.verify_word_entry(_mor_payload())
+
+    assert result.verdict == "flagged"
+    assert [action.action_type for action in result.suggested_actions] == ["fix_translation"]
+    assert result.problem == "The English translation does not match the saved meaning."
+    assert result.change_to_implement == "Set the translation to the saved meaning."
 
 
 def test_gemini_verification_service_discards_fix_translation_for_surface_reviews(monkeypatch) -> None:
@@ -360,6 +385,25 @@ def test_gemini_verification_service_discards_fix_translation_for_surface_review
     )
 
     result = service.verify_word_entry(_payload())
+
+    assert result.verdict == "verified"
+    assert result.suggested_actions == ()
+
+
+def test_gemini_verification_service_ignores_gloss_only_review_without_actions(monkeypatch) -> None:
+    service = GeminiWordVerificationService(api_key="test-key")
+    monkeypatch.setattr(
+        service,
+        "_generate_text",
+        lambda prompt: (
+            '{"verdict":"incorrect","word_count":1,'
+            '"problem":"The gloss \'person\' is too broad for this lemma.",'
+            '"change_to_implement":"Replace the gloss with a better sense label.",'
+            '"suggested_actions":[]}'
+        ),
+    )
+
+    result = service.verify_word_entry(_mor_payload())
 
     assert result.verdict == "verified"
     assert result.suggested_actions == ()
@@ -392,6 +436,8 @@ def test_gemini_verification_prompt_matches_wordbank_translation_model() -> None
     assert "Translations belong to the lemma or meaning section only" in prompt
     assert "Surface forms do not have independent translations" in prompt
     assert "Never suggest editing a gloss" in prompt
+    assert "Treat glosses and gloss translations as fixed COR reference labels" in prompt
+    assert "Only review whether the saved English translation fits the saved lemma or meaning" in prompt
     assert "Use the reviewed target, relevant surface forms, and sibling meanings only as needed" in prompt
     assert "If canonical_lemma is present and differs from lemma" in prompt
     assert "idiomatic English" in prompt

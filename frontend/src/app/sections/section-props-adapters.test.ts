@@ -55,6 +55,8 @@ describe("section prop adapters", () => {
     const apply = vi.fn(async () => undefined)
     const retry = vi.fn(async () => undefined)
     const rerun = vi.fn(async () => undefined)
+    const saveRelatedWordFromSearchSeed = vi.fn(async () => null)
+    const openRelatedWordTarget = vi.fn()
     const markVisibleVerificationNotificationsAsRead = vi.fn()
 
     const result = buildWordbankSectionProps({
@@ -92,6 +94,8 @@ describe("section prop adapters", () => {
       applyVerificationAction: apply,
       retryVerificationTarget: retry,
       rerunMeaningVerification: rerun,
+      saveRelatedWordFromSearchSeed,
+      openRelatedWordTarget,
     })
 
     result.onPlayPronunciation("bog")
@@ -125,9 +129,12 @@ describe("section prop adapters", () => {
       backendUrl: "http://127.0.0.1:8000",
       apiStatusItems: [],
       selectedNlpModel: NLP_MODEL_OPTIONS[0],
+      translationProvider: "deepl",
       developerTranslationAzureApiKey: "",
       developerTranslationAzureRegion: "",
       developerTranslationAzureEndpoint: "",
+      developerTranslationDeeplApiKey: "",
+      developerTranslationDeeplEndpoint: "",
       developerTtsAzureApiKey: "",
       developerTtsAzureRegion: "",
       developerTtsAzureEndpoint: "",
@@ -141,9 +148,12 @@ describe("section prop adapters", () => {
       geminiProbeResult: null,
       isResettingDatabase: false,
       setSelectedNlpModel: vi.fn(),
+      setTranslationProvider: vi.fn(),
       setDeveloperTranslationAzureApiKey: vi.fn(),
       setDeveloperTranslationAzureRegion: vi.fn(),
       setDeveloperTranslationAzureEndpoint: vi.fn(),
+      setDeveloperTranslationDeeplApiKey: vi.fn(),
+      setDeveloperTranslationDeeplEndpoint: vi.fn(),
       setDeveloperTtsAzureApiKey: vi.fn(),
       setDeveloperTtsAzureRegion: vi.fn(),
       setDeveloperTtsAzureEndpoint: vi.fn(),

@@ -26,6 +26,14 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
 
     form_rows = runtime.repository.list_surface_forms(lexeme.id)
     meaning_rows = runtime.repository.list_lexeme_meanings(lexeme.id)
+    root_additional_translations = _translation_values(
+        runtime.repository.list_additional_translations(lexeme_id=lexeme.id, meaning_id=None),
+        primary_translation=lexeme.english_translation,
+    )
+    related_words = runtime.related_words.build_related_words_section(
+        owner_lexeme_id=lexeme.id,
+        stored_lemma=lexeme.lemma,
+    )
     verification_records = {
         (
             record.meaning_id,
@@ -42,18 +50,22 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
             meaning_rows,
             verification_records,
             category_assignments,
+            related_words,
+            root_additional_translations,
         )
 
     if not meaning_rows:
         return LemmaDetailsResponse(
             lemma=lexeme.lemma,
             english_translation=lexeme.english_translation,
+            additional_translations=root_additional_translations,
             pos_tag=lexeme.pos_tag,
             morphology=lexeme.morphology,
             is_sectioned=False,
             categories=category_assignments.get(None, []),
             verification=verification_records.get((None, None)),
             meaning_sections=[],
+            related_words=related_words,
             surface_forms=order_surface_form_details(
                 [
                     _surface_form_details(
@@ -129,6 +141,7 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
     return LemmaDetailsResponse(
         lemma=lexeme.lemma,
         english_translation=top_level_translation,
+        additional_translations=root_additional_translations,
         pos_tag=top_level_pos_tag,
         morphology=top_level_morphology,
         is_sectioned=True,
@@ -140,6 +153,10 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
                 meaning_key=meaning.meaning_key,
                 gloss=meaning.gloss,
                 english_translation=meaning.english_translation,
+                additional_translations=_translation_values(
+                    runtime.repository.list_additional_translations(lexeme_id=lexeme.id, meaning_id=meaning.id),
+                    primary_translation=meaning.english_translation or top_level_translation,
+                ),
                 gloss_translation=_meaning_gloss_translation(
                     runtime,
                     lexeme_lemma=lexeme.lemma,
@@ -157,6 +174,7 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
             for meaning in meaning_rows
         ],
         surface_forms=top_level_surface_forms,
+        related_words=related_words,
     )
 
 
@@ -167,18 +185,22 @@ def _get_manual_lemma_details(
     meaning_rows,
     verification_records,
     category_assignments: dict[int | None, list[str]],
+    related_words: LemmaDetailsResponse.RelatedWordsSection,
+    root_additional_translations: list[str],
 ) -> LemmaDetailsResponse:
     normalized_lemma = normalize_token(lexeme.lemma)
     if not meaning_rows:
         return LemmaDetailsResponse(
             lemma=lexeme.lemma,
             english_translation=lexeme.english_translation,
+            additional_translations=root_additional_translations,
             pos_tag=lexeme.pos_tag,
             morphology=lexeme.morphology,
             is_sectioned=False,
             categories=category_assignments.get(None, []),
             verification=verification_records.get((None, None)),
             meaning_sections=[],
+            related_words=related_words,
             surface_forms=order_surface_form_details(
                 [
                     _manual_surface_form_details(
@@ -240,6 +262,7 @@ def _get_manual_lemma_details(
     return LemmaDetailsResponse(
         lemma=lexeme.lemma,
         english_translation=top_level_translation,
+        additional_translations=root_additional_translations,
         pos_tag=top_level_pos_tag,
         morphology=top_level_morphology,
         is_sectioned=True,
@@ -251,6 +274,10 @@ def _get_manual_lemma_details(
                 meaning_key=meaning.meaning_key,
                 gloss=meaning.gloss,
                 english_translation=meaning.english_translation,
+                additional_translations=_translation_values(
+                    runtime.repository.list_additional_translations(lexeme_id=lexeme.id, meaning_id=meaning.id),
+                    primary_translation=meaning.english_translation or top_level_translation,
+                ),
                 gloss_translation=_meaning_gloss_translation(
                     runtime,
                     lexeme_lemma=lexeme.lemma,
@@ -268,6 +295,7 @@ def _get_manual_lemma_details(
             for meaning in meaning_rows
         ],
         surface_forms=top_level_surface_forms,
+        related_words=related_words,
     )
 
 
@@ -303,6 +331,19 @@ def _surface_form_details(
         has_pronunciation=has_pronunciation,
         verification=verification,
     )
+
+
+def _translation_values(records, *, primary_translation: str | None) -> list[str]:
+    primary = normalize_token(primary_translation or "")
+    values: list[str] = []
+    seen: set[str] = set()
+    for record in records:
+        normalized = normalize_token(record.english_translation)
+        if not normalized or normalized == primary or normalized in seen:
+            continue
+        seen.add(normalized)
+        values.append(record.english_translation)
+    return values
 
 
 def _manual_surface_form_details(

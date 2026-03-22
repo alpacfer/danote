@@ -31,6 +31,17 @@ export type WordbankSectionAdapterArgs = {
   applyVerificationAction: (targetKey: string, actionIndex: number) => Promise<void>
   retryVerificationTarget: (targetKey: string) => Promise<void>
   rerunMeaningVerification: (meaningId: number) => Promise<void>
+  saveRelatedWordFromSearchSeed: (
+    surfaceToken: string,
+    lemmaCandidate: string | null,
+    metadata?: {
+      posTag?: string | null
+      morphology?: string | null
+      corId?: string | null
+    },
+    searchSeed?: import("@/app/core").SearchSaveSeed | null,
+  ) => Promise<string | null>
+  openRelatedWordTarget: (lemma: string, meaningId: number | null) => void
 }
 
 export function buildWordbankSectionProps(
@@ -79,5 +90,7 @@ export function buildWordbankSectionProps(
     onRerunMeaningVerification: (meaningId: number) => {
       void args.rerunMeaningVerification(meaningId)
     },
+    onSaveRelatedWordFromSearchSeed: args.saveRelatedWordFromSearchSeed,
+    onOpenRelatedWordTarget: args.openRelatedWordTarget,
   }
 }

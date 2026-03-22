@@ -203,10 +203,43 @@ export function lemmaTranslationWithGloss(
   if (!normalizedGlossTranslation) {
     return normalizedLemmaTranslation
   }
-  if (normalizedLemmaTranslation.localeCompare(normalizedGlossTranslation, "en", { sensitivity: "base" }) === 0) {
+  const translationParts = normalizedLemmaTranslation
+    .split(",")
+    .map((part) => normalizedGlossPart(part))
+    .filter((part): part is string => Boolean(part))
+  if (translationParts.some((part) => part.localeCompare(normalizedGlossTranslation, "en", { sensitivity: "base" }) === 0)) {
     return normalizedLemmaTranslation
   }
   return `${normalizedLemmaTranslation}, ${normalizedGlossTranslation}`
+}
+
+export function additionalTranslationsDisplay(
+  primaryTranslation: string | null | undefined,
+  additionalTranslations: string[] | null | undefined,
+): string | null {
+  const normalizedPrimary = normalizedGlossPart(primaryTranslation)
+  const values: string[] = []
+  const seen = new Set<string>()
+  if (normalizedPrimary) {
+    values.push(normalizedPrimary)
+    seen.add(normalizedPrimary.toLocaleLowerCase("en"))
+  }
+  for (const translation of additionalTranslations ?? []) {
+    const normalized = normalizedGlossPart(translation)
+    if (!normalized) {
+      continue
+    }
+    const key = normalized.toLocaleLowerCase("en")
+    if (seen.has(key)) {
+      continue
+    }
+    seen.add(key)
+    values.push(normalized)
+  }
+  if (values.length === 0) {
+    return null
+  }
+  return values.join(", ")
 }
 
 export function glossDisplayForVariant(variant: CORSearchVariant): string | null {

@@ -1,5 +1,6 @@
 import type { LemmaDetailsResponse } from "@/app/core"
 import {
+  additionalTranslationsDisplay,
   badgesForSavedForm,
   corSecondaryBadgeClass,
   getMeaningVerificationGate,
@@ -72,8 +73,12 @@ export function WordbankMeaningSections({
           morphology: section.morphology ?? null,
           gram_raw: section.gram_raw ?? null,
         })
-        const sectionTranslation = lemmaTranslationWithGloss(
+        const sectionTranslationBase = additionalTranslationsDisplay(
           section.english_translation ?? null,
+          section.additional_translations ?? [],
+        )
+        const sectionTranslation = lemmaTranslationWithGloss(
+          sectionTranslationBase,
           section.gloss_translation ?? null,
         )
         const completionGate = getMeaningVerificationGate(

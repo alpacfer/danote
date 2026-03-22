@@ -100,22 +100,74 @@ export function mockFetchImplementation(options?: {
       meaning_id?: number | null
       stored_surface_form?: string | null
     }>
+    queued_pronunciation_forms?: string[]
     saved_snapshot?: {
       lemma: string
       english_translation?: string | null
+      additional_translations?: string[]
       pos_tag?: string | null
       morphology?: string | null
       is_sectioned?: boolean
       categories?: string[]
       verification?: MockVerification | null
+      related_words?: {
+        status: "queued" | "ready" | "empty" | "error"
+        message?: string | null
+        items: Array<{
+          id: number
+          relation_type: "compound_component" | "compound_host"
+          lemma: string
+          english_translation?: string | null
+          pos_tag?: string | null
+          saved_match: {
+            status: "unsaved" | "saved_lemma" | "saved_variation"
+            target_lemma?: string | null
+            target_meaning_id?: number | null
+          }
+          display_variant?: {
+            cor_id: string
+            form: string
+            lemma: string
+            gloss?: string | null
+            gram_raw: string
+            lemma_idx: number
+            gram_code: number
+            variation: number
+            pos_tag?: string | null
+            morphology?: string | null
+            features?: Record<string, string>
+            extra_tags?: string[]
+            saveable_translation?: string | null
+            lemma_translation?: string | null
+          } | null
+          candidate_variants?: Array<{
+            cor_id: string
+            form: string
+            lemma: string
+            gloss?: string | null
+            gram_raw: string
+            lemma_idx: number
+            gram_code: number
+            variation: number
+            pos_tag?: string | null
+            morphology?: string | null
+            features?: Record<string, string>
+            extra_tags?: string[]
+            saveable_translation?: string | null
+            lemma_translation?: string | null
+          }>
+        }>
+      }
       meaning_sections?: Array<{
         id: number
         meaning_key: string
         gloss?: string | null
         english_translation?: string | null
+        additional_translations?: string[]
         gloss_translation?: string | null
         pos_tag?: string | null
         morphology?: string | null
+        gram_raw?: string | null
         categories?: string[]
         verification?: MockVerification | null
         surface_forms: Array<{
@@ -252,17 +304,70 @@ export function mockFetchImplementation(options?: {
   lemmaDetailsResponse?: {
     lemma: string
     english_translation?: string | null
+    additional_translations?: string[]
+    pos_tag?: string | null
+    morphology?: string | null
     is_sectioned?: boolean
     categories?: string[]
     verification?: MockVerification | null
+    related_words?: {
+      status: "queued" | "ready" | "empty" | "error"
+      message?: string | null
+      items: Array<{
+        id: number
+        relation_type: "compound_component" | "compound_host"
+        lemma: string
+        english_translation?: string | null
+        pos_tag?: string | null
+        saved_match: {
+          status: "unsaved" | "saved_lemma" | "saved_variation"
+          target_lemma?: string | null
+          target_meaning_id?: number | null
+        }
+        display_variant?: {
+          cor_id: string
+          form: string
+          lemma: string
+          gloss?: string | null
+          gram_raw: string
+          lemma_idx: number
+          gram_code: number
+          variation: number
+          pos_tag?: string | null
+          morphology?: string | null
+          features?: Record<string, string>
+          extra_tags?: string[]
+          saveable_translation?: string | null
+          lemma_translation?: string | null
+        } | null
+        candidate_variants?: Array<{
+          cor_id: string
+          form: string
+          lemma: string
+          gloss?: string | null
+          gram_raw: string
+          lemma_idx: number
+          gram_code: number
+          variation: number
+          pos_tag?: string | null
+          morphology?: string | null
+          features?: Record<string, string>
+          extra_tags?: string[]
+          saveable_translation?: string | null
+          lemma_translation?: string | null
+        }>
+      }>
+    }
     meaning_sections?: Array<{
       id: number
       meaning_key: string
       gloss?: string | null
       english_translation?: string | null
+      additional_translations?: string[]
       gloss_translation?: string | null
       pos_tag?: string | null
       morphology?: string | null
+      gram_raw?: string | null
       categories?: string[]
       verification?: MockVerification | null
       surface_forms: Array<{
@@ -275,6 +380,7 @@ export function mockFetchImplementation(options?: {
         gloss?: string | null
         gloss_translation?: string | null
         gram_raw?: string | null
+        verification?: MockVerification | null
       }>
     }>
     surface_forms: Array<{

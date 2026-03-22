@@ -1,0 +1,237 @@
+from __future__ import annotations
+
+from app.api.schemas.v1.wordbank import CORSearchVariant, LemmaDetailsResponse
+from app.db.repositories import (
+    RelatedWordWriteRecord,
+    WordbankBackgroundJobRepository,
+    WordbankRepository,
+)
+from app.services.cor_local import CORLocalEntry, CORLocalLexiconService
+from app.services.related_words import GeminiRelatedWordsService
+from app.services.token_classifier import normalize_token
+from app.services.use_cases.wordbank.collaborators.cor_local import (
+    consolidate_cor_local_entries,
+    cor_local_variant,
+    drop_glossless_when_gloss_exists,
+)
+
+_RELATED_WORDS_JOB_TYPE = "resolve_related_words"
+_RELATED_WORDS_RELATION_TYPE = "compound_component"
+_REVERSE_RELATED_WORDS_RELATION_TYPE = "compound_host"
+
+
+def related_words_dedupe_key(stored_lemma: str) -> str:
+    return f"{_RELATED_WORDS_JOB_TYPE}::{stored_lemma}"
+
+
+class RelatedWordsCollaborator:
+    def __init__(
+        self,
+        related_words_service: GeminiRelatedWordsService | None,
+        cor_local_lexicon_service: CORLocalLexiconService | None,
+        repository: WordbankRepository,
+        db_path,
+    ) -> None:
+        self._related_words_service = related_words_service
+        self._cor_local_lexicon_service = cor_local_lexicon_service
+        self._repository = repository
+        self._jobs = WordbankBackgroundJobRepository(db_path)
+
+    def queue_resolution_request(self, *, stored_lemma: str) -> bool:
+        normalized_lemma = normalize_token(stored_lemma)
+        if not normalized_lemma or self._related_words_service is None:
+            return False
+        lexeme = self._repository.get_lexeme(normalized_lemma)
+        if lexeme is None:
+            return False
+        return self._jobs.enqueue(
+            job_type=_RELATED_WORDS_JOB_TYPE,
+            dedupe_key=related_words_dedupe_key(normalized_lemma),
+            payload={"stored_lemma": normalized_lemma},
+        )
+
+    def process_queued_resolution(self, *, stored_lemma: str) -> None:
+        normalized_lemma = normalize_token(stored_lemma)
+        if not normalized_lemma or self._related_words_service is None:
+            return
+        lexeme = self._repository.get_lexeme(normalized_lemma)
+        if lexeme is None:
+            return
+        related_words = self._related_words_service.find_related_words(lemma=normalized_lemma)
+        persisted_rows: list[RelatedWordWriteRecord] = []
+        for index, item in enumerate(related_words.items):
+            normalized_translation = _normalize_related_translation(
+                english_translation=item.english_translation,
+                pos_tag=item.pos_tag,
+            )
+            if not self._cor_candidates(item.lemma, item.pos_tag):
+                continue
+            self._persist_additional_translation_for_saved_target(
+                lemma=item.lemma,
+                english_translation=normalized_translation,
+            )
+            persisted_rows.append(
+                RelatedWordWriteRecord(
+                    relation_type=_RELATED_WORDS_RELATION_TYPE,
+                    sort_order=index,
+                    related_lemma=item.lemma,
+                    english_translation=normalized_translation,
+                    pos_tag=item.pos_tag,
+                )
+            )
+        self._repository.replace_related_words(
+            owner_lexeme_id=lexeme.id,
+            items=persisted_rows,
+        )
+
+    def build_related_words_section(
+        self,
+        *,
+        owner_lexeme_id: int,
+        stored_lemma: str,
+    ) -> LemmaDetailsResponse.RelatedWordsSection:
+        rows = self._repository.list_related_words(owner_lexeme_id)
+        reverse_rows = self._repository.list_reverse_related_words(stored_lemma)
+        items = [
+            item
+            for row in [*rows, *reverse_rows]
+            if (item := self._build_related_word_item(row)) is not None
+        ]
+        job = self._jobs.get_by_dedupe_key(related_words_dedupe_key(stored_lemma))
+        if job is not None and job.status in {"pending", "running"}:
+            return LemmaDetailsResponse.RelatedWordsSection(
+                status="queued",
+                message="Finding related compound words.",
+                items=items,
+            )
+        if job is not None and job.status == "failed" and not items:
+            return LemmaDetailsResponse.RelatedWordsSection(
+                status="error",
+                message=job.last_error or "Could not resolve related words.",
+                items=items,
+            )
+        if items:
+            return LemmaDetailsResponse.RelatedWordsSection(
+                status="ready",
+                message=None,
+                items=items,
+            )
+        return LemmaDetailsResponse.RelatedWordsSection(
+            status="empty",
+            message="No related compound words found.",
+            items=[],
+        )
+
+    def _build_related_word_item(self, row) -> LemmaDetailsResponse.RelatedWord | None:
+        variants = self._variants_for_related_word(row.related_lemma, row.pos_tag, row.english_translation)
+        if not variants:
+            return None
+        if row.relation_type == _REVERSE_RELATED_WORDS_RELATION_TYPE:
+            saved_translation_target = self._repository.find_saved_lemma_translation_target(row.related_lemma)
+            if saved_translation_target is None:
+                return None
+            saved_match = LemmaDetailsResponse.RelatedWordSavedMatch(
+                status="saved_lemma",
+                target_lemma=saved_translation_target.lemma,
+                target_meaning_id=saved_translation_target.meaning_id,
+            )
+        else:
+            saved_lemma = self._repository.find_saved_lemma_target(row.related_lemma)
+            if saved_lemma is not None:
+                saved_match = LemmaDetailsResponse.RelatedWordSavedMatch(
+                    status="saved_lemma",
+                    target_lemma=saved_lemma.lemma,
+                    target_meaning_id=None,
+                )
+            else:
+                saved_variation = self._repository.find_saved_variation_target(row.related_lemma)
+                if saved_variation is not None:
+                    saved_match = LemmaDetailsResponse.RelatedWordSavedMatch(
+                        status="saved_variation",
+                        target_lemma=saved_variation.lemma,
+                        target_meaning_id=saved_variation.meaning_id,
+                    )
+                else:
+                    saved_match = LemmaDetailsResponse.RelatedWordSavedMatch(status="unsaved")
+        return LemmaDetailsResponse.RelatedWord(
+            id=row.id,
+            relation_type=row.relation_type,
+            lemma=row.related_lemma,
+            english_translation=row.english_translation,
+            pos_tag=row.pos_tag,
+            saved_match=saved_match,
+            display_variant=variants[0] if len(variants) == 1 else None,
+            candidate_variants=variants if len(variants) > 1 else [],
+        )
+
+    def _variants_for_related_word(
+        self,
+        lemma: str,
+        pos_tag: str | None,
+        english_translation: str | None,
+    ) -> list[CORSearchVariant]:
+        return [
+            cor_local_variant(
+                entry,
+                lemma_translation=english_translation,
+                saveable_translation=english_translation,
+            )
+            for entry in self._cor_candidates(lemma, pos_tag)
+        ]
+
+    def _cor_candidates(self, lemma: str, pos_tag: str | None) -> list[CORLocalEntry]:
+        if self._cor_local_lexicon_service is None:
+            return []
+        normalized_lemma = normalize_token(lemma)
+        if not normalized_lemma:
+            return []
+        try:
+            entries = self._cor_local_lexicon_service.lookup_form(normalized_lemma, limit=200)
+        except FileNotFoundError:
+            return []
+        filtered = [
+            entry
+            for entry in entries
+            if entry.norm == "N" and normalize_token(entry.lemma) == normalized_lemma
+        ]
+        filtered = consolidate_cor_local_entries(filtered)
+        filtered = drop_glossless_when_gloss_exists(filtered)
+        if pos_tag is not None:
+            filtered = [entry for entry in filtered if entry.pos_tag == pos_tag]
+        return filtered
+
+    def _persist_additional_translation_for_saved_target(
+        self,
+        *,
+        lemma: str,
+        english_translation: str | None,
+    ) -> None:
+        normalized_translation = normalize_token(english_translation or "")
+        if not normalized_translation:
+            return
+        target = self._repository.find_saved_lemma_translation_target(lemma)
+        if target is None:
+            target = self._repository.find_saved_variation_translation_target(lemma)
+        if target is None:
+            return
+        if normalize_token(target.english_translation or "") == normalized_translation:
+            return
+        self._repository.insert_additional_translation(
+            lexeme_id=target.lexeme_id,
+            meaning_id=target.meaning_id,
+            english_translation=normalized_translation,
+            source="related_words",
+        )
+
+
+def _normalize_related_translation(*, english_translation: str | None, pos_tag: str | None) -> str | None:
+    if english_translation is None:
+        return None
+    normalized = " ".join(english_translation.strip().split())
+    if not normalized:
+        return None
+    if pos_tag != "VERB":
+        return normalized
+    if normalized.casefold().startswith("to "):
+        return normalized
+    return f"to {normalized}"

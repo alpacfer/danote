@@ -50,6 +50,8 @@ The Wordbank section has two UI modes:
 - If `selectedLemma` changes to a different lemma, any still-rendered payload for the previous lemma is dropped immediately.
   The word page waits for the new lemma response or loading skeleton instead of rendering stale layout/body data from the old lemma.
 - If any verification target on the open word page is still `queued`, details are polled every 1.5s until all visible targets reach a final state.
+- If `lemmaDetails.related_words.status === "queued"`, details are also polled every 1.5s until related-word enrichment reaches `ready`, `empty`, or `error`.
+  The polling is silent; the page does not render a placeholder Related section while the job is still queued.
 - Leaving wordbank or clearing selection resets details state (`lemmaDetails`, loading/error/skeleton flags).
 - A loading skeleton is intentionally delayed by 180ms:
   - avoids flicker for fast responses
@@ -87,6 +89,8 @@ Primary flow:
   - then renders one of two bodies:
     - sectioned body (`WordbankMeaningSections`) when `lemmaDetails.is_sectioned === true`
     - flat variation body (`WordbankVariationGrid`) otherwise
+  - after the meaning/variation body, renders `WordbankRelatedWords` only when `related_words.status === "ready"` and cards exist
+  - the Related section may include both direct compound components and reverse compound-host links from other saved compounds that contain the current lemma
 
 Meaning auto-scroll behavior:
 
@@ -110,6 +114,7 @@ Meaning auto-scroll behavior:
 
 - Header translation is suppressed in sectioned mode.
 - In non-sectioned mode, translation prefers selected meaning translation then lemma translation.
+- Root and meaning scopes may also expose `additional_translations`; these render inline with the main translation as one comma-separated italic line on the relevant word page when present.
 - Header badges are shown only when `showSupplementaryMetadata` is true.
 - Badge source in header:
   - POS/morphology from selected meaning (fallback lemma-level)
@@ -162,6 +167,8 @@ Meaning auto-scroll behavior:
   - if a surface-form review comes back as translation-only Gemini noise, backend suppresses it and the popover keeps that target in the checked bucket instead of showing a contradictory review card
   - if a meaning-level review returns only a lemma-move suggestion that conflicts with the saved paradigm evidence, backend drops that move; when a translated gloss hint is available, the backend backfills a translation-fix action instead so the review focuses on the missing/wrong English translation
   - if a meaning-level review still has no saved translation, or only a low-confidence verb self-translation, and the backend has a translated gloss hint for that meaning, the review stays in `Needs review` with a `Fix translation` action even if Gemini otherwise returns `OK`
+  - COR glosses and translated glosses are reference context only; the popover never asks the user to rewrite the gloss itself
+  - when a review resolves to `Fix translation`, backend normalizes the visible review copy to translation-only wording instead of surfacing Gemini gloss critique verbatim
   - completion-review meaning cards may expose exactly one `Fix variations` action card that rewrites the whole saved noun variation set for that meaning in one apply
   - completion-review `Fix variations` summaries can describe reviewed noun-slot sets directly, including multiple spellings in one slot such as `Singular indefinite: fader, far`
   - completion-review meaning cards never expose `Move to lemma`, `Move to different meaning`, or translation-fix actions
@@ -254,8 +261,47 @@ Meaning auto-scroll behavior:
   - pronunciation-enabled form title
   - right-click `Regenerate audio` on that specific word
   - form badges from saved-form metadata
+
+## Related section (WordbankRelatedWords)
+
+- The section renders only when `related_words.status === "ready"` and `items.length > 0`.
+- Related verb cards render the lemma as Danish infinitive (`at lege`) and the English translation in infinitive form (`to play`).
+- `relation_type = "compound_component"` means the current lemma decomposes into that component.
+- `relation_type = "compound_host"` means another saved compound contains the current lemma, so component pages can link back to compounds such as `legeplads` from `lege` and `plads`.
+- Saved targets use one card-level button surface with an eye affordance and open the saved lemma/meaning target immediately.
+- Unsaved unique matches use one card-level button surface with a plus affordance and save through the existing add-word flow.
+- When related-word enrichment finds a different valid translation for an already-saved target, backend persists it immediately into that target scope's `additional_translations`, even if the user never clicks the related card.
   - optional `from <lemma>` line with merged lemma translation+gloss when lemma translation exists
   - POS-colored left border
+
+## Related words section (`WordbankRelatedWords`)
+
+- Placement:
+  - rendered below sectioned meaning cards or the flat variation body
+  - hidden only when `related_words.status === "empty"` and there are no items
+- Source contract:
+  - Gemini decides whether the saved lemma is a compound and returns component lemmas plus English translation and POS hint
+  - COR supplies the card morphology / badge payload through `display_variant` or `candidate_variants`
+  - saved/open state comes from the persisted wordbank and treats both saved lemmas and saved variations as already known targets
+  - when a related item points to an already-saved target and Gemini's translation differs from the saved primary translation, backend persists that value into the target scope's `additional_translations`
+- Section states:
+  - `queued`: no section is rendered yet
+  - `ready`: shows one small card per persisted related item
+  - `error`: no section is rendered
+  - `empty`: no section is rendered
+- Card actions:
+  - `Eye` opens the existing saved target lemma and optional meaning id
+  - unique unsaved cards show `Plus` and save immediately through the normal add-word endpoint using a generated `search_seed`
+  - ambiguous unsaved cards show `Plus` that expands inline candidate choices first
+- Ambiguous inline chooser:
+  - implemented with shadcn `Collapsible` inside each existing card because the interaction is per-card, inline, and does not need grouped accordion semantics
+  - `Dialog` was rejected because it would interrupt the current word-page flow
+  - `Accordion` was rejected because it adds unnecessary grouped heading/content structure for independent cards
+- Save result behavior:
+  - saving from `Related` keeps the current word page open
+  - success/error feedback uses the existing toast flow
+  - the workflow refreshes the current lemma details and the wordbank list
+  - once the refresh lands, the card flips from `Plus` to `Eye` if the new related word is now saved
 
 ## Pronunciation workflow behavior
 

@@ -166,3 +166,62 @@ def test_surface_form_cor_variants_has_expected_columns(tmp_path) -> None:
         "cor_id": "TEXT",
         "created_at": "TEXT",
     }
+
+
+def test_wordbank_related_words_table_has_expected_columns_and_indexes(tmp_path) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    apply_migrations(db_path)
+
+    with get_connection(db_path) as conn:
+        columns = {
+            row["name"]: row["type"]
+            for row in conn.execute("PRAGMA table_info(wordbank_related_words)").fetchall()
+        }
+        indexes = {
+            row["name"]
+            for row in conn.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'wordbank_related_words'"
+            ).fetchall()
+        }
+
+    assert columns == {
+        "id": "INTEGER",
+        "owner_lexeme_id": "INTEGER",
+        "relation_type": "TEXT",
+        "sort_order": "INTEGER",
+        "related_lemma": "TEXT",
+        "english_translation": "TEXT",
+        "pos_tag": "TEXT",
+        "created_at": "TEXT",
+        "updated_at": "TEXT",
+    }
+    assert "idx_wordbank_related_words_owner_lexeme_id" in indexes
+    assert "idx_wordbank_related_words_owner_relation_order_unique" in indexes
+
+
+def test_wordbank_additional_translations_table_has_expected_columns_and_indexes(tmp_path) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    apply_migrations(db_path)
+
+    with get_connection(db_path) as conn:
+        columns = {
+            row["name"]: row["type"]
+            for row in conn.execute("PRAGMA table_info(wordbank_additional_translations)").fetchall()
+        }
+        indexes = {
+            row["name"]
+            for row in conn.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'wordbank_additional_translations'"
+            ).fetchall()
+        }
+
+    assert columns == {
+        "id": "INTEGER",
+        "lexeme_id": "INTEGER",
+        "meaning_id": "INTEGER",
+        "english_translation": "TEXT",
+        "source": "TEXT",
+        "created_at": "TEXT",
+    }
+    assert "idx_wordbank_additional_translations_scope" in indexes
+    assert "idx_wordbank_additional_translations_scope_translation_unique" in indexes

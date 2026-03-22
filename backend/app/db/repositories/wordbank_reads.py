@@ -3,14 +3,22 @@ from __future__ import annotations
 from pathlib import Path
 
 from app.db.repositories.wordbank_models import (
+    AdditionalTranslationRecord,
     LemmaListRow,
     LexemeMeaningRecord,
     LexemeRecord,
+    RelatedWordRecord,
+    SavedWordbankTargetRecord,
+    SavedTranslationTargetRecord,
     SurfaceFormRecord,
     VerificationRecord,
+    additional_translation_from_row,
     WordbankSearchRow,
     lexeme_meaning_from_row,
     parse_query_cor_ids,
+    related_word_from_row,
+    saved_wordbank_target_from_row,
+    saved_translation_target_from_row,
     surface_form_from_row,
     verification_record_from_row,
 )
@@ -219,6 +227,191 @@ class WordbankReadRepository:
                 (lexeme_id,),
             ).fetchall()
         return [verification_record_from_row(row) for row in rows]
+
+    def list_related_words(self, owner_lexeme_id: int) -> list[RelatedWordRecord]:
+        with timed_db_operation("wordbank.list_related_words"), get_connection(
+            self._db_path, read_only=True
+        ) as conn:
+            rows = conn.execute(
+                """
+                SELECT
+                    id,
+                    owner_lexeme_id,
+                    relation_type,
+                    sort_order,
+                    related_lemma,
+                    english_translation,
+                    pos_tag
+                FROM wordbank_related_words
+                WHERE owner_lexeme_id = ?
+                ORDER BY sort_order ASC, id ASC
+                """,
+                (owner_lexeme_id,),
+            ).fetchall()
+        return [related_word_from_row(row) for row in rows]
+
+    def list_reverse_related_words(self, related_lemma: str) -> list[RelatedWordRecord]:
+        with timed_db_operation("wordbank.list_reverse_related_words"), get_connection(
+            self._db_path, read_only=True
+        ) as conn:
+            rows = conn.execute(
+                """
+                WITH meaning_counts AS (
+                    SELECT lexeme_id, COUNT(*) AS meaning_count
+                    FROM lexeme_meanings
+                    GROUP BY lexeme_id
+                )
+                SELECT
+                    rw.id,
+                    rw.owner_lexeme_id,
+                    'compound_host' AS relation_type,
+                    rw.sort_order,
+                    l.lemma AS related_lemma,
+                    CASE
+                        WHEN COALESCE(mc.meaning_count, 0) = 1 THEN COALESCE(lm.english_translation, l.english_translation)
+                        ELSE l.english_translation
+                    END AS english_translation,
+                    CASE
+                        WHEN COALESCE(mc.meaning_count, 0) = 1 THEN COALESCE(lm.pos_tag, l.pos_tag)
+                        ELSE l.pos_tag
+                    END AS pos_tag
+                FROM wordbank_related_words rw
+                JOIN lexemes l ON l.id = rw.owner_lexeme_id
+                LEFT JOIN meaning_counts mc ON mc.lexeme_id = l.id
+                LEFT JOIN lexeme_meanings lm
+                  ON lm.lexeme_id = l.id
+                 AND COALESCE(mc.meaning_count, 0) = 1
+                WHERE rw.related_lemma = ?
+                ORDER BY l.lemma COLLATE NOCASE, rw.sort_order ASC, rw.id ASC
+                """,
+                (related_lemma,),
+            ).fetchall()
+        return [related_word_from_row(row) for row in rows]
+
+    def list_additional_translations(self, *, lexeme_id: int, meaning_id: int | None) -> list[AdditionalTranslationRecord]:
+        with timed_db_operation("wordbank.list_additional_translations"), get_connection(
+            self._db_path, read_only=True
+        ) as conn:
+            if meaning_id is None:
+                rows = conn.execute(
+                    """
+                    SELECT id, lexeme_id, meaning_id, english_translation, source
+                    FROM wordbank_additional_translations
+                    WHERE lexeme_id = ? AND meaning_id IS NULL
+                    ORDER BY id ASC
+                    """,
+                    (lexeme_id,),
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    """
+                    SELECT id, lexeme_id, meaning_id, english_translation, source
+                    FROM wordbank_additional_translations
+                    WHERE lexeme_id = ? AND meaning_id = ?
+                    ORDER BY id ASC
+                    """,
+                    (lexeme_id, meaning_id),
+                ).fetchall()
+        return [additional_translation_from_row(row) for row in rows]
+
+    def find_saved_lemma_target(self, lemma: str) -> SavedWordbankTargetRecord | None:
+        with timed_db_operation("wordbank.find_saved_lemma_target"), get_connection(
+            self._db_path, read_only=True
+        ) as conn:
+            row = conn.execute(
+                """
+                SELECT l.lemma, NULL AS meaning_id
+                FROM lexemes l
+                WHERE l.lemma = ?
+                LIMIT 1
+                """,
+                (lemma,),
+            ).fetchone()
+        return saved_wordbank_target_from_row(row) if row is not None else None
+
+    def find_saved_lemma_translation_target(self, lemma: str) -> SavedTranslationTargetRecord | None:
+        with timed_db_operation("wordbank.find_saved_lemma_translation_target"), get_connection(
+            self._db_path, read_only=True
+        ) as conn:
+            row = conn.execute(
+                """
+                WITH meaning_counts AS (
+                    SELECT lexeme_id, COUNT(*) AS meaning_count
+                    FROM lexeme_meanings
+                    GROUP BY lexeme_id
+                )
+                SELECT
+                    l.id AS lexeme_id,
+                    l.lemma,
+                    CASE
+                        WHEN COALESCE(mc.meaning_count, 0) = 1 THEN lm.id
+                        ELSE NULL
+                    END AS meaning_id,
+                    CASE
+                        WHEN COALESCE(mc.meaning_count, 0) = 1 THEN COALESCE(lm.english_translation, l.english_translation)
+                        ELSE l.english_translation
+                    END AS english_translation
+                FROM lexemes l
+                LEFT JOIN meaning_counts mc ON mc.lexeme_id = l.id
+                LEFT JOIN lexeme_meanings lm
+                  ON lm.lexeme_id = l.id
+                 AND COALESCE(mc.meaning_count, 0) = 1
+                WHERE l.lemma = ?
+                LIMIT 1
+                """,
+                (lemma,),
+            ).fetchone()
+        return saved_translation_target_from_row(row) if row is not None else None
+
+    def find_saved_variation_target(self, form: str) -> SavedWordbankTargetRecord | None:
+        with timed_db_operation("wordbank.find_saved_variation_target"), get_connection(
+            self._db_path, read_only=True
+        ) as conn:
+            row = conn.execute(
+                """
+                SELECT
+                    l.lemma,
+                    sf.meaning_id
+                FROM surface_forms sf
+                JOIN lexemes l ON l.id = sf.lexeme_id
+                WHERE sf.form = ?
+                ORDER BY
+                    CASE WHEN sf.meaning_id IS NULL THEN 1 ELSE 0 END,
+                    COALESCE(sf.meaning_id, 0),
+                    sf.id
+                LIMIT 1
+                """,
+                (form,),
+            ).fetchone()
+        return saved_wordbank_target_from_row(row) if row is not None else None
+
+    def find_saved_variation_translation_target(self, form: str) -> SavedTranslationTargetRecord | None:
+        with timed_db_operation("wordbank.find_saved_variation_translation_target"), get_connection(
+            self._db_path, read_only=True
+        ) as conn:
+            row = conn.execute(
+                """
+                SELECT
+                    l.id AS lexeme_id,
+                    l.lemma,
+                    sf.meaning_id,
+                    CASE
+                        WHEN sf.meaning_id IS NOT NULL THEN COALESCE(lm.english_translation, l.english_translation)
+                        ELSE l.english_translation
+                    END AS english_translation
+                FROM surface_forms sf
+                JOIN lexemes l ON l.id = sf.lexeme_id
+                LEFT JOIN lexeme_meanings lm ON lm.id = sf.meaning_id
+                WHERE sf.form = ?
+                ORDER BY
+                    CASE WHEN sf.meaning_id IS NULL THEN 1 ELSE 0 END,
+                    COALESCE(sf.meaning_id, 0),
+                    sf.id
+                LIMIT 1
+                """,
+                (form,),
+            ).fetchone()
+        return saved_translation_target_from_row(row) if row is not None else None
 
     def get_verification_record(
         self,

@@ -1,5 +1,5 @@
 import type { LemmaDetailsResponse, VerificationOverview } from "@/app/core"
-import { badgesForSavedForm, corSecondaryBadgeClass, normalizeSearchWord, posBadgeClass, semanticCategoryBadgeClass } from "@/app/core"
+import { additionalTranslationsDisplay, badgesForSavedForm, corSecondaryBadgeClass, normalizeSearchWord, posBadgeClass, semanticCategoryBadgeClass } from "@/app/core"
 import { WordbankPronunciationWord } from "@/app/sections/wordbank/wordbank-pronunciation-word"
 import { WordbankVerificationPopover } from "@/app/sections/wordbank/wordbank-verification-popover"
 import { Badge } from "@/components/ui/badge"
@@ -65,6 +65,13 @@ export function WordbankLemmaHeader({
   const headerTranslation = lemmaDetails.is_sectioned
     ? null
     : (selectedMeaningSection?.english_translation ?? lemmaDetails.english_translation)
+  const headerAdditionalTranslations = lemmaDetails.is_sectioned
+    ? []
+    : (selectedMeaningSection?.additional_translations ?? lemmaDetails.additional_translations ?? [])
+  const headerTranslationLine = additionalTranslationsDisplay(
+    headerTranslation,
+    headerAdditionalTranslations,
+  )
   const headerPosTag = selectedMeaningSection?.pos_tag ?? lemmaDetails.pos_tag
   const headerMorphology = selectedMeaningSection?.morphology ?? lemmaDetails.morphology
   const headerBadges = showSupplementaryMetadata
@@ -156,8 +163,8 @@ export function WordbankLemmaHeader({
       ) : null}
 
       {/* Translation */}
-      {headerTranslation && (showSupplementaryMetadata || selectedMeaningSection) ? (
-        <p className="text-muted-foreground mt-2 text-base italic">{headerTranslation}</p>
+      {headerTranslationLine && (showSupplementaryMetadata || selectedMeaningSection) ? (
+        <p className="text-muted-foreground mt-2 text-base italic">{headerTranslationLine}</p>
       ) : null}
 
       <Separator className="mt-4" />

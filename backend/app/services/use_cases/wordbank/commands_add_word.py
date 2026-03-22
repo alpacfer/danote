@@ -25,6 +25,8 @@ from app.services.use_cases.wordbank.meaning_sections import (
     resolve_non_verb_meaning,
 )
 from app.services.use_cases.wordbank.pronunciation_queue import queue_pronunciation_generation
+from app.services.use_cases.wordbank.queries_details import get_lemma_details
+from app.services.use_cases.wordbank.related_words_queue import queue_related_words_resolution
 from app.services.use_cases.wordbank.runtime import WordbankRuntime
 from app.services.use_cases.wordbank.verification_targets import (
     discover_word_page_verification_targets,
@@ -254,7 +256,12 @@ def _add_meaning_scoped_word(
         stored_lemma=inputs.stored_lemma,
         requested_forms=(actual_surface,),
     )
+    queue_related_words_resolution(
+        runtime,
+        stored_lemma=inputs.stored_lemma,
+    )
     return _build_add_word_response(
+        runtime=runtime,
         inputs=inputs,
         write_result=write_result,
         meaning=meaning_assignment,
@@ -344,7 +351,12 @@ def _add_unsectioned_word(
         stored_lemma=inputs.stored_lemma,
         requested_forms=(actual_surface,),
     )
+    queue_related_words_resolution(
+        runtime,
+        stored_lemma=inputs.stored_lemma,
+    )
     return _build_add_word_response(
+        runtime=runtime,
         inputs=inputs,
         write_result=write_result,
         meaning=None,
@@ -661,6 +673,7 @@ def _is_likely_english_gloss(gloss: str | None) -> bool:
 
 def _build_add_word_response(
     *,
+    runtime: WordbankRuntime,
     inputs: _AddWordInputs,
     write_result: _AddWordWriteResult,
     meaning,
@@ -675,6 +688,7 @@ def _build_add_word_response(
         if write_result.inserted_any
         else f"'{inputs.stored_lemma}' is already in the wordbank."
     )
+    saved_snapshot = get_lemma_details(runtime, inputs.stored_lemma)
     return AddWordResponse(
         status=status,
         stored_lemma=inputs.stored_lemma,
@@ -695,4 +709,5 @@ def _build_add_word_response(
         queued_verification_targets=queued_verification_targets,
         queued_pronunciation_forms=queued_pronunciation_forms,
         pronunciation=pronunciation,
+        saved_snapshot=saved_snapshot,
     )

@@ -42,6 +42,7 @@ type UseWordbankWorkflowsParams = {
   setActiveSection: (value: AppSection) => void
   setSelectedLemma: (value: string | null) => void
   setSelectedMeaningId: (value: number | null) => void
+  openWordbankTarget: (lemma: string, meaningId: number | null) => void
   postTokenFeedback: (payload: TokenFeedbackPayload) => Promise<void>
   onSentenceSaved?: () => void
   pushNotification: (
@@ -79,6 +80,7 @@ export function useWordbankWorkflows({
   setActiveSection,
   setSelectedLemma,
   setSelectedMeaningId,
+  openWordbankTarget,
   postTokenFeedback,
   onSentenceSaved,
   pushNotification,
@@ -299,6 +301,30 @@ export function useWordbankWorkflows({
     }
   }
 
+  async function saveRelatedWordFromSearchSeed(
+    surfaceToken: string,
+    lemmaCandidate: string | null,
+    metadata?: {
+      posTag?: string | null
+      morphology?: string | null
+      corId?: string | null
+    },
+    searchSeed?: SearchSaveSeed | null,
+  ): Promise<string | null> {
+    try {
+      const payload = await addWordToWordbank(surfaceToken, lemmaCandidate, metadata, searchSeed)
+      toast.success(payload.message)
+      trackQueuedVerifications(payload.stored_lemma, payload)
+      trackQueuedPronunciationForms(payload.stored_lemma, payload.queued_pronunciation_forms ?? [])
+      setWordbankRefreshTick((current) => current + 1)
+      return payload.stored_lemma
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not add related word to wordbank. Try again."
+      toast.error(message)
+      return null
+    }
+  }
+
   return {
     addingTokens,
     isSavingSentence,
@@ -314,6 +340,7 @@ export function useWordbankWorkflows({
     markVisibleVerificationNotificationsAsRead,
     addTokenToWordbank,
     addWordFromSearch,
+    saveRelatedWordFromSearchSeed,
     addSentenceToSentencebank,
     playPronunciation,
     regeneratePronunciation,
@@ -323,5 +350,6 @@ export function useWordbankWorkflows({
     retryVerificationTarget,
     rerunMeaningVerification,
     clearVerificationErrors,
+    openRelatedWordTarget: openWordbankTarget,
   }
 }
