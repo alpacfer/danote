@@ -173,21 +173,6 @@ def search_translation_decision_for_cor_local_entry(
         if contextual_attempted
         else None
     )
-    _log_rejected_search_translation(
-        entry,
-        frame=frame,
-        provider=translation.provider_name(),
-        rejection_reason="provider_self_translation",
-        candidate=provider_candidate,
-    )
-    if contextual_attempted and contextual_candidate is not None:
-        _log_rejected_search_translation(
-            entry,
-            frame=frame,
-            provider=translation.contextual_provider_name(),
-            rejection_reason="gemini_self_translation",
-            candidate=contextual_candidate,
-        )
     decision = build_search_translation_decision(
         provider_candidate=provider_candidate,
         provider_name=translation.provider_name(),
@@ -196,6 +181,26 @@ def search_translation_decision_for_cor_local_entry(
         contextual_attempted=contextual_attempted,
         gloss_fallback=gloss_translation_hint,
     )
+    _log_rejected_search_translation(
+        entry,
+        frame=frame,
+        provider=translation.provider_name(),
+        rejection_reason="provider_self_translation",
+        candidate=provider_candidate,
+    )
+    if (
+        contextual_attempted
+        and contextual_candidate is not None
+        and contextual_candidate.invalid is not None
+        and decision.lemma_translation_status != "gemini"
+    ):
+        _log_rejected_search_translation(
+            entry,
+            frame=frame,
+            provider=translation.contextual_provider_name(),
+            rejection_reason="gemini_self_translation",
+            candidate=contextual_candidate,
+        )
     if decision.lemma_translation_status == "gloss_fallback":
         _log_gloss_fallback(
             entry,

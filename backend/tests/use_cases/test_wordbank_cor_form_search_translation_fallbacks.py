@@ -257,7 +257,7 @@ def test_wordbank_search_cor_form_hides_self_translated_bile_when_gemini_has_no_
     assert gemini_translation.batch_calls == [[("bil", "bile", "køre i bil")]]
 
 
-def test_wordbank_search_cor_form_hides_self_translated_bile_when_gemini_echoes_too(tmp_path: Path) -> None:
+def test_wordbank_search_cor_form_keeps_self_translated_bile_when_gemini_echoes_too(tmp_path: Path) -> None:
     local_cor = FakeCORLocalLexiconService(
         by_form={
             "bil": [
@@ -296,12 +296,12 @@ def test_wordbank_search_cor_form_hides_self_translated_bile_when_gemini_echoes_
     response = use_case.search_cor_form("bil", limit=100)
 
     variant = response.groups[0].variants[0]
-    assert variant.lemma_translation is None
-    assert variant.saveable_translation == "go by car"
+    assert variant.lemma_translation == "to bile"
+    assert variant.saveable_translation == "to bile"
     assert variant.gloss_translation == "go by car"
-    assert variant.lemma_translation_provider == "deepl_translator"
-    assert variant.lemma_translation_status == "gloss_fallback"
-    assert variant.lemma_translation_reason == "gloss_fallback_used"
+    assert variant.lemma_translation_provider == "gemini_word_translation"
+    assert variant.lemma_translation_status == "gemini"
+    assert variant.lemma_translation_reason == "gemini_ok"
     assert gemini_translation.batch_calls == [[("bil", "bile", "køre i bil")]]
 
 
@@ -388,7 +388,7 @@ def test_wordbank_search_cor_form_normalizes_verb_frame_artifacts_from_translati
 
     assert response.groups[0].variants[0].lemma_translation == "to water"
 
-def test_wordbank_search_cor_form_keeps_lemma_translation_when_gemini_echoes_noun_lemma(tmp_path: Path) -> None:
+def test_wordbank_search_cor_form_trusts_gemini_when_it_echoes_noun_lemma(tmp_path: Path) -> None:
     local_cor = FakeCORLocalLexiconService(
         by_form={
             "mor": [
@@ -420,8 +420,12 @@ def test_wordbank_search_cor_form_keeps_lemma_translation_when_gemini_echoes_nou
 
     response = use_case.search_cor_form("mor", limit=100)
 
-    assert response.groups[0].variants[0].lemma_translation == "mother"
+    assert response.groups[0].variants[0].lemma_translation == "mor"
+    assert response.groups[0].variants[0].saveable_translation == "mor"
     assert response.groups[0].variants[0].gloss_translation == "soil layer"
+    assert response.groups[0].variants[0].lemma_translation_provider == "gemini_word_translation"
+    assert response.groups[0].variants[0].lemma_translation_status == "gemini"
+    assert response.groups[0].variants[0].lemma_translation_reason == "gemini_ok"
     assert gemini_translation.batch_calls == [[("mor", "mor", "jordlag")]]
 
 def test_wordbank_search_cor_form_translates_comma_separated_gloss_parts(tmp_path: Path) -> None:

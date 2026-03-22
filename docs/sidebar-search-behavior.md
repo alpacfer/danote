@@ -193,7 +193,8 @@ COR groups are sorted by best variant score in each group:
   - gloss/gloss translation remain disambiguation metadata and are not promoted into `lemma_translation`
   - when the primary provider's framed lemma translation collapses to the original Danish lemma or framed source text (for example verb `bile -> to bile`), sidebar search treats that result as invalid and prefers the Gemini contextual lemma translation instead
   - this Gemini fallback does not require a gloss; glossless entries still send lemma, POS, and morphology context, and verbs are framed as Danish infinitives such as `at bile`
-  - if Gemini still has no better contextual translation for that self-translation case, sidebar search may keep `lemma_translation` empty while using translated gloss text as `saveable_translation`
+  - if Gemini returns a non-empty contextual translation for that self-translation case, sidebar search trusts it even when the returned English lemma matches the Danish lemma text exactly
+  - only when Gemini returns no translation may sidebar search keep `lemma_translation` empty while using translated gloss text as `saveable_translation`
   - if neither Gemini nor a translated gloss provides a usable fallback, the row stays blocked and shows `Translation required before saving.`
 - Saved search responses follow the same invariant:
   - `english_translation` remains the lemma translation

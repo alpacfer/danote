@@ -278,9 +278,9 @@ Route decorators are the source of truth in `backend/app/api/routes/`, and API D
 - **Field invariants:**
   - COR-backed Danish add-option labels suppress provider self-translations instead of surfacing literal echoes of the Danish lemma/form.
   - DeepL-backed and Azure-backed search labels use the same fallback policy through the shared primary-provider contract.
-  - When Gemini contextual translation is available, it takes precedence over self-translated primary-provider labels.
+  - When Gemini contextual translation is available, it takes precedence over self-translated primary-provider labels, including same-text lemma echoes that Gemini returns intentionally for valid cognates or loanwords.
   - If the primary provider self-translates but Gemini has no better lemma translation, add-option labels may fall back to translated COR gloss text when available.
-  - If both providers only yield self-translation echoes and no translated gloss exists, the add-option label falls back to the query surface instead of exposing the bad translation.
+  - If the primary provider self-translates and Gemini returns no translation and no translated gloss exists, the add-option label falls back to the query surface instead of exposing the bad primary-provider echo.
 
 ### POST `/api/wordbank/phrase-translation`
 - **Request model:** `GeneratePhraseTranslationRequest`.
@@ -325,7 +325,8 @@ Route decorators are the source of truth in `backend/app/api/routes/`, and API D
   - DeepL-backed and Azure-backed COR search use the same fallback policy through the shared primary-provider contract.
   - If the primary provider's framed lemma translation collapses to the original Danish lemma/form (for example `at bile -> to bile`), backend treats that result as invalid and prefers Gemini contextual translation.
   - A gloss is not required for Gemini fallback; glossless entries still send the Danish lemma plus POS/morphology context, and verbs are framed as Danish infinitives (for example `at bile`) to improve lemma-quality fallback translation.
-  - If Gemini also fails or self-translates in that case, backend may keep `lemma_translation = null` while exposing a gloss-derived `saveable_translation`; if no gloss fallback exists, both fields stay `null` instead of exposing the echoed translation.
+  - If Gemini returns a non-empty translation in that case, backend trusts it even when the English lemma text still matches the Danish lemma/form exactly.
+  - If Gemini returns no translation in that case, backend may keep `lemma_translation = null` while exposing a gloss-derived `saveable_translation`; if no gloss fallback exists, both fields stay `null`.
 
 ### GET `/api/wordbank/search/cor-lemma/{lemma_idx}`
 - **Request model:** none (`lemma_idx` path param, optional `limit` query parameter).

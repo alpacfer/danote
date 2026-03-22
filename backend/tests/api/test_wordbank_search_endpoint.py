@@ -353,6 +353,69 @@ def test_search_cor_form_returns_gemini_decision_fields_for_self_translated_bile
     assert variant["lemma_translation_reason"] == "gemini_ok"
 
 
+def test_search_cor_form_keeps_gemini_self_translation_echo_when_returned(
+    tmp_path,
+    stub_nlp_adapter_factory,
+) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    app = build_api_test_app(db_path, nlp_adapter_factory=stub_nlp_adapter_factory)
+
+    with TestClient(app) as client:
+        set_service_field(
+            client.app,
+            "cor_local_lexicon_service",
+            FakeCORLocalLexiconService(
+                by_form={
+                    "bil": [
+                        CORLocalEntry(
+                            cor_id="COR.36439.209.01",
+                            lemma="bile",
+                            gloss="køre i bil",
+                            gram_raw="vb.imp",
+                            form="bil",
+                            norm="N",
+                            lemma_idx=36439,
+                            gram_code=209,
+                            variation=1,
+                            pos_tag="VERB",
+                            morphology="Mood=Imp|VerbForm=Fin",
+                            features={"Mood": "Imp", "VerbForm": "Fin"},
+                            extra_tags=[],
+                        ),
+                    ]
+                }
+            ),
+        )
+        set_service_field(
+            client.app,
+            "translation_service",
+            FakeTranslationService(
+                {"at bile": "to bile", "køre i bil": "go by car"},
+                provider="deepl_translator",
+            ),
+        )
+        set_service_field(
+            client.app,
+            "gemini_word_translation_service",
+            FakeGeminiWordTranslationService(
+                {("bil", "bile", "køre i bil"): "bile"},
+                batch_overrides={("bil", "bile", "køre i bil"): "bile"},
+            ),
+        )
+
+        response = client.get("/api/wordbank/search/cor-form", params={"form": "bil"})
+
+    assert response.status_code == 200
+    payload = response.json()
+    variant = payload["groups"][0]["variants"][0]
+    assert variant["lemma_translation"] == "to bile"
+    assert variant["saveable_translation"] == "to bile"
+    assert variant["gloss_translation"] == "go by car"
+    assert variant["lemma_translation_provider"] == "gemini_word_translation"
+    assert variant["lemma_translation_status"] == "gemini"
+    assert variant["lemma_translation_reason"] == "gemini_ok"
+
+
 def test_search_cor_lemma_returns_paradigm_forms(tmp_path, stub_nlp_adapter_factory) -> None:
     db_path = tmp_path / "danote.sqlite3"
     cor_db_path = tmp_path / "cor.sqlite"

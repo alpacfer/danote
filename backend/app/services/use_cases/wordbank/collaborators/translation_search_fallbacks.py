@@ -120,7 +120,7 @@ def build_search_translation_decision(
 ) -> SearchTranslationDecision:
     normalized_gloss_fallback = normalize_token(gloss_fallback or "") or None
 
-    if contextual_attempted and contextual_candidate is not None and contextual_candidate.invalid is None:
+    if contextual_attempted and contextual_candidate is not None:
         contextual_translation = normalize_token(contextual_candidate.translation or "") or None
         if contextual_translation:
             return SearchTranslationDecision(
