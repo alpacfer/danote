@@ -9,7 +9,6 @@ from fastapi.testclient import TestClient
 from app.core.app_state import set_service_field
 from app.db.migrations import apply_migrations, get_connection
 from app.main import create_app
-from app.services.verification import WordVerificationAction
 from tests.api.wordbank_test_support import (
     build_test_settings,
     seed_cor_local_bog_senses,
@@ -1175,7 +1174,7 @@ def test_add_word_search_seed_routes_variation_to_target_meaning(tmp_path, stub_
     assert [item["form"] for item in section["surface_forms"]] == ["bogen", "bøger"]
 
 
-def test_add_word_search_seed_rejects_missing_translation_until_generation_finishes(
+def test_add_word_search_seed_allows_missing_translation_and_saves_blank(
     tmp_path, stub_nlp_adapter_factory
 ) -> None:
     db_path = tmp_path / "danote.sqlite3"
@@ -1203,9 +1202,10 @@ def test_add_word_search_seed_rejects_missing_translation_until_generation_finis
         )
         details = client.get("/api/wordbank/lemmas/lære")
 
-    assert response.status_code == 409
-    assert "translation finishes generating" in response.json()["detail"]
-    assert details.status_code == 404
+    assert response.status_code == 200
+    assert response.json()["meaning"]["english_translation"] is None
+    assert details.status_code == 200
+    assert details.json()["meaning_sections"][0].get("english_translation") is None
 
 
 def test_add_word_search_seed_enqueues_and_runs_background_jobs(tmp_path, stub_nlp_adapter_factory) -> None:
@@ -1309,54 +1309,17 @@ def test_add_word_search_seed_enqueues_and_runs_background_jobs(tmp_path, stub_n
     assert details.json()["meaning_sections"][0]["verification"]["status"] == "verified"
 
 
-def test_apply_verification_changes_prunes_persisted_suggestions(tmp_path, stub_nlp_adapter_factory) -> None:
+def test_apply_verification_changes_rejects_surface_scoped_fix_translation(tmp_path, stub_nlp_adapter_factory) -> None:
     db_path = tmp_path / "danote.sqlite3"
     apply_migrations(db_path)
     app = create_app(build_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
 
-    class StubVerificationService:
-        provider = "gemini"
-        reviewer_role = "Professional Danish Language Expert"
-
-        def verify_word_entry(self, _payload):
-            class Result:
-                verdict = "flagged"
-                message = "incorrect"
-                problem = "Translation is wrong."
-                change_to_implement = "Set translation to book."
-                suggested_actions = (
-                    WordVerificationAction(
-                        action_type="fix_translation",
-                        english_translation="book",
-                        reason="Use the singular noun translation.",
-                    ),
-                )
-
-            return Result()
-
     with TestClient(app) as client:
-        set_service_field(client.app, "word_verification_service", StubVerificationService())
         added = client.post(
             "/api/wordbank/lexemes",
             json={"surface_token": "Bogen", "lemma_candidate": "bog"},
         )
         added_payload = added.json()
-        verify = client.post(
-            "/api/wordbank/lexemes/verify",
-            json={
-                "stored_lemma": "bog",
-                "stored_surface_form": "bogen",
-                "meaning_id": added_payload["meaning"]["id"],
-            },
-        )
-
-        assert verify.status_code == 200
-        details_before = client.get("/api/wordbank/lemmas/bog")
-        assert details_before.status_code == 200
-        verified_surface = next(
-            item for item in details_before.json()["meaning_sections"][0]["surface_forms"] if item["form"] == "bogen"
-        )
-        action = verified_surface["verification"]["suggested_actions"][0]
 
         apply_response = client.post(
             "/api/wordbank/lexemes/apply-verification-changes",
@@ -1365,25 +1328,12 @@ def test_apply_verification_changes_prunes_persisted_suggestions(tmp_path, stub_
                 "stored_surface_form": "bogen",
                 "meaning_id": added_payload["meaning"]["id"],
                 "provider": "gemini",
-                "action": action,
+                "action": {
+                    "action_type": "fix_translation",
+                    "english_translation": "book",
+                },
             },
         )
 
-        details_after = client.get("/api/wordbank/lemmas/bog")
-
-    assert apply_response.status_code == 200
-    assert apply_response.json()["status"] == "applied"
-    assert details_after.status_code == 200
-    assert details_after.json()["meaning_sections"][0]["verification"]["status"] in {"queued", "flagged"}
-    applied_surface = next(
-        item for item in details_after.json()["meaning_sections"][0]["surface_forms"] if item["form"] == "bogen"
-    )
-    assert applied_surface["verification"]["status"] == "verified"
-
-    with get_connection(db_path) as conn:
-        remaining_rows = conn.execute(
-            "SELECT COUNT(*) AS count FROM wordbank_verification_records"
-        ).fetchone()
-
-    assert remaining_rows is not None
-    assert int(remaining_rows["count"]) == 2
+    assert apply_response.status_code == 400
+    assert "surface-form verification targets" in apply_response.json()["detail"]

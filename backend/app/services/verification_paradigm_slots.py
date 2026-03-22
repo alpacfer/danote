@@ -6,7 +6,7 @@ if TYPE_CHECKING:
     from app.services.verification import WordVerificationInput
 
 
-def build_completion_review_paradigm_slot_context(payload: WordVerificationInput) -> dict[str, list[str]]:
+def build_paradigm_slot_context(payload: WordVerificationInput) -> dict[str, list[str]]:
     paradigm_kind = _paradigm_kind_from_pos_tag(payload.selected_meaning_pos_tag)
     if paradigm_kind == "noun":
         return _build_noun_slot_context(payload)
@@ -15,6 +15,10 @@ def build_completion_review_paradigm_slot_context(payload: WordVerificationInput
     if paradigm_kind == "verb":
         return _build_verb_slot_context(payload)
     return {}
+
+
+def build_completion_review_paradigm_slot_context(payload: WordVerificationInput) -> dict[str, list[str]]:
+    return build_paradigm_slot_context(payload)
 
 
 def _build_noun_slot_context(payload: WordVerificationInput) -> dict[str, list[str]]:

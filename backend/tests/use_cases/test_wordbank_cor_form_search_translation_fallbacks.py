@@ -118,6 +118,84 @@ def test_wordbank_search_cor_form_uses_gemini_when_azure_returns_literal_verb_in
     assert response.groups[0].variants[0].lemma_translation == "to amuse"
     assert gemini_translation.batch_calls == [[("mor", "more", None)]]
 
+
+def test_wordbank_search_cor_form_uses_gemini_for_self_translated_bile(tmp_path: Path) -> None:
+    local_cor = FakeCORLocalLexiconService(
+        by_form={
+            "bil": [
+                CORLocalEntry(
+                    cor_id="COR.36439.209.01",
+                    lemma="bile",
+                    gloss="køre i bil",
+                    gram_raw="vb.imp",
+                    form="bil",
+                    norm="N",
+                    lemma_idx=36439,
+                    gram_code=209,
+                    variation=1,
+                    pos_tag="VERB",
+                    morphology="Mood=Imp|VerbForm=Fin",
+                    features={"Mood": "Imp", "VerbForm": "Fin"},
+                    extra_tags=[],
+                ),
+            ]
+        }
+    )
+    gemini_translation = FakeGeminiWordTranslationService({("bil", "bile", "køre i bil"): "drive"})
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_local_lexicon_service=local_cor,
+        translation_service=FakeTranslationService({"at bile": "to bile", "køre i bil": "go by car"}),
+        gemini_word_translation_service=gemini_translation,
+    )
+
+    response = use_case.search_cor_form("bil", limit=100)
+
+    assert response.groups[0].variants[0].lemma_translation == "to drive"
+    assert response.groups[0].variants[0].gloss_translation == "go by car"
+    assert gemini_translation.batch_calls == [[("bil", "bile", "køre i bil")]]
+
+
+def test_wordbank_search_cor_form_hides_self_translated_bile_when_gemini_has_no_better_result(tmp_path: Path) -> None:
+    local_cor = FakeCORLocalLexiconService(
+        by_form={
+            "bil": [
+                CORLocalEntry(
+                    cor_id="COR.36439.209.01",
+                    lemma="bile",
+                    gloss="køre i bil",
+                    gram_raw="vb.imp",
+                    form="bil",
+                    norm="N",
+                    lemma_idx=36439,
+                    gram_code=209,
+                    variation=1,
+                    pos_tag="VERB",
+                    morphology="Mood=Imp|VerbForm=Fin",
+                    features={"Mood": "Imp", "VerbForm": "Fin"},
+                    extra_tags=[],
+                ),
+            ]
+        }
+    )
+    gemini_translation = FakeGeminiWordTranslationService(
+        {("bil", "bile", "køre i bil"): None},
+        batch_overrides={("bil", "bile", "køre i bil"): None},
+    )
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_local_lexicon_service=local_cor,
+        translation_service=FakeTranslationService({"at bile": "to bile", "køre i bil": "go by car"}),
+        gemini_word_translation_service=gemini_translation,
+    )
+
+    response = use_case.search_cor_form("bil", limit=100)
+
+    assert response.groups[0].variants[0].lemma_translation is None
+    assert response.groups[0].variants[0].gloss_translation == "go by car"
+    assert gemini_translation.batch_calls == [[("bil", "bile", "køre i bil")]]
+
+
 def test_wordbank_search_cor_form_strips_function_word_prefix_from_noun_frame_translation(tmp_path: Path) -> None:
     local_cor = FakeCORLocalLexiconService(
         by_form={

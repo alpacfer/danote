@@ -175,6 +175,82 @@ describe("App shell and search", () => {
     })
   })
 
+  it("does not show self-translated lemma text for COR rows when lemma translation is unavailable", async () => {
+    mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      searchWordbankResponse: { items: [] },
+      corSearchFormResponse: {
+        form: "bil",
+        groups: [
+          {
+            lemma: "bil",
+            gloss: "car",
+            pos_tag: "NOUN",
+            variants: [
+              {
+                cor_id: "COR.999.110.01",
+                form: "bil",
+                lemma: "bil",
+                gloss: "car",
+                gloss_translation: "car",
+                lemma_translation: "car",
+                gram_raw: "sb.fk.sg.ubest",
+                norm: "N",
+                lemma_idx: 999,
+                gram_code: 110,
+                variation: 1,
+                pos_tag: "NOUN",
+                morphology: "Gender=Com|Number=Sing|Definite=Ind",
+                features: { Gender: "Com", Number: "Sing", Definite: "Ind" },
+                extra_tags: [],
+              },
+            ],
+          },
+          {
+            lemma: "bile",
+            gloss: "køre i bil",
+            pos_tag: "VERB",
+            variants: [
+              {
+                cor_id: "COR.36439.209.01",
+                form: "bil",
+                lemma: "bile",
+                gloss: "køre i bil",
+                gloss_translation: "go by car",
+                lemma_translation: null,
+                gram_raw: "vb.imp",
+                norm: "N",
+                lemma_idx: 36439,
+                gram_code: 209,
+                variation: 1,
+                pos_tag: "VERB",
+                morphology: "Mood=Imp|VerbForm=Fin",
+                features: { Mood: "Imp", VerbForm: "Fin" },
+                extra_tags: [],
+              },
+            ],
+          },
+        ],
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    const commandDialog = await screen.findByRole("dialog")
+    const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
+    fireEvent.change(searchInput, { target: { value: "bil" } })
+
+    await within(commandDialog).findAllByText(/^bil$/i, { selector: "strong" })
+    const verbLemma = await within(commandDialog).findByText(/^at bile$/i, { selector: "em" })
+    const verbRow = verbLemma.closest("[cmdk-item]")
+    expect(verbRow).toBeTruthy()
+    expect(verbRow).not.toHaveTextContent(/\(to bile\)/i)
+    expect(await within(commandDialog).findByText(/translation required before saving\./i)).toBeInTheDocument()
+    expect(await within(commandDialog).findByText(/^go by car$/i)).toBeInTheDocument()
+  })
+
   it("keeps translation skeletons visible on selected COR results while translations load", async () => {
     let resolveFullPayload: ((value: Response) => void) | null = null
     const fullPayloadPromise = new Promise<Response>((resolve) => {

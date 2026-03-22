@@ -97,14 +97,14 @@ Route decorators are the source of truth in `backend/app/api/routes/`, and API D
 - **Notable status/error behavior:**
   - `503` when DB unavailable/locked.
   - `503` for runtime DB compatibility errors (e.g., reset-required conditions).
-  - `409` when a search-seed save is attempted before `search_seed.english_translation` is fully available.
   - `400` for invalid inputs.
   - body `status` may be `inserted` or `exists`.
   - when `verification` is present, it may include `stored_surface_form`, `requested_at`, and `completed_at`.
   - `queued_pronunciation_forms` lists the normalized lemma/surface forms queued for automatic background pronunciation generation.
     Automatic add/save flows now use the shared backend pronunciation queue instead of browser-side pronunciation requests.
   - `queued_verification_targets` lists each backend-queued word-page verification target using `meaning_id` plus `stored_surface_form`.
-  - for search-seed saves, empty or missing `search_seed.english_translation` is rejected; the word is not persisted.
+  - for search-seed saves, empty or missing `search_seed.english_translation` is allowed; the word is still persisted with a blank saved translation.
+  - for low-confidence glossless verb seeds whose translation collapses to the lemma itself (for example `to bile` for `bile`), backend persistence drops the search-seed translation and saves the entry with blank `english_translation` instead of persisting the literal self-translation.
 
 ### POST `/api/wordbank/lexemes/verify`
 - **Request model:** `VerifyWordRequest`.
@@ -118,6 +118,14 @@ Route decorators are the source of truth in `backend/app/api/routes/`, and API D
   - `verification.message` is intentionally short and status-like, such as `OK`, `Review needed`, `Verification failed`, or `Queued`.
   - `verification.problem` is one short mismatch sentence and `verification.change_to_implement` is one short imperative sentence.
   - normal save verification checks only whether the saved lemma / meaning / selected surface placement is correct; missing paradigm members do not produce `fix_variations` suggestions in this flow.
+  - normal save verification action availability depends on the target scope:
+    - lemma/meaning targets may emit `fix_translation` or `move_to_lemma`
+    - surface-form targets may emit only relocation actions (`move_to_meaning_section` or `move_to_lemma`) and never translation fixes
+  - surface-form reviews that only produce translation-fix output are treated as irrelevant and persisted as `verified` instead of `flagged`.
+  - Gemini's verification context includes saved POS/morphology plus COR `gram_raw` and paradigm-slot evidence for the current meaning when available.
+    Relocation suggestions that contradict that saved paradigm evidence are discarded before persistence.
+  - if a meaning-level review tries to move the lemma even though the saved paradigm evidence still matches the current lemma, and a translated gloss hint exists for that meaning, backend backfills a `fix_translation` action from that hint instead of persisting the contradictory lemma move.
+  - if a meaning/lemma review still has a missing or low-confidence translation but a translated gloss hint exists for the saved meaning, backend persists a `fix_translation` suggestion from that hint even when Gemini otherwise returns `correct`.
   - `verification.suggested_actions` is the only apply contract. Backend apply does not recover actions from prose fields.
   - `applied_categories` lists the semantic categories persisted for the reviewed root / meaning scope.
   - after verification persistence succeeds for `verified` or `flagged`, category classification runs as a separate follow-up step.
@@ -193,6 +201,7 @@ Route decorators are the source of truth in `backend/app/api/routes/`, and API D
 - **Response model:** `ApplyVerificationChangesResponse`.
 - **Notable request/behavior details:**
   - `action.action_type` supports `fix_translation`, `fix_variations`, `move_to_meaning_section`, and `move_to_lemma`.
+  - `fix_translation` is valid only for lemma/meaning-scoped targets with `stored_surface_form = null`; if the request is surface-scoped, backend rejects `fix_translation`.
   - completion-review records may expose a meaning-level `fix_variations` action that reconciles the whole saved noun, adjective, or verb variation set for that meaning in one apply request.
   - `fix_variations` is reserved for the `Complete variations` follow-up review; normal save verification does not emit that action type.
   - when the persisted verification record has `review_intent = "complete_variations"`, the backend rejects any apply attempt whose `action.action_type` is not `fix_variations`, even if the client sends it manually.

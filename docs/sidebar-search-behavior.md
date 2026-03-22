@@ -183,10 +183,13 @@ COR groups are sorted by best variant score in each group:
 - Always triggers `onAddWordFromSearch(...)` with `predictedStatus`:
   - `variation` when the COR candidate meaning matches a saved wordbank entry
   - `new` otherwise
-- Exception: while translation is still loading, or after a no-translation final result, COR rows are disabled and do not fire save requests.
+- Exception: while translation is still loading, COR rows stay disabled and do not fire save requests.
+- After a no-translation final result, COR rows are still saveable; backend persists the entry with blank `english_translation`.
 - Search-save payload keeps lemma translation and gloss separate:
   - `search_seed.english_translation` is populated only from the lemma translation
   - gloss/gloss translation remain disambiguation metadata and are not promoted into `english_translation`
+  - when the provider-side lemma translation collapses to the lemma itself (for example verb `bile -> to bile`), sidebar search prefers the Gemini contextual lemma translation instead
+  - if Gemini still has no better contextual translation for that self-translation case, sidebar search suppresses the bad lemma translation instead of showing the literal echo
 - Saved search responses follow the same invariant:
   - `english_translation` remains the lemma translation
   - `gloss_translation` is returned separately when available
@@ -201,8 +204,8 @@ COR groups are sorted by best variant score in each group:
 - Search-save responses also return `queued_pronunciation_forms`.
   When the newly opened word page still shows those forms without audio, the same lemma-details polling loop keeps refreshing for a bounded window until pronunciation becomes playable or the timeout expires.
 - The backend also enforces the translation gate:
-  a search-seed save with empty or missing `search_seed.english_translation` returns `409`,
-  so even stale or bypassed clients cannot save before translation generation completes.
+  save requests are still blocked while translation is actively loading,
+  but a finalized empty `search_seed.english_translation` is now accepted and saved as blank.
 
 ### Selecting note or page row
 

@@ -80,10 +80,11 @@ def persist_search_seed_surface_form(
 ) -> SearchSeedPersistResult:
     ensure_wordbank_meaning_compatibility(runtime)
     metadata = _resolve_search_seed_metadata(runtime, seed=seed)
+    stored_translation = _sanitize_search_seed_translation(seed=seed, metadata=metadata)
     lexeme_id, inserted_lexeme = runtime.repository.insert_or_load_lexeme(
         stored_lemma=seed.lemma,
-        translation=seed.english_translation,
-        provider="search_seed" if seed.english_translation else None,
+        translation=stored_translation,
+        provider="search_seed" if stored_translation else None,
         pos_tag=metadata.lemma_pos_tag,
         morphology=metadata.lemma_morphology,
         source="search",
@@ -99,6 +100,7 @@ def persist_search_seed_surface_form(
         lexeme_id=lexeme_id,
         seed=seed,
         metadata=metadata,
+        english_translation=stored_translation,
     )
     if meaning_record is not None:
         _repair_meaning_metadata_if_surface_derived(
@@ -143,6 +145,7 @@ def _resolve_meaning_assignment(
     lexeme_id: int,
     seed: SearchSeedInputs,
     metadata: SearchSeedMetadata,
+    english_translation: str | None,
 ) -> tuple[MeaningAssignment | None, LexemeMeaningRecord | None, bool]:
     if seed.target_meaning_id is not None:
         for meaning in runtime.repository.list_lexeme_meanings(lexeme_id):
@@ -165,7 +168,7 @@ def _resolve_meaning_assignment(
         meaning_key=meaning_key,
         cor_lemma_idx=seed.cor_lemma_idx,
         gloss=seed.gloss,
-        english_translation=seed.english_translation,
+        english_translation=english_translation,
         pos_tag=metadata.lemma_pos_tag,
         morphology=metadata.lemma_morphology,
     )
@@ -179,6 +182,25 @@ def _resolve_meaning_assignment(
         record,
         inserted,
     )
+
+
+def _sanitize_search_seed_translation(
+    *,
+    seed: SearchSeedInputs,
+    metadata: SearchSeedMetadata,
+) -> str | None:
+    if not seed.english_translation:
+        return None
+    normalized_translation = normalize_token(seed.english_translation)
+    normalized_lemma = normalize_token(seed.lemma)
+    normalized_gloss = normalize_token(seed.gloss or "")
+    pos_tag = (metadata.lemma_pos_tag or seed.pos_tag or "").strip().upper()
+    if pos_tag == "VERB" and not normalized_gloss and normalized_translation in {
+        normalized_lemma,
+        f"to {normalized_lemma}",
+    }:
+        return None
+    return seed.english_translation
 
 
 def _resolve_search_seed_metadata(

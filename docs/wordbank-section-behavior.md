@@ -152,10 +152,16 @@ Meaning auto-scroll behavior:
     - show the mismatch/problem line prominently
     - show one muted follow-up line for the suggested change
     - show one semantic action button per Gemini suggestion such as `Fix translation`, `Move to different lemma`, or `Fix variations`
+    - meaning-level/root reviews may show `Fix translation`
+    - surface-form reviews never show translation-fix actions; they only surface relocation actions when Gemini identifies a placement error
+    - both surface-form and meaning reviews now pass saved POS/morphology, COR `gram_raw`, and derived paradigm-slot context into Gemini so homographs like verb-imperative `bil` are judged against the saved verb paradigm instead of the noun spelling alone
   - error rows also expose `Retry verification`, which queues that exact target again through the backend queue-only endpoint and keeps the page in polling mode until the refreshed run finishes
   - queued rows show compact in-progress copy and requested time
   - verified rows are not expanded individually by default; passed targets collapse into one low-emphasis checked summary with count and latest verification time
   - unchanged `verified` results do not create or keep app-level notification rows; successful Gemini completion is silent outside the word-page popover
+  - if a surface-form review comes back as translation-only Gemini noise, backend suppresses it and the popover keeps that target in the checked bucket instead of showing a contradictory review card
+  - if a meaning-level review returns only a lemma-move suggestion that conflicts with the saved paradigm evidence, backend drops that move; when a translated gloss hint is available, the backend backfills a translation-fix action instead so the review focuses on the missing/wrong English translation
+  - if a meaning-level review still has no saved translation, or only a low-confidence verb self-translation, and the backend has a translated gloss hint for that meaning, the review stays in `Needs review` with a `Fix translation` action even if Gemini otherwise returns `OK`
   - completion-review meaning cards may expose exactly one `Fix variations` action card that rewrites the whole saved noun variation set for that meaning in one apply
   - completion-review `Fix variations` summaries can describe reviewed noun-slot sets directly, including multiple spellings in one slot such as `Singular indefinite: fader, far`
   - completion-review meaning cards never expose `Move to lemma`, `Move to different meaning`, or translation-fix actions
@@ -345,6 +351,7 @@ Pronunciation behavior is shared by header + section rows + variation rows.
 
 - Accepting a popover action calls apply endpoint with selected target and action payload.
 - Apply requests always include the exact verification scope: `stored_lemma`, `meaning_id`, and `stored_surface_form`.
+- `fix_translation` is accepted only for lemma/meaning-scoped apply requests where `stored_surface_form` is `null`.
 - Meaning-level completion-review fixes use `action_type=fix_variations` with `stored_surface_form=null`; applying that action reconciles the whole saved noun variation set for that meaning.
 - `fix_variations` prefers reviewed noun-slot form lists carried by the saved action, then falls back to legacy scalar fields or forms recovered from the saved review text, and only uses COR slot metadata when a reviewed slot form is missing.
 - On applied status:
@@ -396,6 +403,7 @@ Pronunciation behavior is shared by header + section rows + variation rows.
   - lemma/root and newly created meaning-section tags come from the canonical COR lemma when `cor_lemma_idx` is available
   - the stored selected surface form keeps the chosen variant tags from the search result
   - saved `english_translation` comes only from the COR lemma translation; gloss translation remains separate disambiguation context
+  - empty search translations are allowed, and low-confidence glossless verb self-translations are dropped before persistence so the saved entry can stay blank instead of storing a false literal English lemma
   - the word page now computes and returns gloss translations for search-saved meaning sections too, so homograph meanings can render `translation, gloss translation`
   - raw gloss text is not promoted into `english_translation`, and the UI omits untranslated gloss from translation lines
   - only the selected surface form is stored; search save does not hydrate the full paradigm into wordbank

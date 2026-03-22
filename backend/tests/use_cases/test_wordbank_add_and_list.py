@@ -1437,6 +1437,77 @@ def test_wordbank_search_seed_add_uses_canonical_lemma_metadata_for_verbs(tmp_pa
     assert details.surface_forms == []
 
 
+def test_wordbank_search_seed_add_blanks_low_confidence_self_translated_verbs(tmp_path: Path) -> None:
+    db_path = _db_path(tmp_path)
+    use_case = WordbankUseCase(
+        db_path,
+        cor_local_lexicon_service=FakeCORLocalLexiconService(
+            by_lemma_idx={
+                36439: [
+                    _cor_local_entry(
+                        cor_id="COR.36439.200.01",
+                        lemma="bile",
+                        gloss=None,
+                        form="bile",
+                        lemma_idx=36439,
+                        pos_tag="VERB",
+                        morphology="VerbForm=Inf|Voice=Act",
+                        gram_raw="vb.inf.akt",
+                    ),
+                    _cor_local_entry(
+                        cor_id="COR.36439.209.01",
+                        lemma="bile",
+                        gloss=None,
+                        form="bil",
+                        lemma_idx=36439,
+                        pos_tag="VERB",
+                        morphology="Mood=Imp|VerbForm=Fin",
+                        gram_raw="vb.imp",
+                    ),
+                ],
+            },
+        ),
+    )
+
+    added = use_case.add_word(
+        "bil",
+        "bile",
+        search_seed={
+            "lemma": "bile",
+            "surface": "bil",
+            "cor_id": "COR.36439.209.01",
+            "cor_lemma_idx": 36439,
+            "meaning_key": "bile",
+            "gloss": None,
+            "english_translation": "to bile",
+            "pos_tag": "VERB",
+            "morphology": "Mood=Imp|VerbForm=Fin",
+        },
+    )
+
+    assert added.meaning is not None
+    assert added.meaning.english_translation is None
+
+    details = use_case.get_lemma_details("bile")
+    assert details.meaning_sections[0].english_translation is None
+
+    with get_connection(db_path) as conn:
+        lexeme = conn.execute(
+            "SELECT english_translation, translation_provider FROM lexemes WHERE lemma = ?",
+            ("bile",),
+        ).fetchone()
+        meaning = conn.execute(
+            "SELECT english_translation FROM lexeme_meanings WHERE lexeme_id = (SELECT id FROM lexemes WHERE lemma = ?)",
+            ("bile",),
+        ).fetchone()
+
+    assert lexeme is not None
+    assert lexeme["english_translation"] is None
+    assert lexeme["translation_provider"] is None
+    assert meaning is not None
+    assert meaning["english_translation"] is None
+
+
 def test_wordbank_search_seed_details_preserve_merged_gram_raw_for_adjective_lemma_forms(tmp_path: Path) -> None:
     use_case = WordbankUseCase(
         _db_path(tmp_path),

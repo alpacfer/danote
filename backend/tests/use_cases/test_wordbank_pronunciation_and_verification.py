@@ -10,7 +10,7 @@ from app.db.migrations import get_connection
 from app.nlp.adapter import NLPToken
 from app.services.tts import PronunciationAudio
 from app.services.use_cases.wordbank import WordbankUseCase
-from app.services.verification import WordVerificationAction
+from app.services.verification import GeminiWordVerificationService, WordVerificationAction
 from tests.helpers.factories import _bog_homograph_cor_local, _cor_local_entry, _db_path
 from tests.helpers.fakes import (
     FakeCORLocalLexiconService,
@@ -492,6 +492,138 @@ def test_word_verification_payload_for_homograph_meaning_uses_translated_gloss_c
         (1, "mor", "person"),
         (2, "mor", "soil layer"),
     ]
+
+
+def test_word_verification_payload_preserves_imperative_metadata_for_bile_homograph_surface(tmp_path: Path) -> None:
+    verification_service = FakeVerificationService(
+        verdict="verified",
+        message="Entry is consistent.",
+    )
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_local_lexicon_service=FakeCORLocalLexiconService(
+            by_lemma_idx={
+                36439: [
+                    _cor_local_entry(
+                        cor_id="COR.36439.200.01",
+                        lemma="bile",
+                        gloss="køre i bil",
+                        form="bile",
+                        lemma_idx=36439,
+                        pos_tag="VERB",
+                        morphology="VerbForm=Inf|Voice=Act",
+                        gram_raw="vb.inf.akt",
+                    ),
+                    _cor_local_entry(
+                        cor_id="COR.36439.209.01",
+                        lemma="bile",
+                        gloss="køre i bil",
+                        form="bil",
+                        lemma_idx=36439,
+                        pos_tag="VERB",
+                        morphology="Mood=Imp|VerbForm=Fin",
+                        gram_raw="vb.imp",
+                    ),
+                ],
+            },
+        ),
+        translation_service=FakeTranslationService({"køre i bil": "go by car"}),
+        verification_service=verification_service,
+    )
+
+    added = use_case.add_word(
+        "bil",
+        "bile",
+        search_seed={
+            "lemma": "bile",
+            "surface": "bil",
+            "cor_id": "COR.36439.209.01",
+            "cor_lemma_idx": 36439,
+            "meaning_key": "bile",
+            "gloss": "køre i bil",
+            "english_translation": "to bile",
+            "pos_tag": "VERB",
+            "morphology": "Mood=Imp|VerbForm=Fin",
+        },
+    )
+
+    assert added.meaning is not None
+
+    use_case.verify_added_word("bile", "bil", meaning_id=added.meaning.id)
+
+    payload = verification_service.calls[-1]
+    bil = next(form for form in payload.available_surface_forms if form.form == "bil")
+    assert payload.selected_translation == "to bile"
+    assert payload.meaning_gloss_translation == "go by car"
+    assert payload.selected_surface_pos_tag == "VERB"
+    assert payload.selected_surface_morphology == "Mood=Imp|VerbForm=Fin"
+    assert bil.pos_tag == "VERB"
+    assert bil.morphology == "Mood=Imp|VerbForm=Fin"
+    assert bil.gram_raw == "vb.imp"
+
+
+def test_verify_added_word_flags_missing_bile_translation_from_gloss_hint(tmp_path: Path, monkeypatch) -> None:
+    verification_service = GeminiWordVerificationService(api_key="test-key")
+    monkeypatch.setattr(
+        verification_service,
+        "_generate_text",
+        lambda prompt: '{"verdict":"correct","word_count":1,"suggested_actions":[]}',
+    )
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_local_lexicon_service=FakeCORLocalLexiconService(
+            by_lemma_idx={
+                36439: [
+                    _cor_local_entry(
+                        cor_id="COR.36439.200.01",
+                        lemma="bile",
+                        gloss="køre i bil",
+                        form="bile",
+                        lemma_idx=36439,
+                        pos_tag="VERB",
+                        morphology="VerbForm=Inf|Voice=Act",
+                        gram_raw="vb.inf.akt",
+                    ),
+                    _cor_local_entry(
+                        cor_id="COR.36439.209.01",
+                        lemma="bile",
+                        gloss="køre i bil",
+                        form="bil",
+                        lemma_idx=36439,
+                        pos_tag="VERB",
+                        morphology="Mood=Imp|VerbForm=Fin",
+                        gram_raw="vb.imp",
+                    ),
+                ],
+            },
+        ),
+        translation_service=FakeTranslationService({"køre i bil": "go by car"}),
+        verification_service=verification_service,
+    )
+
+    added = use_case.add_word(
+        "bil",
+        "bile",
+        search_seed={
+            "lemma": "bile",
+            "surface": "bil",
+            "cor_id": "COR.36439.209.01",
+            "cor_lemma_idx": 36439,
+            "meaning_key": "bile",
+            "gloss": "køre i bil",
+            "english_translation": None,
+            "pos_tag": "VERB",
+            "morphology": "Mood=Imp|VerbForm=Fin",
+        },
+    )
+
+    assert added.meaning is not None
+
+    verified = use_case.verify_added_word("bile", None, meaning_id=added.meaning.id)
+
+    assert verified.verification.status == "flagged"
+    assert [action.action_type for action in verified.verification.suggested_actions] == ["fix_translation"]
+    assert verified.verification.suggested_actions[0].english_translation == "go by car"
 
 
 def test_word_verification_payload_exposes_cor_canonical_lemma_when_saved_lemma_is_inflected(tmp_path: Path) -> None:
@@ -1699,7 +1831,7 @@ def test_wordbank_use_case_applies_translation_verification_action(tmp_path: Pat
 
     response = use_case.apply_verification_changes(
         stored_lemma="bog",
-        stored_surface_form="bogen",
+        stored_surface_form=None,
         meaning_id=added.meaning.id if added.meaning else None,
         action={
             "action_type": "fix_translation",
@@ -1725,6 +1857,24 @@ def test_wordbank_use_case_applies_translation_verification_action(tmp_path: Pat
 
     assert meaning_row is not None
     assert meaning_row["english_translation"] == "book"
+
+
+def test_wordbank_use_case_rejects_surface_scoped_translation_verification_action(tmp_path: Path) -> None:
+    db_path = _db_path(tmp_path)
+    use_case = WordbankUseCase(db_path)
+    added = use_case.add_word("Bogen", "bog")
+
+    with pytest.raises(ValueError, match="surface-form verification targets"):
+        use_case.apply_verification_changes(
+            stored_lemma="bog",
+            stored_surface_form="bogen",
+            meaning_id=added.meaning.id if added.meaning else None,
+            action={
+                "action_type": "fix_translation",
+                "english_translation": "book",
+            },
+            provider="gemini",
+        )
 
 
 def test_wordbank_use_case_skips_deprecated_gloss_verification_action(tmp_path: Path) -> None:
@@ -1883,7 +2033,7 @@ def test_wordbank_use_case_logs_gemini_applied_changes(tmp_path: Path) -> None:
     use_case = WordbankUseCase(db_path, gemini_changes_log_path=log_path)
     response = use_case.apply_verification_changes(
         stored_lemma="bog",
-        stored_surface_form="bogen",
+        stored_surface_form=None,
         meaning_id=added.meaning.id if added.meaning else None,
         action={
             "action_type": "fix_translation",
@@ -1899,7 +2049,7 @@ def test_wordbank_use_case_logs_gemini_applied_changes(tmp_path: Path) -> None:
     payload = json.loads(lines[0])
     assert payload["provider"] == "gemini"
     assert payload["stored_lemma"] == "bog"
-    assert payload["stored_surface_form"] == "bogen"
+    assert payload["stored_surface_form"] is None
     assert payload["action"]["english_translation"] == "Book"
     assert payload["action_type"] == "fix_translation"
     assert "timestamp_utc" in payload

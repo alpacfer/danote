@@ -356,6 +356,8 @@ class VerificationCollaborator:
         meaning_id: int | None,
         action: dict[str, object],
     ) -> None:
+        if stored_surface_form is not None and action.get("action_type") == "fix_translation":
+            raise ValueError("fix_translation cannot be applied for surface-form verification targets.")
         repository = WordbankRepository(self._db_path)
         lexeme = repository.get_lexeme(stored_lemma)
         if lexeme is None:

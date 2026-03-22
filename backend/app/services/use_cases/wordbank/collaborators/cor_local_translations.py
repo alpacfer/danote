@@ -15,6 +15,23 @@ from app.services.use_cases.wordbank.collaborators.translation import Translatio
 
 logger = logging.getLogger(__name__)
 
+_SELF_TRANSLATION_HELPER_PREFIXES = {
+    "a",
+    "an",
+    "and",
+    "at",
+    "by",
+    "for",
+    "from",
+    "in",
+    "of",
+    "on",
+    "that",
+    "the",
+    "to",
+    "with",
+}
+
 ContextualCacheKey = tuple[str, str, str | None, str | None, str | None, str | None, str | None]
 WordFrameCacheKey = WordTranslationFrame
 AzureFrameCacheKey = WordFrameCacheKey
@@ -133,7 +150,10 @@ def lookup_translation_for_cor_local_entry(
                 contextual_translation=contextual_formatted,
                 provider_translation=cleaned_translation,
             )
-    return _format_lemma_translation(entry, cleaned_translation)
+    provider_formatted = _format_lemma_translation(entry, cleaned_translation)
+    if _should_suppress_self_translation(entry, provider_formatted):
+        return None
+    return provider_formatted
 
 
 def lemma_translation_for_entry(
@@ -324,21 +344,15 @@ def _should_use_gemini_for_lemma(
     normalized_gloss = normalize_token(entry.gloss or "")
     if normalized_gloss:
         return True
-    normalized_lemma = normalize_token(entry.lemma)
-    normalized_frame = normalize_token(frame.text)
-    normalized_translation = normalize_token(provider_translation or "")
-    if (
-        entry.pos_tag == "VERB"
-        and normalized_lemma
-        and normalized_translation == f"to {normalized_lemma}"
-    ):
-        return True
+    comparable_lemma = _content_translation_key(entry.lemma)
+    comparable_frame = _content_translation_key(frame.text)
+    comparable_translation = _content_translation_key(provider_translation)
     return bool(
-        (normalized_lemma and normalized_translation and normalized_lemma == normalized_translation)
+        (comparable_lemma and comparable_translation and comparable_lemma == comparable_translation)
         or (
-            normalized_frame
-            and normalized_translation
-            and normalized_frame == normalized_translation
+            comparable_frame
+            and comparable_translation
+            and comparable_frame == comparable_translation
         )
     )
 
@@ -365,8 +379,29 @@ def _resolve_contextual_lemma_translation(
         return None
     normalized_lemma = normalize_token(entry.lemma)
     if entry.pos_tag != "VERB" and normalized_lemma and normalized_contextual == normalized_lemma:
-        return normalize_token(provider_translation or "") or None
+        fallback = normalize_token(provider_translation or "") or None
+        if _should_suppress_self_translation(entry, fallback):
+            return None
+        return fallback
     return normalized_contextual
+
+
+def _should_suppress_self_translation(entry: CORLocalEntry, translation: str | None) -> bool:
+    comparable_translation = _content_translation_key(translation)
+    comparable_lemma = _content_translation_key(entry.lemma)
+    if not comparable_translation or not comparable_lemma:
+        return False
+    return comparable_translation == comparable_lemma
+
+
+def _content_translation_key(value: str | None) -> str:
+    normalized = normalize_token(value or "")
+    if not normalized:
+        return ""
+    tokens = normalized.split(" ")
+    while tokens and tokens[0] in _SELF_TRANSLATION_HELPER_PREFIXES:
+        tokens = tokens[1:]
+    return " ".join(tokens)
 
 
 def _require_azure_translation(translation: TranslationCollaborator) -> None:

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from app.api.schemas.v1.wordbank import AddWordResponse, MeaningContext, VerificationResult
-from app.core.errors import ConflictError
 from app.services.token_classifier import normalize_token
 from app.services.use_cases.wordbank.meaning_sections import ensure_wordbank_meaning_compatibility
 from app.services.use_cases.wordbank.pronunciation_queue import queue_pronunciation_generation
@@ -15,13 +14,6 @@ from app.services.use_cases.wordbank.verification_targets import (
     discover_word_page_verification_targets,
     queue_verification_targets,
 )
-
-
-def _normalize_space(value: str | None) -> str:
-    if not isinstance(value, str):
-        return ""
-    return " ".join(value.strip().split())
-
 
 def add_word_from_search_seed(
     runtime: WordbankRuntime,
@@ -38,8 +30,6 @@ def add_word_from_search_seed(
         raise ValueError("search_seed.surface must match surface_token")
     if normalized_lemma != seed.lemma:
         raise ValueError("search_seed.lemma must match lemma_candidate")
-    if not _normalize_space(seed.english_translation):
-        raise ConflictError("Search save is unavailable until translation finishes generating.")
 
     persist_result = persist_search_seed_surface_form(runtime, seed=seed)
     verification = runtime.verification.queued_verification_result(

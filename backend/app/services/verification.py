@@ -5,14 +5,26 @@ import json
 import time
 from typing import Literal, Protocol
 
-from app.services.verification_paradigm_slots import build_completion_review_paradigm_slot_context
+from app.services.verification_paradigm_slots import (
+    build_completion_review_paradigm_slot_context,
+    build_paradigm_slot_context,
+)
 from app.services.verification_prompt_templates import (
     build_word_category_prompt,
     build_word_verification_prompt,
 )
 from app.services.verification_review_policy import (
+    action_type_allowed,
+    allowed_general_action_types,
+    is_surface_form_review,
     looks_like_danish_self_translation,
+    should_backfill_translation_from_gloss_hint,
+    should_discard_move_to_lemma_action,
+    should_force_translation_fix_from_gloss_hint,
+    should_ignore_morphology_supported_move_review,
+    should_ignore_surface_translation_review,
     should_ignore_variation_only_review,
+    should_expose_translation_hint,
 )
 from app.services.verification_support import (
     category_surface_forms,
@@ -185,9 +197,37 @@ class GeminiWordVerificationService:
         )
         raw_suggested_actions = parsed.get("suggested_actions")
         suggested_actions = tuple(self._parse_suggested_actions(raw_suggested_actions, payload))
+        if should_backfill_translation_from_gloss_hint(
+            payload=payload,
+            raw_suggested_actions=raw_suggested_actions,
+            suggested_actions=suggested_actions,
+        ):
+            suggested_actions = (self._gloss_hint_translation_action(payload),)
+
+        force_translation_fix = should_force_translation_fix_from_gloss_hint(
+            payload=payload,
+            suggested_actions=suggested_actions,
+        )
+        if force_translation_fix:
+            suggested_actions = (self._gloss_hint_translation_action(payload),)
+        if suggested_actions and suggested_actions[0].action_type == "fix_translation":
+            if not problem:
+                problem = "The English translation does not match the saved meaning."
+            if not change_to_implement:
+                change_to_implement = "Set the translation to the saved meaning."
 
         if verdict == "incorrect":
             if should_ignore_variation_only_review(
+                payload=payload,
+                raw_suggested_actions=raw_suggested_actions,
+                suggested_actions=suggested_actions,
+            ) or should_ignore_surface_translation_review(
+                payload=payload,
+                raw_suggested_actions=raw_suggested_actions,
+                suggested_actions=suggested_actions,
+                problem=problem,
+                change_to_implement=change_to_implement,
+            ) or should_ignore_morphology_supported_move_review(
                 payload=payload,
                 raw_suggested_actions=raw_suggested_actions,
                 suggested_actions=suggested_actions,
@@ -206,6 +246,15 @@ class GeminiWordVerificationService:
                     change_to_implement
                     or "Apply the matching structured fix."
                 ),
+                suggested_actions=suggested_actions,
+            )
+        if force_translation_fix:
+            return WordVerificationResult(
+                verdict="flagged",
+                message="Review needed",
+                composed_word_count=word_count,
+                problem=problem or "The English translation does not match the saved meaning.",
+                change_to_implement=change_to_implement or "Set the translation to the saved meaning.",
                 suggested_actions=suggested_actions,
             )
         return WordVerificationResult(
@@ -228,6 +277,8 @@ class GeminiWordVerificationService:
         return build_word_verification_prompt(
             entry=entry,
             completion_review=payload.review_intent == "complete_variations",
+            surface_form_review=is_surface_form_review(payload),
+            allowed_action_types=allowed_general_action_types(payload),
         )
 
     def _category_prompt(self, payload: WordVerificationInput) -> str:
@@ -235,6 +286,7 @@ class GeminiWordVerificationService:
         return build_word_category_prompt(entry=entry)
 
     def _verification_context(self, payload: WordVerificationInput) -> dict[str, object]:
+        paradigm_slot_surface_forms = build_paradigm_slot_context(payload)
         return {
             "current_entry": {
                 "review_intent": payload.review_intent,
@@ -256,6 +308,12 @@ class GeminiWordVerificationService:
                 "selected_meaning_morphology": payload.selected_meaning_morphology,
                 "selected_surface_pos_tag": payload.selected_surface_pos_tag,
                 "selected_surface_morphology": payload.selected_surface_morphology,
+                "selected_surface_gram_raw": self._selected_surface_gram_raw(payload),
+                "translation_hint": (
+                    payload.meaning_gloss_translation
+                    if should_expose_translation_hint(payload)
+                    else None
+                ),
             },
             "available_meaning_sections": [
                 {
@@ -272,12 +330,16 @@ class GeminiWordVerificationService:
                     "form": form.form,
                     "meaning_id": form.meaning_id,
                     "meaning_key": form.meaning_key,
+                    "gloss": form.gloss,
                     "gloss_translation": form.gloss_translation,
+                    "english_translation": form.english_translation,
                     "pos_tag": form.pos_tag,
                     "morphology": form.morphology,
+                    "gram_raw": form.gram_raw,
                 }
                 for form in verification_surface_forms(payload)
             ],
+            "paradigm_slot_surface_forms": paradigm_slot_surface_forms,
             "noun_slot_surface_forms": build_completion_review_paradigm_slot_context(payload)
             if payload.review_intent == "complete_variations"
             else {},
@@ -446,6 +508,8 @@ class GeminiWordVerificationService:
             "move_to_lemma",
         }:
             return None
+        if not action_type_allowed(payload=payload, action_type=normalized_type):
+            return None
 
         reason = optional_clean_str(raw.get("reason"))
         if normalized_type == "fix_variations":
@@ -524,6 +588,11 @@ class GeminiWordVerificationService:
         target_meaning_key = optional_clean_str(raw.get("target_meaning_key"))
         if not target_lemma or not target_meaning_key:
             return None
+        if should_discard_move_to_lemma_action(
+            payload=payload,
+            target_lemma=target_lemma,
+        ):
+            return None
         return WordVerificationAction(
             action_type="move_to_lemma",
             reason=reason,
@@ -539,6 +608,24 @@ class GeminiWordVerificationService:
         source_text = payload.stored_surface_form or payload.stored_lemma
         parts = [part for part in source_text.split() if part]
         return max(1, len(parts))
+
+    def _selected_surface_gram_raw(self, payload: WordVerificationInput) -> str | None:
+        if not payload.stored_surface_form:
+            return None
+        for form in payload.available_surface_forms:
+            if (
+                form.form == payload.stored_surface_form
+                and form.meaning_id == payload.meaning_id
+            ):
+                return form.gram_raw
+        return None
+
+    def _gloss_hint_translation_action(self, payload: WordVerificationInput) -> WordVerificationAction:
+        return WordVerificationAction(
+            action_type="fix_translation",
+            reason="Use the saved meaning's translated gloss.",
+            english_translation=payload.meaning_gloss_translation,
+        )
 
     def _generate_text(self, prompt: str) -> str | None:
         attempts = self.max_retries + 1

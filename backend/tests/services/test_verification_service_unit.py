@@ -197,6 +197,47 @@ def _verb_payload(
     )
 
 
+def _bile_payload(
+    *,
+    stored_surface_form: str | None = None,
+    selected_translation: str | None = None,
+) -> WordVerificationInput:
+    return WordVerificationInput(
+        stored_lemma="bile",
+        stored_surface_form=stored_surface_form,
+        meaning_id=10,
+        meaning_key="bile",
+        meaning_gloss="køre i bil",
+        meaning_gloss_translation="go by car",
+        lexeme_source="search",
+        selected_translation=selected_translation,
+        selected_translation_scope="meaning_section" if selected_translation else None,
+        surface_source="search" if stored_surface_form else None,
+        canonical_lemma="bile",
+        canonical_lemma_pos_tag="VERB",
+        canonical_lemma_morphology="VerbForm=Inf|Voice=Act",
+        selected_meaning_pos_tag="VERB",
+        selected_meaning_morphology="VerbForm=Inf|Voice=Act",
+        selected_surface_pos_tag="VERB" if stored_surface_form else None,
+        selected_surface_morphology="Mood=Imp|VerbForm=Fin" if stored_surface_form else None,
+        sibling_meaning_sections=(),
+        available_surface_forms=(
+            WordVerificationSurfaceForm(
+                form="bil",
+                meaning_id=10,
+                meaning_key="bile",
+                gloss="køre i bil",
+                gloss_translation="go by car",
+                english_translation=None,
+                pos_tag="VERB",
+                morphology="Mood=Imp|VerbForm=Fin",
+                source="search",
+                gram_raw="vb.imp",
+            ),
+        ),
+    )
+
+
 def test_gemini_verification_service_keeps_only_supported_actions(monkeypatch) -> None:
     service = GeminiWordVerificationService(api_key="test-key")
     monkeypatch.setattr(
@@ -285,6 +326,62 @@ def test_gemini_verification_service_discards_danish_self_translation_actions(mo
     assert result.suggested_actions == ()
 
 
+def test_gemini_verification_service_allows_fix_translation_for_meaning_reviews(monkeypatch) -> None:
+    service = GeminiWordVerificationService(api_key="test-key")
+    monkeypatch.setattr(
+        service,
+        "_generate_text",
+        lambda prompt: (
+            '{"verdict":"incorrect","word_count":1,"problem":"translation mismatch","change_to_implement":"set translation",'
+            '"suggested_actions":['
+            '{"action_type":"fix_translation","english_translation":"mother","reason":"use the noun translation"}'
+            ']}'
+        ),
+    )
+
+    result = service.verify_word_entry(_mor_payload())
+
+    assert result.verdict == "flagged"
+    assert [action.action_type for action in result.suggested_actions] == ["fix_translation"]
+    assert result.suggested_actions[0].english_translation == "mother"
+
+
+def test_gemini_verification_service_discards_fix_translation_for_surface_reviews(monkeypatch) -> None:
+    service = GeminiWordVerificationService(api_key="test-key")
+    monkeypatch.setattr(
+        service,
+        "_generate_text",
+        lambda prompt: (
+            '{"verdict":"incorrect","word_count":1,"problem":"translation mismatch","change_to_implement":"set translation",'
+            '"suggested_actions":['
+            '{"action_type":"fix_translation","english_translation":"book","reason":"ignored"}'
+            ']}'
+        ),
+    )
+
+    result = service.verify_word_entry(_payload())
+
+    assert result.verdict == "verified"
+    assert result.suggested_actions == ()
+
+
+def test_gemini_verification_service_ignores_surface_translation_only_prose(monkeypatch) -> None:
+    service = GeminiWordVerificationService(api_key="test-key")
+    monkeypatch.setattr(
+        service,
+        "_generate_text",
+        lambda prompt: (
+            '{"verdict":"incorrect","word_count":1,"problem":"Translation is wrong.","change_to_implement":"Set translation to book.",'
+            '"suggested_actions":[]}'
+        ),
+    )
+
+    result = service.verify_word_entry(_payload())
+
+    assert result.verdict == "verified"
+    assert result.suggested_actions == ()
+
+
 def test_gemini_verification_prompt_matches_wordbank_translation_model() -> None:
     service = GeminiWordVerificationService(api_key="test-key")
 
@@ -303,6 +400,8 @@ def test_gemini_verification_prompt_matches_wordbank_translation_model() -> None
     assert "available_categories" not in prompt
     assert "current_categories" not in prompt
     assert "relevant_surface_forms" in prompt
+    assert "paradigm_slot_surface_forms" in prompt
+    assert '"gram_raw": null' in prompt
     assert '"canonical_lemma": "bog"' in prompt
     assert '"gloss": "book"' in prompt
     assert '"morphology": "Definite=Def|Number=Sing"' in prompt
@@ -310,9 +409,82 @@ def test_gemini_verification_prompt_matches_wordbank_translation_model() -> None
     assert "Do not require missing paradigm forms" in prompt
     assert "Variation completeness is handled only by the Complete variations workflow" in prompt
     assert "fix_variations" not in prompt
+    assert "Do not suggest translation fixes for this scope" in prompt
+    assert "Homographs are common" in prompt
+    assert '{"action_type":"fix_translation"' not in prompt
     assert "available_categories" in category_prompt
     assert "current_categories" in category_prompt
     assert "relevant_surface_forms" in category_prompt
+
+
+def test_gemini_meaning_review_prompt_keeps_translation_actions_available() -> None:
+    service = GeminiWordVerificationService(api_key="test-key")
+
+    prompt = service._verification_prompt(_bile_payload(selected_translation="to bile"))
+
+    assert "Translation fixes may apply only at this scope" in prompt
+    assert '{"action_type":"fix_translation"' in prompt
+    assert '{"action_type":"move_to_meaning_section"' not in prompt
+    assert '"translation_hint": "go by car"' in prompt
+    assert '"gram_raw": "vb.imp"' in prompt
+
+
+def test_gemini_verification_service_discards_move_to_lemma_for_supported_imperative_surface_reviews(monkeypatch) -> None:
+    service = GeminiWordVerificationService(api_key="test-key")
+    monkeypatch.setattr(
+        service,
+        "_generate_text",
+        lambda prompt: (
+            '{"verdict":"incorrect","word_count":1,"problem":"noun mismatch","change_to_implement":"move the entry",'
+            '"suggested_actions":['
+            '{"action_type":"move_to_lemma","target_lemma":"bil","target_meaning_key":"car","reason":"homograph confusion"}'
+            ']}'
+        ),
+    )
+
+    result = service.verify_word_entry(_bile_payload(stored_surface_form="bil"))
+
+    assert result.verdict == "verified"
+    assert result.suggested_actions == ()
+
+
+def test_gemini_verification_service_backfills_translation_when_move_to_lemma_conflicts_with_supported_paradigm(
+    monkeypatch,
+) -> None:
+    service = GeminiWordVerificationService(api_key="test-key")
+    monkeypatch.setattr(
+        service,
+        "_generate_text",
+        lambda prompt: (
+            '{"verdict":"incorrect","word_count":1,"problem":"move to noun lemma","change_to_implement":"move bile to bil",'
+            '"suggested_actions":['
+            '{"action_type":"move_to_lemma","target_lemma":"bil","target_meaning_key":"car","reason":"homograph confusion"}'
+            ']}'
+        ),
+    )
+
+    result = service.verify_word_entry(_bile_payload())
+
+    assert result.verdict == "flagged"
+    assert [action.action_type for action in result.suggested_actions] == ["fix_translation"]
+    assert result.suggested_actions[0].english_translation == "go by car"
+
+
+def test_gemini_verification_service_flags_missing_meaning_translation_from_gloss_hint_even_when_provider_says_ok(
+    monkeypatch,
+) -> None:
+    service = GeminiWordVerificationService(api_key="test-key")
+    monkeypatch.setattr(
+        service,
+        "_generate_text",
+        lambda prompt: '{"verdict":"correct","word_count":1,"suggested_actions":[]}',
+    )
+
+    result = service.verify_word_entry(_bile_payload())
+
+    assert result.verdict == "flagged"
+    assert [action.action_type for action in result.suggested_actions] == ["fix_translation"]
+    assert result.suggested_actions[0].english_translation == "go by car"
 
 
 def test_gemini_verification_prompt_includes_canonical_lemma_mismatch_context() -> None:

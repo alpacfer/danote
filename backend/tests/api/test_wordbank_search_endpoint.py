@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 
 from app.core.app_state import set_service_field
+from app.services.cor_local import CORLocalEntry
 from app.db.migrations import apply_migrations
 from app.main import create_app
 from tests.api.support import build_api_test_app
@@ -11,6 +12,11 @@ from tests.api.wordbank_test_support import (
     seed_cor_local_bog_senses,
     seed_cor_local_db,
     seed_cor_local_word_page_gloss_cases,
+)
+from tests.helpers.fakes import (
+    FakeCORLocalLexiconService,
+    FakeGeminiWordTranslationService,
+    FakeTranslationService,
 )
 
 
@@ -196,6 +202,85 @@ def test_search_cor_form_returns_grouped_variants(tmp_path, stub_nlp_adapter_fac
     by_key = {(item["lemma"], item["pos_tag"]): item for item in payload["groups"]}
     assert by_key[("lærer", "NOUN")]["gloss"] == "teacher"
     assert by_key[("lære", "VERB")]["gloss"] == "learn"
+
+
+def test_search_cor_form_hides_self_translation_until_gemini_has_real_translation(
+    tmp_path,
+    stub_nlp_adapter_factory,
+) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    app = build_api_test_app(db_path, nlp_adapter_factory=stub_nlp_adapter_factory)
+
+    with TestClient(app) as client:
+        set_service_field(
+            client.app,
+            "cor_local_lexicon_service",
+            FakeCORLocalLexiconService(
+                by_form={
+                    "bil": [
+                        CORLocalEntry(
+                            cor_id="COR.36439.209.01",
+                            lemma="bile",
+                            gloss="køre i bil",
+                            gram_raw="vb.imp",
+                            form="bil",
+                            norm="N",
+                            lemma_idx=36439,
+                            gram_code=209,
+                            variation=1,
+                            pos_tag="VERB",
+                            morphology="Mood=Imp|VerbForm=Fin",
+                            features={"Mood": "Imp", "VerbForm": "Fin"},
+                            extra_tags=[],
+                        ),
+                    ]
+                }
+            ),
+        )
+        set_service_field(
+            client.app,
+            "translation_service",
+            FakeTranslationService({"at bile": "to bile", "køre i bil": "go by car"}),
+        )
+        set_service_field(
+            client.app,
+            "gemini_word_translation_service",
+            FakeGeminiWordTranslationService(
+                {("bil", "bile", "køre i bil"): None},
+                batch_overrides={("bil", "bile", "køre i bil"): None},
+            ),
+        )
+
+        response = client.get("/api/wordbank/search/cor-form", params={"form": "bil"})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["groups"] == [
+        {
+            "lemma": "bile",
+            "gloss": "køre i bil",
+            "pos_tag": "VERB",
+            "variants": [
+                {
+                    "cor_id": "COR.36439.209.01",
+                    "form": "bil",
+                    "lemma": "bile",
+                    "gloss": "køre i bil",
+                    "gloss_translation": "go by car",
+                    "lemma_translation": None,
+                    "gram_raw": "vb.imp",
+                    "norm": "N",
+                    "lemma_idx": 36439,
+                    "gram_code": 209,
+                    "variation": 1,
+                    "pos_tag": "VERB",
+                    "morphology": "Mood=Imp|VerbForm=Fin",
+                    "features": {"Mood": "Imp", "VerbForm": "Fin"},
+                    "extra_tags": [],
+                }
+            ],
+        }
+    ]
 
 
 def test_search_cor_lemma_returns_paradigm_forms(tmp_path, stub_nlp_adapter_factory) -> None:

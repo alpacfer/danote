@@ -66,7 +66,7 @@ def test_apply_verification_changes_endpoint_updates_word_fields(tmp_path, stub_
             "/api/wordbank/lexemes/apply-verification-changes",
             json={
                 "stored_lemma": "bog",
-                "stored_surface_form": "bogen",
+                "stored_surface_form": None,
                 "meaning_id": meaning_id,
                 "provider": "gemini",
                 "action": {
