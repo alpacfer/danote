@@ -1,25 +1,26 @@
+import type { ReactNode } from "react"
+
 import type { VerificationOverview, VerificationTargetView } from "@/app/core"
 import {
   getVerificationViewState,
+  groupVerificationTargets,
+  latestVerifiedTimestamp,
+  verificationActionButtonLabel,
   verificationActionSummary,
-  verificationActionTitle,
   verificationBadgeLabel,
   verificationBadgeVariant,
-  verificationCountsSummary,
-  verificationHeadline,
-  verificationProgressLabel,
+  verificationReviewPrimaryCopy,
+  verificationReviewSupportingCopy,
   verificationSummary,
-  verificationTargetState,
-  verificationTargetSummary,
   verificationTargetTimestampMeta,
   verificationTriggerLabel,
   type WordbankVerificationViewState,
 } from "@/app/sections/wordbank/wordbank-verification-view"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { ButtonGroup } from "@/components/ui/button-group"
 import { Card, CardContent } from "@/components/ui/card"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { Spinner } from "@/components/ui/spinner"
 import { BadgeCheck, CircleAlert, Info } from "lucide-react"
@@ -43,6 +44,11 @@ export function WordbankVerificationPopover({
 }: WordbankVerificationPopoverProps) {
   const viewState = getVerificationViewState(verificationOverview)
   const providerLabel = verificationOverview.targets.find((target) => target.verification?.provider)?.verification?.provider ?? "gemini"
+  const { reviewTargets, queuedTargets, verifiedTargets } = groupVerificationTargets(verificationOverview)
+  const latestVerifiedAt = latestVerifiedTimestamp(verifiedTargets)
+  const verifiedSummary = verifiedTargets.length === verificationOverview.targets.length && verifiedTargets.length > 0
+    ? "All visible targets look correct."
+    : `${verifiedTargets.length} checked ${verifiedTargets.length === 1 ? "item" : "items"}.`
 
   return (
     <Popover onOpenChange={onOpenChange}>
@@ -60,64 +66,109 @@ export function WordbankVerificationPopover({
           ) : null}
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="h-[32rem] max-h-[70vh] w-[28rem] overflow-y-auto overscroll-contain space-y-3">
-        <div className="space-y-1">
+      <PopoverContent
+        align="end"
+        data-testid="wordbank-verification-popover"
+        className="flex max-h-[min(70vh,var(--radix-popover-content-available-height))] w-[28rem] max-w-[calc(100vw-1rem)] flex-col overflow-hidden p-0"
+      >
+        <div className="space-y-1 border-b px-4 py-3">
           <div className="flex items-center justify-between gap-2">
             <p className="text-sm font-semibold">Verification</p>
             <Badge variant={verificationBadgeVariant(viewState)}>{verificationBadgeLabel(viewState)}</Badge>
           </div>
-          <p className="text-muted-foreground text-xs">Provider: {providerLabel}</p>
+          <p className="text-muted-foreground text-sm">{verificationSummary(verificationOverview, viewState)}</p>
         </div>
+        <ScrollArea
+          data-testid="wordbank-verification-scroll-area"
+          className="min-h-0 flex-1 overscroll-contain"
+        >
+          <div className="space-y-3 px-4 py-3">
+            {verificationOverview.targets.length > 0 ? (
+              <>
+                {reviewTargets.length > 0 ? (
+                  <VerificationSection label="Needs review" count={reviewTargets.length}>
+                    {reviewTargets.map((target) => (
+                      <VerificationReviewRow
+                        key={target.key}
+                        target={target}
+                        isApplyingVerificationChanges={isApplyingVerificationChanges}
+                        isRetryingVerification={isRetryingVerification}
+                        onApplyVerificationAction={onApplyVerificationAction}
+                        onRetryVerificationTarget={onRetryVerificationTarget}
+                      />
+                    ))}
+                  </VerificationSection>
+                ) : null}
 
-        <Card className="gap-3 py-3 shadow-none">
-          <CardContent className="space-y-3 px-3">
-            <div className="flex items-start gap-2">
-              <VerificationStateIcon state={viewState} className="mt-0.5 size-4 shrink-0" />
-              <div className="space-y-1">
-                <p className="text-sm font-medium">{verificationHeadline(viewState)}</p>
-                <p className="text-muted-foreground text-sm">
-                  {verificationSummary(verificationOverview, viewState)}
-                </p>
-              </div>
-            </div>
-            <Separator />
-            <div className="space-y-2 text-sm">
-              <VerificationMetaRow
-                label="Progress"
-                value={verificationProgressLabel(verificationOverview, viewState)}
-              />
-              <VerificationMetaRow
-                label="Targets"
-                value={verificationCountsSummary(verificationOverview)}
-              />
-            </div>
-          </CardContent>
-        </Card>
+                {queuedTargets.length > 0 ? (
+                  <VerificationSection label="In progress" count={queuedTargets.length}>
+                    {queuedTargets.map((target) => (
+                      <VerificationQueuedRow key={target.key} target={target} />
+                    ))}
+                  </VerificationSection>
+                ) : null}
 
-        {verificationOverview.targets.length > 0 ? (
-          <div className="space-y-2">
-            {verificationOverview.targets.map((target) => (
-              <VerificationTargetCard
-                key={target.key}
-                target={target}
-                isApplyingVerificationChanges={isApplyingVerificationChanges}
-                isRetryingVerification={isRetryingVerification}
-                onApplyVerificationAction={onApplyVerificationAction}
-                onRetryVerificationTarget={onRetryVerificationTarget}
-              />
-            ))}
+                {verifiedTargets.length > 0 ? (
+                  <VerificationSection label="Checked" count={verifiedTargets.length}>
+                    <Card className="gap-0 py-0 shadow-none">
+                      <CardContent className="space-y-2 px-3 py-3">
+                        <div className="flex items-start gap-2">
+                          <VerificationStateIcon state="verified" className="mt-0.5 size-4 shrink-0" />
+                          <div className="space-y-1">
+                            <p className="text-sm font-medium">{verifiedSummary}</p>
+                            {latestVerifiedAt ? (
+                              <p className="text-muted-foreground text-xs">Last checked {latestVerifiedAt}</p>
+                            ) : null}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </VerificationSection>
+                ) : null}
+              </>
+            ) : (
+              <p className="text-muted-foreground text-sm">
+                Verification details, progress, and suggested changes will appear here after Gemini processes this word page.
+              </p>
+            )}
+
+            {verificationOverview.targets.length > 0 ? (
+              <>
+                <Separator />
+                <p className="text-muted-foreground text-xs">Provider: {providerLabel}</p>
+              </>
+            ) : null}
           </div>
-        ) : (
-          <p className="text-muted-foreground text-sm">
-            Verification details, progress, and suggested changes will appear here after Gemini processes this word page.
-          </p>
-        )}
+        </ScrollArea>
       </PopoverContent>
     </Popover>
   )
 }
 
-function VerificationTargetCard({
+function VerificationSection({
+  label,
+  count,
+  children,
+}: {
+  label: string
+  count: number
+  children: ReactNode
+}) {
+  return (
+    <section
+      data-testid={`wordbank-verification-section-${label.toLocaleLowerCase("en-US").replace(/\s+/g, "-")}`}
+      className="space-y-2"
+    >
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-muted-foreground text-[11px] font-semibold tracking-wide uppercase">{label}</p>
+        <p className="text-muted-foreground text-xs">{count}</p>
+      </div>
+      <div className="space-y-2">{children}</div>
+    </section>
+  )
+}
+
+function VerificationReviewRow({
   target,
   isApplyingVerificationChanges,
   isRetryingVerification,
@@ -130,82 +181,80 @@ function VerificationTargetCard({
   onApplyVerificationAction: (targetKey: string, actionIndex: number) => void
   onRetryVerificationTarget: (targetKey: string) => void
 }) {
-  const state = verificationTargetState(target)
   const timestampMeta = verificationTargetTimestampMeta(target)
+  const supportingCopy = verificationReviewSupportingCopy(target)
 
   return (
-    <Card className="gap-3 py-3 shadow-none">
-      <CardContent className="space-y-3 px-3">
+    <Card className="gap-0 py-0 shadow-none">
+      <CardContent className="space-y-3 px-3 py-3">
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-1">
             <p className="text-sm font-medium">{target.label}</p>
             <p className="text-muted-foreground text-xs">{target.scopeLabel}</p>
           </div>
-          <Badge variant={verificationBadgeVariant(state)}>{verificationBadgeLabel(state)}</Badge>
+          <Badge variant={verificationBadgeVariant("review")}>{verificationBadgeLabel("review")}</Badge>
         </div>
-        <p className="text-muted-foreground text-sm">{verificationTargetSummary(target)}</p>
-        <div className="space-y-2 text-sm">
-          <VerificationMetaRow label="Progress" value={verificationBadgeLabel(state)} />
-          <VerificationMetaRow label={timestampMeta.label} value={timestampMeta.value} />
-        </div>
+        <p className="text-sm">{verificationReviewPrimaryCopy(target)}</p>
+        {supportingCopy ? <p className="text-muted-foreground text-sm">{supportingCopy}</p> : null}
+        <p className="text-muted-foreground text-xs">{timestampMeta.label}: {timestampMeta.value}</p>
         {target.errorDetail ? (
           <>
-            <Separator />
-            <div className="space-y-1">
-              <p className="text-muted-foreground text-[11px] font-semibold tracking-wide uppercase">Problem</p>
-              <p className="text-sm">{target.errorDetail.problem}</p>
-            </div>
-            <div className="space-y-1">
-              <p className="text-muted-foreground text-[11px] font-semibold tracking-wide uppercase">Change to implement</p>
-              <p className="text-sm">{target.errorDetail.changeToImplement}</p>
-            </div>
             {target.errorDetail.suggestedActions.length > 0 ? (
               <div className="space-y-2">
-                <p className="text-muted-foreground text-[11px] font-semibold tracking-wide uppercase">Apply changes</p>
                 {target.errorDetail.suggestedActions.map((action, index) => (
-                  <Card key={`${target.key}-${action.action_type}-${index}`} className="gap-3 py-3 shadow-none">
-                    <CardContent className="space-y-3 px-3">
-                      <div className="space-y-1">
-                        <p className="text-sm font-medium">{verificationActionTitle(action)}</p>
-                        <p className="text-muted-foreground text-xs">
-                          {action.reason?.trim() || verificationActionSummary(action)}
-                        </p>
-                        {!action.reason?.trim() ? null : (
-                          <p className="text-sm">{verificationActionSummary(action)}</p>
-                        )}
-                      </div>
-                      <ButtonGroup>
-                        <Button
-                          type="button"
-                          size="sm"
-                          className="w-full"
-                          disabled={isApplyingVerificationChanges}
-                          onClick={() => onApplyVerificationAction(target.key, index)}
-                        >
-                          {isApplyingVerificationChanges ? "Applying..." : "Apply change"}
-                        </Button>
-                      </ButtonGroup>
-                    </CardContent>
-                  </Card>
+                  <div
+                    key={`${target.key}-${action.action_type}-${index}`}
+                    className="rounded-lg border border-border/70 px-3 py-2"
+                  >
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <p className="text-muted-foreground text-sm">{verificationActionSummary(action)}</p>
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="sm:shrink-0"
+                        disabled={isApplyingVerificationChanges}
+                        onClick={() => onApplyVerificationAction(target.key, index)}
+                      >
+                        {isApplyingVerificationChanges ? "Applying..." : verificationActionButtonLabel(action)}
+                      </Button>
+                    </div>
+                  </div>
                 ))}
               </div>
             ) : null}
             {target.errorDetail.status === "error" ? (
-              <ButtonGroup>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className="w-full"
-                  disabled={isRetryingVerification}
-                  onClick={() => onRetryVerificationTarget(target.key)}
-                >
-                  {isRetryingVerification ? "Retrying..." : "Retry verification"}
-                </Button>
-              </ButtonGroup>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={isRetryingVerification}
+                onClick={() => onRetryVerificationTarget(target.key)}
+              >
+                {isRetryingVerification ? "Retrying..." : "Retry verification"}
+              </Button>
             ) : null}
           </>
         ) : null}
+      </CardContent>
+    </Card>
+  )
+}
+
+function VerificationQueuedRow({ target }: { target: VerificationTargetView }) {
+  const timestampMeta = verificationTargetTimestampMeta(target)
+
+  return (
+    <Card className="gap-0 py-0 shadow-none">
+      <CardContent className="space-y-2 px-3 py-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-1">
+            <p className="text-sm font-medium">{target.label}</p>
+            <p className="text-muted-foreground text-xs">{target.scopeLabel}</p>
+          </div>
+          <Badge variant={verificationBadgeVariant("queued")}>{verificationBadgeLabel("queued")}</Badge>
+        </div>
+        <p className="text-muted-foreground text-sm">Gemini is still processing this target.</p>
+        <p className="text-muted-foreground text-xs">{timestampMeta.label}: {timestampMeta.value}</p>
       </CardContent>
     </Card>
   )
@@ -228,13 +277,4 @@ function VerificationStateIcon({
     return <CircleAlert className={className} />
   }
   return <Info className={className} />
-}
-
-function VerificationMetaRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between gap-3">
-      <p className="text-muted-foreground text-[11px] font-semibold tracking-wide uppercase">{label}</p>
-      <p className="text-right text-sm">{value}</p>
-    </div>
-  )
 }

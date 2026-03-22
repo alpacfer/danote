@@ -138,21 +138,29 @@ Meaning auto-scroll behavior:
 - **Verification popover**:
   - is the single surface for verification status/details; the old standalone status line and success/queued badges are not rendered anymore
   - opening the popover marks only the currently visible verification targets as read in the app notification center
-  - uses a fixed-height scrollable content area so long verification histories and action lists stay contained
-  - includes provider metadata, an aggregated progress/status summary card, and state counts for all rendered targets
-  - renders one target card per visible verification target in word-page order:
-    - non-sectioned page: lemma/root target plus each non-lemma variation target that has verification data
-    - sectioned page: each meaning-section target plus each verified/queued/reviewable variation target inside that meaning
-  - queued target cards show verification-in-progress copy and requested time
-  - verified target cards show completion copy and verified time
-  - error/flagged target cards show reviewed time, problem, change-to-implement text, and action cards inline on that target
-  - error target cards also expose `Retry verification`, which queues that exact target again through the backend queue-only endpoint and keeps the page in polling mode until the refreshed run finishes
+  - uses adaptive height instead of a fixed panel height:
+    - short content lets the popover shrink to fit
+    - long content stays bounded by available viewport height and scrolls only inside the popover body
+  - keeps a compact static header with title, one overall state badge, and one short summary sentence
+  - groups visible verification targets by priority instead of rendering a full summary card plus full cards for every state:
+    - `Needs review` first
+    - `In progress` second
+    - `Checked` last
+  - preserves original word-page order within each state group
+  - review rows are compact and action-first:
+    - show target label + scope
+    - show the mismatch/problem line prominently
+    - show one muted follow-up line for the suggested change
+    - show one semantic action button per Gemini suggestion such as `Fix translation`, `Move to different lemma`, or `Fix variations`
+  - error rows also expose `Retry verification`, which queues that exact target again through the backend queue-only endpoint and keeps the page in polling mode until the refreshed run finishes
+  - queued rows show compact in-progress copy and requested time
+  - verified rows are not expanded individually by default; passed targets collapse into one low-emphasis checked summary with count and latest verification time
   - unchanged `verified` results do not create or keep app-level notification rows; successful Gemini completion is silent outside the word-page popover
   - completion-review meaning cards may expose exactly one `Fix variations` action card that rewrites the whole saved noun variation set for that meaning in one apply
   - completion-review `Fix variations` summaries can describe reviewed noun-slot sets directly, including multiple spellings in one slot such as `Singular indefinite: fader, far`
   - completion-review meaning cards never expose `Move to lemma`, `Move to different meaning`, or translation-fix actions
   - no-record state shows a neutral empty state explaining that verification details will appear here once Gemini runs
-  - each action card uses an `Apply change` button that is disabled while apply is in progress
+  - semantic review-action buttons and `Retry verification` are disabled while their respective request is in progress
 
 ## Word-card context menu
 

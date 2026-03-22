@@ -114,6 +114,42 @@ export function verificationCountsSummary(overview: VerificationOverview): strin
   return parts.join(" · ") || "No completed targets"
 }
 
+export function groupVerificationTargets(overview: VerificationOverview): {
+  reviewTargets: VerificationTargetView[]
+  queuedTargets: VerificationTargetView[]
+  verifiedTargets: VerificationTargetView[]
+  idleTargets: VerificationTargetView[]
+} {
+  const reviewTargets: VerificationTargetView[] = []
+  const queuedTargets: VerificationTargetView[] = []
+  const verifiedTargets: VerificationTargetView[] = []
+  const idleTargets: VerificationTargetView[] = []
+
+  for (const target of overview.targets) {
+    const state = verificationTargetState(target)
+    if (state === "review") {
+      reviewTargets.push(target)
+      continue
+    }
+    if (state === "queued") {
+      queuedTargets.push(target)
+      continue
+    }
+    if (state === "verified") {
+      verifiedTargets.push(target)
+      continue
+    }
+    idleTargets.push(target)
+  }
+
+  return {
+    reviewTargets,
+    queuedTargets,
+    verifiedTargets,
+    idleTargets,
+  }
+}
+
 export function verificationTargetState(target: VerificationTargetView): WordbankVerificationViewState {
   if (target.errorDetail) {
     return "review"
@@ -164,6 +200,33 @@ export function verificationTargetSummary(target: VerificationTargetView): strin
     return target.errorDetail.rawMessage || target.errorDetail.problem
   }
   return "Waiting for verification."
+}
+
+export function verificationReviewPrimaryCopy(target: VerificationTargetView): string {
+  if (target.errorDetail?.problem?.trim()) {
+    return target.errorDetail.problem.trim()
+  }
+  return verificationTargetSummary(target)
+}
+
+export function verificationReviewSupportingCopy(target: VerificationTargetView): string | null {
+  if (target.errorDetail?.changeToImplement?.trim()) {
+    return target.errorDetail.changeToImplement.trim()
+  }
+  return null
+}
+
+export function verificationActionButtonLabel(action: VerificationAction): string {
+  return verificationActionTitle(action)
+}
+
+export function latestVerifiedTimestamp(targets: VerificationTargetView[]): string | null {
+  const verifiedAt = targets
+    .map((target) => target.successDetail?.verifiedAt ?? null)
+    .filter((value): value is string => Boolean(value))
+    .sort((a, b) => b.localeCompare(a))[0] ?? null
+
+  return verifiedAt ? formatSavedNoteTimestamp(verifiedAt) : null
 }
 
 export function verificationActionTitle(action: VerificationAction) {

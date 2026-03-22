@@ -5,6 +5,10 @@ import {
   teacherSectionedWordPageContractFixture,
 } from "@/test/app/wordbank-contract-fixtures"
 
+function expectToAppearBefore(first: HTMLElement, second: HTMLElement) {
+  expect(first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+}
+
 describe("App wordbank", () => {
   it("contract-backed: noun word pages prefer the paradigm table once a saved slot exists", async () => {
     mockFetchImplementation({
@@ -94,8 +98,7 @@ describe("App wordbank", () => {
     const verificationButton = screen.getByRole("button", { name: /show verification details/i })
     fireEvent.click(verificationButton)
 
-    expect(await screen.findByText(/no verification records yet/i)).toBeInTheDocument()
-    expect(screen.getByText(/waiting to run/i)).toBeInTheDocument()
+    expect((await screen.findAllByText(/verification details, progress, and suggested changes will appear here/i)).length).toBeGreaterThan(0)
 
     fireEvent.contextMenu(listenButton)
     fireEvent.click(await screen.findByRole("menuitem", { name: /regenerate audio/i }))
@@ -201,13 +204,14 @@ describe("App wordbank", () => {
     fireEvent.click(verificationButton)
 
     expect(await screen.findByText("Verification")).toBeInTheDocument()
-    expect(screen.getByText(/gemini is verifying this word page/i)).toBeInTheDocument()
-    expect(screen.getByText(/1 running/i)).toBeInTheDocument()
-    expect(screen.getByText(/requested/i)).toBeInTheDocument()
-    expect(screen.getByText("Verification").closest("[data-slot='popover-content']")).toHaveClass(
-      "h-[32rem]",
-      "overflow-y-auto",
+    expect(screen.getByText(/gemini is still processing one or more targets/i)).toBeInTheDocument()
+    expect(screen.getByTestId("wordbank-verification-section-in-progress")).toBeInTheDocument()
+    expect(screen.getByText(/requested:/i)).toBeInTheDocument()
+    expect(screen.getByTestId("wordbank-verification-popover")).toHaveClass(
+      "max-h-[min(70vh,var(--radix-popover-content-available-height))]",
+      "overflow-hidden",
     )
+    expect(screen.getByTestId("wordbank-verification-popover")).not.toHaveClass("h-[32rem]", "overflow-y-auto")
   })
 
   it("renderer-only: keeps the lemma pronunciation action playable when the only saved form is hidden from details", async () => {
@@ -369,7 +373,7 @@ describe("App wordbank", () => {
     expect(await screen.findByText(/^faderen$/i)).toBeInTheDocument()
 
     fireEvent.click(await screen.findByRole("button", { name: /show verification review details/i }))
-    fireEvent.click(await screen.findByRole("button", { name: /apply change/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /move to different lemma/i }))
 
     await waitFor(() => {
       expect(screen.queryByText(/^faderen$/i)).not.toBeInTheDocument()
@@ -926,11 +930,10 @@ describe("App wordbank", () => {
     fireEvent.click(await screen.findByRole("button", { name: /show verification review details/i }))
 
     expect(await screen.findByText(/fix variations/i)).toBeInTheDocument()
-    expect(screen.getAllByText(/replace the saved variation set with the reviewed noun forms/i).length).toBeGreaterThan(0)
     expect(screen.getByText(/singular indefinite: mor\./i)).toBeInTheDocument()
     expect(screen.getByText(/plural indefinite: mødre\./i)).toBeInTheDocument()
 
-    const applyButton = screen.getByRole("button", { name: /apply change/i })
+    const applyButton = screen.getByRole("button", { name: /fix variations/i })
     fireEvent.click(applyButton)
 
     await waitFor(() => {
@@ -1032,17 +1035,16 @@ describe("App wordbank", () => {
     fireEvent.click(infoButton)
 
     expect(await screen.findByText("Verification")).toBeInTheDocument()
-    expect(screen.getByText(/verification needs review/i)).toBeInTheDocument()
-    expect(screen.getByText("Problem")).toBeInTheDocument()
-    expect(screen.getByText("Change to implement")).toBeInTheDocument()
+    expect(screen.getByText(/one or more targets need review/i)).toBeInTheDocument()
+    expect(screen.getByTestId("wordbank-verification-section-needs-review")).toBeInTheDocument()
     expect(screen.getAllByText(/stored pos and translation are inconsistent/i).length).toBeGreaterThan(0)
     expect(screen.getAllByText(/update pos to noun and translation to 'cat'/i).length).toBeGreaterThan(0)
-    expect(screen.getByText(/apply changes/i)).toBeInTheDocument()
-    expect(screen.getByText(/fix translation/i)).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /apply change/i })).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /fix translation/i })).toBeInTheDocument()
     expect(screen.getByText(/set translation to 'cat'/i)).toBeInTheDocument()
     expect(screen.getAllByRole("button", { name: /wordbank/i })[0]).not.toHaveTextContent("1")
 
-    const applyButton = screen.getByRole("button", { name: /apply change/i })
+    const applyButton = screen.getByRole("button", { name: /fix translation/i })
     expect(applyButton).toBeEnabled()
     fireEvent.click(applyButton)
 
@@ -1148,9 +1150,11 @@ describe("App wordbank", () => {
     fireEvent.click(verificationButton)
 
     expect(await screen.findByText("Verification")).toBeInTheDocument()
-    expect(screen.getByText(/verification completed/i)).toBeInTheDocument()
-    expect(screen.getAllByText(/1 verified/i).length).toBeGreaterThan(0)
-    expect(screen.getByText(/verification passed\./i)).toBeInTheDocument()
+    expect(screen.getByText(/gemini verified every visible target on this word page/i)).toBeInTheDocument()
+    expect(screen.getByText(/^checked$/i)).toBeInTheDocument()
+    expect(screen.getByText(/all visible targets look correct/i)).toBeInTheDocument()
+    expect(screen.getByText(/last checked/i)).toBeInTheDocument()
+    expect(screen.queryByText(/verification passed\./i)).not.toBeInTheDocument()
   }, 15_000)
 
   it("keeps one current-state notification per target for complete-variations reviews even after leaving the lemma page", async () => {
@@ -1400,5 +1404,80 @@ describe("App wordbank", () => {
     expect(screen.getByText(/past: lærte\./i)).toBeInTheDocument()
     expect(screen.getByText(/imperative: lær\./i)).toBeInTheDocument()
     expect(screen.getByText(/past participle: lært\./i)).toBeInTheDocument()
+  })
+
+  it("renderer-only: review rows appear before queued and checked sections, and error rows keep retry available", async () => {
+    mockFetchImplementation({
+      lemmasResponse: {
+        items: [{ lemma: "bog", variation_count: 2 }],
+      },
+      lemmaDetailsResponse: {
+        lemma: "bog",
+        english_translation: "book",
+        verification: {
+          status: "error",
+          provider: "gemini",
+          reviewer_role: "Professional Danish Language Expert",
+          message: "Verification failed.",
+          composed_word_count: null,
+          stored_surface_form: "bog",
+          requested_at: "2026-03-13T12:00:00.000Z",
+          completed_at: "2026-03-13T12:00:03.000Z",
+          problem: "The saved lemma could not be verified.",
+          change_to_implement: "Retry verification for this target.",
+          suggested_actions: [],
+        },
+        is_sectioned: true,
+        meaning_sections: [
+          {
+            id: 1,
+            meaning_key: "book",
+            gloss: "book",
+            english_translation: "book",
+            verification: {
+              status: "queued",
+              provider: "gemini",
+              reviewer_role: "Professional Danish Language Expert",
+              message: "Verification queued.",
+              composed_word_count: null,
+              stored_surface_form: null,
+              requested_at: "2026-03-13T12:00:10.000Z",
+              suggested_actions: [],
+            },
+            surface_forms: [
+              {
+                form: "bogen",
+                has_pronunciation: false,
+                verification: {
+                  status: "verified",
+                  provider: "gemini",
+                  reviewer_role: "Professional Danish Language Expert",
+                  message: "Verification passed.",
+                  composed_word_count: null,
+                  stored_surface_form: "bogen",
+                  requested_at: "2026-03-13T12:00:15.000Z",
+                  completed_at: "2026-03-13T12:00:20.000Z",
+                  suggested_actions: [],
+                },
+              },
+            ],
+          },
+        ],
+        surface_forms: [{ form: "bog", has_pronunciation: false }],
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+    fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /bog/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /show verification review details/i }))
+
+    const reviewSection = await screen.findByTestId("wordbank-verification-section-needs-review")
+    const queuedSection = screen.getByTestId("wordbank-verification-section-in-progress")
+    const checkedSection = screen.getByTestId("wordbank-verification-section-checked")
+    expectToAppearBefore(reviewSection, queuedSection)
+    expectToAppearBefore(queuedSection, checkedSection)
+    expect(screen.getByRole("button", { name: /retry verification/i })).toBeInTheDocument()
   })
 })
