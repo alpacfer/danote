@@ -72,6 +72,7 @@ Per-lemma chip behavior:
 - Label prefers `display_lemma`, falling back to `lemma`.
 - Variation count suffix (`· N`) is shown only when `variation_count > 1`.
 - Unread verification markers:
+  - queued/in-progress verification does not create unread markers
   - unread `1` => small dot indicator
   - unread `>1` => numeric badge pill
 - Clicking a chip calls `onSelectLemma(lemma)` and opens that lemma's word page.
@@ -395,7 +396,8 @@ Pronunciation behavior is shared by header + section rows + variation rows.
   If the word page changes before a queued job runs, that stale job is skipped instead of overwriting a newer verification result.
 - Success path stores a persisted verification success record with `requested_at` / `completed_at`.
 - Error path stores a persisted verification error record with timestamps and suggested actions.
-- When a queued target reaches a final state, the app pushes a target-specific in-session notification.
+- Queued/in-progress verification stays silent in the app-level notification center and does not increment Wordbank unread badges.
+- When a queued target reaches an action-required final state (`flagged` or `error`), the app pushes a target-specific in-session notification.
 
 ## Category rethink
 

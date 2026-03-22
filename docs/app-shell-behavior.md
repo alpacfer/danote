@@ -154,10 +154,11 @@ Notification state is managed by `useNotificationCenter()` and surfaced through 
 - `unreadNotifications` is derived by filtering `!read`.
 - `hasUnreadNotifications` drives bell styling (`default` variant when unread, otherwise `outline`).
 - Unread count shown on bell comes from `unreadNotifications.length`.
-- Wordbank-specific unread badge in sidebar comes from unread `kind === "word_verification"` notifications.
+- Wordbank-specific unread badge in sidebar comes only from unread action-required `word_verification` notifications (`flagged` or `error`), not from queued/in-progress targets.
 - Word verification notifications are current-state records, not an append-only event log:
   - each target is keyed by `(lemma, meaningId, surfaceForm)` via `targetKey`
-  - queued, review-needed, and retry updates upsert the same notification row for that target
+  - queued/in-progress state does not create or keep a notification row for that target
+  - review-needed and retry-needed updates upsert the same notification row for that target
   - verified or skipped settlements remove any existing current-state notification row for that target, so unchanged Gemini success is silent
   - sidebar lemma badges are derived from unread current-state verification targets grouped by lemma
 
@@ -166,6 +167,7 @@ Notification state is managed by `useNotificationCenter()` and surfaced through 
 - Popover open state is controlled by `isNotificationsOpen` + `setIsNotificationsOpen` in app controller.
 - Bell button is disabled only when there are no unread notifications and verification is not currently running.
 - If verification is running, bell shows spinner icon and remains available as status affordance.
+- While verification is only in progress, the bell stays spinner-only; it does not show an unread count until a target settles into an action-required state.
 - Verification-running state can come from backend-queued wordbank jobs even when the user has already navigated away from that lemma page; the frontend tracks queued targets returned from add responses and polls those lemmas until each target settles.
 - Completion-variations follow-up reviews for noun, adjective, and verb meaning sections participate in the same off-page tracking flow using the explicit `queued_verification_targets` returned by the complete-variations API response.
 

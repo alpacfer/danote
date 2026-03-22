@@ -1332,6 +1332,8 @@ describe("App wordbank", () => {
     fireEvent.click(await screen.findByRole("button", { name: /add to wordbank/i }))
 
     await screen.findByRole("button", { name: /word verification is running/i })
+    expect(screen.queryByRole("button", { name: /show notifications/i })).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /wordbank/i })).not.toHaveTextContent("1")
 
     verificationComplete = true
 
@@ -1469,6 +1471,9 @@ describe("App wordbank", () => {
     fireEvent.click(await screen.findByRole("menuitem", { name: /complete variations/i }))
 
     fireEvent.click(screen.getByRole("button", { name: /playground/i }))
+    await screen.findByRole("button", { name: /word verification is running/i })
+    expect(screen.queryByRole("button", { name: /show notifications/i })).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /wordbank/i })).not.toHaveTextContent("1")
 
     completionSettled = true
 

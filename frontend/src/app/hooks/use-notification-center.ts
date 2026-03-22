@@ -16,7 +16,11 @@ export function useNotificationCenter() {
   )
   const hasUnreadNotifications = unreadNotifications.length > 0
   const unreadWordVerificationNotifications = useMemo(
-    () => unreadNotifications.filter((notification): notification is WordVerificationNotification => notification.kind === "word_verification"),
+    () => unreadNotifications.filter(
+      (notification): notification is WordVerificationNotification =>
+        notification.kind === "word_verification"
+        && (notification.status === "flagged" || notification.status === "error"),
+    ),
     [unreadNotifications],
   )
   const unreadWordbankNotificationCount = unreadWordVerificationNotifications.length

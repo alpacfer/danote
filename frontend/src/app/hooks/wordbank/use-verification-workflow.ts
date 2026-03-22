@@ -92,16 +92,7 @@ export function useVerificationWorkflow({
     }
 
     if (verification.status === "queued") {
-      pushNotification(`Verification running for '${target.label}'.`, {
-        kind: "word_verification",
-        lemma: lemmaKey || storedLemma,
-        meaningId: target.meaningId,
-        surfaceForm: target.storedSurfaceForm,
-        targetKey: target.key,
-        status: "queued",
-        signature,
-        actionCount: 0,
-      })
+      clearWordVerificationNotification(target.key)
       return
     }
 
