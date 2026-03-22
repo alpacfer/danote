@@ -55,7 +55,7 @@ export function WordbankMeaningSections({
 
   return (
     <div className="space-y-3">
-      {meaningSections.map((section, index) => {
+      {meaningSections.map((section) => {
         const sectionBadges = badgesForSavedForm({
           pos_tag: section.pos_tag ?? null,
           morphology: section.morphology ?? null,
@@ -82,6 +82,7 @@ export function WordbankMeaningSections({
         const isNoun = posTag === "NOUN"
         const isAdjective = posTag === "ADJ"
         const isVerb = posTag === "VERB"
+        const meaningLemma = isVerb ? `at ${lemma}` : lemma
         const canCompleteParadigm = isNoun || isAdjective || isVerb
         const lemmaHasPronunciation = section.surface_forms.some(
           (f) => f.form.trim().toLocaleLowerCase("da-DK") === normalizedLemma && f.has_pronunciation,
@@ -121,19 +122,18 @@ export function WordbankMeaningSections({
               className={`border-l-2 py-5 ${posBorderLeftClass(section.pos_tag ?? null)} ${isSelected ? "ring-primary/30 border-primary/50 ring-2" : ""}`.trim()}
             >
               <CardContent className="space-y-3">
-                {/* Line 1: Number badge + translation | Category badges */}
+                {/* Line 1: Lemma + translation | Category badges */}
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
-                      <Badge variant="secondary" className="text-xs tabular-nums">{index + 1}</Badge>
-                      <span className="text-lg leading-tight font-bold">{lemma}</span>
+                      <span className="text-lg leading-tight font-bold">{meaningLemma}</span>
                       {sectionTranslation ? (
                         <span className="text-muted-foreground text-sm italic">{sectionTranslation}</span>
                       ) : null}
                     </div>
                     {/* Line 2: POS + morphology badges */}
                     {sectionBadges.length > 0 ? (
-                      <div className="mt-1.5 ml-9 flex flex-wrap gap-1.5">
+                      <div className="mt-1.5 flex flex-wrap gap-1.5">
                         {sectionBadges.map((badge) => (
                           <Badge
                             key={`meaning-section-${section.id}-badge-${badge.label}`}

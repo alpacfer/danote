@@ -198,7 +198,8 @@ Meaning auto-scroll behavior:
 - Each section renders as a card with:
   - left border color from POS class
   - selected-meaning highlight ring when `selectedMeaningId` matches section id
-  - left-side metadata cluster: ordinal badge (1-based index), lemma label, section-level POS/morphology badges
+  - left-side metadata cluster: lemma label and section-level POS/morphology badges
+  - verb meaning cards render the lemma in infinitive display form with `at <lemma>`
   - when backend detail payloads include section `gram_raw`, the section badge set is derived from that COR grammar so invariant lemma forms (for example `orange`) keep the same merged badge set shown in search
   - right-side semantic category badge cluster from `meaning_sections[].categories`
   - category badges stay right-aligned on wider layouts and wrap below the header content on narrow screens
