@@ -420,6 +420,8 @@ describe("App wordbank", () => {
     fireEvent.click(await screen.findByRole("button", { name: /komme/i }))
 
     const meaningCard = await screen.findByTestId("wordbank-meaning-card-1")
+    expect(within(meaningCard).getByText(/^at komme$/i)).toBeInTheDocument()
+    expect(within(meaningCard).queryByText(/^1$/)).not.toBeInTheDocument()
     const table = within(meaningCard).getByRole("table")
     expect(within(table).getByText(/^past$/i)).toBeInTheDocument()
     expect(within(table).getByText(/^imperative$/i)).toBeInTheDocument()
