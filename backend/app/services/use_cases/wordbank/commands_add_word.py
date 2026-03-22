@@ -24,6 +24,7 @@ from app.services.use_cases.wordbank.meaning_sections import (
     resolve_meaning_translation,
     resolve_non_verb_meaning,
 )
+from app.services.use_cases.wordbank.pronunciation_queue import queue_pronunciation_generation
 from app.services.use_cases.wordbank.runtime import WordbankRuntime
 from app.services.use_cases.wordbank.verification_targets import (
     discover_word_page_verification_targets,
@@ -248,12 +249,22 @@ def _add_meaning_scoped_word(
             stored_lemma=inputs.stored_lemma,
         ),
     )
+    queued_pronunciation_forms = queue_pronunciation_generation(
+        runtime,
+        stored_lemma=inputs.stored_lemma,
+        requested_forms=(actual_surface,),
+    )
     return _build_add_word_response(
         inputs=inputs,
         write_result=write_result,
         meaning=meaning_assignment,
         verification=verification,
         queued_verification_targets=queued_verification_targets,
+        queued_pronunciation_forms=queued_pronunciation_forms,
+        pronunciation=runtime.pronunciation.queued_pronunciation_result(
+            inputs.stored_lemma,
+            actual_surface,
+        ),
     )
 
 
@@ -328,12 +339,22 @@ def _add_unsectioned_word(
             stored_lemma=inputs.stored_lemma,
         ),
     )
+    queued_pronunciation_forms = queue_pronunciation_generation(
+        runtime,
+        stored_lemma=inputs.stored_lemma,
+        requested_forms=(actual_surface,),
+    )
     return _build_add_word_response(
         inputs=inputs,
         write_result=write_result,
         meaning=None,
         verification=verification,
         queued_verification_targets=queued_verification_targets,
+        queued_pronunciation_forms=queued_pronunciation_forms,
+        pronunciation=runtime.pronunciation.queued_pronunciation_result(
+            inputs.stored_lemma,
+            actual_surface,
+        ),
     )
 
 
@@ -645,6 +666,8 @@ def _build_add_word_response(
     meaning,
     verification: VerificationResult | None,
     queued_verification_targets,
+    queued_pronunciation_forms: list[str],
+    pronunciation,
 ) -> AddWordResponse:
     status: Literal["inserted", "exists"] = "inserted" if write_result.inserted_any else "exists"
     message = (
@@ -670,4 +693,6 @@ def _build_add_word_response(
         ),
         verification=verification,
         queued_verification_targets=queued_verification_targets,
+        queued_pronunciation_forms=queued_pronunciation_forms,
+        pronunciation=pronunciation,
     )

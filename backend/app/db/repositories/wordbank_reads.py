@@ -342,6 +342,9 @@ class WordbankReadRepository:
         ) as conn:
             row = conn.execute(
                 """SELECT 1 FROM surface_forms sf JOIN lexemes l ON l.id = sf.lexeme_id
-                WHERE sf.meaning_id IS NULL AND COALESCE(UPPER(l.pos_tag), '') NOT IN ('VERB', 'AUX') LIMIT 1"""
+                WHERE sf.meaning_id IS NULL
+                  AND sf.form <> l.lemma COLLATE NOCASE
+                  AND COALESCE(UPPER(l.pos_tag), '') NOT IN ('VERB', 'AUX')
+                LIMIT 1"""
             ).fetchone()
         return row is not None

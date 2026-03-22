@@ -121,9 +121,11 @@ class WordbankBackgroundJobRunner:
             )
             return
         if job_type == "generate_pronunciation":
-            use_case.generate_pronunciation_for_added_word(
+            requested_forms = _optional_string_list(payload, "requested_forms")
+            use_case.process_queued_pronunciations(
                 stored_lemma,
-                stored_surface_form,
+                requested_forms=requested_forms or ([stored_surface_form] if stored_surface_form else []),
+                force=_optional_bool_value(payload, "force") or False,
             )
             return
         raise ValueError(f"Unsupported background job type: {job_type}")
@@ -153,3 +155,21 @@ def _optional_int_value(payload: dict[str, object], key: str) -> int | None:
     if not isinstance(value, int):
         raise ValueError(f"Background job payload field '{key}' is invalid.")
     return value
+
+
+def _optional_bool_value(payload: dict[str, object], key: str) -> bool | None:
+    value = payload.get(key)
+    if value is None:
+        return None
+    if not isinstance(value, bool):
+        raise ValueError(f"Background job payload field '{key}' is invalid.")
+    return value
+
+
+def _optional_string_list(payload: dict[str, object], key: str) -> list[str] | None:
+    value = payload.get(key)
+    if value is None:
+        return None
+    if not isinstance(value, list) or any(not isinstance(item, str) for item in value):
+        raise ValueError(f"Background job payload field '{key}' is invalid.")
+    return [item for item in value if item.strip()]

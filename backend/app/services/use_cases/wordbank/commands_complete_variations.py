@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 from app.api.schemas.v1.wordbank import CompleteVariationsResponse
-from app.db.repositories import WordbankBackgroundJobRepository
 from app.services.token_classifier import normalize_token
 from app.services.use_cases.wordbank.paradigm_variations import (
     build_completion_candidate_entries,
     meaning_context_from_rows,
     resolve_target_slot_entries,
 )
+from app.services.use_cases.wordbank.pronunciation_queue import queue_pronunciation_generation
 from app.services.use_cases.wordbank.runtime import WordbankRuntime
 from app.services.use_cases.wordbank.search_seed_persistence import (
     SearchSeedInputs,
@@ -61,8 +61,6 @@ def complete_meaning_variations(
         if row.meaning_id == meaning_id and normalize_token(row.form)
     }
     added_surface_forms: list[str] = []
-    queued_pronunciation_forms: list[str] = []
-    pronunciation_repository = WordbankBackgroundJobRepository(runtime.db_path)
 
     for normalized_form, entries in build_completion_candidate_entries(context=context, slot_entries=slot_entries):
         representative = entries[0] if entries else None
@@ -103,17 +101,6 @@ def complete_meaning_variations(
             continue
         existing_rows[normalized_form] = surface_form
         added_surface_forms.append(representative.form)
-        pronunciation = runtime.pronunciation.queued_pronunciation_result(context.lemma, representative.form)
-        if pronunciation.status == "queued":
-            pronunciation_repository.enqueue(
-                job_type="generate_pronunciation",
-                dedupe_key=f"generate_pronunciation::{context.lemma}::{normalized_form}",
-                payload={
-                    "stored_lemma": context.lemma,
-                    "stored_surface_form": normalized_form,
-                },
-            )
-            queued_pronunciation_forms.append(representative.form)
 
     if not added_surface_forms:
         return CompleteVariationsResponse(
@@ -126,6 +113,11 @@ def complete_meaning_variations(
             message=f"No missing {context.paradigm_kind} variations were found for '{normalized_lemma}'.",
         )
 
+    queued_pronunciation_forms = queue_pronunciation_generation(
+        runtime,
+        stored_lemma=context.lemma,
+        requested_forms=added_surface_forms,
+    )
     _delete_meaning_surface_verification_records(runtime, context=context)
     queued_verification_targets = queue_verification_targets(
         runtime,

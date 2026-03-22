@@ -758,6 +758,7 @@ export function mockFetchImplementation(options?: {
   const addWordResponse = {
     ...addWordResponseBase,
     queued_verification_targets: addWordResponseBase.queued_verification_targets ?? buildQueuedVerificationTargets(addWordResponseBase),
+    queued_pronunciation_forms: addWordResponseBase.queued_pronunciation_forms ?? [],
   }
   const verifyWordResponse = options?.verifyWordResponse ?? {
     stored_lemma: addWordResponse.stored_lemma,

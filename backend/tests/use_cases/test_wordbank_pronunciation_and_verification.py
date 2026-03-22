@@ -20,6 +20,84 @@ from tests.helpers.fakes import (
     FakeVerificationService,
 )
 
+
+def test_search_seed_repeat_save_does_not_requeue_completed_pronunciation_when_audio_exists(tmp_path: Path) -> None:
+    db_path = _db_path(tmp_path)
+    use_case = WordbankUseCase(
+        db_path,
+        tts_service=FakeTTSService({"bog": b"lemma-wav", "bogen": b"surface-wav"}),
+    )
+
+    payload = {
+        "lemma": "bog",
+        "surface": "bogen",
+        "cor_id": "COR.BOG.BOOK.1",
+        "cor_lemma_idx": 123,
+        "meaning_key": "book",
+        "gloss": "book",
+        "english_translation": "book",
+        "pos_tag": "NOUN",
+        "morphology": "Gender=Com|Number=Sing|Definite=Def",
+    }
+
+    first = use_case.add_word("bogen", "bog", search_seed=payload)
+    assert first.queued_pronunciation_forms == ["bog", "bogen"]
+
+    use_case.process_queued_pronunciations("bog", requested_forms=["bog", "bogen"])
+    with get_connection(db_path) as conn:
+        job_id = int(
+            conn.execute(
+                """
+                SELECT id
+                FROM wordbank_background_jobs
+                WHERE job_type = 'generate_pronunciation'
+                LIMIT 1
+                """
+            ).fetchone()["id"]
+        )
+        conn.execute(
+            """
+            UPDATE wordbank_background_jobs
+            SET status = 'completed', completed_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            """,
+            (job_id,),
+        )
+
+    second = use_case.add_word("bogen", "bog", search_seed=payload)
+
+    assert second.queued_pronunciation_forms == []
+    with get_connection(db_path) as conn:
+        job_row = conn.execute(
+            """
+            SELECT status, payload_json
+            FROM wordbank_background_jobs
+            WHERE job_type = 'generate_pronunciation'
+            LIMIT 1
+            """
+        ).fetchone()
+        audio_rows = conn.execute(
+            """
+            SELECT form, pronunciation_audio IS NOT NULL AS has_audio
+            FROM surface_forms
+            WHERE form IN ('bog', 'bogen')
+            ORDER BY form ASC
+            """
+        ).fetchall()
+
+    assert job_row is not None
+    assert str(job_row["status"]) == "completed"
+    assert json.loads(str(job_row["payload_json"])) == {
+        "force": False,
+        "requested_forms": ["bog", "bogen"],
+        "stored_lemma": "bog",
+    }
+    assert [(str(row["form"]), int(row["has_audio"])) for row in audio_rows] == [
+        ("bog", 1),
+        ("bogen", 1),
+    ]
+
+
 def test_wordbank_use_case_runs_verification_task_and_returns_result(tmp_path: Path) -> None:
     verification_service = FakeVerificationService(
         verdict="verified",

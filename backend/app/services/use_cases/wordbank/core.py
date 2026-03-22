@@ -118,6 +118,19 @@ class WordbankUseCase:
             stored_lemma, stored_surface_form, force=force
         )
 
+    def process_queued_pronunciations(
+        self,
+        stored_lemma: str,
+        *,
+        requested_forms: list[str],
+        force: bool = False,
+    ) -> list[str]:
+        return self._runtime.pronunciation.generate_pronunciations_for_forms(
+            stored_lemma,
+            requested_forms=requested_forms,
+            force=force,
+        )
+
     def complete_meaning_variations(
         self,
         stored_lemma: str,

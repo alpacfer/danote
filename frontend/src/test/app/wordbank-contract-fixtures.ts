@@ -165,6 +165,7 @@ export const teacherQueuedSearchAddResponseContractFixture = {
   stored_surface_form: "lærere",
   source: "manual",
   message: "Added 'lærer' to wordbank.",
+  queued_pronunciation_forms: ["lærer", "lærere"],
   meaning: {
     id: 1,
     meaning_key: "teacher",

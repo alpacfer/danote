@@ -94,6 +94,98 @@ class WordbankBackgroundJobRepository:
             )
         return True
 
+    def enqueue_pronunciation_job(
+        self,
+        *,
+        stored_lemma: str,
+        requested_forms: list[str],
+        force: bool = False,
+        max_attempts: int = 3,
+    ) -> bool:
+        dedupe_key = f"generate_pronunciation::{stored_lemma}"
+        with timed_db_operation("wordbank_background_jobs.enqueue_pronunciation"), get_connection(self._db_path) as conn:
+            existing = conn.execute(
+                """
+                SELECT id, status, payload_json
+                FROM wordbank_background_jobs
+                WHERE dedupe_key = ?
+                LIMIT 1
+                """,
+                (dedupe_key,),
+            ).fetchone()
+            payload = {
+                "stored_lemma": stored_lemma,
+                "requested_forms": requested_forms,
+                "force": bool(force),
+            }
+            payload_json = json.dumps(payload, ensure_ascii=True, sort_keys=True)
+            if existing is None:
+                cursor = conn.execute(
+                    """
+                    INSERT INTO wordbank_background_jobs (
+                        job_type,
+                        dedupe_key,
+                        payload_json,
+                        max_attempts
+                    )
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    ("generate_pronunciation", dedupe_key, payload_json, max_attempts),
+                )
+                return cursor.rowcount == 1
+
+            existing_status = str(existing["status"])
+            merged_payload = _merge_pronunciation_payload(
+                existing["payload_json"],
+                stored_lemma=stored_lemma,
+                requested_forms=requested_forms,
+                force=force,
+            )
+            merged_payload_json = json.dumps(merged_payload, ensure_ascii=True, sort_keys=True)
+            payload_changed = merged_payload_json != str(existing["payload_json"])
+
+            if existing_status == "running":
+                if not payload_changed:
+                    return False
+                conn.execute(
+                    """
+                    UPDATE wordbank_background_jobs
+                    SET job_type = ?,
+                        payload_json = ?,
+                        max_attempts = ?,
+                        rerun_requested = 1,
+                        last_error = NULL,
+                        completed_at = NULL,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                    """,
+                    ("generate_pronunciation", merged_payload_json, max_attempts, int(existing["id"])),
+                )
+                return True
+
+            should_reset = existing_status in {"completed", "failed"}
+            if not payload_changed and not should_reset:
+                return False
+
+            conn.execute(
+                """
+                UPDATE wordbank_background_jobs
+                SET job_type = ?,
+                    payload_json = ?,
+                    status = 'pending',
+                    attempt_count = 0,
+                    max_attempts = ?,
+                    available_at = CURRENT_TIMESTAMP,
+                    last_error = NULL,
+                    completed_at = NULL,
+                    rerun_requested = 0,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                ("generate_pronunciation", merged_payload_json, max_attempts, int(existing["id"])),
+            )
+        return True
+
     def claim_next(self) -> WordbankBackgroundJobRecord | None:
         with get_connection(self._db_path) as conn:
             conn.execute("BEGIN IMMEDIATE")
@@ -242,3 +334,33 @@ def _required_int(row: dict[str, object], key: str) -> int:
     if isinstance(value, bool) or not isinstance(value, int):
         raise ValueError(f"Background job row is missing '{key}'.")
     return value
+
+
+def _merge_pronunciation_payload(
+    raw_payload_json: object,
+    *,
+    stored_lemma: str,
+    requested_forms: list[str],
+    force: bool,
+) -> dict[str, object]:
+    existing_payload = json.loads(str(raw_payload_json))
+    existing_forms = existing_payload.get("requested_forms") if isinstance(existing_payload, dict) else None
+    merged_forms: list[str] = []
+    seen: set[str] = set()
+    for value in existing_forms if isinstance(existing_forms, list) else []:
+        if not isinstance(value, str) or not value or value in seen:
+            continue
+        seen.add(value)
+        merged_forms.append(value)
+    for value in requested_forms:
+        if not value or value in seen:
+            continue
+        seen.add(value)
+        merged_forms.append(value)
+
+    existing_force = bool(existing_payload.get("force")) if isinstance(existing_payload, dict) else False
+    return {
+        "stored_lemma": stored_lemma,
+        "requested_forms": merged_forms,
+        "force": existing_force or force,
+    }

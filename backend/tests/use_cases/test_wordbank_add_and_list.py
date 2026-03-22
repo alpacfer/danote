@@ -634,7 +634,7 @@ def test_complete_meaning_variations_backfills_missing_noun_slots_for_search_see
         for target in response.queued_verification_targets
     ] == [(added.meaning.id, None)]
     assert response.added_surface_forms == ["bogen", "bøgerne"]
-    assert response.queued_pronunciation_forms == ["bogen", "bøgerne"]
+    assert response.queued_pronunciation_forms == ["bog", "bogen", "bøgerne"]
 
     details = use_case.get_lemma_details("bog")
     assert [form.form for form in details.meaning_sections[0].surface_forms] == ["bogen", "bøger", "bøgerne"]
@@ -643,17 +643,18 @@ def test_complete_meaning_variations_backfills_missing_noun_slots_for_search_see
     with get_connection(db_path) as conn:
         jobs = conn.execute(
             """
-            SELECT dedupe_key
+            SELECT dedupe_key, payload_json
             FROM wordbank_background_jobs
             WHERE job_type = 'generate_pronunciation'
             ORDER BY dedupe_key ASC
             """
         ).fetchall()
-    assert [str(row["dedupe_key"]) for row in jobs] == [
-        "generate_pronunciation::bog::bogen",
-        "generate_pronunciation::bog::bøger",
-        "generate_pronunciation::bog::bøgerne",
-    ]
+    assert [str(row["dedupe_key"]) for row in jobs] == ["generate_pronunciation::bog"]
+    assert json.loads(str(jobs[0]["payload_json"])) == {
+        "force": False,
+        "requested_forms": ["bog", "bøger", "bogen", "bøgerne"],
+        "stored_lemma": "bog",
+    }
 
 
 def test_complete_meaning_variations_uses_selected_homograph_meaning_only(tmp_path: Path) -> None:
@@ -737,7 +738,7 @@ def test_complete_meaning_variations_backfills_missing_adjective_slots_for_searc
 
     assert response.status == "updated"
     assert response.added_surface_forms == ["store"]
-    assert response.queued_pronunciation_forms == ["store"]
+    assert response.queued_pronunciation_forms == ["stor", "store"]
     assert [(target.meaning_id, target.stored_surface_form) for target in response.queued_verification_targets] == [
         (added.meaning.id, None),
     ]
@@ -859,7 +860,7 @@ def test_complete_meaning_variations_backfills_missing_verb_slots_for_search_see
 
     assert response.status == "updated"
     assert response.added_surface_forms == ["lærte", "lær", "lært"]
-    assert response.queued_pronunciation_forms == ["lærte", "lær", "lært"]
+    assert response.queued_pronunciation_forms == ["lære", "lærte", "lær", "lært"]
     assert [(target.meaning_id, target.stored_surface_form) for target in response.queued_verification_targets] == [
         (added.meaning.id, None),
     ]

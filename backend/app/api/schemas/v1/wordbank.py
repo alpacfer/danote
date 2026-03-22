@@ -181,6 +181,7 @@ class AddWordResponse(BaseModel):
     meaning: MeaningContext | None = None
     verification: VerificationResult | None = None
     queued_verification_targets: list[VerificationTargetRef] = Field(default_factory=list)
+    queued_pronunciation_forms: list[str] = Field(default_factory=list)
     pronunciation: QueuedBackgroundTask | None = None
     saved_snapshot: LemmaDetailsResponse | None = None
 

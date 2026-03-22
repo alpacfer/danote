@@ -98,6 +98,7 @@ See the full per-variable reference (defaults, accepted values, and fallback int
 
 Word verification and pronunciation background jobs now run through the shared wordbank queue.
 `DANOTE_WORDBANK_BACKGROUND_JOB_WORKERS` controls how many queued wordbank jobs can execute in parallel.
+Automatic wordbank add/save/complete flows enqueue pronunciation work through that shared queue and return `queued_pronunciation_forms` so the frontend can poll until audio is persisted.
 
 One-command setup for the pinned DaCy model `da_dacy_small_trf-0.2.0`:
 
@@ -172,6 +173,14 @@ NLP compatibility check:
 ```bash
 cd backend
 ./.venv/bin/python -m spacy validate
+```
+
+Queue repair for existing wordbank pronunciation gaps:
+
+```bash
+cd <repo-root>
+PYTHONPATH=backend backend/.venv/bin/python scripts/queue-missing-pronunciations.py --dry-run
+PYTHONPATH=backend backend/.venv/bin/python scripts/queue-missing-pronunciations.py
 ```
 
 ## Regression Baseline (Checkpoint 18)

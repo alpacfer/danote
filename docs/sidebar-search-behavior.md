@@ -198,6 +198,8 @@ COR groups are sorted by best variant score in each group:
   - and the open word page polls lemma details until Gemini returns a final result.
 - For search-seed saves, the frontend still skips direct `/api/wordbank/lexemes/verify` and `/api/wordbank/lexemes/pronunciation` calls:
   backend background jobs perform the work and persist the result for the word page to pick up.
+- Search-save responses also return `queued_pronunciation_forms`.
+  When the newly opened word page still shows those forms without audio, the same lemma-details polling loop keeps refreshing for a bounded window until pronunciation becomes playable or the timeout expires.
 - The backend also enforces the translation gate:
   a search-seed save with empty or missing `search_seed.english_translation` returns `409`,
   so even stale or bypassed clients cannot save before translation generation completes.

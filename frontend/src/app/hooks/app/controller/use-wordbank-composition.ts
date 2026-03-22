@@ -18,7 +18,6 @@ export function useWordbankComposition({ foundation, onSentenceSaved }: UseWordb
     extractErrorMessage,
     activeSection: navigation.activeSection,
     selectedLemma: navigation.selectedLemma,
-    selectedMeaningId: navigation.selectedMeaningId,
     lemmaDetails: lexiconData.lemmaDetails,
     setLemmaDetails: lexiconData.setLemmaDetails,
     setLemmaDetailsError: lexiconData.setLemmaDetailsError,
@@ -31,6 +30,7 @@ export function useWordbankComposition({ foundation, onSentenceSaved }: UseWordb
     setActiveSection: navigation.setActiveSection,
     setSelectedLemma: navigation.setSelectedLemma,
     setSelectedMeaningId: navigation.setSelectedMeaningId,
+    trackQueuedPronunciationForms: lexiconData.trackQueuedPronunciationForms,
     postTokenFeedback: async (payload) => {
       await postTokenFeedback(backendUrl, payload)
     },

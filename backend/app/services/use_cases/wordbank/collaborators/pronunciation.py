@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import sqlite3
 from pathlib import Path
 from typing import Literal
 
 from app.api.schemas.v1.wordbank import GeneratePronunciationResponse, QueuedBackgroundTask
 from app.db.migrations import get_connection
+from app.db.repositories import WordbankRepository
 from app.services.token_classifier import normalize_token
 from app.services.tts import PronunciationAudio, TTSService
 from app.services.use_cases.wordbank.shared import (
@@ -59,37 +59,22 @@ class PronunciationCollaborator:
                 pronunciation_form=pronunciation_form,
             )
 
-        with get_connection(self._db_path) as conn:
-            lexeme_row = conn.execute(
-                "SELECT id FROM lexemes WHERE lemma = ? LIMIT 1",
-                (normalized_lemma,),
-            ).fetchone()
-            if lexeme_row is None:
-                raise LookupError(f"Lemma '{normalized_lemma}' was not found")
-            generated_any = False
-            for form in forms_to_generate:
-                generated_now = self._ensure_surface_pronunciation(
-                    conn=conn,
-                    lexeme_id=int(lexeme_row["id"]),
-                    form=form,
-                    force=force,
-                )
-                generated_any = generated_any or generated_now
-            row = conn.execute(
-                """
-                SELECT pronunciation_audio
-                FROM surface_forms
-                WHERE lexeme_id = ? AND form = ?
-                LIMIT 1
-                """,
-                (int(lexeme_row["id"]), pronunciation_form),
-            ).fetchone()
-
-        has_audio = bool(
-            row is not None
-            and isinstance(row["pronunciation_audio"], bytes)
-            and row["pronunciation_audio"]
+        generated_any = bool(
+            self.generate_pronunciations_for_forms(
+                normalized_lemma,
+                requested_forms=forms_to_generate,
+                force=force,
+            )
         )
+        repository = WordbankRepository(self._db_path)
+        lexeme = repository.get_lexeme(normalized_lemma)
+        if lexeme is None:
+            raise LookupError(f"Lemma '{normalized_lemma}' was not found")
+        has_audio = any(
+            row.has_pronunciation
+            for row in repository.find_surface_forms(lexeme_id=lexeme.id, form=pronunciation_form)
+        )
+
         if force and not generated_any:
             status: Literal["generated", "unavailable", "skipped"] = "unavailable"
         else:
@@ -100,6 +85,42 @@ class PronunciationCollaborator:
             stored_surface_form=normalized_surface,
             pronunciation_form=pronunciation_form,
         )
+
+    def generate_pronunciations_for_forms(
+        self,
+        stored_lemma: str,
+        *,
+        requested_forms: list[str],
+        force: bool = False,
+    ) -> list[str]:
+        normalized_lemma = normalize_token(stored_lemma)
+        if not normalized_lemma:
+            raise ValueError("stored_lemma is required")
+        if self._tts_service is None:
+            return []
+
+        repository = WordbankRepository(self._db_path)
+        lexeme = repository.get_lexeme(normalized_lemma)
+        if lexeme is None:
+            raise LookupError(f"Lemma '{normalized_lemma}' was not found")
+
+        generated_forms: list[str] = []
+        seen: set[str] = set()
+        forms_to_generate = [normalized_lemma, *requested_forms]
+        for form in forms_to_generate:
+            normalized_form = normalize_token(form)
+            if not normalized_form or normalized_form in seen:
+                continue
+            seen.add(normalized_form)
+            generated_now = self._ensure_surface_pronunciation(
+                lexeme_id=lexeme.id,
+                stored_lemma=normalized_lemma,
+                form=normalized_form,
+                force=force,
+            )
+            if generated_now:
+                generated_forms.append(normalized_form)
+        return generated_forms
 
     def queued_pronunciation_result(
         self,
@@ -213,27 +234,34 @@ class PronunciationCollaborator:
     def _ensure_surface_pronunciation(
         self,
         *,
-        conn: sqlite3.Connection,
         lexeme_id: int,
+        stored_lemma: str,
         form: str,
         force: bool = False,
     ) -> bool:
-        existing_rows = conn.execute(
-            """
-            SELECT id, pronunciation_audio
-            FROM surface_forms
-            WHERE lexeme_id = ? AND form = ?
-            ORDER BY id ASC
-            """,
-            (lexeme_id, form),
-        ).fetchall()
+        repository = WordbankRepository(self._db_path)
+        existing_rows = repository.find_surface_forms(lexeme_id=lexeme_id, form=form)
+        if not existing_rows and form == stored_lemma:
+            repository.insert_or_update_surface_form(
+                lexeme_id=lexeme_id,
+                meaning_id=None,
+                form=stored_lemma,
+                pos_tag=None,
+                morphology=None,
+            )
+            existing_rows = repository.find_surface_forms(lexeme_id=lexeme_id, form=form)
 
         if (
             not force
             and existing_rows
-            and all(isinstance(row["pronunciation_audio"], bytes) and row["pronunciation_audio"] for row in existing_rows)
+            and all(row.has_pronunciation for row in existing_rows)
         ):
             return False
+
+        if not force:
+            copied_existing_audio = self._copy_existing_surface_pronunciation(existing_rows)
+            if copied_existing_audio:
+                return True
 
         generated = self._lookup_pronunciation(form)
         if generated is None:
@@ -241,53 +269,85 @@ class PronunciationCollaborator:
         generated = _normalize_pronunciation_audio(generated)
 
         if not existing_rows:
-            conn.execute(
+            return False
+
+        with get_connection(self._db_path) as conn:
+            for existing in existing_rows:
+                conn.execute(
+                    """
+                    UPDATE surface_forms
+                    SET pronunciation_audio = ?,
+                        pronunciation_mime_type = ?,
+                        pronunciation_provider = ?,
+                        pronunciation_model = ?,
+                        pronunciation_generated_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                    """,
+                    (
+                        generated.audio_bytes,
+                        generated.mime_type,
+                        self._tts_provider_name(),
+                        self._tts_model_name(),
+                        existing.id,
+                    ),
+                )
+        return True
+
+    def _copy_existing_surface_pronunciation(self, existing_rows) -> bool:
+        source_row_id: int | None = None
+        missing_row_ids: list[int] = []
+        for row in existing_rows:
+            if row.has_pronunciation and source_row_id is None:
+                source_row_id = row.id
+                continue
+            if not row.has_pronunciation:
+                missing_row_ids.append(row.id)
+
+        if source_row_id is None or not missing_row_ids:
+            return False
+
+        with get_connection(self._db_path) as conn:
+            audio_row = conn.execute(
                 """
-                INSERT INTO surface_forms (
-                    lexeme_id,
-                    meaning_id,
-                    form,
-                    source,
+                SELECT
                     pronunciation_audio,
                     pronunciation_mime_type,
                     pronunciation_provider,
                     pronunciation_model,
                     pronunciation_generated_at
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-                """,
-                (
-                    lexeme_id,
-                    None,
-                    form,
-                    "manual",
-                    generated.audio_bytes,
-                    generated.mime_type,
-                    self._tts_provider_name(),
-                    self._tts_model_name(),
-                ),
-            )
-            return True
-
-        for existing in existing_rows:
-            conn.execute(
-                """
-                UPDATE surface_forms
-                SET pronunciation_audio = ?,
-                    pronunciation_mime_type = ?,
-                    pronunciation_provider = ?,
-                    pronunciation_model = ?,
-                    pronunciation_generated_at = CURRENT_TIMESTAMP
+                FROM surface_forms
                 WHERE id = ?
+                LIMIT 1
                 """,
-                (
-                    generated.audio_bytes,
-                    generated.mime_type,
-                    self._tts_provider_name(),
-                    self._tts_model_name(),
-                    int(existing["id"]),
-                ),
-            )
+                (source_row_id,),
+            ).fetchone()
+            if (
+                audio_row is None
+                or not isinstance(audio_row["pronunciation_audio"], bytes)
+                or not audio_row["pronunciation_audio"]
+            ):
+                return False
+
+            for row_id in missing_row_ids:
+                conn.execute(
+                    """
+                    UPDATE surface_forms
+                    SET pronunciation_audio = ?,
+                        pronunciation_mime_type = ?,
+                        pronunciation_provider = ?,
+                        pronunciation_model = ?,
+                        pronunciation_generated_at = COALESCE(?, CURRENT_TIMESTAMP)
+                    WHERE id = ?
+                    """,
+                    (
+                        audio_row["pronunciation_audio"],
+                        audio_row["pronunciation_mime_type"],
+                        audio_row["pronunciation_provider"],
+                        audio_row["pronunciation_model"],
+                        audio_row["pronunciation_generated_at"],
+                        row_id,
+                    ),
+                )
         return True
 
     def _lookup_pronunciation(self, source_word: str) -> PronunciationAudio | None:

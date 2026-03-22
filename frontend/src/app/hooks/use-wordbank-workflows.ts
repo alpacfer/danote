@@ -29,12 +29,12 @@ type UseWordbankWorkflowsParams = {
   extractErrorMessage: (response: Response, fallback: string) => Promise<string>
   activeSection: AppSection
   selectedLemma: string | null
-  selectedMeaningId: number | null
   lemmaDetails: LemmaDetailsResponse | null
   setLemmaDetails: Dispatch<SetStateAction<LemmaDetailsResponse | null>>
   setLemmaDetailsError: Dispatch<SetStateAction<string | null>>
   setIsLemmaDetailsLoading: Dispatch<SetStateAction<boolean>>
   setShowLemmaDetailsLoadingSkeleton: Dispatch<SetStateAction<boolean>>
+  trackQueuedPronunciationForms: (lemma: string, forms: string[]) => void
   sentences: SentencebankSentence[]
   setAnalysisRefreshTick: Dispatch<SetStateAction<number>>
   setWordbankRefreshTick: Dispatch<SetStateAction<number>>
@@ -66,12 +66,12 @@ export function useWordbankWorkflows({
   extractErrorMessage,
   activeSection,
   selectedLemma,
-  selectedMeaningId,
   lemmaDetails,
   setLemmaDetails,
   setLemmaDetailsError,
   setIsLemmaDetailsLoading,
   setShowLemmaDetailsLoadingSkeleton,
+  trackQueuedPronunciationForms,
   sentences,
   setAnalysisRefreshTick,
   setWordbankRefreshTick,
@@ -95,14 +95,12 @@ export function useWordbankWorkflows({
   const {
     pronunciationLoadingByForm,
     regeneratingPronunciationByForm,
-    generatePronunciationInBackground,
     playPronunciation,
     regeneratePronunciation,
   } = usePronunciationWorkflow({
     backendUrl,
     extractErrorMessage,
     selectedLemma,
-    selectedMeaningId,
     lemmaDetails,
     setWordbankRefreshTick,
   })
@@ -153,6 +151,7 @@ export function useWordbankWorkflows({
     extractErrorMessage,
     selectedLemma,
     setWordbankRefreshTick,
+    trackQueuedPronunciationForms,
     trackQueuedVerificationTargets,
   })
 
@@ -200,7 +199,7 @@ export function useWordbankWorkflows({
       })
       toast.success(payload.message)
       trackQueuedVerifications(payload.stored_lemma, payload)
-      void generatePronunciationInBackground(payload.stored_lemma, payload.stored_surface_form)
+      trackQueuedPronunciationForms(payload.stored_lemma, payload.queued_pronunciation_forms ?? [])
       void postTokenFeedback({
         raw_token: token.surface_token,
         predicted_status: token.classification,
@@ -239,9 +238,7 @@ export function useWordbankWorkflows({
       const payload = await addWordToWordbank(surfaceToken, lemmaCandidate, metadata, searchSeed)
       toast.success(payload.message)
       trackQueuedVerifications(payload.stored_lemma, payload)
-      if (!searchSeed) {
-        void generatePronunciationInBackground(payload.stored_lemma, payload.stored_surface_form)
-      }
+      trackQueuedPronunciationForms(payload.stored_lemma, payload.queued_pronunciation_forms ?? [])
       void postTokenFeedback({
         raw_token: feedbackContext?.rawToken ?? surfaceToken,
         predicted_status: feedbackContext?.predictedStatus ?? "new",

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sqlite3
 import time
 
@@ -75,6 +76,7 @@ def test_add_word_inserts_lemma_and_surface_form(tmp_path, stub_nlp_adapter_fact
     assert payload["stored_surface_form"] == "bogen"
     assert payload["source"] == "manual"
     assert payload["meaning"]["meaning_key"] == "bog"
+    assert payload["queued_pronunciation_forms"] == []
 
     with get_connection(db_path) as conn:
         lexeme_row = conn.execute(
@@ -341,23 +343,24 @@ def test_complete_variations_endpoint_adds_missing_forms_and_enqueues_jobs(tmp_p
     payload = response.json()
     assert payload["status"] == "updated"
     assert payload["added_surface_forms"] == ["bogen", "bøgerne"]
-    assert payload["queued_pronunciation_forms"] == ["bogen", "bøgerne"]
+    assert payload["queued_pronunciation_forms"] == ["bog", "bogen", "bøgerne"]
     assert [item["form"] for item in details.json()["meaning_sections"][0]["surface_forms"]] == ["bogen", "bøger", "bøgerne"]
 
     with get_connection(db_path) as conn:
         pronunciation_jobs = conn.execute(
             """
-            SELECT dedupe_key
+            SELECT dedupe_key, payload_json
             FROM wordbank_background_jobs
             WHERE job_type = 'generate_pronunciation'
             ORDER BY dedupe_key ASC
             """
         ).fetchall()
-    assert [str(row["dedupe_key"]) for row in pronunciation_jobs] == [
-        "generate_pronunciation::bog::bogen",
-        "generate_pronunciation::bog::bøger",
-        "generate_pronunciation::bog::bøgerne",
-    ]
+    assert [str(row["dedupe_key"]) for row in pronunciation_jobs] == ["generate_pronunciation::bog"]
+    assert json.loads(str(pronunciation_jobs[0]["payload_json"])) == {
+        "force": False,
+        "requested_forms": ["bog", "bøger", "bogen", "bøgerne"],
+        "stored_lemma": "bog",
+    }
 
 
 def test_complete_variations_endpoint_scopes_to_selected_homograph_meaning(tmp_path, stub_nlp_adapter_factory) -> None:

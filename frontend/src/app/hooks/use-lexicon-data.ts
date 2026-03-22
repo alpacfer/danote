@@ -4,12 +4,15 @@ import {
   type AppSection,
   createApiClient,
   hasQueuedVerificationTargets,
+  normalizeSearchWord,
   type LemmaDetailsResponse,
   type LemmaListResponse,
   type SentenceListResponse,
   type SentencebankSentence,
   type WordbankLemma,
 } from "@/app/core"
+
+const PRONUNCIATION_POLL_WINDOW_MS = 15_000
 
 type UseLexiconDataParams = {
   backendUrl: string
@@ -42,6 +45,9 @@ export function useLexiconData({
   const [showLemmaDetailsLoadingSkeleton, setShowLemmaDetailsLoadingSkeleton] = useState(false)
   const [hasLoadedWordbank, setHasLoadedWordbank] = useState(false)
   const [lemmaDetailsPollTick, setLemmaDetailsPollTick] = useState(0)
+  const [pendingPronunciationFormsByLemma, setPendingPronunciationFormsByLemma] = useState<
+    Record<string, { forms: string[]; expiresAt: number }>
+  >({})
 
   const lemmaDetailsLoadingDelayTimeoutRef = useRef<number | null>(null)
   const lastLoadedWordbankTickRef = useRef<number | null>(null)
@@ -49,6 +55,7 @@ export function useLexiconData({
     () => createApiClient({ backendUrl, extractErrorMessage }),
     [backendUrl, extractErrorMessage],
   )
+  const normalizedSelectedLemma = normalizeSearchWord(selectedLemma ?? "")
 
   useEffect(() => {
     const shouldLoadWordbank = activeSection === "wordbank" || Boolean(selectedLemma) || hasLoadedWordbank
@@ -183,10 +190,44 @@ export function useLexiconData({
   }, [activeSection, apiClient, lemmaDetailsPollTick, selectedLemma, wordbankRefreshTick])
 
   useEffect(() => {
+    if (!normalizedSelectedLemma) {
+      return
+    }
+    const tracking = pendingPronunciationFormsByLemma[normalizedSelectedLemma]
+    if (!tracking) {
+      return
+    }
+    const hasExpired = tracking.expiresAt <= Date.now()
+    const isSatisfied = lemmaDetails !== null && tracking.forms.every((form) => lemmaDetailsHasPronunciation(lemmaDetails, form))
+    if (!hasExpired && !isSatisfied) {
+      return
+    }
+    setPendingPronunciationFormsByLemma((current) => {
+      if (!(normalizedSelectedLemma in current)) {
+        return current
+      }
+      const next = { ...current }
+      delete next[normalizedSelectedLemma]
+      return next
+    })
+  }, [lemmaDetails, normalizedSelectedLemma, pendingPronunciationFormsByLemma])
+
+  useEffect(() => {
     if (activeSection !== "wordbank" || !selectedLemma) {
       return
     }
-    if (!hasQueuedVerificationTargets(lemmaDetails)) {
+    const activePronunciationTracking = normalizedSelectedLemma
+      ? pendingPronunciationFormsByLemma[normalizedSelectedLemma]
+      : undefined
+    const shouldPollPronunciations = Boolean(
+      activePronunciationTracking
+      && activePronunciationTracking.expiresAt > Date.now()
+      && (
+        lemmaDetails === null
+        || activePronunciationTracking.forms.some((form) => !lemmaDetailsHasPronunciation(lemmaDetails, form))
+      ),
+    )
+    if (!hasQueuedVerificationTargets(lemmaDetails) && !shouldPollPronunciations) {
       return
     }
     const timeoutId = window.setTimeout(() => {
@@ -195,7 +236,28 @@ export function useLexiconData({
     return () => {
       window.clearTimeout(timeoutId)
     }
-  }, [activeSection, lemmaDetails, selectedLemma, selectedMeaningId])
+  }, [activeSection, lemmaDetails, normalizedSelectedLemma, pendingPronunciationFormsByLemma, selectedLemma, selectedMeaningId])
+
+  function trackQueuedPronunciationForms(lemma: string, forms: string[]) {
+    const normalizedLemma = normalizeSearchWord(lemma)
+    const normalizedForms = normalizeQueuedPronunciationForms(forms)
+    if (!normalizedLemma || normalizedForms.length === 0) {
+      return
+    }
+    setPendingPronunciationFormsByLemma((current) => {
+      const existing = current[normalizedLemma]
+      return {
+        ...current,
+        [normalizedLemma]: {
+          forms: normalizeQueuedPronunciationForms([
+            ...(existing?.forms ?? []),
+            ...normalizedForms,
+          ]),
+          expiresAt: Date.now() + PRONUNCIATION_POLL_WINDOW_MS,
+        },
+      }
+    })
+  }
 
   return {
     lemmas,
@@ -216,5 +278,35 @@ export function useLexiconData({
     setIsLemmaDetailsLoading,
     showLemmaDetailsLoadingSkeleton,
     setShowLemmaDetailsLoadingSkeleton,
+    trackQueuedPronunciationForms,
   }
+}
+
+function normalizeQueuedPronunciationForms(forms: string[]): string[] {
+  const ordered: string[] = []
+  const seen = new Set<string>()
+  for (const form of forms) {
+    const normalizedForm = normalizeSearchWord(form)
+    if (!normalizedForm || seen.has(normalizedForm)) {
+      continue
+    }
+    seen.add(normalizedForm)
+    ordered.push(normalizedForm)
+  }
+  return ordered
+}
+
+function lemmaDetailsHasPronunciation(lemmaDetails: LemmaDetailsResponse, form: string): boolean {
+  const normalizedTarget = normalizeSearchWord(form)
+  if (!normalizedTarget) {
+    return false
+  }
+  const candidates = [
+    ...(lemmaDetails.surface_forms ?? []),
+    ...((lemmaDetails.meaning_sections ?? []).flatMap((section) => section.surface_forms ?? [])),
+  ]
+  return candidates.some((candidate) => {
+    const normalizedForm = normalizeSearchWord(candidate.form)
+    return normalizedForm === normalizedTarget && Boolean(candidate.has_pronunciation)
+  })
 }

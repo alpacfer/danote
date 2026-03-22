@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from app.api.schemas.v1.wordbank import AddWordResponse, MeaningContext, QueuedBackgroundTask, VerificationResult
+from app.api.schemas.v1.wordbank import AddWordResponse, MeaningContext, VerificationResult
 from app.core.errors import ConflictError
-from app.db.repositories import WordbankBackgroundJobRepository
 from app.services.token_classifier import normalize_token
 from app.services.use_cases.wordbank.meaning_sections import ensure_wordbank_meaning_compatibility
+from app.services.use_cases.wordbank.pronunciation_queue import queue_pronunciation_generation
 from app.services.use_cases.wordbank.queries_details import get_lemma_details
 from app.services.use_cases.wordbank.runtime import WordbankRuntime
 from app.services.use_cases.wordbank.search_seed_persistence import (
@@ -54,11 +54,10 @@ def add_word_from_search_seed(
         ),
     )
     pronunciation = runtime.pronunciation.queued_pronunciation_result(seed.lemma, seed.surface)
-    _enqueue_background_jobs(
+    queued_pronunciation_forms = queue_pronunciation_generation(
         runtime,
         stored_lemma=seed.lemma,
-        stored_surface_form=seed.surface,
-        pronunciation=pronunciation,
+        requested_forms=(seed.surface,),
     )
     saved_snapshot = get_lemma_details(runtime, seed.lemma)
     return AddWordResponse(
@@ -83,26 +82,7 @@ def add_word_from_search_seed(
         ),
         verification=verification,
         queued_verification_targets=queued_verification_targets,
+        queued_pronunciation_forms=queued_pronunciation_forms,
         pronunciation=pronunciation,
         saved_snapshot=saved_snapshot,
     )
-
-
-def _enqueue_background_jobs(
-    runtime: WordbankRuntime,
-    *,
-    stored_lemma: str,
-    stored_surface_form: str | None,
-    pronunciation: QueuedBackgroundTask | None,
-) -> None:
-    repository = WordbankBackgroundJobRepository(runtime.db_path)
-    normalized_surface = normalize_token(stored_surface_form or "") or None
-    if pronunciation is not None and pronunciation.status == "queued":
-        repository.enqueue(
-            job_type="generate_pronunciation",
-            dedupe_key=f"generate_pronunciation::{stored_lemma}::{normalized_surface or ''}",
-            payload={
-                "stored_lemma": stored_lemma,
-                "stored_surface_form": normalized_surface,
-            },
-        )

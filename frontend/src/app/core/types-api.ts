@@ -67,6 +67,7 @@ export type AddWordResponse = {
     meaning_id: number | null
     stored_surface_form: string | null
   }>
+  queued_pronunciation_forms?: string[]
   pronunciation?: {
     status: "queued" | "skipped"
     form: string | null

@@ -255,8 +255,9 @@ Pronunciation behavior is shared by header + section rows + variation rows.
 
 ## Regenerate flow (`POST /api/wordbank/lexemes/pronunciation`)
 
-- Can run as background best-effort after add operations.
 - For explicit user regeneration, notification-enabled path is used and the request targets the exact right-clicked word (`stored_surface_form`) instead of a header-only lemma action.
+- Automatic add/save/completion flows no longer call this endpoint from the browser.
+  They queue lemma-scoped pronunciation work in the backend and let the word page refresh from persisted state.
 - On `status === "generated"`:
   - cached pronunciation for that form is invalidated
   - `wordbankRefreshTick` increments
@@ -359,7 +360,8 @@ Pronunciation behavior is shared by header + section rows + variation rows.
 - On success:
   - success toast
   - backend queues verification for the full current word page
-  - pronunciation generation may also queue separately
+  - backend also returns `queued_pronunciation_forms` for the shared pronunciation queue
+  - while the open word page still has queued pronunciation forms without stored audio, lemma-details polling stays active for a bounded window so play buttons update without a manual refresh
   - token feedback submission (`source: "playground"`)
   - analysis + wordbank refresh ticks increment
 
@@ -369,12 +371,13 @@ Pronunciation behavior is shared by header + section rows + variation rows.
 - On success:
   - success toast
   - backend queues verification for the full current word page
-  - pronunciation generation remains best-effort in the background
+  - backend also returns `queued_pronunciation_forms` for the shared pronunciation queue
   - token feedback submission (`source: "search"`)
   - if response includes `saved_snapshot`, details pane is hydrated immediately from snapshot
   - response also includes `queued_verification_targets`, which seed off-page verification tracking
   - if that snapshot includes queued verification, the header immediately shows `Verifying...`
   - while any open-page target remains queued, the word page polls until the persisted results become final
+  - while the selected lemma still has queued pronunciation forms without stored audio, the same open-page polling loop also waits for those forms for a bounded window
   - analysis + wordbank refresh ticks increment
   - app navigates to wordbank and selects stored lemma/meaning
 - For `search_seed` saves, backend persistence separates canonical lemma metadata from selected surface metadata:
@@ -384,6 +387,16 @@ Pronunciation behavior is shared by header + section rows + variation rows.
   - the word page now computes and returns gloss translations for search-saved meaning sections too, so homograph meanings can render `translation, gloss translation`
   - raw gloss text is not promoted into `english_translation`, and the UI omits untranslated gloss from translation lines
   - only the selected surface form is stored; search save does not hydrate the full paradigm into wordbank
+
+## Complete variations follow-up
+
+- `POST /api/wordbank/lexemes/complete-variations`
+- On success:
+  - missing paradigm members are inserted for the selected meaning
+  - pronunciation queueing is merged through one lemma-scoped background job keyed by `stored_lemma`
+  - `queued_pronunciation_forms` contains the forms still missing stored audio after the completion pass
+  - the lemma itself may appear in that list when the root lemma row still needs pronunciation audio
+  - the open word page keeps polling lemma details for a bounded window until those forms show `has_pronunciation=true` or the local timeout expires
 
 ## Behavioral test coverage map
 

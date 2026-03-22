@@ -139,7 +139,8 @@ def test_generate_pronunciation_endpoint_generates_for_recently_added_word(tmp_p
         item for item in details_response.json()["meaning_sections"][0]["surface_forms"] if item["form"] == "katten"
     )
     assert pronounced_surface["has_pronunciation"] is True
-    assert stub_tts.calls == ["kat", "katten"]
+    assert "kat" in stub_tts.calls
+    assert "katten" in stub_tts.calls
 
 
 def test_generate_pronunciation_endpoint_force_regenerates_existing_audio(tmp_path, stub_nlp_adapter_factory) -> None:

@@ -101,6 +101,8 @@ Route decorators are the source of truth in `backend/app/api/routes/`, and API D
   - `400` for invalid inputs.
   - body `status` may be `inserted` or `exists`.
   - when `verification` is present, it may include `stored_surface_form`, `requested_at`, and `completed_at`.
+  - `queued_pronunciation_forms` lists the normalized lemma/surface forms queued for automatic background pronunciation generation.
+    Automatic add/save flows now use the shared backend pronunciation queue instead of browser-side pronunciation requests.
   - `queued_verification_targets` lists each backend-queued word-page verification target using `meaning_id` plus `stored_surface_form`.
   - for search-seed saves, empty or missing `search_seed.english_translation` is rejected; the word is not persisted.
 
@@ -166,7 +168,9 @@ Route decorators are the source of truth in `backend/app/api/routes/`, and API D
     present, past, imperative, and past participle.
     The infinitive row is treated as the lemma/default form and is not duplicated when it is already implied by the saved lemma metadata.
   - `added_surface_forms` lists the forms inserted by this call.
-  - `queued_pronunciation_forms` lists the newly added forms queued for background pronunciation generation.
+  - `queued_pronunciation_forms` lists the normalized forms queued for background pronunciation generation.
+    The queue is lemma-scoped and merged by `stored_lemma`, so repeated completion requests update one pronunciation job instead of spawning per-form duplicates.
+  - `queued_pronunciation_forms` may include the lemma itself when the root lemma row is missing pronunciation audio.
   - `queued_verification_targets` lists the meaning-level completion-review target(s) queued by this call so the frontend can keep polling even after leaving the lemma page.
   - the command also requeues one meaning-level verification review for the updated meaning.
     That completion review becomes the active verification source of truth for the meaning until it settles.
