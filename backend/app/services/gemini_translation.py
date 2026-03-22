@@ -7,11 +7,13 @@ import time
 from typing import Protocol
 
 from app.services.gemini_translation_helpers import (
+    build_alternative_translations_prompt,
     build_batch_translation_prompt,
     build_meaning_section_selection_prompt,
     build_translation_prompt,
     is_retryable_exception,
     normalize_translation_value,
+    parse_alternative_translations_payload,
     parse_batch_payload,
     parse_meaning_section_payload,
     parse_translation,
@@ -54,6 +56,23 @@ class MeaningSectionSelectionInput:
     meaning_candidates: list[MeaningSectionCandidateInput] = field(default_factory=list)
 
 
+@dataclass(frozen=True, slots=True)
+class AlternativeTranslationsInput:
+    surface_form: str
+    lemma: str
+    pos_tag: str | None = None
+    morphology: str | None = None
+    gloss: str | None = None
+    current_translation: str | None = None
+    existing_additional_translations: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True, slots=True)
+class AlternativeTranslationsResult:
+    primary_translation: str | None = None
+    alternative_translations: list[str] = field(default_factory=list)
+
+
 class GeminiWordTranslationService(Protocol):
     provider: str
 
@@ -62,6 +81,9 @@ class GeminiWordTranslationService(Protocol):
         self, payloads: list[ContextualWordTranslationInput]
     ) -> list[str | None]: ...
     def select_meaning_section(self, payload: MeaningSectionSelectionInput) -> int | None: ...
+    def find_alternative_translations(
+        self, payload: AlternativeTranslationsInput
+    ) -> AlternativeTranslationsResult: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -171,6 +193,17 @@ class GeminiFlashLiteWordTranslationService:
         )
         return self._parse_meaning_section_id(response, valid_ids={item.id for item in payload.meaning_candidates})
 
+    def find_alternative_translations(
+        self,
+        payload: AlternativeTranslationsInput,
+    ) -> AlternativeTranslationsResult:
+        prompt = self._alternative_translations_prompt(payload)
+        response = self._generate_content(
+            prompt,
+            config=self._alternative_translations_response_config(),
+        )
+        return self._parse_alternative_translations(response)
+
     def _translation_prompt(self, payload: ContextualWordTranslationInput) -> str:
         return build_translation_prompt(payload)
 
@@ -182,6 +215,9 @@ class GeminiFlashLiteWordTranslationService:
 
     def _meaning_section_selection_prompt(self, payload: MeaningSectionSelectionInput) -> str:
         return build_meaning_section_selection_prompt(payload)
+
+    def _alternative_translations_prompt(self, payload: AlternativeTranslationsInput) -> str:
+        return build_alternative_translations_prompt(payload)
 
     def _single_response_config(self) -> object:
         genai_types = self._genai_types()
@@ -248,6 +284,29 @@ class GeminiFlashLiteWordTranslationService:
             },
             temperature=0,
             max_output_tokens=64,
+            thinking_config=genai_types.ThinkingConfig(thinking_budget=0),
+        )
+
+    def _alternative_translations_response_config(self) -> object:
+        genai_types = self._genai_types()
+        return genai_types.GenerateContentConfig(
+            response_mime_type="application/json",
+            response_schema={
+                "type": "OBJECT",
+                "properties": {
+                    "primary_translation": {
+                        "type": "STRING",
+                        "nullable": True,
+                    },
+                    "alternative_translations": {
+                        "type": "ARRAY",
+                        "items": {"type": "STRING"},
+                    },
+                },
+                "required": ["primary_translation", "alternative_translations"],
+            },
+            temperature=0,
+            max_output_tokens=128,
             thinking_config=genai_types.ThinkingConfig(thinking_budget=0),
         )
 
@@ -369,6 +428,29 @@ class GeminiFlashLiteWordTranslationService:
 
     def _parse_meaning_section_payload(self, payload: object, *, valid_ids: set[int]) -> int | None:
         return parse_meaning_section_payload(payload, valid_ids=valid_ids)
+
+    def _parse_alternative_translations(self, response: object) -> AlternativeTranslationsResult:
+        parsed_payload = getattr(response, "parsed", None)
+        parsed = parse_alternative_translations_payload(parsed_payload)
+        if parsed is not None:
+            return parsed
+
+        raw_text = getattr(response, "text", None)
+        if not isinstance(raw_text, str):
+            return AlternativeTranslationsResult()
+        cleaned = raw_text.strip()
+        if cleaned.startswith("```"):
+            cleaned = cleaned.removeprefix("```json").removeprefix("```").strip()
+            if cleaned.endswith("```"):
+                cleaned = cleaned[:-3].strip()
+        try:
+            payload = json.loads(cleaned)
+        except ValueError:
+            return AlternativeTranslationsResult()
+        parsed = parse_alternative_translations_payload(payload)
+        if parsed is not None:
+            return parsed
+        return AlternativeTranslationsResult()
 
 
 def _normalize_translation_value(value: str | None) -> str | None:

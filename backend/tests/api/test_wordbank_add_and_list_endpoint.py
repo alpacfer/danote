@@ -270,6 +270,67 @@ def test_rethink_categories_updates_meaning_categories(tmp_path, stub_nlp_adapte
     assert details.json()["meaning_sections"][0]["categories"] == ["Culture", "Education", "Food", "Reading Material"]
 
 
+def test_find_alternative_translations_updates_meaning_translation_and_additional_translations(
+    tmp_path,
+    stub_nlp_adapter_factory,
+) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    apply_migrations(db_path)
+    app = create_app(build_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+
+    class StubGeminiWordTranslationService:
+        provider = "gemini_word_translation"
+
+        def find_alternative_translations(self, payload):
+            if payload.lemma == "plads" and payload.gloss == "space" and payload.current_translation == "seat":
+                from app.services.gemini_translation import AlternativeTranslationsResult
+
+                return AlternativeTranslationsResult(
+                    primary_translation="place",
+                    alternative_translations=["spot", "seat"],
+                )
+            raise AssertionError("Unexpected alternative translations payload.")
+
+    with TestClient(app) as client:
+        added = client.post(
+            "/api/wordbank/lexemes",
+            json={
+                "surface_token": "plads",
+                "lemma_candidate": "plads",
+                "search_seed": {
+                    "lemma": "plads",
+                    "surface": "plads",
+                    "meaning_key": "space",
+                    "gloss": "space",
+                    "english_translation": "seat",
+                    "pos_tag": "NOUN",
+                    "morphology": "Gender=Com|Number=Sing|Definite=Ind",
+                },
+            },
+        )
+        meaning_id = added.json()["meaning"]["id"]
+
+    with TestClient(app) as client:
+        set_service_field(client.app, "gemini_word_translation_service", StubGeminiWordTranslationService())
+        response = client.post(
+            "/api/wordbank/lexemes/find-alternative-translations",
+            json={
+                "stored_lemma": "plads",
+                "meaning_id": meaning_id,
+            },
+        )
+        details = client.get("/api/wordbank/lemmas/plads")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "updated"
+    assert payload["primary_translation"] == "place"
+    assert payload["added_additional_translations"] == ["spot", "seat"]
+    assert details.status_code == 200
+    assert details.json()["meaning_sections"][0]["english_translation"] == "place"
+    assert details.json()["meaning_sections"][0]["additional_translations"] == ["spot", "seat"]
+
+
 def test_complete_variations_endpoint_adds_missing_forms_and_enqueues_jobs(tmp_path, stub_nlp_adapter_factory) -> None:
     db_path = tmp_path / "danote.sqlite3"
     cor_db_path = tmp_path / "cor.sqlite"

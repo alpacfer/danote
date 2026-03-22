@@ -234,6 +234,15 @@ export function mockFetchImplementation(options?: {
     message: string
   }
   rethinkCategoriesHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+  findAlternativeTranslationsResponse?: {
+    status: "updated" | "skipped" | "error"
+    stored_lemma: string
+    meaning_id: number | null
+    primary_translation: string | null
+    added_additional_translations: string[]
+    message: string
+  }
+  findAlternativeTranslationsHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
   applyVerificationChangesResponse?: {
     status: "applied" | "skipped"
     stored_lemma: string
@@ -639,6 +648,14 @@ export function mockFetchImplementation(options?: {
     applied_categories: ["Animals"],
     message: `Updated categories for '${addWordResponse.stored_lemma}'.`,
   }
+  const findAlternativeTranslationsResponse = options?.findAlternativeTranslationsResponse ?? {
+    status: "updated" as const,
+    stored_lemma: addWordResponse.stored_lemma,
+    meaning_id: null,
+    primary_translation: null,
+    added_additional_translations: ["alternate"],
+    message: `Added 1 alternative translation for '${addWordResponse.stored_lemma}'.`,
+  }
   const applyVerificationChangesResponse = options?.applyVerificationChangesResponse ?? {
     status: "applied" as const,
     stored_lemma: addWordResponse.stored_lemma,
@@ -892,6 +909,13 @@ export function mockFetchImplementation(options?: {
         return options.rethinkCategoriesHandler(input, init)
       }
       return responseOf(rethinkCategoriesResponse)
+    }
+
+    if (url.endsWith("/api/wordbank/lexemes/find-alternative-translations")) {
+      if (options?.findAlternativeTranslationsHandler) {
+        return options.findAlternativeTranslationsHandler(input, init)
+      }
+      return responseOf(findAlternativeTranslationsResponse)
     }
 
     if (url.endsWith("/api/wordbank/lexemes/apply-verification-changes")) {

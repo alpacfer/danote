@@ -183,13 +183,20 @@ Meaning auto-scroll behavior:
   - the header lemma word exposes `Regenerate audio`
   - each meaning card is a context-menu trigger
   - each meaning card exposes `Rerun verification`, which requeues the card's normal Gemini verification targets for that meaning-level scope plus its saved variation rows
+  - each meaning card also exposes `Find alternative translations`
   - noun, adjective, and verb meaning cards expose `Rethink categories` and `Complete variations`
-  - other meaning cards expose only `Rethink categories`
+  - other meaning cards expose only `Find alternative translations` and `Rethink categories`
   - each surface-form word inside a meaning card also exposes its own `Regenerate audio` action from a nested right-click menu
 - Non-sectioned pages:
   - the lemma word is the combined context-menu trigger for root-scope actions
-  - that menu exposes `Regenerate audio` plus `Rethink categories`
+  - that menu exposes `Regenerate audio`, `Find alternative translations`, and `Rethink categories`
   - each flat variation word tile also exposes its own `Regenerate audio` action from the word trigger
+- `Find alternative translations` reuses the existing shadcn `ContextMenuItem` within the current right-click menu; no `DropdownMenu` or extra popover is introduced because the interaction is still a direct per-scope card action.
+- The action calls a dedicated backend Gemini translation route for the selected root / meaning scope and refreshes lemma details after success.
+- Gemini is instructed to return only very common, obvious English alternatives for that exact saved sense.
+  It may return no additional translations at all.
+- If Gemini decides the current saved translation is not the best common translation for that sense, backend replaces the primary translation for that scope.
+- Any returned alternates that are still valid and distinct from the final primary translation are persisted into that scope's `additional_translations`.
 - `Rethink categories` immediately calls the backend recategorization endpoint for that root / meaning scope and refreshes lemma details after success.
 - The action does not open a confirmation flow and does not apply Gemini verification suggestions; it only recalculates semantic category assignments.
 - The manual rethink path uses the same Gemini category-classification flow as initial verification; the only difference is that this one is user-triggered.
@@ -277,7 +284,9 @@ Meaning auto-scroll behavior:
 ## Related words section (`WordbankRelatedWords`)
 
 - Placement:
+  - the lemma header transitions into the first meaning/variation card with spacing only; no horizontal divider is rendered between them
   - rendered below sectioned meaning cards or the flat variation body
+  - the section title uses the same muted uppercase micro-label styling already used by other wordbank supporting headers
   - hidden only when `related_words.status === "empty"` and there are no items
 - Source contract:
   - Gemini decides whether the saved lemma is a compound and returns component lemmas plus English translation and POS hint

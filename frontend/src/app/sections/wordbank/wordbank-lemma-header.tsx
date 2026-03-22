@@ -3,9 +3,8 @@ import { additionalTranslationsDisplay, badgesForSavedForm, corSecondaryBadgeCla
 import { WordbankPronunciationWord } from "@/app/sections/wordbank/wordbank-pronunciation-word"
 import { WordbankVerificationPopover } from "@/app/sections/wordbank/wordbank-verification-popover"
 import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
-import { AudioLines, Loader2, Sparkles } from "lucide-react"
+import { AudioLines, Languages, Loader2, Sparkles } from "lucide-react"
 
 type WordbankLemmaHeaderProps = {
   selectedLemma: string
@@ -15,6 +14,8 @@ type WordbankLemmaHeaderProps = {
   regeneratingPronunciationByForm: Record<string, boolean>
   onPlayPronunciation: (form: string) => void
   onRegeneratePronunciation: (form: string) => void
+  isFindingAlternativeTranslations: boolean
+  onFindAlternativeTranslations: (meaningId: number | null) => void
   isRethinkingCategories: boolean
   onRethinkCategories: (meaningId: number | null) => void
   verificationOverview: VerificationOverview
@@ -34,6 +35,8 @@ export function WordbankLemmaHeader({
   regeneratingPronunciationByForm,
   onPlayPronunciation,
   onRegeneratePronunciation,
+  isFindingAlternativeTranslations,
+  onFindAlternativeTranslations,
   isRethinkingCategories,
   onRethinkCategories,
   verificationOverview,
@@ -91,10 +94,15 @@ export function WordbankLemmaHeader({
     },
     ...(!lemmaDetails.is_sectioned
       ? [{
+          icon: isFindingAlternativeTranslations ? <Loader2 className="animate-spin" /> : <Languages />,
+          label: isFindingAlternativeTranslations ? "Finding alternative translations..." : "Find alternative translations",
+          disabled: isFindingAlternativeTranslations,
+          separatorBefore: true as const,
+          onSelect: () => onFindAlternativeTranslations(null),
+        }, {
           icon: isRethinkingCategories ? <Loader2 className="animate-spin" /> : <Sparkles />,
           label: isRethinkingCategories ? "Rethinking categories..." : "Rethink categories",
           disabled: isRethinkingCategories,
-          separatorBefore: true as const,
           onSelect: () => onRethinkCategories(null),
         }]
       : []),
@@ -102,7 +110,10 @@ export function WordbankLemmaHeader({
   const categories = lemmaDetails.categories ?? []
 
   return (
-    <div data-testid={!lemmaDetails.is_sectioned ? "wordbank-lemma-scope-card" : undefined}>
+    <div
+      id="wordbank-lemma-header"
+      data-testid={!lemmaDetails.is_sectioned ? "wordbank-lemma-scope-card" : undefined}
+    >
       {/* Category badges */}
       {categories.length > 0 ? (
         <div data-testid="wordbank-lemma-category-badges" className="flex flex-wrap justify-end gap-1.5">
@@ -166,8 +177,6 @@ export function WordbankLemmaHeader({
       {headerTranslationLine && (showSupplementaryMetadata || selectedMeaningSection) ? (
         <p className="text-muted-foreground mt-2 text-base italic">{headerTranslationLine}</p>
       ) : null}
-
-      <Separator className="mt-4" />
     </div>
   )
 }

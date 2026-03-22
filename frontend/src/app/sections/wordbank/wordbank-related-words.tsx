@@ -46,12 +46,13 @@ export function WordbankRelatedWords({
   }
 
   return (
-    <section className="space-y-3" aria-labelledby="wordbank-related-heading">
-      <div className="space-y-1">
-        <h2 id="wordbank-related-heading" className="text-sm font-semibold tracking-[0.18em] uppercase">
-          Related
-        </h2>
-      </div>
+    <section className="space-y-4 pt-2" aria-labelledby="wordbank-related-heading">
+      <h2
+        id="wordbank-related-heading"
+        className="text-muted-foreground text-[11px] font-semibold uppercase tracking-wide"
+      >
+        Related
+      </h2>
       <div className="grid gap-3 sm:grid-cols-2">
         {(relatedWords.items ?? []).map((item) => {
           const uniqueVariant = item.display_variant ?? null

@@ -19,8 +19,10 @@ from app.services.verification_review_policy import (
     is_surface_form_review,
     looks_like_danish_self_translation,
     should_backfill_translation_from_gloss_hint,
+    should_discard_gloss_hint_translation_action,
     should_discard_move_to_lemma_action,
     should_force_translation_fix_from_gloss_hint,
+    should_ignore_gloss_hint_translation_review,
     should_ignore_morphology_supported_move_review,
     should_ignore_surface_translation_review,
     should_ignore_variation_only_review,
@@ -234,6 +236,10 @@ class GeminiWordVerificationService:
                 problem=problem,
                 change_to_implement=change_to_implement,
             ) or should_ignore_morphology_supported_move_review(
+                payload=payload,
+                raw_suggested_actions=raw_suggested_actions,
+                suggested_actions=suggested_actions,
+            ) or should_ignore_gloss_hint_translation_review(
                 payload=payload,
                 raw_suggested_actions=raw_suggested_actions,
                 suggested_actions=suggested_actions,
@@ -574,6 +580,11 @@ class GeminiWordVerificationService:
             if not english_translation:
                 return None
             if looks_like_danish_self_translation(
+                english_translation=english_translation,
+                payload=payload,
+            ):
+                return None
+            if should_discard_gloss_hint_translation_action(
                 english_translation=english_translation,
                 payload=payload,
             ):

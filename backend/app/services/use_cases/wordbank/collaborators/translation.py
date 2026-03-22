@@ -16,6 +16,7 @@ from app.api.schemas.v1.wordbank import (
 from app.db.migrations import get_connection
 from app.services.cor_local import CORLocalLexiconService
 from app.services.gemini_translation import (
+    AlternativeTranslationsInput,
     ContextualWordTranslationInput,
     GeminiTranslationError,
     GeminiWordTranslationService,
@@ -65,6 +66,13 @@ logger = logging.getLogger(__name__)
 @dataclass(frozen=True, slots=True)
 class TranslationLookupResult:
     translation: str | None
+    provider: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class AlternativeTranslationsLookupResult:
+    primary_translation: str | None
+    alternative_translations: list[str]
     provider: str | None
 
 
@@ -478,6 +486,69 @@ class TranslationCollaborator:
             cache[cache_key] = normalized
         return TranslationLookupResult(
             translation=normalized,
+            provider=contextual_provider_name(self._gemini_word_translation_service),
+        )
+
+    def find_alternative_translations(
+        self,
+        *,
+        surface_form: str,
+        lemma: str,
+        pos_tag: str | None,
+        morphology: str | None,
+        gloss: str | None,
+        current_translation: str | None,
+        existing_additional_translations: list[str],
+    ) -> AlternativeTranslationsLookupResult:
+        if self._gemini_word_translation_service is None:
+            return AlternativeTranslationsLookupResult(
+                primary_translation=None,
+                alternative_translations=[],
+                provider=None,
+            )
+        finder = getattr(self._gemini_word_translation_service, "find_alternative_translations", None)
+        if not callable(finder):
+            return AlternativeTranslationsLookupResult(
+                primary_translation=None,
+                alternative_translations=[],
+                provider=None,
+            )
+
+        payload = AlternativeTranslationsInput(
+            surface_form=surface_form,
+            lemma=lemma,
+            pos_tag=pos_tag,
+            morphology=morphology,
+            gloss=normalize_translation_value(gloss),
+            current_translation=normalize_translation_value(current_translation),
+            existing_additional_translations=[
+                normalized
+                for value in existing_additional_translations
+                if (normalized := normalize_translation_value(value)) is not None
+            ],
+        )
+        try:
+            result = finder(payload)
+        except (GeminiTranslationError, httpx.HTTPError, TimeoutError, ValueError, TypeError) as exc:
+            log_provider_failure(logger=logger,
+                provider=contextual_provider_name(self._gemini_word_translation_service),
+                operation="find_alternative_translations",
+                reason=ProviderFailureReason.PROVIDER,
+                retryable=False,
+                exc=exc,
+            )
+            return AlternativeTranslationsLookupResult(
+                primary_translation=None,
+                alternative_translations=[],
+                provider=contextual_provider_name(self._gemini_word_translation_service),
+            )
+        return AlternativeTranslationsLookupResult(
+            primary_translation=normalize_translation_value(result.primary_translation),
+            alternative_translations=[
+                normalized
+                for value in result.alternative_translations
+                if (normalized := normalize_translation_value(value)) is not None
+            ],
             provider=contextual_provider_name(self._gemini_word_translation_service),
         )
 

@@ -50,6 +50,7 @@ describe("section prop adapters", () => {
   it("builds wordbank props with safe async wrappers", async () => {
     const playPronunciation = vi.fn(async () => undefined)
     const regenerate = vi.fn(async () => undefined)
+    const findAlternativeTranslations = vi.fn(async () => undefined)
     const rethinkCategories = vi.fn(async () => undefined)
     const completeMeaningVariations = vi.fn(async () => undefined)
     const apply = vi.fn(async () => undefined)
@@ -76,6 +77,8 @@ describe("section prop adapters", () => {
       regeneratingPronunciationByForm: {},
       playPronunciation,
       regeneratePronunciation: regenerate,
+      isFindingAlternativeTranslations: false,
+      findAlternativeTranslations,
       isRethinkingCategories: false,
       rethinkCategories,
       isCompletingMeaningVariations: false,
@@ -100,6 +103,7 @@ describe("section prop adapters", () => {
 
     result.onPlayPronunciation("bog")
     result.onRegeneratePronunciation("bog")
+    result.onFindAlternativeTranslations(12)
     result.onRethinkCategories(12)
     result.onCompleteMeaningVariations(12)
     result.onMarkVisibleVerificationNotificationsAsRead()
@@ -111,6 +115,7 @@ describe("section prop adapters", () => {
 
     expect(playPronunciation).toHaveBeenCalledWith("bog")
     expect(regenerate).toHaveBeenCalledTimes(1)
+    expect(findAlternativeTranslations).toHaveBeenCalledWith(12)
     expect(rethinkCategories).toHaveBeenCalledWith(12)
     expect(completeMeaningVariations).toHaveBeenCalledWith(12)
     expect(markVisibleVerificationNotificationsAsRead).toHaveBeenCalledTimes(1)

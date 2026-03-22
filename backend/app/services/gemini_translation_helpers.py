@@ -6,6 +6,8 @@ from typing import TYPE_CHECKING, Any, Callable
 
 if TYPE_CHECKING:
     from app.services.gemini_translation import (
+        AlternativeTranslationsInput,
+        AlternativeTranslationsResult,
         BatchContextualWordTranslationRequestItem,
         BatchContextualWordTranslationResponse,
         BatchContextualWordTranslationResponseItem,
@@ -132,6 +134,39 @@ def build_meaning_section_selection_prompt(payload: MeaningSectionSelectionInput
     )
 
 
+def build_alternative_translations_prompt(payload: AlternativeTranslationsInput) -> str:
+    context = {
+        "surface_form_da": payload.surface_form,
+        "lemma_da": payload.lemma,
+        "lemma_frame_da": _danish_lemma_frame(payload.lemma, payload.pos_tag),
+        "pos_tag": payload.pos_tag,
+        "morphology": payload.morphology,
+        "gloss": payload.gloss,
+        "current_translation_en": payload.current_translation,
+        "existing_additional_translations_en": payload.existing_additional_translations,
+    }
+    return (
+        "You review one saved Danish wordbank meaning and decide whether the existing English translation should stay, "
+        "be corrected, or gain a few very common alternative translations.\n"
+        "Return JSON only with this exact shape: "
+        "{\"primary_translation\":\"...\",\"alternative_translations\":[\"...\"]}\n"
+        "Rules:\n"
+        "- Translate the Danish lemma/sense into modern, common English only.\n"
+        "- Use gloss, pos_tag, and morphology as hard sense-disambiguation context.\n"
+        "- primary_translation should be the single best common dictionary-style English translation for this exact sense.\n"
+        "- If the current translation is already the best common translation, repeat it as primary_translation.\n"
+        "- If the current translation is wrong, unnatural, or less common for this sense, replace it with a better common translation.\n"
+        "- alternative_translations must contain only obvious, popular alternatives for the same sense.\n"
+        "- Return at most 3 alternative translations.\n"
+        "- Do not include niche, archaic, technical, speculative, or sentence-level paraphrases.\n"
+        "- Do not include duplicates, inflection-only variants, or the same value as primary_translation.\n"
+        "- For verbs, prefer English infinitive form.\n"
+        "- If there are no common alternatives, return an empty alternative_translations array.\n"
+        "- Do not explain your reasoning.\n"
+        f"Context:\n{json.dumps(context, ensure_ascii=False)}"
+    )
+
+
 def is_retryable_exception(
     exc: Exception,
     *,
@@ -227,3 +262,28 @@ def parse_meaning_section_payload(payload: object, *, valid_ids: set[int]) -> in
     if not isinstance(value, int) or value not in valid_ids:
         return None
     return value
+
+
+def parse_alternative_translations_payload(payload: object) -> AlternativeTranslationsResult | None:
+    from app.services.gemini_translation import AlternativeTranslationsResult
+
+    if not isinstance(payload, dict):
+        return None
+    primary_translation = normalize_translation_value(payload.get("primary_translation"))
+    raw_alternatives = payload.get("alternative_translations")
+    if not isinstance(raw_alternatives, list):
+        return None
+
+    seen: set[str] = set()
+    alternative_translations: list[str] = []
+    for raw_value in raw_alternatives:
+        normalized = normalize_translation_value(raw_value)
+        if normalized is None or normalized == primary_translation or normalized in seen:
+            continue
+        seen.add(normalized)
+        alternative_translations.append(normalized)
+
+    return AlternativeTranslationsResult(
+        primary_translation=primary_translation,
+        alternative_translations=alternative_translations[:3],
+    )

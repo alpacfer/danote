@@ -17,6 +17,8 @@ from app.api.schemas.v1.wordbank import (
     CORSearchFormResponse,
     DetectWordLanguageRequest,
     DetectWordLanguageResponse,
+    FindAlternativeTranslationsRequest,
+    FindAlternativeTranslationsResponse,
     GeneratePhraseTranslationRequest,
     GeneratePhraseTranslationResponse,
     GeneratePronunciationRequest,
@@ -97,6 +99,22 @@ def rethink_categories(payload: RethinkCategoriesRequest, request: Request) -> R
         lambda: build_wordbank_use_case(request).rethink_categories(
             payload.stored_lemma,
             payload.stored_surface_form,
+            meaning_id=payload.meaning_id,
+        ),
+        include_lookup_error=True,
+        error_log_name="wordbank_db_operational_error",
+    )
+
+
+@router.post("/wordbank/lexemes/find-alternative-translations", response_model=FindAlternativeTranslationsResponse)
+def find_alternative_translations(
+    payload: FindAlternativeTranslationsRequest,
+    request: Request,
+) -> FindAlternativeTranslationsResponse:
+    return run_db_operation(
+        request,
+        lambda: build_wordbank_use_case(request).find_alternative_translations(
+            payload.stored_lemma,
             meaning_id=payload.meaning_id,
         ),
         include_lookup_error=True,

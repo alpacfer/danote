@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 from app.services.gemini_translation import (
+    AlternativeTranslationsInput,
     ContextualWordTranslationInput,
     GeminiFlashLiteWordTranslationService,
     GeminiTranslationError,
@@ -413,3 +414,54 @@ def test_gemini_word_translation_service_sets_client_timeout(monkeypatch) -> Non
     assert translated == "book"
     assert captured["api_key"] == "test-key"
     assert timeout == 7500
+
+
+def test_gemini_word_translation_service_finds_alternative_translations(monkeypatch) -> None:
+    service = GeminiFlashLiteWordTranslationService(api_key="test-key")
+    fake_client = _FakeClient(
+        [
+            _FakeResponse(
+                None,
+                parsed={
+                    "primary_translation": "place",
+                    "alternative_translations": ["spot", "seat", "place"],
+                },
+            )
+        ]
+    )
+    monkeypatch.setattr(service, "_ensure_client", lambda: fake_client)
+
+    result = service.find_alternative_translations(
+        AlternativeTranslationsInput(
+            surface_form="plads",
+            lemma="plads",
+            pos_tag="NOUN",
+            gloss="space",
+            current_translation="seat",
+            existing_additional_translations=["room"],
+        )
+    )
+
+    assert result.primary_translation == "place"
+    assert result.alternative_translations == ["spot", "seat"]
+    prompt = str(fake_client.models.calls[0]["contents"])
+    assert '"current_translation_en": "seat"' in prompt
+    assert "very common alternative translations" in prompt
+
+
+def test_gemini_word_translation_service_alternative_translations_falls_back_to_empty_on_bad_payload(monkeypatch) -> None:
+    service = GeminiFlashLiteWordTranslationService(api_key="test-key")
+    fake_client = _FakeClient([_FakeResponse('{"wrong":"shape"}')])
+    monkeypatch.setattr(service, "_ensure_client", lambda: fake_client)
+
+    result = service.find_alternative_translations(
+        AlternativeTranslationsInput(
+            surface_form="lege",
+            lemma="lege",
+            pos_tag="VERB",
+            current_translation="play",
+        )
+    )
+
+    assert result.primary_translation is None
+    assert result.alternative_translations == []

@@ -7,6 +7,7 @@ from app.api.schemas.v1.wordbank import (
     CORSearchFormResponse,
     CompleteVariationsResponse,
     DetectWordLanguageResponse,
+    FindAlternativeTranslationsResponse,
     GeneratePhraseTranslationResponse,
     GeneratePronunciationResponse,
     GenerateReverseTranslationResponse,
@@ -30,6 +31,9 @@ from app.services.tts import PronunciationAudio, TTSService
 from app.services.use_cases.wordbank.commands_add_word import add_word
 from app.services.use_cases.wordbank.commands_complete_variations import complete_meaning_variations
 from app.services.use_cases.wordbank.commands_database import reset_database
+from app.services.use_cases.wordbank.commands_find_alternative_translations import (
+    find_alternative_translations,
+)
 from app.services.use_cases.wordbank.collaborators.cor import CorResolutionCollaborator
 from app.services.use_cases.wordbank.collaborators.nlp import NLPCollaborator
 from app.services.use_cases.wordbank.collaborators.pronunciation import PronunciationCollaborator
@@ -184,6 +188,18 @@ class WordbankUseCase:
                     message="This meaning does not have enough COR identity to complete variations.",
                 )
             raise
+
+    def find_alternative_translations(
+        self,
+        stored_lemma: str,
+        *,
+        meaning_id: int | None = None,
+    ) -> FindAlternativeTranslationsResponse:
+        return find_alternative_translations(
+            self._runtime,
+            stored_lemma=stored_lemma,
+            meaning_id=meaning_id,
+        )
 
     def verify_added_word(
         self,

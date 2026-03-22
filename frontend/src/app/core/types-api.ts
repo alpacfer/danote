@@ -138,6 +138,15 @@ export type RethinkCategoriesResponse = {
   message: string
 }
 
+export type FindAlternativeTranslationsResponse = {
+  status: "updated" | "skipped" | "error"
+  stored_lemma: string
+  meaning_id: number | null
+  primary_translation: string | null
+  added_additional_translations: string[]
+  message: string
+}
+
 export type CompleteVariationsResponse = {
   status: "updated" | "skipped"
   stored_lemma: string

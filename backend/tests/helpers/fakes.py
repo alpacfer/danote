@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app.services.gemini_translation import AlternativeTranslationsResult
 from app.nlp.adapter import NLPToken
 from app.services.cor import COREntry
 from app.services.cor_local import CORLocalEntry
@@ -144,11 +145,17 @@ class FakeGeminiWordTranslationService:
         mapping: dict[tuple[str, str, str | None], str | None],
         *,
         batch_overrides: dict[tuple[str, str, str | None], str | None] | None = None,
+        alternative_overrides: dict[
+            tuple[str, str, str | None, str | None],
+            tuple[str | None, list[str]],
+        ] | None = None,
     ):
         self._mapping = mapping
         self.calls: list[tuple[str, str, str | None]] = []
         self.batch_calls: list[list[tuple[str, str, str | None]]] = []
         self._batch_overrides = batch_overrides or {}
+        self._alternative_overrides = alternative_overrides or {}
+        self.alternative_calls: list[tuple[str, str, str | None, str | None]] = []
 
     def translate_word(self, payload) -> str | None:
         key = (payload.surface_form, payload.lemma, payload.gloss)
@@ -162,6 +169,15 @@ class FakeGeminiWordTranslationService:
             self._batch_overrides.get(key, self._mapping.get(key))
             for key in keys
         ]
+
+    def find_alternative_translations(self, payload) -> AlternativeTranslationsResult:
+        key = (payload.surface_form, payload.lemma, payload.gloss, payload.current_translation)
+        self.alternative_calls.append(key)
+        primary_translation, alternative_translations = self._alternative_overrides.get(key, (None, []))
+        return AlternativeTranslationsResult(
+            primary_translation=primary_translation,
+            alternative_translations=list(alternative_translations),
+        )
 
 
 class FakeGeminiRelatedWordsService:

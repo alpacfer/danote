@@ -22,6 +22,8 @@ export type WordbankSectionProps = {
   regeneratingPronunciationByForm: Record<string, boolean>
   onPlayPronunciation: (form: string) => void
   onRegeneratePronunciation: (form: string) => void
+  isFindingAlternativeTranslations: boolean
+  onFindAlternativeTranslations: (meaningId: number | null) => void
   isRethinkingCategories: boolean
   onRethinkCategories: (meaningId: number | null) => void
   isCompletingMeaningVariations: boolean

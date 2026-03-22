@@ -67,6 +67,23 @@ def should_expose_translation_hint(payload: WordVerificationInput) -> bool:
     )
 
 
+def should_discard_gloss_hint_translation_action(
+    *,
+    english_translation: str,
+    payload: WordVerificationInput,
+) -> bool:
+    normalized_translation = normalize_token(english_translation)
+    normalized_gloss_translation = normalize_token(payload.meaning_gloss_translation or "")
+    normalized_selected_translation = normalize_token(payload.selected_translation or "")
+    if not normalized_translation or not normalized_gloss_translation or not normalized_selected_translation:
+        return False
+    if normalized_translation != normalized_gloss_translation:
+        return False
+    if normalized_selected_translation == normalized_gloss_translation:
+        return False
+    return not should_expose_translation_hint(payload)
+
+
 def should_ignore_variation_only_review(
     *,
     payload: WordVerificationInput,
@@ -113,6 +130,36 @@ def should_ignore_surface_translation_review(
     if not prose:
         return False
     return "translation" in prose
+
+
+def should_ignore_gloss_hint_translation_review(
+    *,
+    payload: WordVerificationInput,
+    raw_suggested_actions: object,
+    suggested_actions: tuple[WordVerificationAction, ...],
+) -> bool:
+    if suggested_actions or is_surface_form_review(payload) or payload.review_intent == "complete_variations":
+        return False
+    if not isinstance(raw_suggested_actions, list):
+        return False
+
+    raw_fix_translations = [
+        item
+        for item in raw_suggested_actions
+        if isinstance(item, dict) and isinstance(item.get("action_type"), str)
+    ]
+    if not raw_fix_translations:
+        return False
+    if any(item.get("action_type", "").strip().lower() != "fix_translation" for item in raw_fix_translations):
+        return False
+    return all(
+        isinstance(item.get("english_translation"), str)
+        and should_discard_gloss_hint_translation_action(
+            english_translation=str(item["english_translation"]),
+            payload=payload,
+        )
+        for item in raw_fix_translations
+    )
 
 
 def should_discard_move_to_lemma_action(

@@ -142,7 +142,10 @@ describe("App wordbank related words", () => {
     await waitFor(() => {
       expect(detailRequests).toBeGreaterThanOrEqual(2)
       const relatedHeading = screen.getByRole("heading", { name: /^related$/i })
+      const header = document.getElementById("wordbank-lemma-header")
       expectToAppearBefore(meaningCard, relatedHeading)
+      expect(header?.querySelector('[data-slot="separator"]')).toBeNull()
+      expect(relatedHeading).toHaveClass("text-muted-foreground", "text-[11px]", "tracking-wide")
       expect(screen.getByText(/^at lege$/i)).toBeInTheDocument()
       expect(screen.getByText(/^Verb$/i)).toHaveClass("bg-blue-100")
     }, { timeout: 4_000 })

@@ -126,6 +126,8 @@ export function useAppController() {
       regeneratingPronunciationByForm: wordbank.regeneratingPronunciationByForm,
       playPronunciation: wordbank.playPronunciation,
       regeneratePronunciation: wordbank.regeneratePronunciation,
+      isFindingAlternativeTranslations: wordbank.isFindingAlternativeTranslations,
+      findAlternativeTranslations: wordbank.findAlternativeTranslations,
       isRethinkingCategories: wordbank.isRethinkingCategories,
       rethinkCategories: wordbank.rethinkCategories,
       isCompletingMeaningVariations: wordbank.isCompletingMeaningVariations,

@@ -7,12 +7,14 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu"
-import { Loader2, RefreshCw, Sparkles, TableProperties } from "lucide-react"
+import { Languages, Loader2, RefreshCw, Sparkles, TableProperties } from "lucide-react"
 
 type WordbankScopeContextMenuProps = {
   children: ReactElement
   isRerunningVerification: boolean
   onRerunVerification: () => void
+  isFindingAlternativeTranslations: boolean
+  onFindAlternativeTranslations: () => void
   isRethinkingCategories: boolean
   onRethinkCategories: () => void
   canCompleteVariations?: boolean
@@ -25,6 +27,8 @@ export function WordbankScopeContextMenu({
   children,
   isRerunningVerification,
   onRerunVerification,
+  isFindingAlternativeTranslations,
+  onFindAlternativeTranslations,
   isRethinkingCategories,
   onRethinkCategories,
   canCompleteVariations = false,
@@ -42,6 +46,13 @@ export function WordbankScopeContextMenu({
         >
           {isRerunningVerification ? <Loader2 className="animate-spin" /> : <RefreshCw />}
           {isRerunningVerification ? "Rerunning verification..." : "Rerun verification"}
+        </ContextMenuItem>
+        <ContextMenuItem
+          disabled={isFindingAlternativeTranslations}
+          onSelect={onFindAlternativeTranslations}
+        >
+          {isFindingAlternativeTranslations ? <Loader2 className="animate-spin" /> : <Languages />}
+          {isFindingAlternativeTranslations ? "Finding alternative translations..." : "Find alternative translations"}
         </ContextMenuItem>
         <ContextMenuItem
           disabled={isRethinkingCategories}

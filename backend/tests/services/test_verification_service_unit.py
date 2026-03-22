@@ -133,6 +133,68 @@ def _mor_payload(
     )
 
 
+def _mor_person_payload(
+    *,
+    review_intent: str = "general",
+) -> WordVerificationInput:
+    return WordVerificationInput(
+        stored_lemma="mor",
+        stored_surface_form=None,
+        meaning_id=1,
+        meaning_key="person",
+        meaning_gloss="person",
+        meaning_gloss_translation="person",
+        lexeme_source="search",
+        selected_translation="mother",
+        selected_translation_scope="meaning_section",
+        surface_source=None,
+        canonical_lemma="moder",
+        canonical_lemma_pos_tag="NOUN",
+        canonical_lemma_morphology="Gender=Com|Number=Sing|Definite=Ind",
+        selected_meaning_pos_tag="NOUN",
+        selected_meaning_morphology="Gender=Com|Number=Sing|Definite=Ind",
+        selected_surface_pos_tag=None,
+        selected_surface_morphology=None,
+        sibling_meaning_sections=(
+            WordVerificationMeaningSection(
+                id=2,
+                meaning_key="soil-layer",
+                gloss="jordlag",
+                gloss_translation="soil layer",
+                english_translation="mother",
+                pos_tag="NOUN",
+                morphology="Gender=Com|Number=Sing|Definite=Ind",
+                surface_forms=("mor",),
+            ),
+        ),
+        available_surface_forms=(
+            WordVerificationSurfaceForm(
+                form="mor",
+                meaning_id=1,
+                meaning_key="person",
+                gloss="person",
+                gloss_translation="person",
+                english_translation="mother",
+                pos_tag="NOUN",
+                morphology="Gender=Com|Number=Sing|Definite=Ind",
+                source="search",
+            ),
+            WordVerificationSurfaceForm(
+                form="mor",
+                meaning_id=2,
+                meaning_key="soil-layer",
+                gloss="jordlag",
+                gloss_translation="soil layer",
+                english_translation="mother",
+                pos_tag="NOUN",
+                morphology="Gender=Com|Number=Sing|Definite=Ind",
+                source="search",
+            ),
+        ),
+        review_intent=review_intent,
+    )
+
+
 def _verb_payload(
     *,
     review_intent: str = "general",
@@ -346,6 +408,27 @@ def test_gemini_verification_service_allows_fix_translation_for_meaning_reviews(
     assert result.suggested_actions[0].english_translation == "mother"
     assert result.problem == "The English translation does not match the saved meaning."
     assert result.change_to_implement == "Set the translation to the saved meaning."
+
+
+def test_gemini_verification_service_ignores_gloss_translation_substitution_for_valid_saved_translation(
+    monkeypatch,
+) -> None:
+    service = GeminiWordVerificationService(api_key="test-key")
+    monkeypatch.setattr(
+        service,
+        "_generate_text",
+        lambda prompt: (
+            '{"verdict":"incorrect","word_count":1,"problem":"translation mismatch","change_to_implement":"set translation",'
+            '"suggested_actions":['
+            '{"action_type":"fix_translation","english_translation":"person","reason":"use the gloss translation"}'
+            ']}'
+        ),
+    )
+
+    result = service.verify_word_entry(_mor_person_payload())
+
+    assert result.verdict == "verified"
+    assert result.suggested_actions == ()
 
 
 def test_gemini_verification_service_rewrites_gloss_critique_as_translation_review(monkeypatch) -> None:

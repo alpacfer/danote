@@ -35,6 +35,8 @@ type WordbankMeaningSectionsProps = {
   regeneratingPronunciationByForm: Record<string, boolean>
   onPlayPronunciation: (form: string) => void
   onRegeneratePronunciation: (form: string) => void
+  isFindingAlternativeTranslations: boolean
+  onFindAlternativeTranslations: (meaningId: number | null) => void
   isRethinkingCategories: boolean
   onRethinkCategories: (meaningId: number | null) => void
   isCompletingMeaningVariations: boolean
@@ -52,6 +54,8 @@ export function WordbankMeaningSections({
   regeneratingPronunciationByForm,
   onPlayPronunciation,
   onRegeneratePronunciation,
+  isFindingAlternativeTranslations,
+  onFindAlternativeTranslations,
   isRethinkingCategories,
   onRethinkCategories,
   isCompletingMeaningVariations,
@@ -130,6 +134,8 @@ export function WordbankMeaningSections({
             key={`meaning-section-${section.id}-${section.meaning_key}`}
             isRerunningVerification={Boolean(rerunningMeaningVerificationById[section.id])}
             onRerunVerification={() => onRerunMeaningVerification(section.id)}
+            isFindingAlternativeTranslations={isFindingAlternativeTranslations}
+            onFindAlternativeTranslations={() => onFindAlternativeTranslations(section.id)}
             isRethinkingCategories={isRethinkingCategories}
             onRethinkCategories={() => onRethinkCategories(section.id)}
             canCompleteVariations={canCompleteParadigm && !completionGate.isLocked}

@@ -18,6 +18,42 @@ from app.db.sqlite import get_connection, timed_db_operation
 class WordbankMutationRepository:
     _db_path: Path
 
+    def replace_lexeme_translation(
+        self,
+        *,
+        lexeme_id: int,
+        english_translation: str | None,
+        provider: str | None,
+    ) -> None:
+        with timed_db_operation("wordbank.replace_lexeme_translation"), get_connection(self._db_path) as conn:
+            conn.execute(
+                """
+                UPDATE lexemes
+                SET english_translation = ?,
+                    translation_provider = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (english_translation, provider if english_translation else None, lexeme_id),
+            )
+
+    def replace_lexeme_meaning_translation(
+        self,
+        *,
+        meaning_id: int,
+        english_translation: str | None,
+    ) -> None:
+        with timed_db_operation("wordbank.replace_lexeme_meaning_translation"), get_connection(self._db_path) as conn:
+            conn.execute(
+                """
+                UPDATE lexeme_meanings
+                SET english_translation = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (english_translation, meaning_id),
+            )
+
     def insert_additional_translation(
         self,
         *,

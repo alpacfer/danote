@@ -172,6 +172,56 @@ describe("App wordbank", () => {
     })
   })
 
+  it("request-shape: non-sectioned lemma word context menu can find alternative translations", async () => {
+    const fetchSpy = mockFetchImplementation({
+      lemmasResponse: {
+        items: [{ lemma: "bog", variation_count: 1 }],
+      },
+      lemmaDetailsResponse: cloneContractFixture(bogVariationGlossWordPageContractFixture),
+      findAlternativeTranslationsHandler: async (_input, init) => {
+        const body = JSON.parse(String(init?.body ?? "{}")) as {
+          stored_lemma?: string
+          meaning_id?: number | null
+        }
+        if (body.stored_lemma !== "bog" || body.meaning_id !== null) {
+          throw new Error("Unexpected alternative-translations payload.")
+        }
+        return responseOf({
+          status: "updated",
+          stored_lemma: "bog",
+          meaning_id: null,
+          primary_translation: "book",
+          added_additional_translations: ["volume"],
+          message: "Added 1 alternative translation for 'bog'.",
+        })
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /bog/i }))
+
+    const listenButton = await screen.findByRole("button", { name: /^listen to bog$/i })
+    fireEvent.contextMenu(listenButton)
+    fireEvent.click(await screen.findByRole("menuitem", { name: /find alternative translations/i }))
+
+    await waitFor(() => {
+      expect(
+        fetchSpy.mock.calls.some(([input, init]) => {
+          if (!String(input).endsWith("/api/wordbank/lexemes/find-alternative-translations")) {
+            return false
+          }
+          return String(init?.body ?? "") === JSON.stringify({
+            stored_lemma: "bog",
+            meaning_id: null,
+          })
+        }),
+      ).toBe(true)
+    })
+  })
+
   it("renderer-only: shows verification progress in the unified popover while Gemini is still processing", async () => {
     mockFetchImplementation({
       lemmasResponse: {
@@ -474,6 +524,56 @@ describe("App wordbank", () => {
 
     await waitFor(() => {
       expect(screen.getByTestId("wordbank-meaning-category-badges-1")).toHaveTextContent("Community")
+    })
+  })
+
+  it("request-shape: right-clicking a meaning card can find alternative translations", async () => {
+    const fetchSpy = mockFetchImplementation({
+      lemmasResponse: {
+        items: [{ lemma: "lærer", variation_count: 1 }],
+      },
+      lemmaDetailsResponse: cloneContractFixture(teacherSectionedWordPageContractFixture),
+      findAlternativeTranslationsHandler: async (_input, init) => {
+        const body = JSON.parse(String(init?.body ?? "{}")) as {
+          stored_lemma?: string
+          meaning_id?: number | null
+        }
+        if (body.stored_lemma !== "lærer" || body.meaning_id !== 1) {
+          throw new Error("Unexpected alternative-translations payload.")
+        }
+        return responseOf({
+          status: "updated",
+          stored_lemma: "lærer",
+          meaning_id: 1,
+          primary_translation: "teacher",
+          added_additional_translations: ["instructor"],
+          message: "Added 1 alternative translation for 'lærer'.",
+        })
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /lærer/i }))
+
+    const meaningCard = await screen.findByTestId("wordbank-meaning-card-1")
+    fireEvent.contextMenu(meaningCard)
+    fireEvent.click(await screen.findByRole("menuitem", { name: /find alternative translations/i }))
+
+    await waitFor(() => {
+      expect(
+        fetchSpy.mock.calls.some(([input, init]) => {
+          if (!String(input).endsWith("/api/wordbank/lexemes/find-alternative-translations")) {
+            return false
+          }
+          return String(init?.body ?? "") === JSON.stringify({
+            stored_lemma: "lærer",
+            meaning_id: 1,
+          })
+        }),
+      ).toBe(true)
     })
   })
 

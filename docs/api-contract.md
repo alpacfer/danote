@@ -166,6 +166,22 @@ Route decorators are the source of truth in `backend/app/api/routes/`, and API D
   - classification prefers existing labels and may mint at most 1 new broad category.
   - `applied_categories` returns the normalized persisted category labels after the rethink run.
 
+### POST `/api/wordbank/lexemes/find-alternative-translations`
+- **Request model:** `FindAlternativeTranslationsRequest`.
+- **Response model:** `FindAlternativeTranslationsResponse`.
+- **Notable status/error behavior:**
+  - `503` when DB unavailable/locked.
+  - `404` when the target lemma or meaning cannot be found.
+  - `400` for invalid inputs.
+  - body `status` can be `updated`, `skipped`, or `error`.
+  - the route is lemma/meaning scoped only; it does not target individual surface-form rows.
+  - backend sends the saved lemma, scope POS/morphology, saved gloss, current primary translation, and existing `additional_translations` to Gemini.
+  - Gemini is constrained to return only very common English alternatives for that exact saved sense and may return an empty alternatives list.
+  - when Gemini proposes a better common primary translation, backend replaces the persisted `english_translation` for that root / meaning scope.
+  - any returned alternates distinct from the final primary translation are inserted into `additional_translations` for that same scope.
+  - `primary_translation` in the response is the final persisted primary translation after any update.
+  - `added_additional_translations` includes only the new alternates inserted by this request.
+
 ### POST `/api/wordbank/lexemes/complete-variations`
 - **Request model:** `CompleteVariationsRequest`.
 - **Response model:** `CompleteVariationsResponse`.

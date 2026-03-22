@@ -19,6 +19,8 @@ export type WordbankSectionAdapterArgs = {
   regeneratingPronunciationByForm: ComponentProps<typeof WordbankSection>["regeneratingPronunciationByForm"]
   playPronunciation: (form: string) => Promise<void>
   regeneratePronunciation: (form: string) => Promise<void>
+  isFindingAlternativeTranslations: boolean
+  findAlternativeTranslations: (meaningId: number | null) => Promise<void>
   isRethinkingCategories: boolean
   rethinkCategories: (meaningId: number | null) => Promise<void>
   isCompletingMeaningVariations: boolean
@@ -67,6 +69,10 @@ export function buildWordbankSectionProps(
     },
     onRegeneratePronunciation: (form: string) => {
       void args.regeneratePronunciation(form)
+    },
+    isFindingAlternativeTranslations: args.isFindingAlternativeTranslations,
+    onFindAlternativeTranslations: (meaningId: number | null) => {
+      void args.findAlternativeTranslations(meaningId)
     },
     isRethinkingCategories: args.isRethinkingCategories,
     onRethinkCategories: (meaningId: number | null) => {

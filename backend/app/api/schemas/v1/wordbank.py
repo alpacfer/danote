@@ -225,6 +225,20 @@ class RethinkCategoriesResponse(BaseModel):
     message: str
 
 
+class FindAlternativeTranslationsRequest(BaseModel):
+    stored_lemma: str = Field(..., min_length=1)
+    meaning_id: int | None = None
+
+
+class FindAlternativeTranslationsResponse(BaseModel):
+    status: Literal["updated", "skipped", "error"]
+    stored_lemma: str
+    meaning_id: int | None = None
+    primary_translation: str | None = None
+    added_additional_translations: list[str] = Field(default_factory=list)
+    message: str
+
+
 class CompleteVariationsRequest(BaseModel):
     stored_lemma: str = Field(..., min_length=1)
     meaning_id: int = Field(..., ge=1)

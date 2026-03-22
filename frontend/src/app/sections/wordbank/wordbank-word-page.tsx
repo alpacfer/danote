@@ -20,6 +20,8 @@ type WordbankWordPageProps = Pick<
   | "regeneratingPronunciationByForm"
   | "onPlayPronunciation"
   | "onRegeneratePronunciation"
+  | "isFindingAlternativeTranslations"
+  | "onFindAlternativeTranslations"
   | "isRethinkingCategories"
   | "onRethinkCategories"
   | "isCompletingMeaningVariations"
@@ -47,6 +49,8 @@ export function WordbankWordPage({
   regeneratingPronunciationByForm,
   onPlayPronunciation,
   onRegeneratePronunciation,
+  isFindingAlternativeTranslations,
+  onFindAlternativeTranslations,
   isRethinkingCategories,
   onRethinkCategories,
   isCompletingMeaningVariations,
@@ -111,6 +115,8 @@ export function WordbankWordPage({
             regeneratingPronunciationByForm={regeneratingPronunciationByForm}
             onPlayPronunciation={onPlayPronunciation}
             onRegeneratePronunciation={onRegeneratePronunciation}
+            isFindingAlternativeTranslations={isFindingAlternativeTranslations}
+            onFindAlternativeTranslations={onFindAlternativeTranslations}
             isRethinkingCategories={isRethinkingCategories}
             onRethinkCategories={onRethinkCategories}
             verificationOverview={verificationOverview}
@@ -131,6 +137,8 @@ export function WordbankWordPage({
               regeneratingPronunciationByForm={regeneratingPronunciationByForm}
               onPlayPronunciation={onPlayPronunciation}
               onRegeneratePronunciation={onRegeneratePronunciation}
+              isFindingAlternativeTranslations={isFindingAlternativeTranslations}
+              onFindAlternativeTranslations={onFindAlternativeTranslations}
               isRethinkingCategories={isRethinkingCategories}
               onRethinkCategories={onRethinkCategories}
               isCompletingMeaningVariations={isCompletingMeaningVariations}
