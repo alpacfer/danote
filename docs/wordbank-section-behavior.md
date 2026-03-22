@@ -171,10 +171,11 @@ Meaning auto-scroll behavior:
 ## Word-card context menu
 
 - Wordbank word pages use the shadcn `ContextMenu` primitive for both word-specific audio actions and category-bearing scopes.
-- Every pronunciation-enabled word trigger uses the same tooltip copy (`Click to listen`) and the tooltip opens on the left side of the word.
+- Every pronunciation-enabled word trigger uses the same tooltip copy (`Click to listen`) and the tooltip opens on the right side of the word.
 - Sectioned pages:
   - the header lemma word exposes `Regenerate audio`
   - each meaning card is a context-menu trigger
+  - each meaning card exposes `Rerun verification`, which requeues the card's normal Gemini verification targets for that meaning-level scope plus its saved variation rows
   - noun, adjective, and verb meaning cards expose `Rethink categories` and `Complete variations`
   - other meaning cards expose only `Rethink categories`
   - each surface-form word inside a meaning card also exposes its own `Regenerate audio` action from a nested right-click menu
@@ -185,6 +186,8 @@ Meaning auto-scroll behavior:
 - `Rethink categories` immediately calls the backend recategorization endpoint for that root / meaning scope and refreshes lemma details after success.
 - The action does not open a confirmation flow and does not apply Gemini verification suggestions; it only recalculates semantic category assignments.
 - The manual rethink path uses the same Gemini category-classification flow as initial verification; the only difference is that this one is user-triggered.
+- `Rerun verification` requeues the same `general` Gemini review used by normal saves for that meaning card.
+  It queues the meaning target plus each saved non-lemma variation target in the card, then lets the existing word-page polling and verification popover surface any persisted changes.
 - `Complete variations` is meaning-only in v1 for noun, adjective, and verb sections.
   - noun sections fill any missing non-lemma noun variations:
     singular-definite, plural-indefinite, and plural-definite.
@@ -231,6 +234,7 @@ Meaning auto-scroll behavior:
   - noun and adjective meanings render a shared 2x2 paradigm table as soon as at least one paradigm slot can be derived
   - verb meanings render the same shared table shell with fixed rows:
     `Infinitive`, `Present`, `Past`, `Imperative`, and `Past participle`
+  - verb tables omit the visible single-column `Form` header because the row labels already define the slot
   - this means the initial saved noun / adjective / verb form is shown in the table immediately, even before any additional variations are saved
   - adjective tables use number on one axis and definiteness on the other; the singular-indefinite cell contains separate `n-word` and `t-word` lines
   - adjective same-form entries (for example `store` or invariant forms like `orange`) may render into multiple cells from merged `gram_raw`

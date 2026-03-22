@@ -136,7 +136,7 @@ describe("App wordbank", () => {
     expect(screen.getByText(/^Plural$/i)).toBeInTheDocument()
   })
 
-  it("renderer-only: pronunciation tooltip opens on the left of the word trigger", async () => {
+  it("renderer-only: pronunciation tooltip opens on the right of the word trigger", async () => {
     mockFetchImplementation({
       lemmasResponse: {
         items: [{ lemma: "bog", variation_count: 1 }],
@@ -153,7 +153,7 @@ describe("App wordbank", () => {
     fireEvent.focus(listenButton)
 
     await waitFor(() => {
-      expect(document.querySelector("[data-slot='tooltip-content']")).toHaveAttribute("data-side", "left")
+      expect(document.querySelector("[data-slot='tooltip-content']")).toHaveAttribute("data-side", "right")
     })
   })
 
@@ -419,7 +419,7 @@ describe("App wordbank", () => {
     const table = screen.getByRole("table")
     expect(within(table).getByText(/^infinitive$/i)).toBeInTheDocument()
     expect(within(table).getByText(/^present$/i)).toBeInTheDocument()
-    expect(within(table).getByText(/^form$/i)).toBeInTheDocument()
+    expect(within(table).queryByText(/^form$/i)).not.toBeInTheDocument()
     expect(screen.getByText(/^lærer$/i)).toBeInTheDocument()
     expect(screen.queryByText(/^learns$/i)).not.toBeInTheDocument()
   })
@@ -467,6 +467,7 @@ describe("App wordbank", () => {
     const table = within(meaningCard).getByRole("table")
     expect(within(table).getByText(/^past$/i)).toBeInTheDocument()
     expect(within(table).getByText(/^imperative$/i)).toBeInTheDocument()
+    expect(within(table).queryByText(/^form$/i)).not.toBeInTheDocument()
     expect(within(meaningCard).getAllByText(/^kom$/i).length).toBeGreaterThanOrEqual(2)
   })
 

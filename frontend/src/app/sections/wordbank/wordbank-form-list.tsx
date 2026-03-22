@@ -2,6 +2,7 @@ import { badgesForSavedForm, corSecondaryBadgeClass, normalizeSearchWord, posBad
 import type { FormGroup, SurfaceForm } from "@/app/sections/wordbank/wordbank-paradigm-utils"
 import { WordbankPronunciationWord } from "@/app/sections/wordbank/wordbank-pronunciation-word"
 import { Badge } from "@/components/ui/badge"
+import { AudioLines, Loader2 } from "lucide-react"
 
 type WordbankFormListProps = {
   groups: FormGroup[]
@@ -108,6 +109,7 @@ function FormListItem({
         onPlayPronunciation={onPlayPronunciation}
         contextMenuItems={[
           {
+            icon: isRegenerating ? <Loader2 className="animate-spin" /> : <AudioLines />,
             label: isRegenerating ? "Regenerating audio..." : "Regenerate audio",
             disabled: isRegenerating,
             onSelect: () => onRegeneratePronunciation(form.form),

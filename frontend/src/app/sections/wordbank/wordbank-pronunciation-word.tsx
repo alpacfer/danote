@@ -1,8 +1,10 @@
+import { Fragment, type ReactNode } from "react"
 import { normalizeSearchWord } from "@/app/core"
 import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
+  ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
@@ -10,8 +12,10 @@ import { Volume2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 export type WordbankPronunciationContextMenuItem = {
+  icon?: ReactNode
   label: string
   disabled?: boolean
+  separatorBefore?: boolean
   onSelect: () => void
 }
 
@@ -78,24 +82,27 @@ export function WordbankPronunciationWord({
             {button}
           </ContextMenuTrigger>
         </TooltipTrigger>
-        <TooltipContent side="left" sideOffset={8}><p>Click to listen</p></TooltipContent>
+        <TooltipContent side="right" sideOffset={8}><p>Click to listen</p></TooltipContent>
       </Tooltip>
       <ContextMenuContent>
         {contextMenuItems?.map((item) => (
-          <ContextMenuItem
-            key={`${form}-${item.label}`}
-            disabled={item.disabled}
-            onSelect={item.onSelect}
-          >
-            {item.label}
-          </ContextMenuItem>
+          <Fragment key={`${form}-${item.label}`}>
+            {item.separatorBefore ? <ContextMenuSeparator /> : null}
+            <ContextMenuItem
+              disabled={item.disabled}
+              onSelect={item.onSelect}
+            >
+              {item.icon}
+              {item.label}
+            </ContextMenuItem>
+          </Fragment>
         ))}
       </ContextMenuContent>
     </ContextMenu>
   ) : (
     <Tooltip>
       <TooltipTrigger asChild>{button}</TooltipTrigger>
-      <TooltipContent side="left" sideOffset={8}><p>Click to listen</p></TooltipContent>
+      <TooltipContent side="right" sideOffset={8}><p>Click to listen</p></TooltipContent>
     </Tooltip>
   )
 

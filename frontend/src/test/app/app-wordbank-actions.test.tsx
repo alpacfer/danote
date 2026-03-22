@@ -477,6 +477,105 @@ describe("App wordbank", () => {
     })
   })
 
+  it("request-shape: meaning-card rerun verification queues the normal verification targets for that card", async () => {
+    const fetchSpy = mockFetchImplementation({
+      lemmasResponse: {
+        items: [{ lemma: "lære", variation_count: 2 }],
+      },
+      lemmaDetailsResponse: {
+        lemma: "lære",
+        is_sectioned: true,
+        meaning_sections: [
+          {
+            id: 1,
+            meaning_key: "learn",
+            gloss: "learn",
+            english_translation: "learn",
+            pos_tag: "VERB",
+            morphology: "VerbForm=Inf|Voice=Act",
+            surface_forms: [
+              {
+                form: "lærer",
+                pos_tag: "VERB",
+                morphology: "Tense=Pres|VerbForm=Fin|Voice=Act",
+                has_pronunciation: false,
+              },
+              {
+                form: "lærte",
+                pos_tag: "VERB",
+                morphology: "Tense=Past|VerbForm=Fin|Voice=Act",
+                has_pronunciation: false,
+              },
+            ],
+          },
+        ],
+        surface_forms: [{ form: "lære", pos_tag: "VERB", morphology: "VerbForm=Inf|Voice=Act", has_pronunciation: false }],
+      },
+      queueVerificationHandler: async (_input, init) => {
+        const body = JSON.parse(String(init?.body ?? "{}")) as {
+          stored_lemma?: string
+          stored_surface_form?: string | null
+          meaning_id?: number | null
+          review_intent?: string
+        }
+        return responseOf({
+          stored_lemma: body.stored_lemma ?? "lære",
+          stored_surface_form: body.stored_surface_form ?? null,
+          meaning_id: body.meaning_id ?? null,
+          review_intent: body.review_intent ?? "general",
+          verification: {
+            status: "queued",
+            provider: "gemini",
+            reviewer_role: "Professional Danish Language Expert",
+            review_intent: body.review_intent ?? "general",
+            message: "Queued",
+            composed_word_count: null,
+            stored_surface_form: body.stored_surface_form ?? null,
+            requested_at: "2026-03-22T12:00:00.000Z",
+            suggested_actions: [],
+          },
+        })
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /lære/i }))
+
+    const meaningCard = await screen.findByTestId("wordbank-meaning-card-1")
+    fireEvent.contextMenu(meaningCard)
+    fireEvent.click(await screen.findByRole("menuitem", { name: /rerun verification/i }))
+
+    await waitFor(() => {
+      const queueRequests = fetchSpy.mock.calls
+        .filter(([input]) => String(input).endsWith("/api/wordbank/lexemes/queue-verification"))
+        .map(([, init]) => String(init?.body ?? ""))
+
+      expect(queueRequests).toEqual([
+        JSON.stringify({
+          stored_lemma: "lære",
+          stored_surface_form: null,
+          meaning_id: 1,
+          review_intent: "general",
+        }),
+        JSON.stringify({
+          stored_lemma: "lære",
+          stored_surface_form: "lærer",
+          meaning_id: 1,
+          review_intent: "general",
+        }),
+        JSON.stringify({
+          stored_lemma: "lære",
+          stored_surface_form: "lærte",
+          meaning_id: 1,
+          review_intent: "general",
+        }),
+      ])
+    })
+  })
+
   it("request-shape: noun meaning cards can complete variations and refresh to show only non-lemma variations", async () => {
     let lemmaDetails = {
       lemma: "bog",

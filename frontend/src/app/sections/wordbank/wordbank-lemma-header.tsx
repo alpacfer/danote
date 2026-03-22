@@ -5,6 +5,7 @@ import { WordbankVerificationPopover } from "@/app/sections/wordbank/wordbank-ve
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
+import { AudioLines, Loader2, Sparkles } from "lucide-react"
 
 type WordbankLemmaHeaderProps = {
   selectedLemma: string
@@ -76,14 +77,17 @@ export function WordbankLemmaHeader({
   const isRegeneratingLemma = Boolean(regeneratingPronunciationByForm[normalizeSearchWord(lemmaDetails.lemma)])
   const lemmaContextMenuItems = [
     {
+      icon: isRegeneratingLemma ? <Loader2 className="animate-spin" /> : <AudioLines />,
       label: isRegeneratingLemma ? "Regenerating audio..." : "Regenerate audio",
       disabled: isRegeneratingLemma,
       onSelect: () => onRegeneratePronunciation(lemmaDetails.lemma),
     },
     ...(!lemmaDetails.is_sectioned
       ? [{
+          icon: isRethinkingCategories ? <Loader2 className="animate-spin" /> : <Sparkles />,
           label: isRethinkingCategories ? "Rethinking categories..." : "Rethink categories",
           disabled: isRethinkingCategories,
+          separatorBefore: true as const,
           onSelect: () => onRethinkCategories(null),
         }]
       : []),

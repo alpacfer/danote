@@ -14,6 +14,11 @@ export type MeaningVerificationGate = {
   label: string
 }
 
+export type VerificationTargetRefView = {
+  meaningId: number | null
+  storedSurfaceForm: string | null
+}
+
 export function getSelectedLemmaVerificationResult(args: {
   lemmaDetails: LemmaDetailsResponse | null
   selectedMeaningId: number | null
@@ -241,6 +246,45 @@ export function findVerificationTarget(
   targetKey: string,
 ): VerificationTargetView | null {
   return collectLemmaVerificationTargets(lemmaDetails).find((target) => target.key === targetKey) ?? null
+}
+
+export function collectMeaningCardVerificationTargets(
+  lemmaDetails: LemmaDetailsResponse | null,
+  meaningId: number | null,
+): VerificationTargetRefView[] {
+  if (!lemmaDetails || meaningId === null) {
+    return []
+  }
+  const section = (lemmaDetails.meaning_sections ?? []).find((item) => item.id === meaningId) ?? null
+  if (!section) {
+    return []
+  }
+
+  const normalizedLemma = normalizeSearchWord(lemmaDetails.lemma)
+  const targets: VerificationTargetRefView[] = []
+  const seen = new Set<string>()
+  const pushTarget = (storedSurfaceForm: string | null) => {
+    const normalizedSurface = normalizeSearchWord(storedSurfaceForm ?? "") || null
+    const key = `${meaningId}::${normalizedSurface ?? "root"}`
+    if (seen.has(key)) {
+      return
+    }
+    seen.add(key)
+    targets.push({
+      meaningId,
+      storedSurfaceForm: normalizedSurface,
+    })
+  }
+
+  pushTarget(null)
+  for (const form of section.surface_forms) {
+    const normalizedSurface = normalizeSearchWord(form.form)
+    if (!normalizedSurface || normalizedSurface === normalizedLemma) {
+      continue
+    }
+    pushTarget(form.form)
+  }
+  return targets
 }
 
 export function getMeaningVerificationGate(

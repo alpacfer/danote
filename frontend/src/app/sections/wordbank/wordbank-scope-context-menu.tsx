@@ -4,11 +4,15 @@ import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
+  ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu"
+import { Loader2, RefreshCw, Sparkles, TableProperties } from "lucide-react"
 
 type WordbankScopeContextMenuProps = {
   children: ReactElement
+  isRerunningVerification: boolean
+  onRerunVerification: () => void
   isRethinkingCategories: boolean
   onRethinkCategories: () => void
   canCompleteVariations?: boolean
@@ -19,6 +23,8 @@ type WordbankScopeContextMenuProps = {
 
 export function WordbankScopeContextMenu({
   children,
+  isRerunningVerification,
+  onRerunVerification,
   isRethinkingCategories,
   onRethinkCategories,
   canCompleteVariations = false,
@@ -31,18 +37,30 @@ export function WordbankScopeContextMenu({
       <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
       <ContextMenuContent>
         <ContextMenuItem
+          disabled={isRerunningVerification}
+          onSelect={onRerunVerification}
+        >
+          {isRerunningVerification ? <Loader2 className="animate-spin" /> : <RefreshCw />}
+          {isRerunningVerification ? "Rerunning verification..." : "Rerun verification"}
+        </ContextMenuItem>
+        <ContextMenuItem
           disabled={isRethinkingCategories}
           onSelect={onRethinkCategories}
         >
+          {isRethinkingCategories ? <Loader2 className="animate-spin" /> : <Sparkles />}
           {isRethinkingCategories ? "Rethinking categories..." : "Rethink categories"}
         </ContextMenuItem>
         {onCompleteVariations ? (
-          <ContextMenuItem
-            disabled={isCompletingVariations || !canCompleteVariations}
-            onSelect={onCompleteVariations}
-          >
-            {isCompletingVariations ? "Completing variations..." : completeVariationsLabel}
-          </ContextMenuItem>
+          <>
+            <ContextMenuSeparator />
+            <ContextMenuItem
+              disabled={isCompletingVariations || !canCompleteVariations}
+              onSelect={onCompleteVariations}
+            >
+              {isCompletingVariations ? <Loader2 className="animate-spin" /> : <TableProperties />}
+              {isCompletingVariations ? "Completing variations..." : completeVariationsLabel}
+            </ContextMenuItem>
+          </>
         ) : null}
       </ContextMenuContent>
     </ContextMenu>

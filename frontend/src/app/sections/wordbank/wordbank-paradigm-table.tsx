@@ -2,6 +2,7 @@ import { normalizeSearchWord } from "@/app/core"
 import type { ParadigmTableData, SurfaceForm } from "@/app/sections/wordbank/wordbank-paradigm-utils"
 import { WordbankPronunciationWord } from "@/app/sections/wordbank/wordbank-pronunciation-word"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { AudioLines, Loader2 } from "lucide-react"
 
 type WordbankParadigmTableProps = {
   paradigm: ParadigmTableData
@@ -18,6 +19,8 @@ export function WordbankParadigmTable({
   onPlayPronunciation,
   onRegeneratePronunciation,
 }: WordbankParadigmTableProps) {
+  const hideSingleFormColumnHeader = paradigm.columns.length === 1 && paradigm.columns[0] === "Form"
+
   return (
     <div className="space-y-3">
       <Table>
@@ -27,9 +30,10 @@ export function WordbankParadigmTable({
             {paradigm.columns.map((column) => (
               <TableHead
                 key={column}
+                aria-label={hideSingleFormColumnHeader ? column : undefined}
                 className="text-muted-foreground text-[11px] font-semibold uppercase tracking-wide"
               >
-                {column}
+                {hideSingleFormColumnHeader ? null : column}
               </TableHead>
             ))}
           </TableRow>
@@ -116,6 +120,7 @@ function ParadigmCellForm({
         onPlayPronunciation={onPlayPronunciation}
         contextMenuItems={[
           {
+            icon: isRegenerating ? <Loader2 className="animate-spin" /> : <AudioLines />,
             label: isRegenerating ? "Regenerating audio..." : "Regenerate audio",
             disabled: isRegenerating,
             onSelect: () => onRegeneratePronunciation(form.form),

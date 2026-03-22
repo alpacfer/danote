@@ -118,12 +118,14 @@ export function useWordbankWorkflows({
   const {
     isApplyingVerificationChanges,
     isRetryingVerification,
+    rerunningMeaningVerificationById,
     isVerifyingWords,
     verificationOverview,
     trackQueuedVerifications,
     trackQueuedVerificationTargets,
     applyVerificationAction,
     retryVerificationTarget,
+    rerunMeaningVerification,
     markVisibleVerificationNotificationsAsRead,
     clearVerificationErrors,
   } = useVerificationWorkflow({
@@ -306,6 +308,7 @@ export function useWordbankWorkflows({
     isCompletingMeaningVariations,
     isApplyingVerificationChanges,
     isRetryingVerification,
+    rerunningMeaningVerificationById,
     isVerifyingWords,
     verificationOverview,
     markVisibleVerificationNotificationsAsRead,
@@ -318,6 +321,7 @@ export function useWordbankWorkflows({
     completeMeaningVariations,
     applyVerificationAction,
     retryVerificationTarget,
+    rerunMeaningVerification,
     clearVerificationErrors,
   }
 }

@@ -21,6 +21,7 @@ import { buildPronunciationAvailabilityMap, resolvePronunciationAvailability } f
 import { WordbankPronunciationWord } from "@/app/sections/wordbank/wordbank-pronunciation-word"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
+import { AudioLines, Loader2 } from "lucide-react"
 
 type WordbankVariationGridProps = {
   allSurfaceForms: LemmaDetailsResponse["surface_forms"]
@@ -116,6 +117,7 @@ export function WordbankVariationGrid({
                 onPlayPronunciation={onPlayPronunciation}
                 contextMenuItems={[
                   {
+                    icon: isRegenerating ? <Loader2 className="animate-spin" /> : <AudioLines />,
                     label: isRegenerating ? "Regenerating audio..." : "Regenerate audio",
                     disabled: isRegenerating,
                     onSelect: () => onRegeneratePronunciation(form.form),

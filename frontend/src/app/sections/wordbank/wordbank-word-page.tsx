@@ -26,9 +26,11 @@ type WordbankWordPageProps = Pick<
   | "verificationOverview"
   | "isApplyingVerificationChanges"
   | "isRetryingVerification"
+  | "rerunningMeaningVerificationById"
   | "onMarkVisibleVerificationNotificationsAsRead"
   | "onApplyVerificationAction"
   | "onRetryVerificationTarget"
+  | "onRerunMeaningVerification"
 >
 
 export function WordbankWordPage({
@@ -49,9 +51,11 @@ export function WordbankWordPage({
   verificationOverview,
   isApplyingVerificationChanges,
   isRetryingVerification,
+  rerunningMeaningVerificationById,
   onMarkVisibleVerificationNotificationsAsRead,
   onApplyVerificationAction,
   onRetryVerificationTarget,
+  onRerunMeaningVerification,
 }: WordbankWordPageProps) {
   const normalizedRequestedLemma = normalizeSearchWord(selectedLemma ?? "")
   const normalizedLoadedLemma = normalizeSearchWord(lemmaDetails?.lemma ?? "")
@@ -126,6 +130,8 @@ export function WordbankWordPage({
               onRethinkCategories={onRethinkCategories}
               isCompletingMeaningVariations={isCompletingMeaningVariations}
               onCompleteMeaningVariations={onCompleteMeaningVariations}
+              rerunningMeaningVerificationById={rerunningMeaningVerificationById}
+              onRerunMeaningVerification={onRerunMeaningVerification}
             />
           ) : (
             <WordbankVariationGrid

@@ -133,9 +133,11 @@ export function useAppController() {
       verificationOverview: wordbank.verificationOverview,
       isApplyingVerificationChanges: wordbank.isApplyingVerificationChanges,
       isRetryingVerification: wordbank.isRetryingVerification,
+      rerunningMeaningVerificationById: wordbank.rerunningMeaningVerificationById,
       markVisibleVerificationNotificationsAsRead: wordbank.markVisibleVerificationNotificationsAsRead,
       applyVerificationAction: wordbank.applyVerificationAction,
       retryVerificationTarget: wordbank.retryVerificationTarget,
+      rerunMeaningVerification: wordbank.rerunMeaningVerification,
     }),
     sentencebankSectionProps: buildSentencebankSectionProps({
       sentencebankError: lexiconData.sentencebankError,

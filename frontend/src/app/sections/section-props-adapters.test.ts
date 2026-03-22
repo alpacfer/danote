@@ -54,6 +54,7 @@ describe("section prop adapters", () => {
     const completeMeaningVariations = vi.fn(async () => undefined)
     const apply = vi.fn(async () => undefined)
     const retry = vi.fn(async () => undefined)
+    const rerun = vi.fn(async () => undefined)
     const markVisibleVerificationNotificationsAsRead = vi.fn()
 
     const result = buildWordbankSectionProps({
@@ -86,9 +87,11 @@ describe("section prop adapters", () => {
       },
       isApplyingVerificationChanges: false,
       isRetryingVerification: false,
+      rerunningMeaningVerificationById: {},
       markVisibleVerificationNotificationsAsRead,
       applyVerificationAction: apply,
       retryVerificationTarget: retry,
+      rerunMeaningVerification: rerun,
     })
 
     result.onPlayPronunciation("bog")
@@ -98,6 +101,7 @@ describe("section prop adapters", () => {
     result.onMarkVisibleVerificationNotificationsAsRead()
     result.onApplyVerificationAction("bog::root::root", 0)
     result.onRetryVerificationTarget("bog::root::root")
+    result.onRerunMeaningVerification(12)
 
     await Promise.resolve()
 
@@ -108,6 +112,7 @@ describe("section prop adapters", () => {
     expect(markVisibleVerificationNotificationsAsRead).toHaveBeenCalledTimes(1)
     expect(apply).toHaveBeenCalledTimes(1)
     expect(retry).toHaveBeenCalledTimes(1)
+    expect(rerun).toHaveBeenCalledWith(12)
     expect(result.selectedMeaningId).toBe(12)
   })
 

@@ -1,6 +1,7 @@
 import { type Dispatch, type SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from "react"
 
 import {
+  collectMeaningCardVerificationTargets,
   collectLemmaVerificationOverview,
   collectLemmaVerificationTargets,
   createApiClient,
@@ -63,6 +64,7 @@ export function useVerificationWorkflow({
 }: UseVerificationWorkflowParams) {
   const [isApplyingVerificationChanges, setIsApplyingVerificationChanges] = useState(false)
   const [isRetryingVerification, setIsRetryingVerification] = useState(false)
+  const [rerunningMeaningVerificationById, setRerunningMeaningVerificationById] = useState<Record<number, boolean>>({})
   const [trackedQueuedVerifications, setTrackedQueuedVerifications] = useState<Record<string, TrackedQueuedVerification>>({})
   const apiClient = useMemo(
     () => createApiClient({ backendUrl, extractErrorMessage }),
@@ -382,6 +384,70 @@ export function useVerificationWorkflow({
     }
   }
 
+  async function rerunMeaningVerification(meaningId: number) {
+    const lemma = normalizeSearchWord(lemmaDetails?.lemma ?? selectedLemma ?? "")
+    const section = (lemmaDetails?.meaning_sections ?? []).find((item) => item.id === meaningId) ?? null
+    const targets = collectMeaningCardVerificationTargets(lemmaDetails, meaningId)
+    if (!lemma || !section || targets.length === 0) {
+      return
+    }
+
+    const sectionLabel = section.english_translation?.trim() || section.gloss?.trim() || section.meaning_key
+    setRerunningMeaningVerificationById((current) => ({ ...current, [meaningId]: true }))
+    try {
+      const results = await Promise.allSettled(
+        targets.map(async (target) => apiClient.postJson<QueueVerificationResponse>(
+          "/api/wordbank/lexemes/queue-verification",
+          {
+            stored_lemma: lemma,
+            stored_surface_form: target.storedSurfaceForm,
+            meaning_id: target.meaningId,
+            review_intent: "general",
+          },
+          "Could not rerun verification.",
+        )),
+      )
+
+      const queuedTargets: Array<{ meaning_id: number | null; stored_surface_form: string | null }> = []
+      const errors: string[] = []
+      for (const result of results) {
+        if (result.status === "rejected") {
+          errors.push(result.reason instanceof Error ? result.reason.message : "Could not rerun verification.")
+          continue
+        }
+        if (result.value.verification.status !== "queued") {
+          errors.push(result.value.verification.message || "Could not rerun verification.")
+          continue
+        }
+        queuedTargets.push({
+          meaning_id: result.value.meaning_id ?? null,
+          stored_surface_form: result.value.stored_surface_form ?? null,
+        })
+      }
+
+      if (queuedTargets.length > 0) {
+        trackQueuedVerificationTargets(lemma, queuedTargets)
+        setWordbankRefreshTick((current) => current + 1)
+      }
+
+      if (errors.length === 0 && queuedTargets.length === targets.length) {
+        toast.success(`Requeued verification for '${sectionLabel}'.`)
+        return
+      }
+      if (queuedTargets.length > 0) {
+        toast.error(`Only requeued ${queuedTargets.length} of ${targets.length} verification targets for '${sectionLabel}'.`)
+        return
+      }
+      toast.error(errors[0] ?? "Could not rerun verification.")
+    } finally {
+      setRerunningMeaningVerificationById((current) => {
+        const next = { ...current }
+        delete next[meaningId]
+        return next
+      })
+    }
+  }
+
   function clearVerificationErrors() {
     notifiedVerificationSignaturesRef.current = {}
     setTrackedQueuedVerifications({})
@@ -390,12 +456,14 @@ export function useVerificationWorkflow({
   return {
     isApplyingVerificationChanges,
     isRetryingVerification,
+    rerunningMeaningVerificationById,
     isVerifyingWords: Object.keys(trackedQueuedVerifications).length > 0 || verificationOverview.queuedCount > 0,
     verificationOverview: verificationOverview as VerificationOverview,
     trackQueuedVerifications,
     trackQueuedVerificationTargets,
     applyVerificationAction,
     retryVerificationTarget,
+    rerunMeaningVerification,
     markVisibleVerificationNotificationsAsRead,
     clearVerificationErrors,
   }

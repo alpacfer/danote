@@ -38,6 +38,8 @@ type WordbankMeaningSectionsProps = {
   onRethinkCategories: (meaningId: number | null) => void
   isCompletingMeaningVariations: boolean
   onCompleteMeaningVariations: (meaningId: number | null) => void
+  rerunningMeaningVerificationById: Record<number, boolean>
+  onRerunMeaningVerification: (meaningId: number) => void
 }
 
 export function WordbankMeaningSections({
@@ -53,6 +55,8 @@ export function WordbankMeaningSections({
   onRethinkCategories,
   isCompletingMeaningVariations,
   onCompleteMeaningVariations,
+  rerunningMeaningVerificationById,
+  onRerunMeaningVerification,
 }: WordbankMeaningSectionsProps) {
   const normalizedLemma = lemma.trim().toLocaleLowerCase("da-DK")
 
@@ -119,6 +123,8 @@ export function WordbankMeaningSections({
         return (
           <WordbankScopeContextMenu
             key={`meaning-section-${section.id}-${section.meaning_key}`}
+            isRerunningVerification={Boolean(rerunningMeaningVerificationById[section.id])}
+            onRerunVerification={() => onRerunMeaningVerification(section.id)}
             isRethinkingCategories={isRethinkingCategories}
             onRethinkCategories={() => onRethinkCategories(section.id)}
             canCompleteVariations={canCompleteParadigm && !completionGate.isLocked}
