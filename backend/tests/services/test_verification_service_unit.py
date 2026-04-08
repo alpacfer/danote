@@ -782,3 +782,51 @@ def test_gemini_category_classification_reuses_existing_and_new_categories(monke
     result = service.classify_word_categories(_payload())
 
     assert result.categories == ("Household Objects", "Reading Material")
+
+
+def test_ensure_client_passes_timeout_to_http_options() -> None:
+    """_ensure_client must wire timeout_seconds into genai.Client http_options."""
+    import math
+    import sys
+    import types as _types
+
+    captured: dict[str, object] = {}
+
+    class _FakeHttpOptions:
+        def __init__(self, *, timeout: int) -> None:
+            self.timeout = timeout
+
+    # Build fake google.genai.types as a proper module
+    fake_genai_types = _types.ModuleType("google.genai.types")
+    fake_genai_types.HttpOptions = _FakeHttpOptions  # type: ignore[attr-defined]
+
+    class _FakeGenaiClient:
+        def __init__(self, *, api_key: str, http_options: object) -> None:
+            captured["http_options"] = http_options
+
+    # Build fake google.genai as a proper module
+    fake_genai = _types.ModuleType("google.genai")
+    fake_genai.Client = _FakeGenaiClient  # type: ignore[attr-defined]
+    fake_genai.types = fake_genai_types  # type: ignore[attr-defined]
+
+    # Build fake google package as a proper module
+    google_pkg = _types.ModuleType("google")
+    google_pkg.genai = fake_genai  # type: ignore[attr-defined]
+
+    orig = sys.modules.copy()
+    sys.modules["google"] = google_pkg
+    sys.modules["google.genai"] = fake_genai
+    sys.modules["google.genai.types"] = fake_genai_types
+
+    try:
+        svc = GeminiWordVerificationService(api_key="key", timeout_seconds=15.0)
+        svc._client = None  # force re-init
+        svc._ensure_client()
+    finally:
+        sys.modules.clear()
+        sys.modules.update(orig)
+
+    http_options = captured.get("http_options")
+    assert http_options is not None, "http_options not passed to genai.Client"
+    expected_ms = max(1, math.ceil(15.0 * 1000))
+    assert getattr(http_options, "timeout", None) == expected_ms
