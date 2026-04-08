@@ -15,6 +15,7 @@ from tests.helpers.factories import _bog_homograph_cor_local, _cor_local_entry, 
 from tests.helpers.fakes import (
     FakeCORLocalLexiconService,
     FakeGeminiWordTranslationService,
+    FakeNLPAdapter,
     FakeTranslationService,
     FakeTTSService,
     FakeVerificationService,
@@ -2073,9 +2074,13 @@ def test_permanently_failed_verify_word_job_sets_verification_status_to_error(tm
         def classify_word_categories(self, payload):
             raise RuntimeError("Simulated permanent Gemini failure")
 
+    # Use the same NLP adapter for both add_word and the job runner so snapshot hashes stay consistent
+    shared_nlp = FakeNLPAdapter()
+
     # Add word with always-failing verification — this queues the verify_word job
     use_case = WordbankUseCase(
         db_path,
+        nlp_adapter=shared_nlp,
         verification_service=AlwaysFailingVerification(),
     )
     added = use_case.add_word("hund", "hund")
@@ -2087,17 +2092,18 @@ def test_permanently_failed_verify_word_job_sets_verification_status_to_error(tm
             "UPDATE wordbank_background_jobs SET max_attempts = 1 WHERE job_type = 'verify_word'"
         )
 
-    # Create a simple services namespace that provides the failing verification service
+    # Create a services namespace that provides the failing verification service and safe fakes for others.
+    # nlp_adapter must match the one used for add_word so snapshot hashes are consistent.
     class _Services:
         typo_engine = None
-        translation_service = None
-        gemini_word_translation_service = None
+        translation_service = FakeTranslationService({})
+        gemini_word_translation_service = FakeGeminiWordTranslationService({})
         gemini_related_words_service = None
-        nlp_adapter = None
+        nlp_adapter = shared_nlp
         cor_lexicon_service = None
-        cor_local_lexicon_service = None
+        cor_local_lexicon_service = FakeCORLocalLexiconService()
         word_verification_service = AlwaysFailingVerification()
-        tts_service = None
+        tts_service = FakeTTSService({})
 
     runner = WordbankBackgroundJobRunner(
         db_path=db_path,

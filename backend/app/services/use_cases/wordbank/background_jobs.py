@@ -6,8 +6,11 @@ import threading
 from pathlib import Path
 from typing import Any
 
+from app.api.schemas.v1.wordbank import VerificationResult
 from app.db.repositories import WordbankBackgroundJobRepository
+from app.db.repositories.wordbank import WordbankRepository
 from app.services.use_cases.wordbank import WordbankUseCase
+from app.services.use_cases.wordbank.verification_records import persist_verification_result
 
 logger = logging.getLogger(__name__)
 
@@ -82,8 +85,8 @@ class WordbankBackgroundJobRunner:
                     extra={"job_type": job.job_type, "job_id": job.id},
                 )
                 is_final_attempt = job.attempt_count >= job.max_attempts
-                self._repository.mark_retryable_failure(job, error_message=str(exc))
-                if is_final_attempt and job.job_type == "verify_word":
+                was_requeued = self._repository.mark_retryable_failure(job, error_message=str(exc))
+                if is_final_attempt and not was_requeued and job.job_type == "verify_word":
                     self._persist_verify_word_error(job)
                 continue
             self._repository.mark_completed(job.id)
@@ -91,10 +94,6 @@ class WordbankBackgroundJobRunner:
     def _persist_verify_word_error(self, job: object) -> None:
         """After a verify_word job fails permanently, set the verification record to 'error'."""
         try:
-            from app.api.schemas.v1.wordbank import VerificationResult
-            from app.db.repositories.wordbank import WordbankRepository
-            from app.services.use_cases.wordbank.verification_records import persist_verification_result
-
             payload = job.payload
             stored_lemma = str(payload.get("stored_lemma", ""))
             stored_surface_form = payload.get("stored_surface_form")
