@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 import json
+import math
 import time
 from typing import Literal, Protocol
 
@@ -173,7 +174,6 @@ class GeminiWordVerificationService:
     def _ensure_client(self) -> object:
         if self._client is None:
             try:
-                import math
                 from google import genai  # type: ignore import-not-found
                 from google.genai import types as genai_types  # type: ignore import-not-found
             except ImportError as exc:
