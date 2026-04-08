@@ -398,6 +398,10 @@ def _should_use_gemini_for_lemma(
     normalized_gloss = normalize_token(entry.gloss or "")
     if normalized_gloss:
         return True
+    # If cleanup yielded nothing, the provider gave us no usable result; try
+    # Gemini for a contextual translation rather than silently returning None.
+    if provider_translation is None:
+        return True
     invalid = invalid_search_translation(
         translation=provider_translation,
         lemma=entry.lemma,

@@ -223,10 +223,16 @@ def _cleanup_noun(value: str) -> str | None:
 
 def _cleanup_verb(value: str) -> str | None:
     tokens = _split_tokens(value)
-    tokens = _drop_leading_tokens(tokens, {"at", "that", "the", "to"})
+    tokens = _drop_leading_tokens(tokens, {"at", "that", "the"})
     if not tokens:
         return None
-    candidate = tokens[-1]
+    # Strip a single leading "to" so we can re-add it cleanly, but keep
+    # the rest intact so multi-word forms like "be called" are preserved.
+    if tokens[0] == "to":
+        tokens = tokens[1:]
+    if not tokens:
+        return None
+    candidate = " ".join(tokens)
     if not _looks_like_english_phrase(candidate):
         return None
     return f"to {candidate}"
@@ -242,12 +248,45 @@ def _cleanup_adjective(value: str) -> str | None:
     return candidate
 
 
+_ADVERB_SUBJECT_VERB_SUFFIXES = (
+    " does it",
+    " does that",
+    " does so",
+    " do it",
+    " do that",
+)
+
+_ADVERB_FRAME_PREFIXES = (
+    "he does it ",
+    "she does it ",
+    "it happens ",
+    "it is ",
+    "he is ",
+    "she is ",
+    "they are ",
+)
+
+
 def _cleanup_adverb(value: str) -> str | None:
     candidate = value
-    for prefix in ("he does it ", "it happens ", "it is ", "he is ", "she is ", "they are "):
+    # Try stripping a leading template phrase ("he does it <adv>")
+    for prefix in _ADVERB_FRAME_PREFIXES:
         if candidate.startswith(prefix):
             candidate = candidate[len(prefix) :].strip()
             break
+    else:
+        # Azure often reorders to natural English ("he <adv> does it").
+        # Strip the trailing verb phrase to recover the adverb.
+        for suffix in _ADVERB_SUBJECT_VERB_SUFFIXES:
+            if candidate.endswith(suffix):
+                # Drop "he " / "she " / "it " leading subject as well.
+                trimmed = candidate[: -len(suffix)].strip()
+                for subj in ("he ", "she ", "it ", "they "):
+                    if trimmed.startswith(subj):
+                        trimmed = trimmed[len(subj) :]
+                        break
+                candidate = trimmed
+                break
     if not candidate or not _looks_like_english_phrase(candidate):
         return None
     return candidate

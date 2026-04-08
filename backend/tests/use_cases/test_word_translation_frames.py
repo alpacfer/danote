@@ -24,6 +24,12 @@ def test_cleanup_framed_word_translation_normalizes_verb_to_infinitive() -> None
     assert cleanup_framed_word_translation(frame, "that the water") == "to water"
 
 
+def test_cleanup_framed_word_translation_preserves_multi_word_verb_phrase() -> None:
+    frame = WordTranslationFrame(kind="verb", text="at hedde")
+
+    assert cleanup_framed_word_translation(frame, "to be called") == "to be called"
+
+
 def test_cleanup_framed_word_translation_strips_adjective_scaffold() -> None:
     frame = WordTranslationFrame(kind="adjective", text="en tung ting")
 
@@ -34,6 +40,14 @@ def test_cleanup_framed_word_translation_strips_adverb_scaffold() -> None:
     frame = WordTranslationFrame(kind="adverb", text="han gør det hurtigt")
 
     assert cleanup_framed_word_translation(frame, "he does it quickly") == "quickly"
+
+
+def test_cleanup_framed_word_translation_strips_adverb_scaffold_when_azure_reorders() -> None:
+    # Azure often produces natural English word order ("he never does it")
+    # rather than the frame-literal order ("he does it never").
+    frame = WordTranslationFrame(kind="adverb", text="han gør det aldrig")
+
+    assert cleanup_framed_word_translation(frame, "he never does it") == "never"
 
 
 def test_cleanup_framed_word_translation_keeps_minimal_preposition_result() -> None:
