@@ -2053,3 +2053,67 @@ def test_wordbank_use_case_logs_gemini_applied_changes(tmp_path: Path) -> None:
     assert payload["action"]["english_translation"] == "Book"
     assert payload["action_type"] == "fix_translation"
     assert "timestamp_utc" in payload
+
+
+def test_permanently_failed_verify_word_job_sets_verification_status_to_error(tmp_path: Path) -> None:
+    """When a verify_word background job exhausts all retries, the verification record must be 'error'."""
+    import time
+    from app.db.migrations import get_connection
+    from app.services.use_cases.wordbank.background_jobs import WordbankBackgroundJobRunner
+
+    db_path = _db_path(tmp_path)
+
+    class AlwaysFailingVerification:
+        provider = "gemini"
+        reviewer_role = "Professional Danish Language Expert"
+
+        def verify_word_entry(self, payload):
+            raise RuntimeError("Simulated permanent Gemini failure")
+
+        def classify_word_categories(self, payload):
+            raise RuntimeError("Simulated permanent Gemini failure")
+
+    # Add word with always-failing verification — this queues the verify_word job
+    use_case = WordbankUseCase(
+        db_path,
+        verification_service=AlwaysFailingVerification(),
+    )
+    added = use_case.add_word("hund", "hund")
+    assert added.verification.status == "queued"
+
+    # Set max_attempts=1 so the first failure is the final one (avoids multi-second retry delays)
+    with get_connection(db_path) as conn:
+        conn.execute(
+            "UPDATE wordbank_background_jobs SET max_attempts = 1 WHERE job_type = 'verify_word'"
+        )
+
+    # Create a simple services namespace that provides the failing verification service
+    class _Services:
+        typo_engine = None
+        translation_service = None
+        gemini_word_translation_service = None
+        gemini_related_words_service = None
+        nlp_adapter = None
+        cor_lexicon_service = None
+        cor_local_lexicon_service = None
+        word_verification_service = AlwaysFailingVerification()
+        tts_service = None
+
+    runner = WordbankBackgroundJobRunner(
+        db_path=db_path,
+        services=_Services(),
+        gemini_changes_log_path=None,
+        max_workers=1,
+        poll_interval_seconds=0.05,
+    )
+    runner.start()
+    time.sleep(0.5)  # enough for one attempt + completion
+    runner.stop()
+
+    # The verification record must now be 'error', not 'queued'
+    details = use_case.get_lemma_details("hund")
+    if details.meaning_sections:
+        status = details.meaning_sections[0].verification.status
+    else:
+        status = details.verification.status
+    assert status == "error", f"Expected 'error' after permanent job failure, got '{status}'"

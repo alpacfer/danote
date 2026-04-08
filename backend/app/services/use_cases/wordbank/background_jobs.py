@@ -81,9 +81,67 @@ class WordbankBackgroundJobRunner:
                     "wordbank_background_job_failed",
                     extra={"job_type": job.job_type, "job_id": job.id},
                 )
+                is_final_attempt = job.attempt_count >= job.max_attempts
                 self._repository.mark_retryable_failure(job, error_message=str(exc))
+                if is_final_attempt and job.job_type == "verify_word":
+                    self._persist_verify_word_error(job)
                 continue
             self._repository.mark_completed(job.id)
+
+    def _persist_verify_word_error(self, job: object) -> None:
+        """After a verify_word job fails permanently, set the verification record to 'error'."""
+        try:
+            from app.api.schemas.v1.wordbank import VerificationResult
+            from app.db.repositories.wordbank import WordbankRepository
+            from app.services.use_cases.wordbank.verification_records import persist_verification_result
+
+            payload = job.payload
+            stored_lemma = str(payload.get("stored_lemma", ""))
+            stored_surface_form = payload.get("stored_surface_form")
+            meaning_id = payload.get("meaning_id")
+            if not stored_lemma:
+                return
+
+            repository = WordbankRepository(self._db_path)
+            lexeme = repository.get_lexeme(stored_lemma)
+            if lexeme is None:
+                return
+
+            normalized_surface = (
+                str(stored_surface_form).strip() or None
+                if stored_surface_form
+                else None
+            )
+            existing = repository.get_verification_record(
+                lexeme_id=lexeme.id,
+                meaning_id=meaning_id if isinstance(meaning_id, int) else None,
+                stored_surface_form=normalized_surface,
+            )
+            if existing is None or existing.status != "queued":
+                return  # Already resolved by another path
+
+            provider = existing.provider or "gemini"
+            reviewer_role = existing.reviewer_role or "Professional Danish Language Expert"
+            error_result = VerificationResult(
+                status="error",
+                provider=provider,
+                reviewer_role=reviewer_role,
+                review_intent=existing.review_intent,
+                message="Verification failed after all retries.",
+                problem="The verification service could not be reached.",
+                change_to_implement="Retry verification manually.",
+            )
+            persist_verification_result(
+                repository,
+                lexeme_id=lexeme.id,
+                meaning_id=existing.meaning_id,
+                stored_surface_form=existing.stored_surface_form,
+                verification=error_result,
+                latest_snapshot_hash=existing.latest_snapshot_hash,
+                request_generation=existing.request_generation,
+            )
+        except Exception:
+            logger.exception("wordbank_background_job_error_persist_failed", extra={"job_id": job.id})
 
     def _wait_for_completion(self, in_flight: dict[Future[None], object]) -> None:
         if not in_flight:
