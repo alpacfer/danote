@@ -9,6 +9,7 @@ from typing import Any
 from app.api.schemas.v1.wordbank import VerificationResult
 from app.db.repositories import WordbankBackgroundJobRepository
 from app.db.repositories.wordbank import WordbankRepository
+from app.db.repositories.wordbank_background_jobs import WordbankBackgroundJobRecord
 from app.services.use_cases.wordbank import WordbankUseCase
 from app.services.use_cases.wordbank.verification_records import persist_verification_result
 
@@ -79,7 +80,7 @@ class WordbankBackgroundJobRunner:
             job = in_flight.pop(future)
             try:
                 future.result()
-            except Exception as exc:  # pragma: no cover - exercised through queue state assertions
+            except Exception as exc:
                 logger.exception(
                     "wordbank_background_job_failed",
                     extra={"job_type": job.job_type, "job_id": job.id},
@@ -91,7 +92,7 @@ class WordbankBackgroundJobRunner:
                 continue
             self._repository.mark_completed(job.id)
 
-    def _persist_verify_word_error(self, job: object) -> None:
+    def _persist_verify_word_error(self, job: WordbankBackgroundJobRecord) -> None:
         """After a verify_word job fails permanently, set the verification record to 'error'."""
         try:
             payload = job.payload
