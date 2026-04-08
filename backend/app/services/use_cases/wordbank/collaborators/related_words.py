@@ -14,6 +14,11 @@ from app.services.use_cases.wordbank.collaborators.cor_local import (
     cor_local_variant,
     drop_glossless_when_gloss_exists,
 )
+from app.services.use_cases.wordbank.collaborators.cor_local_translations import (
+    lookup_translation_for_cor_gloss,
+)
+from app.services.use_cases.wordbank.collaborators.translation import TranslationCollaborator
+from app.services.use_cases.wordbank.gloss_translations import is_likely_english_gloss
 
 _RELATED_WORDS_JOB_TYPE = "resolve_related_words"
 _RELATED_WORDS_RELATION_TYPE = "compound_component"
@@ -31,11 +36,13 @@ class RelatedWordsCollaborator:
         cor_local_lexicon_service: CORLocalLexiconService | None,
         repository: WordbankRepository,
         db_path,
+        translation: TranslationCollaborator | None = None,
     ) -> None:
         self._related_words_service = related_words_service
         self._cor_local_lexicon_service = cor_local_lexicon_service
         self._repository = repository
         self._jobs = WordbankBackgroundJobRepository(db_path)
+        self._translation = translation
 
     def queue_resolution_request(self, *, stored_lemma: str) -> bool:
         normalized_lemma = normalize_token(stored_lemma)
@@ -170,14 +177,35 @@ class RelatedWordsCollaborator:
         pos_tag: str | None,
         english_translation: str | None,
     ) -> list[CORSearchVariant]:
+        gloss_cache: dict[str, str | None] = {}
         return [
             cor_local_variant(
                 entry,
                 lemma_translation=english_translation,
                 saveable_translation=english_translation,
+                gloss_translation=self._resolve_gloss_translation(entry, english_translation, gloss_cache),
             )
             for entry in self._cor_candidates(lemma, pos_tag)
         ]
+
+    def _resolve_gloss_translation(
+        self,
+        entry: CORLocalEntry,
+        lemma_translation: str | None,
+        gloss_cache: dict[str, str | None],
+    ) -> str | None:
+        if not entry.gloss:
+            return None
+        if is_likely_english_gloss(entry.gloss):
+            return entry.gloss
+        if self._translation is None:
+            return None
+        return lookup_translation_for_cor_gloss(
+            self._translation,
+            entry=entry,
+            lemma_translation=lemma_translation,
+            gloss_cache=gloss_cache,
+        )
 
     def _cor_candidates(self, lemma: str, pos_tag: str | None) -> list[CORLocalEntry]:
         if self._cor_local_lexicon_service is None:

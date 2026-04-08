@@ -83,6 +83,7 @@ class WordbankUseCase:
             cor_local_lexicon_service,
             repository,
             db_path,
+            translation=translation,
         )
         verification = VerificationCollaborator(
             verification_service,

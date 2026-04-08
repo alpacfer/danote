@@ -302,9 +302,9 @@ describe("App wordbank related words", () => {
     fireEvent.click(await screen.findByRole("button", { name: /legeplads/i }))
     fireEvent.click(await screen.findByRole("button", { name: /choose related word match for plads/i }))
 
-    const squareRow = screen.getByText(/^square$/i).closest("div")?.parentElement
-    expect(squareRow).not.toBeNull()
-    fireEvent.click(within(squareRow as HTMLElement).getByRole("button", { name: /^add$/i }))
+    const squareButton = screen.getByText(/^square$/i).closest("button")
+    expect(squareButton).not.toBeNull()
+    fireEvent.click(squareButton as HTMLElement)
 
     await waitFor(() => {
       expect(capturedBody).toEqual({

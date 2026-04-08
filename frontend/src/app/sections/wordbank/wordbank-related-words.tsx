@@ -127,13 +127,30 @@ export function WordbankRelatedWords({
                         const variantKey = `${item.id}:${variant.cor_id}`
                         const isVariantSaving = Boolean(savingByKey[variantKey])
                         return (
-                          <div
+                          <Button
                             key={`related-word-choice-${item.id}-${variant.cor_id}`}
-                            className="bg-muted/35 flex items-start justify-between gap-3 rounded-lg border px-3 py-2"
+                            type="button"
+                            variant="ghost"
+                            aria-label={`Add ${variant.lemma}`}
+                            disabled={isVariantSaving}
+                            className="bg-muted/35 hover:bg-accent/60 h-auto w-full items-start justify-between rounded-lg border px-3 py-2 text-left"
+                            onClick={() => {
+                              void saveVariant({
+                                item,
+                                variant,
+                                key: variantKey,
+                                setSavingByKey,
+                                onSaveRelatedWordFromSearchSeed,
+                              }).then((savedLemma) => {
+                                if (savedLemma) {
+                                  setOpenCardIds((current) => ({ ...current, [item.id]: false }))
+                                }
+                              })
+                            }}
                           >
                             <div className="min-w-0 space-y-1">
-                              {variant.gloss ? (
-                                <p className="text-sm font-medium">{variant.gloss}</p>
+                              {(variant.gloss_translation ?? variant.gloss) ? (
+                                <p className="text-sm font-medium">{variant.gloss_translation ?? variant.gloss}</p>
                               ) : null}
                               <div className="flex flex-wrap gap-1.5">
                                 {badgesFromGramRaw(variant.gram_raw).map((badge) => (
@@ -147,29 +164,8 @@ export function WordbankRelatedWords({
                                 ))}
                               </div>
                             </div>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              disabled={isVariantSaving}
-                              onClick={() => {
-                                void saveVariant({
-                                  item,
-                                  variant,
-                                  key: variantKey,
-                                  setSavingByKey,
-                                  onSaveRelatedWordFromSearchSeed,
-                                }).then((savedLemma) => {
-                                  if (savedLemma) {
-                                    setOpenCardIds((current) => ({ ...current, [item.id]: false }))
-                                  }
-                                })
-                              }}
-                            >
-                              <Plus className="mr-1 size-4" />
-                              Add
-                            </Button>
-                          </div>
+                            <Plus className="text-muted-foreground size-4 shrink-0 self-center" />
+                          </Button>
                         )
                       })}
                     </CollapsibleContent>
