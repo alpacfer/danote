@@ -1,10 +1,8 @@
+@AGENTS.md
+
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
-## Project Overview
-
-danote is a Danish-first language-learning note-taking web app with a React/Vite frontend and a FastAPI/SQLite backend with NLP and typo-detection pipelines.
+Claude Code-specific guidance for danote. Shared agent policies are in AGENTS.md (imported above).
 
 ## Common Commands
 
@@ -18,88 +16,119 @@ make test               # Backend unit tests + frontend tests (fast)
 make test-backend-medium    # Backend integration tests (needs running backend deps)
 make test-backend-slow      # Regression fixture tests (needs DaCy model)
 make docs-smoke         # Verify documented commands still work
-make dev                # Start backend + frontend together (scripts/run-project.sh)
+make dev                # Start backend + frontend together
 ```
 
-Run a single backend test file:
+Single file tests:
 ```bash
 cd backend && PYTHONPATH=. .venv/bin/pytest -q tests/test_some_file.py
-```
-
-Run a single frontend test file:
-```bash
 cd frontend && npx vitest run src/path/to/file.test.ts
 ```
 
-## Architecture
+## Architecture Details
 
-### Backend (`backend/`)
+### Backend
 
-Strict layered architecture — routes must stay thin:
+Entry point: `app/main.py` → `create_app()` factory.
+Config: `DANOTE_*` env vars (loaded from `.env` / `.env.local`).
+Layering: routes → schemas → use-cases → domain services → NLP adapters → DB.
 
-- **Routes** (`app/api/routes/`): HTTP transport only — validation, error mapping, delegation to use-cases
-- **Schemas** (`app/api/schemas/v1/`): Versioned request/response DTOs. Routes import from here; never define models inline in routes
-- **Use-cases** (`app/services/use_cases/`): Business orchestration layer (analyze, wordbank, sentencebank, developer)
-- **Domain services** (`app/services/`): COR lexicon, translation (Azure), TTS (Azure Speech), typo engine, word verification (Gemini), token classifier
-- **NLP adapters** (`app/nlp/`): spaCy/DaCy model wrappers
-- **DB/migrations** (`app/db/`): SQLite with auto-migration on startup
+Domain services: COR lexicon, translation (Azure), TTS (Azure Speech), typo engine, word verification (Gemini), token classifier.
 
-Entry point: `app/main.py` → `create_app()` factory. Config via `DANOTE_*` env vars (loaded from `.env` / `.env.local`).
+### Frontend
 
-### Frontend (`frontend/`)
+React 19 + Vite + TypeScript + Tailwind CSS v4 + shadcn/ui.
 
-React 19 + Vite + TypeScript + Tailwind CSS v4 + shadcn/ui components.
+- App shell: `src/App.tsx` composes sidebar + section routing via `useAppController`
+- Sections: `src/app/sections/` — Playground, Notes, Wordbank, Sentencebank, Developer
+- Hooks: `src/app/hooks/` — organized by domain folder
+- Chrome: `src/app/chrome/` — sidebar, breadcrumb, shell UI
+- UI primitives: `src/components/ui/` — shadcn (add via `npx shadcn@latest add <name>`)
 
-- **App shell** (`src/App.tsx`): Composes sidebar + section routing via `useAppController` hook
-- **Sections** (`src/app/sections/`): Playground, Notes, Wordbank, Sentencebank, Developer — each a top-level view
-- **Hooks** (`src/app/hooks/`): Domain-specific hooks organized by folder (app, playground, wordbank, etc.)
-- **Chrome** (`src/app/chrome/`): Sidebar, breadcrumb, and shell UI
-- **UI components** (`src/components/ui/`): shadcn components — add new ones via `npx shadcn@latest add <component>`
-
-Path alias: `@/*` maps to `./src/*`.
+Path alias: `@/*` → `./src/*`.
 
 ### CI Pipeline (`.github/workflows/quality.yml`)
 
-Two jobs:
 1. **fast-quality**: lint → maintainability-check → test → docs-smoke
-2. **medium-backend-integration**: backend medium tests (runs after fast-quality)
+2. **medium-backend-integration**: backend medium tests (after fast-quality)
 
 Python 3.10, Node 22.
 
-## Key Conventions
+## Subagents
 
-### Edit Strategy
+### Project agents (`.claude/agents/`) — auto-dispatched by context
 
-1. Update schemas in `api/schemas/v1/` first (if API shape changes)
-2. Update use-case logic in `services/use_cases/`
-3. Keep route changes minimal
-4. Add tests nearest to the changed boundary
+| Agent | Activates when |
+|-------|---------------|
+| `test-writer` | Writing tests, filling coverage gaps, post-implementation |
+| `docs-updater` | Pre-PR docs audit, after any API/schema/workflow change |
+| `danish-linguist` | NLP pipeline, token classification, COR lexicon, translation |
 
-### File Size Limits (enforced by `make maintainability-check`)
+### Commands (`.claude/commands/`) — explicit invocation
 
-- Production TS/TSX: target ≤300 lines, soft limit 300–450, hard limit >450 requires refactor
-- React components: ≤200 lines, one main concern
-- Custom hooks: ≤220 lines, one workflow/domain concern
-- Functions: ≤60 lines
+| Command | Usage |
+|---------|-------|
+| `/researcher` | Deep codebase + external docs research |
+| `/api-change` | Guided schema-first API change workflow |
 
-### Code Quality
+### Built-in agents
 
-- No `any` in TypeScript; use explicit types at module boundaries
-- Keep `App.tsx` as a thin orchestrator — workflow logic belongs in hooks
-- Prefer domain folders over flat structure (e.g. `hooks/playground/`, `hooks/wordbank/`)
-- Backend: never put business logic in route handlers
+| Agent | Use when |
+|-------|----------|
+| **Explore** | Quick codebase navigation, finding files/patterns |
+| **Plan** | Designing implementation strategy for non-trivial features |
+| **general-purpose** | Multi-step tasks needing full tool access |
 
-### Verification Sequence
+## Hooks (`.claude/hooks/`)
 
-Run this before finishing any change:
-```bash
-make lint
-make maintainability-check
-make test
-make docs-smoke
-```
+All warn-only (exit 0) except `protect-env-files.sh` which blocks with exit 2.
 
-If backend orchestration or schemas changed, also run:
-```bash
-bash ./scripts/pytest-backend.sh -q tests/use_cases
-```
+| Hook | Trigger | Effect |
+|------|---------|--------|
+| `post-edit-lint.sh` | Edit/Write `*.py` | `ruff check` warnings |
+| `post-edit-lint.sh` | Edit/Write `*.ts`/`*.tsx` | `make maintainability-check` warnings |
+| `pre-commit-check.sh` | `git commit` via Bash | `make lint && make test` warnings |
+| `protect-env-files.sh` | Edit/Write `.env*` | **Blocks** the edit (exit 2) |
+| `session-context.sh` | SessionStart (compact) | Re-injects stack/architecture context |
+| `notify.sh` | Notification event | Desktop `notify-send` alert (async) |
+
+## Path-scoped rules (`.claude/rules/`)
+
+Loaded automatically when editing files in the matched paths:
+
+| File | Paths | Content |
+|------|-------|---------|
+| `testing.md` | `backend/tests/**`, `frontend/src/test/**` | pytest/vitest patterns, fixture imports |
+| `api-design.md` | `backend/app/api/**`, `services/use_cases/**` | Schema-first edit sequence, route thinness |
+| `frontend.md` | `frontend/src/**/*.{ts,tsx}` | shadcn-first, hook boundaries, size limits |
+
+## Context Management
+
+### File read priority
+
+When context is limited, prioritize in this order:
+1. Files being changed and their direct imports
+2. Related test files
+3. Schema definitions (`api/schemas/v1/`)
+4. Use-case orchestrators (`services/use_cases/`)
+5. Adjacent domain services
+
+### Reducing context pressure
+
+- Use the Explore agent for broad searches instead of reading many files inline
+- Read only relevant line ranges of large files (use `offset` + `limit`)
+- For frontend changes: read the hook before the component — hooks hold the logic
+- For backend changes: read the use-case before the route — routes are thin wrappers
+- When touching a domain (wordbank, playground, etc.), read its hook + section + tests as a unit
+
+### Memory guidance
+
+Worth saving to memory (persists across conversations):
+- Danish linguistic edge cases and vocabulary decisions
+- External API quirks (Azure, Gemini behavior, rate limits, gotchas)
+- User preferences for code style or workflow
+
+Not worth saving (derivable from code/docs):
+- Architecture patterns — read AGENTS.md and this file instead
+- File locations — use Glob/Grep
+- Recent git activity — use `git log`
