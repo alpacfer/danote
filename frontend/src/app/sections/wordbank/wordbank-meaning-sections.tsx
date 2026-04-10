@@ -6,7 +6,6 @@ import {
   getMeaningVerificationGate,
   lemmaTranslationWithGloss,
   posBadgeClass,
-  posBorderLeftClass,
   semanticCategoryBadgeClass,
 } from "@/app/core"
 import { WordbankFormList } from "@/app/sections/wordbank/wordbank-form-list"
@@ -148,7 +147,7 @@ export function WordbankMeaningSections({
               data-testid={`wordbank-meaning-card-${section.id}`}
               data-meaning-id={section.id}
               data-selected={selectedMeaningId === section.id ? "true" : "false"}
-              className={`border-l-2 py-5 ${posBorderLeftClass(section.pos_tag ?? null)}`.trim()}
+              className="py-5"
             >
               <CardContent className="space-y-3">
                 {/* Line 1: Lemma + translation | Category badges */}

@@ -58,7 +58,6 @@ export function WordbankRelatedWords({
           const candidateVariants = item.candidate_variants ?? []
           const isSaved = item.saved_match.status !== "unsaved"
           const isAmbiguous = !isSaved && !uniqueVariant && candidateVariants.length > 1
-          const itemPosTag = uniqueVariant?.pos_tag ?? item.pos_tag ?? null
           const actionKey = uniqueVariant ? `${item.id}:${uniqueVariant.cor_id}` : `${item.id}:toggle`
           const isActionLoading = Boolean(savingByKey[actionKey])
           const isOpen = Boolean(openCardIds[item.id])
