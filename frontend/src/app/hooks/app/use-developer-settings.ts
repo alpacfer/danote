@@ -76,9 +76,32 @@ export function useDeveloperSettings({
     [backendUrl, extractErrorMessage],
   )
 
+  async function clearBrowserCache(): Promise<void> {
+    try {
+      localStorage.clear()
+    } catch { /* storage may be inaccessible */ }
+    try {
+      sessionStorage.clear()
+    } catch { /* storage may be inaccessible */ }
+    try {
+      if ("serviceWorker" in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations()
+        for (const registration of registrations) {
+          await registration.unregister()
+        }
+      }
+    } catch { /* service worker may not be available */ }
+    try {
+      if ("caches" in window) {
+        const cacheNames = await caches.keys()
+        await Promise.all(cacheNames.map((name) => caches.delete(name)))
+      }
+    } catch { /* Cache API may not be available */ }
+  }
+
   async function resetDatabase() {
     const shouldReset = window.confirm(
-      "This will delete the complete database and cannot be undone. Continue?",
+      "This will delete the database and clear all browser cache. Continue?",
     )
     if (!shouldReset) {
       return
@@ -92,6 +115,8 @@ export function useDeveloperSettings({
       )
       onNotifySuccess(payload.message)
       onDatabaseReset()
+      await clearBrowserCache()
+      window.location.reload()
     } catch (error) {
       const message = error instanceof Error ? error.message : "Could not reset database."
       onNotifyError(message)
