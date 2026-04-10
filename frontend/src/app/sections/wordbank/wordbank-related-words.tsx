@@ -5,7 +5,6 @@ import {
   badgesFromGramRaw,
   corSecondaryBadgeClass,
   posBadgeClass,
-  posBorderLeftClass,
   primaryPosLabel,
   type CORSearchVariant,
   type LemmaDetailsResponse,
@@ -71,7 +70,7 @@ export function WordbankRelatedWords({
                 setOpenCardIds((current) => ({ ...current, [item.id]: open }))
               }}
             >
-              <Card className={`border-l-2 overflow-hidden py-0 gap-0 ${posBorderLeftClass(itemPosTag)}`.trim()}>
+              <Card className="overflow-hidden py-0 gap-0">
                 <CardContent className="space-y-3 p-0">
                   {isAmbiguous ? (
                     <CollapsibleTrigger asChild>
@@ -133,7 +132,7 @@ export function WordbankRelatedWords({
                             variant="ghost"
                             aria-label={`Add ${variant.lemma}`}
                             disabled={isVariantSaving}
-                            className="bg-muted/35 hover:bg-accent/60 h-auto w-full items-start justify-between rounded-lg border px-3 py-2 text-left"
+                            className="bg-muted/35 hover:bg-accent/60 h-auto w-full items-start justify-between rounded-xl border px-3 py-2 text-left"
                             onClick={() => {
                               void saveVariant({
                                 item,

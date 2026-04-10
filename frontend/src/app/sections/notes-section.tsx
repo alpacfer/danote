@@ -22,7 +22,7 @@ export function NotesSection({ savedNotes, onOpenSavedNote }: NotesSectionProps)
           <Card key={note.id} className="p-0">
             <button
               type="button"
-              className="hover:bg-accent/60 focus-visible:ring-ring w-full rounded-lg p-4 text-left outline-none transition-colors hover:cursor-pointer focus-visible:ring-2"
+              className="hover:bg-accent/60 focus-visible:ring-ring w-full rounded-xl p-4 text-left outline-none transition-colors hover:cursor-pointer focus-visible:ring-2"
               onClick={() => {
                 onOpenSavedNote(note)
               }}
