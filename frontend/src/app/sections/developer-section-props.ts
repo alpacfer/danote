@@ -1,7 +1,7 @@
 import { type ComponentProps } from "react"
 
 import { NLP_MODEL_OPTIONS, type ConnectionStatus } from "@/app/core"
-import { DeveloperSection } from "@/app/sections/developer-section"
+import { DeveloperSection } from "@/app/sections/developer"
 
 export type DeveloperSectionAdapterArgs = {
   status: ConnectionStatus

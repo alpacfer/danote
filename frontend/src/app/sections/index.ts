@@ -1,4 +1,4 @@
-export * from "./developer-section"
+export * from "./developer"
 export * from "./notes-section"
 export * from "./playground-header-actions"
 export * from "./playground-section"
