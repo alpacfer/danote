@@ -7,7 +7,6 @@ import {
   lemmaTranslationWithGloss,
   normalizeSearchWord,
   posBadgeClass,
-  posBorderLeftClass,
 } from "@/app/core"
 import { WordbankFormList } from "@/app/sections/wordbank/wordbank-form-list"
 import { WordbankParadigmTable } from "@/app/sections/wordbank/wordbank-paradigm-table"
@@ -20,7 +19,7 @@ import {
 import { buildPronunciationAvailabilityMap, resolvePronunciationAvailability } from "@/app/sections/wordbank/wordbank-pronunciation-availability"
 import { WordbankPronunciationWord } from "@/app/sections/wordbank/wordbank-pronunciation-word"
 import { Badge } from "@/components/ui/badge"
-import { cn } from "@/lib/utils"
+import { Card } from "@/components/ui/card"
 import { AudioLines, Loader2 } from "lucide-react"
 
 type WordbankVariationGridProps = {
@@ -102,12 +101,10 @@ export function WordbankVariationGrid({
         const normalizedForm = normalizeSearchWord(form.form)
         const isRegenerating = Boolean(regeneratingPronunciationByForm[normalizedForm])
         return (
-          <div
+          <Card
             key={form.form}
-            className={cn(
-              "rounded-md border-l-2 bg-muted/30 p-3 dark:bg-muted/15",
-              posBorderLeftClass(form.pos_tag),
-            )}
+            variant="subtle"
+            className="bg-muted/30 p-3 dark:bg-muted/15"
           >
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <WordbankPronunciationWord
@@ -142,7 +139,7 @@ export function WordbankVariationGrid({
                 {formLemmaTranslation ? <span> ({formLemmaTranslation})</span> : null}
               </p>
             ) : null}
-          </div>
+          </Card>
         )
       })}
     </div>
