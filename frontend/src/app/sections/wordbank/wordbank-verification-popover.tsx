@@ -110,7 +110,7 @@ export function WordbankVerificationPopover({
 
                 {verifiedTargets.length > 0 ? (
                   <VerificationSection label="Checked" count={verifiedTargets.length}>
-                    <Card className="gap-0 py-0 shadow-none">
+                    <Card variant="subtle">
                       <CardContent className="space-y-2 px-3 py-3">
                         <div className="flex items-start gap-2">
                           <VerificationStateIcon state="verified" className="mt-0.5 size-4 shrink-0" />
@@ -245,7 +245,7 @@ function VerificationQueuedRow({ target }: { target: VerificationTargetView }) {
   const timestampMeta = verificationTargetTimestampMeta(target)
 
   return (
-    <Card className="gap-0 py-0 shadow-none">
+    <Card variant="subtle">
       <CardContent className="space-y-2 px-3 py-3">
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-1">
