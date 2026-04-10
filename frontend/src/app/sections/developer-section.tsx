@@ -126,7 +126,7 @@ export function DeveloperSection({
           <p className="text-sm font-medium">API status</p>
           <div className="space-y-2" aria-label="api-status-list">
             {apiStatusItems.map((item) => (
-              <div key={item.name} className="rounded-md border p-2">
+              <Card key={item.name} variant="subtle" className="p-2">
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-sm">{item.label}</span>
                   <Badge variant="outline" className={apiStatusBadgeClass(item.status)}>
@@ -136,7 +136,7 @@ export function DeveloperSection({
                 {item.message ? (
                   <p className="text-muted-foreground mt-1 text-xs">{item.message}</p>
                 ) : null}
-              </div>
+              </Card>
             ))}
           </div>
         </div>

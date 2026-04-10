@@ -1,3 +1,4 @@
+import { Card } from "@/components/ui/card"
 import { type DeveloperServiceProbeResponse } from "@/app/core"
 
 type DeveloperProbeResultProps = {
@@ -11,7 +12,7 @@ export function DeveloperProbeResult({ ariaLabel, result }: DeveloperProbeResult
   }
 
   return (
-    <div aria-label={ariaLabel} className="rounded-md border p-2 text-sm">
+    <Card aria-label={ariaLabel} variant="subtle" className="p-2 text-sm">
       <p>
         <strong>Status:</strong> {result.status}
       </p>
@@ -24,6 +25,6 @@ export function DeveloperProbeResult({ ariaLabel, result }: DeveloperProbeResult
         </p>
       ) : null}
       <p className="text-muted-foreground">{result.message}</p>
-    </div>
+    </Card>
   )
 }
