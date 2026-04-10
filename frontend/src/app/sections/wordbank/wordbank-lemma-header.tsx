@@ -3,6 +3,7 @@ import { additionalTranslationsDisplay, badgesForSavedForm, corSecondaryBadgeCla
 import { WordbankPronunciationWord } from "@/app/sections/wordbank/wordbank-pronunciation-word"
 import { WordbankVerificationPopover } from "@/app/sections/wordbank/wordbank-verification-popover"
 import { Badge } from "@/components/ui/badge"
+import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { AudioLines, Languages, Loader2, Sparkles } from "lucide-react"
 
@@ -202,24 +203,26 @@ export function WordbankDetailsLoadingSkeleton() {
         <Skeleton className="h-px w-full" />
       </div>
       {[0, 1, 2].map((item) => (
-        <div
+        <Card
           key={`wordbank-details-loading-card-${item}`}
           data-testid="wordbank-details-loading-card"
-          className="space-y-3 rounded-md border border-border/70 p-5"
+          className="py-5 border-border/70"
         >
-          <div className="flex flex-wrap items-center gap-2">
-            <Skeleton className="h-5 w-6 rounded-full" />
-            <Skeleton className="h-6 w-28" />
-            <Skeleton className="h-5 w-16 rounded-full" />
-            <Skeleton className="h-5 w-20 rounded-full" />
-          </div>
-          <Skeleton className="h-4 w-44" />
-          <div className="space-y-2">
-            <Skeleton className="h-4 w-32" />
-            <Skeleton className="h-4 w-40" />
-            <Skeleton className="h-4 w-36" />
-          </div>
-        </div>
+          <CardContent className="space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <Skeleton className="h-5 w-6 rounded-full" />
+              <Skeleton className="h-6 w-28" />
+              <Skeleton className="h-5 w-16 rounded-full" />
+              <Skeleton className="h-5 w-20 rounded-full" />
+            </div>
+            <Skeleton className="h-4 w-44" />
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-4 w-40" />
+              <Skeleton className="h-4 w-36" />
+            </div>
+          </CardContent>
+        </Card>
       ))}
     </div>
   )
