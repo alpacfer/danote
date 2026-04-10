@@ -185,7 +185,7 @@ function VerificationReviewRow({
   const supportingCopy = verificationReviewSupportingCopy(target)
 
   return (
-    <Card className="gap-0 py-0 shadow-none">
+    <Card variant="subtle">
       <CardContent className="space-y-3 px-3 py-3">
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-1">
@@ -202,9 +202,10 @@ function VerificationReviewRow({
             {target.errorDetail.suggestedActions.length > 0 ? (
               <div className="space-y-2">
                 {target.errorDetail.suggestedActions.map((action, index) => (
-                  <div
+                  <Card
                     key={`${target.key}-${action.action_type}-${index}`}
-                    className="rounded-lg border border-border/70 px-3 py-2"
+                    variant="subtle"
+                    className="px-3 py-2 border-border/70"
                   >
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                       <p className="text-muted-foreground text-sm">{verificationActionSummary(action)}</p>
@@ -218,7 +219,7 @@ function VerificationReviewRow({
                         {isApplyingVerificationChanges ? "Applying..." : verificationActionButtonLabel(action)}
                       </Button>
                     </div>
-                  </div>
+                  </Card>
                 ))}
               </div>
             ) : null}
