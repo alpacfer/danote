@@ -3,6 +3,7 @@ import { Bell, LoaderCircle, Save } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ButtonGroup } from "@/components/ui/button-group"
+import { Card } from "@/components/ui/card"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import {
   formatSavedNoteTimestamp,
@@ -83,14 +84,16 @@ export function PlaygroundHeaderActions({
               ) : (
                 <ul className="space-y-2" aria-label="notification-list">
                   {notifications.map((notification) => (
-                    <li key={notification.id} className="rounded-md border px-3 py-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-sm">{notification.message}</p>
-                        {!notification.read ? <Badge variant="secondary">New</Badge> : null}
-                      </div>
-                      <p className="text-muted-foreground mt-1 text-xs">
-                        {formatSavedNoteTimestamp(notification.createdAt)}
-                      </p>
+                    <li key={notification.id}>
+                      <Card variant="subtle" className="px-3 py-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-sm">{notification.message}</p>
+                          {!notification.read ? <Badge variant="secondary">New</Badge> : null}
+                        </div>
+                        <p className="text-muted-foreground mt-1 text-xs">
+                          {formatSavedNoteTimestamp(notification.createdAt)}
+                        </p>
+                      </Card>
                     </li>
                   ))}
                 </ul>
