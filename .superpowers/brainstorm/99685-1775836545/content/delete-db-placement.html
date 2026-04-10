@@ -1,0 +1,66 @@
+<h2>Delete DB Button Placement</h2>
+<p class="subtitle">You use it a lot — where should it live in a tabbed layout?</p>
+
+<div class="options">
+  <div class="option" data-choice="tab-only" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Inside the Database tab</h3>
+      <p>Clean separation — all DB actions live in their own tab. One extra click to reach it.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="tab-plus-sticky" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Database tab + sticky at page bottom</h3>
+      <p>Full DB management in its tab, plus a sticky "Delete DB + Clear cache" button pinned at the bottom of the page — always one click away from any tab.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="tab-plus-header" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Database tab + small button in header area</h3>
+      <p>Full DB management in its tab, plus a small destructive button next to the page title — visible but not intrusive.</p>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top: 24px;">
+  <h3>Preview of B (sticky) vs C (header)</h3>
+</div>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">B — Sticky bottom bar</div>
+    <div class="mockup-body" style="padding: 12px; font-size: 12px; display: flex; flex-direction: column; min-height: 200px;">
+      <div style="display: flex; border-bottom: 2px solid #171717; padding: 0 12px;">
+        <div style="padding: 8px 12px; border-bottom: 2px solid #171717; margin-bottom: -2px; font-weight: 600; font-size: 11px;">Status</div>
+        <div style="padding: 8px 12px; color: #a1a1a1; font-size: 11px;">API Keys</div>
+        <div style="padding: 8px 12px; color: #a1a1a1; font-size: 11px;">Probes</div>
+        <div style="padding: 8px 12px; color: #a1a1a1; font-size: 11px;">Database</div>
+      </div>
+      <div style="padding: 12px; color: #a1a1a1; flex: 1;">Status tab content...</div>
+      <div style="border-top: 1px solid #e5e5e5; padding: 10px 12px; background: #fff; display: flex; align-items: center; justify-content: space-between;">
+        <span style="color: #737373; font-size: 11px;">Quick action</span>
+        <button class="mock-button" style="background: #dc2626; color: white; border: none; padding: 6px 14px; border-radius: 6px; font-size: 11px; cursor: pointer;">Delete DB + Clear cache</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-header">C — Next to page title</div>
+    <div class="mockup-body" style="padding: 12px; font-size: 12px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <span style="font-weight: 700; font-size: 16px;">Developer</span>
+        <button class="mock-button" style="background: transparent; color: #dc2626; border: 1px solid #fca5a5; padding: 4px 10px; border-radius: 6px; font-size: 10px; cursor: pointer;">Delete DB</button>
+      </div>
+      <div style="display: flex; border-bottom: 2px solid #171717; padding: 0;">
+        <div style="padding: 8px 12px; border-bottom: 2px solid #171717; margin-bottom: -2px; font-weight: 600; font-size: 11px;">Status</div>
+        <div style="padding: 8px 12px; color: #a1a1a1; font-size: 11px;">API Keys</div>
+        <div style="padding: 8px 12px; color: #a1a1a1; font-size: 11px;">Probes</div>
+        <div style="padding: 8px 12px; color: #a1a1a1; font-size: 11px;">Database</div>
+      </div>
+      <div style="padding: 12px; color: #a1a1a1;">Status tab content...</div>
+    </div>
+  </div>
+</div>
