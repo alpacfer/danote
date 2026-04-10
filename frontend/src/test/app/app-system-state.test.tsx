@@ -76,7 +76,11 @@ describe("App system state", () => {
     await screen.findByLabelText("backend-connection-status")
 
     fireEvent.click(screen.getByRole("button", { name: /developer/i }))
-    fireEvent.click(screen.getByRole("button", { name: /test gemini/i }))
+    await act(async () => {
+      fireEvent.click(screen.getByRole("tab", { name: /probes/i }))
+      await new Promise((r) => setTimeout(r, 0))
+    })
+    fireEvent.click(await screen.findByRole("button", { name: /test gemini/i }))
 
     expect(await screen.findByLabelText("gemini-probe-result")).toHaveTextContent(/the book/i)
     expect(vi.mocked(toast.success)).toHaveBeenCalledWith("Gemini probe completed successfully.")
@@ -117,7 +121,10 @@ describe("App system state", () => {
     await screen.findByLabelText("backend-connection-status")
 
     fireEvent.click(screen.getByRole("button", { name: /developer/i }))
-    fireEvent.click(screen.getByRole("button", { name: /test deepl/i }))
+    await act(async () => {
+      fireEvent.click(screen.getByRole("tab", { name: /probes/i }))
+    })
+    fireEvent.click(await screen.findByRole("button", { name: /test deepl/i }))
     fireEvent.click(screen.getByRole("button", { name: /test azure speech/i }))
 
     expect(await screen.findByLabelText("translation-probe-result")).toHaveTextContent(/the book/i)
@@ -126,8 +133,8 @@ describe("App system state", () => {
     expect(vi.mocked(toast.error)).toHaveBeenCalledWith("Azure Speech probe failed.")
     expect(screen.getByLabelText("api-status-list")).toHaveTextContent("DeepL API")
     expect(screen.getByLabelText("api-status-list")).toHaveTextContent("Azure Speech API")
-    expect(screen.getByLabelText("api-status-list")).toHaveTextContent(/DeepL Translator probe completed successfully./i)
-    expect(screen.getByLabelText("api-status-list")).toHaveTextContent(/Azure Speech probe failed./i)
+    expect(screen.getByLabelText("translation-probe-result")).toHaveTextContent(/DeepL Translator probe completed successfully./i)
+    expect(screen.getByLabelText("speech-probe-result")).toHaveTextContent(/Azure Speech probe failed./i)
   })
 
   it("deletes complete db from developer options", async () => {
@@ -144,7 +151,8 @@ describe("App system state", () => {
     await screen.findByLabelText("backend-connection-status")
 
     fireEvent.click(screen.getByRole("button", { name: /developer/i }))
-    fireEvent.click(screen.getByRole("button", { name: /delete complete db/i }))
+    const deleteButtons = screen.getAllByRole("button", { name: /delete db \+ clear cache/i })
+    fireEvent.click(deleteButtons[0])
 
     await act(async () => {
       await Promise.resolve()
@@ -266,7 +274,10 @@ describe("App system state", () => {
     })
 
     fireEvent.click(screen.getByRole("button", { name: /developer/i }))
-    fireEvent.change(screen.getByLabelText(/gemini api key/i), { target: { value: "updated-gemini-key" } })
+    await act(async () => {
+      fireEvent.click(screen.getByRole("tab", { name: /api keys/i }))
+    })
+    fireEvent.change(await screen.findByLabelText(/gemini api key/i), { target: { value: "updated-gemini-key" } })
     fireEvent.click(screen.getByRole("button", { name: /apply runtime api keys/i }))
 
     await waitFor(() => {
