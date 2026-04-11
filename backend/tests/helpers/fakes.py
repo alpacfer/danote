@@ -72,9 +72,11 @@ class FakeCORLocalLexiconService:
         self,
         by_form: dict[str, list[CORLocalEntry]] | None = None,
         by_lemma_idx: dict[int, list[CORLocalEntry]] | None = None,
+        unique_lemmas: frozenset[str] | None = None,
     ):
         self._by_form = {key.lower(): value for key, value in (by_form or {}).items()}
         self._by_lemma_idx = by_lemma_idx or {}
+        self.unique_lemmas: frozenset[str] = unique_lemmas if unique_lemmas is not None else frozenset()
 
     def lookup_form(self, value: str, limit: int = 100) -> list[CORLocalEntry]:
         return list(self._by_form.get(value.lower(), []))[:limit]

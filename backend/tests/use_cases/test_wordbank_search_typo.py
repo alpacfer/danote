@@ -52,3 +52,52 @@ def test_search_returns_no_did_you_mean_when_no_correction_found(tmp_path):
 
     assert result.did_you_mean is None
     assert result.items == []
+
+
+def test_cor_search_returns_did_you_mean_when_typo(tmp_path):
+    db = _db_path(tmp_path)
+    hus_entry = _cor_local_entry(
+        cor_id="COR.HUS.LEM",
+        lemma="hus",
+        gloss="house",
+        form="hus",
+        lemma_idx=1,
+        pos_tag="NOUN",
+        morphology="Gender=Neut|Number=Sing|Definite=Ind",
+        gram_raw="sb.itk.sg.ubest",
+    )
+    cor_local = FakeCORLocalLexiconService(
+        by_form={"hus": [hus_entry]},
+        unique_lemmas=frozenset(["hus"]),
+    )
+    use_case = WordbankUseCase(db, cor_local_lexicon_service=cor_local)
+
+    result = use_case.search_cor_form("huse", include_translations=False)
+
+    assert result.did_you_mean == "hus"
+    assert len(result.groups) > 0
+    assert result.groups[0].lemma == "hus"
+
+
+def test_cor_search_no_did_you_mean_when_direct_match(tmp_path):
+    db = _db_path(tmp_path)
+    hus_entry = _cor_local_entry(
+        cor_id="COR.HUS.LEM",
+        lemma="hus",
+        gloss="house",
+        form="hus",
+        lemma_idx=1,
+        pos_tag="NOUN",
+        morphology="Gender=Neut|Number=Sing|Definite=Ind",
+        gram_raw="sb.itk.sg.ubest",
+    )
+    cor_local = FakeCORLocalLexiconService(
+        by_form={"hus": [hus_entry]},
+        unique_lemmas=frozenset(["hus"]),
+    )
+    use_case = WordbankUseCase(db, cor_local_lexicon_service=cor_local)
+
+    result = use_case.search_cor_form("hus", include_translations=False)
+
+    assert result.did_you_mean is None
+    assert len(result.groups) > 0

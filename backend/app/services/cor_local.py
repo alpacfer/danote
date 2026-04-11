@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 import sqlite3
 
@@ -114,6 +114,17 @@ def decode_gram(gram_raw: str) -> tuple[str | None, str | None, dict[str, str], 
 class CORLocalLexiconService:
     db_path: Path
     provider: str = "cor_local"
+    _unique_lemmas: frozenset[str] | None = field(default=None, init=False, repr=False)
+
+    @property
+    def unique_lemmas(self) -> frozenset[str]:
+        if self._unique_lemmas is None:
+            rows = self._query_rows(
+                "SELECT DISTINCT lower(lemma) AS lemma FROM cor_entries WHERE norm = 'N'",
+                (),
+            )
+            self._unique_lemmas = frozenset(str(row["lemma"]) for row in rows)
+        return self._unique_lemmas
 
     def lookup_form(self, value: str, limit: int = 100) -> list[CORLocalEntry]:
         normalized_value = _normalize_space(value)

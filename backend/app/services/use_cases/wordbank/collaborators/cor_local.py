@@ -7,6 +7,7 @@ from app.api.schemas.v1.wordbank import (
     CORSearchVariant,
 )
 from app.services.cor_local import CORLocalEntry, CORLocalLexiconService
+from app.services.fuzzy_search import fuzzy_suggest
 from app.services.token_classifier import normalize_token
 from app.services.use_cases.wordbank.collaborators.cor_local_translations import (
     AzureFrameCacheKey,
@@ -44,6 +45,20 @@ def search_cor_form(
     entries = [entry for entry in entries if entry.norm == "N"]
     entries = consolidate_cor_local_entries(entries)
     entries = drop_glossless_when_gloss_exists(entries)
+
+    did_you_mean: str | None = None
+    if not entries:
+        suggestions = fuzzy_suggest(normalized_form, cor_local_lexicon_service.unique_lemmas)
+        if suggestions:
+            did_you_mean = suggestions[0]
+            try:
+                fallback_entries = cor_local_lexicon_service.lookup_form(did_you_mean, limit=limit)
+            except FileNotFoundError:
+                fallback_entries = []
+            fallback_entries = [e for e in fallback_entries if e.norm == "N"]
+            fallback_entries = consolidate_cor_local_entries(fallback_entries)
+            fallback_entries = drop_glossless_when_gloss_exists(fallback_entries)
+            entries = fallback_entries
 
     groups: list[CORSearchGroup] = []
     contextual_translation_cache: dict[ContextualCacheKey, str | None] = {}
@@ -114,7 +129,7 @@ def search_cor_form(
             )
         )
 
-    return CORSearchFormResponse(form=normalized_form, groups=groups)
+    return CORSearchFormResponse(form=normalized_form, groups=groups, did_you_mean=did_you_mean)
 
 
 def search_cor_lemma_paradigm(
