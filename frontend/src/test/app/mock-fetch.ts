@@ -280,6 +280,7 @@ export function mockFetchImplementation(options?: {
   }
   corSearchFormResponse?: {
     form: string
+    did_you_mean?: string | null
     groups: Array<{
       lemma: string
       gloss?: string | null
