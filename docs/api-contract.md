@@ -219,7 +219,7 @@ Routes: `backend/app/api/routes/`. DTOs: `backend/app/api/schemas/v1/`. Some tok
 - **Request model:** none (`query`, `limit` query params).
 - **Response model:** `WordbankSearchResponse`.
 - **Notable status/error behavior:** `422` validation failures (empty query, limit out of range). `503` DB unavailable/locked. `503` runtime errors.
-- **Field invariants:** saved search rows keep lemma translation + gloss translation separate. `english_translation` = saved lemma translation only. `gloss_translation` = optional disambiguation context. Raw `gloss` not promoted into `english_translation`.
+- **Field invariants:** saved search rows keep lemma translation + gloss translation separate. `english_translation` = saved lemma translation only. `gloss_translation` = optional disambiguation context. Raw `gloss` not promoted into `english_translation`. `did_you_mean`: non-null when query had no direct matches and a Levenshtein-close wordbank lemma was found; `items` then contains results for the corrected word.
 
 ### GET `/api/wordbank/search/cor-form`
 - **Request model:** none (`form`, `limit`, `include_translations` query params).
@@ -236,6 +236,7 @@ Routes: `backend/app/api/routes/`. DTOs: `backend/app/api/schemas/v1/`. Some tok
   - Gloss not required for Gemini fallback; glossless entries send Danish lemma + POS/morphology; verbs framed as infinitives (e.g. `at bile`).
   - Gemini returns non-empty translation: trusted even if English matches Danish lemma exactly.
   - Gemini returns nothing: backend may keep `lemma_translation = null` with gloss-derived `saveable_translation`; no gloss fallback means both stay `null`.
+  - `did_you_mean`: non-null when `form` had no COR entries and a Levenshtein-close COR lemma was found; `groups` then contains results for the corrected lemma.
 
 ### GET `/api/wordbank/search/cor-lemma/{lemma_idx}`
 - **Request model:** none (`lemma_idx` path param, optional `limit` query param).
