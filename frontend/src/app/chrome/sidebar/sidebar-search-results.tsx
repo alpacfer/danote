@@ -36,7 +36,8 @@ export type SidebarSearchResultsState = {
   hasWordbankActions: boolean
   hasNoteResults: boolean
   hasPageResults: boolean
-  didYouMean: string | null
+  wordbankDidYouMean: string | null
+  corDidYouMean: string | null
 }
 
 export type SidebarSearchResultsData = {
