@@ -127,6 +127,50 @@ def build_word_verification_prompt(
     )
 
 
+def build_batch_verification_prompt(
+    *,
+    entries: list[dict[str, object]],
+    sentence_context: str | None = None,
+) -> str:
+    entry_json = json.dumps(entries, ensure_ascii=False)
+    context_line = f'\n"sentence_context": {json.dumps(sentence_context)}\n' if sentence_context else ""
+    return (
+        "You are a Professional Danish Language Expert.\n"
+        "Review each saved wordbank target.\n"
+        "Translations belong to the lemma or meaning section only.\n"
+        "Surface forms do not have independent translations.\n"
+        "Glosses are sense labels. Never suggest editing a gloss.\n"
+        "Treat glosses and gloss translations as fixed COR reference labels, not editable user content.\n"
+        "Only review whether the saved English translation fits the saved lemma or meaning.\n"
+        "Use the reviewed target, relevant surface forms, and sibling meanings only as needed.\n"
+        "Count if the reviewed entry is composed of multiple words.\n"
+        "Return JSON only.\n"
+        '{"results":[{"word_id":0,"verdict":"correct|incorrect","word_count":0,'
+        '"problem":"...","change_to_implement":"...","suggested_actions":'
+        '[{"action_type":"fix_translation","english_translation":"...","reason":"..."},'
+        '{"action_type":"move_to_meaning_section","target_meaning_id":0,"reason":"..."},'
+        '{"action_type":"move_to_lemma","target_lemma":"...","target_meaning_key":"...","target_gloss":"...","'
+        'target_english_translation":"...","target_pos_tag":"...","target_morphology":"...","reason":"..."}]}]}\n'
+        "Rules:\n"
+        "- Use only these action types: fix_translation, move_to_meaning_section, move_to_lemma.\n"
+        "- If verdict=correct, return suggested_actions as [].\n"
+        "- If action_type=move_to_meaning_section, target_meaning_id must be one of the available meaning ids.\n"
+        "- If action_type=move_to_lemma, include target_lemma and target_meaning_key.\n"
+        "- Never propose gloss edits; use gloss only to identify the intended meaning section.\n"
+        "- Never criticize, rewrite, or score the gloss text or gloss translation itself.\n"
+        "- If action_type=fix_translation, english_translation must be idiomatic English. Never repeat the Danish lemma or surface form unless the translated gloss explicitly matches it.\n"
+        "- Keep problem to one short sentence.\n"
+        "- Keep change_to_implement to one short imperative sentence.\n"
+        "- When meaning_gloss_translation or section gloss_translation is present, use it as the main sense clue for homographs.\n"
+        "- If canonical_lemma is present and differs from lemma, treat the saved lemma as incorrect and suggest move_to_lemma to canonical_lemma unless the entry already belongs under another provided lemma.\n"
+        "- When gram_raw or paradigm_slot_surface_forms identify a valid paradigm slot for the saved surface form, do not move that form to a different lemma just because the spelling is also a noun or another homograph elsewhere.\n"
+        '- Keep message short: use "OK" or "Review needed".\n'
+        "- Suggested actions must be self-contained. Do not rely on prose fields for apply details.\n"
+        f"Sentence context:{context_line}"
+        f"Entries:\n{entry_json}"
+    )
+
+
 def build_word_category_prompt(*, entry: dict[str, object]) -> str:
     return (
         "You are a Professional Danish Language Expert.\n"
