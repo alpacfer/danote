@@ -1,491 +1,342 @@
 # Wordbank section behavior deep dive
 
-This document describes the current, exact behavior of the **Wordbank section** in the frontend UI, including list mode, the lemma **word page**, meaning sections, pronunciation flows, and Gemini verification interactions.
+Exact behavior of the **Wordbank section**: list mode, lemma word page, meaning sections, pronunciation flows, Gemini verification.
 
 ## Entry points and ownership
 
 - Section switch (list vs word page): `frontend/src/app/sections/wordbank-section.tsx`
-- Wordbank data loading and detail fetches: `frontend/src/app/hooks/use-lexicon-data.ts`
-- Wordbank workflows (add/pronunciation/verification wiring): `frontend/src/app/hooks/use-wordbank-workflows.ts`
+- Data loading/detail fetches: `frontend/src/app/hooks/use-lexicon-data.ts`
+- Workflows (add/pronunciation/verification): `frontend/src/app/hooks/use-wordbank-workflows.ts`
 - Word page composition:
   - `frontend/src/app/sections/wordbank/wordbank-word-page.tsx`
   - `frontend/src/app/sections/wordbank/wordbank-lemma-header.tsx`
   - `frontend/src/app/sections/wordbank/wordbank-verification-popover.tsx`
   - `frontend/src/app/sections/wordbank/wordbank-meaning-sections.tsx`
   - `frontend/src/app/sections/wordbank/wordbank-variation-grid.tsx`
-- List view rendering:
-  - `frontend/src/app/sections/wordbank/wordbank-list-view.tsx`
+- List view: `frontend/src/app/sections/wordbank/wordbank-list-view.tsx`
 
 ## High-level mode behavior
 
-The Wordbank section has two UI modes:
+Two UI modes:
+1. **List mode** — no lemma selected
+2. **Word page mode** — lemma selected
 
-1. **List mode** when no lemma is selected.
-2. **Word page mode** when a lemma is selected.
-
-`WordbankSection` makes this switch purely from `selectedLemma`: no lemma => `WordbankListView`, otherwise `WordbankWordPage`.
+Switch: `selectedLemma` absent => `WordbankListView`, present => `WordbankWordPage`.
 
 ## Data loading lifecycle
 
 ## Lemma list loading (`/api/wordbank/lemmas`)
 
-- Wordbank list is **deferred**; it loads only when one of these is true:
-  - active section is `wordbank`
-  - a lemma is selected
-  - wordbank has already been loaded once (`hasLoadedWordbank`)
-- The list is not re-fetched if current `wordbankRefreshTick` was already loaded.
-- On success:
-  - list state (`lemmas`) is updated
-  - lazy-load marker is set
-  - loaded tick is recorded
-- On failure:
-  - user-facing `wordbankError` is set
-  - list is cleared
+- Deferred; loads when: active section is `wordbank` OR lemma selected OR `hasLoadedWordbank`
+- Skips re-fetch if `wordbankRefreshTick` already loaded
+- Success → update `lemmas`, set lazy-load marker, record tick
+- Failure → set `wordbankError`, clear list
 
 ## Lemma details loading (`/api/wordbank/lemmas/{lemma}`)
 
-- Details are fetched only when:
-  - active section is `wordbank`
-  - and `selectedLemma` is present
-- If `selectedLemma` changes to a different lemma, any still-rendered payload for the previous lemma is dropped immediately.
-  The word page waits for the new lemma response or loading skeleton instead of rendering stale layout/body data from the old lemma.
-- If any verification target on the open word page is still `queued`, details are polled every 1.5s until all visible targets reach a final state.
-- If `lemmaDetails.related_words.status === "queued"`, details are also polled every 1.5s until related-word enrichment reaches `ready`, `empty`, or `error`.
-  The polling is silent; the page does not render a placeholder Related section while the job is still queued.
-- Leaving wordbank or clearing selection resets details state (`lemmaDetails`, loading/error/skeleton flags).
-- A loading skeleton is intentionally delayed by 180ms:
-  - avoids flicker for fast responses
-  - only shown if request outlives the delay
-- Poll refresh failures keep the last rendered details visible and only update the error banner.
+- Fetched when: active section is `wordbank` AND `selectedLemma` present
+- Lemma change → drop previous payload immediately; wait for new response/skeleton
+- Any visible target still `queued` → poll every 1.5s until all reach final state
+- `related_words.status === "queued"` → poll every 1.5s until `ready`/`empty`/`error` (silent, no placeholder)
+- Leaving wordbank/clearing selection → reset details state
+- Loading skeleton delayed 180ms (avoids flicker)
+- Poll refresh failures → keep last rendered details, update error banner only
 
 ## List mode behavior (WordbankListView)
 
-Priority order in list mode:
+Priority:
+1. `wordbankError` → error alert
+2. Loading + `lemmas.length === 0` → grouped skeleton
+3. No lemmas → `No saved lemmas yet.`
+4. Otherwise → grouped lemma chips with letter headings
 
-1. If `wordbankError` exists, show error alert text.
-2. If loading and `lemmas.length === 0`, show grouped skeleton placeholders.
-3. If no lemmas, show `No saved lemmas yet.`
-4. Otherwise render grouped lemma chips with letter headings.
-
-Per-lemma chip behavior:
-
-- Label prefers `display_lemma`, falling back to `lemma`.
-- Variation count suffix (`· N`) is shown only when `variation_count > 1`.
+Per-chip:
+- Label: `display_lemma` fallback `lemma`
+- Variation count suffix (`· N`) only when `variation_count > 1`
 - Unread verification markers:
-  - queued/in-progress verification does not create unread markers
-  - unread `1` => small dot indicator
-  - unread `>1` => numeric badge pill
-- Clicking a chip calls `onSelectLemma(lemma)` and opens that lemma's word page.
+  - queued/in-progress → no marker
+  - unread `1` → dot indicator
+  - unread `>1` → numeric badge pill
+- Click → `onSelectLemma(lemma)` → opens word page
 
 ## Word page behavior (WordbankWordPage)
 
-Primary flow:
+- `lemmaDetailsError` → error alert
+- Loading + skeleton gate open + no details → full word-page skeleton
+- Loading + skeleton gate not open → `null`
+- Not loading + no details → `No details found for this lemma.`
+- With details:
+  - always `WordbankLemmaHeader`
+  - body: `WordbankMeaningSections` if `is_sectioned === true`, else `WordbankVariationGrid`
+  - after body: `WordbankRelatedWords` when `related_words.status === "ready"` and cards exist
+  - Related section includes direct compound components + reverse compound-host links
 
-- Shows top-level details error alert when `lemmaDetailsError` exists.
-- If loading and delayed skeleton gate is open and details are still absent, shows a full word-page skeleton with header chrome and repeated body cards.
-- If loading but skeleton gate has not opened yet, renders `null` (no placeholder yet).
-- If not loading and no details found, renders `No details found for this lemma.`
-- With details payload:
-  - always renders `WordbankLemmaHeader`
-  - then renders one of two bodies:
-    - sectioned body (`WordbankMeaningSections`) when `lemmaDetails.is_sectioned === true`
-    - flat variation body (`WordbankVariationGrid`) otherwise
-  - after the meaning/variation body, renders `WordbankRelatedWords` only when `related_words.status === "ready"` and cards exist
-  - the Related section may include both direct compound components and reverse compound-host links from other saved compounds that contain the current lemma
-
-Meaning auto-scroll behavior:
-
-- When a specific meaning id is selected in sectioned mode, the view scrolls that section card into view via `requestAnimationFrame` + `scrollIntoView({ behavior: "smooth", block: "nearest" })`.
+Meaning auto-scroll:
+- Selected meaning id → `requestAnimationFrame` + `scrollIntoView({ behavior: "smooth", block: "nearest" })`
 
 ## Header behavior (WordbankLemmaHeader)
 
 ## Title/pronunciation source selection
 
-- Header title always uses `lemmaDetails.lemma` (via `WordbankPronunciationWord`).
-- Right-clicking the header word opens its contextual audio menu.
-- Header chooses a pronunciation playback form with this precedence:
-  1. exact normalized match to selected lemma among selected-meaning forms + top-level forms + all section forms, with pronunciation available
-  2. first available pronunciation form from that combined search list
-  3. no pronunciation icon/action when none exist
-- For sectioned lemmas, backend detail payloads may keep the lemma form in top-level `surface_forms`
-  even while meaning-section lists continue to show only non-lemma variations. This preserves exact
-  lemma pronunciation playback without duplicating the lemma row inside each section card.
+- Title: `lemmaDetails.lemma` via `WordbankPronunciationWord`
+- Right-click header word → contextual audio menu
+- Pronunciation playback precedence:
+  1. exact normalized match among selected-meaning forms + top-level forms + all section forms, with pronunciation
+  2. first available pronunciation form from combined list
+  3. no icon/action when none exist
+- Sectioned lemmas: backend may keep lemma form in top-level `surface_forms` while meaning sections show only non-lemma variations → preserves exact lemma playback without duplicating lemma row per section
 
 ## Header metadata and translation
 
-- Header translation is suppressed in sectioned mode.
-- In non-sectioned mode, translation prefers selected meaning translation then lemma translation.
-- Root and meaning scopes may also expose `additional_translations`; these render inline with the main translation as one comma-separated italic line on the relevant word page when present.
-- Header badges are shown only when `showSupplementaryMetadata` is true.
-- Badge source in header:
-  - POS/morphology from selected meaning (fallback lemma-level)
-  - `gram_raw` from lemma-level surface form matching selected lemma
+- Sectioned mode → translation suppressed
+- Non-sectioned → translation prefers selected meaning translation then lemma translation
+- `additional_translations` → inline comma-separated italic line when present
+- Badges shown only when `showSupplementaryMetadata` true
+- Badge source: POS/morphology from selected meaning (fallback lemma-level); `gram_raw` from lemma-level surface form matching selected lemma
 - Non-sectioned semantic category badges:
-  - render from top-level `lemmaDetails.categories`
-  - appear in their own header row below the title/translation block
-  - use dedicated outline styling distinct from POS/morphology badges
-  - non-sectioned root-scope recategorization moved onto the lemma word's own right-click menu instead of the whole header block
+  - from `lemmaDetails.categories`, own header row, dedicated outline styling
+  - root-scope recategorization → lemma word's right-click menu (not whole header)
 
 ## Header actions
 
 - **Verification trigger button**:
-  - remains the only visible header action button
-  - icon is dynamic by the aggregated word-page verification state:
-    - idle/no record -> info icon
-    - queued -> spinner
-    - verified -> success/check icon
-    - error/flagged -> alert icon
-  - trigger priority is:
-    - `review` if any target is flagged or errored
-    - otherwise `queued` if any target is queued
-    - otherwise `verified` if all available targets are verified
-    - otherwise neutral
-  - review-needed state shows the total suggested-action count inline on the trigger when actions are present
+  - sole visible header action button
+  - icon by aggregated state: idle→info, queued→spinner, verified→check, error/flagged→alert
+  - trigger priority: `review` (any flagged/error) > `queued` (any queued) > `verified` (all verified) > neutral
+  - review-needed → shows total suggested-action count inline
 - **Verification popover**:
-  - is the single surface for verification status/details; the old standalone status line and success/queued badges are not rendered anymore
-  - opening the popover marks only the currently visible verification targets as read in the app notification center
-  - uses adaptive height instead of a fixed panel height:
-    - short content lets the popover shrink to fit
-    - long content stays bounded by available viewport height and scrolls only inside the popover body
-  - keeps a compact static header with title, one overall state badge, and one short summary sentence
-  - groups visible verification targets by priority instead of rendering a full summary card plus full cards for every state:
-    - `Needs review` first
-    - `In progress` second
-    - `Checked` last
-  - preserves original word-page order within each state group
-  - review rows are compact and action-first:
-    - show target label + scope
-    - show the mismatch/problem line prominently
-    - show one muted follow-up line for the suggested change
-    - show one semantic action button per Gemini suggestion such as `Fix translation`, `Move to different lemma`, or `Fix variations`
-    - meaning-level/root reviews may show `Fix translation`
-    - surface-form reviews never show translation-fix actions; they only surface relocation actions when Gemini identifies a placement error
-    - both surface-form and meaning reviews now pass saved POS/morphology, COR `gram_raw`, and derived paradigm-slot context into Gemini so homographs like verb-imperative `bil` are judged against the saved verb paradigm instead of the noun spelling alone
-  - error rows also expose `Retry verification`, which queues that exact target again through the backend queue-only endpoint and keeps the page in polling mode until the refreshed run finishes
-  - queued rows show compact in-progress copy and requested time
-  - verified rows are not expanded individually by default; passed targets collapse into one low-emphasis checked summary with count and latest verification time
-  - unchanged `verified` results do not create or keep app-level notification rows; successful Gemini completion is silent outside the word-page popover
-  - if a surface-form review comes back as translation-only Gemini noise, backend suppresses it and the popover keeps that target in the checked bucket instead of showing a contradictory review card
-  - if a meaning-level review returns only a lemma-move suggestion that conflicts with the saved paradigm evidence, backend drops that move; when a translated gloss hint is available, the backend backfills a translation-fix action instead so the review focuses on the missing/wrong English translation
-  - if a meaning-level review still has no saved translation, or only a low-confidence verb self-translation, and the backend has a translated gloss hint for that meaning, the review stays in `Needs review` with a `Fix translation` action even if Gemini otherwise returns `OK`
-  - COR glosses and translated glosses are reference context only; the popover never asks the user to rewrite the gloss itself
-  - when a review resolves to `Fix translation`, backend normalizes the visible review copy to translation-only wording instead of surfacing Gemini gloss critique verbatim
-  - completion-review meaning cards may expose exactly one `Fix variations` action card that rewrites the whole saved noun variation set for that meaning in one apply
-  - completion-review `Fix variations` summaries can describe reviewed noun-slot sets directly, including multiple spellings in one slot such as `Singular indefinite: fader, far`
-  - completion-review meaning cards never expose `Move to lemma`, `Move to different meaning`, or translation-fix actions
-  - no-record state shows a neutral empty state explaining that verification details will appear here once Gemini runs
-  - semantic review-action buttons and `Retry verification` are disabled while their respective request is in progress
+  - single surface for verification status/details; no standalone status line/badges
+  - opening → marks visible targets as read in notification center
+  - adaptive height: shrinks to fit short content, bounded viewport height + scroll for long
+  - compact static header: title + one overall state badge + one summary sentence
+  - targets grouped by priority: `Needs review` → `In progress` → `Checked` (word-page order within groups)
+  - review rows: compact action-first — target label+scope, mismatch line, muted follow-up, one semantic action button per Gemini suggestion (`Fix translation`, `Move to different lemma`, `Fix variations`)
+  - meaning-level/root reviews → may show `Fix translation`; surface-form reviews → never show translation-fix, only relocation actions
+  - both surface-form and meaning reviews pass saved POS/morphology, COR `gram_raw`, derived paradigm-slot context to Gemini
+  - error rows → `Retry verification` (requeues exact target, keeps polling)
+  - queued rows → compact in-progress copy + requested time
+  - verified rows → collapsed into one low-emphasis checked summary (count + latest time)
+  - unchanged `verified` → no app notification row; silent success
+  - surface-form review as translation-only Gemini noise → backend suppresses, stays in checked bucket
+  - meaning review returning only conflicting lemma-move → backend drops move; if gloss hint available, backfills translation-fix action
+  - meaning review with no saved translation or low-confidence verb self-translation + backend gloss hint → stays `Needs review` with `Fix translation` even if Gemini returns `OK`
+  - COR/translated glosses → reference context only; popover never asks user to rewrite gloss
+  - `Fix translation` → backend normalizes to translation-only wording (no verbatim Gemini gloss critique)
+  - completion-review meaning cards: exactly one `Fix variations` action (rewrites whole saved noun variation set in one apply); can describe reviewed noun-slot sets including multiple spellings per slot (e.g. `Singular indefinite: fader, far`); never expose `Move to lemma`, `Move to different meaning`, or translation-fix
+  - no-record → neutral empty state ("verification details will appear here once Gemini runs")
+  - action buttons + `Retry verification` → disabled while request in progress
 
 ## Word-card context menu
 
-- Wordbank word pages use the shadcn `ContextMenu` primitive for both word-specific audio actions and category-bearing scopes.
-- Every pronunciation-enabled word trigger uses the same tooltip copy (`Click to listen`) and the tooltip opens on the right side of the word.
+- Uses shadcn `ContextMenu` for audio actions + category-bearing scopes
+- All pronunciation-enabled words: tooltip `Click to listen`, right-side
 - Sectioned pages:
-  - the header lemma word exposes `Regenerate audio`
-  - each meaning card is a context-menu trigger
-  - each meaning card exposes `Rerun verification`, which requeues the card's normal Gemini verification targets for that meaning-level scope plus its saved variation rows
-  - each meaning card also exposes `Find alternative translations`
-  - noun, adjective, and verb meaning cards expose `Rethink categories` and `Complete variations`
-  - other meaning cards expose only `Find alternative translations` and `Rethink categories`
-  - each surface-form word inside a meaning card also exposes its own `Regenerate audio` action from a nested right-click menu
+  - header lemma word → `Regenerate audio`
+  - each meaning card → context-menu trigger exposing `Rerun verification`, `Find alternative translations`; noun/adj/verb cards also expose `Rethink categories`, `Complete variations`; other POS cards expose only `Find alternative translations` + `Rethink categories`
+  - each surface-form word in meaning card → `Regenerate audio`
 - Non-sectioned pages:
-  - the lemma word is the combined context-menu trigger for root-scope actions
-  - that menu exposes `Regenerate audio`, `Find alternative translations`, and `Rethink categories`
-  - each flat variation word tile also exposes its own `Regenerate audio` action from the word trigger
-- `Find alternative translations` reuses the existing shadcn `ContextMenuItem` within the current right-click menu; no `DropdownMenu` or extra popover is introduced because the interaction is still a direct per-scope card action.
-- The action calls a dedicated backend Gemini translation route for the selected root / meaning scope and refreshes lemma details after success.
-- Gemini is instructed to return only very common, obvious English alternatives for that exact saved sense.
-  It may return no additional translations at all.
-- If Gemini decides the current saved translation is not the best common translation for that sense, backend replaces the primary translation for that scope.
-- Any returned alternates that are still valid and distinct from the final primary translation are persisted into that scope's `additional_translations`.
-- `Rethink categories` immediately calls the backend recategorization endpoint for that root / meaning scope and refreshes lemma details after success.
-- The action does not open a confirmation flow and does not apply Gemini verification suggestions; it only recalculates semantic category assignments.
-- The manual rethink path uses the same Gemini category-classification flow as initial verification; the only difference is that this one is user-triggered.
-- `Rerun verification` requeues the same `general` Gemini review used by normal saves for that meaning card.
-  It queues the meaning target plus each saved non-lemma variation target in the card, then lets the existing word-page polling and verification popover surface any persisted changes.
-- `Complete variations` is meaning-only in v1 for noun, adjective, and verb sections.
-  - noun sections fill any missing non-lemma noun variations:
-    singular-definite, plural-indefinite, and plural-definite.
-  - adjective sections fill any missing non-lemma agreement forms:
-    singular-indefinite `t-word`, singular-definite, and shared plural forms.
-    Shared plural forms are persisted once and rendered into both plural cells on the table.
-  - verb sections fill any missing verb-table forms:
-    present, past, imperative, and past participle.
-    The infinitive row is derived from the section's canonical lemma metadata unless a distinct saved infinitive row exists.
-- The action is gated by verification state for that meaning section.
-  It is enabled only when the meaning target and every currently saved variation target in that meaning are `verified`.
-- When gated, the context-menu item stays visible but disabled with one of these labels:
-  - `Waiting for verification...` when any target in the meaning is `queued`
-  - `Retry verification first` when any target is `error`
-  - `Resolve verification review first` when any target is `flagged`
-  - `Complete variations unavailable` for any other non-verified state
-- The completion action queues pronunciation generation only for newly added forms.
-- After completion, Gemini re-verification is requeued as a single meaning-scoped review for that updated meaning section, not one request per variation row.
-- The completion API response includes `queued_verification_targets`; the frontend registers those meaning targets with background tracking so the follow-up review continues to drive spinner state and final notifications even after the user leaves the lemma page.
-- That completion-specific review keeps the saved lemma fixed and checks whether the completed surface forms fit that lemma/meaning; it does not use canonical-lemma mismatch alone as a reason to suggest moving the lemma.
-- When that review flags the completed set, the backend exposes one meaning-level `Fix variations` apply action instead of per-variation actions or relocation actions.
-- Existing per-surface verification records for that meaning are cleared before the completion review is requeued, so the refreshed page shows the meaning-level review as the source of truth for that completion pass.
-- If the meaning lacks enough saved COR identity to resolve the paradigm, the action is skipped with a user-facing message.
+  - lemma word → `Regenerate audio`, `Find alternative translations`, `Rethink categories`
+  - each flat variation word tile → `Regenerate audio`
+- `Find alternative translations`: reuses `ContextMenuItem` (no `DropdownMenu`/popover); calls backend Gemini translation route, refreshes lemma details on success
+  - Gemini returns only very common obvious alternatives for exact saved sense (may return none)
+  - if current saved translation not best → backend replaces primary
+  - valid distinct alternates → persisted into `additional_translations`
+- `Rethink categories`: immediate backend recategorization, refreshes lemma details; no confirmation flow; same Gemini flow as initial verification but user-triggered
+- `Rerun verification`: requeues `general` Gemini review for meaning + saved non-lemma variations; existing word-page polling/popover surfaces changes
+- `Complete variations`: meaning-only v1 for noun, adjective, verb sections
+  - noun: fills missing singular-definite, plural-indefinite, plural-definite
+  - adjective: fills missing singular-indefinite `t-word`, singular-definite, shared plural (persisted once, rendered into both plural cells)
+  - verb: fills missing present, past, imperative, past participle; infinitive from canonical lemma metadata unless distinct saved row exists
+  - gated by verification state: enabled only when meaning target + all saved variations are `verified`
+  - gated labels: `Waiting for verification...` (any queued), `Retry verification first` (any error), `Resolve verification review first` (any flagged), `Complete variations unavailable` (other non-verified)
+  - queues pronunciation only for newly added forms
+  - after completion: one meaning-scoped re-verification (not per-variation)
+  - response includes `queued_verification_targets` → frontend registers with background tracking → spinner/notifications persist off-page
+  - completion review keeps saved lemma fixed; checks if completed forms fit lemma/meaning; canonical-lemma mismatch → question variation set, not suggest moving lemma
+  - flagged completion → one meaning-level `Fix variations` apply action (no per-variation/relocation)
+  - existing per-surface records cleared before completion review requeued
+  - insufficient COR identity → skipped with user-facing message
 
 ## Body mode A: sectioned meanings (WordbankMeaningSections)
 
-- If no meaning sections exist, shows `No saved meanings for this lemma.`
-- Each section renders as a card with:
-  - left border color from POS class
-  - no extra selected-state border or ring; `selectedMeaningId` is used for scroll targeting and header context only
-  - left-side metadata cluster: lemma label and section-level POS/morphology badges
-  - verb meaning cards render the lemma in infinitive display form with `at <lemma>`
-  - when backend detail payloads include section `gram_raw`, the section badge set is derived from that COR grammar so invariant lemma forms (for example `orange`) keep the same merged badge set shown in search
-  - right-side semantic category badge cluster from `meaning_sections[].categories`
-  - category badges stay right-aligned on wider layouts and wrap below the header content on narrow screens
-  - optional combined translation line in `translation, gloss translation` format when a real English translation exists
-  - gloss translation is supplemental disambiguation text; it does not replace a missing translation
-- Surface forms under each meaning:
-  - rendered in a divided list
-  - each row uses `WordbankPronunciationWord`
-  - section lists render only non-lemma variations for that meaning
-  - top-level `surface_forms` may still include the lemma form as a separate deduped header/audio source
-  - pronunciation availability is resolved by normalized form across the section's visible rows plus any hidden top-level lemma rows, so matching words stay playable even when audio is stored on a different row for the same form
-  - noun and adjective meanings render a shared 2x2 paradigm table as soon as at least one paradigm slot can be derived
-  - verb meanings render the same shared table shell with fixed rows:
-    `Infinitive`, `Present`, `Past`, `Imperative`, and `Past participle`
-  - verb tables omit the visible single-column `Form` header because the row labels already define the slot
-  - this means the initial saved noun / adjective / verb form is shown in the table immediately, even before any additional variations are saved
-  - adjective tables use number on one axis and definiteness on the other; the singular-indefinite cell contains separate `n-word` and `t-word` lines
-  - adjective same-form entries (for example `store` or invariant forms like `orange`) may render into multiple cells from merged `gram_raw`
-  - verb same-form entries (for example a form whose merged `gram_raw` covers both past and imperative) may render into multiple verb rows
-  - noun variations are ordered with non-slot/irregular forms first, then singular-definite, plural-indefinite, and plural-definite
-  - saved POS/morphology badges normalize to the same reader-facing label style used in COR search where morphology allows it (for example adjective agreement uses `n-word` / `t-word` rather than `Common` / `Neuter`)
-  - when a saved surface form has COR context, its details payload may also include `gram_raw`; those rows render badges from `gram_raw` first so search and word-page badges stay aligned
-  - form-level badges are filtered to avoid repeating section-level badge labels
+- No meaning sections → `No saved meanings for this lemma.`
+- Each section card:
+  - left border color from POS class; no selected-state border/ring (`selectedMeaningId` for scroll/header only)
+  - left metadata: lemma label + section POS/morphology badges
+  - verb cards: lemma in infinitive form `at <lemma>`
+  - section `gram_raw` → badge set from COR grammar (e.g. invariant `orange` keeps merged badges)
+  - right semantic category badges from `meaning_sections[].categories`; right-aligned wide, wrap narrow
+  - optional combined translation line: `translation, gloss translation` format (gloss is supplemental, not replacement)
+- Surface forms per meaning:
+  - divided list, each row uses `WordbankPronunciationWord`
+  - section lists render only non-lemma variations
+  - top-level `surface_forms` may include lemma form separately as deduped header/audio source
+  - pronunciation resolved by normalized form across section rows + hidden top-level lemma rows
+  - noun/adj meanings → 2x2 paradigm table when >=1 slot derivable
+  - verb meanings → fixed rows: `Infinitive`, `Present`, `Past`, `Imperative`, `Past participle` (no visible `Form` header)
+  - initial saved form shown in table immediately
+  - adj tables: number × definiteness; singular-indefinite has separate `n-word`/`t-word` lines; same-form entries (e.g. `store`, invariant `orange`) may render into multiple cells
+  - verb same-form entries may render into multiple rows
+  - noun order: non-slot/irregular first, then singular-definite, plural-indefinite, plural-definite
+  - saved POS/morphology badges normalize to reader-facing labels (e.g. adj agreement uses `n-word`/`t-word` not `Common`/`Neuter`)
+  - saved form `gram_raw` → badges from `gram_raw` first (align with search); form-level badges filtered to avoid repeating section-level labels
 
 ## Body mode B: flat variations (WordbankVariationGrid)
 
-- Built from top-level `lemmaDetails.surface_forms`, excluding the normalized selected lemma form itself.
-- noun, adjective, and verb flat pages prefer the shared paradigm table even when the only saved form is the lemma itself
-- empty paradigm cells stay blank until manual saves or complete-variations fills them
-- For non-paradigm pages, if there are no remaining variations, the grid renders nothing.
-- Each variation tile includes:
-  - pronunciation-enabled form title
-  - right-click `Regenerate audio` on that specific word
-  - form badges from saved-form metadata
+- Built from top-level `surface_forms`, excluding normalized selected lemma
+- noun/adj/verb flat pages → prefer shared paradigm table even with only lemma saved; empty cells blank
+- Non-paradigm pages, no remaining variations → nothing rendered
+- Each tile: pronunciation-enabled form title, right-click `Regenerate audio`, form badges
 
 ## Related section (WordbankRelatedWords)
 
-- The section renders only when `related_words.status === "ready"` and `items.length > 0`.
-- Related verb cards render the lemma as Danish infinitive (`at lege`) and the English translation in infinitive form (`to play`).
-- `relation_type = "compound_component"` means the current lemma decomposes into that component.
-- `relation_type = "compound_host"` means another saved compound contains the current lemma, so component pages can link back to compounds such as `legeplads` from `lege` and `plads`.
-- Saved targets use one card-level button surface with an eye affordance and open the saved lemma/meaning target immediately.
-- Unsaved unique matches use one card-level button surface with a plus affordance and save through the existing add-word flow.
-- When related-word enrichment finds a different valid translation for an already-saved target, backend persists it immediately into that target scope's `additional_translations`, even if the user never clicks the related card.
-  - optional `from <lemma>` line with merged lemma translation+gloss when lemma translation exists
-  - POS-colored left border
+- Renders only when `related_words.status === "ready"` AND `items.length > 0`
+- Verb cards: Danish infinitive (`at lege`) + English infinitive (`to play`)
+- `compound_component` → current lemma decomposes into that component
+- `compound_host` → another saved compound contains current lemma (links back e.g. `legeplads` from `lege`+`plads`)
+- Saved targets → eye button, opens saved lemma/meaning
+- Unsaved unique → plus button, saves through add-word flow
+- Different valid translation for saved target → backend persists into `additional_translations` immediately
+  - optional `from <lemma>` line + merged lemma translation+gloss; POS-colored left border
 
 ## Related words section (`WordbankRelatedWords`)
 
 - Placement:
-  - the lemma header transitions into the first meaning/variation card with spacing only; no horizontal divider is rendered between them
-  - rendered below sectioned meaning cards or the flat variation body
-  - the section title uses the same muted uppercase micro-label styling already used by other wordbank supporting headers
-  - hidden only when `related_words.status === "empty"` and there are no items
+  - header→first card: spacing only, no horizontal divider
+  - below meaning/variation body
+  - title: muted uppercase micro-label
+  - hidden when `related_words.status === "empty"` and no items
 - Source contract:
-  - Gemini decides whether the saved lemma is a compound and returns component lemmas plus English translation and POS hint
-  - COR supplies the card morphology / badge payload through `display_variant` or `candidate_variants`
-  - saved/open state comes from the persisted wordbank and treats both saved lemmas and saved variations as already known targets
-  - when a related item points to an already-saved target and Gemini's translation differs from the saved primary translation, backend persists that value into the target scope's `additional_translations`
-- Section states:
-  - `queued`: no section is rendered yet
-  - `ready`: shows one small card per persisted related item
-  - `error`: no section is rendered
-  - `empty`: no section is rendered
+  - Gemini decides compound status, returns component lemmas + translation + POS hint
+  - COR supplies morphology/badges via `display_variant`/`candidate_variants`
+  - saved/open from persisted wordbank (saved lemmas + variations both treated as known)
+  - different Gemini translation for saved target → persists into `additional_translations`
+- States: `queued`→no section, `ready`→one card per item, `error`→no section, `empty`→no section
 - Card actions:
-  - `Eye` opens the existing saved target lemma and optional meaning id
-  - unique unsaved cards show `Plus` and save immediately through the normal add-word endpoint using a generated `search_seed`
-  - ambiguous unsaved cards show `Plus` that expands inline candidate choices first
-- Ambiguous inline chooser:
-  - implemented with shadcn `Collapsible` inside each existing card because the interaction is per-card, inline, and does not need grouped accordion semantics
-  - `Dialog` was rejected because it would interrupt the current word-page flow
-  - `Accordion` was rejected because it adds unnecessary grouped heading/content structure for independent cards
-- Save result behavior:
-  - saving from `Related` keeps the current word page open
-  - success/error feedback uses the existing toast flow
-  - the workflow refreshes the current lemma details and the wordbank list
-  - once the refresh lands, the card flips from `Plus` to `Eye` if the new related word is now saved
+  - `Eye` → opens saved target lemma/meaning
+  - unique unsaved → `Plus`, saves via add-word endpoint using `search_seed`
+  - ambiguous unsaved → `Plus`, expands inline candidates first
+- Ambiguous inline chooser: shadcn `Collapsible` per card (per-card, inline, no grouped semantics); `Dialog` rejected (interrupts flow); `Accordion` rejected (unnecessary grouped structure)
+- Save result: keeps word page open; toast feedback; refreshes lemma details + wordbank list; card flips `Plus`→`Eye` on refresh
 
 ## Pronunciation workflow behavior
 
-Pronunciation behavior is shared by header + section rows + variation rows.
+Shared by header + section rows + variation rows.
 
 ## Play flow (`GET /api/wordbank/pronunciation?form=<form>`)
 
-- Form key is normalized first; empty key does nothing.
-- Per-form loading state is set while request/playback runs.
-- Pronunciation blobs are cached in-memory as object URLs by normalized form.
-- On 404 from pronunciation endpoint, user gets: `No pronunciation is available yet for '<form>'.`
-- Returned audio is validated for playable audio content-type.
-- If a currently active audio element exists, it is paused before playing new audio.
-- If playback fails due to unsupported audio once:
-  - cache is cleared for that form
-  - forced background regeneration is attempted
-  - playback retries once
+- Form normalized; empty → no-op
+- Per-form loading state during request/playback
+- Blobs cached in-memory as object URLs by normalized form
+- 404 → `No pronunciation is available yet for '<form>'.`
+- Returned audio validated for playable content-type
+- Active audio paused before new playback
+- Unsupported audio (once): clear cache for form → forced background regeneration → retry once
 
 ## Regenerate flow (`POST /api/wordbank/lexemes/pronunciation`)
 
-- For explicit user regeneration, notification-enabled path is used and the request targets the exact right-clicked word (`stored_surface_form`) instead of a header-only lemma action.
-- Automatic add/save/completion flows no longer call this endpoint from the browser.
-  They queue lemma-scoped pronunciation work in the backend and let the word page refresh from persisted state.
-- On `status === "generated"`:
-  - cached pronunciation for that form is invalidated
-  - `wordbankRefreshTick` increments
-  - success toast shown when notify mode is enabled
+- Explicit regeneration: notification-enabled, targets exact right-clicked word (`stored_surface_form`)
+- Automatic add/save/completion: no browser call; backend queues lemma-scoped pronunciation, page refreshes from persisted state
+- `status === "generated"`: invalidate cache, increment `wordbankRefreshTick`, success toast (notify mode)
 
 ## Verification workflow behavior
 
 ## Background verify
 
-- Add flows no longer trigger browser-side Gemini verification calls.
-- After every successful add, the backend enumerates the current saved word page and queues verification for each visible target.
-- Manual retries also use backend queueing only:
-  `POST /api/wordbank/lexemes/queue-verification` requeues one exact target by `(stored_lemma, meaning_id, stored_surface_form, review_intent)`.
-- `Complete variations` uses a narrower follow-up path: it queues one meaning-level verification request for the updated meaning instead of requeueing each variation target separately.
-- Only that completion-specific follow-up review is allowed to question or rewrite the generated variation set.
-  The initial verification run after save is not allowed to suggest completing or correcting other paradigm members.
-- Completion follow-up reviews are strict `fix_variations` workflows:
-  - Gemini prompt examples only advertise `fix_variations`
-  - backend normalization drops any other returned action types
-  - apply rejects any non-`fix_variations` action for persisted `review_intent = "complete_variations"` records
-- Target discovery rules:
-  - non-sectioned page: one lemma/root target plus one target per non-lemma saved variation
-  - sectioned page: one target per meaning section plus one target per saved variation within that meaning
-  - no synthetic root target is added for sectioned pages unless a root-level saved record actually exists
-- Results are persisted by backend target scope `(lemma, meaning_id, stored_surface_form)` and returned through subsequent lemma-detail fetches.
-- Queue dedupe is stable per verification target, not per snapshot hash.
-- Completion follow-up review records remain meaning-scoped only; once requeued, they replace stale per-surface completion records for that meaning instead of coexisting with them.
-  Repeated edits or retries to the same target update the queued request generation instead of spawning competing duplicate jobs.
-- Verification persistence is newest-request-wins:
-  if a target changes while Gemini is already running, the stale run is discarded at persist time and the queue immediately keeps the latest request pending for the next worker claim.
-- Verification evaluates the current persisted wordbank structure:
-  lemma page -> meaning sections -> surface forms.
-- Normal verification after save checks only whether the saved lemma / meaning / selected surface placement is correct.
-  It does not fail just because other paradigm members are missing, and it does not suggest variation-completion work.
-- Verification prompt payloads are target-scoped and token-lean:
-  the reviewed target, relevant surface forms for that target, minimal sibling meaning context, and canonical-lemma identity when available.
-- Verification payloads include both the saved lemma and the best COR-backed canonical lemma identity when that dictionary lemma can be resolved from saved COR ids / lemma indexes.
-- When COR indicates the saved lemma is an inflected form rather than the true dictionary lemma (for example `mor` vs `moder`), Gemini is prompted to flag the entry and suggest a `move_to_lemma` correction toward the canonical lemma.
-- Exception: the completion-specific meaning review for `Complete variations` keeps the saved lemma fixed and treats canonical-lemma mismatch as a signal to question the generated variation set, not to rewrite the lemma.
-- For that completion-specific review, Gemini/backend remediation is modeled as a single meaning-level `fix_variations` action that can rewrite the saved noun, adjective, or verb variations in one apply.
-- New completion-review `fix_variations` actions can carry reviewed noun-slot form lists directly (`singular_indefinite_forms`, `singular_definite_forms`, `plural_indefinite_forms`, `plural_definite_forms`) or reviewed adjective-slot form lists directly (`singular_indefinite_n_word_forms`, `singular_indefinite_t_word_forms`, `singular_definite_forms`, `plural_indefinite_forms`, `plural_definite_forms`) so apply does not have to trust the same COR paradigm that produced the bad completion set.
-- `singular_indefinite_forms` may include the saved lemma plus alternative spellings for the same slot; apply treats that reviewed list as the exact saved slot set and removes stale aliases.
-- `fix_variations` is structured-only. If Gemini does not return slot lists, the review stays flagged but there is no applyable fallback from prose.
-- Translation context comes only from the lemma or meaning section.
-  Surface forms do not have independent translations in the verification model.
-- Meaning glosses are treated as immutable COR disambiguators.
-  Gemini may use them to identify the intended sense, but it does not propose gloss edits.
-- For meaning-section verification, the reviewed section is sent as the current scope and not duplicated in the sibling-meaning list.
-- When available, Gemini also receives translated gloss hints for the reviewed meaning, sibling meanings, and scoped surface forms to disambiguate homographs such as `mor`.
-- Canonical lemma metadata is evaluated separately from the selected saved surface-form metadata.
-- After verification persists as `verified` or `flagged`, category classification runs as a separate Gemini step for the same root / meaning scope.
-  - The category prompt receives the shared persisted category list, the categories already assigned to that scope, and the saved-word context needed for category choice.
-  - It prefers existing categories.
-  - If needed, it may mint at most 1 new broad category, which is stored for later runs.
-  - Category assignments are auto-applied with no confirmation step and show up through later lemma-detail fetches.
-- Queue execution is backend-driven through the shared wordbank background-job runner.
-  Multiple verification targets can execute in parallel through a bounded worker pool.
-- Queued verification payloads carry a target snapshot hash.
-  If the word page changes before a queued job runs, that stale job is skipped instead of overwriting a newer verification result.
-- Success path stores a persisted verification success record with `requested_at` / `completed_at`.
-- Error path stores a persisted verification error record with timestamps and suggested actions.
-- Queued/in-progress verification stays silent in the app-level notification center and does not increment Wordbank unread badges.
-- When a queued target reaches an action-required final state (`flagged` or `error`), the app pushes a target-specific in-session notification.
+- Add flows: no browser-side Gemini calls
+- After successful add → backend queues verification for each visible target on current word page
+- Manual retries → `POST /api/wordbank/lexemes/queue-verification` (one exact target by `(stored_lemma, meaning_id, stored_surface_form, review_intent)`)
+- `Complete variations` → one meaning-level request (not per-variation)
+- Only completion-specific follow-up may question/rewrite generated variation set; initial verification cannot suggest paradigm completion
+- Completion follow-up = strict `fix_variations`: prompt examples advertise only `fix_variations`, backend drops other action types, apply rejects non-`fix_variations` for `review_intent = "complete_variations"`
+- Target discovery:
+  - non-sectioned: one lemma/root target + one per non-lemma variation
+  - sectioned: one per meaning section + one per saved variation in that meaning
+  - no synthetic root target for sectioned pages unless root-level saved record exists
+- Results persisted by `(lemma, meaning_id, stored_surface_form)`, returned through lemma-detail fetches
+- Queue dedupe: stable per target, not per snapshot hash
+- Completion follow-up records meaning-scoped only; replace stale per-surface records for that meaning (no coexistence); repeated edits/retries update queued request generation
+- Newest-request-wins: stale in-flight run discarded at persist time; latest request stays pending
+- Verification evaluates current persisted structure: lemma → meanings → surface forms
+- Normal post-save verification: checks placement correctness only; doesn't fail for missing paradigm members, doesn't suggest variation completion
+- Prompt payloads: target-scoped, token-lean (target + relevant forms + minimal sibling context + canonical lemma identity)
+- Payloads include saved lemma + best COR-backed canonical lemma identity
+- COR indicates inflected form (e.g. `mor` vs `moder`) → Gemini flags, suggests `move_to_lemma`
+- Exception: completion review keeps saved lemma fixed; canonical mismatch → question variation set, not rewrite lemma
+- Completion review remediation: single meaning-level `fix_variations` action rewriting saved noun/adj/verb variations in one apply
+- `fix_variations` carries reviewed slot form lists: noun (`singular_indefinite_forms`, `singular_definite_forms`, `plural_indefinite_forms`, `plural_definite_forms`) or adjective (`singular_indefinite_n_word_forms`, `singular_indefinite_t_word_forms`, `singular_definite_forms`, `plural_indefinite_forms`, `plural_definite_forms`); apply treats lists as exact slot sets, removes stale aliases
+- `singular_indefinite_forms` may include lemma + alternatives
+- `fix_variations` structured-only: no slot lists → review stays flagged, no applyable prose fallback
+- Translation context from lemma/meaning only (surface forms have no independent translations)
+- Meaning glosses: immutable COR disambiguators; Gemini uses for sense identification, never proposes gloss edits
+- Meaning-section verification: reviewed section sent as current scope, not duplicated in sibling list
+- Translated gloss hints sent for reviewed meaning, siblings, scoped surface forms (disambiguate homographs like `mor`)
+- Canonical lemma metadata evaluated separately from saved surface-form metadata
+- Post-verification (`verified`/`flagged`): category classification runs as separate Gemini step
+  - receives shared category list + scope's assigned categories + saved-word context
+  - prefers existing categories; may mint <=1 new broad category
+  - auto-applied, no confirmation; visible through later lemma-detail fetches
+- Backend-driven via shared wordbank background-job runner; bounded parallel worker pool
+- Queued payloads carry target snapshot hash; stale job skipped (doesn't overwrite newer result)
+- Success → persisted record with `requested_at`/`completed_at`; error → persisted record with timestamps + suggested actions
+- Queued/in-progress → silent in notification center, no Wordbank unread badge increment
+- Target reaches `flagged`/`error` → push target-specific in-session notification
 
 ## Category rethink
 
-- `POST /api/wordbank/lexemes/rethink-categories` reruns Gemini category classification for a specific root / meaning scope using the current shared category list and the categories already assigned to that scope.
-- This path is triggered manually from the word-card context menu.
-- It uses the standalone category-classification Gemini payload for that scope.
-- Gemini may reuse multiple existing categories and may mint at most 1 new broad category when needed.
-- Successful recategorization replaces the full persisted category assignment set for that scope.
-- Recategorization does not overwrite or re-review existing verification records.
+- `POST /api/wordbank/lexemes/rethink-categories`: reruns Gemini category classification for root/meaning scope
+- Triggered manually from context menu; uses standalone category payload
+- May reuse existing categories + mint <=1 new broad category
+- Success → replaces full persisted category assignment for scope
+- Does not overwrite/re-review verification records
 
 ## Action apply (`POST /api/wordbank/lexemes/apply-verification-changes`)
 
-- Accepting a popover action calls apply endpoint with selected target and action payload.
-- Apply requests always include the exact verification scope: `stored_lemma`, `meaning_id`, and `stored_surface_form`.
-- `fix_translation` is accepted only for lemma/meaning-scoped apply requests where `stored_surface_form` is `null`.
-- Meaning-level completion-review fixes use `action_type=fix_variations` with `stored_surface_form=null`; applying that action reconciles the whole saved noun variation set for that meaning.
-- `fix_variations` prefers reviewed noun-slot form lists carried by the saved action, then falls back to legacy scalar fields or forms recovered from the saved review text, and only uses COR slot metadata when a reviewed slot form is missing.
-- On applied status:
-  - success toast text depends on action type
-  - backend persisted verification detail is pruned action-by-action
-  - when the last Gemini suggestion for a target has been applied, backend persistence flips that resolved target to `verified` instead of removing verification state entirely
-  - `wordbankRefreshTick` increments
-  - app navigates to returned target lemma/meaning
-- If apply does not change the visible variation set, the backend returns `status=skipped` and the review remains pending.
-- On failure:
-  - error toast shown
+- Accepting popover action → apply endpoint with target + action payload
+- Always includes scope: `stored_lemma`, `meaning_id`, `stored_surface_form`
+- `fix_translation`: only for lemma/meaning-scoped (`stored_surface_form` is `null`)
+- Completion-review fixes: `action_type=fix_variations` with `stored_surface_form=null`; reconciles whole saved noun variation set
+- `fix_variations` preference: reviewed slot form lists → legacy scalar fields → forms recovered from text → COR slot metadata
+- Applied: success toast (text varies by action type); backend prunes action; last suggestion applied → target flips to `verified`; increment `wordbankRefreshTick`; navigate to returned target
+- No visible variation change → backend returns `status=skipped`, review stays pending
+- Failure → error toast
 
 ## Add flows that affect Wordbank state
 
 ## Single-word translation normalization
 
-- Word-level provider translations used by Wordbank are normalized after lookup.
-- Content words (for example nouns and verbs) remove obvious frame scaffolding, but noun phrases may stay multi-word when cleanup is not clearly safe.
-- Function words (for example prepositions and conjunctions) may keep only short lexicalized context when removing all context would lose the meaning.
-- Phrase translation is not part of this cleanup path.
+- Word-level provider translations normalized after lookup
+- Content words: remove frame scaffolding; noun phrases may stay multi-word
+- Function words: keep short lexicalized context when removing would lose meaning
+- Phrase translation not in this path
 
 ## Add from playground token
 
 - `POST /api/wordbank/lexemes`
-- On success:
-  - success toast
-  - backend queues verification for the full current word page
-  - backend also returns `queued_pronunciation_forms` for the shared pronunciation queue
-  - while the open word page still has queued pronunciation forms without stored audio, lemma-details polling stays active for a bounded window so play buttons update without a manual refresh
-  - token feedback submission (`source: "playground"`)
-  - analysis + wordbank refresh ticks increment
+- Success: toast; backend queues full-page verification; returns `queued_pronunciation_forms`; word page polls until forms have audio or timeout; token feedback (`source: "playground"`); analysis + wordbank refresh ticks increment
 
 ## Add from sidebar search
 
 - `POST /api/wordbank/lexemes`
-- On success:
-  - success toast
-  - backend queues verification for the full current word page
-  - backend also returns `queued_pronunciation_forms` for the shared pronunciation queue
-  - token feedback submission (`source: "search"`)
-  - if response includes `saved_snapshot`, details pane is hydrated immediately from snapshot
-  - response also includes `queued_verification_targets`, which seed off-page verification tracking
-  - if that snapshot includes queued verification, the header immediately shows `Verifying...`
-  - while any open-page target remains queued, the word page polls until the persisted results become final
-  - while the selected lemma still has queued pronunciation forms without stored audio, the same open-page polling loop also waits for those forms for a bounded window
-  - analysis + wordbank refresh ticks increment
-  - app navigates to wordbank and selects stored lemma/meaning
-- For `search_seed` saves, backend persistence separates canonical lemma metadata from selected surface metadata:
-  - lemma/root and newly created meaning-section tags come from the canonical COR lemma when `cor_lemma_idx` is available
-  - the stored selected surface form keeps the chosen variant tags from the search result
-  - saved `english_translation` comes only from the COR lemma translation; gloss translation remains separate disambiguation context
-  - empty search translations are allowed, and low-confidence glossless verb self-translations are dropped before persistence so the saved entry can stay blank instead of storing a false literal English lemma
-  - the word page now computes and returns gloss translations for search-saved meaning sections too, so homograph meanings can render `translation, gloss translation`
-  - raw gloss text is not promoted into `english_translation`, and the UI omits untranslated gloss from translation lines
-  - only the selected surface form is stored; search save does not hydrate the full paradigm into wordbank
+- Success: toast; backend queues full-page verification; returns `queued_pronunciation_forms`; token feedback (`source: "search"`)
+  - `saved_snapshot` → details hydrated immediately; `queued_verification_targets` seed off-page tracking; queued verification → header shows `Verifying...`
+  - open-page targets queued → polls until final; pronunciation queued → same polling loop waits bounded window
+  - analysis + wordbank refresh ticks increment; navigate to stored lemma/meaning
+- `search_seed` persistence: canonical lemma metadata from COR (`cor_lemma_idx`); selected surface keeps search-result variant tags; `english_translation` from COR lemma only; gloss translation separate
+  - empty translations allowed; low-confidence glossless verb self-translations dropped
+  - word page computes gloss translations for search-saved meaning sections; raw gloss not promoted to `english_translation`; UI omits untranslated gloss
+  - only selected surface stored; no full paradigm hydration
 
 ## Complete variations follow-up
 
 - `POST /api/wordbank/lexemes/complete-variations`
-- On success:
-  - missing paradigm members are inserted for the selected meaning
-  - pronunciation queueing is merged through one lemma-scoped background job keyed by `stored_lemma`
-  - `queued_pronunciation_forms` contains the forms still missing stored audio after the completion pass
-  - the lemma itself may appear in that list when the root lemma row still needs pronunciation audio
-  - the open word page keeps polling lemma details for a bounded window until those forms show `has_pronunciation=true` or the local timeout expires
+- Success: missing paradigm members inserted; pronunciation queueing merged via one lemma-scoped background job (`stored_lemma`); `queued_pronunciation_forms` = forms still missing audio (may include lemma itself); word page polls bounded window until `has_pronunciation=true` or timeout
 
 ## Behavioral test coverage map
-
-The behaviors above are exercised across wordbank-focused tests with explicit roles:
 
 - `renderer-only`: `frontend/src/test/app/app-wordbank-details.test.tsx`, `frontend/src/test/app/app-wordbank-actions.test.tsx`
 - `request-shape`: `frontend/src/test/app/app-shell-search-actions.test.tsx`
 - `contract`: `backend/tests/use_cases/test_wordbank_translation_details.py`, `backend/tests/api/test_wordbank_add_and_list_endpoint.py`
 - `round-trip`: `backend/tests/use_cases/test_wordbank_add_and_list.py`, `backend/tests/api/test_wordbank_add_and_list_endpoint.py`
 - `queue/orchestration`: `backend/tests/use_cases/test_wordbank_pronunciation_and_verification.py`
-- shared contract fixtures for the frontend word page/search assertions live in `frontend/src/test/app/wordbank-contract-fixtures.ts`
+- shared contract fixtures: `frontend/src/test/app/wordbank-contract-fixtures.ts`

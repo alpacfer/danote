@@ -1,142 +1,93 @@
-# Notes section behavior deep dive
-
-This document describes the current, exact behavior of the **Notes section** in the frontend UI, including section entry, saved-note visibility, search filtering, opening notes into Playground, and save/new-note flows.
+# Notes section behavior
 
 ## Entry points and ownership
 
-- App-level section routing and top-level composition: `frontend/src/App.tsx`
-- App orchestration root for section props and workspace actions: `frontend/src/app/hooks/app/use-app-controller.ts`
-- Foundation wiring for notes persistence + section navigation: `frontend/src/app/hooks/app/controller/use-app-foundation.ts`
-- Notes persistence state + local storage sync: `frontend/src/app/hooks/use-notes-persistence.ts`
-- Note workspace/save dialog/new-note workflows: `frontend/src/app/hooks/use-note-workspace.ts`
-- Debounced autosave for active saved note: `frontend/src/app/hooks/use-note-autosave.ts`
-- Notes section adapter and rendering:
+- App routing/composition: `frontend/src/App.tsx`
+- Section props + workspace actions: `frontend/src/app/hooks/app/use-app-controller.ts`
+- Notes persistence + nav wiring: `frontend/src/app/hooks/app/controller/use-app-foundation.ts`
+- Persistence state + localStorage sync: `frontend/src/app/hooks/use-notes-persistence.ts`
+- Workspace/save/new-note flows: `frontend/src/app/hooks/use-note-workspace.ts`
+- Debounced autosave: `frontend/src/app/hooks/use-note-autosave.ts`
+- Section adapter/rendering:
   - `frontend/src/app/sections/notes-section-props.ts`
   - `frontend/src/app/sections/notes-section.tsx`
-- Sidebar note search/filtering and open actions:
+- Sidebar search/filter + open actions:
   - `frontend/src/app/chrome/sidebar/use-sidebar-search.ts`
   - `frontend/src/app/chrome/sidebar/sidebar-search-results.tsx`
   - `frontend/src/app/chrome/sidebar/app-sidebar.tsx`
 
 ## Open notes view workflow
 
-Notes can be opened from multiple user paths:
+Entry paths:
+1. Sidebar `Notes` button → `activeSection = "notes"`
+2. `Alt+N` → same
+3. Command palette "Pages" group → `Notes`
 
-1. Sidebar navigation button (`Notes`) switches `activeSection` to `notes`.
-2. Keyboard shortcut (`Alt+N`) triggers the same section selection.
-3. Command palette (`Search words and notes...`) "Pages" group can select `Notes`.
+`activeSection === "notes"` → `SectionContent` renders `NotesSection` via `buildNotesSectionProps`.
 
-When `activeSection === "notes"`, `SectionContent` renders `NotesSection` with props built by `buildNotesSectionProps`.
+## Saved note listing and filtering
 
-## Saved note listing and filtering behavior
+### Notes section list
 
-## Notes section list
+`NotesSection` renders one card per `savedNotes` (most-recent-first). Each card shows: name, formatted save timestamp, shortened preview text. Empty state: `No saved notes yet. Save one from Playground.`
 
-`NotesSection` renders one card per saved note from `savedNotes` (most-recent-first ordering as provided by state mutation paths). Each card shows:
+### Sidebar filtering (cross-section)
 
-- note name
-- formatted save timestamp
-- shortened preview text
+`useSidebarSearch` normalizes query, filters `savedNotes` by name or text match. Matches appear under `Notes` command group. Selecting → `onOpenSavedNote(note.id)` + close search. Available regardless of active section.
 
-If there are no saved notes, the empty-state message is:
+## Open note into Playground
 
-- `No saved notes yet. Save one from Playground.`
+Opening a saved note (cards or sidebar) → workspace open handlers:
+1. Hydrate editor from saved note (`text`, `tokens`, metadata, translation map)
+2. Clear transient Playground state + analysis error
+3. Set `activeNoteId`
+4. Set autosave `saved`
+5. Force `activeSection = "playground"`
 
-## Sidebar filtering (cross-section)
-
-Saved notes are also filterable in sidebar command search:
-
-- `useSidebarSearch` normalizes the query and filters `savedNotes` by:
-  - note name includes query, or
-  - note text includes query
-- Matching notes appear under a `Notes` command group.
-- Selecting a filtered note runs `onOpenSavedNote(note.id)` and closes search.
-
-This filtering is available regardless of current section and serves as a quick open flow for Notes/Playground.
-
-## Open note into Playground workflow
-
-Opening a saved note (from Notes cards or sidebar search) calls workspace open handlers that:
-
-1. Hydrate editor state from the saved note (`text`, `tokens`, discovered metadata, translation map).
-2. Clear transient Playground state and analysis error.
-3. Set the opened note as active (`activeNoteId`).
-4. Set autosave status to `saved`.
-5. Force `activeSection` to `playground`.
-
-Result: selecting a note always navigates into Playground editing context; Notes acts as a launch/list surface.
+Result: selecting a note always navigates to Playground; Notes is a launch/list surface.
 
 ## Save-as / new note behavior
 
-## Save dialog mode selection
+### Save dialog mode
 
-Opening save dialog uses mode:
+- `initial` when no active saved note
+- `create_new` when active saved note exists
+- Default name draft: `Note <savedNotes.length + 1>`
 
-- `initial` when there is no active saved note.
-- `create_new` when an active saved note already exists.
+### Save current note
 
-The dialog name draft defaults to `Note <savedNotes.length + 1>`.
+`saveCurrentNote`: name required. Duplicate check case-insensitive (trim + `toLocaleLowerCase`). Duplicate → conflict state (no save). Otherwise update/create note, write editor payload, mark active, set autosave `saved`, close dialog. Non-silent saves → toast + notification.
 
-## Save current note
+### Create new named note
 
-`saveCurrentNote` behavior:
+`createNewNamedNote`: name required + duplicate-checked. If active note exists, clear pending autosave + silently save current. Create new note (empty content, fresh id), set active, clear editor/analyzed/transient state, set autosave `saved`, close dialog, emit success toast + notification.
 
-- Name is required.
-- Duplicate name checks are case-insensitive (trim + `toLocaleLowerCase`).
-- If duplicate exists, dialog enters duplicate-conflict state (no save yet).
-- Otherwise updates existing note (or creates one if needed), writes latest editor payload, marks active note, sets autosave `saved`, and closes dialog.
-- Non-silent saves show toast + notification.
+### Duplicate-name conflict resolution
 
-## Create new named note (save-as new)
+`create_new` mode → existing duplicate opened as active for future autosave. Normal save → can target existing duplicate note id.
 
-`createNewNamedNote` behavior:
+## Rename / delete
 
-- Name is required + duplicate-checked.
-- If a note is currently active, pending autosave timeout is cleared and current active note is silently saved first.
-- Creates a brand-new saved note with empty content and fresh id.
-- Sets new note active, clears editor/analyzed/transient state, sets autosave `saved`, closes dialog, and emits success toast + notification.
+**No dedicated rename or delete workflow.** Rename only implicit via save dialog conflict paths. Deletion not exposed.
 
-## Duplicate-name conflict resolution
+## State transitions (section, active note, breadcrumb)
 
-When duplicate conflict is resolved:
+### Active section
 
-- In `create_new` mode, existing duplicate note is opened as active note for future autosave.
-- In normal save path, save operation can target the existing duplicate note id.
+- `selectNotes()` → `activeSection = "notes"`, clear Wordbank context
+- `openSavedNoteInPlayground()` → `activeSection = "playground"`
+- App body renders section from `activeSection` only
 
-## Rename / delete behavior status
+### Active note
 
-There is currently **no dedicated rename or delete workflow** for saved notes in the Notes section or sidebar UI.
+- `setActiveNoteId(note.id)` on save, new-note, open, duplicate resolution
+- `activeSavedNote` derived from (`savedNotes`, `activeNoteId`)
+- Autosave runs only when `activeNoteId` + `activeNoteName` both present; otherwise status `off`
 
-- Rename is only implicitly possible by saving note content with a different name through save dialog conflict paths.
-- Deletion controls are not exposed in current Notes/Playground orchestration.
+### Breadcrumb/title
 
-## State-transition notes (section, active note, breadcrumb/title)
+`AppBreadcrumb`: Notes section → title `Notes`. Playground → active note name if present, else `Playground`. Opening note from Notes/sidebar changes breadcrumb from `Notes` to note name (or `Playground` fallback).
 
-## Active section transitions
+## Behavioral test coverage
 
-- `selectNotes()` sets `activeSection = "notes"` and clears Wordbank selection context.
-- `openSavedNoteInPlayground()` sets `activeSection = "playground"`.
-- App body chooses section component strictly from `activeSection`.
-
-## Active note transitions
-
-- `setActiveNoteId(note.id)` occurs on save, new-note creation, open note, and duplicate-conflict resolution paths.
-- `activeSavedNote` is derived from (`savedNotes`, `activeNoteId`) in persistence state.
-- Autosave runs only when active note id + active note name are both present; otherwise autosave status is `off`.
-
-## Breadcrumb/title effects
-
-`AppBreadcrumb` behavior:
-
-- In Notes section: title is always `Notes`.
-- In Playground: title is active saved note name when present, otherwise `Playground`.
-
-This means opening a note from Notes (or sidebar search) immediately changes breadcrumb label from `Notes` to the note name (or Playground fallback).
-
-## Behavioral test coverage map
-
-Notes workflows are covered primarily through app integration tests under:
-
-- `frontend/src/test/app/`
-
-(Examples include save/open/autosave/sidebar search orchestration tests that exercise `use-app-controller` and workspace/persistence composition.)
+`frontend/src/test/app/` — save/open/autosave/sidebar search integration tests exercising `use-app-controller` + workspace/persistence composition.

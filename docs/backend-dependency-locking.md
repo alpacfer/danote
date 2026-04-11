@@ -10,7 +10,7 @@
 
 ## Install behavior
 
-Use lock file for reproducible local/CI backend setup.
+Lock file for reproducible local/CI backend setup.
 
 ```bash
 cd <repo-root>
@@ -26,7 +26,7 @@ cd <repo-root>
 ./scripts/sync-backend-lock.sh
 ```
 
-If `pip-tools` is missing:
+If `pip-tools` missing:
 
 ```bash
 python3 -m pip install pip-tools
@@ -34,4 +34,4 @@ python3 -m pip install pip-tools
 
 ## PR requirement
 
-Any dependency change must include updated `backend/requirements.lock.txt` in the same PR.
+Dependency change must include updated `backend/requirements.lock.txt` same PR.

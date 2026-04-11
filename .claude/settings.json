@@ -73,8 +73,6 @@
     ]
   },
   "enabledPlugins": {
-    "superpowers@claude-plugins-official": true,
-    "claude-api@anthropic-agent-skills": true,
-    "example-skills@anthropic-agent-skills": true
+    "superpowers@claude-plugins-official": true
   }
 }

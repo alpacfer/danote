@@ -5,20 +5,20 @@
 
 ## Context
 
-Backend reproducibility lagged behind frontend because Python lock semantics were not standardized.
+Backend reproducibility lagged frontend. Python lock semantics not standardized.
 
 ## Decision
 
-Adopt `backend/requirements.lock.txt` as the canonical install source for backend setup.
-Provide `scripts/sync-backend-lock.sh` for deterministic lock refresh using `pip-tools`.
+Adopt `backend/requirements.lock.txt` as canonical install source.
+Provide `scripts/sync-backend-lock.sh` for deterministic lock refresh via `pip-tools`.
 
 ## Consequences
 
-- More reproducible backend environments.
-- Safer dependency upgrades via explicit lock update step.
-- Requires contributors/agents to refresh lock when dependency inputs change.
+- More reproducible backend envs.
+- Safer dep upgrades via explicit lock update step.
+- Contributors/agents must refresh lock when dep inputs change.
 
 ## Alternatives considered
 
 - Continue with only `requirements-dev.txt` (rejected: weaker reproducibility).
-- Switch fully to `uv lock` immediately (deferred: tooling migration can come later).
+- Switch fully to `uv lock` immediately (deferred: tooling migration later).

@@ -60,7 +60,7 @@ export function DeveloperSection(props: DeveloperSectionProps) {
           <TabsTrigger value="probes">Probes</TabsTrigger>
           <TabsTrigger value="database">Database</TabsTrigger>
         </TabsList>
-        <TabsContent value="status" forceMount>
+        <TabsContent value="status">
           <StatusTab
             badgeVariant={props.badgeVariant}
             status={props.status}
@@ -71,7 +71,7 @@ export function DeveloperSection(props: DeveloperSectionProps) {
             onSelectedNlpModelChange={props.onSelectedNlpModelChange}
           />
         </TabsContent>
-        <TabsContent value="api-keys" forceMount>
+        <TabsContent value="api-keys">
           <ApiKeysTab
             translationProvider={props.translationProvider}
             translationProviderOptions={props.translationProviderOptions}
@@ -98,7 +98,7 @@ export function DeveloperSection(props: DeveloperSectionProps) {
             onSaveDeveloperApiKeys={props.onSaveDeveloperApiKeys}
           />
         </TabsContent>
-        <TabsContent value="probes" forceMount>
+        <TabsContent value="probes">
           <ProbesTab
             translationProvider={props.translationProvider}
             isTestingTranslation={props.isTestingTranslation}
@@ -112,7 +112,7 @@ export function DeveloperSection(props: DeveloperSectionProps) {
             onRunGeminiProbe={props.onRunGeminiProbe}
           />
         </TabsContent>
-        <TabsContent value="database" forceMount>
+        <TabsContent value="database">
           <DatabaseTab
             isResettingDatabase={props.isResettingDatabase}
             onResetDatabase={props.onResetDatabase}

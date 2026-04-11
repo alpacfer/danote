@@ -5,20 +5,20 @@
 
 ## Context
 
-Route handlers had accumulated orchestration logic, making transport concerns and business flow tightly coupled.
+Route handlers accumulated orchestration logic; transport concerns and business flow tightly coupled.
 
 ## Decision
 
-Adopt `backend/app/services/use_cases/` as the application orchestration boundary.
-Routes remain responsible for request validation, dependency retrieval, and HTTP error mapping.
+Adopt `backend/app/services/use_cases/` as application orchestration boundary.
+Routes: request validation, dependency retrieval, HTTP error mapping.
 
 ## Consequences
 
 - Better unit-testability of orchestration logic.
-- Thinner route handlers and clearer layering.
-- Additional file/module surface to maintain.
+- Thinner route handlers, clearer layering.
+- More file/module surface to maintain.
 
 ## Alternatives considered
 
 - Keep orchestration in routes (rejected: poor separation).
-- Introduce framework-level DI container (deferred as unnecessary complexity).
+- Introduce framework-level DI container (deferred: unnecessary complexity).

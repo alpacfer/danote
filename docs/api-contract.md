@@ -1,376 +1,268 @@
 # API Contract
 
-This document enumerates all HTTP routes currently declared under `backend/app/api/routes/*.py`.
+All HTTP routes in `backend/app/api/routes/*.py`.
 
 ## Contract source
 
-Route decorators are the source of truth in `backend/app/api/routes/`, and API DTOs live in `backend/app/api/schemas/v1/`. Some token endpoints currently use request/response models declared inline in `backend/app/api/routes/tokens.py` (not yet in `schemas/v1`).
+Routes: `backend/app/api/routes/`. DTOs: `backend/app/api/schemas/v1/`. Some token endpoints use inline models in `backend/app/api/routes/tokens.py`.
 
 ## Root
 
 ### GET `/api/`
 - **Request model:** none.
 - **Response model:** inline `dict[str, str]` (`{"status": "ok", "message": "danote backend scaffold"}`).
-- **Notable status/error behavior:** normal success `200`.
+- **Notable status/error behavior:** `200`.
 
 ### GET `/api/health`
 - **Request model:** none.
 - **Response model:** `HealthResponse` (`backend/app/api/schemas/v1/root.py`).
-- **Notable status/error behavior:** returns `200` with `status: "ok"` or `"degraded"` depending on DB/NLP/service readiness.
+- **Notable status/error behavior:** `200` with `status: "ok"` or `"degraded"` per DB/NLP readiness.
 
 ## Analyze
 
 ### POST `/api/analyze`
 - **Request model:** `AnalyzeRequest`.
 - **Response model:** `AnalyzeResponse`.
-- **Notable status/error behavior:**
-  - `503` when NLP is unavailable (`require_nlp_ready`).
-  - `503` when DB is unavailable/locked.
-  - `400` when the use case raises validation/value errors.
+- **Notable status/error behavior:** `503` NLP unavailable. `503` DB unavailable/locked. `400` validation/value errors.
 
 ### POST `/api/analyze/enrich-token`
 - **Request model:** `EnrichTokenRequest`.
 - **Response model:** `ResolveQueryResponse`.
-- **Notable status/error behavior:**
-  - `503` when DB is unavailable/locked.
-  - `400` for value errors from query resolution.
+- **Notable status/error behavior:** `503` DB unavailable/locked. `400` value errors from query resolution.
 
 ## Tokens
 
 ### POST `/api/tokens/feedback`
 - **Request model:** inline `TokenFeedbackRequest` (`backend/app/api/routes/tokens.py`).
 - **Response model:** inline `TokenFeedbackResponse`.
-- **Notable status/error behavior:**
-  - `503` when typo engine is unavailable.
-  - `503` when typo DB operations fail (`sqlite3.OperationalError`).
+- **Notable status/error behavior:** `503` typo engine unavailable. `503` typo DB ops fail (`sqlite3.OperationalError`).
 
 ### POST `/api/tokens/ignore`
 - **Request model:** inline `TokenIgnoreRequest` (`backend/app/api/routes/tokens.py`).
 - **Response model:** inline `TokenIgnoreResponse`.
-- **Notable status/error behavior:**
-  - `503` when typo engine is unavailable.
-  - `503` when typo DB operations fail (`sqlite3.OperationalError`).
+- **Notable status/error behavior:** `503` typo engine unavailable. `503` typo DB ops fail (`sqlite3.OperationalError`).
 
 ## Developer
 
 ### POST `/api/developer/api-keys`
 - **Request model:** `DeveloperApiKeysUpdateRequest`.
 - **Response model:** `DeveloperApiKeysUpdateResponse`.
-- **Notable status/error behavior:** updates runtime API key overrides and service wiring; returns configured-provider flags in `configured`.
+- **Notable status/error behavior:** updates runtime API key overrides + service wiring; returns `configured` provider flags.
 
 ### POST `/api/developer/gemini-probe`
 - **Request model:** none.
 - **Response model:** `GeminiProbeResponse`.
-- **Notable status/error behavior:** endpoint returns probe payload with `status` (`ok`/`error`) and diagnostic message; probe failures are represented in-body (typically `200` response).
+- **Notable status/error behavior:** returns probe payload with `status` (`ok`/`error`) + diagnostics; failures in-body (typically `200`).
 
 ### POST `/api/developer/translation-probe`
 - **Request model:** none.
 - **Response model:** `DeveloperServiceProbeResponse`.
-- **Notable status/error behavior:** endpoint returns probe payload with `status` (`ok`/`error`) and provider diagnostics; failures are represented in-body.
+- **Notable status/error behavior:** returns probe payload with `status` (`ok`/`error`) + provider diagnostics; failures in-body.
 
 ### POST `/api/developer/tts-probe`
 - **Request model:** none.
 - **Response model:** `DeveloperServiceProbeResponse`.
-- **Notable status/error behavior:** endpoint returns probe payload with `status` (`ok`/`error`) and message; failures are represented in-body.
+- **Notable status/error behavior:** returns probe payload with `status` (`ok`/`error`) + message; failures in-body.
 
 ## Sentencebank
 
 ### POST `/api/sentencebank/sentences`
 - **Request model:** `AddSentenceRequest`.
 - **Response model:** `AddSentenceResponse`.
-- **Notable status/error behavior:**
-  - `503` when DB is unavailable/locked.
-  - `400` for value errors.
-  - `status` in body is `inserted` or `exists`.
+- **Notable status/error behavior:** `503` DB unavailable/locked. `400` value errors. body `status`: `inserted` or `exists`.
 
 ### GET `/api/sentencebank/sentences`
 - **Request model:** none.
 - **Response model:** `SentenceListResponse`.
-- **Notable status/error behavior:**
-  - `503` when DB is unavailable/locked.
+- **Notable status/error behavior:** `503` DB unavailable/locked.
 
 ## Wordbank
 
 ### POST `/api/wordbank/lexemes`
 - **Request model:** `AddWordRequest`.
 - **Response model:** `AddWordResponse`.
-- **Notable status/error behavior:**
-  - `503` when DB unavailable/locked.
-  - `503` for runtime DB compatibility errors (e.g., reset-required conditions).
-  - `400` for invalid inputs.
-  - body `status` may be `inserted` or `exists`.
-  - when `verification` is present, it may include `stored_surface_form`, `requested_at`, and `completed_at`.
-  - `queued_pronunciation_forms` lists the normalized lemma/surface forms queued for automatic background pronunciation generation.
-    Automatic add/save flows now use the shared backend pronunciation queue instead of browser-side pronunciation requests.
-  - `saved_snapshot` now includes `related_words`, a lemma-scoped enrichment object with:
-    - `status`: `queued | ready | empty | error`
-    - optional `message`
-    - `items[]` for compound-component related words
-  - add/save responses return `saved_snapshot.related_words.status = "queued"` immediately after a successful enqueue when related-word enrichment is active for that lemma.
-  - word-page payloads now also include `additional_translations` on the root payload and on each meaning section.
-    These hold valid alternate English translations persisted for that saved target scope.
-  - `queued_verification_targets` lists each backend-queued word-page verification target using `meaning_id` plus `stored_surface_form`.
-  - for search-seed saves, empty or missing `search_seed.english_translation` is allowed; the word is still persisted with a blank saved translation.
-  - for low-confidence glossless verb seeds whose translation collapses to the lemma itself (for example `to bile` for `bile`), backend persistence drops the search-seed translation and saves the entry with blank `english_translation` instead of persisting the literal self-translation.
+- **Notable status/error behavior:** `503` DB unavailable/locked. `503` runtime DB compatibility errors (e.g. reset-required). `400` invalid inputs. body `status`: `inserted` or `exists`.
+- **Field invariants:**
+  - `verification` may include `stored_surface_form`, `requested_at`, `completed_at`.
+  - `queued_pronunciation_forms`: normalized lemma/surface forms queued for background pronunciation. Add/save flows use shared backend queue, not browser-side requests.
+  - `saved_snapshot.related_words`: lemma-scoped enrichment with `status` (`queued|ready|empty|error`), optional `message`, `items[]` for compound-component related words. Returns `status = "queued"` immediately after enqueue.
+  - Word-page payloads include `additional_translations` on root and each meaning section: alternate English translations for that saved scope.
+  - `queued_verification_targets`: backend-queued targets using `meaning_id` + `stored_surface_form`.
+  - Search-seed saves: empty/missing `search_seed.english_translation` allowed; persisted with blank translation.
+  - Low-confidence glossless verb seeds whose translation collapses to lemma (e.g. `to bile` for `bile`): backend drops translation, saves with blank `english_translation`.
 
 ### POST `/api/wordbank/lexemes/verify`
 - **Request model:** `VerifyWordRequest`.
 - **Response model:** `VerifyWordResponse`.
-- **Notable status/error behavior:**
-  - `503` when DB unavailable/locked.
-  - `404` when target lemma/surface/meaning cannot be found.
-  - `400` for invalid inputs.
-  - successful responses persist the verification result for the matching `(lemma, meaning_id, stored_surface_form)` target.
-  - `verification` may include `stored_surface_form`, `requested_at`, and `completed_at`.
-  - `verification.message` is intentionally short and status-like, such as `OK`, `Review needed`, `Verification failed`, or `Queued`.
-  - `verification.problem` is one short mismatch sentence and `verification.change_to_implement` is one short imperative sentence.
-  - normal save verification checks only whether the saved lemma / meaning / selected surface placement is correct; missing paradigm members do not produce `fix_variations` suggestions in this flow.
-  - normal save verification action availability depends on the target scope:
-    - lemma/meaning targets may emit `fix_translation` or `move_to_lemma`
-    - surface-form targets may emit only relocation actions (`move_to_meaning_section` or `move_to_lemma`) and never translation fixes
-  - surface-form reviews that only produce translation-fix output are treated as irrelevant and persisted as `verified` instead of `flagged`.
-  - Gemini's verification context includes saved POS/morphology plus COR `gram_raw` and paradigm-slot evidence for the current meaning when available.
-    Relocation suggestions that contradict that saved paradigm evidence are discarded before persistence.
-  - if a meaning-level review tries to move the lemma even though the saved paradigm evidence still matches the current lemma, and a translated gloss hint exists for that meaning, backend backfills a `fix_translation` action from that hint instead of persisting the contradictory lemma move.
-  - if a meaning/lemma review still has a missing or low-confidence translation but a translated gloss hint exists for the saved meaning, backend persists a `fix_translation` suggestion from that hint even when Gemini otherwise returns `correct`.
-  - COR glosses and translated glosses may be supplied as sense-disambiguation context, but persisted review prose is restricted to translation or placement feedback.
-    Backend suppresses gloss-only critique and rewrites translation-fix review copy so the user never gets a suggestion to change the gloss itself.
-  - `verification.suggested_actions` is the only apply contract. Backend apply does not recover actions from prose fields.
-  - `applied_categories` lists the semantic categories persisted for the reviewed root / meaning scope.
-  - after verification persistence succeeds for `verified` or `flagged`, category classification runs as a separate follow-up step.
-  - categorization prefers existing categories and may mint at most 1 new broad category when the shared catalog has no good fit.
-  - when saved COR identity resolves to a different canonical lemma than the stored lemma, that canonical lemma identity is included in Gemini's verification context so lemma-correction suggestions can target the true dictionary lemma.
+- **Notable status/error behavior:** `503` DB unavailable/locked. `404` target not found. `400` invalid inputs.
+- **Field invariants:**
+  - Success persists verification for matching `(lemma, meaning_id, stored_surface_form)`.
+  - `verification` may include `stored_surface_form`, `requested_at`, `completed_at`.
+  - `verification.message`: short status-like (`OK`, `Review needed`, `Verification failed`, `Queued`).
+  - `verification.problem`: one short mismatch sentence. `verification.change_to_implement`: one short imperative.
+  - Normal save verification: checks saved lemma/meaning/surface placement correctness only; missing paradigm members do NOT produce `fix_variations`.
+  - Action availability by target scope: lemma/meaning targets may emit `fix_translation` or `move_to_lemma`; surface-form targets emit only relocation (`move_to_meaning_section`, `move_to_lemma`), never translation fixes.
+  - Surface-form reviews producing only translation-fix output: treated as irrelevant, persisted as `verified` not `flagged`.
+  - Gemini verification context includes saved POS/morphology + COR `gram_raw` + paradigm-slot evidence. Relocation suggestions contradicting paradigm evidence are discarded.
+  - Meaning-level review attempting lemma move when paradigm evidence still matches current lemma + translated gloss hint exists: backend backfills `fix_translation` from hint instead of contradictory move.
+  - Meaning/lemma review with missing/low-confidence translation + translated gloss hint: backend persists `fix_translation` from hint even when Gemini returns `correct`.
+  - COR/translated glosses used as sense-disambiguation context only; persisted review prose restricted to translation/placement feedback. Backend suppresses gloss-only critique; rewrites translation-fix copy so user never sees gloss-change suggestions.
+  - `verification.suggested_actions`: sole apply contract. Backend apply does NOT recover actions from prose.
+  - `applied_categories`: semantic categories persisted for reviewed root/meaning scope.
+  - After verification persistence for `verified`/`flagged`, category classification runs as separate follow-up. Prefers existing categories; mints at most 1 new broad category.
+  - When saved COR identity resolves to different canonical lemma, that canonical identity included in Gemini context for lemma-correction targeting.
 
 ### POST `/api/wordbank/lexemes/queue-verification`
 - **Request model:** `QueueVerificationRequest`.
 - **Response model:** `QueueVerificationResponse`.
-- **Notable status/error behavior:**
-  - `503` when DB unavailable/locked.
-  - `404` when the target lemma / meaning / surface cannot be resolved.
-  - `400` for invalid inputs.
-  - successful responses return the queued verification record for the exact target.
-  - request scope is `(stored_lemma, meaning_id, stored_surface_form, review_intent)`.
-  - `review_intent` defaults to `general` when omitted.
-  - queueing is newest-request-wins for that target scope; repeated retries/edits update the current request generation instead of creating parallel duplicate verification jobs.
+- **Notable status/error behavior:** `503` DB unavailable/locked. `404` target not found. `400` invalid inputs.
+- **Field invariants:**
+  - Request scope: `(stored_lemma, meaning_id, stored_surface_form, review_intent)`. `review_intent` defaults to `general`.
+  - Newest-request-wins for that scope; retries/edits update current generation instead of creating duplicates.
 
 ### POST `/api/wordbank/lexemes/rethink-categories`
 - **Request model:** `RethinkCategoriesRequest`.
 - **Response model:** `RethinkCategoriesResponse`.
-- **Notable status/error behavior:**
-  - `503` when DB unavailable/locked.
-  - `404` when the target lemma cannot be found.
-  - `400` for invalid inputs.
-  - body `status` can be `updated`, `skipped`, or `error`.
-  - successful responses replace the persisted category set for the requested root / meaning scope without mutating verification records.
-  - the rethink route runs the standalone category-classification Gemini flow for the requested scope.
-  - classification prefers existing labels and may mint at most 1 new broad category.
-  - `applied_categories` returns the normalized persisted category labels after the rethink run.
+- **Notable status/error behavior:** `503` DB unavailable/locked. `404` target not found. `400` invalid inputs. body `status`: `updated`, `skipped`, or `error`.
+- **Field invariants:**
+  - Replaces persisted category set for requested root/meaning scope without mutating verification records.
+  - Runs standalone category-classification Gemini flow. Prefers existing labels; mints at most 1 new broad category.
+  - `applied_categories`: normalized persisted labels after rethink.
 
 ### POST `/api/wordbank/lexemes/find-alternative-translations`
 - **Request model:** `FindAlternativeTranslationsRequest`.
 - **Response model:** `FindAlternativeTranslationsResponse`.
-- **Notable status/error behavior:**
-  - `503` when DB unavailable/locked.
-  - `404` when the target lemma or meaning cannot be found.
-  - `400` for invalid inputs.
-  - body `status` can be `updated`, `skipped`, or `error`.
-  - the route is lemma/meaning scoped only; it does not target individual surface-form rows.
-  - backend sends the saved lemma, scope POS/morphology, saved gloss, current primary translation, and existing `additional_translations` to Gemini.
-  - Gemini is constrained to return only very common English alternatives for that exact saved sense and may return an empty alternatives list.
-  - when Gemini proposes a better common primary translation, backend replaces the persisted `english_translation` for that root / meaning scope.
-  - any returned alternates distinct from the final primary translation are inserted into `additional_translations` for that same scope.
-  - `primary_translation` in the response is the final persisted primary translation after any update.
-  - `added_additional_translations` includes only the new alternates inserted by this request.
+- **Notable status/error behavior:** `503` DB unavailable/locked. `404` target not found. `400` invalid inputs. body `status`: `updated`, `skipped`, or `error`.
+- **Field invariants:**
+  - Lemma/meaning scoped only; not surface-form rows.
+  - Backend sends saved lemma, scope POS/morphology, gloss, primary translation, existing `additional_translations` to Gemini.
+  - Gemini constrained to very common English alternatives for that exact saved sense; may return empty list.
+  - When Gemini proposes better primary: backend replaces persisted `english_translation`. Distinct alternates inserted into `additional_translations`.
+  - `primary_translation`: final persisted primary after update. `added_additional_translations`: only new alternates from this request.
 
 ### POST `/api/wordbank/lexemes/complete-variations`
 - **Request model:** `CompleteVariationsRequest`.
 - **Response model:** `CompleteVariationsResponse`.
-- **Notable status/error behavior:**
-  - `503` when DB unavailable/locked.
-  - `404` when the target lemma or meaning cannot be found.
-  - `400` for invalid inputs.
-  - body `status` can be `updated` or `skipped`.
-  - v1 is meaning-scoped for noun, adjective, and verb meanings; other POS targets return `skipped`.
-  - the command uses the saved meaning's `cor_lemma_idx` to resolve the paradigm and returns `skipped`
-    when that stable COR identity is missing.
-  - the command is also gated by verification state for that meaning:
-    it returns `skipped` until the meaning target and every saved variation target in that meaning are `verified`.
-  - `queued`, `error`, and `flagged` verification states return explicit user-facing skip messages explaining whether verification is still running, needs retry, or needs review resolution.
-  - successful noun responses add only missing non-lemma noun variations among
-    singular-definite, plural-indefinite, and plural-definite.
-  - successful adjective responses add only missing non-lemma agreement forms:
-    singular-indefinite `t-word`, singular-definite, and shared plural forms.
-    Shared plural forms are persisted once even when they render into both plural table cells.
-  - successful verb responses add only missing verb-table forms:
-    present, past, imperative, and past participle.
-    The infinitive row is treated as the lemma/default form and is not duplicated when it is already implied by the saved lemma metadata.
-  - `added_surface_forms` lists the forms inserted by this call.
-  - `queued_pronunciation_forms` lists the normalized forms queued for background pronunciation generation.
-    The queue is lemma-scoped and merged by `stored_lemma`, so repeated completion requests update one pronunciation job instead of spawning per-form duplicates.
-  - `queued_pronunciation_forms` may include the lemma itself when the root lemma row is missing pronunciation audio.
-  - `queued_verification_targets` lists the meaning-level completion-review target(s) queued by this call so the frontend can keep polling even after leaving the lemma page.
-  - the command also requeues one meaning-level verification review for the updated meaning.
-    That completion review becomes the active verification source of truth for the meaning until it settles.
-  - completion follow-up verification is intentionally narrow: it may only emit and later apply `fix_variations`.
+- **Notable status/error behavior:** `503` DB unavailable/locked. `404` target not found. `400` invalid inputs. body `status`: `updated` or `skipped`.
+- **Field invariants:**
+  - v1 is meaning-scoped for noun, adjective, verb meanings; other POS returns `skipped`.
+  - Uses saved meaning's `cor_lemma_idx` to resolve paradigm; returns `skipped` when missing.
+  - Gated by verification state: returns `skipped` until meaning target + all saved variations are `verified`. `queued`/`error`/`flagged` states return explicit skip messages.
+  - Noun: adds missing non-lemma variations among singular-definite, plural-indefinite, plural-definite.
+  - Adjective: adds missing agreement forms: singular-indefinite `t-word`, singular-definite, shared plurals. Shared plural persisted once.
+  - Verb: adds missing forms: present, past, imperative, past participle. Infinitive row is lemma/default, not duplicated.
+  - `added_surface_forms`: forms inserted. `queued_pronunciation_forms`: forms queued for background pronunciation (lemma-scoped, merged by `stored_lemma`; may include lemma itself).
+  - `queued_verification_targets`: meaning-level completion-review targets for polling.
+  - Requeues one meaning-level verification review; becomes active source of truth until settled. Completion review is narrow: may only emit/apply `fix_variations`.
 
 ### POST `/api/wordbank/lexemes/pronunciation`
 - **Request model:** `GeneratePronunciationRequest`.
 - **Response model:** `GeneratePronunciationResponse`.
-- **Notable status/error behavior:**
-  - `503` when DB unavailable/locked.
-  - `404` when the target entry is not found.
-  - body `status` can be `generated`, `unavailable`, or `skipped`.
+- **Notable status/error behavior:** `503` DB unavailable/locked. `404` target not found. body `status`: `generated`, `unavailable`, or `skipped`.
 
 ### POST `/api/wordbank/lexemes/apply-verification-changes`
 - **Request model:** `ApplyVerificationChangesRequest`.
 - **Response model:** `ApplyVerificationChangesResponse`.
 - **Notable request/behavior details:**
-  - `action.action_type` supports `fix_translation`, `fix_variations`, `move_to_meaning_section`, and `move_to_lemma`.
-  - `fix_translation` is valid only for lemma/meaning-scoped targets with `stored_surface_form = null`; if the request is surface-scoped, backend rejects `fix_translation`.
-  - completion-review records may expose a meaning-level `fix_variations` action that reconciles the whole saved noun, adjective, or verb variation set for that meaning in one apply request.
-  - `fix_variations` is reserved for the `Complete variations` follow-up review; normal save verification does not emit that action type.
-  - when the persisted verification record has `review_intent = "complete_variations"`, the backend rejects any apply attempt whose `action.action_type` is not `fix_variations`, even if the client sends it manually.
-  - when Gemini provides them, `fix_variations` actions may include noun slot fields
-    (`singular_indefinite_forms`, `singular_definite_forms`, `plural_indefinite_forms`, `plural_definite_forms`)
-    or adjective slot fields
-    (`singular_indefinite_n_word_forms`, `singular_indefinite_t_word_forms`, `singular_definite_forms`, `plural_indefinite_forms`, `plural_definite_forms`)
-    or verb slot fields
-    (`infinitive_forms`, `present_forms`, `past_forms`, `imperative_forms`, `past_participle_forms`)
-    so apply uses the reviewed slot sets directly instead of re-deriving them from COR.
-  - `singular_indefinite_forms` may include multiple spellings for the same slot, such as `["fader", "far"]`.
-  - adjective completion reviews use `n-word` / `t-word` terminology throughout; plural fields may carry the same written form in both plural slots when COR exposes one shared plural form.
-  - verb completion reviews use the fixed row labels `Infinitive`, `Present`, `Past`, `Imperative`, and `Past participle`.
-  - `fix_variations` must be fully structured. Apply does not recover slot targets from `problem` / `change_to_implement`.
-- **Notable status/error behavior:**
-  - `503` when DB unavailable/locked.
-  - `404` when source/target meaning context cannot be resolved.
-  - body `status` can be `applied` or `skipped`.
+  - `action.action_type`: `fix_translation`, `fix_variations`, `move_to_meaning_section`, `move_to_lemma`.
+  - `fix_translation`: valid only for lemma/meaning-scoped targets with `stored_surface_form = null`; rejected for surface-scoped.
+  - Completion-review records expose meaning-level `fix_variations` reconciling whole variation set. `fix_variations` reserved for completion follow-up; normal save verification never emits it.
+  - When persisted `review_intent = "complete_variations"`: backend rejects any apply whose `action_type != fix_variations`.
+  - `fix_variations` slot fields (provided by Gemini, used directly, not re-derived from COR):
+    - Noun: `singular_indefinite_forms`, `singular_definite_forms`, `plural_indefinite_forms`, `plural_definite_forms`
+    - Adjective: `singular_indefinite_n_word_forms`, `singular_indefinite_t_word_forms`, `singular_definite_forms`, `plural_indefinite_forms`, `plural_definite_forms`
+    - Verb: `infinitive_forms`, `present_forms`, `past_forms`, `imperative_forms`, `past_participle_forms`
+  - `singular_indefinite_forms` may include multiple spellings (e.g. `["fader", "far"]`).
+  - Adjective: uses `n-word`/`t-word` terminology; plural fields may carry same form in both slots for shared plurals.
+  - Verb: fixed row labels `Infinitive`, `Present`, `Past`, `Imperative`, `Past participle`.
+  - `fix_variations` must be fully structured. Apply does NOT recover slots from `problem`/`change_to_implement`.
+- **Notable status/error behavior:** `503` DB unavailable/locked. `404` source/target context not found. body `status`: `applied` or `skipped`.
 
 ### POST `/api/wordbank/translation`
 - **Request model:** `GenerateTranslationRequest`.
 - **Response model:** `GenerateTranslationResponse`.
-- **Notable status/error behavior:**
-  - `503` when DB unavailable/locked.
-  - body `status` can be `generated` or `unavailable`.
-  - Single-word translations are normalized after provider lookup:
-    content words drop obvious frame scaffolding but may keep short multi-word phrases when cleanup is uncertain,
-    while function words may retain only short lexicalized context such as `because of`.
+- **Notable status/error behavior:** `503` DB unavailable/locked. body `status`: `generated` or `unavailable`.
+- Single-word translations normalized after provider lookup: content words drop frame scaffolding but may keep short multi-word phrases; function words may retain short lexicalized context (e.g. `because of`).
 
 ### POST `/api/wordbank/reverse-translation`
 - **Request model:** `GenerateReverseTranslationRequest`.
 - **Response model:** `GenerateReverseTranslationResponse`.
-- **Notable status/error behavior:**
-  - `503` when DB unavailable/locked.
-  - body `status` can be `generated` or `unavailable`.
+- **Notable status/error behavior:** `503` DB unavailable/locked. body `status`: `generated` or `unavailable`.
 
 ### POST `/api/wordbank/detect-language`
 - **Request model:** `DetectWordLanguageRequest`.
 - **Response model:** `DetectWordLanguageResponse`.
-- **Notable status/error behavior:**
-  - `503` when DB unavailable/locked.
+- **Notable status/error behavior:** `503` DB unavailable/locked.
 
 ### POST `/api/wordbank/resolve-query`
 - **Request model:** `ResolveQueryRequest`.
 - **Response model:** `ResolveQueryResponse`.
-- **Notable status/error behavior:**
-  - `503` when DB unavailable/locked.
-  - `400` for invalid resolver inputs.
+- **Notable status/error behavior:** `503` DB unavailable/locked. `400` invalid resolver inputs.
 - **Field invariants:**
-  - COR-backed Danish add-option labels suppress provider self-translations instead of surfacing literal echoes of the Danish lemma/form.
-  - DeepL-backed and Azure-backed search labels use the same fallback policy through the shared primary-provider contract.
-  - When Gemini contextual translation is available, it takes precedence over self-translated primary-provider labels, including same-text lemma echoes that Gemini returns intentionally for valid cognates or loanwords.
-  - If the primary provider self-translates but Gemini has no better lemma translation, add-option labels may fall back to translated COR gloss text when available.
-  - If the primary provider self-translates and Gemini returns no translation and no translated gloss exists, the add-option label falls back to the query surface instead of exposing the bad primary-provider echo.
+  - COR-backed Danish add-option labels suppress provider self-translations (no literal Danish lemma echoes).
+  - DeepL/Azure search labels use same fallback via shared primary-provider contract.
+  - Gemini contextual translation takes precedence over self-translated primary-provider labels, including same-text lemma echoes for valid cognates/loanwords.
+  - Primary self-translates + Gemini has no better translation: add-option labels may fall back to translated COR gloss.
+  - Primary self-translates + Gemini returns nothing + no translated gloss: label falls back to query surface.
 
 ### POST `/api/wordbank/phrase-translation`
 - **Request model:** `GeneratePhraseTranslationRequest`.
 - **Response model:** `GeneratePhraseTranslationResponse`.
-- **Notable status/error behavior:**
-  - `503` when DB unavailable/locked.
-  - body `status` can be `generated`, `cached`, or `unavailable`.
+- **Notable status/error behavior:** `503` DB unavailable/locked. body `status`: `generated`, `cached`, or `unavailable`.
 
 ### GET `/api/wordbank/lemmas`
 - **Request model:** none.
 - **Response model:** `LemmaListResponse`.
-- **Notable status/error behavior:**
-  - `503` when DB unavailable/locked.
-  - `503` for runtime errors surfaced by use case.
+- **Notable status/error behavior:** `503` DB unavailable/locked. `503` runtime errors.
 
 ### GET `/api/wordbank/search`
-- **Request model:** none (`query` and `limit` query parameters).
+- **Request model:** none (`query`, `limit` query params).
 - **Response model:** `WordbankSearchResponse`.
-- **Notable status/error behavior:**
-  - query validation failures return `422` (e.g., empty query or limit out of range).
-  - `503` when DB unavailable/locked.
-  - `503` for runtime errors surfaced by use case.
-- **Field invariants:**
-  - saved search rows keep lemma translation and gloss translation separate
-  - `english_translation` is only the saved lemma translation
-  - `gloss_translation` is optional disambiguation context for `gloss`
-  - raw `gloss` is not promoted into `english_translation`
+- **Notable status/error behavior:** `422` validation failures (empty query, limit out of range). `503` DB unavailable/locked. `503` runtime errors.
+- **Field invariants:** saved search rows keep lemma translation + gloss translation separate. `english_translation` = saved lemma translation only. `gloss_translation` = optional disambiguation context. Raw `gloss` not promoted into `english_translation`.
 
 ### GET `/api/wordbank/search/cor-form`
-- **Request model:** none (`form`, `limit`, `include_translations` query parameters).
+- **Request model:** none (`form`, `limit`, `include_translations` query params).
 - **Response model:** `CORSearchFormResponse`.
-- **Notable status/error behavior:**
-  - query validation failures return `422`.
-  - `503` when DB unavailable/locked.
-  - `503` for runtime errors surfaced by use case.
+- **Notable status/error behavior:** `422` validation failures. `503` DB unavailable/locked. `503` runtime errors.
 - **Field invariants:**
-  - `lemma_translation` and `gloss_translation` remain separate; translated gloss text is never promoted into `lemma_translation`.
-  - `saveable_translation` is the backend-authoritative search save value; it equals the chosen `lemma_translation` when a usable lemma translation exists, and may carry a gloss-derived fallback when `lemma_translation` is intentionally `null`.
-  - `lemma_translation_provider` records which provider supplied the displayed lemma translation when one exists.
-  - `lemma_translation_status` is one of `provider`, `gemini`, `gloss_fallback`, or `missing`.
-  - `lemma_translation_reason` records the final translation decision reason, including `provider_ok`, `provider_self_translation`, `gemini_ok`, `gemini_missing`, `gemini_self_translation`, and `gloss_fallback_used`.
-  - DeepL-backed and Azure-backed COR search use the same fallback policy through the shared primary-provider contract.
-  - If the primary provider's framed lemma translation collapses to the original Danish lemma/form (for example `at bile -> to bile`), backend treats that result as invalid and prefers Gemini contextual translation.
-  - A gloss is not required for Gemini fallback; glossless entries still send the Danish lemma plus POS/morphology context, and verbs are framed as Danish infinitives (for example `at bile`) to improve lemma-quality fallback translation.
-  - If Gemini returns a non-empty translation in that case, backend trusts it even when the English lemma text still matches the Danish lemma/form exactly.
-  - If Gemini returns no translation in that case, backend may keep `lemma_translation = null` while exposing a gloss-derived `saveable_translation`; if no gloss fallback exists, both fields stay `null`.
+  - `lemma_translation` + `gloss_translation` separate; gloss text never promoted into `lemma_translation`.
+  - `saveable_translation`: backend-authoritative search save value. Equals `lemma_translation` when usable; may carry gloss-derived fallback when `lemma_translation` is `null`.
+  - `lemma_translation_provider`: which provider supplied displayed lemma translation.
+  - `lemma_translation_status`: `provider`, `gemini`, `gloss_fallback`, or `missing`.
+  - `lemma_translation_reason`: final decision reason (`provider_ok`, `provider_self_translation`, `gemini_ok`, `gemini_missing`, `gemini_self_translation`, `gloss_fallback_used`).
+  - DeepL/Azure COR search: same fallback via shared primary-provider contract.
+  - Primary framed translation collapses to Danish lemma/form (e.g. `at bile -> to bile`): treated as invalid, prefers Gemini contextual translation.
+  - Gloss not required for Gemini fallback; glossless entries send Danish lemma + POS/morphology; verbs framed as infinitives (e.g. `at bile`).
+  - Gemini returns non-empty translation: trusted even if English matches Danish lemma exactly.
+  - Gemini returns nothing: backend may keep `lemma_translation = null` with gloss-derived `saveable_translation`; no gloss fallback means both stay `null`.
 
 ### GET `/api/wordbank/search/cor-lemma/{lemma_idx}`
-- **Request model:** none (`lemma_idx` path param, optional `limit` query parameter).
+- **Request model:** none (`lemma_idx` path param, optional `limit` query param).
 - **Response model:** `CORLemmaParadigmResponse`.
-- **Notable status/error behavior:**
-  - path/query validation failures return `422`.
-  - `503` when DB unavailable/locked.
-  - `503` for runtime errors surfaced by use case.
+- **Notable status/error behavior:** `422` path/query validation failures. `503` DB unavailable/locked. `503` runtime errors.
 
 ### GET `/api/wordbank/lemmas/{lemma}`
-- **Request model:** none (`lemma` path parameter).
+- **Request model:** none (`lemma` path param).
 - **Response model:** `LemmaDetailsResponse`.
 - **Notable response behavior:**
-  - root payload may include `categories` for non-sectioned/root meaning badges.
-  - root payload may include `verification` for non-sectioned/root targets.
-  - each `meaning_sections[]` item may include its own `categories`.
-  - each `meaning_sections[]` item may include its own `verification`.
-  - each `meaning_sections[]` item may include `gram_raw` when the backend can resolve merged COR grammar for that saved meaning scope.
-  - each `surface_forms[]` item may include its own `verification` for variation-scoped Gemini results.
-  - each `surface_forms[]` item may include `gram_raw` when the backend can resolve COR grammar for that saved form.
-  - for sectioned lemmas, top-level `surface_forms[]` may include the saved lemma form itself
-    so the client can bind exact-lemma pronunciation and metadata.
-  - sectioned meaning `surface_forms[]` exclude rows whose normalized form matches the lemma;
-    those lemma-form rows stay available only through top-level `surface_forms[]` when stored.
-  - noun `surface_forms[]` are ordered with non-slot/irregular forms first, then singular-definite, plural-indefinite, and plural-definite.
-  - verification objects use the same additive fields as add/verify responses:
-    `stored_surface_form`, `requested_at`, `completed_at`, and `suggested_actions`.
-  - root payload now includes `related_words`:
-    - `status = "queued"` while backend compound decomposition is still running
-    - `status = "ready"` when `items[]` contains persisted related words
-    - `status = "empty"` when no compound components survive Gemini + COR filtering
-    - `status = "error"` when the background job failed
-  - root payload also includes `additional_translations: string[]` for alternate valid translations stored at lemma scope.
-  - each `related_words.items[]` row includes:
-    - `relation_type = "compound_component" | "compound_host"`
-    - Gemini-provided `lemma`, `english_translation`, and `pos_tag`
-    - verb `english_translation` values are normalized to infinitive English (`to <verb>`)
-    - `compound_host` rows are reverse links synthesized from other saved compounds that include this lemma as a component
-    - `saved_match.status = unsaved | saved_lemma | saved_variation`
+  - Root payload may include `categories`, `verification`, `additional_translations: string[]`.
+  - Each `meaning_sections[]` may include `categories`, `verification`, `gram_raw`, `additional_translations: string[]`.
+  - Each `surface_forms[]` may include `verification`, `gram_raw`.
+  - Sectioned lemmas: top-level `surface_forms[]` may include saved lemma form for pronunciation/metadata binding. Sectioned meaning `surface_forms[]` exclude lemma-matching rows (available via top-level only).
+  - Noun `surface_forms[]` ordered: non-slot/irregular first, then singular-definite, plural-indefinite, plural-definite.
+  - Verification objects use same additive fields as add/verify responses.
+  - Root `related_words`: `status` = `queued` (running) | `ready` (has `items[]`) | `empty` (no components survive filtering) | `error` (job failed).
+  - Each `related_words.items[]` row:
+    - `relation_type`: `compound_component | compound_host`
+    - Gemini-provided `lemma`, `english_translation`, `pos_tag`
+    - Verb translations normalized to infinitive English (`to <verb>`)
+    - `compound_host`: reverse links from other saved compounds including this lemma
+    - `saved_match.status`: `unsaved | saved_lemma | saved_variation`
     - `saved_match.target_lemma` / `target_meaning_id` for eye/open actions
     - `display_variant` when COR resolves to one saveable match
-    - `candidate_variants[]` when multiple same-POS COR matches remain and the client must let the user choose inline
-  - each `meaning_sections[]` item now includes `additional_translations: string[]` for alternate valid translations stored at that meaning scope.
-  - when related-word enrichment resolves a saved target and the new related translation differs from the saved primary translation, that translation is added directly to `additional_translations` for the saved target scope without requiring a manual related-word add from the UI.
+    - `candidate_variants[]` when multiple same-POS COR matches remain (client must let user choose)
+  - Related-word enrichment resolving a saved target with new translation: translation added to `additional_translations` for that scope automatically.
 - **Canonical response examples:**
   - **Non-sectioned** (`is_sectioned: false`):
     ```json
@@ -557,23 +449,14 @@ Route decorators are the source of truth in `backend/app/api/routes/`, and API D
       ]
     }
     ```
-- **Notable status/error behavior:**
-  - `404` when lemma is not found.
-  - `503` when DB unavailable/locked.
-  - `503` for runtime errors surfaced by use case.
+- **Notable status/error behavior:** `404` lemma not found. `503` DB unavailable/locked. `503` runtime errors.
 
 ### GET `/api/wordbank/pronunciation`
-- **Request model:** none (`form` query parameter).
-- **Response model:** raw audio bytes (`fastapi.Response`, dynamic `media_type`), not a Pydantic schema.
-- **Notable status/error behavior:**
-  - query validation failures return `422`.
-  - `404` when pronunciation is not found.
-  - `503` when DB unavailable/locked.
-  - `503` for runtime errors surfaced by use case.
+- **Request model:** none (`form` query param).
+- **Response model:** raw audio bytes (`fastapi.Response`, dynamic `media_type`), not Pydantic schema.
+- **Notable status/error behavior:** `422` validation failures. `404` not found. `503` DB unavailable/locked. `503` runtime errors.
 
 ### DELETE `/api/wordbank/database`
 - **Request model:** none.
 - **Response model:** `ResetDatabaseResponse`.
-- **Notable status/error behavior:**
-  - `503` when DB unavailable/locked.
-  - `503` with `Database reset failed: ...` for filesystem/OS reset failures.
+- **Notable status/error behavior:** `503` DB unavailable/locked. `503` with `Database reset failed: ...` for filesystem/OS failures.

@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Unify all card-like surfaces in the app through the shadcn `Card` component and a new `variant="subtle"` so that visual design changes to cards require editing only `card.tsx`.
+**Goal:** Unify all card surfaces via shadcn `Card` + new `variant="subtle"`. Visual changes → edit only `card.tsx`.
 
-**Architecture:** Introduce a `variant` prop to the `Card` component using `cva` (already used by other shadcn components). Replace raw bordered `div`/`li` containers with `<Card variant="subtle">` across 6 files. Fix two remaining `rounded-lg` inconsistencies on interactive surfaces inside cards.
+**Architecture:** Add `variant` prop to `Card` via `cva` (already installed). Replace raw bordered `div`/`li` with `<Card variant="subtle">` across 6 files. Fix 2 `rounded-lg` mismatches on interactive surfaces inside cards.
 
 **Tech Stack:** React 19, Tailwind CSS v4, shadcn/ui, class-variance-authority (already installed).
 
@@ -18,11 +18,11 @@
 | `notes-section.tsx` | `<Card p-0>` + inner `<button rounded-lg>` ← **button radius wrong** |
 | `sentencebank-section.tsx` | `<Card><CardContent>` — clean |
 | `wordbank-meaning-sections.tsx` | `<Card py-5><CardContent>` — clean |
-| `wordbank-related-words.tsx` | outer `<Card>` clean; inner candidate `<Button rounded-lg border>` ← **radius wrong** |
-| `wordbank-verification-popover.tsx` | `VerificationReviewRow` uses `<Card className="gap-0 py-0 shadow-none">` — this **is** the subtle pattern, hardcoded |
-| `developer-section.tsx` | outer `<Card>` clean; inner API status `<div rounded-xl border p-2>` ← should use Card |
+| `wordbank-related-words.tsx` | outer `<Card>` clean; inner `<Button rounded-lg border>` ← **radius wrong** |
+| `wordbank-verification-popover.tsx` | `VerificationReviewRow` uses `<Card className="gap-0 py-0 shadow-none">` — subtle pattern hardcoded |
+| `developer-section.tsx` | outer `<Card>` clean; inner API status `<div rounded-xl border p-2>` ← needs Card |
 
-### Raw bordered containers (should become `<Card>`)
+### Raw bordered containers (→ `<Card>`)
 | File | Current class | Target |
 |------|--------------|--------|
 | `wordbank-variation-grid.tsx` | `div rounded-xl border bg-muted/30 p-3 dark:bg-muted/15` | `<Card variant="subtle" className="bg-muted/30 p-3 dark:bg-muted/15">` |
@@ -33,7 +33,7 @@
 | `playground-header-actions.tsx` | `li rounded-xl border px-3 py-2` | `<li><Card variant="subtle" className="px-3 py-2">` |
 
 ### Search results — no changes needed
-`CommandItem` in `sidebar-cor-results.tsx` and `sidebar-wordbank-results.tsx` are list items in a Command overlay, not card-like containers.
+`CommandItem` in `sidebar-cor-results.tsx` and `sidebar-wordbank-results.tsx` are Command overlay list items, not card surfaces.
 
 ---
 
@@ -43,7 +43,7 @@
 - Modify: `frontend/src/app/sections/notes-section.tsx:25`
 - Modify: `frontend/src/app/sections/wordbank/wordbank-related-words.tsx:135`
 
-**Why this matters:** The parent `<Card>` is `rounded-xl`. An inner button with `rounded-lg` creates a visible corner gap on hover where the card background shows through without the hover fill.
+**Why:** Parent `<Card>` is `rounded-xl`. Inner button with `rounded-lg` → visible corner gap on hover where card background bleeds through.
 
 - [ ] **Step 1: Fix notes card button radius**
 
@@ -92,11 +92,11 @@ git commit -m "fix: align inner button radius to card rounded-xl"
 **Files:**
 - Modify: `frontend/src/components/ui/card.tsx`
 
-**What `variant="subtle"` means:** Same rounded corners and border as the default card, but no shadow, no default padding, and no gap between children. Background is transparent (inherits from parent or set by className). Callers set their own padding via `className`.
+**`variant="subtle"`:** Same corners + border as default. No shadow, no default padding, no child gap. Background transparent (inherits or set via `className`). Callers set own padding.
 
-The default Card currently has: `rounded-xl border py-6 gap-6 shadow-sm bg-card text-card-foreground flex flex-col`
+Default Card: `rounded-xl border py-6 gap-6 shadow-sm bg-card text-card-foreground flex flex-col`
 
-`variant="subtle"` strips: `py-6` → `py-0`, `gap-6` → `gap-0`, `shadow-sm` → `shadow-none`
+`variant="subtle"` strips: `py-6`→`py-0`, `gap-6`→`gap-0`, `shadow-sm`→`shadow-none`
 
 - [ ] **Step 1: Replace the Card function with a cva-based version**
 
@@ -218,7 +218,7 @@ export {
 cd frontend && npx tsc --noEmit
 ```
 
-Expected: no errors. All existing `<Card>` usages still work because `variant` defaults to `"default"`.
+Expected: no errors. Existing `<Card>` usages intact — `variant` defaults to `"default"`.
 
 - [ ] **Step 3: Commit**
 
@@ -234,11 +234,11 @@ git commit -m "feat: add variant=subtle to Card component"
 **Files:**
 - Modify: `frontend/src/app/sections/wordbank/wordbank-verification-popover.tsx`
 
-This component already hardcodes the subtle pattern as `className="gap-0 py-0 shadow-none"`. Task 2 should have formalized this. Now we clean it up.
+Component hardcodes `className="gap-0 py-0 shadow-none"`. Task 2 formalized this. Now clean up.
 
 - [ ] **Step 1: Switch to `variant="subtle"`**
 
-In `frontend/src/app/sections/wordbank/wordbank-verification-popover.tsx`, find the `VerificationReviewRow` function body (around line 188):
+In `frontend/src/app/sections/wordbank/wordbank-verification-popover.tsx`, find `VerificationReviewRow` body (~line 188):
 
 ```tsx
 // Before
@@ -272,11 +272,11 @@ git commit -m "refactor: use Card variant=subtle in VerificationReviewRow"
 **Files:**
 - Modify: `frontend/src/app/sections/wordbank/wordbank-verification-popover.tsx`
 
-The suggested-action items are raw `<div className="rounded-xl border border-border/70 px-3 py-2">` inside `VerificationReviewRow`.
+Suggested-action items are raw `<div className="rounded-xl border border-border/70 px-3 py-2">` inside `VerificationReviewRow`.
 
 - [ ] **Step 1: Replace raw div with `<Card variant="subtle">`**
 
-In `frontend/src/app/sections/wordbank/wordbank-verification-popover.tsx`, inside `VerificationReviewRow` (around line 204–207), find:
+In `frontend/src/app/sections/wordbank/wordbank-verification-popover.tsx`, inside `VerificationReviewRow` (~lines 204–207):
 
 ```tsx
 <div
@@ -297,7 +297,7 @@ Replace with:
   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 ```
 
-Also add the closing tag change from `</div>` → `</Card>` for the outer element.
+Also change closing `</div>` → `</Card>` for the outer element.
 
 - [ ] **Step 2: Run type check**
 
@@ -321,18 +321,18 @@ git commit -m "refactor: use Card variant=subtle for verification action items"
 **Files:**
 - Modify: `frontend/src/app/sections/wordbank/wordbank-variation-grid.tsx`
 
-Variation form cells currently use a raw `<div>` with `cn("rounded-xl border bg-muted/30 p-3 dark:bg-muted/15")`. The `cn()` import can be removed if it becomes unused.
+Cells use raw `<div>` with `cn("rounded-xl border bg-muted/30 p-3 dark:bg-muted/15")`. Remove `cn()` import if unused after change.
 
 - [ ] **Step 1: Import Card and replace div**
 
 In `frontend/src/app/sections/wordbank/wordbank-variation-grid.tsx`:
 
-Add `Card` to the import from `@/components/ui/card`:
+Add `Card` to import from `@/components/ui/card`:
 ```tsx
 import { Card } from "@/components/ui/card"
 ```
 
-Replace the raw div (around line 104–111):
+Replace raw div (~lines 104–111):
 
 ```tsx
 // Before
@@ -351,9 +351,7 @@ Replace the raw div (around line 104–111):
 >
 ```
 
-And change the closing `</div>` → `</Card>`.
-
-Remove the `cn` import if it is no longer used anywhere in the file. Check by searching for other `cn(` usages in the file first.
+Change closing `</div>` → `</Card>`. Remove `cn` import if no other `cn(` usages remain.
 
 - [ ] **Step 2: Run type check**
 
@@ -377,18 +375,18 @@ git commit -m "refactor: use Card variant=subtle for variation grid cells"
 **Files:**
 - Modify: `frontend/src/app/sections/wordbank/wordbank-lemma-header.tsx`
 
-The `WordbankDetailsLoadingSkeleton` renders placeholder containers that mock the appearance of meaning cards (`<Card className="py-5">`). These should be real Cards.
+`WordbankDetailsLoadingSkeleton` renders placeholder containers mocking meaning cards (`<Card className="py-5">`). Make them real Cards.
 
 - [ ] **Step 1: Import Card and CardContent**
 
-In `frontend/src/app/sections/wordbank/wordbank-lemma-header.tsx`, confirm or add the import:
+In `frontend/src/app/sections/wordbank/wordbank-lemma-header.tsx`, confirm or add:
 ```tsx
 import { Card, CardContent } from "@/components/ui/card"
 ```
 
 - [ ] **Step 2: Replace raw divs in the skeleton**
 
-In `WordbankDetailsLoadingSkeleton` (around line 204–222), find:
+In `WordbankDetailsLoadingSkeleton` (~lines 204–222):
 
 ```tsx
 <div
@@ -476,13 +474,13 @@ Replace with:
 <Card aria-label={ariaLabel} variant="subtle" className="p-2 text-sm">
 ```
 
-And change closing `</div>` → `</Card>`.
+Change closing `</div>` → `</Card>`.
 
 - [ ] **Step 2: Fix `developer-section.tsx` API status items**
 
-In `frontend/src/app/sections/developer-section.tsx`, ensure Card is in the import (it already imports `Card, CardContent, CardHeader, CardTitle`).
+In `frontend/src/app/sections/developer-section.tsx`, Card already imported.
 
-Find (around line 129):
+Find (~line 129):
 ```tsx
 <div key={item.name} className="rounded-xl border p-2">
 ```
@@ -492,7 +490,7 @@ Replace with:
 <Card key={item.name} variant="subtle" className="p-2">
 ```
 
-And change closing `</div>` → `</Card>`.
+Change closing `</div>` → `</Card>`.
 
 - [ ] **Step 3: Run type check**
 
@@ -517,18 +515,18 @@ git commit -m "refactor: use Card variant=subtle for developer section items"
 **Files:**
 - Modify: `frontend/src/app/sections/playground-header-actions.tsx`
 
-Notification items are `<li>` elements with card styling. Since `<Card>` renders a `<div>`, we nest it inside `<li>` to keep semantic list structure.
+Notification items are `<li>` with card styling. `<Card>` renders `<div>`, so nest inside `<li>` to preserve semantic list structure.
 
 - [ ] **Step 1: Import Card**
 
-In `frontend/src/app/sections/playground-header-actions.tsx`, add `Card` to the import list from `@/components/ui/card`:
+In `frontend/src/app/sections/playground-header-actions.tsx`, add `Card` to import from `@/components/ui/card`:
 ```tsx
 import { Card } from "@/components/ui/card"
 ```
 
 - [ ] **Step 2: Wrap list item content in Card**
 
-Find (around line 85–95):
+Find (~lines 85–95):
 ```tsx
 <li key={notification.id} className="rounded-xl border px-3 py-2">
   <div className="flex items-center justify-between gap-2">
@@ -589,7 +587,7 @@ Expected: no errors or warnings.
 cd frontend && npx vitest run
 ```
 
-Expected: all tests pass (card changes are purely structural/visual, no logic changes).
+Expected: all pass. Card changes purely structural/visual — no logic touched.
 
 - [ ] **Step 3: Verify no raw `rounded-xl border` bordered containers remain outside `<Card>`**
 
@@ -597,9 +595,9 @@ Expected: all tests pass (card changes are purely structural/visual, no logic ch
 grep -rn "rounded-xl border\|rounded-lg border\|rounded-md border" frontend/src/app/sections/ frontend/src/app/chrome/ --include="*.tsx"
 ```
 
-Expected output: only `rounded-xl border` inside shadcn primitives or ButtonGroup (those are not card surfaces). The count should be zero for card-like `div`/`li` surfaces.
+Expected: only `rounded-xl border` inside shadcn primitives or ButtonGroup. Zero card-like `div`/`li` surfaces.
 
-- [ ] **Step 4: Final commit if any fixes were needed**
+- [ ] **Step 4: Final commit if fixes needed**
 
 ```bash
 git add -p
@@ -610,8 +608,8 @@ git commit -m "fix: resolve any remaining raw bordered container issues"
 
 ## After this plan: future design changes
 
-With this plan complete, to change the visual design of all cards:
-1. **All cards:** edit `card.tsx` — change `rounded-xl` to any other radius, add a `ring`, change border style, etc.
-2. **Main cards only:** edit the `"default"` branch of `cardVariants`
-3. **Subtle/embedded cards only:** edit the `"subtle"` branch
-4. **Global radius:** change `--radius` in `index.css` — all `rounded-xl` (which maps to `calc(var(--radius) + 4px)`) update automatically
+Plan complete → card design changes:
+1. **All cards:** edit `card.tsx` — change `rounded-xl`, add `ring`, change border, etc.
+2. **Main cards only:** edit `"default"` branch of `cardVariants`
+3. **Subtle/embedded only:** edit `"subtle"` branch
+4. **Global radius:** change `--radius` in `index.css` — all `rounded-xl` (`calc(var(--radius) + 4px)`) update automatically

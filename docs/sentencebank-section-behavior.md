@@ -1,92 +1,50 @@
 # Sentencebank Section Behavior
 
-This document describes how the Sentencebank section is populated, rendered, and refreshed in the frontend.
-
 ## 1) Entry points
 
 ### UI section renderer
 
-- The Sentencebank screen is rendered by `SentencebankSection` in `frontend/src/app/sections/sentencebank-section.tsx`.
-- It receives three props: `sentencebankError`, `isSentencebankLoading`, and `sentences`.
+`SentencebankSection` in `frontend/src/app/sections/sentencebank-section.tsx`. Props: `sentencebankError`, `isSentencebankLoading`, `sentences`.
 
 ### Sentence add flow from Playground
 
-- `addSentenceToSentencebank` lives in `frontend/src/app/hooks/use-wordbank-workflows.ts`.
-- The flow is:
-  1. Normalize selected text by collapsing all whitespace runs to single spaces and trimming ends.
-  2. Enforce minimum phrase shape (`hasMultipleWords`) before allowing save.
-  3. Build a normalized key (`normalizePhraseKey`) and block duplicates against existing sentencebank entries.
-  4. POST to `/api/sentencebank/sentences` with `{ source_text: normalizedSelection }`.
-  5. On success, toast success, increment `sentencebankRefreshTick`, and invoke optional `onSentenceSaved` callback.
-  6. On failure, toast an error and always clear the local saving flag in `finally`.
+`addSentenceToSentencebank` in `frontend/src/app/hooks/use-wordbank-workflows.ts`:
+1. Normalize selected text: collapse whitespace to single spaces, trim
+2. Enforce `hasMultipleWords` before allowing save
+3. Build `normalizePhraseKey`, block duplicates against existing entries
+4. `POST /api/sentencebank/sentences` with `{ source_text: normalizedSelection }`
+5. Success → toast, increment `sentencebankRefreshTick`, invoke `onSentenceSaved`
+6. Failure → toast error, clear saving flag in `finally`
 
 ## 2) Loading and error states
 
-The section has a strict render priority in `SentencebankSection`:
-
-1. **Error state first**
-   - If `sentencebankError` exists, render a `<p role="alert">` with destructive text style.
-2. **Initial loading skeleton**
-   - If `isSentencebankLoading` is true **and** `sentences.length === 0`, render two skeleton cards.
-   - This means the skeleton is only shown when there is no previously loaded sentence data.
-3. **Empty state**
-   - If not in error/skeleton and `sentences.length === 0`, show:
-   - `No saved sentences yet. Select a sentence in Playground to add one.`
-4. **List state**
-   - Otherwise render sentence cards in a scroll area.
+Render priority in `SentencebankSection`:
+1. **Error** — `sentencebankError` exists → `<p role="alert">` with destructive text
+2. **Skeleton** — `isSentencebankLoading && sentences.length === 0` → two skeleton cards (only when no prior data)
+3. **Empty** — `sentences.length === 0` → `No saved sentences yet. Select a sentence in Playground to add one.`
+4. **List** — sentence cards in scroll area
 
 ## 3) Add constraints from Playground
 
-`addSentenceToSentencebank` enforces these constraints before writing:
+`addSentenceToSentencebank` guards:
+- **Whitespace normalization**: `selectedText.replace(/\s+/gu, " ").trim()`
+- **Multi-word requirement**: empty/single-word selections ignored (`hasMultipleWords`)
+- **Duplicate detection**: compare via `normalizePhraseKey` against existing `sentence.source_text`; match → no request
 
-- **Whitespace normalization**
-  - `selectedText.replace(/\s+/gu, " ").trim()` is applied first.
-- **Multi-word requirement**
-  - Empty selections and single-word selections are ignored using `hasMultipleWords`.
-- **Duplicate detection by normalized key**
-  - The candidate sentence and each existing `sentence.source_text` are compared via `normalizePhraseKey`.
-  - If any normalized key matches, no request is sent.
+Inserts are idempotent from UI perspective regardless of spacing/casing differences.
 
-These guards keep sentencebank inserts idempotent from the UI perspective, even when raw spacing/casing differs.
+## 4) List rendering
 
-## 4) List rendering semantics
+Each row: `source_text` primary line, `english_translation` secondary line. Translation fallback: null/undefined/blank-after-trim → `No translation available.` Whitespace-only translations treated as missing.
 
-Each list row renders:
+## 5) Refresh / invalidation
 
-- `source_text` as primary line.
-- `english_translation` as secondary line with fallback behavior:
-  - If translation is null/undefined/blank after trim, render `No translation available.`.
-
-This means whitespace-only translations are intentionally treated as missing.
-
-## 5) Refresh / invalidation behavior
-
-Sentencebank fetching is handled by `useLexiconData`.
-
-- The sentence loader effect depends on `[apiClient, sentencebankRefreshTick]`.
-- On every tick change, it:
-  - sets `isSentencebankLoading` true,
-  - clears `sentencebankError`,
-  - fetches `/api/sentencebank/sentences`,
-  - stores `payload.items ?? []` on success,
-  - stores empty list + error on failure,
-  - ends by setting loading false.
-- `addSentenceToSentencebank` increments `sentencebankRefreshTick` after successful save.
-
-Result: successful sentence insertions trigger deterministic re-fetch of the sentence list.
+`useLexiconData` handles fetching. Sentence loader effect depends on `[apiClient, sentencebankRefreshTick]`. Tick change → set loading true, clear error, fetch `/api/sentencebank/sentences`, store `payload.items ?? []` on success / empty list + error on failure, set loading false. `addSentenceToSentencebank` increments tick after successful save → triggers re-fetch.
 
 ## 6) Test map
 
-Current tests that directly/indirectly cover sentencebank behavior:
+- `frontend/src/test/app/app-sentencebank.test.tsx` — saved sentence items shown when fetched
+- `frontend/src/test/app/app-shell-search-basics.test.tsx` — Sentencebank nav entry in shell/sidebar
+- `frontend/src/test/app/app-shell-search-actions.test.tsx` — translation fallback string absent when data present
 
-- `frontend/src/test/app/app-sentencebank.test.tsx`
-  - Verifies saved sentence items are shown in Sentencebank section when fetched.
-- `frontend/src/test/app/app-shell-search-basics.test.tsx`
-  - Verifies Sentencebank navigation entry exists in shell/sidebar.
-- `frontend/src/test/app/app-shell-search-actions.test.tsx`
-  - Verifies translation fallback string is not shown when translation data is present in a word detail/search path (relevant to shared fallback semantics).
-
-Playground phrase-action coverage notes:
-
-- `frontend/src/test/app/app-playground-actions.test.tsx` validates playground popover action mechanics for adding words (request, re-analysis, toasts).
-- There is currently no dedicated test that exercises the full phrase `Add to sentencebank` action path (normalization, duplicate suppression, and tick-driven refetch) end-to-end in one test file.
+Note: `frontend/src/test/app/app-playground-actions.test.tsx` covers popover action mechanics for adding words. No dedicated end-to-end test exercises full `Add to sentencebank` path (normalization, duplicate suppression, tick refetch) in one file.

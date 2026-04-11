@@ -40,11 +40,11 @@
 
 ### Wordbank/Search test classification
 
-- `renderer-only`: frontend rendering from explicit typed fixtures; these tests do not claim backend semantics by themselves.
-- `request-shape`: frontend request bodies, optimistic hydration, polling, and transition behavior.
-- `contract`: backend use-case/API tests that pin `LemmaDetailsResponse`, `AddWordResponse.saved_snapshot`, and `ResolveQueryResponse.word_actions`.
-- `round-trip`: backend flows that save a search-seeded lemma and then read the resulting word page/details payload.
-- Shared frontend contract fixtures live in `frontend/src/test/app/wordbank-contract-fixtures.ts`.
+- `renderer-only`: frontend render from typed fixtures; no backend semantics claimed.
+- `request-shape`: request bodies, optimistic hydration, polling, transition behavior.
+- `contract`: backend use-case/API tests pinning `LemmaDetailsResponse`, `AddWordResponse.saved_snapshot`, `ResolveQueryResponse.word_actions`.
+- `round-trip`: backend flows saving search-seeded lemma, reading word page/details payload.
+- Shared frontend contract fixtures: `frontend/src/test/app/wordbank-contract-fixtures.ts`.
 
 ## End-to-End (E2E)
 

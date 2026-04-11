@@ -1,6 +1,6 @@
 # Documentation index (discoverability + freshness)
 
-This index is the canonical entry point for repository documentation. It is organized by category and includes a freshness index for core behavior docs so reviewers can quickly assess documentation reliability.
+Canonical entry point for repo docs. Organized by category. Freshness index for core behavior docs for quick reliability assessment.
 
 ## API / specs
 
@@ -65,16 +65,16 @@ This index is the canonical entry point for repository documentation. It is orga
 | [Sentencebank section behavior](./sentencebank-section-behavior.md) | Frontend engineers, backend integrators | `frontend/src/app/sections/sentencebank/*`, `backend/app/api/routes/sentencebank.py` | Checkpoint 18 baseline and docs smoke alignment (2026-03-06) | Shared |
 | [Developer section behavior](./developer-section-behavior.md) | Frontend engineers, platform maintainers | `frontend/src/app/sections/developer-section.tsx`, `frontend/src/app/hooks/app/use-developer-settings.ts`, `backend/app/api/routes/developer.py` | Checkpoint 18 baseline and docs smoke alignment (2026-03-06) | Shared |
 
-> Freshness policy: update the verification column whenever behavior or source modules in scope change.
+> Freshness policy: update verification column when behavior or source modules change.
 
 ## Documentation parity checklist (PR review)
 
-Use this checklist in every PR to enforce docs/code parity:
+Use each PR:
 
-- [ ] I reviewed `docs/README.md` and confirmed links/categories still match current docs.
-- [ ] For code/config/API/schema/workflow changes, I updated the relevant documentation in the same PR.
-- [ ] For API route/schema changes, I updated `docs/api-contract.md`.
-- [ ] For command/setup/workflow changes, I updated root `README.md` and relevant docs pages.
-- [ ] For dependency/runtime/version changes, I updated `docs/versions.md`.
-- [ ] I updated freshness metadata for impacted core behavior docs (audience, source modules, verification checkpoint, owning area).
-- [ ] If no docs changed, the PR includes explicit "No documentation impact" justification.
+- [ ] Reviewed `docs/README.md`. Links/categories match current docs.
+- [ ] Code/config/API/schema/workflow changes: updated relevant docs in same PR.
+- [ ] API route/schema changes: updated `docs/api-contract.md`.
+- [ ] Command/setup/workflow changes: updated root `README.md` and relevant docs.
+- [ ] Dependency/runtime/version changes: updated `docs/versions.md`.
+- [ ] Updated freshness metadata for impacted core behavior docs (audience, source modules, verification checkpoint, owning area).
+- [ ] No docs changed: PR includes explicit "No documentation impact" justification.

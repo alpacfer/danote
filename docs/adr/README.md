@@ -1,6 +1,6 @@
 # Architecture Decision Records (ADR)
 
-This directory tracks durable technical decisions.
+Tracks durable technical decisions.
 
 ## Naming convention
 

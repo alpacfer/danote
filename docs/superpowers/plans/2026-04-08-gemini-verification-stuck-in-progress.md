@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Fix two bugs that cause Gemini word verification to permanently display as "in progress" (queued) in the UI.
+**Goal:** Fix two bugs → Gemini word verification permanently shows "in progress" (queued) in UI.
 
-**Architecture:** The verification flow queues a background job → a `ThreadPoolExecutor` worker calls the Gemini API → persists the result → the frontend polls until status leaves `queued`. Two separate failure paths leave the record stuck as `queued` forever: (1) the Gemini client has no HTTP timeout so a slow API call hangs the worker thread indefinitely; (2) when the background job exhausts all retries and fails, the verification record is never transitioned from `queued` to `error`.
+**Architecture:** Verification flow queues background job → `ThreadPoolExecutor` worker calls Gemini API → persists result → frontend polls until status leaves `queued`. Two failure paths leave record stuck as `queued`: (1) Gemini client has no HTTP timeout → slow API call hangs worker thread forever; (2) background job exhausts retries and fails → verification record never transitions `queued` → `error`.
 
 **Tech Stack:** Python 3.10, FastAPI, google-genai 1.65.0, ThreadPoolExecutor background jobs, SQLite.
 
@@ -21,7 +21,7 @@
 self._client = genai.Client(api_key=self.api_key)
 ```
 
-The field `timeout_seconds: float = 20.0` is declared at line 156 but never used. Compare to `gemini_translation.py:143-147` which correctly does:
+`timeout_seconds: float = 20.0` declared at line 156, never used. Compare `gemini_translation.py:143-147`:
 
 ```python
 timeout_ms = max(1, math.ceil(self.timeout_seconds * 1000))
@@ -31,15 +31,15 @@ self._client = genai.Client(
 )
 ```
 
-**Consequence:** When the Gemini API hangs, the background thread blocks forever. The background job stays `running` (never transitions to `failed`). The verification record stays `queued`. The frontend polls at 1.5s intervals indefinitely.
+**Consequence:** Gemini API hangs → background thread blocks forever → job stays `running` (never `failed`) → verification stays `queued` → frontend polls at 1.5s intervals indefinitely.
 
 ### Bug 2 — Failed background job does not update verification record to "error"
 
 **File:** `backend/app/services/use_cases/wordbank/background_jobs.py:79-86` (`_collect_completed_jobs`)
 
-When a `verify_word` job raises an unhandled exception, `mark_retryable_failure` is called. After all retries are exhausted, the background job reaches `status='failed'`. But the wordbank verification record is never updated — it stays `queued`.
+`verify_word` job raises unhandled exception → `mark_retryable_failure` called → after all retries, job reaches `status='failed'` → wordbank verification record never updated → stays `queued`.
 
-**Consequence:** Even if the Gemini call raises a `VerificationError` on every attempt, the verification record stays `queued`. Frontend polls forever.
+**Consequence:** Even if Gemini call raises `VerificationError` every attempt, verification record stays `queued`. Frontend polls forever.
 
 ---
 
@@ -173,7 +173,7 @@ git commit -m "fix: wire timeout_seconds into Gemini verification client http_op
 - Modify: `backend/app/services/use_cases/wordbank/background_jobs.py`
 - Test: `backend/tests/use_cases/test_wordbank_pronunciation_and_verification.py`
 
-**Approach:** In `_collect_completed_jobs`, when a `verify_word` future raises an exception AND this is the final attempt (`job.attempt_count >= job.max_attempts`), persist an `error` verification result. The payload already carries `stored_lemma`, `stored_surface_form`, `meaning_id`.
+**Approach:** In `_collect_completed_jobs`, when `verify_word` future raises exception AND final attempt (`job.attempt_count >= job.max_attempts`), persist `error` verification result. Payload carries `stored_lemma`, `stored_surface_form`, `meaning_id`.
 
 - [ ] **Step 1: Read the existing test file to understand the test patterns**
 
@@ -258,7 +258,7 @@ def test_permanently_failed_verify_word_job_sets_verification_status_to_error(tm
     )
 ```
 
-> Note: `_make_services` is a helper already used in this test file — check the existing pattern and use whatever factory/fixture is already there. If none, import `FakeServices` or equivalent from `tests/helpers/fakes.py`.
+> Note: `_make_services` is a helper already used in this test file — check existing pattern and use whatever factory/fixture is already there. If none, import `FakeServices` or equivalent from `tests/helpers/fakes.py`.
 
 - [ ] **Step 3: Run test to verify it fails**
 
@@ -274,11 +274,11 @@ Expected: FAIL — `AssertionError: Expected 'error' after permanent job failure
 cd backend && grep -n "_make_services\|FakeServices\|make_services" tests/use_cases/test_wordbank_pronunciation_and_verification.py | head -20
 ```
 
-Adapt the test in Step 2 if needed to match the actual pattern.
+Adapt test in Step 2 if needed to match actual pattern.
 
 - [ ] **Step 5: Implement the fix in `background_jobs.py`**
 
-In `backend/app/services/use_cases/wordbank/background_jobs.py`, add a new helper method `_persist_verify_word_error` and call it from `_collect_completed_jobs` on final failure:
+In `backend/app/services/use_cases/wordbank/background_jobs.py`, add `_persist_verify_word_error` and call from `_collect_completed_jobs` on final failure:
 
 ```python
     def _collect_completed_jobs(self, in_flight: dict[Future[None], object]) -> None:
@@ -400,9 +400,9 @@ Expected: all pass
 
 - [ ] **Step 3: Check documentation impact**
 
-These changes fix internal background-job behavior and a missing SDK option — no API contract changes, no command/workflow changes, no version/dependency changes. No documentation update is required.
+Internal background-job + missing SDK option fix. No API contract, command, workflow, or dependency changes. No docs update needed.
 
-**No documentation impact:** Both bugs are in internal service/job plumbing. No API surface, no CLI commands, and no configuration options changed. `docs/api-contract.md` and `docs/versions.md` are unaffected.
+**No documentation impact:** Both bugs in internal service/job plumbing. No API surface, CLI commands, or config options changed. `docs/api-contract.md` and `docs/versions.md` unaffected.
 
 - [ ] **Step 4: Commit if any stray files**
 
@@ -425,10 +425,10 @@ git status
 
 ### Placeholder scan
 
-None — all steps include concrete file paths, exact code, and expected test output.
+None — all steps have concrete file paths, exact code, expected test output.
 
 ### Type consistency
 
 - `_persist_verify_word_error` uses `job.payload` (dict) and `job.id` (int) — both present on `WordbankBackgroundJobRecord`
-- `VerificationResult.status = "error"` is a valid literal per `backend/app/api/schemas/v1/wordbank.py:152`
+- `VerificationResult.status = "error"` valid literal per `backend/app/api/schemas/v1/wordbank.py:152`
 - `persist_verification_result` signature matches existing callers in `verification_records.py`

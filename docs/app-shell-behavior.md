@@ -1,73 +1,62 @@
 # App shell behavior
 
-This document captures the app-shell composition contract in the frontend, including section ownership, navigation state transitions, sidebar/breadcrumb interaction rules, notification-center behavior, shared refresh ticks, and where tests validate these behaviors.
+App-shell composition contract: section ownership, navigation state, sidebar/breadcrumb interaction, notification center, shared refresh ticks, test coverage.
 
 ## 1. Composition and ownership
 
 ### Root shell composition (`frontend/src/App.tsx`)
 
-`App.tsx` owns shell-level composition and wiring:
+`App.tsx` owns:
+- Cross-section state/actions via `useAppController()`
+- `SidebarProvider` + `SidebarInset` wrapper
+- Chrome: `AppSidebar`, mobile `SidebarTrigger`, `AppBreadcrumb`
+- Gates `PlaygroundHeaderActions` to `activeSection === "playground"` only
+- Delegates section body to `SectionContent` with typed prop bundles
 
-- Initializes all cross-section state and actions by calling `useAppController()`.
-- Wraps the page in `SidebarProvider` and uses `SidebarInset` for the main content area.
-- Renders the shell chrome (`AppSidebar`, mobile `SidebarTrigger`, and `AppBreadcrumb`).
-- Gates playground-only header actions (`PlaygroundHeaderActions`) so notification/save controls render only when `activeSection === "playground"`.
-- Delegates section body rendering to `SectionContent` by passing section-specific prop bundles.
-
-`App.tsx` should stay an orchestration layer: state derivation and side-effect workflows are expected to remain in hooks/composition modules, not in the component body.
+Stays orchestration layer: state/side-effects in hooks, not component body.
 
 ### Section layout switch (`frontend/src/app/layout/section-content.tsx`)
 
-`SectionContent` is the canonical section multiplexer:
+`SectionContent`: canonical section multiplexer. Input: `activeSection` + typed props. Exactly one section rendered:
+- `"playground"` -> `PlaygroundSection`
+- `"notes"` -> `NotesSection`
+- `"wordbank"` -> `WordbankSection`
+- `"sentencebank"` -> `SentencebankSection`
+- fallback -> `DeveloperSection`
 
-- Input: `activeSection` plus typed props for each section component.
-- Behavior: exactly one section component is rendered at a time.
-- Routing contract:
-  - `"playground"` -> `PlaygroundSection`
-  - `"notes"` -> `NotesSection`
-  - `"wordbank"` -> `WordbankSection`
-  - `"sentencebank"` -> `SentencebankSection`
-  - fallback -> `DeveloperSection`
-
-No additional app-shell side effects should be added here; it is intentionally a pure render switch.
+Pure render switch; no app-shell side effects.
 
 ### Chrome ownership (`frontend/src/app/chrome/*`)
 
 #### Sidebar (`frontend/src/app/chrome/sidebar/app-sidebar.tsx`)
 
-`AppSidebar` owns:
-
-- Search-first sidebar header layout with no standalone app title label.
-- Primary section navigation buttons (Playground, Notes, Wordbank, Sentencebank, Developer).
-- Wordbank unread count badge presentation in nav.
-- Command search dialog open/close state and query state.
-- Search aggregation + ranking through `useSidebarSearch` + `useSidebarSearchRanking`.
-- Search result action dispatch (`onOpenSavedNote`, `onOpenWordbankLemma`, `onOpenWordbankMeaning`, `onAddWordFromSearch`).
-- Keyboard shortcuts through `useSidebarHotkeys` (`Alt+P/N/W/S/D` and search toggle).
+- Search-first header (no standalone app title)
+- Section nav buttons: Playground, Notes, Wordbank, Sentencebank, Developer
+- Wordbank unread badge in nav
+- Command search dialog state + query state
+- Search aggregation/ranking: `useSidebarSearch` + `useSidebarSearchRanking`
+- Search result actions: `onOpenSavedNote`, `onOpenWordbankLemma`, `onOpenWordbankMeaning`, `onAddWordFromSearch`
+- Keyboard shortcuts: `useSidebarHotkeys` (`Alt+P/N/W/S/D`, search toggle)
 
 #### Breadcrumb (`frontend/src/app/chrome/app-breadcrumb.tsx`)
 
-`AppBreadcrumb` owns the current page trail label policy:
-
-- Playground: current active note name (fallback `Playground`).
-- Notes: `Notes`.
-- Sentencebank: `Sentencebank`.
-- Developer: `Developer`.
-- Wordbank:
-  - root: `Wordbank` as page text.
-  - lemma detail: clickable `Wordbank` parent + current `selectedLemma` tail.
+Page trail labels:
+- Playground: active note name (fallback `Playground`)
+- Notes: `Notes`
+- Sentencebank: `Sentencebank`
+- Developer: `Developer`
+- Wordbank root: `Wordbank`; lemma detail: clickable `Wordbank` + `selectedLemma` tail
 
 #### Header actions
 
-`PlaygroundHeaderActions` (`frontend/src/app/sections/playground-header-actions.tsx`) is used as shell header chrome in playground mode and owns:
-
-- Save / create-new-note button behavior and labeling.
-- Notification bell visual state, unread count, and popover rendering.
-- Verification-progress spinner state in the notification trigger.
+`PlaygroundHeaderActions` (`frontend/src/app/sections/playground-header-actions.tsx`): shell header chrome in playground mode.
+- Save/create-new-note button behavior + labeling
+- Notification bell visual state, unread count, popover
+- Verification-progress spinner state
 
 ## 2. Section switching contract
 
-Section navigation state is centralized in `useSectionNavigation()`.
+Centralized in `useSectionNavigation()`.
 
 ### Core state
 
@@ -77,198 +66,120 @@ Section navigation state is centralized in `useSectionNavigation()`.
 
 ### Navigation handlers and selection reset rules
 
-- `selectPlayground()`:
-  - `activeSection = "playground"`
-  - clears `selectedMeaningId`
-  - preserves `selectedLemma`
-- `selectNotes()`:
-  - `activeSection = "notes"`
-  - clears `selectedLemma` and `selectedMeaningId`
-- `selectWordbank()`:
-  - `activeSection = "wordbank"`
-  - clears `selectedLemma` and `selectedMeaningId` (opens wordbank root)
-- `selectSentencebank()`:
-  - `activeSection = "sentencebank"`
-  - clears `selectedLemma` and `selectedMeaningId`
-- `selectDeveloper()`:
-  - `activeSection = "developer"`
-  - clears `selectedLemma` and `selectedMeaningId`
-- `openWordbankLemma(lemma)`:
-  - `activeSection = "wordbank"`
-  - sets `selectedLemma = lemma`
-  - clears `selectedMeaningId`
-- `openWordbankMeaning(lemma, meaningId)`:
-  - `activeSection = "wordbank"`
-  - sets `selectedLemma = lemma`
-  - sets `selectedMeaningId = meaningId`
-- `openWordbankRoot()`:
-  - `activeSection = "wordbank"`
-  - clears `selectedLemma` and `selectedMeaningId`
+- `selectPlayground()`: `activeSection = "playground"`, clears `selectedMeaningId`, preserves `selectedLemma`
+- `selectNotes()`: `activeSection = "notes"`, clears `selectedLemma` + `selectedMeaningId`
+- `selectWordbank()`: `activeSection = "wordbank"`, clears `selectedLemma` + `selectedMeaningId` (root)
+- `selectSentencebank()`: `activeSection = "sentencebank"`, clears `selectedLemma` + `selectedMeaningId`
+- `selectDeveloper()`: `activeSection = "developer"`, clears `selectedLemma` + `selectedMeaningId`
+- `openWordbankLemma(lemma)`: `activeSection = "wordbank"`, `selectedLemma = lemma`, clears `selectedMeaningId`
+- `openWordbankMeaning(lemma, meaningId)`: `activeSection = "wordbank"`, sets both
+- `openWordbankRoot()`: `activeSection = "wordbank"`, clears `selectedLemma` + `selectedMeaningId`
 
-### Note selection state (`activeSavedNote` / `selectedNote` equivalent)
+### Note selection state
 
-The app shell tracks active note selection through `useNotesPersistence()` (`activeNoteId` -> `activeSavedNote`):
-
-- Opening a saved note from notes list or command search calls `openSavedNoteById` -> `openSavedNoteInPlayground`.
-- This restores note content/tokens/metadata, sets `activeNoteId`, marks autosave as saved, and navigates to `activeSection = "playground"`.
-- Breadcrumb title in playground mode reflects `activeSavedNote?.name`.
+Tracked via `useNotesPersistence()` (`activeNoteId` -> `activeSavedNote`):
+- Opening saved note (from list or search) → `openSavedNoteById` -> `openSavedNoteInPlayground`
+- Restores content/tokens/metadata, sets `activeNoteId`, marks autosave saved, navigates to `activeSection = "playground"`
+- Breadcrumb title reflects `activeSavedNote?.name`
 
 ## 3. Sidebar + breadcrumb interplay
 
-### Sidebar open/close behavior
+### Sidebar open/close
 
-Via shared shadcn sidebar primitives (`SidebarProvider`, `Sidebar`, `SidebarTrigger`):
+Via shadcn sidebar primitives:
+- Desktop: inset/offcanvas, collapse/expand; `Ctrl/Cmd+b` toggles
+- Mobile: sheet (`openMobile`); `SidebarTrigger` toggles
 
-- Desktop:
-  - Sidebar is rendered as inset/offcanvas and can collapse/expand.
-  - `Ctrl/Cmd + b` toggles sidebar open state.
-- Mobile:
-  - Sidebar renders as a sheet (`openMobile` state).
-  - The `SidebarTrigger` button in the mobile header toggles that sheet.
+### Mobile trigger
 
-### Mobile trigger behavior
-
-`App.tsx` renders a header only on `md:hidden` breakpoints with:
-
-- `SidebarTrigger`
-- no extra app title text; the trigger stands alone
-
-This provides mobile navigation access without rendering desktop rail interactions.
+`App.tsx` header on `md:hidden`: `SidebarTrigger` only, no app title text.
 
 ### Selected target routing and breadcrumb sync
 
-- Sidebar nav buttons call section-select handlers from `useAppController`.
-- Search results can route to:
-  - note -> `openSavedNoteById` -> playground + active note loaded.
-  - wordbank lemma/meaning -> `openWordbankLemma` / `openWordbankMeaning`.
-- Breadcrumb renders from `activeSection`, `selectedLemma`, and `activeSavedNote` from the same controller state, so navigation and breadcrumb are synchronized by construction.
-- In lemma detail view, clicking breadcrumb `Wordbank` calls `openWordbankRoot()` and resets lemma/meaning selection.
+- Nav buttons call section-select handlers from `useAppController`
+- Search results route to:
+  - note → `openSavedNoteById` → playground + active note loaded
+  - wordbank lemma/meaning → `openWordbankLemma` / `openWordbankMeaning`
+- Breadcrumb renders from same controller state (`activeSection`, `selectedLemma`, `activeSavedNote`) → nav + breadcrumb synchronized by construction
+- Lemma detail: clicking breadcrumb `Wordbank` → `openWordbankRoot()`, resets lemma/meaning
 
 ## 4. Notification center semantics
 
-Notification state is managed by `useNotificationCenter()` and surfaced through `PlaygroundHeaderActions`.
+State: `useNotificationCenter()`; surface: `PlaygroundHeaderActions`.
 
 ### Unread indicators
 
-- Every pushed notification starts with `read: false`.
-- `unreadNotifications` is derived by filtering `!read`.
-- `hasUnreadNotifications` drives bell styling (`default` variant when unread, otherwise `outline`).
-- Unread count shown on bell comes from `unreadNotifications.length`.
-- Wordbank-specific unread badge in sidebar comes only from unread action-required `word_verification` notifications (`flagged` or `error`), not from queued/in-progress targets.
-- Word verification notifications are current-state records, not an append-only event log:
-  - each target is keyed by `(lemma, meaningId, surfaceForm)` via `targetKey`
-  - queued/in-progress state does not create or keep a notification row for that target
-  - review-needed and retry-needed updates upsert the same notification row for that target
-  - verified or skipped settlements remove any existing current-state notification row for that target, so unchanged Gemini success is silent
-  - sidebar lemma badges are derived from unread current-state verification targets grouped by lemma
+- Pushed notifications start `read: false`; `unreadNotifications` = filtered `!read`
+- `hasUnreadNotifications` drives bell variant (`default` unread, `outline` otherwise)
+- Unread count = `unreadNotifications.length`
+- Wordbank sidebar badge: only unread action-required `word_verification` (`flagged`/`error`), not queued/in-progress
+- Word verification notifications = current-state records (not append-only event log):
+  - keyed by `(lemma, meaningId, surfaceForm)` via `targetKey`
+  - queued/in-progress → no notification row
+  - review-needed/retry-needed → upsert same row
+  - verified/skipped → remove row (silent success)
+  - sidebar badges: unread current-state targets grouped by lemma
 
 ### Open/close
 
-- Popover open state is controlled by `isNotificationsOpen` + `setIsNotificationsOpen` in app controller.
-- Bell button is disabled only when there are no unread notifications and verification is not currently running.
-- If verification is running, bell shows spinner icon and remains available as status affordance.
-- While verification is only in progress, the bell stays spinner-only; it does not show an unread count until a target settles into an action-required state.
-- Verification-running state can come from backend-queued wordbank jobs even when the user has already navigated away from that lemma page; the frontend tracks queued targets returned from add responses and polls those lemmas until each target settles.
-- Completion-variations follow-up reviews for noun, adjective, and verb meaning sections participate in the same off-page tracking flow using the explicit `queued_verification_targets` returned by the complete-variations API response.
+- Popover state: `isNotificationsOpen` + `setIsNotificationsOpen` in app controller
+- Bell disabled: no unread + not currently verifying
+- Verifying → spinner icon, bell stays available as status affordance
+- In-progress → spinner only; no unread count until target reaches action-required state
+- Verification-running state persists from backend-queued jobs even after navigating away; frontend tracks queued targets from add responses, polls until settled
+- Completion-variations follow-up reviews participate in same off-page tracking via `queued_verification_targets` from complete-variations response
 
 ### Mark-read behavior
 
-- Global mark-read API exists: `markAllNotificationsAsRead()`.
-- Automatic read-on-navigation is no longer used for word verification notifications.
-- Targeted mark-read now happens only when the user opens the word-page verification popover.
-- Matching rules for targeted mark-read:
-  - only unread `word_verification` notifications are eligible
-  - the popover marks read only the verification targets currently visible on that word page
-  - matching uses the same per-target `targetKey` used for notification upserts, so meaning-level and surface-level verification rows stay distinct
+- Global: `markAllNotificationsAsRead()`
+- Auto read-on-navigation: no longer used for word verification
+- Targeted: only when user opens word-page verification popover
+- Matching: only unread `word_verification`; popover marks only visible targets on that word page; uses same `targetKey` as upserts (meaning-level and surface-level rows stay distinct)
 
 ## 5. Shared refresh ticks and propagation
 
-`useAppFoundation()` provides refresh ticks consumed by data hooks and workflows:
-
+`useAppFoundation()` provides:
 - `wordbankRefreshTick`
 - `sentencebankRefreshTick`
-- analysis refresh tick (inside `useAnalysis`, updated through `setAnalysisRefreshTick` passed into wordbank workflows)
+- analysis refresh tick (via `useAnalysis`, `setAnalysisRefreshTick` passed to wordbank workflows)
 
 ### Cross-section update flows
 
-- Adding a word (playground token add or search add) increments:
-  - analysis refresh tick
-  - wordbank refresh tick
-  This keeps token analysis and wordbank UI synchronized after persistence.
-
-- Saving a sentence to sentencebank increments:
-  - sentencebank refresh tick
-  This refreshes sentencebank lists and closes phrase popover through `onSentenceSaved` composition behavior.
-
-- Pronunciation regeneration and verification workflows can bump wordbank refresh tick, allowing wordbank detail/list views to re-fetch updated lemma data.
-
-- `useLexiconData()` receives `activeSection`, `selectedLemma`, and both refresh ticks, so background data fetch behavior responds both to navigation targets and mutation side effects.
+- Adding word (playground token or search) → increments analysis + wordbank refresh ticks
+- Saving sentence to sentencebank → increments sentencebank refresh tick → refreshes lists + closes phrase popover via `onSentenceSaved`
+- Pronunciation regeneration + verification workflows → may bump wordbank refresh tick
+- `useLexiconData()` receives `activeSection`, `selectedLemma`, both refresh ticks → background fetch responds to navigation + mutation side effects
 
 ## 6. App-shell test coverage map (`frontend/src/test/app/app-shell-*.test.tsx`)
 
-Current app-shell tests are search/shell focused.
-
 ### `app-shell-search-basics.test.tsx`
 
-Covers:
-
-- shell baseline render (header/status/nav)
-- sidebar navigation presence
-- command dialog open + mixed results behavior
-- saved lemma top action/eye icon behavior
-- fallback and minimal-query behavior for wordbank API search
+Shell baseline render, sidebar nav presence, command dialog open + mixed results, saved lemma eye icon, wordbank API search fallback/ minimal-query behavior
 
 ### `app-shell-search-actions.test.tsx`
 
-Covers:
-
-- COR grouped variant rendering and add actions
-- post-add section/open behavior and metadata row expectations
-- local COR request debounce + cache behavior
-- opening saved snapshot word page before detail reload completion
+COR grouped variants + add actions, post-add section/open behavior + metadata, local COR debounce + cache, opening saved snapshot word page before detail reload
 
 ### `app-shell-search-errors.test.tsx`
 
-Covers:
-
-- translation failure degradation (untranslated COR still shown)
-- network failure while adding from search
-- API error propagation while adding from search
+Translation failure degradation (untranslated COR shown), network failure on add, API error propagation on add
 
 ### `app-shell-search-ranking-order.test.tsx`
 
-Covers:
-
-- exact-form homograph add-action ordering
-- opening selected saved meaning section from search
-- saved row presentation consistency
-- exact-query gating for saved-prefix matches
-- priority order: saved exact match above add-variation candidates
+Exact-form homograph add-action ordering, opening selected saved meaning, saved row consistency, exact-query gating for saved-prefix, priority: saved exact above add-variation
 
 ### `app-shell-search-ranking-results.test.tsx`
 
-Covers:
-
-- second-line suppression when gloss is absent
-- retaining alternative add options with exact saved forms
-- saved-variation eye icon behavior with alternatives preserved
-- hiding only saved COR id while keeping homonym alternatives
+Second-line suppression without gloss, retaining alternative adds with exact saved forms, saved-variation eye with alternatives, hiding only saved COR id while keeping homonym alternatives
 
 ### `app-shell-search-ranking-selection.test.tsx`
 
-Covers:
-
-- selection ordering between exact-lemma open and linked variation rows
-- existing-lemma variation priority vs other COR options
-- exact-query gating for saved lemmas with non-legacy badges
+Selection ordering: exact-lemma open vs linked variation, existing-lemma variation priority vs COR options, exact-query gating for saved lemmas with non-legacy badges
 
 ### `app-shell-search-ranking-state.test.tsx`
 
-Covers:
-
-- preserving added result visibility/selection across exact-query transitions
-- resetting command selection to first result on new search updates
+Added result visibility/selection across exact-query transitions, command selection reset to first result on new search
 
 ### Coverage gap note
 
-These app-shell tests currently emphasize sidebar command search ranking, actions, and resilience. They do not directly assert mobile sidebar trigger behavior or explicit breadcrumb click-back behavior; those contracts are primarily covered by implementation coupling in `App.tsx`, `AppBreadcrumb`, and shared sidebar primitives.
+Tests emphasize sidebar command search ranking/actions/resilience. Mobile sidebar trigger and explicit breadcrumb click-back not directly asserted; covered by implementation coupling in `App.tsx`, `AppBreadcrumb`, shared sidebar primitives.

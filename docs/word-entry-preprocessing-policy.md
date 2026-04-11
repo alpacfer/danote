@@ -1,20 +1,17 @@
 # Word-entry preprocessing policy
 
-This document defines how danote preprocesses user-provided text before lexical classification and action generation.
+danote preprocesses user text before lexical classification + action generation.
 
 ## Policy
 
-For all word-entry paths that classify or resolve words (`/api/analyze` and `/api/analyze/enrich-token` via `resolve_query`):
+All word-entry paths classifying/resolving words (`/api/analyze`, `/api/analyze/enrich-token` via `resolve_query`):
 
-1. Strip inline comments introduced by `#` on each line.
-2. Normalize whitespace and case before lookup/classification.
+1. Strip inline `#` comments per line.
+2. Normalize whitespace + case before lookup/classification.
 
 ## Why
 
-Historically, note analysis stripped inline comments, while search/resolve paths used raw query text.
-This could cause subtle inconsistencies for inputs containing `#` comments.
-
-Applying the same preprocessing behavior to both paths keeps classification and action suggestions predictable.
+Note analysis stripped inline comments; search/resolve paths used raw query text. Caused inconsistencies for inputs with `#` comments. Same preprocessing on both paths → predictable classification + action suggestions.
 
 ## Implementation references
 
