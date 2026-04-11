@@ -286,4 +286,63 @@ describe("App shell and search", () => {
       expect(input).toHaveValue("hus")
     })
   })
+
+  it("shows direct COR results before did-you-mean when wordbank has correction but COR has exact match", async () => {
+    mockFetchImplementation({
+      wordbankSearchHandler: async (_input) => {
+        const url = typeof _input === "string" ? _input : _input instanceof URL ? _input.toString() : _input.url
+        const parsed = new URL(url, "http://localhost")
+        const query = parsed.searchParams.get("query") ?? ""
+        if (query === "huse") {
+          return responseOf({
+            items: [{ lemma: "hus", display_lemma: "hus", variation_count: 0, english_translation: "house", match_surface: "hus", query_cor_ids: [], meaning_id: null, meaning_key: null, gloss: null, cor_lemma_idx: null }],
+            did_you_mean: "hus",
+          })
+        }
+        return responseOf({ items: [] })
+      },
+      corSearchFormResponse: {
+        form: "huse",
+        did_you_mean: null,
+        groups: [
+          {
+            lemma: "hus",
+            gloss: "house",
+            pos_tag: "NOUN",
+            variants: [
+              {
+                cor_id: "COR.HUS.1",
+                form: "huse",
+                lemma: "hus",
+                gloss: "houses",
+                lemma_translation: "house",
+                gram_raw: "sb.itk.pl.ubest",
+                norm: "N",
+                lemma_idx: 1,
+                gram_code: 1,
+                variation: 1,
+                pos_tag: "NOUN",
+                morphology: "Number=Plur|Definite=Ind",
+                features: { Number: "Plur", Definite: "Ind" },
+                extra_tags: [],
+              },
+            ],
+          },
+        ],
+      },
+    })
+
+    renderApp()
+    const searchButton = await screen.findByRole("button", { name: /search/i })
+    fireEvent.click(searchButton)
+    const commandDialog = await screen.findByRole("dialog")
+    const input = within(commandDialog).getByPlaceholderText(/search words and notes/i)
+    fireEvent.change(input, { target: { value: "huse" } })
+
+    const dymItem = await within(commandDialog).findByText(/did you mean/i)
+    const corResult = await within(commandDialog).findByText(/huse/i)
+
+    // COR result must appear before DYM banner in DOM
+    expect(corResult.compareDocumentPosition(dymItem) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
 })
