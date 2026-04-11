@@ -219,7 +219,7 @@ describe("App shell and search", () => {
 
   it("shows Did you mean suggestion when search returns did_you_mean", async () => {
     mockFetchImplementation({
-      wordbankSearchHandler: async (_input, _init) => {
+      wordbankSearchHandler: async (_input) => {
         const url = typeof _input === "string" ? _input : _input instanceof URL ? _input.toString() : _input.url
         const parsed = new URL(url, "http://localhost")
         const query = parsed.searchParams.get("query") ?? ""
@@ -250,7 +250,7 @@ describe("App shell and search", () => {
 
   it("selecting Did you mean replaces the search query", async () => {
     mockFetchImplementation({
-      wordbankSearchHandler: async (_input, _init) => {
+      wordbankSearchHandler: async (_input) => {
         const url = typeof _input === "string" ? _input : _input instanceof URL ? _input.toString() : _input.url
         const parsed = new URL(url, "http://localhost")
         const query = parsed.searchParams.get("query") ?? ""
