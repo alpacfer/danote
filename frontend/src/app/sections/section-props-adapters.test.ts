@@ -32,18 +32,29 @@ describe("section prop adapters", () => {
   })
 
   it("maps sentencebank props without alteration", () => {
-    const sentences = [{ id: "1", source_text: "Hej", english_translation: "Hi" }]
+    const sentences = [{ id: 1, source_text: "Hej", english_translation: "Hi" }]
+    const openWordbankLemma = vi.fn()
+    const openWordbankMeaning = vi.fn()
+    const openSentence = vi.fn()
 
     const result = buildSentencebankSectionProps({
       sentencebankError: null,
       isSentencebankLoading: false,
       sentences: sentences as never,
+      openWordbankLemma,
+      openWordbankMeaning,
+      selectedSentenceId: 42,
+      openSentence,
     })
 
     expect(result).toEqual({
       sentencebankError: null,
       isSentencebankLoading: false,
       sentences,
+      onOpenWordbankLemma: openWordbankLemma,
+      onOpenWordbankMeaning: openWordbankMeaning,
+      selectedSentenceId: 42,
+      onOpenSentence: openSentence,
     })
   })
 
