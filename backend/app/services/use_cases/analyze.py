@@ -11,17 +11,15 @@ from app.services.use_cases.wordbank import build_word_action_suggestions
 
 
 class AnalyzeNoteUseCase:
-    def __init__(self, db_path, nlp_adapter: NLPAdapter, typo_engine=None):
+    def __init__(self, db_path, nlp_adapter: NLPAdapter):
         self._db_path = db_path
         self._nlp_adapter = nlp_adapter
-        self._typo_engine = typo_engine
 
     def execute(self, text: str) -> list[AnalyzedToken]:
         text_without_comments = strip_inline_comments(text)
         classifier = LemmaAwareClassifier(
             self._db_path,
             nlp_adapter=self._nlp_adapter,
-            typo_engine=self._typo_engine,
         )
 
         token_metadata: list[tuple[str, str | None, str | None]] = []
@@ -57,14 +55,7 @@ class AnalyzeNoteUseCase:
                         match_source=result.match_source,
                         matched_lemma=result.matched_lemma,
                         matched_surface_form=result.matched_surface_form,
-                        suggestions=[
-                            {
-                                "value": suggestion.value,
-                                "score": suggestion.score,
-                                "source_flags": list(suggestion.source_flags),
-                            }
-                            for suggestion in result.suggestions
-                        ],
+                        suggestions=[],
                         confidence=result.confidence,
                         reason_tags=list(result.reason_tags),
                         word_actions=build_word_action_suggestions(
