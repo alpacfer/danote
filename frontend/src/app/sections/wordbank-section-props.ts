@@ -48,6 +48,7 @@ export type WordbankSectionAdapterArgs = {
     searchSeed?: import("@/app/core").SearchSaveSeed | null,
   ) => Promise<string | null>
   openRelatedWordTarget: (lemma: string, meaningId: number | null) => void
+  openSentence?: (id: number) => void
 }
 
 export function buildWordbankSectionProps(
@@ -108,5 +109,6 @@ export function buildWordbankSectionProps(
     },
     onSaveRelatedWordFromSearchSeed: args.saveRelatedWordFromSearchSeed,
     onOpenRelatedWordTarget: args.openRelatedWordTarget,
+    onOpenSentence: args.openSentence,
   }
 }

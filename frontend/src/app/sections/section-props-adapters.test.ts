@@ -70,6 +70,7 @@ describe("section prop adapters", () => {
     const revertChange = vi.fn(async () => undefined)
     const saveRelatedWordFromSearchSeed = vi.fn(async () => null)
     const openRelatedWordTarget = vi.fn()
+    const openSentence = vi.fn()
     const markVisibleVerificationNotificationsAsRead = vi.fn()
 
     const result = buildWordbankSectionProps({
@@ -115,6 +116,7 @@ describe("section prop adapters", () => {
       revertVerificationChange: revertChange,
       saveRelatedWordFromSearchSeed,
       openRelatedWordTarget,
+      openSentence,
     })
 
     result.onPlayPronunciation("bog")
@@ -140,6 +142,8 @@ describe("section prop adapters", () => {
     expect(retry).toHaveBeenCalledTimes(1)
     expect(rerun).toHaveBeenCalledWith(12)
     expect(revertChange).toHaveBeenCalledWith(4)
+    result.onOpenSentence?.(41)
+    expect(openSentence).toHaveBeenCalledWith(41)
     expect(result.selectedMeaningId).toBe(12)
   })
 
