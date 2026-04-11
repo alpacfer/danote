@@ -9,7 +9,6 @@ import {
   CommandShortcut,
 } from "@/components/ui/command"
 import {
-  normalizeSearchWord,
   previewText,
   type CORSearchGroup,
   type CORSearchVariant,
@@ -21,7 +20,6 @@ import {
 
 import { SidebarCorResults } from "@/app/chrome/sidebar/sidebar-cor-results"
 import { SidebarWordbankResults } from "@/app/chrome/sidebar/sidebar-wordbank-results"
-import { savedWordbankResultKey } from "@/app/chrome/sidebar/use-sidebar-search-ranking"
 
 type PageItem = {
   key: string
@@ -85,36 +83,17 @@ type SidebarSearchResultsProps = {
 export function SidebarSearchResults({ state, data, actions }: SidebarSearchResultsProps) {
   const dymSuggestion = state.wordbankDidYouMean ?? state.corDidYouMean
 
-  // When wordbankDidYouMean is set, a wordbank item may still display an exact
-  // match form (via its linked COR display variant). Those items belong in the
-  // direct group rather than the corrected group.
-  const directWordbankItems = !state.wordbankDidYouMean
-    ? data.orderedWordbankResults
-    : data.orderedWordbankResults.filter((item) => {
-        const displayVariant = data.displayVariantBySavedResult.get(savedWordbankResultKey(item))?.variant
-        if (displayVariant) {
-          return normalizeSearchWord(displayVariant.form) === state.normalizedQuery
-        }
-        const matchSurface = normalizeSearchWord(item.match_surface ?? "")
-        return matchSurface === state.normalizedQuery || normalizeSearchWord(item.lemma) === state.normalizedQuery
-      })
-
-  const correctedWordbankItems = !state.wordbankDidYouMean
-    ? []
-    : data.orderedWordbankResults.filter((item) => {
-        const displayVariant = data.displayVariantBySavedResult.get(savedWordbankResultKey(item))?.variant
-        if (displayVariant) {
-          return normalizeSearchWord(displayVariant.form) !== state.normalizedQuery
-        }
-        const matchSurface = normalizeSearchWord(item.match_surface ?? "")
-        return matchSurface !== state.normalizedQuery && normalizeSearchWord(item.lemma) !== state.normalizedQuery
-      })
-
-  const hasDirectWordbank = directWordbankItems.length > 0
+  // Wordbank goes to the direct section when there's no DYM correction, or when
+  // the current query is an exact form of a saved word (displayVariantBySavedResult
+  // is populated by the ranking hook only for exact query-form matches).
+  const hasDirectWordbank = data.orderedWordbankResults.length > 0
+    && (!state.wordbankDidYouMean || data.displayVariantBySavedResult.size > 0)
   const hasDirectCor = !state.corDidYouMean && data.corSearchVariantsToRender.length > 0
   const hasDirectResults = hasDirectWordbank || hasDirectCor
 
-  const hasCorrectedWordbank = correctedWordbankItems.length > 0
+  const hasCorrectedWordbank = Boolean(state.wordbankDidYouMean)
+    && data.orderedWordbankResults.length > 0
+    && !hasDirectWordbank
   const hasCorrectedCor = Boolean(state.corDidYouMean) && data.corSearchVariantsToRender.length > 0
   const hasCorrectedResults = hasCorrectedWordbank || hasCorrectedCor
 
@@ -129,7 +108,7 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
         <CommandGroup heading="Wordbank">
           {hasDirectWordbank ? (
             <SidebarWordbankResults
-              orderedWordbankResults={directWordbankItems}
+              orderedWordbankResults={data.orderedWordbankResults}
               displayVariantBySavedResult={data.displayVariantBySavedResult}
               addVariationBySavedResult={data.addVariationBySavedResult}
               exactSavedVariationKeySet={data.exactSavedVariationKeySet}
@@ -176,7 +155,7 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
         <CommandGroup heading="Wordbank">
           {hasCorrectedWordbank ? (
             <SidebarWordbankResults
-              orderedWordbankResults={correctedWordbankItems}
+              orderedWordbankResults={data.orderedWordbankResults}
               displayVariantBySavedResult={data.displayVariantBySavedResult}
               addVariationBySavedResult={data.addVariationBySavedResult}
               exactSavedVariationKeySet={data.exactSavedVariationKeySet}
