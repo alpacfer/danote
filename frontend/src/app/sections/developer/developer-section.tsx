@@ -1,4 +1,3 @@
-import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { type DeveloperServiceProbeResponse, type GeminiProbeResponse, type ApiStatusItem, type ConnectionStatus, type NlpModelOption } from "@/app/core"
 import { ApiKeysTab } from "./api-keys-tab"
@@ -52,15 +51,15 @@ export type DeveloperSectionProps = {
 
 export function DeveloperSection(props: DeveloperSectionProps) {
   return (
-    <div className="flex flex-col">
-      <Tabs defaultValue="status">
+    <Tabs defaultValue="status">
+      <div className="flex flex-col gap-4">
         <TabsList>
           <TabsTrigger value="status">Status</TabsTrigger>
           <TabsTrigger value="api-keys">API Keys</TabsTrigger>
           <TabsTrigger value="probes">Probes</TabsTrigger>
           <TabsTrigger value="database">Database</TabsTrigger>
         </TabsList>
-        <TabsContent value="status" forceMount>
+        <TabsContent value="status">
           <StatusTab
             badgeVariant={props.badgeVariant}
             status={props.status}
@@ -71,7 +70,7 @@ export function DeveloperSection(props: DeveloperSectionProps) {
             onSelectedNlpModelChange={props.onSelectedNlpModelChange}
           />
         </TabsContent>
-        <TabsContent value="api-keys" forceMount>
+        <TabsContent value="api-keys">
           <ApiKeysTab
             translationProvider={props.translationProvider}
             translationProviderOptions={props.translationProviderOptions}
@@ -98,7 +97,7 @@ export function DeveloperSection(props: DeveloperSectionProps) {
             onSaveDeveloperApiKeys={props.onSaveDeveloperApiKeys}
           />
         </TabsContent>
-        <TabsContent value="probes" forceMount>
+        <TabsContent value="probes">
           <ProbesTab
             translationProvider={props.translationProvider}
             isTestingTranslation={props.isTestingTranslation}
@@ -112,28 +111,13 @@ export function DeveloperSection(props: DeveloperSectionProps) {
             onRunGeminiProbe={props.onRunGeminiProbe}
           />
         </TabsContent>
-        <TabsContent value="database" forceMount>
+        <TabsContent value="database">
           <DatabaseTab
             isResettingDatabase={props.isResettingDatabase}
             onResetDatabase={props.onResetDatabase}
           />
         </TabsContent>
-      </Tabs>
-      <div className="sticky bottom-0 mt-4 flex items-center justify-between border-t py-3">
-        <span className="text-muted-foreground text-sm">Danger zone</span>
-        <div className="flex items-center gap-3">
-          <span className="text-muted-foreground text-xs">Deletes database and clears all browser cache</span>
-          <Button
-            type="button"
-            variant="destructive"
-            size="sm"
-            disabled={props.isResettingDatabase}
-            onClick={props.onResetDatabase}
-          >
-            {props.isResettingDatabase ? "Deleting..." : "Delete DB + Clear cache"}
-          </Button>
-        </div>
       </div>
-    </div>
+    </Tabs>
   )
 }

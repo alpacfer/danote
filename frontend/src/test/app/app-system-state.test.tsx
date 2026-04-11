@@ -1,4 +1,5 @@
 import { act, fireEvent, mockFetchImplementation, renderApp, responseOf, screen, setNotesEditorText, toast, vi, waitFor, within } from "@/test/app-test-helpers"
+import userEvent from "@testing-library/user-event"
 
 describe("App system state", () => {
   it("renders offline status when health check fails", async () => {
@@ -49,9 +50,14 @@ describe("App system state", () => {
     expect(screen.getByText("Backend API")).toBeInTheDocument()
     expect(screen.getByText("Azure Translator API")).toBeInTheDocument()
     expect(screen.getByText("Azure Speech API")).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /apply runtime api keys/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /test gemini/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /delete db \+ clear cache/i })).not.toBeInTheDocument()
   })
 
   it("tests Gemini from developer options and shows inline result", async () => {
+    const user = userEvent.setup()
+
     mockFetchImplementation({
       healthResponse: {
         status: "ok",
@@ -76,19 +82,21 @@ describe("App system state", () => {
     await screen.findByLabelText("backend-connection-status")
 
     fireEvent.click(screen.getByRole("button", { name: /developer/i }))
-    await act(async () => {
-      fireEvent.click(screen.getByRole("tab", { name: /probes/i }))
-      await new Promise((r) => setTimeout(r, 0))
-    })
+    await user.click(screen.getByRole("tab", { name: /probes/i }))
     fireEvent.click(await screen.findByRole("button", { name: /test gemini/i }))
 
     expect(await screen.findByLabelText("gemini-probe-result")).toHaveTextContent(/the book/i)
     expect(vi.mocked(toast.success)).toHaveBeenCalledWith("Gemini probe completed successfully.")
+    expect(screen.queryByLabelText("api-status-list")).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole("tab", { name: /status/i }))
     expect(screen.getByLabelText("api-status-list")).toHaveTextContent(/gemini/i)
     expect(screen.getByLabelText("api-status-list")).toHaveTextContent(/^ok$|ok/i)
   })
 
   it("tests DeepL and Speech from developer options and updates API status", async () => {
+    const user = userEvent.setup()
+
     mockFetchImplementation({
       healthResponse: {
         status: "ok",
@@ -121,23 +129,25 @@ describe("App system state", () => {
     await screen.findByLabelText("backend-connection-status")
 
     fireEvent.click(screen.getByRole("button", { name: /developer/i }))
-    await act(async () => {
-      fireEvent.click(screen.getByRole("tab", { name: /probes/i }))
-    })
+    await user.click(screen.getByRole("tab", { name: /probes/i }))
     fireEvent.click(await screen.findByRole("button", { name: /test deepl/i }))
     fireEvent.click(screen.getByRole("button", { name: /test azure speech/i }))
 
     expect(await screen.findByLabelText("translation-probe-result")).toHaveTextContent(/the book/i)
     expect(await screen.findByLabelText("speech-probe-result")).toHaveTextContent(/probe failed/i)
-    expect(vi.mocked(toast.success)).toHaveBeenCalledWith("DeepL Translator probe completed successfully.")
-    expect(vi.mocked(toast.error)).toHaveBeenCalledWith("Azure Speech probe failed.")
-    expect(screen.getByLabelText("api-status-list")).toHaveTextContent("DeepL API")
-    expect(screen.getByLabelText("api-status-list")).toHaveTextContent("Azure Speech API")
     expect(screen.getByLabelText("translation-probe-result")).toHaveTextContent(/DeepL Translator probe completed successfully./i)
     expect(screen.getByLabelText("speech-probe-result")).toHaveTextContent(/Azure Speech probe failed./i)
+    expect(vi.mocked(toast.success)).toHaveBeenCalledWith("DeepL Translator probe completed successfully.")
+    expect(vi.mocked(toast.error)).toHaveBeenCalledWith("Azure Speech probe failed.")
+    expect(screen.queryByLabelText("api-status-list")).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole("tab", { name: /status/i }))
+    expect(screen.getByLabelText("api-status-list")).toHaveTextContent("DeepL API")
+    expect(screen.getByLabelText("api-status-list")).toHaveTextContent("Azure Speech API")
   })
 
   it("deletes complete db from developer options", async () => {
+    const user = userEvent.setup()
     const resetMethods: Array<string | undefined> = []
     vi.spyOn(window, "confirm").mockReturnValue(true)
     mockFetchImplementation({
@@ -151,8 +161,8 @@ describe("App system state", () => {
     await screen.findByLabelText("backend-connection-status")
 
     fireEvent.click(screen.getByRole("button", { name: /developer/i }))
-    const deleteButtons = screen.getAllByRole("button", { name: /delete db \+ clear cache/i })
-    fireEvent.click(deleteButtons[0])
+    await user.click(screen.getByRole("tab", { name: /database/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /delete db \+ clear cache/i }))
 
     await act(async () => {
       await Promise.resolve()
@@ -163,7 +173,53 @@ describe("App system state", () => {
     expect(vi.mocked(toast.success)).toHaveBeenCalledWith("Database reset complete.")
   })
 
+  it("shows only the active developer tab content", async () => {
+    const user = userEvent.setup()
+
+    mockFetchImplementation({
+      healthResponse: {
+        status: "ok",
+        service: "backend",
+        apis: {
+          backend: { status: "ok", active: true, configured: true },
+          azure_translator: { status: "ok", active: true, configured: true },
+          azure_speech: { status: "ok", active: true, configured: true },
+          gemini: { status: "inactive", active: false, configured: false, message: "Not checked yet." },
+        },
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /developer/i }))
+
+    expect(screen.getByRole("combobox", { name: /nlp model picker/i })).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /apply runtime api keys/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /test gemini/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /delete db \+ clear cache/i })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole("tab", { name: /api keys/i }))
+    expect(await screen.findByRole("button", { name: /apply runtime api keys/i })).toBeInTheDocument()
+    expect(screen.queryByRole("combobox", { name: /nlp model picker/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /test gemini/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /delete db \+ clear cache/i })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole("tab", { name: /probes/i }))
+    expect(await screen.findByRole("button", { name: /test gemini/i })).toBeInTheDocument()
+    expect(screen.queryByRole("combobox", { name: /nlp model picker/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /apply runtime api keys/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /delete db \+ clear cache/i })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole("tab", { name: /database/i }))
+    expect(await screen.findByRole("button", { name: /delete db \+ clear cache/i })).toBeInTheDocument()
+    expect(screen.queryByRole("combobox", { name: /nlp model picker/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /apply runtime api keys/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /test gemini/i })).not.toBeInTheDocument()
+  })
+
   it("invalidates cached COR search translations after runtime API key updates", async () => {
+    const user = userEvent.setup()
     let useUpdatedSearchTranslations = false
     const corSearchFormHandler = vi.fn(async (input: RequestInfo | URL) => {
       const url = new URL(String(input), "http://localhost")
@@ -274,9 +330,7 @@ describe("App system state", () => {
     })
 
     fireEvent.click(screen.getByRole("button", { name: /developer/i }))
-    await act(async () => {
-      fireEvent.click(screen.getByRole("tab", { name: /api keys/i }))
-    })
+    await user.click(screen.getByRole("tab", { name: /api keys/i }))
     fireEvent.change(await screen.findByLabelText(/gemini api key/i), { target: { value: "updated-gemini-key" } })
     fireEvent.click(screen.getByRole("button", { name: /apply runtime api keys/i }))
 

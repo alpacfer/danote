@@ -151,6 +151,7 @@ export function useWordbankWorkflows({
     activeSection,
     selectedLemma,
     lemmaDetails,
+    setLemmaDetails,
     setWordbankRefreshTick,
     pushNotification,
     markWordVerificationNotificationsAsRead,

@@ -23,6 +23,7 @@ type UseVerificationWorkflowParams = {
   activeSection: AppSection
   selectedLemma: string | null
   lemmaDetails: LemmaDetailsResponse | null
+  setLemmaDetails: Dispatch<SetStateAction<LemmaDetailsResponse | null>>
   setWordbankRefreshTick: Dispatch<SetStateAction<number>>
   pushNotification: (
     message: string,
@@ -48,6 +49,7 @@ export function useVerificationWorkflow({
   activeSection,
   selectedLemma,
   lemmaDetails,
+  setLemmaDetails,
   setWordbankRefreshTick,
   pushNotification,
   markWordVerificationNotificationsAsRead,
@@ -91,7 +93,8 @@ export function useVerificationWorkflow({
     clearWordVerificationNotification,
     lemmaDetails,
     markWordVerificationNotificationsAsRead,
-    onOpenLemmaVerificationCompleted: () => {
+    onOpenLemmaVerificationCompleted: (payload) => {
+      setLemmaDetails(payload)
       setWordbankRefreshTick((current) => current + 1)
       void refreshChanges()
     },

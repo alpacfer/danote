@@ -8,10 +8,15 @@ import {
   type AppSection,
   type LemmaDetailsResponse,
   type VerificationOverview,
+  type VerificationAction,
   verificationResultSignature,
   verificationTargetKey,
   type VerificationTargetView,
 } from "@/app/core"
+
+const TRACKED_VERIFICATION_POLL_INTERVAL_MS = 500
+const AUTO_APPLY_SETTLE_WINDOW_MS = 5_000
+const AUTO_APPLY_ACTION_TYPES = new Set<VerificationAction["action_type"]>(["fix_translation", "fix_variations"])
 
 type UseTrackedVerificationTargetsParams = {
   activeSection: AppSection
@@ -32,7 +37,7 @@ type UseTrackedVerificationTargetsParams = {
       actionCount?: number
     },
   ) => void
-  onOpenLemmaVerificationCompleted?: () => void
+  onOpenLemmaVerificationCompleted?: (payload: LemmaDetailsResponse) => void
   selectedLemma: string | null
   verificationOverview: VerificationOverview
 }
@@ -60,6 +65,9 @@ export function useTrackedVerificationTargets({
   const notifyVerificationTarget = useCallback((storedLemma: string, target: VerificationTargetView) => {
     const verification = target.verification
     if (!verification) {
+      return
+    }
+    if (isAutoApplySettling(target)) {
       return
     }
     const lemmaKey = normalizeSearchWord(storedLemma)
@@ -120,10 +128,11 @@ export function useTrackedVerificationTargets({
       const currentStatus = target.verification?.status ?? null
       const isTrackedTarget = target.key in trackedQueuedVerifications
       const hasExistingNotification = target.key in notifiedVerificationSignaturesRef.current
+      const isSettlingAutoApply = isAutoApplySettling(target)
       if (target.verification && (isTrackedTarget || hasExistingNotification)) {
         notifyVerificationTarget(lemmaKey, target)
       }
-      if (currentStatus !== null && currentStatus !== "queued") {
+      if (currentStatus !== null && currentStatus !== "queued" && !isSettlingAutoApply) {
         completedKeys.push(target.key)
       }
     }
@@ -175,30 +184,33 @@ export function useTrackedVerificationTargets({
         }
 
         const completedKeys: string[] = []
-        let shouldRefreshOpenLemma = false
+        let refreshedOpenLemmaPayload: LemmaDetailsResponse | null = null
         for (const { lemma, payload } of responses) {
           const trackedTargets = trackedByLemma.get(lemma) ?? []
           const targetsByKey = new Map(
             collectLemmaVerificationTargets(payload).map((target) => [target.key, target]),
           )
+          let shouldRefreshTrackedLemma = false
           for (const tracked of trackedTargets) {
             const key = verificationTargetKey(tracked.lemma, tracked.meaningId, tracked.storedSurfaceForm)
             const target = targetsByKey.get(key) ?? null
             const currentStatus = target?.verification?.status ?? null
+            const isSettlingAutoApply = target ? isAutoApplySettling(target) : false
             if (target?.verification) {
               notifyVerificationTarget(lemma, target)
             }
-            if (target === null || (currentStatus !== null && currentStatus !== "queued")) {
+            if (target === null || (currentStatus !== null && currentStatus !== "queued" && !isSettlingAutoApply)) {
               completedKeys.push(key)
-              if (lemma === openLemmaKey) {
-                shouldRefreshOpenLemma = true
-              }
+              shouldRefreshTrackedLemma = true
             }
+          }
+          if (lemma === openLemmaKey && payload !== null && shouldRefreshTrackedLemma) {
+            refreshedOpenLemmaPayload = payload
           }
         }
         removeTrackedVerificationKeys(completedKeys)
-        if (shouldRefreshOpenLemma) {
-          onOpenLemmaVerificationCompleted?.()
+        if (refreshedOpenLemmaPayload) {
+          onOpenLemmaVerificationCompleted?.(refreshedOpenLemmaPayload)
         }
       } finally {
         polling = false
@@ -208,7 +220,7 @@ export function useTrackedVerificationTargets({
     void pollTrackedLemmas()
     const intervalId = window.setInterval(() => {
       void pollTrackedLemmas()
-    }, 1_500)
+    }, TRACKED_VERIFICATION_POLL_INTERVAL_MS)
     return () => {
       cancelled = true
       window.clearInterval(intervalId)
@@ -285,4 +297,24 @@ export function useTrackedVerificationTargets({
     trackQueuedVerificationTargets,
     trackQueuedVerifications,
   }
+}
+
+function isAutoApplySettling(target: VerificationTargetView): boolean {
+  const verification = target.verification
+  const suggestedActions = verification?.suggested_actions ?? []
+  if (!verification || (verification.status !== "flagged" && verification.status !== "error")) {
+    return false
+  }
+  if (suggestedActions.length === 0 || suggestedActions.some((action) => !AUTO_APPLY_ACTION_TYPES.has(action.action_type))) {
+    return false
+  }
+  const completedAt = verification.completed_at ?? verification.requested_at
+  if (!completedAt) {
+    return true
+  }
+  const completedAtMillis = Date.parse(completedAt)
+  if (Number.isNaN(completedAtMillis)) {
+    return false
+  }
+  return Date.now() - completedAtMillis <= AUTO_APPLY_SETTLE_WINDOW_MS
 }

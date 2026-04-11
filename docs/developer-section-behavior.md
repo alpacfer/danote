@@ -37,6 +37,16 @@ Rows with probe results in `apiProbeStatuses` prefer probe output over health pa
 
 Rendered from `NLP_MODEL_OPTIONS` via `buildDeveloperSectionProps(...)`. Selecting updates frontend local state (`selectedNlpModel` in `useDeveloperSettings`) only — no API write. Helper text notes backend default `da_dacy_small_trf-0.2.0` unless `DANOTE_NLP_MODEL` set before startup.
 
+## 3.5) Tab visibility
+
+The Developer section uses Shadcn/Radix tabs with standard `Tabs` / `TabsList` / `TabsTrigger` / `TabsContent` composition. Only the active panel is mounted and rendered:
+- `Status`: backend connection, API status list, NLP model preference
+- `API Keys`: runtime provider credentials and apply action
+- `Probes`: translation, speech, and Gemini test actions/results
+- `Database`: destructive reset action
+
+Database reset controls are scoped to the `Database` tab only; they are not rendered globally beneath the tab set.
+
 ## 4) Provider probe workflows
 
 ### Translation provider switch
@@ -77,6 +87,7 @@ Trigger: `Delete complete DB` → `resetDatabase()`. Guardrail: confirmation dia
 Primary: `frontend/src/test/app/app-system-state.test.tsx`
 - Connection status: offline on health failure, degraded on degraded report
 - Developer basics: NLP picker presence/label, API status list + humanized labels
+- Developer tabs: inactive tab content is hidden/unmounted; database reset only appears on `Database`
 - Probes: Gemini (button, inline result, toast, API row updates), DeepL + Speech (independent results, toasts, status updates)
 - DB reset: confirmation + DELETE method, success toast
 
