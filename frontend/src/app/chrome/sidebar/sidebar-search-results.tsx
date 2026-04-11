@@ -36,6 +36,7 @@ export type SidebarSearchResultsState = {
   hasWordbankActions: boolean
   hasNoteResults: boolean
   hasPageResults: boolean
+  didYouMean: string | null
 }
 
 export type SidebarSearchResultsData = {
@@ -54,6 +55,7 @@ export type SidebarSearchResultsData = {
 }
 
 export type SidebarSearchResultsActions = {
+  onSetSearchQuery: (query: string) => void
   onOpenSavedNote: (noteId: string) => void
   onOpenWordbankLemma: (lemma: string) => void
   onOpenWordbankMeaning: (lemma: string, meaningId: number) => void
@@ -81,6 +83,17 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
   return (
     <CommandList>
       {state.normalizedQuery && !state.hasAnyResults ? <CommandEmpty>No results found.</CommandEmpty> : null}
+      {state.didYouMean ? (
+        <>
+          <CommandItem
+            value="did-you-mean-suggestion"
+            onSelect={() => actions.onSetSearchQuery(state.didYouMean!)}
+          >
+            Did you mean &quot;{state.didYouMean}&quot;?
+          </CommandItem>
+          <CommandSeparator />
+        </>
+      ) : null}
       {state.hasWordbankSectionResults ? (
         <CommandGroup heading="Wordbank">
           <SidebarWordbankResults

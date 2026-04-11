@@ -308,6 +308,7 @@ export function mockFetchImplementation(options?: {
     }>
   }
   corSearchFormHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+  wordbankSearchHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
   lemmaDetailsOk?: boolean
   lemmaDetailsHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
   lemmaDetailsResponse?: {
@@ -958,6 +959,9 @@ export function mockFetchImplementation(options?: {
     }
 
     if (url.includes("/api/wordbank/search?")) {
+      if (options?.wordbankSearchHandler) {
+        return options.wordbankSearchHandler(input, init)
+      }
       const parsed = new URL(url, "http://localhost")
       const query = (parsed.searchParams.get("query") ?? "").trim().toLocaleLowerCase("da-DK")
       if (!query) {

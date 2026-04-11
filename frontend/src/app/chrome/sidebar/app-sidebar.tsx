@@ -95,6 +95,7 @@ export function AppSidebar({
     normalizedQuery,
     matchingNotes,
     searchApiMatches,
+    didYouMean,
     activeCorFormSearchResult,
     isCorTranslationsLoading,
   } = useSidebarSearch({
@@ -214,6 +215,7 @@ export function AppSidebar({
     hasWordbankActions,
     hasNoteResults,
     hasPageResults,
+    didYouMean,
   }
 
   const searchResultData: SidebarSearchResultsData = {
@@ -232,6 +234,7 @@ export function AppSidebar({
   }
 
   const searchResultActions: SidebarSearchResultsActions = {
+    onSetSearchQuery: (query: string) => { setSearchQuery(query) },
     onOpenSavedNote,
     onOpenWordbankLemma,
     onOpenWordbankMeaning,

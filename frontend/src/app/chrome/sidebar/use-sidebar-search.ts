@@ -29,6 +29,7 @@ export function useSidebarSearch({
   const corFormSearchCacheRef = useRef<Map<string, CORSearchFormResponse>>(new Map())
   const wordbankSearchCacheRef = useRef<Map<string, WordbankSearchItem[]>>(new Map())
   const [searchApiMatches, setSearchApiMatches] = useState<WordbankSearchItem[]>([])
+  const [didYouMean, setDidYouMean] = useState<string | null>(null)
   const [corFormSearchResult, setCorFormSearchResult] = useState<{ query: string; payload: CORSearchFormResponse } | null>(null)
   const [isCorTranslationsLoading, setIsCorTranslationsLoading] = useState(false)
   const apiClient = useMemo(
@@ -76,6 +77,7 @@ export function useSidebarSearch({
 
     if (!normalizedQuery || normalizedQuery.length < 2) {
       commitSearchMatches([])
+      setDidYouMean(null)
       return () => {
         cancelled = true
       }
@@ -108,15 +110,19 @@ export function useSidebarSearch({
           if (cancelled) {
             return
           }
+          const correction = payload.did_you_mean ?? null
+          const effectiveQuery = correction ?? normalizedQuery
           const exactMatches = (payload.items ?? []).filter((item) => {
             const lemmaKey = normalizeSearchWord(item.lemma)
             const matchSurfaceKey = normalizeSearchWord(item.match_surface ?? "")
-            return lemmaKey === normalizedQuery || matchSurfaceKey === normalizedQuery
+            return lemmaKey === effectiveQuery || matchSurfaceKey === effectiveQuery
           })
           wordbankSearchCacheRef.current.set(normalizedQuery, exactMatches)
+          setDidYouMean(correction)
           commitSearchMatches(exactMatches)
         } catch {
           if (!cancelled) {
+            setDidYouMean(null)
             commitSearchMatches([])
           }
         }
@@ -201,6 +207,7 @@ export function useSidebarSearch({
     normalizedQuery,
     matchingNotes,
     searchApiMatches,
+    didYouMean,
     activeCorFormSearchResult,
     isCorTranslationsLoading,
   }

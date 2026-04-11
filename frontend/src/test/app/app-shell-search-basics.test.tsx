@@ -1,4 +1,4 @@
-import { fireEvent, getNotesEditor, mockFetchImplementation, renderApp, screen, seedSavedNotes, waitFor, within } from "@/test/app-test-helpers"
+import { fireEvent, getNotesEditor, mockFetchImplementation, renderApp, responseOf, screen, seedSavedNotes, waitFor, within } from "@/test/app-test-helpers"
 import { bogVariationGlossWordPageContractFixture, cloneContractFixture } from "@/test/app/wordbank-contract-fixtures"
 
 describe("App shell and search", () => {
@@ -214,6 +214,76 @@ describe("App shell and search", () => {
       expect(
         fetchSpy.mock.calls.filter(([input]) => String(input).includes("/api/wordbank/search?")),
       ).toHaveLength(1)
+    })
+  })
+
+  it("shows Did you mean suggestion when search returns did_you_mean", async () => {
+    mockFetchImplementation({
+      wordbankSearchHandler: async (_input, _init) => {
+        const url = typeof _input === "string" ? _input : _input instanceof URL ? _input.toString() : _input.url
+        const parsed = new URL(url, "http://localhost")
+        const query = parsed.searchParams.get("query") ?? ""
+        if (query === "huse") {
+          return responseOf({
+            items: [{ lemma: "hus", display_lemma: "hus", variation_count: 0, english_translation: "house", match_surface: "hus", query_cor_ids: [], meaning_id: null, meaning_key: null, gloss: null, cor_lemma_idx: null }],
+            did_you_mean: "hus",
+          })
+        }
+        return responseOf({ items: [] })
+      },
+    })
+
+    renderApp()
+
+    const searchButton = await screen.findByRole("button", { name: /search/i })
+    fireEvent.click(searchButton)
+
+    const commandDialog = await screen.findByRole("dialog")
+    const input = within(commandDialog).getByPlaceholderText(/search words and notes/i)
+    fireEvent.change(input, { target: { value: "huse" } })
+
+    await waitFor(() => {
+      expect(screen.getByText(/did you mean/i)).toBeInTheDocument()
+      expect(screen.getByText(/"hus"/i)).toBeInTheDocument()
+    })
+  })
+
+  it("selecting Did you mean replaces the search query", async () => {
+    mockFetchImplementation({
+      wordbankSearchHandler: async (_input, _init) => {
+        const url = typeof _input === "string" ? _input : _input instanceof URL ? _input.toString() : _input.url
+        const parsed = new URL(url, "http://localhost")
+        const query = parsed.searchParams.get("query") ?? ""
+        if (query === "huse") {
+          return responseOf({
+            items: [],
+            did_you_mean: "hus",
+          })
+        }
+        if (query === "hus") {
+          return responseOf({
+            items: [{ lemma: "hus", display_lemma: "hus", variation_count: 0, english_translation: "house", match_surface: "hus", query_cor_ids: [], meaning_id: null, meaning_key: null, gloss: null, cor_lemma_idx: null }],
+            did_you_mean: null,
+          })
+        }
+        return responseOf({ items: [] })
+      },
+    })
+
+    renderApp()
+
+    const searchButton = await screen.findByRole("button", { name: /search/i })
+    fireEvent.click(searchButton)
+
+    const commandDialog = await screen.findByRole("dialog")
+    const input = within(commandDialog).getByPlaceholderText(/search words and notes/i)
+    fireEvent.change(input, { target: { value: "huse" } })
+
+    const suggestion = await screen.findByText(/did you mean/i)
+    fireEvent.click(suggestion)
+
+    await waitFor(() => {
+      expect(input).toHaveValue("hus")
     })
   })
 })
