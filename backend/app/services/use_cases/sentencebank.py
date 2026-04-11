@@ -1,19 +1,52 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Literal
 
 from app.api.schemas.v1.sentencebank import (
     AddSentenceResponse,
     SentenceListResponse,
     SentenceSummary,
+    SentenceTokenCard,
 )
 from app.db.repositories import SentencebankRepository
+from app.db.repositories.sentencebank import SentenceRecord, SentenceTokenWriteRecord
+from app.nlp.adapter import NLPAdapter
+from app.nlp.token_filter import is_wordlike_token
+from app.services.cor_local import CORLocalEntry
 from app.services.token_classifier import normalize_token
 from app.services.translation import TranslationService
+from app.services.use_cases.wordbank import WordbankUseCase
+from app.services.use_cases.wordbank.collaborators.cor_local_translations import (
+    lookup_translation_for_cor_local_entry,
+)
+from app.services.use_cases.wordbank.gloss_translations import meaning_gloss_translation
+from app.services.use_cases.wordbank.pronunciation_queue import queue_pronunciation_generation
+from app.services.use_cases.wordbank.related_words_queue import queue_related_words_resolution
+from app.services.use_cases.wordbank.runtime import WordbankRuntime
+from app.services.use_cases.wordbank.verification_targets import (
+    discover_word_page_verification_targets,
+    queue_verification_targets,
+)
+from app.services.verification import WordVerificationInput
 
 
 def _normalize_sentence_text(source_text: str) -> str:
     return " ".join(source_text.strip().split())
+
+
+@dataclass(frozen=True, slots=True)
+class _SentenceMeaningCandidate:
+    id: int
+    lemma: str
+    meaning_key: str
+    cor_lemma_idx: int | None
+    gloss: str | None
+    english_translation: str | None
+    gloss_translation: str | None
+    pos_tag: str | None
+    morphology: str | None
+    cor_id: str | None
 
 
 class SentencebankUseCase:
@@ -21,9 +54,13 @@ class SentencebankUseCase:
         self,
         db_path,
         translation_service: TranslationService | None = None,
+        nlp_adapter: NLPAdapter | None = None,
+        wordbank_use_case: WordbankUseCase | None = None,
     ):
         self._repository = SentencebankRepository(db_path)
         self._translation_service = translation_service
+        self._nlp_adapter = nlp_adapter
+        self._wordbank_use_case = wordbank_use_case
 
     def add_sentence(self, source_text: str) -> AddSentenceResponse:
         normalized_source_text = _normalize_sentence_text(source_text)
@@ -33,46 +70,55 @@ class SentencebankUseCase:
 
         existing = self._repository.find_by_normalized_sentence(normalized_key)
         if existing is not None:
-            return AddSentenceResponse(
+            return _sentence_response(
+                existing,
                 status="exists",
-                source_text=existing.source_text,
-                english_translation=existing.english_translation,
                 message=f'"{existing.source_text}" is already in sentencebank.',
             )
 
-        english_translation = self._lookup_translation(normalized_source_text)
+        english_translation = self._lookup_phrase_translation(normalized_source_text)
         provider = self._translation_provider_name()
-        self._repository.insert_sentence(
+        sentence_id = self._repository.insert_sentence(
             source_text=normalized_source_text,
             normalized_sentence=normalized_key,
             english_translation=english_translation,
             translation_provider=provider if english_translation else None,
         )
-
-        status: Literal["inserted", "exists"] = "inserted"
-        return AddSentenceResponse(
-            status=status,
-            source_text=normalized_source_text,
-            english_translation=english_translation,
+        token_records, new_token_metadata = self._resolve_sentence_tokens(normalized_source_text)
+        self._repository.replace_sentence_tokens(sentence_id=sentence_id, tokens=token_records)
+        if new_token_metadata and self._wordbank_use_case is not None:
+            _batch_verify_new_sentence_tokens(
+                self._wordbank_use_case.runtime,
+                new_token_metadata=new_token_metadata,
+                sentence_context=normalized_source_text,
+            )
+        saved = self._repository.find_by_normalized_sentence(normalized_key)
+        if saved is None:
+            raise RuntimeError("Sentence was saved but could not be reloaded.")
+        return _sentence_response(
+            saved,
+            status="inserted",
             message=f'Added "{normalized_source_text}" to sentencebank.',
         )
 
     def list_sentences(self) -> SentenceListResponse:
         rows = self._repository.list_sentences()
+        return SentenceListResponse(items=[_sentence_summary(row) for row in rows])
 
-        return SentenceListResponse(
-            items=[
-                SentenceSummary(
-                    id=row.id,
-                    source_text=row.source_text,
-                    english_translation=row.english_translation,
-                    created_at=row.created_at,
-                )
-                for row in rows
-            ]
-        )
+    def list_linked_sentences(self, stored_lemma: str) -> list[SentenceSummary]:
+        normalized_lemma = normalize_token(stored_lemma)
+        if not normalized_lemma:
+            return []
+        return [_sentence_summary(row) for row in self._repository.list_linked_sentences_for_lemma(normalized_lemma)]
 
-    def _lookup_translation(self, source_text: str) -> str | None:
+    def _lookup_phrase_translation(self, source_text: str) -> str | None:
+        if self._wordbank_use_case is not None:
+            try:
+                payload = self._wordbank_use_case.generate_phrase_translation(source_text)
+                if payload.english_translation:
+                    return payload.english_translation
+            except Exception:
+                pass
         if self._translation_service is None:
             return None
         try:
@@ -93,3 +139,511 @@ class SentencebankUseCase:
             if cleaned:
                 return cleaned
         return "translation"
+
+    def _resolve_sentence_tokens(self, source_text: str) -> tuple[list[SentenceTokenWriteRecord], list[dict[str, object]]]:
+        """Returns (token_records, new_token_metadata)."""
+        if self._nlp_adapter is None or self._wordbank_use_case is None:
+            return [], []
+        runtime = self._wordbank_use_case.runtime
+        resolved: list[SentenceTokenWriteRecord] = []
+        new_tokens: list[dict[str, object]] = []
+        for nlp_token in self._nlp_adapter.tokenize(source_text):
+            surface_form = nlp_token.text.strip()
+            if not surface_form or nlp_token.is_punctuation:
+                continue
+            if not is_wordlike_token(surface_form):
+                continue
+            normalized_surface = normalize_token(surface_form)
+            if not normalized_surface:
+                continue
+            lemma_candidate = normalize_token(nlp_token.lemma or "") or normalized_surface
+            token, is_new = self._resolve_sentence_token(
+                runtime,
+                token_index=len(resolved),
+                display_surface=surface_form,
+                normalized_surface=normalized_surface,
+                lemma_candidate=lemma_candidate,
+                pos_tag=nlp_token.pos,
+                morphology=nlp_token.morphology,
+                sentence_context=source_text,
+            )
+            resolved.append(token)
+            if is_new:
+                new_tokens.append({
+                    "stored_lemma": token.stored_lemma,
+                    "stored_surface_form": token.normalized_surface,
+                    "meaning_id": token.meaning_id,
+                })
+        return resolved, new_tokens
+
+    def _resolve_sentence_token(
+        self,
+        runtime: WordbankRuntime,
+        *,
+        token_index: int,
+        display_surface: str,
+        normalized_surface: str,
+        lemma_candidate: str,
+        pos_tag: str | None,
+        morphology: str | None,
+        sentence_context: str,
+    ) -> tuple[SentenceTokenWriteRecord, bool]:
+        existing = _existing_saved_token(
+            runtime,
+            display_surface=display_surface,
+            normalized_surface=normalized_surface,
+            lemma_candidate=lemma_candidate,
+            token_index=token_index,
+        )
+        if existing is not None:
+            return existing, False
+
+        selected_candidate = _select_sentence_candidate(
+            runtime,
+            surface_form=normalized_surface,
+            lemma_candidate=lemma_candidate,
+            pos_tag=pos_tag,
+            morphology=morphology,
+            sentence_context=sentence_context,
+        )
+        if selected_candidate is None:
+            return _save_root_level_sentence_token(
+                runtime,
+                token_index=token_index,
+                display_surface=display_surface,
+                normalized_surface=normalized_surface,
+                lemma=lemma_candidate,
+                pos_tag=pos_tag,
+                morphology=morphology,
+                cor_id=None,
+                gloss=None,
+                english_translation=None,
+                gloss_translation=None,
+            ), True
+
+        persisted_response = _persist_candidate_to_wordbank(
+            self._wordbank_use_case,
+            normalized_surface=normalized_surface,
+            candidate=selected_candidate,
+        )
+        if persisted_response is not None:
+            persisted = _sentence_token_from_saved_word(
+                runtime,
+                token_index=token_index,
+                display_surface=display_surface,
+                normalized_surface=normalized_surface,
+                stored_lemma=selected_candidate.lemma,
+                meaning_id=(
+                    persisted_response.meaning.id
+                    if persisted_response.meaning is not None
+                    else None
+                ),
+            )
+            if persisted is not None:
+                return persisted, True
+
+        return _save_root_level_sentence_token(
+            runtime,
+            token_index=token_index,
+            display_surface=display_surface,
+            normalized_surface=normalized_surface,
+            lemma=selected_candidate.lemma,
+            pos_tag=selected_candidate.pos_tag or pos_tag,
+            morphology=selected_candidate.morphology or morphology,
+            cor_id=selected_candidate.cor_id,
+            gloss=selected_candidate.gloss,
+            english_translation=selected_candidate.english_translation,
+            gloss_translation=selected_candidate.gloss_translation,
+        ), True
+
+
+def _persist_candidate_to_wordbank(
+    wordbank_use_case: WordbankUseCase | None,
+    *,
+    normalized_surface: str,
+    candidate: _SentenceMeaningCandidate,
+) -> object | None:
+    if wordbank_use_case is None:
+        return None
+    try:
+        return wordbank_use_case.add_word(
+            normalized_surface,
+            candidate.lemma,
+            search_seed={
+                "lemma": candidate.lemma,
+                "surface": normalized_surface,
+                "cor_id": candidate.cor_id,
+                "cor_lemma_idx": candidate.cor_lemma_idx,
+                "meaning_key": candidate.meaning_key,
+                "gloss": candidate.gloss,
+                "english_translation": candidate.english_translation,
+                "pos_tag": candidate.pos_tag,
+                "morphology": candidate.morphology,
+            },
+        )
+    except Exception:
+        return None
+
+
+def _existing_saved_token(
+    runtime: WordbankRuntime,
+    *,
+    display_surface: str,
+    normalized_surface: str,
+    lemma_candidate: str,
+    token_index: int,
+) -> SentenceTokenWriteRecord | None:
+    saved_variation = runtime.repository.find_saved_variation_translation_target(normalized_surface)
+    if saved_variation is not None:
+        return _sentence_token_from_saved_word(
+            runtime,
+            token_index=token_index,
+            display_surface=display_surface,
+            normalized_surface=normalized_surface,
+            stored_lemma=saved_variation.lemma,
+            meaning_id=saved_variation.meaning_id,
+        )
+    if normalized_surface == lemma_candidate:
+        saved_lemma = runtime.repository.find_saved_lemma_translation_target(lemma_candidate)
+        if saved_lemma is not None:
+            return _sentence_token_from_saved_word(
+                runtime,
+                token_index=token_index,
+                display_surface=display_surface,
+                normalized_surface=normalized_surface,
+                stored_lemma=saved_lemma.lemma,
+                meaning_id=saved_lemma.meaning_id,
+            )
+    return None
+
+
+def _sentence_token_from_saved_word(
+    runtime: WordbankRuntime,
+    *,
+    token_index: int,
+    display_surface: str,
+    normalized_surface: str,
+    stored_lemma: str,
+    meaning_id: int | None,
+) -> SentenceTokenWriteRecord | None:
+    lexeme = runtime.repository.get_lexeme(stored_lemma)
+    if lexeme is None:
+        return None
+    meaning = runtime.repository.get_lexeme_meaning(meaning_id) if meaning_id is not None else None
+    surface_row = _matching_surface_form_row(
+        runtime,
+        lexeme_id=lexeme.id,
+        normalized_surface=normalized_surface,
+        meaning_id=meaning_id,
+    )
+    gloss_translation_cache: dict[
+        tuple[str, str, str | None, str | None, str, str | None, str | None],
+        str | None,
+    ] = {}
+    return SentenceTokenWriteRecord(
+        token_index=token_index,
+        surface_form=display_surface,
+        normalized_surface=normalized_surface,
+        stored_lemma=stored_lemma,
+        lexeme_id=lexeme.id,
+        meaning_id=meaning.id if meaning is not None else None,
+        cor_id=surface_row.cor_id if surface_row is not None else None,
+        pos_tag=(
+            (surface_row.pos_tag if surface_row is not None else None)
+            or (meaning.pos_tag if meaning is not None else None)
+            or lexeme.pos_tag
+        ),
+        morphology=(
+            (surface_row.morphology if surface_row is not None else None)
+            or (meaning.morphology if meaning is not None else None)
+            or lexeme.morphology
+        ),
+        gloss=meaning.gloss if meaning is not None else None,
+        english_translation=(
+            meaning.english_translation if meaning is not None else lexeme.english_translation
+        ),
+        gloss_translation=(
+            meaning_gloss_translation(
+                runtime,
+                lexeme_lemma=lexeme.lemma,
+                lexeme_pos_tag=lexeme.pos_tag,
+                meaning_gloss=meaning.gloss,
+                meaning_translation=meaning.english_translation,
+                meaning_pos_tag=meaning.pos_tag,
+                cor_lemma_idx=meaning.cor_lemma_idx,
+                cache=gloss_translation_cache,
+            )
+            if meaning is not None
+            else None
+        ),
+    )
+
+
+def _save_root_level_sentence_token(
+    runtime: WordbankRuntime,
+    *,
+    token_index: int,
+    display_surface: str,
+    normalized_surface: str,
+    lemma: str,
+    pos_tag: str | None,
+    morphology: str | None,
+    cor_id: str | None,
+    gloss: str | None,
+    english_translation: str | None,
+    gloss_translation: str | None,
+) -> SentenceTokenWriteRecord:
+    lexeme_id, _inserted_lexeme = runtime.repository.insert_or_load_lexeme(
+        stored_lemma=lemma,
+        translation=None,
+        provider=None,
+        pos_tag=pos_tag,
+        morphology=morphology,
+        source="search",
+    )
+    surface_form, _inserted_surface_form = runtime.repository.insert_or_update_surface_form(
+        lexeme_id=lexeme_id,
+        meaning_id=None,
+        form=normalized_surface,
+        pos_tag=pos_tag,
+        morphology=morphology,
+        source="search",
+    )
+    if cor_id:
+        runtime.repository.insert_surface_form_cor_variant(
+            surface_form_id=surface_form.id,
+            cor_id=cor_id,
+        )
+    runtime.nlp.add_user_lexeme(lemma)
+    runtime.nlp.invalidate_pos_cache(lemma, normalized_surface)
+    queue_verification_targets(
+        runtime,
+        stored_lemma=lemma,
+        targets=discover_word_page_verification_targets(runtime, stored_lemma=lemma),
+    )
+    queue_pronunciation_generation(
+        runtime,
+        stored_lemma=lemma,
+        requested_forms=(normalized_surface,),
+    )
+    queue_related_words_resolution(runtime, stored_lemma=lemma)
+    return SentenceTokenWriteRecord(
+        token_index=token_index,
+        surface_form=display_surface,
+        normalized_surface=normalized_surface,
+        stored_lemma=lemma,
+        lexeme_id=lexeme_id,
+        meaning_id=None,
+        cor_id=cor_id,
+        pos_tag=pos_tag,
+        morphology=morphology,
+        gloss=gloss,
+        english_translation=english_translation,
+        gloss_translation=gloss_translation,
+    )
+
+
+def _batch_verify_new_sentence_tokens(
+    runtime: WordbankRuntime,
+    *,
+    new_token_metadata: list[dict[str, object]],
+    sentence_context: str,
+) -> None:
+    """Batch-verify newly persisted sentence tokens via single Gemini call."""
+    try:
+        verification_inputs = [
+            _build_verification_input(runtime, meta)
+            for meta in new_token_metadata
+        ]
+        valid_inputs = [inp for inp in verification_inputs if inp is not None]
+        if not valid_inputs:
+            return
+        runtime.verification.verify_word_entries_batch(
+            valid_inputs, sentence_context=sentence_context,
+        )
+    except Exception:
+        pass  # fallback: individual queue already happened during token resolution
+
+
+def _build_verification_input(
+    runtime: WordbankRuntime,
+    meta: dict[str, object],
+) -> WordVerificationInput | None:
+    from app.services.use_cases.wordbank.verification_input_builder import build_verification_input
+
+    stored_lemma = str(meta.get("stored_lemma", ""))
+    stored_surface_form = meta.get("stored_surface_form")
+    meaning_id = meta.get("meaning_id")
+    if not stored_lemma:
+        return None
+    return build_verification_input(
+        db_path=runtime.verification._db_path,
+        nlp=runtime.nlp,
+        cor=runtime.cor,
+        stored_lemma=stored_lemma,
+        stored_surface_form=str(stored_surface_form) if stored_surface_form else None,
+        meaning_id=int(meaning_id) if isinstance(meaning_id, int) and meaning_id else None,
+    )
+
+
+def _select_sentence_candidate(
+    runtime: WordbankRuntime,
+    *,
+    surface_form: str,
+    lemma_candidate: str,
+    pos_tag: str | None,
+    morphology: str | None,
+    sentence_context: str,
+) -> _SentenceMeaningCandidate | None:
+    entries = _candidate_entries_for_sentence_token(
+        runtime,
+        surface_form=surface_form,
+        lemma_candidate=lemma_candidate,
+        pos_tag=pos_tag,
+    )
+    if not entries:
+        return None
+    candidates = _group_sentence_candidates(runtime, entries=entries)
+    if not candidates:
+        return None
+    if len(candidates) == 1:
+        return candidates[0]
+    selected_id = runtime.translation.select_meaning_section(
+        surface_form=surface_form,
+        lemma=lemma_candidate,
+        pos_tag=pos_tag,
+        morphology=morphology,
+        gloss=None,
+        english_translation=None,
+        sentence_context=sentence_context,
+        meaning_candidates=candidates,
+    )
+    if selected_id is None:
+        return None
+    return next((candidate for candidate in candidates if candidate.id == selected_id), None)
+
+
+def _candidate_entries_for_sentence_token(
+    runtime: WordbankRuntime,
+    *,
+    surface_form: str,
+    lemma_candidate: str,
+    pos_tag: str | None,
+) -> list[CORLocalEntry]:
+    entries: list[CORLocalEntry] = []
+    seen: set[str] = set()
+    candidate_lemmas = [lemma_candidate]
+    if surface_form != lemma_candidate:
+        candidate_lemmas.append(surface_form)
+    for preferred_pos_tag in (pos_tag, None):
+        for lemma in candidate_lemmas:
+            for entry in runtime.cor.cor_local_entries_for_form(
+                form=surface_form,
+                lemma=lemma,
+                preferred_pos_tag=preferred_pos_tag,
+            ):
+                if entry.cor_id in seen:
+                    continue
+                seen.add(entry.cor_id)
+                entries.append(entry)
+        if entries:
+            break
+    return entries
+
+
+def _group_sentence_candidates(
+    runtime: WordbankRuntime,
+    *,
+    entries: list[CORLocalEntry],
+) -> list[_SentenceMeaningCandidate]:
+    grouped: dict[tuple[str, int | None, str | None, str | None], CORLocalEntry] = {}
+    for entry in entries:
+        key = (
+            entry.lemma,
+            entry.lemma_idx,
+            normalize_token(entry.gloss or "") or None,
+            entry.pos_tag,
+        )
+        grouped.setdefault(key, entry)
+    candidates: list[_SentenceMeaningCandidate] = []
+    for index, entry in enumerate(grouped.values(), start=1):
+        english_translation = lookup_translation_for_cor_local_entry(runtime.translation, entry)
+        gloss_translation = runtime.cor.lookup_translation_for_cor_gloss(
+            entry=entry,
+            lemma_translation=english_translation,
+            cache={},
+        )
+        candidates.append(
+            _SentenceMeaningCandidate(
+                id=index,
+                lemma=entry.lemma,
+                meaning_key=normalize_token(entry.gloss or "") or entry.lemma,
+                cor_lemma_idx=entry.lemma_idx,
+                gloss=normalize_token(entry.gloss or "") or None,
+                english_translation=english_translation,
+                gloss_translation=gloss_translation,
+                pos_tag=entry.pos_tag,
+                morphology=entry.morphology,
+                cor_id=entry.cor_id,
+            )
+        )
+    return candidates
+
+
+def _matching_surface_form_row(
+    runtime: WordbankRuntime,
+    *,
+    lexeme_id: int,
+    normalized_surface: str,
+    meaning_id: int | None,
+):
+    rows = runtime.repository.find_surface_forms(lexeme_id=lexeme_id, form=normalized_surface)
+    if not rows:
+        return None
+    if meaning_id is not None:
+        scoped = next((row for row in rows if row.meaning_id == meaning_id), None)
+        if scoped is not None:
+            return scoped
+    return rows[0]
+
+
+def _sentence_token_card(token) -> SentenceTokenCard:
+    return SentenceTokenCard(
+        token_index=token.token_index,
+        surface_form=token.surface_form,
+        stored_lemma=token.stored_lemma,
+        lexeme_id=token.lexeme_id,
+        meaning_id=token.meaning_id,
+        pos_tag=token.pos_tag,
+        morphology=token.morphology,
+        gloss=token.gloss,
+        english_translation=token.english_translation,
+        gloss_translation=token.gloss_translation,
+    )
+
+
+def _sentence_summary(row: SentenceRecord) -> SentenceSummary:
+    return SentenceSummary(
+        id=row.id,
+        source_text=row.source_text,
+        english_translation=row.english_translation,
+        created_at=row.created_at,
+        tokens=[_sentence_token_card(token) for token in row.tokens],
+    )
+
+
+def _sentence_response(
+    row: SentenceRecord,
+    *,
+    status: Literal["inserted", "exists"],
+    message: str,
+) -> AddSentenceResponse:
+    return AddSentenceResponse(
+        id=row.id,
+        source_text=row.source_text,
+        english_translation=row.english_translation,
+        created_at=row.created_at,
+        tokens=[_sentence_token_card(token) for token in row.tokens],
+        status=status,
+        message=message,
+    )
