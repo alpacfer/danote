@@ -313,6 +313,7 @@ class WordbankSearchItem(BaseModel):
 
 class WordbankSearchResponse(BaseModel):
     items: list[WordbankSearchItem]
+    did_you_mean: str | None = None
 
 
 class CORSearchVariant(BaseModel):
@@ -347,6 +348,7 @@ class CORSearchGroup(BaseModel):
 class CORSearchFormResponse(BaseModel):
     form: str
     groups: list[CORSearchGroup] = Field(default_factory=list)
+    did_you_mean: str | None = None
 
 
 class CORLemmaParadigmResponse(BaseModel):

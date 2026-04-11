@@ -207,6 +207,7 @@ export type WordbankSearchItem = {
 
 export type WordbankSearchResponse = {
   items: WordbankSearchItem[]
+  did_you_mean?: string | null
 }
 
 export type CORSearchVariant = {
@@ -241,6 +242,7 @@ export type CORSearchGroup = {
 export type CORSearchFormResponse = {
   form: string
   groups: CORSearchGroup[]
+  did_you_mean?: string | null
 }
 
 export type LemmaDetailsResponse = {
