@@ -56,6 +56,7 @@ describe("section prop adapters", () => {
     const apply = vi.fn(async () => undefined)
     const retry = vi.fn(async () => undefined)
     const rerun = vi.fn(async () => undefined)
+    const revertChange = vi.fn(async () => undefined)
     const saveRelatedWordFromSearchSeed = vi.fn(async () => null)
     const openRelatedWordTarget = vi.fn()
     const markVisibleVerificationNotificationsAsRead = vi.fn()
@@ -90,13 +91,17 @@ describe("section prop adapters", () => {
         reviewCount: 0,
         totalSuggestedActions: 0,
       },
+      verificationChanges: [],
+      isLoadingVerificationChanges: false,
       isApplyingVerificationChanges: false,
       isRetryingVerification: false,
+      isRevertingVerificationChange: false,
       rerunningMeaningVerificationById: {},
       markVisibleVerificationNotificationsAsRead,
       applyVerificationAction: apply,
       retryVerificationTarget: retry,
       rerunMeaningVerification: rerun,
+      revertVerificationChange: revertChange,
       saveRelatedWordFromSearchSeed,
       openRelatedWordTarget,
     })
@@ -110,6 +115,7 @@ describe("section prop adapters", () => {
     result.onApplyVerificationAction("bog::root::root", 0)
     result.onRetryVerificationTarget("bog::root::root")
     result.onRerunMeaningVerification(12)
+    result.onRevertVerificationChange(4)
 
     await Promise.resolve()
 
@@ -122,6 +128,7 @@ describe("section prop adapters", () => {
     expect(apply).toHaveBeenCalledTimes(1)
     expect(retry).toHaveBeenCalledTimes(1)
     expect(rerun).toHaveBeenCalledWith(12)
+    expect(revertChange).toHaveBeenCalledWith(4)
     expect(result.selectedMeaningId).toBe(12)
   })
 

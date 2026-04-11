@@ -19,6 +19,7 @@ from app.api.schemas.v1.wordbank import (
     DetectWordLanguageResponse,
     FindAlternativeTranslationsRequest,
     FindAlternativeTranslationsResponse,
+    GetVerificationChangesResponse,
     GeneratePhraseTranslationRequest,
     GeneratePhraseTranslationResponse,
     GeneratePronunciationRequest,
@@ -31,6 +32,8 @@ from app.api.schemas.v1.wordbank import (
     LemmaListResponse,
     QueueVerificationRequest,
     QueueVerificationResponse,
+    RevertVerificationChangeRequest,
+    RevertVerificationChangeResponse,
     ResetDatabaseResponse,
     ResolveQueryRequest,
     ResolveQueryResponse,
@@ -139,10 +142,7 @@ def complete_variations(
 
 
 @router.post("/wordbank/lexemes/pronunciation", response_model=GeneratePronunciationResponse)
-def generate_pronunciation(
-    payload: GeneratePronunciationRequest,
-    request: Request,
-) -> GeneratePronunciationResponse:
+def generate_pronunciation(payload: GeneratePronunciationRequest, request: Request) -> GeneratePronunciationResponse:
     return run_db_operation(
         request,
         lambda: build_wordbank_use_case(request).generate_pronunciation_for_added_word(
@@ -156,10 +156,7 @@ def generate_pronunciation(
 
 
 @router.post("/wordbank/lexemes/apply-verification-changes", response_model=ApplyVerificationChangesResponse)
-def apply_verification_changes(
-    payload: ApplyVerificationChangesRequest,
-    request: Request,
-) -> ApplyVerificationChangesResponse:
+def apply_verification_changes(payload: ApplyVerificationChangesRequest, request: Request) -> ApplyVerificationChangesResponse:
     return run_db_operation(
         request,
         lambda: build_wordbank_use_case(request).apply_verification_changes(
@@ -170,6 +167,27 @@ def apply_verification_changes(
             provider=payload.provider,
         ),
         include_lookup_error=True,
+        error_log_name="wordbank_db_operational_error",
+    )
+
+
+@router.get("/wordbank/lexemes/verification-changes", response_model=GetVerificationChangesResponse)
+def get_verification_changes(request: Request, stored_lemma: str = Query(..., min_length=1)) -> GetVerificationChangesResponse:
+    return run_db_operation(
+        request,
+        lambda: build_wordbank_use_case(request).get_verification_changes(stored_lemma),
+        error_log_name="wordbank_db_operational_error",
+    )
+
+
+@router.post("/wordbank/lexemes/revert-verification-change", response_model=RevertVerificationChangeResponse)
+def revert_verification_change(payload: RevertVerificationChangeRequest, request: Request) -> RevertVerificationChangeResponse:
+    return run_db_operation(
+        request,
+        lambda: build_wordbank_use_case(request).revert_verification_change(
+            payload.change_id,
+            payload.stored_lemma,
+        ),
         error_log_name="wordbank_db_operational_error",
     )
 

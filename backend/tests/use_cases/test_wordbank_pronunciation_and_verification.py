@@ -2123,3 +2123,306 @@ def test_permanently_failed_verify_word_job_sets_verification_status_to_error(tm
     else:
         status = details.verification.status
     assert status == "error", f"Expected 'error' after permanent job failure, got '{status}'"
+
+
+def test_verify_word_background_job_auto_applies_fix_translation_for_homograph_meaning(tmp_path: Path) -> None:
+    import time
+
+    from app.services.use_cases.wordbank.background_jobs import WordbankBackgroundJobRunner
+
+    person = _cor_local_entry(
+        cor_id="COR.MOR.PERSON.LEM",
+        lemma="mor",
+        gloss="person",
+        form="mor",
+        lemma_idx=51046,
+        pos_tag="NOUN",
+        morphology="Gender=Com|Number=Sing|Definite=Ind",
+        gram_raw="sb.fk.sg.ubest",
+    )
+    soil = _cor_local_entry(
+        cor_id="COR.MOR.SOIL.LEM",
+        lemma="mor",
+        gloss="jordlag",
+        form="mor",
+        lemma_idx=51047,
+        pos_tag="NOUN",
+        morphology="Gender=Com|Number=Sing|Definite=Ind",
+        gram_raw="sb.fk.sg.ubest",
+    )
+
+    class ConditionalVerificationService:
+        provider = "gemini"
+        reviewer_role = "Professional Danish Language Expert"
+
+        def __init__(self) -> None:
+            self.calls: list[tuple[int | None, str | None, str | None]] = []
+
+        def verify_word_entry(self, payload):
+            self.calls.append((payload.meaning_id, payload.meaning_gloss, payload.selected_translation))
+
+            class Result:
+                categories = ()
+                composed_word_count = None
+                problem = None
+                change_to_implement = None
+
+            if payload.meaning_gloss == "jordlag":
+                Result.verdict = "flagged"
+                Result.message = "Wrong translation"
+                Result.suggested_actions = (
+                    WordVerificationAction(
+                        action_type="fix_translation",
+                        english_translation="soil layer",
+                        reason="Use the gloss translation for this meaning.",
+                    ),
+                )
+            else:
+                Result.verdict = "verified"
+                Result.message = "OK"
+                Result.suggested_actions = ()
+            return Result()
+
+        def classify_word_categories(self, _payload):
+            class Result:
+                categories = ()
+
+            return Result()
+
+    db_path = _db_path(tmp_path)
+    shared_nlp = FakeNLPAdapter()
+    verification_service = ConditionalVerificationService()
+    cor_local = FakeCORLocalLexiconService(
+        by_form={"mor": [person, soil]},
+        by_lemma_idx={51046: [person], 51047: [soil]},
+    )
+    translation_service = FakeTranslationService({"person": "person", "jordlag": "soil layer"})
+    use_case = WordbankUseCase(
+        db_path,
+        nlp_adapter=shared_nlp,
+        cor_local_lexicon_service=cor_local,
+        translation_service=translation_service,
+        verification_service=verification_service,
+    )
+
+    use_case.add_word(
+        "mor",
+        "mor",
+        search_seed={
+            "lemma": "mor",
+            "surface": "mor",
+            "cor_id": "COR.MOR.PERSON.LEM",
+            "cor_lemma_idx": 51046,
+            "meaning_key": "person",
+            "gloss": "person",
+            "english_translation": "mother",
+            "pos_tag": "NOUN",
+            "morphology": "Gender=Com|Number=Sing|Definite=Ind",
+        },
+    )
+    added = use_case.add_word(
+        "mor",
+        "mor",
+        search_seed={
+            "lemma": "mor",
+            "surface": "mor",
+            "cor_id": "COR.MOR.SOIL.LEM",
+            "cor_lemma_idx": 51047,
+            "meaning_key": "soil-layer",
+            "gloss": "jordlag",
+            "english_translation": "mother",
+            "pos_tag": "NOUN",
+            "morphology": "Gender=Com|Number=Sing|Definite=Ind",
+        },
+    )
+    assert [(target.meaning_id, target.stored_surface_form) for target in added.queued_verification_targets] == [
+        (1, None),
+        (2, None),
+    ]
+
+    class _Services:
+        typo_engine = None
+        translation_service = translation_service
+        gemini_word_translation_service = FakeGeminiWordTranslationService({})
+        gemini_related_words_service = None
+        nlp_adapter = shared_nlp
+        cor_lexicon_service = None
+        cor_local_lexicon_service = cor_local
+        word_verification_service = verification_service
+        tts_service = FakeTTSService({})
+
+    runner = WordbankBackgroundJobRunner(
+        db_path=db_path,
+        services=_Services(),
+        gemini_changes_log_path=None,
+        max_workers=1,
+        poll_interval_seconds=0.05,
+    )
+    runner.start()
+    time.sleep(0.6)
+    runner.stop()
+
+    details = use_case.get_lemma_details("mor")
+    assert [section.english_translation for section in details.meaning_sections] == ["mother", "soil layer"]
+    assert all((section.verification.status if section.verification is not None else None) == "verified" for section in details.meaning_sections)
+
+    repository = WordbankRepository(db_path)
+    entries = repository.get_change_log_entries_for_lemma("mor")
+    assert len(entries) == 1
+    assert entries[0].meaning_id == 2
+    assert entries[0].action_type == "fix_translation"
+    assert verification_service.calls == [
+        (1, "person", "mother"),
+        (2, "jordlag", "mother"),
+    ]
+
+
+def test_verify_word_background_job_requeues_stale_sibling_targets_after_auto_apply(tmp_path: Path) -> None:
+    import time
+
+    from app.services.use_cases.wordbank.background_jobs import WordbankBackgroundJobRunner
+
+    person = _cor_local_entry(
+        cor_id="COR.MOR.PERSON.LEM",
+        lemma="mor",
+        gloss="person",
+        form="mor",
+        lemma_idx=51046,
+        pos_tag="NOUN",
+        morphology="Gender=Com|Number=Sing|Definite=Ind",
+        gram_raw="sb.fk.sg.ubest",
+    )
+    soil = _cor_local_entry(
+        cor_id="COR.MOR.SOIL.LEM",
+        lemma="mor",
+        gloss="jordlag",
+        form="mor",
+        lemma_idx=51047,
+        pos_tag="NOUN",
+        morphology="Gender=Com|Number=Sing|Definite=Ind",
+        gram_raw="sb.fk.sg.ubest",
+    )
+
+    class MultiAutoApplyVerificationService:
+        provider = "gemini"
+        reviewer_role = "Professional Danish Language Expert"
+
+        def __init__(self) -> None:
+            self.calls: list[tuple[int | None, str | None, str | None]] = []
+
+        def verify_word_entry(self, payload):
+            self.calls.append((payload.meaning_id, payload.meaning_gloss, payload.selected_translation))
+
+            class Result:
+                verdict = "flagged"
+                message = "Wrong translation"
+                categories = ()
+                composed_word_count = None
+                problem = None
+                change_to_implement = None
+
+            Result.suggested_actions = (
+                WordVerificationAction(
+                    action_type="fix_translation",
+                    english_translation="soil layer" if payload.meaning_gloss == "jordlag" else "person",
+                    reason="Use the translated gloss for this meaning.",
+                ),
+            )
+            return Result()
+
+        def classify_word_categories(self, _payload):
+            class Result:
+                categories = ()
+
+            return Result()
+
+    db_path = _db_path(tmp_path)
+    shared_nlp = FakeNLPAdapter()
+    verification_service = MultiAutoApplyVerificationService()
+    cor_local = FakeCORLocalLexiconService(
+        by_form={"mor": [person, soil]},
+        by_lemma_idx={51046: [person], 51047: [soil]},
+    )
+    translation_service = FakeTranslationService({"person": "person", "jordlag": "soil layer"})
+    use_case = WordbankUseCase(
+        db_path,
+        nlp_adapter=shared_nlp,
+        cor_local_lexicon_service=cor_local,
+        translation_service=translation_service,
+        verification_service=verification_service,
+    )
+
+    use_case.add_word(
+        "mor",
+        "mor",
+        search_seed={
+            "lemma": "mor",
+            "surface": "mor",
+            "cor_id": "COR.MOR.PERSON.LEM",
+            "cor_lemma_idx": 51046,
+            "meaning_key": "person",
+            "gloss": "person",
+            "english_translation": "mother",
+            "pos_tag": "NOUN",
+            "morphology": "Gender=Com|Number=Sing|Definite=Ind",
+        },
+    )
+    use_case.add_word(
+        "mor",
+        "mor",
+        search_seed={
+            "lemma": "mor",
+            "surface": "mor",
+            "cor_id": "COR.MOR.SOIL.LEM",
+            "cor_lemma_idx": 51047,
+            "meaning_key": "soil-layer",
+            "gloss": "jordlag",
+            "english_translation": "mother",
+            "pos_tag": "NOUN",
+            "morphology": "Gender=Com|Number=Sing|Definite=Ind",
+        },
+    )
+
+    class _Services:
+        typo_engine = None
+        translation_service = translation_service
+        gemini_word_translation_service = FakeGeminiWordTranslationService({})
+        gemini_related_words_service = None
+        nlp_adapter = shared_nlp
+        cor_lexicon_service = None
+        cor_local_lexicon_service = cor_local
+        word_verification_service = verification_service
+        tts_service = FakeTTSService({})
+
+    runner = WordbankBackgroundJobRunner(
+        db_path=db_path,
+        services=_Services(),
+        gemini_changes_log_path=None,
+        max_workers=1,
+        poll_interval_seconds=0.05,
+    )
+    runner.start()
+    time.sleep(0.9)
+    runner.stop()
+
+    details = use_case.get_lemma_details("mor")
+    assert [section.english_translation for section in details.meaning_sections] == ["person", "soil layer"]
+    assert all((section.verification.status if section.verification is not None else None) == "verified" for section in details.meaning_sections)
+
+    with get_connection(db_path) as conn:
+        job_rows = conn.execute(
+            """
+            SELECT id, status, rerun_requested
+            FROM wordbank_background_jobs
+            WHERE job_type = 'verify_word'
+            ORDER BY id ASC
+            """
+        ).fetchall()
+    assert [str(row["status"]) for row in job_rows] == ["completed", "completed"]
+    assert [bool(row["rerun_requested"]) for row in job_rows] == [False, False]
+
+    repository = WordbankRepository(db_path)
+    entries = repository.get_change_log_entries_for_lemma("mor")
+    assert len(entries) == 2
+    assert {entry.meaning_id for entry in entries} == {1, 2}
+    assert len(verification_service.calls) >= 3

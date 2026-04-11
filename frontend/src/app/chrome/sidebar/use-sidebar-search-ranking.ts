@@ -127,6 +127,10 @@ export function useSidebarSearchRanking({
     for (const savedResult of wordbankResults) {
       const savedKey = savedWordbankResultKey(savedResult)
       const lemmaKey = normalizeSearchWord(savedResult.lemma)
+      const savedMatchSurfaceKey = normalizeSearchWord(savedResult.match_surface ?? "")
+      if (lemmaKey !== normalizedQuery && savedMatchSurfaceKey !== normalizedQuery) {
+        continue
+      }
       for (const candidate of corSearchVariants) {
         if (!candidateMatchesSavedResult(candidate, savedResult)) {
           continue
@@ -150,6 +154,11 @@ export function useSidebarSearchRanking({
 
     for (const savedResult of wordbankResults) {
       const savedKey = savedWordbankResultKey(savedResult)
+      const lemmaKey = normalizeSearchWord(savedResult.lemma)
+      const savedMatchSurfaceKey = normalizeSearchWord(savedResult.match_surface ?? "")
+      if (lemmaKey !== normalizedQuery && savedMatchSurfaceKey !== normalizedQuery) {
+        continue
+      }
       for (const candidate of corSearchVariants) {
         if (!candidateMatchesSavedResult(candidate, savedResult)) {
           continue

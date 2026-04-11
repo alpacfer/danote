@@ -254,7 +254,64 @@ def word_category_assignment_from_row(row) -> WordCategoryAssignmentRecord:
     )
 
 
+@dataclass(frozen=True, slots=True)
+class VerificationChangeLogRecord:
+    id: int
+    stored_lemma: str
+    stored_surface_form: str | None
+    meaning_id: int | None
+    action_type: str
+    before_json: str
+    after_json: str
+    applied_at: str
+    reverted_at: str | None
+    provider: str | None
+
+
+def verification_change_log_from_row(row) -> VerificationChangeLogRecord:
+    return VerificationChangeLogRecord(
+        id=int(row["id"]),
+        stored_lemma=str(row["stored_lemma"]),
+        stored_surface_form=row["stored_surface_form"],
+        meaning_id=int(row["meaning_id"]) if row["meaning_id"] is not None else None,
+        action_type=str(row["action_type"]),
+        before_json=str(row["before_json"]),
+        after_json=str(row["after_json"]),
+        applied_at=str(row["applied_at"]),
+        reverted_at=row["reverted_at"],
+        provider=row["provider"],
+    )
+
+
 def parse_query_cor_ids(raw: str | None) -> list[str]:
     if not raw:
         return []
     return [item for item in raw.split(_QUERY_COR_IDS_SEPARATOR) if item]
+
+
+__all__ = [
+    "AdditionalTranslationRecord",
+    "additional_translation_from_row",
+    "LemmaListRow",
+    "LexemeMeaningRecord",
+    "lexeme_meaning_from_row",
+    "LexemeRecord",
+    "RelatedWordRecord",
+    "related_word_from_row",
+    "RelatedWordWriteRecord",
+    "SavedTranslationTargetRecord",
+    "saved_translation_target_from_row",
+    "SavedWordbankTargetRecord",
+    "saved_wordbank_target_from_row",
+    "SurfaceFormRecord",
+    "surface_form_from_row",
+    "VerificationChangeLogRecord",
+    "verification_change_log_from_row",
+    "VerificationRecord",
+    "verification_record_from_row",
+    "WordCategoryAssignmentRecord",
+    "word_category_assignment_from_row",
+    "WordCategoryRecord",
+    "word_category_from_row",
+    "WordbankSearchRow",
+]

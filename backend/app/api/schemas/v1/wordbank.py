@@ -284,6 +284,33 @@ class ApplyVerificationChangesResponse(BaseModel):
     target_meaning_id: int | None = None
 
 
+class VerificationChangeEntry(BaseModel):
+    id: int
+    stored_lemma: str
+    stored_surface_form: str | None
+    meaning_id: int | None
+    action_type: str
+    before_json: dict[str, object]
+    after_json: dict[str, object]
+    applied_at: str
+    reverted_at: str | None
+    provider: str | None
+
+
+class GetVerificationChangesResponse(BaseModel):
+    items: list[VerificationChangeEntry]
+
+
+class RevertVerificationChangeRequest(BaseModel):
+    change_id: int
+    stored_lemma: str = Field(..., min_length=1)
+
+
+class RevertVerificationChangeResponse(BaseModel):
+    status: Literal["reverted", "already_reverted", "not_found"]
+    change_id: int
+
+
 class LemmaSummary(BaseModel):
     lemma: str
     display_lemma: str

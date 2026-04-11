@@ -26,13 +26,17 @@ export type WordbankSectionAdapterArgs = {
   isCompletingMeaningVariations: boolean
   completeMeaningVariations: (meaningId: number | null) => Promise<void>
   verificationOverview: ComponentProps<typeof WordbankSection>["verificationOverview"]
+  verificationChanges: ComponentProps<typeof WordbankSection>["verificationChanges"]
+  isLoadingVerificationChanges: boolean
   isApplyingVerificationChanges: boolean
   isRetryingVerification: boolean
+  isRevertingVerificationChange: boolean
   rerunningMeaningVerificationById: Record<number, boolean>
   markVisibleVerificationNotificationsAsRead: () => void
   applyVerificationAction: (targetKey: string, actionIndex: number) => Promise<void>
   retryVerificationTarget: (targetKey: string) => Promise<void>
   rerunMeaningVerification: (meaningId: number) => Promise<void>
+  revertVerificationChange: (changeId: number) => Promise<void>
   saveRelatedWordFromSearchSeed: (
     surfaceToken: string,
     lemmaCandidate: string | null,
@@ -83,8 +87,11 @@ export function buildWordbankSectionProps(
       void args.completeMeaningVariations(meaningId)
     },
     verificationOverview: args.verificationOverview,
+    verificationChanges: args.verificationChanges,
+    isLoadingVerificationChanges: args.isLoadingVerificationChanges,
     isApplyingVerificationChanges: args.isApplyingVerificationChanges,
     isRetryingVerification: args.isRetryingVerification,
+    isRevertingVerificationChange: args.isRevertingVerificationChange,
     rerunningMeaningVerificationById: args.rerunningMeaningVerificationById,
     onMarkVisibleVerificationNotificationsAsRead: args.markVisibleVerificationNotificationsAsRead,
     onApplyVerificationAction: (targetKey: string, actionIndex: number) => {
@@ -95,6 +102,9 @@ export function buildWordbankSectionProps(
     },
     onRerunMeaningVerification: (meaningId: number) => {
       void args.rerunMeaningVerification(meaningId)
+    },
+    onRevertVerificationChange: (changeId: number) => {
+      void args.revertVerificationChange(changeId)
     },
     onSaveRelatedWordFromSearchSeed: args.saveRelatedWordFromSearchSeed,
     onOpenRelatedWordTarget: args.openRelatedWordTarget,

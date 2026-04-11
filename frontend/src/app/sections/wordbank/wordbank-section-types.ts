@@ -1,6 +1,7 @@
 import type {
   LemmaDetailsResponse,
   SearchSaveSeed,
+  VerificationChangeEntry,
   VerificationOverview,
   WordbankLemma,
 } from "@/app/core"
@@ -29,13 +30,17 @@ export type WordbankSectionProps = {
   isCompletingMeaningVariations: boolean
   onCompleteMeaningVariations: (meaningId: number | null) => void
   verificationOverview: VerificationOverview
+  verificationChanges: VerificationChangeEntry[]
+  isLoadingVerificationChanges: boolean
   isApplyingVerificationChanges: boolean
   isRetryingVerification: boolean
+  isRevertingVerificationChange: boolean
   rerunningMeaningVerificationById: Record<number, boolean>
   onMarkVisibleVerificationNotificationsAsRead: () => void
   onApplyVerificationAction: (targetKey: string, actionIndex: number) => void
   onRetryVerificationTarget: (targetKey: string) => void
   onRerunMeaningVerification: (meaningId: number) => void
+  onRevertVerificationChange: (changeId: number) => void
   onSaveRelatedWordFromSearchSeed: (
     surfaceToken: string,
     lemmaCandidate: string | null,

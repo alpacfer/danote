@@ -297,9 +297,19 @@ Shared by header + section rows + variation rows.
 - `fix_translation`: only for lemma/meaning-scoped (`stored_surface_form` is `null`)
 - Completion-review fixes: `action_type=fix_variations` with `stored_surface_form=null`; reconciles whole saved noun variation set
 - `fix_variations` preference: reviewed slot form lists → legacy scalar fields → forms recovered from text → COR slot metadata
+- Eligible Gemini `fix_translation` and `fix_variations` suggestions may auto-apply immediately after verification persistence
+- Persisted `fix_translation`/`fix_variations` applies are stored in a per-lemma verification change log
 - Applied: success toast (text varies by action type); backend prunes action; last suggestion applied → target flips to `verified`; increment `wordbankRefreshTick`; navigate to returned target
 - No visible variation change → backend returns `status=skipped`, review stays pending
 - Failure → error toast
+
+## Verification change history
+
+- `GET /api/wordbank/lexemes/verification-changes?stored_lemma=...`: fetches newest-first per-lemma history for persisted Gemini `fix_translation` / `fix_variations` applies
+- `POST /api/wordbank/lexemes/revert-verification-change`: restores the saved `before_json` snapshot for a change-log entry and marks it reverted
+- Word page verification popover adds a `Changes` section below review/progress/check state
+- Change rows show action label, concise before/after summary, timestamp, and `Revert` button when still active
+- Revert success → success toast, wordbank refresh tick increment, history re-fetch; already reverted/missing entries show error toast and refresh history
 
 ## Add flows that affect Wordbank state
 

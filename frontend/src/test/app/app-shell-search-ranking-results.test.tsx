@@ -76,7 +76,7 @@ describe("App shell and search", () => {
     const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
     fireEvent.change(searchInput, { target: { value: "mor" } })
 
-    expect(await within(commandDialog).findByText(/^mother, soil layer$/i)).toBeInTheDocument()
+    expect(await within(commandDialog).findByText(/^mother \(soil layer\)$/i)).toBeInTheDocument()
     expect(within(commandDialog).queryByText(/^mother, jordlag$/i)).not.toBeInTheDocument()
   })
 

@@ -5,6 +5,7 @@ from app.nlp.adapter import NLPToken
 from app.services.cor import COREntry
 from app.services.cor_local import CORLocalEntry
 from app.services.tts import PronunciationAudio
+from app.services.verification import WordVerificationAction
 
 
 class FakeTranslationService:
@@ -110,11 +111,13 @@ class FakeVerificationService:
         *,
         categories: tuple[str, ...] = (),
         recategorized_categories: tuple[str, ...] | None = None,
+        actions: list[dict] | None = None,
     ):
         self._verdict = verdict
         self._message = message
         self._categories = categories
         self._recategorized_categories = recategorized_categories
+        self._actions = actions or []
         self.calls = []
         self.category_calls = []
 
@@ -122,12 +125,16 @@ class FakeVerificationService:
         self.calls.append(payload)
 
         class Result:
-            def __init__(self, verdict: str, message: str, categories: tuple[str, ...]):
+            def __init__(self, verdict: str, message: str, categories: tuple[str, ...], suggested_actions: tuple[WordVerificationAction, ...]):
                 self.verdict = verdict
                 self.message = message
                 self.categories = categories
+                self.suggested_actions = suggested_actions
 
-        return Result(self._verdict, self._message, self._categories)
+        parsed_actions = tuple(
+            WordVerificationAction(**a) for a in self._actions
+        )
+        return Result(self._verdict, self._message, self._categories, parsed_actions)
 
     def classify_word_categories(self, payload):
         self.category_calls.append(payload)

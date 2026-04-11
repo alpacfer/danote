@@ -27,13 +27,17 @@ type WordbankWordPageProps = Pick<
   | "isCompletingMeaningVariations"
   | "onCompleteMeaningVariations"
   | "verificationOverview"
+  | "verificationChanges"
+  | "isLoadingVerificationChanges"
   | "isApplyingVerificationChanges"
   | "isRetryingVerification"
+  | "isRevertingVerificationChange"
   | "rerunningMeaningVerificationById"
   | "onMarkVisibleVerificationNotificationsAsRead"
   | "onApplyVerificationAction"
   | "onRetryVerificationTarget"
   | "onRerunMeaningVerification"
+  | "onRevertVerificationChange"
   | "onSaveRelatedWordFromSearchSeed"
   | "onOpenRelatedWordTarget"
 >
@@ -56,13 +60,17 @@ export function WordbankWordPage({
   isCompletingMeaningVariations,
   onCompleteMeaningVariations,
   verificationOverview,
+  verificationChanges,
+  isLoadingVerificationChanges,
   isApplyingVerificationChanges,
   isRetryingVerification,
+  isRevertingVerificationChange,
   rerunningMeaningVerificationById,
   onMarkVisibleVerificationNotificationsAsRead,
   onApplyVerificationAction,
   onRetryVerificationTarget,
   onRerunMeaningVerification,
+  onRevertVerificationChange,
   onSaveRelatedWordFromSearchSeed,
   onOpenRelatedWordTarget,
 }: WordbankWordPageProps) {
@@ -120,11 +128,15 @@ export function WordbankWordPage({
             isRethinkingCategories={isRethinkingCategories}
             onRethinkCategories={onRethinkCategories}
             verificationOverview={verificationOverview}
+            verificationChanges={verificationChanges}
+            isLoadingVerificationChanges={isLoadingVerificationChanges}
             isApplyingVerificationChanges={isApplyingVerificationChanges}
             isRetryingVerification={isRetryingVerification}
+            isRevertingVerificationChange={isRevertingVerificationChange}
             onMarkVisibleVerificationNotificationsAsRead={onMarkVisibleVerificationNotificationsAsRead}
             onApplyVerificationAction={onApplyVerificationAction}
             onRetryVerificationTarget={onRetryVerificationTarget}
+            onRevertVerificationChange={onRevertVerificationChange}
             showSupplementaryMetadata={!isSectioned}
           />
           {isSectioned ? (

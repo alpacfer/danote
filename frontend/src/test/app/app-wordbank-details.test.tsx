@@ -359,7 +359,7 @@ describe("App wordbank", () => {
     expect(screen.getAllByTestId("wordbank-details-loading-card")).toHaveLength(3)
   })
 
-  it("contract-backed: word page renders translation comma gloss translation when the backend supplies both", async () => {
+  it("contract-backed: word page renders translation with gloss translation when the backend supplies both", async () => {
     const singleMeaningFixture = cloneContractFixture(bogHomographWordPageContractFixture)
     const firstMeaningSection = singleMeaningFixture.meaning_sections?.[0]
     if (!firstMeaningSection) {
@@ -380,7 +380,7 @@ describe("App wordbank", () => {
     fireEvent.click(await screen.findByRole("button", { name: /bog/i }))
 
     expect(await screen.findByRole("heading", { name: /^bog$/i })).toBeInTheDocument()
-    expect(screen.getByText(/^book, for reading$/i)).toBeInTheDocument()
+    expect(screen.getByText(/^book \(for reading\)$/i)).toBeInTheDocument()
   })
 
   it("contract-backed: word page renders translated gloss text instead of the raw Danish gloss", async () => {
@@ -404,11 +404,11 @@ describe("App wordbank", () => {
     fireEvent.click(await screen.findByRole("button", { name: /bog/i }))
 
     expect(await screen.findByRole("heading", { name: /^bog$/i })).toBeInTheDocument()
-    expect(screen.getByText(/^book, for reading$/i)).toBeInTheDocument()
+    expect(screen.getByText(/^book \(for reading\)$/i)).toBeInTheDocument()
     expect(screen.queryByText(/^book, til læsning$/i)).not.toBeInTheDocument()
   })
 
-  it("contract-backed: word page shows translation comma gloss translation for each homograph meaning", async () => {
+  it("contract-backed: word page shows translation with gloss translation for each homograph meaning", async () => {
     mockFetchImplementation({
       lemmasResponse: {
         items: [{ lemma: "bog", variation_count: 2 }],
@@ -422,8 +422,8 @@ describe("App wordbank", () => {
     fireEvent.click(await screen.findByRole("button", { name: /bog/i }))
 
     expect(await screen.findByRole("heading", { name: /^bog$/i })).toBeInTheDocument()
-    expect(screen.getByText(/^book, for reading$/i)).toBeInTheDocument()
-    expect(screen.getByText(/^beechmast, fruit from a beech tree$/i)).toBeInTheDocument()
+    expect(screen.getByText(/^book \(for reading\)$/i)).toBeInTheDocument()
+    expect(screen.getByText(/^beechmast \(fruit from a beech tree\)$/i)).toBeInTheDocument()
   })
 
   it("contract-backed: word page keeps the translation and uses the gloss only as disambiguation context", async () => {
@@ -440,8 +440,8 @@ describe("App wordbank", () => {
     fireEvent.click(await screen.findByRole("button", { name: /mor/i }))
 
     expect(await screen.findByRole("heading", { name: /^mor$/i })).toBeInTheDocument()
-    expect(screen.getByText(/^mother, person$/i)).toBeInTheDocument()
-    expect(screen.getByText(/^mother, soil layer$/i)).toBeInTheDocument()
+    expect(screen.getByText(/^mother \(person\)$/i)).toBeInTheDocument()
+    expect(screen.getByText(/^mother \(soil layer\)$/i)).toBeInTheDocument()
     expect(screen.queryByText(/^person$/i)).not.toBeInTheDocument()
   })
 

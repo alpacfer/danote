@@ -297,6 +297,81 @@ describe("App wordbank", () => {
     })
   })
 
+  it("renderer-only: shows verification change history and lets you revert a change", async () => {
+    let reverted = false
+    const fetchSpy = mockFetchImplementation({
+      lemmasResponse: {
+        items: [{ lemma: "løbe", variation_count: 1 }],
+      },
+      lemmaDetailsResponse: {
+        lemma: "løbe",
+        english_translation: "to walk",
+        is_sectioned: false,
+        pos_tag: "VERB",
+        morphology: "VerbForm=Inf",
+        surface_forms: [{ form: "løbe", has_pronunciation: false }],
+      },
+      verificationChangesHandler: async () => responseOf({
+        items: [
+          {
+            id: 42,
+            stored_lemma: "løbe",
+            stored_surface_form: null,
+            meaning_id: null,
+            action_type: "fix_translation",
+            before_json: { english_translation: "to run" },
+            after_json: { lemma: { english_translation: "to walk" } },
+            applied_at: "2026-04-11T10:23:00.000Z",
+            reverted_at: reverted ? "2026-04-11T10:30:00.000Z" : null,
+            provider: "gemini",
+          },
+        ],
+      }),
+      revertVerificationChangeHandler: async (_input, init) => {
+        expect(String(init?.body ?? "")).toBe(JSON.stringify({
+          change_id: 42,
+          stored_lemma: "løbe",
+        }))
+        reverted = true
+        return responseOf({ status: "reverted", change_id: 42 })
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /løbe/i }))
+
+    await waitFor(() => {
+      expect(
+        fetchSpy.mock.calls.some(([input]) => String(input).includes("/api/wordbank/lexemes/verification-changes?stored_lemma=l%C3%B8be")),
+      ).toBe(true)
+    })
+
+    fireEvent.click(await screen.findByRole("button", { name: /show verification details/i }))
+
+    expect(await screen.findByTestId("wordbank-verification-section-changes")).toBeInTheDocument()
+    expect(screen.getByText(/translation fixed/i)).toBeInTheDocument()
+    expect(screen.getByText(/"to run" -> "to walk"/i)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole("button", { name: /^revert$/i }))
+
+    await waitFor(() => {
+      expect(fetchSpy).toHaveBeenCalledWith(
+        expect.stringContaining("/api/wordbank/lexemes/revert-verification-change"),
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({
+            change_id: 42,
+            stored_lemma: "løbe",
+          }),
+        }),
+      )
+    })
+    expect(await screen.findByText(/^reverted$/i)).toBeInTheDocument()
+  })
+
   it("request-shape: regenerates pronunciation for a specific meaning-row word from its context menu", async () => {
     const fetchSpy = mockFetchImplementation({
       lemmasResponse: {

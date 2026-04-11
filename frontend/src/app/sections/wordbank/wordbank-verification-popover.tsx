@@ -1,6 +1,6 @@
 import type { ReactNode } from "react"
 
-import type { VerificationOverview, VerificationTargetView } from "@/app/core"
+import type { VerificationChangeEntry, VerificationOverview, VerificationTargetView } from "@/app/core"
 import {
   getVerificationViewState,
   groupVerificationTargets,
@@ -27,28 +27,39 @@ import { BadgeCheck, CircleAlert, Info } from "lucide-react"
 
 type WordbankVerificationPopoverProps = {
   verificationOverview: VerificationOverview
+  changes: VerificationChangeEntry[]
+  isLoadingChanges: boolean
   isApplyingVerificationChanges: boolean
   isRetryingVerification: boolean
+  isRevertingChange: boolean
   onOpenChange?: (open: boolean) => void
   onApplyVerificationAction: (targetKey: string, actionIndex: number) => void
   onRetryVerificationTarget: (targetKey: string) => void
+  onRevertChange: (changeId: number) => void
 }
 
 export function WordbankVerificationPopover({
   verificationOverview,
+  changes,
+  isLoadingChanges,
   isApplyingVerificationChanges,
   isRetryingVerification,
+  isRevertingChange,
   onOpenChange,
   onApplyVerificationAction,
   onRetryVerificationTarget,
+  onRevertChange,
 }: WordbankVerificationPopoverProps) {
   const viewState = getVerificationViewState(verificationOverview)
-  const providerLabel = verificationOverview.targets.find((target) => target.verification?.provider)?.verification?.provider ?? "gemini"
+  const providerLabel = verificationOverview.targets.find((target) => target.verification?.provider)?.verification?.provider
+    ?? changes.find((change) => change.provider)?.provider
+    ?? "gemini"
   const { reviewTargets, queuedTargets, verifiedTargets } = groupVerificationTargets(verificationOverview)
   const latestVerifiedAt = latestVerifiedTimestamp(verifiedTargets)
   const verifiedSummary = verifiedTargets.length === verificationOverview.targets.length && verifiedTargets.length > 0
     ? "All visible targets look correct."
     : `${verifiedTargets.length} checked ${verifiedTargets.length === 1 ? "item" : "items"}.`
+  const hasContent = verificationOverview.targets.length > 0 || changes.length > 0 || isLoadingChanges
 
   return (
     <Popover onOpenChange={onOpenChange}>
@@ -83,7 +94,7 @@ export function WordbankVerificationPopover({
           className="min-h-0 flex-1 overscroll-contain"
         >
           <div className="space-y-3 px-4 py-3">
-            {verificationOverview.targets.length > 0 ? (
+            {hasContent ? (
               <>
                 {reviewTargets.length > 0 ? (
                   <VerificationSection label="Needs review" count={reviewTargets.length}>
@@ -125,6 +136,28 @@ export function WordbankVerificationPopover({
                     </Card>
                   </VerificationSection>
                 ) : null}
+
+                {changes.length > 0 || isLoadingChanges ? (
+                  <VerificationSection label="Changes" count={changes.length}>
+                    {isLoadingChanges && changes.length === 0 ? (
+                      <Card variant="subtle">
+                        <CardContent className="flex items-center gap-2 px-3 py-3">
+                          <Spinner className="size-4" />
+                          <p className="text-muted-foreground text-sm">Loading change history...</p>
+                        </CardContent>
+                      </Card>
+                    ) : (
+                      changes.map((change) => (
+                        <VerificationChangeRow
+                          key={change.id}
+                          change={change}
+                          isRevertingChange={isRevertingChange}
+                          onRevertChange={onRevertChange}
+                        />
+                      ))
+                    )}
+                  </VerificationSection>
+                ) : null}
               </>
             ) : (
               <p className="text-muted-foreground text-sm">
@@ -132,7 +165,7 @@ export function WordbankVerificationPopover({
               </p>
             )}
 
-            {verificationOverview.targets.length > 0 ? (
+            {hasContent ? (
               <>
                 <Separator />
                 <p className="text-muted-foreground text-xs">Provider: {providerLabel}</p>
@@ -261,6 +294,49 @@ function VerificationQueuedRow({ target }: { target: VerificationTargetView }) {
   )
 }
 
+function VerificationChangeRow({
+  change,
+  isRevertingChange,
+  onRevertChange,
+}: {
+  change: VerificationChangeEntry
+  isRevertingChange: boolean
+  onRevertChange: (changeId: number) => void
+}) {
+  const actionLabel = change.action_type === "fix_translation"
+    ? "Translation fixed"
+    : change.action_type === "fix_variations"
+      ? "Variations fixed"
+      : change.action_type
+  const summary = buildChangeSummary(change)
+  const timeLabel = formatChangeTimestamp(change.applied_at)
+  const isReverted = change.reverted_at !== null
+
+  return (
+    <Card variant="subtle">
+      <CardContent className="space-y-2 px-3 py-3">
+        <div className="flex items-start justify-between gap-3">
+          <p className="text-sm font-medium">{actionLabel}</p>
+          {isReverted ? <Badge variant="secondary">Reverted</Badge> : null}
+        </div>
+        {summary ? <p className="text-muted-foreground text-sm">{summary}</p> : null}
+        <p className="text-muted-foreground text-xs">{timeLabel}</p>
+        {!isReverted ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={isRevertingChange}
+            onClick={() => onRevertChange(change.id)}
+          >
+            {isRevertingChange ? "Reverting..." : "Revert"}
+          </Button>
+        ) : null}
+      </CardContent>
+    </Card>
+  )
+}
+
 function VerificationStateIcon({
   state,
   className,
@@ -278,4 +354,43 @@ function VerificationStateIcon({
     return <CircleAlert className={className} />
   }
   return <Info className={className} />
+}
+
+function buildChangeSummary(change: VerificationChangeEntry): string | null {
+  if (change.action_type === "fix_translation") {
+    const before = change.before_json.english_translation
+    const meaningAfter = asRecord(change.after_json.meaning)?.english_translation
+    const lemmaAfter = asRecord(change.after_json.lemma)?.english_translation
+    const after = meaningAfter ?? lemmaAfter
+    if (typeof before === "string" && typeof after === "string") {
+      return `"${before}" -> "${after}"`
+    }
+  }
+  if (change.action_type === "fix_variations") {
+    const afterForms = change.after_json.surface_forms
+    if (Array.isArray(afterForms)) {
+      return `${afterForms.length} form${afterForms.length === 1 ? "" : "s"} updated`
+    }
+  }
+  return null
+}
+
+function formatChangeTimestamp(appliedAt: string): string {
+  const appliedDate = new Date(appliedAt)
+  if (Number.isNaN(appliedDate.getTime())) {
+    return appliedAt
+  }
+  return appliedDate.toLocaleString("en-GB", {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  })
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null
+  }
+  return value as Record<string, unknown>
 }

@@ -252,6 +252,26 @@ export function mockFetchImplementation(options?: {
     target_meaning_id: number | null
   }
   applyVerificationChangesHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+  verificationChangesResponse?: {
+    items: Array<{
+      id: number
+      stored_lemma: string
+      stored_surface_form: string | null
+      meaning_id: number | null
+      action_type: string
+      before_json: Record<string, unknown>
+      after_json: Record<string, unknown>
+      applied_at: string
+      reverted_at: string | null
+      provider: string | null
+    }>
+  }
+  verificationChangesHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+  revertVerificationChangeResponse?: {
+    status: "reverted" | "already_reverted" | "not_found"
+    change_id: number
+  }
+  revertVerificationChangeHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
   addWordHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
   lemmasOk?: boolean
   lemmasResponse?: {
@@ -666,6 +686,13 @@ export function mockFetchImplementation(options?: {
     target_lemma: addWordResponse.stored_lemma,
     target_meaning_id: null,
   }
+  const verificationChangesResponse = options?.verificationChangesResponse ?? {
+    items: [],
+  }
+  const revertVerificationChangeResponse = options?.revertVerificationChangeResponse ?? {
+    status: "reverted" as const,
+    change_id: 1,
+  }
   const lemmasOk = options?.lemmasOk ?? true
   const lemmasResponse = options?.lemmasResponse ?? { items: [] }
   const searchWordbankResponse = options?.searchWordbankResponse ?? {
@@ -925,6 +952,20 @@ export function mockFetchImplementation(options?: {
         return options.applyVerificationChangesHandler(input, init)
       }
       return responseOf(applyVerificationChangesResponse)
+    }
+
+    if (url.includes("/api/wordbank/lexemes/verification-changes?")) {
+      if (options?.verificationChangesHandler) {
+        return options.verificationChangesHandler(input, init)
+      }
+      return responseOf(verificationChangesResponse)
+    }
+
+    if (url.endsWith("/api/wordbank/lexemes/revert-verification-change")) {
+      if (options?.revertVerificationChangeHandler) {
+        return options.revertVerificationChangeHandler(input, init)
+      }
+      return responseOf(revertVerificationChangeResponse)
     }
 
     if (url.endsWith("/api/wordbank/lexemes/pronunciation")) {

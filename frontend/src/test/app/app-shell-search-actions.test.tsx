@@ -410,7 +410,7 @@ describe("App shell and search", () => {
     })
 
     expect(await screen.findByRole("heading", { name: /^mor$/i })).toBeInTheDocument()
-    expect(screen.getByText(/^mother, soil layer$/i)).toBeInTheDocument()
+    expect(screen.getByText(/^mother \(soil layer\)$/i)).toBeInTheDocument()
     expect(screen.queryByText(/^mother, jordlag$/i)).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
@@ -418,7 +418,7 @@ describe("App shell and search", () => {
     const reopenedInput = within(reopenedDialog).getByPlaceholderText(/search words and notes/i)
     fireEvent.change(reopenedInput, { target: { value: "mor" } })
 
-    expect(await within(reopenedDialog).findByText(/^mother, soil layer$/i)).toBeInTheDocument()
+    expect(await within(reopenedDialog).findByText(/^mother \(soil layer\)$/i)).toBeInTheDocument()
     expect(within(reopenedDialog).queryByText(/^mother, jordlag$/i)).not.toBeInTheDocument()
   })
 
@@ -596,6 +596,76 @@ describe("App shell and search", () => {
     await waitFor(() => {
       expect(screen.getByRole("button", { name: /show verification details/i })).toBeInTheDocument()
       expect(screen.queryByRole("button", { name: /verification is running/i })).not.toBeInTheDocument()
+    }, { timeout: 6_000 })
+  }, 15_000)
+
+  it("request-shape: auto-updates the open word page when queued verification finishes from a stale saved snapshot", async () => {
+    let lemmaDetailsRequestCount = 0
+    const staleSavedSnapshot = cloneContractFixture(teacherSectionedWordPageContractFixture)
+    staleSavedSnapshot.meaning_sections[0].english_translation = "placeholder translation"
+    const verifiedWordPage = cloneContractFixture(teacherVerifiedWordPageContractFixture)
+    verifiedWordPage.meaning_sections[0].english_translation = "classroom mentor"
+
+    mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      searchWordbankResponse: { items: [] },
+      corSearchFormResponse: {
+        form: "lærere",
+        groups: [
+          {
+            lemma: "lærer",
+            gloss: "teacher",
+            pos_tag: "NOUN",
+            variants: [
+              {
+                cor_id: "COR.49032.112.01",
+                form: "lærere",
+                lemma: "lærer",
+                gloss: "teacher",
+                lemma_translation: "teacher",
+                gram_raw: "sb.fk.pl.ubest",
+                norm: "N",
+                lemma_idx: 49032,
+                gram_code: 112,
+                variation: 1,
+                pos_tag: "NOUN",
+                morphology: "Gender=Com|Number=Plur|Definite=Ind",
+                features: { Gender: "Com", Number: "Plur", Definite: "Ind" },
+                extra_tags: [],
+              },
+            ],
+          },
+        ],
+      },
+      addWordResponse: {
+        ...cloneContractFixture(teacherQueuedSearchAddResponseContractFixture),
+        saved_snapshot: staleSavedSnapshot,
+      },
+      lemmaDetailsHandler: async () => {
+        lemmaDetailsRequestCount += 1
+        if (lemmaDetailsRequestCount === 1) {
+          return responseOf(cloneContractFixture(staleSavedSnapshot))
+        }
+        return responseOf(cloneContractFixture(verifiedWordPage))
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    const commandDialog = await screen.findByRole("dialog")
+    const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
+    fireEvent.change(searchInput, { target: { value: "lærere" } })
+    fireEvent.click(await within(commandDialog).findByText(/^lærere$/i))
+
+    expect(await screen.findByRole("heading", { name: /^lærer$/i })).toBeInTheDocument()
+    expect(screen.getByText(/^placeholder translation$/i)).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /verification is running/i })).not.toBeInTheDocument()
+
+    await waitFor(() => {
+      expect(screen.getByText(/^classroom mentor$/i)).toBeInTheDocument()
+      expect(screen.queryByText(/^placeholder translation$/i)).not.toBeInTheDocument()
     }, { timeout: 6_000 })
   }, 15_000)
 })

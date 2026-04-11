@@ -84,10 +84,11 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
   const dymSuggestion = state.wordbankDidYouMean ?? state.corDidYouMean
 
   // Wordbank goes to the direct section when there's no DYM correction, or when
-  // the current query is an exact form of a saved word (displayVariantBySavedResult
-  // is populated by the ranking hook only for exact query-form matches).
+  // the current query is an exact form of a saved word (exactSavedVariationKeySet
+  // is populated by the ranking hook for items whose lemma or match_surface equals
+  // the normalized query).
   const hasDirectWordbank = data.orderedWordbankResults.length > 0
-    && (!state.wordbankDidYouMean || data.displayVariantBySavedResult.size > 0)
+    && (!state.wordbankDidYouMean || data.exactSavedVariationKeySet.size > 0)
   const hasDirectCor = !state.corDidYouMean && data.corSearchVariantsToRender.length > 0
   const hasDirectResults = hasDirectWordbank || hasDirectCor
 

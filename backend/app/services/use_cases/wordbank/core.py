@@ -8,6 +8,7 @@ from app.api.schemas.v1.wordbank import (
     CompleteVariationsResponse,
     DetectWordLanguageResponse,
     FindAlternativeTranslationsResponse,
+    GetVerificationChangesResponse,
     GeneratePhraseTranslationResponse,
     GeneratePronunciationResponse,
     GenerateReverseTranslationResponse,
@@ -15,6 +16,7 @@ from app.api.schemas.v1.wordbank import (
     LemmaDetailsResponse,
     LemmaListResponse,
     QueueVerificationResponse,
+    RevertVerificationChangeResponse,
     ResetDatabaseResponse,
     RethinkCategoriesResponse,
     ResolveQueryResponse,
@@ -306,6 +308,16 @@ class WordbankUseCase:
             action=action,
             provider=provider,
         )
+
+    def get_verification_changes(self, stored_lemma: str) -> GetVerificationChangesResponse:
+        return self._runtime.verification.get_verification_changes(stored_lemma)
+
+    def revert_verification_change(
+        self,
+        change_id: int,
+        stored_lemma: str,
+    ) -> RevertVerificationChangeResponse:
+        return self._runtime.verification.revert_verification_change(change_id, stored_lemma)
 
     def reset_database(self) -> ResetDatabaseResponse:
         return reset_database(self._runtime)
