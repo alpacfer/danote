@@ -51,6 +51,7 @@ from app.services.use_cases.wordbank.verification_helper_logic import (
 )
 from app.services.verification import (
     WordVerificationInput,
+    WordVerificationResult,
     WordVerificationService,
 )
 
@@ -619,6 +620,135 @@ class VerificationCollaborator:
             problem=getattr(verdict, "problem", None),
             change_to_implement=getattr(verdict, "change_to_implement", None),
             suggested_actions=suggested_actions,
+        )
+
+    def verify_word_entries_batch(
+        self,
+        verification_inputs: list[WordVerificationInput],
+        sentence_context: str | None = None,
+    ) -> list[VerificationResult]:
+        """Verify multiple words in a single Gemini call. Returns per-word results."""
+        if self._verification_service is None:
+            return [self._skipped_verification_result(payload) for payload in verification_inputs]
+
+        provider_name, reviewer_name = self._verification_metadata()
+        try:
+            verdicts = self._verification_service.verify_word_entries_batch(
+                verification_inputs, sentence_context=sentence_context,
+            )
+        except Exception as exc:
+            logger.warning(
+                "wordbank_batch_verification_failed",
+                extra={"error": str(exc), "word_count": len(verification_inputs)},
+            )
+            return [self._error_verification_result(payload, exc, provider_name, reviewer_name)
+                    for payload in verification_inputs]
+
+        completed_at = now_utc_iso()
+        results: list[VerificationResult] = []
+        for payload, verdict in zip(verification_inputs, verdicts, strict=False):
+            result = self._build_batch_verification_result(
+                verdict, payload, provider_name, reviewer_name, completed_at,
+            )
+            self._persist_batch_result(payload, result)
+            results.append(result)
+
+        # Auto-apply eligible actions for all results
+        for payload, result in zip(verification_inputs, results, strict=False):
+            if result.status in ("verified", "flagged"):
+                self._auto_apply_eligible_actions(
+                    stored_lemma=payload.stored_lemma,
+                    stored_surface_form=payload.stored_surface_form,
+                    meaning_id=payload.meaning_id,
+                )
+        return results
+
+    def _skipped_verification_result(self, payload: WordVerificationInput) -> VerificationResult:
+        return VerificationResult(
+            status="skipped",
+            provider=None,
+            reviewer_role=None,
+            review_intent=payload.review_intent,
+            message="Verification disabled.",
+        )
+
+    def _error_verification_result(
+        self,
+        payload: WordVerificationInput,
+        exc: Exception,
+        provider_name: str,
+        reviewer_name: str | None,
+    ) -> VerificationResult:
+        return VerificationResult(
+            status="error",
+            provider=provider_name,
+            reviewer_role=reviewer_name,
+            review_intent=payload.review_intent,
+            message="Verification failed",
+            composed_word_count=None,
+            stored_surface_form=payload.stored_surface_form,
+            requested_at=now_utc_iso(),
+            completed_at=now_utc_iso(),
+            problem=str(exc),
+            change_to_implement="Retry verification.",
+            suggested_actions=[],
+        )
+
+    def _build_batch_verification_result(
+        self,
+        verdict: WordVerificationResult,
+        payload: WordVerificationInput,
+        provider_name: str,
+        reviewer_name: str | None,
+        completed_at: str,
+    ) -> VerificationResult:
+        suggested_actions = [
+            verification_action_to_schema(action)
+            for action in getattr(verdict, "suggested_actions", ()) or ()
+        ]
+        return VerificationResult(
+            status=verdict.verdict,
+            provider=provider_name,
+            reviewer_role=reviewer_name,
+            review_intent=payload.review_intent,
+            message=verdict.message,
+            composed_word_count=getattr(verdict, "composed_word_count", None),
+            stored_surface_form=payload.stored_surface_form,
+            requested_at=completed_at,
+            completed_at=completed_at,
+            problem=getattr(verdict, "problem", None),
+            change_to_implement=getattr(verdict, "change_to_implement", None),
+            suggested_actions=suggested_actions,
+        )
+
+    def _persist_batch_result(
+        self,
+        payload: WordVerificationInput,
+        result: VerificationResult,
+    ) -> None:
+        repository = WordbankRepository(self._db_path)
+        lexeme = repository.get_lexeme(payload.stored_lemma)
+        if lexeme is None:
+            return
+        record = repository.get_verification_record(
+            lexeme_id=lexeme.id,
+            meaning_id=payload.meaning_id,
+            stored_surface_form=payload.stored_surface_form,
+        )
+        requested_at = record.requested_at if record is not None else result.requested_at
+        persisted = result.model_copy(
+            update={
+                "requested_at": requested_at or now_utc_iso(),
+                "completed_at": result.completed_at,
+            }
+        )
+        persist_verification_result(
+            repository,
+            lexeme_id=lexeme.id,
+            meaning_id=payload.meaning_id,
+            stored_surface_form=payload.stored_surface_form,
+            verification=persisted,
+            requested_at=requested_at,
         )
 
     def _persist_verification_result(
