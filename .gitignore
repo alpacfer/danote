@@ -47,3 +47,4 @@ coverage/
 *.sqlite3-shm
 *.sqlite3-wal
 !backend/resources/dictionaries/cor.sqlite
+.worktrees/
