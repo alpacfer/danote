@@ -31,7 +31,6 @@ export function useSidebarSearch({
   const [searchApiMatches, setSearchApiMatches] = useState<WordbankSearchItem[]>([])
   const [wordbankDidYouMean, setWordbankDidYouMean] = useState<string | null>(null)
   const [corDidYouMean, setCorDidYouMean] = useState<string | null>(null)
-  const didYouMean = wordbankDidYouMean ?? corDidYouMean
   const [corFormSearchResult, setCorFormSearchResult] = useState<{ query: string; payload: CORSearchFormResponse } | null>(null)
   const [isCorTranslationsLoading, setIsCorTranslationsLoading] = useState(false)
   const apiClient = useMemo(
@@ -212,7 +211,8 @@ export function useSidebarSearch({
     normalizedQuery,
     matchingNotes,
     searchApiMatches,
-    didYouMean,
+    wordbankDidYouMean,
+    corDidYouMean,
     activeCorFormSearchResult,
     isCorTranslationsLoading,
   }
