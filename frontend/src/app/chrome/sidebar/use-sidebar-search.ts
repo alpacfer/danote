@@ -29,7 +29,9 @@ export function useSidebarSearch({
   const corFormSearchCacheRef = useRef<Map<string, CORSearchFormResponse>>(new Map())
   const wordbankSearchCacheRef = useRef<Map<string, WordbankSearchItem[]>>(new Map())
   const [searchApiMatches, setSearchApiMatches] = useState<WordbankSearchItem[]>([])
-  const [didYouMean, setDidYouMean] = useState<string | null>(null)
+  const [wordbankDidYouMean, setWordbankDidYouMean] = useState<string | null>(null)
+  const [corDidYouMean, setCorDidYouMean] = useState<string | null>(null)
+  const didYouMean = wordbankDidYouMean ?? corDidYouMean
   const [corFormSearchResult, setCorFormSearchResult] = useState<{ query: string; payload: CORSearchFormResponse } | null>(null)
   const [isCorTranslationsLoading, setIsCorTranslationsLoading] = useState(false)
   const apiClient = useMemo(
@@ -77,7 +79,7 @@ export function useSidebarSearch({
 
     if (!normalizedQuery || normalizedQuery.length < 2) {
       commitSearchMatches([])
-      setDidYouMean(null)
+      setWordbankDidYouMean(null)
       return () => {
         cancelled = true
       }
@@ -118,11 +120,11 @@ export function useSidebarSearch({
             return lemmaKey === effectiveQuery || matchSurfaceKey === effectiveQuery
           })
           wordbankSearchCacheRef.current.set(normalizedQuery, exactMatches)
-          setDidYouMean(correction)
+          setWordbankDidYouMean(correction)
           commitSearchMatches(exactMatches)
         } catch {
           if (!cancelled) {
-            setDidYouMean(null)
+            setWordbankDidYouMean(null)
             commitSearchMatches([])
           }
         }
@@ -139,6 +141,7 @@ export function useSidebarSearch({
   useEffect(() => {
     if (!normalizedQuery || /\s/u.test(normalizedQuery) || isShortLetterWord(normalizedQuery)) {
       setIsCorTranslationsLoading(false)
+      setCorDidYouMean(null)
       return
     }
 
@@ -163,6 +166,7 @@ export function useSidebarSearch({
           if (partialPayload) {
             setCorFormSearchResult({ query: normalizedQuery, payload: partialPayload })
             setIsCorTranslationsLoading(true)
+            setCorDidYouMean(partialPayload.did_you_mean ?? null)
           }
 
           // Phase 2: fetch again with translations to fill in
@@ -174,6 +178,7 @@ export function useSidebarSearch({
           if (cancelled) return
           corFormSearchCacheRef.current.set(normalizedQuery, fullPayload)
           setCorFormSearchResult({ query: normalizedQuery, payload: fullPayload })
+          setCorDidYouMean(fullPayload.did_you_mean ?? null)
         } catch (error) {
           if (!cancelled && error instanceof Error) {
             toast.error(error.message)
