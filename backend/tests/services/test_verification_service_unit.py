@@ -830,3 +830,88 @@ def test_ensure_client_passes_timeout_to_http_options() -> None:
     assert http_options is not None, "http_options not passed to genai.Client"
     expected_ms = max(1, math.ceil(15.0 * 1000))
     assert getattr(http_options, "timeout", None) == expected_ms
+
+
+def test_word_verification_service_protocol_has_batch_method() -> None:
+    from app.services.verification import WordVerificationService
+    assert hasattr(WordVerificationService, "verify_word_entries_batch")
+
+
+def test_gemini_batch_verification_returns_per_word_results(monkeypatch) -> None:
+    service = GeminiWordVerificationService(api_key="test-key")
+    monkeypatch.setattr(
+        service,
+        "_generate_content",
+        lambda prompt, config=None: type("R", (), {
+            "text": (
+                '{"results":['
+                '{"word_id":0,"verdict":"correct","word_count":1,"suggested_actions":[]},'
+                '{"word_id":1,"verdict":"incorrect","word_count":1,"problem":"mismatch","change_to_implement":"fix","suggested_actions":[]}'
+                ']}'
+            ),
+        })(),
+    )
+
+    results = service.verify_word_entries_batch([_payload(), _mor_payload()], sentence_context="test sentence")
+
+    assert len(results) == 2
+    assert results[0].verdict == "verified"
+    assert results[1].verdict == "flagged"
+
+
+def test_gemini_batch_verification_applies_post_processing_per_word(monkeypatch) -> None:
+    service = GeminiWordVerificationService(api_key="test-key")
+    monkeypatch.setattr(
+        service,
+        "_generate_content",
+        lambda prompt, config=None: type("R", (), {
+            "text": (
+                '{"results":['
+                '{"word_id":0,"verdict":"incorrect","word_count":1,"problem":"The gloss is wrong.","change_to_implement":"fix gloss","suggested_actions":[]},'
+                '{"word_id":1,"verdict":"incorrect","word_count":1,"problem":"translation mismatch","change_to_implement":"set translation",'
+                '"suggested_actions":[{"action_type":"fix_translation","english_translation":"mother","reason":"use the noun translation"}]}'
+                ']}'
+            ),
+        })(),
+    )
+
+    results = service.verify_word_entries_batch([_payload(), _mor_payload()], sentence_context="test")
+
+    assert results[0].verdict == "verified"  # gloss-only review suppressed
+    assert results[0].suggested_actions == ()
+    assert results[1].verdict == "flagged"  # translation fix allowed
+    assert [a.action_type for a in results[1].suggested_actions] == ["fix_translation"]
+
+
+def test_gemini_batch_verification_empty_payloads() -> None:
+    service = GeminiWordVerificationService(api_key="test-key")
+    assert service.verify_word_entries_batch([]) == []
+
+
+def test_gemini_batch_verification_fallback_on_parse_failure(monkeypatch) -> None:
+    service = GeminiWordVerificationService(api_key="test-key")
+    monkeypatch.setattr(
+        service,
+        "_generate_content",
+        lambda prompt, config=None: type("R", (), {"text": "not json"})(),
+    )
+
+    results = service.verify_word_entries_batch([_payload()])
+
+    assert len(results) == 1
+    assert results[0].verdict == "flagged"
+    assert "Batch verification failed" in (results[0].problem or "")
+
+
+def test_gemini_batch_verification_fallback_on_empty_response(monkeypatch) -> None:
+    service = GeminiWordVerificationService(api_key="test-key")
+    monkeypatch.setattr(
+        service,
+        "_generate_content",
+        lambda prompt, config=None: type("R", (), {"text": ""})(),
+    )
+
+    results = service.verify_word_entries_batch([_payload()])
+
+    assert len(results) == 1
+    assert results[0].verdict == "flagged"

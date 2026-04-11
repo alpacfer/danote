@@ -146,6 +146,9 @@ class WordVerificationService(Protocol):
 
     def verify_word_entry(self, payload: WordVerificationInput) -> WordVerificationResult: ...
     def classify_word_categories(self, payload: WordVerificationInput) -> WordCategoryClassificationResult: ...
+    def verify_word_entries_batch(
+        self, payloads: list[WordVerificationInput], sentence_context: str | None = None,
+    ) -> list[WordVerificationResult]: ...
 
 
 @dataclass
@@ -190,18 +193,26 @@ class GeminiWordVerificationService:
 
     def verify_word_entry(self, payload: WordVerificationInput) -> WordVerificationResult:
         prompt = self._verification_prompt(payload)
-        fallback_word_count = self._infer_word_count(payload)
         raw = self._generate_text(prompt)
         if not raw:
             return WordVerificationResult(
                 verdict="flagged",
                 message="Review needed",
-                composed_word_count=fallback_word_count,
+                composed_word_count=self._infer_word_count(payload),
                 problem="Could not verify the entry.",
                 change_to_implement="Retry verification.",
             )
-
         parsed = self._parse_response(raw)
+        return self._process_single_verdict(payload, parsed)
+
+    def _process_single_verdict(
+        self,
+        payload: WordVerificationInput,
+        parsed: dict[str, object],
+    ) -> WordVerificationResult:
+        """Post-process a parsed Gemini verdict dict into a WordVerificationResult."""
+        fallback_word_count = self._infer_word_count(payload)
+
         verdict = parsed.get("verdict")
         word_count_raw = parsed.get("word_count")
         word_count = int(word_count_raw) if isinstance(word_count_raw, int) else fallback_word_count
@@ -293,6 +304,97 @@ class GeminiWordVerificationService:
         return WordCategoryClassificationResult(
             categories=tuple(self._parse_categories(parsed, payload.available_categories)),
         )
+
+    def verify_word_entries_batch(
+        self,
+        payloads: list[WordVerificationInput],
+        sentence_context: str | None = None,
+    ) -> list[WordVerificationResult]:
+        if not payloads:
+            return []
+        entries = [
+            {"word_id": index, **self._verification_context(payload)}
+            for index, payload in enumerate(payloads)
+        ]
+        prompt = self._batch_verification_prompt(entries, sentence_context)
+        raw = self._generate_content(prompt)
+        text = getattr(raw, "text", None)
+        cleaned = text.strip() if isinstance(text, str) else ""
+        if not cleaned:
+            return [self._batch_fallback(payload) for payload in payloads]
+
+        parsed = self._parse_batch_response(cleaned, len(payloads))
+        results: list[WordVerificationResult] = []
+        for payload, word_parsed in zip(payloads, parsed, strict=False):
+            if word_parsed is None:
+                results.append(self._batch_fallback(payload))
+            else:
+                results.append(self._process_single_verdict(payload, word_parsed))
+        return results
+
+    def _batch_verification_prompt(
+        self,
+        entries: list[dict[str, object]],
+        sentence_context: str | None = None,
+    ) -> str:
+        from app.services.verification_prompt_templates import build_batch_verification_prompt
+        return build_batch_verification_prompt(entries=entries, sentence_context=sentence_context)
+
+    def _parse_batch_response(
+        self,
+        raw: str,
+        expected_count: int,
+    ) -> list[dict[str, object] | None]:
+        cleaned = raw.strip()
+        if cleaned.startswith("```"):
+            cleaned = cleaned.removeprefix("```json").removeprefix("```").strip()
+            if cleaned.endswith("```"):
+                cleaned = cleaned[:-3].strip()
+        try:
+            parsed = json.loads(cleaned)
+        except ValueError:
+            return [None] * expected_count
+        if not isinstance(parsed, dict):
+            return [None] * expected_count
+        raw_results = parsed.get("results")
+        if not isinstance(raw_results, list):
+            return [None] * expected_count
+        by_id: dict[int, dict[str, object]] = {}
+        for item in raw_results:
+            if not isinstance(item, dict):
+                continue
+            word_id = item.get("word_id")
+            if isinstance(word_id, int):
+                by_id[word_id] = item
+        return [by_id.get(i) for i in range(expected_count)]
+
+    def _batch_fallback(self, payload: WordVerificationInput) -> WordVerificationResult:
+        return WordVerificationResult(
+            verdict="flagged",
+            message="Review needed",
+            composed_word_count=self._infer_word_count(payload),
+            problem="Batch verification failed for this entry.",
+            change_to_implement="Retry verification.",
+        )
+
+    def _generate_content(self, prompt: str, *, config: object | None = None) -> object:
+        attempts = self.max_retries + 1
+        for attempt in range(attempts):
+            try:
+                client = self._ensure_client()
+                return client.models.generate_content(
+                    model=self.model,
+                    contents=prompt,
+                    config=config,
+                )
+            except Exception as exc:
+                if attempt < self.max_retries:
+                    delay = self.backoff_seconds * (2**attempt)
+                    if delay > 0:
+                        time.sleep(delay)
+                    continue
+                raise VerificationError(f"Gemini verification request failed: {exc}") from exc
+        return type("R", (), {"text": None})()
 
     def _verification_prompt(self, payload: WordVerificationInput) -> str:
         entry = self._verification_context(payload)
