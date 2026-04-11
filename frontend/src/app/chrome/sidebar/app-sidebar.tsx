@@ -95,7 +95,8 @@ export function AppSidebar({
     normalizedQuery,
     matchingNotes,
     searchApiMatches,
-    didYouMean,
+    wordbankDidYouMean,
+    corDidYouMean,
     activeCorFormSearchResult,
     isCorTranslationsLoading,
   } = useSidebarSearch({
@@ -186,11 +187,33 @@ export function AppSidebar({
 
   const orderedCommandItemValues = useMemo(() => {
     const values: string[] = []
-    for (const item of orderedWordbankResults) {
-      values.push(`wordbank-${savedWordbankResultKey(item)}`)
+    // Direct wordbank (no wordbank correction)
+    if (!wordbankDidYouMean) {
+      for (const item of orderedWordbankResults) {
+        values.push(`wordbank-${savedWordbankResultKey(item)}`)
+      }
     }
-    for (const variant of orderedCorVariantsToRender) {
-      values.push(`cor-variant-${variant.cor_id}`)
+    // Direct COR (no COR correction)
+    if (!corDidYouMean) {
+      for (const variant of orderedCorVariantsToRender) {
+        values.push(`cor-variant-${variant.cor_id}`)
+      }
+    }
+    // DYM banner item
+    if (wordbankDidYouMean || corDidYouMean) {
+      values.push("did-you-mean-suggestion")
+    }
+    // Corrected wordbank
+    if (wordbankDidYouMean) {
+      for (const item of orderedWordbankResults) {
+        values.push(`wordbank-${savedWordbankResultKey(item)}`)
+      }
+    }
+    // Corrected COR
+    if (corDidYouMean) {
+      for (const variant of orderedCorVariantsToRender) {
+        values.push(`cor-variant-${variant.cor_id}`)
+      }
     }
     for (const note of matchingNotes) {
       values.push(`note-${note.id}`)
@@ -199,7 +222,7 @@ export function AppSidebar({
       values.push(page.key)
     }
     return values
-  }, [matchingNotes, matchingPageItems, orderedCorVariantsToRender, orderedWordbankResults])
+  }, [corDidYouMean, matchingNotes, matchingPageItems, orderedCorVariantsToRender, orderedWordbankResults, wordbankDidYouMean])
 
   const commandSelectionValue = useMemo(() => {
     if (commandSelectionOverride && orderedCommandItemValues.includes(commandSelectionOverride)) {
@@ -215,7 +238,8 @@ export function AppSidebar({
     hasWordbankActions,
     hasNoteResults,
     hasPageResults,
-    didYouMean,
+    wordbankDidYouMean,
+    corDidYouMean,
   }
 
   const searchResultData: SidebarSearchResultsData = {
