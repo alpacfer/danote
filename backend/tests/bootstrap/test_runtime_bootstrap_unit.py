@@ -34,7 +34,6 @@ def test_build_startup_steps_registers_expected_sequence(stub_nlp_adapter_factor
         "nlp",
         "cor_local",
         "cor",
-        "typo",
         "translation",
         "gemini_word_translation",
         "related_words",

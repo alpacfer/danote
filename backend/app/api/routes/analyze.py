@@ -27,7 +27,6 @@ def analyze_note(payload: AnalyzeRequest, request: Request) -> AnalyzeResponse:
     use_case = AnalyzeNoteUseCase(
         settings.db_path,
         nlp_adapter=services.nlp_adapter,
-        typo_engine=services.typo_engine,
     )
 
     tokens = run_db_operation(

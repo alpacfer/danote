@@ -14,7 +14,6 @@ from app.bootstrap.runtime_related_words import initialize_related_words
 from app.bootstrap.runtime_steps import StartupStep, run_startup_step
 from app.bootstrap.runtime_translation import initialize_translation
 from app.bootstrap.runtime_tts import initialize_tts
-from app.bootstrap.runtime_typo import initialize_typo
 from app.bootstrap.runtime_word_verification import initialize_word_verification
 from app.bootstrap.runtime_wordbank_background_jobs import initialize_wordbank_background_jobs
 from app.core.app_state import close_runtime_services, get_runtime_state
@@ -65,7 +64,6 @@ def build_startup_steps(
         StartupStep("nlp", lambda app, settings: initialize_nlp(app, settings, nlp_adapter_factory)),
         StartupStep("cor_local", initialize_cor_local),
         StartupStep("cor", initialize_cor),
-        StartupStep("typo", initialize_typo),
         StartupStep("translation", initialize_translation),
         StartupStep("gemini_word_translation", initialize_gemini_word_translation),
         StartupStep("related_words", initialize_related_words),
@@ -92,7 +90,6 @@ def log_startup(app: FastAPI, applied: list[str]) -> None:
             "db_error": runtime.db_error,
             "nlp_error": runtime.nlp_error,
             "nlp": services.nlp_adapter.metadata() if services.nlp_adapter else None,
-            "typo_enabled": bool(services.typo_engine is not None),
             "translation_enabled": settings.translation_enabled,
             "translation_error": runtime.translation_error,
             "translation_provider": (

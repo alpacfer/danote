@@ -11,7 +11,6 @@ from app.core.config import Settings
 @dataclass(slots=True)
 class BackendServices:
     nlp_adapter: Any = None
-    typo_engine: Any = None
     cor_lexicon_service: Any = None
     cor_local_lexicon_service: Any = None
     translation_service: Any = None

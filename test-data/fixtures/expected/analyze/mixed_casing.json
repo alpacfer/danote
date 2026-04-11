@@ -12,9 +12,7 @@
       "matched_surface_form": null,
       "suggestions": [],
       "confidence": 0.0,
-      "reason_tags": [
-        "gating_skip_acronym"
-      ],
+      "reason_tags": [],
       "word_actions": [
         {
           "action_type": "add_as_new",

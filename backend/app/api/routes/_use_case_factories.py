@@ -11,7 +11,6 @@ def build_wordbank_use_case(request: Request) -> WordbankUseCase:
     services = get_services(request)
     return WordbankUseCase(
         db_path=settings.db_path,
-        typo_engine=services.typo_engine,
         translation_service=services.translation_service,
         gemini_word_translation_service=services.gemini_word_translation_service,
         gemini_related_words_service=services.gemini_related_words_service,

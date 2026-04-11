@@ -12,10 +12,7 @@
       "matched_surface_form": null,
       "suggestions": [],
       "confidence": 0.0,
-      "reason_tags": [
-        "gating_ok",
-        "gating_skip_dictionary_exact"
-      ],
+      "reason_tags": [],
       "word_actions": [
         {
           "action_type": "add_as_new",
@@ -73,10 +70,7 @@
       "matched_surface_form": null,
       "suggestions": [],
       "confidence": 0.0,
-      "reason_tags": [
-        "gating_ok",
-        "gating_skip_dictionary_exact"
-      ],
+      "reason_tags": [],
       "word_actions": [
         {
           "action_type": "add_as_new",
@@ -194,11 +188,7 @@
       "matched_surface_form": null,
       "suggestions": [],
       "confidence": 0.0,
-      "reason_tags": [
-        "gating_ok",
-        "proper_noun_bias",
-        "gating_skip_dictionary_exact"
-      ],
+      "reason_tags": [],
       "word_actions": [
         {
           "action_type": "add_as_new",
@@ -286,11 +276,7 @@
       "matched_surface_form": null,
       "suggestions": [],
       "confidence": 0.0,
-      "reason_tags": [
-        "gating_ok",
-        "proper_noun_bias",
-        "gating_skip_dictionary_exact"
-      ],
+      "reason_tags": [],
       "word_actions": [
         {
           "action_type": "add_as_new",

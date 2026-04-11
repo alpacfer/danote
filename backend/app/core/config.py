@@ -20,8 +20,6 @@ class Settings:
     nlp_model: str
     nlp_enabled: bool = True
     cors_origins: tuple[str, ...] = DEFAULT_CORS_ORIGINS
-    typo_enabled: bool = True
-    typo_dictionary_path: Path | None = None
     translation_enabled: bool = True
     translation_provider: str = "deepl"
     translation_azure_api_key: str | None = None
@@ -51,7 +49,6 @@ class Settings:
 def load_settings(*, env_file: Path | None = None) -> Settings:
     env_values = _load_env_file(env_file or (REPO_DIR / ".env.local"))
     db_path = Path(_required_env("DANOTE_DB_PATH", env_values, DATA_DIR / "danote.sqlite3"))
-    typo_dictionary_path = _optional_env("DANOTE_TYPO_DICTIONARY_PATH", env_values)
     raw_cors_origins = _required_env("DANOTE_CORS_ORIGINS", env_values, "")
     parsed_cors_origins = tuple(
         origin.strip()
@@ -67,8 +64,6 @@ def load_settings(*, env_file: Path | None = None) -> Settings:
         nlp_model=_required_env("DANOTE_NLP_MODEL", env_values, "da_dacy_small_trf-0.2.0"),
         nlp_enabled=_required_env("DANOTE_NLP_ENABLED", env_values, "1").lower() not in {"0", "false", "no"},
         cors_origins=parsed_cors_origins or DEFAULT_CORS_ORIGINS,
-        typo_enabled=_required_env("DANOTE_TYPO_ENABLED", env_values, "1").lower() not in {"0", "false", "no"},
-        typo_dictionary_path=Path(typo_dictionary_path) if typo_dictionary_path else None,
         translation_enabled=_required_env("DANOTE_TRANSLATION_ENABLED", env_values, "1").lower()
         not in {"0", "false", "no"},
         translation_provider=_required_env("DANOTE_TRANSLATION_PROVIDER", env_values, "deepl"),
