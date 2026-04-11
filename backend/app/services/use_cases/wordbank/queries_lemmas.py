@@ -6,6 +6,7 @@ from app.api.schemas.v1.wordbank import (
     WordbankSearchItem,
     WordbankSearchResponse,
 )
+from app.services.fuzzy_search import fuzzy_suggest
 from app.services.token_classifier import normalize_token
 from app.services.use_cases.wordbank.gloss_translations import meaning_gloss_translation
 from app.services.use_cases.wordbank.meaning_sections import ensure_wordbank_meaning_compatibility
@@ -38,9 +39,19 @@ def search_lemmas(runtime: WordbankRuntime, query: str, *, limit: int = 8) -> Wo
         raise ValueError("limit must be at least 1")
 
     rows = runtime.repository.search_lemmas(normalized_query, limit=limit)
+
+    did_you_mean: str | None = None
+    if not rows:
+        all_lemmas = runtime.repository.list_all_lemma_strings()
+        suggestions = fuzzy_suggest(normalized_query, all_lemmas)
+        if suggestions:
+            did_you_mean = suggestions[0]
+            rows = runtime.repository.search_lemmas(did_you_mean, limit=limit)
+
     gloss_translation_cache: dict[tuple[str, str, str | None, str | None, str, str | None, str | None], str | None] = {}
 
     return WordbankSearchResponse(
+        did_you_mean=did_you_mean,
         items=[
             WordbankSearchItem(
                 lemma=row.lemma,

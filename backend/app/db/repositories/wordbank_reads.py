@@ -112,6 +112,15 @@ class WordbankReadRepository:
             for row in rows
         ]
 
+    def list_all_lemma_strings(self) -> list[str]:
+        with timed_db_operation("wordbank.list_all_lemma_strings"), get_connection(
+            self._db_path, read_only=True
+        ) as conn:
+            rows = conn.execute(
+                "SELECT lemma FROM lexemes ORDER BY lemma COLLATE NOCASE"
+            ).fetchall()
+        return [str(row["lemma"]) for row in rows]
+
     def get_lexeme(self, normalized_lemma: str) -> LexemeRecord | None:
         with timed_db_operation("wordbank.get_lexeme"), get_connection(
             self._db_path, read_only=True
