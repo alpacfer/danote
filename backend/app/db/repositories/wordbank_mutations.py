@@ -661,9 +661,10 @@ class WordbankMutationRepository:
                         sort_order,
                         related_lemma,
                         english_translation,
-                        pos_tag
+                        pos_tag,
+                        preferred_cor_id
                     )
-                    VALUES (?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         owner_lexeme_id,
@@ -672,6 +673,7 @@ class WordbankMutationRepository:
                         item.related_lemma,
                         item.english_translation,
                         item.pos_tag,
+                        item.preferred_cor_id,
                     ),
                 )
 

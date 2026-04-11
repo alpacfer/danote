@@ -192,6 +192,7 @@ def test_wordbank_related_words_table_has_expected_columns_and_indexes(tmp_path)
         "related_lemma": "TEXT",
         "english_translation": "TEXT",
         "pos_tag": "TEXT",
+        "preferred_cor_id": "TEXT",
         "created_at": "TEXT",
         "updated_at": "TEXT",
     }

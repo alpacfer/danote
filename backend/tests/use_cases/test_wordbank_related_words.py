@@ -346,6 +346,56 @@ def test_non_compound_related_words_finish_as_empty(tmp_path: Path) -> None:
     assert details.related_words.items == []
 
 
+def test_gemini_picks_gloss_variant_sets_display_variant_not_candidates(tmp_path: Path) -> None:
+    db_path = _db_path(tmp_path)
+    use_case = WordbankUseCase(
+        db_path,
+        gemini_related_words_service=FakeGeminiRelatedWordsService(
+            mapping={"legeplads": [("plads", "space", "NOUN")]},
+            gloss_picks={"plads": "COR.PLADS.SPACE.LEM"},
+        ),
+        cor_local_lexicon_service=_related_words_cor_local(),
+    )
+
+    use_case.add_word("legeplads", "legeplads")
+    use_case.process_queued_related_words("legeplads")
+    _mark_related_words_job_completed(db_path, "legeplads")
+
+    details = use_case.get_lemma_details("legeplads")
+
+    assert details.related_words.status == "ready"
+    plads_item = details.related_words.items[0]
+    assert plads_item.lemma == "plads"
+    assert plads_item.display_variant is not None
+    assert plads_item.display_variant.cor_id == "COR.PLADS.SPACE.LEM"
+    assert plads_item.candidate_variants == []
+
+
+def test_gemini_uncertain_gloss_variant_falls_back_to_candidate_variants(tmp_path: Path) -> None:
+    db_path = _db_path(tmp_path)
+    use_case = WordbankUseCase(
+        db_path,
+        gemini_related_words_service=FakeGeminiRelatedWordsService(
+            mapping={"legeplads": [("plads", "space", "NOUN")]},
+            gloss_picks={},
+        ),
+        cor_local_lexicon_service=_related_words_cor_local(),
+    )
+
+    use_case.add_word("legeplads", "legeplads")
+    use_case.process_queued_related_words("legeplads")
+    _mark_related_words_job_completed(db_path, "legeplads")
+
+    details = use_case.get_lemma_details("legeplads")
+
+    plads_item = details.related_words.items[0]
+    assert plads_item.display_variant is None
+    assert {v.cor_id for v in plads_item.candidate_variants} == {
+        "COR.PLADS.SPACE.LEM",
+        "COR.PLADS.SQUARE.LEM",
+    }
+
+
 def _mark_related_words_job_completed(db_path: Path, lemma: str) -> None:
     jobs = WordbankBackgroundJobRepository(db_path)
     job = jobs.get_by_dedupe_key(f"resolve_related_words::{lemma}")

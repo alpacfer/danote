@@ -183,9 +183,16 @@ class FakeGeminiWordTranslationService:
 class FakeGeminiRelatedWordsService:
     provider = "gemini_related_words"
 
-    def __init__(self, mapping: dict[str, list[tuple[str, str, str]]]):
+    def __init__(
+        self,
+        mapping: dict[str, list[tuple[str, str, str]]],
+        gloss_picks: dict[str, str] | None = None,
+    ):
         self._mapping = {key.lower(): value for key, value in mapping.items()}
+        # gloss_picks: lemma -> cor_id to return from pick_gloss_variant; None means uncertain
+        self._gloss_picks: dict[str, str | None] = gloss_picks or {}
         self.calls: list[str] = []
+        self.pick_calls: list[str] = []
 
     def find_related_words(self, *, lemma: str):
         self.calls.append(lemma)
@@ -206,6 +213,12 @@ class FakeGeminiRelatedWordsService:
                 ]
 
         return Result(self._mapping.get(lemma.lower(), []))
+
+    def pick_gloss_variant(self, *, lemma: str, english_translation, pos_tag, candidates):
+        self.pick_calls.append(lemma)
+        if lemma in self._gloss_picks:
+            return self._gloss_picks[lemma]
+        return None
 
 
 class FakeTTSService:

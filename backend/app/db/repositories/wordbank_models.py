@@ -72,6 +72,7 @@ class RelatedWordRecord:
     related_lemma: str
     english_translation: str | None
     pos_tag: str | None
+    preferred_cor_id: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -81,6 +82,7 @@ class RelatedWordWriteRecord:
     related_lemma: str
     english_translation: str | None
     pos_tag: str | None
+    preferred_cor_id: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -195,6 +197,7 @@ def verification_record_from_row(row) -> VerificationRecord:
 
 
 def related_word_from_row(row) -> RelatedWordRecord:
+    keys = row.keys() if hasattr(row, "keys") else []
     return RelatedWordRecord(
         id=int(row["id"]),
         owner_lexeme_id=int(row["owner_lexeme_id"]),
@@ -203,6 +206,7 @@ def related_word_from_row(row) -> RelatedWordRecord:
         related_lemma=str(row["related_lemma"]),
         english_translation=row["english_translation"],
         pos_tag=row["pos_tag"],
+        preferred_cor_id=row["preferred_cor_id"] if "preferred_cor_id" in keys else None,
     )
 
 

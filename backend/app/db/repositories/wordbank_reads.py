@@ -241,7 +241,8 @@ class WordbankReadRepository:
                     sort_order,
                     related_lemma,
                     english_translation,
-                    pos_tag
+                    pos_tag,
+                    preferred_cor_id
                 FROM wordbank_related_words
                 WHERE owner_lexeme_id = ?
                 ORDER BY sort_order ASC, id ASC
@@ -274,7 +275,8 @@ class WordbankReadRepository:
                     CASE
                         WHEN COALESCE(mc.meaning_count, 0) = 1 THEN COALESCE(lm.pos_tag, l.pos_tag)
                         ELSE l.pos_tag
-                    END AS pos_tag
+                    END AS pos_tag,
+                    NULL AS preferred_cor_id
                 FROM wordbank_related_words rw
                 JOIN lexemes l ON l.id = rw.owner_lexeme_id
                 LEFT JOIN meaning_counts mc ON mc.lexeme_id = l.id

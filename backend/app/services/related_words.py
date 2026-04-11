@@ -25,10 +25,29 @@ class RelatedWordsResult:
     items: list[RelatedWordItem]
 
 
+@dataclass(frozen=True, slots=True)
+class GlossVariantCandidate:
+    cor_id: str
+    gloss: str | None
+    gloss_translation: str | None
+    gram_raw: str
+
+
 class GeminiRelatedWordsService(Protocol):
     provider: str
 
     def find_related_words(self, *, lemma: str) -> RelatedWordsResult: ...
+
+    def pick_gloss_variant(
+        self,
+        *,
+        lemma: str,
+        english_translation: str | None,
+        pos_tag: str | None,
+        candidates: list[GlossVariantCandidate],
+    ) -> str | None:
+        """Return the cor_id of the best-matching candidate, or None if uncertain."""
+        ...
 
 
 @dataclass
@@ -62,6 +81,26 @@ class GeminiCompoundRelatedWordsService:
         )
         text = getattr(response, "text", None)
         return self._parse_response(text, lemma=normalized_lemma)
+
+    def pick_gloss_variant(
+        self,
+        *,
+        lemma: str,
+        english_translation: str | None,
+        pos_tag: str | None,
+        candidates: list[GlossVariantCandidate],
+    ) -> str | None:
+        if len(candidates) < 2:
+            return candidates[0].cor_id if candidates else None
+        try:
+            response = self._generate_content(
+                self._pick_gloss_prompt(lemma, english_translation, pos_tag, candidates),
+                config=self._pick_gloss_response_config(),
+            )
+            text = getattr(response, "text", None)
+            return self._parse_pick_gloss_response(text, candidates=candidates)
+        except RelatedWordsError:
+            return None
 
     def _ensure_client(self) -> object:
         if self._client is None:
@@ -145,6 +184,72 @@ class GeminiCompoundRelatedWordsService:
             "- Do not include explanations or uncertainty text.\n"
             f"Lemma:\n{json.dumps({'lemma': lemma}, ensure_ascii=False)}"
         )
+
+    def _pick_gloss_prompt(
+        self,
+        lemma: str,
+        english_translation: str | None,
+        pos_tag: str | None,
+        candidates: list[GlossVariantCandidate],
+    ) -> str:
+        lines = [
+            "You are a Danish linguist selecting the correct dictionary sense.",
+            f"Danish lemma: {json.dumps(lemma, ensure_ascii=False)}",
+        ]
+        if english_translation:
+            lines.append(f"Known English meaning: {json.dumps(english_translation, ensure_ascii=False)}")
+        if pos_tag:
+            lines.append(f"Part of speech: {pos_tag}")
+        lines.append("Dictionary entries (0-indexed):")
+        for i, c in enumerate(candidates):
+            gloss_display = c.gloss_translation or c.gloss or "(no gloss)"
+            lines.append(f"  {i}: gloss={json.dumps(gloss_display, ensure_ascii=False)}, gram={json.dumps(c.gram_raw, ensure_ascii=False)}")
+        lines.append(
+            'Return JSON: {"selected_index": <integer index of best match, or null if uncertain>}\n'
+            "Rules:\n"
+            "- Select null only when truly ambiguous — prefer a definite answer.\n"
+            "- Do not add explanations."
+        )
+        return "\n".join(lines)
+
+    def _pick_gloss_response_config(self) -> object:
+        genai_types = self._genai_types()
+        return genai_types.GenerateContentConfig(
+            response_mime_type="application/json",
+            response_schema={
+                "type": "OBJECT",
+                "properties": {
+                    "selected_index": {"type": "INTEGER", "nullable": True},
+                },
+                "required": ["selected_index"],
+            },
+            temperature=0,
+            max_output_tokens=64,
+            thinking_config=genai_types.ThinkingConfig(thinking_budget=0),
+        )
+
+    def _parse_pick_gloss_response(
+        self, raw: object, *, candidates: list[GlossVariantCandidate]
+    ) -> str | None:
+        text = raw.strip() if isinstance(raw, str) else ""
+        if not text:
+            return None
+        try:
+            payload = json.loads(text)
+        except json.JSONDecodeError:
+            return None
+        if not isinstance(payload, dict):
+            return None
+        idx = payload.get("selected_index")
+        if idx is None:
+            return None
+        try:
+            idx = int(idx)
+        except (TypeError, ValueError):
+            return None
+        if idx < 0 or idx >= len(candidates):
+            return None
+        return candidates[idx].cor_id
 
     def _parse_response(self, raw: object, *, lemma: str) -> RelatedWordsResult:
         text = raw.strip() if isinstance(raw, str) else ""

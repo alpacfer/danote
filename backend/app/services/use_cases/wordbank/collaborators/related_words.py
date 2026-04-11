@@ -7,7 +7,7 @@ from app.db.repositories import (
     WordbankRepository,
 )
 from app.services.cor_local import CORLocalEntry, CORLocalLexiconService
-from app.services.related_words import GeminiRelatedWordsService
+from app.services.related_words import GeminiRelatedWordsService, GlossVariantCandidate
 from app.services.token_classifier import normalize_token
 from app.services.use_cases.wordbank.collaborators.cor_local import (
     consolidate_cor_local_entries,
@@ -71,11 +71,18 @@ class RelatedWordsCollaborator:
                 english_translation=item.english_translation,
                 pos_tag=item.pos_tag,
             )
-            if not self._cor_candidates(item.lemma, item.pos_tag):
+            candidates = self._cor_candidates(item.lemma, item.pos_tag)
+            if not candidates:
                 continue
             self._persist_additional_translation_for_saved_target(
                 lemma=item.lemma,
                 english_translation=normalized_translation,
+            )
+            preferred_cor_id = self._pick_preferred_cor_id(
+                lemma=item.lemma,
+                english_translation=normalized_translation,
+                pos_tag=item.pos_tag,
+                cor_candidates=candidates,
             )
             persisted_rows.append(
                 RelatedWordWriteRecord(
@@ -84,6 +91,7 @@ class RelatedWordsCollaborator:
                     related_lemma=item.lemma,
                     english_translation=normalized_translation,
                     pos_tag=item.pos_tag,
+                    preferred_cor_id=preferred_cor_id,
                 )
             )
         self._repository.replace_related_words(
@@ -160,6 +168,7 @@ class RelatedWordsCollaborator:
                     )
                 else:
                     saved_match = LemmaDetailsResponse.RelatedWordSavedMatch(status="unsaved")
+        display_variant, candidate_variants = _resolve_display_variant(variants, row.preferred_cor_id)
         return LemmaDetailsResponse.RelatedWord(
             id=row.id,
             relation_type=row.relation_type,
@@ -167,8 +176,8 @@ class RelatedWordsCollaborator:
             english_translation=row.english_translation,
             pos_tag=row.pos_tag,
             saved_match=saved_match,
-            display_variant=variants[0] if len(variants) == 1 else None,
-            candidate_variants=variants if len(variants) > 1 else [],
+            display_variant=display_variant,
+            candidate_variants=candidate_variants,
         )
 
     def _variants_for_related_word(
@@ -228,6 +237,38 @@ class RelatedWordsCollaborator:
             filtered = [entry for entry in filtered if entry.pos_tag == pos_tag]
         return filtered
 
+    def _pick_preferred_cor_id(
+        self,
+        *,
+        lemma: str,
+        english_translation: str | None,
+        pos_tag: str | None,
+        cor_candidates: list,
+    ) -> str | None:
+        if len(cor_candidates) <= 1:
+            return None
+        if self._related_words_service is None:
+            return None
+        gloss_cache: dict[str, str | None] = {}
+        candidates = [
+            GlossVariantCandidate(
+                cor_id=entry.cor_id,
+                gloss=entry.gloss,
+                gloss_translation=self._resolve_gloss_translation(entry, english_translation, gloss_cache),
+                gram_raw=entry.gram_raw,
+            )
+            for entry in cor_candidates
+        ]
+        try:
+            return self._related_words_service.pick_gloss_variant(
+                lemma=lemma,
+                english_translation=english_translation,
+                pos_tag=pos_tag,
+                candidates=candidates,
+            )
+        except Exception:
+            return None
+
     def _persist_additional_translation_for_saved_target(
         self,
         *,
@@ -250,6 +291,21 @@ class RelatedWordsCollaborator:
             english_translation=normalized_translation,
             source="related_words",
         )
+
+
+def _resolve_display_variant(
+    variants: list[CORSearchVariant],
+    preferred_cor_id: str | None,
+) -> tuple[CORSearchVariant | None, list[CORSearchVariant]]:
+    if len(variants) == 1:
+        return variants[0], []
+    if not variants:
+        return None, []
+    if preferred_cor_id is not None:
+        matched = next((v for v in variants if v.cor_id == preferred_cor_id), None)
+        if matched is not None:
+            return matched, []
+    return None, variants
 
 
 def _normalize_related_translation(*, english_translation: str | None, pos_tag: str | None) -> str | None:
