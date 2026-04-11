@@ -44,6 +44,7 @@ class WordbankChangeLogRepository:
                     provider,
                 ),
             )
+            assert cursor.lastrowid is not None
             return int(cursor.lastrowid)
 
     def get_change_log_entries_for_lemma(

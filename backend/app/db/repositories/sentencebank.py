@@ -7,11 +7,45 @@ from app.db.sqlite import get_connection, timed_db_operation
 
 
 @dataclass(frozen=True, slots=True)
+class SentenceTokenRecord:
+    token_index: int
+    surface_form: str
+    normalized_surface: str
+    stored_lemma: str
+    lexeme_id: int
+    meaning_id: int | None
+    cor_id: str | None
+    pos_tag: str | None
+    morphology: str | None
+    gloss: str | None
+    english_translation: str | None
+    gloss_translation: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class SentenceTokenWriteRecord:
+    token_index: int
+    surface_form: str
+    normalized_surface: str
+    stored_lemma: str
+    lexeme_id: int
+    meaning_id: int | None
+    cor_id: str | None
+    pos_tag: str | None
+    morphology: str | None
+    gloss: str | None
+    english_translation: str | None
+    gloss_translation: str | None
+
+
+@dataclass(frozen=True, slots=True)
 class SentenceRecord:
     id: int
     source_text: str
     english_translation: str | None
     created_at: str
+    tokens: tuple[SentenceTokenRecord, ...] = ()
+    matched_token_indexes: tuple[int, ...] = ()
 
 
 class SentencebankRepository:
@@ -31,13 +65,16 @@ class SentencebankRepository:
                 """,
                 (normalized_sentence,),
             ).fetchone()
-        if row is None:
-            return None
+            if row is None:
+                return None
+            sentence_ids = [int(row["id"])]
+            tokens_by_sentence = self._fetch_tokens_by_sentence(conn, sentence_ids)
         return SentenceRecord(
             id=int(row["id"]),
             source_text=str(row["source_sentence"]),
             english_translation=row["english_translation"],
             created_at=str(row["created_at"]),
+            tokens=tuple(tokens_by_sentence.get(int(row["id"]), ())),
         )
 
     def insert_sentence(
@@ -47,9 +84,9 @@ class SentencebankRepository:
         normalized_sentence: str,
         english_translation: str | None,
         translation_provider: str | None,
-    ) -> None:
+    ) -> int:
         with timed_db_operation("sentencebank.insert_sentence"), get_connection(self._db_path) as conn:
-            conn.execute(
+            cursor = conn.execute(
                 """
                 INSERT INTO sentence_bank (
                     source_sentence,
@@ -66,6 +103,63 @@ class SentencebankRepository:
                     translation_provider,
                 ),
             )
+        assert cursor.lastrowid is not None
+        return int(cursor.lastrowid)
+
+    def replace_sentence_tokens(
+        self,
+        *,
+        sentence_id: int,
+        tokens: list[SentenceTokenWriteRecord],
+    ) -> None:
+        with timed_db_operation("sentencebank.replace_sentence_tokens"), get_connection(self._db_path) as conn:
+            conn.execute(
+                """
+                DELETE FROM sentence_bank_tokens
+                WHERE sentence_id = ?
+                """,
+                (sentence_id,),
+            )
+            if not tokens:
+                return
+            conn.executemany(
+                """
+                INSERT INTO sentence_bank_tokens (
+                    sentence_id,
+                    token_index,
+                    surface_form,
+                    normalized_surface,
+                    stored_lemma,
+                    lexeme_id,
+                    meaning_id,
+                    cor_id,
+                    pos_tag,
+                    morphology,
+                    gloss,
+                    english_translation,
+                    gloss_translation
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                [
+                    (
+                        sentence_id,
+                        token.token_index,
+                        token.surface_form,
+                        token.normalized_surface,
+                        token.stored_lemma,
+                        token.lexeme_id,
+                        token.meaning_id,
+                        token.cor_id,
+                        token.pos_tag,
+                        token.morphology,
+                        token.gloss,
+                        token.english_translation,
+                        token.gloss_translation,
+                    )
+                    for token in tokens
+                ],
+            )
 
     def list_sentences(self) -> list[SentenceRecord]:
         with timed_db_operation("sentencebank.list_sentences"), get_connection(self._db_path, read_only=True) as conn:
@@ -76,12 +170,128 @@ class SentencebankRepository:
                 ORDER BY datetime(created_at) DESC, id DESC
                 """
             ).fetchall()
+            sentence_ids = [int(row["id"]) for row in rows]
+            tokens_by_sentence = self._fetch_tokens_by_sentence(conn, sentence_ids)
         return [
             SentenceRecord(
                 id=int(row["id"]),
                 source_text=str(row["source_sentence"]),
                 english_translation=row["english_translation"],
                 created_at=str(row["created_at"]),
+                tokens=tuple(tokens_by_sentence.get(int(row["id"]), ())),
             )
             for row in rows
         ]
+
+    def list_linked_sentences_for_lemma(self, stored_lemma: str) -> list[SentenceRecord]:
+        with timed_db_operation("sentencebank.list_linked_sentences_for_lemma"), get_connection(
+            self._db_path, read_only=True
+        ) as conn:
+            rows = conn.execute(
+                """
+                SELECT
+                    sb.id,
+                    sb.source_sentence,
+                    sb.english_translation,
+                    sb.created_at
+                FROM sentence_bank sb
+                WHERE EXISTS (
+                    SELECT 1
+                    FROM sentence_bank_tokens sbt
+                    WHERE sbt.sentence_id = sb.id
+                      AND sbt.stored_lemma = ?
+                )
+                ORDER BY datetime(sb.created_at) DESC, sb.id DESC
+                """,
+                (stored_lemma,),
+            ).fetchall()
+            sentence_ids = [int(row["id"]) for row in rows]
+            tokens_by_sentence = self._fetch_tokens_by_sentence(conn, sentence_ids)
+            matched_indexes_by_sentence = self._fetch_matched_token_indexes(
+                conn,
+                sentence_ids=sentence_ids,
+                stored_lemma=stored_lemma,
+            )
+        return [
+            SentenceRecord(
+                id=int(row["id"]),
+                source_text=str(row["source_sentence"]),
+                english_translation=row["english_translation"],
+                created_at=str(row["created_at"]),
+                tokens=tuple(tokens_by_sentence.get(int(row["id"]), ())),
+                matched_token_indexes=tuple(matched_indexes_by_sentence.get(int(row["id"]), ())),
+            )
+            for row in rows
+        ]
+
+    def _fetch_tokens_by_sentence(self, conn, sentence_ids: list[int]) -> dict[int, list[SentenceTokenRecord]]:
+        if not sentence_ids:
+            return {}
+        placeholders = ", ".join("?" for _ in sentence_ids)
+        rows = conn.execute(
+            f"""
+            SELECT
+                sentence_id,
+                token_index,
+                surface_form,
+                normalized_surface,
+                stored_lemma,
+                lexeme_id,
+                meaning_id,
+                cor_id,
+                pos_tag,
+                morphology,
+                gloss,
+                english_translation,
+                gloss_translation
+            FROM sentence_bank_tokens
+            WHERE sentence_id IN ({placeholders})
+            ORDER BY sentence_id ASC, token_index ASC, id ASC
+            """,
+            tuple(sentence_ids),
+        ).fetchall()
+        grouped: dict[int, list[SentenceTokenRecord]] = {}
+        for row in rows:
+            sentence_id = int(row["sentence_id"])
+            grouped.setdefault(sentence_id, []).append(
+                SentenceTokenRecord(
+                    token_index=int(row["token_index"]),
+                    surface_form=str(row["surface_form"]),
+                    normalized_surface=str(row["normalized_surface"]),
+                    stored_lemma=str(row["stored_lemma"]),
+                    lexeme_id=int(row["lexeme_id"]),
+                    meaning_id=int(row["meaning_id"]) if row["meaning_id"] is not None else None,
+                    cor_id=row["cor_id"],
+                    pos_tag=row["pos_tag"],
+                    morphology=row["morphology"],
+                    gloss=row["gloss"],
+                    english_translation=row["english_translation"],
+                    gloss_translation=row["gloss_translation"],
+                )
+            )
+        return grouped
+
+    def _fetch_matched_token_indexes(
+        self,
+        conn,
+        *,
+        sentence_ids: list[int],
+        stored_lemma: str,
+    ) -> dict[int, list[int]]:
+        if not sentence_ids:
+            return {}
+        placeholders = ", ".join("?" for _ in sentence_ids)
+        rows = conn.execute(
+            f"""
+            SELECT sentence_id, token_index
+            FROM sentence_bank_tokens
+            WHERE stored_lemma = ?
+              AND sentence_id IN ({placeholders})
+            ORDER BY sentence_id ASC, token_index ASC
+            """,
+            (stored_lemma, *sentence_ids),
+        ).fetchall()
+        grouped: dict[int, list[int]] = {}
+        for row in rows:
+            grouped.setdefault(int(row["sentence_id"]), []).append(int(row["token_index"]))
+        return grouped

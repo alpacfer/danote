@@ -1,4 +1,5 @@
 import { fireEvent, mockFetchImplementation, renderApp, responseOf, screen, waitFor, within } from "@/test/app-test-helpers"
+import type { LemmaDetailsResponse } from "@/app/core"
 import {
   bogHomographWordPageContractFixture,
   bogVariationGlossWordPageContractFixture,
@@ -335,6 +336,146 @@ describe("App wordbank", () => {
     expect(categoryContainer).toHaveTextContent("People")
     expect(categoryContainer).toHaveTextContent("School")
     expect(categoryContainer).toHaveTextContent("Work")
+  })
+
+  it("contract-backed: word page renders linked sentence cards without nested token cards", async () => {
+    const linkedSentenceFixture: LemmaDetailsResponse = cloneContractFixture(teacherSectionedWordPageContractFixture)
+    linkedSentenceFixture.linked_sentences = [
+      {
+        id: 41,
+        source_text: "Læreren hjælper lærere",
+        english_translation: "the teacher helps teachers",
+        created_at: "2026-04-10T12:00:00.000Z",
+        matched_token_indexes: [0, 2],
+        tokens: [
+          {
+            token_index: 0,
+            surface_form: "Læreren",
+            stored_lemma: "lærer",
+            lexeme_id: 8,
+            meaning_id: 1,
+            pos_tag: "NOUN",
+            morphology: "Gender=Com|Number=Sing|Definite=Def",
+            gloss: "teacher",
+            english_translation: "teacher",
+            gloss_translation: "teacher",
+          },
+          {
+            token_index: 1,
+            surface_form: "hjælper",
+            stored_lemma: "hjælpe",
+            lexeme_id: 9,
+            meaning_id: null,
+            pos_tag: "VERB",
+            morphology: "Tense=Pres|VerbForm=Fin|Voice=Act",
+            gloss: null,
+            english_translation: "help",
+            gloss_translation: null,
+          },
+          {
+            token_index: 2,
+            surface_form: "lærere",
+            stored_lemma: "lærer",
+            lexeme_id: 8,
+            meaning_id: 1,
+            pos_tag: "NOUN",
+            morphology: "Gender=Com|Number=Plur|Definite=Ind",
+            gloss: "teacher",
+            english_translation: "teacher",
+            gloss_translation: "teacher",
+          },
+        ],
+      },
+    ]
+
+    mockFetchImplementation({
+      lemmasResponse: {
+        items: [{ lemma: "lærer", variation_count: 1 }],
+      },
+      lemmaDetailsResponse: linkedSentenceFixture,
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+    fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /lærer/i }))
+
+    expect(await screen.findByRole("heading", { name: /^lærer$/i })).toBeInTheDocument()
+    expect(screen.getByRole("heading", { name: /sentences/i })).toBeInTheDocument()
+    const sentenceCard = screen.getByText(/^Læreren hjælper lærere$/i).closest("[data-slot='card']")
+    expect(sentenceCard).toBeTruthy()
+    expect(screen.getByText(/the teacher helps teachers/i)).toBeInTheDocument()
+    expect(within(sentenceCard as HTMLElement).queryByRole("button")).not.toBeInTheDocument()
+  })
+
+  it("contract-backed: clicking linked sentence in word page opens sentencebank sentence page", async () => {
+    const linkedSentenceFixture: LemmaDetailsResponse = cloneContractFixture(teacherSectionedWordPageContractFixture)
+    linkedSentenceFixture.linked_sentences = [
+      {
+        id: 41,
+        source_text: "Læreren hjælper lærere",
+        english_translation: "the teacher helps teachers",
+        created_at: "2026-04-10T12:00:00.000Z",
+        matched_token_indexes: [0],
+        tokens: [
+          {
+            token_index: 0,
+            surface_form: "Læreren",
+            stored_lemma: "lærer",
+            lexeme_id: 8,
+            meaning_id: 1,
+            pos_tag: "NOUN",
+            morphology: "Gender=Com|Number=Sing|Definite=Def",
+            gloss: "teacher",
+            english_translation: "teacher",
+            gloss_translation: "teacher",
+          },
+        ],
+      },
+    ]
+
+    mockFetchImplementation({
+      sentencebankResponse: {
+        items: [
+          {
+            id: 41,
+            source_text: "Læreren hjælper lærere",
+            english_translation: "the teacher helps teachers",
+            created_at: "2026-04-10T12:00:00.000Z",
+            tokens: [
+              {
+                token_index: 0,
+                surface_form: "Læreren",
+                stored_lemma: "lærer",
+                lexeme_id: 8,
+                meaning_id: 1,
+                pos_tag: "NOUN",
+                morphology: "Gender=Com|Number=Sing|Definite=Def",
+                english_translation: "teacher",
+                gloss_translation: "teacher",
+              },
+            ],
+          },
+        ],
+      },
+      lemmasResponse: {
+        items: [{ lemma: "lærer", variation_count: 1 }],
+      },
+      lemmaDetailsResponse: linkedSentenceFixture,
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+    fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /lærer/i }))
+
+    expect(await screen.findByRole("heading", { name: /^lærer$/i })).toBeInTheDocument()
+
+    // click linked sentence → navigate to sentencebank sentence page
+    fireEvent.click(screen.getByRole("button", { name: /Læreren hjælper lærere/i }))
+
+    // now in sentencebank sentence page — token card visible
+    expect(await screen.findByRole("button", { name: /Læreren/i })).toBeInTheDocument()
   })
 
   it("renderer-only: word page loading uses the redesigned skeleton layout", async () => {

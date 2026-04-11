@@ -1,4 +1,4 @@
-import { type Dispatch, type SetStateAction, useCallback, useMemo, useState } from "react"
+import { type Dispatch, type SetStateAction, useMemo, useState } from "react"
 
 import {
   collectMeaningCardVerificationTargets,
