@@ -176,7 +176,27 @@ Routes: `backend/app/api/routes/`. DTOs: `backend/app/api/schemas/v1/`. Some tok
   - Adjective: uses `n-word`/`t-word` terminology; plural fields may carry same form in both slots for shared plurals.
   - Verb: fixed row labels `Infinitive`, `Present`, `Past`, `Imperative`, `Past participle`.
   - `fix_variations` must be fully structured. Apply does NOT recover slots from `problem`/`change_to_implement`.
+  - Persisted Gemini `fix_translation` and `fix_variations` applies are also written to the per-lemma verification change log for later inspection/revert.
 - **Notable status/error behavior:** `503` DB unavailable/locked. `404` source/target context not found. body `status`: `applied` or `skipped`.
+
+### GET `/api/wordbank/lexemes/verification-changes`
+- **Request model:** none (`stored_lemma` query param).
+- **Response model:** `GetVerificationChangesResponse`.
+- **Notable request/behavior details:**
+  - Returns newest-first per-lemma verification history entries.
+  - Entries currently cover persisted Gemini `fix_translation` and `fix_variations` applies.
+  - Each item includes `before_json`, `after_json`, `applied_at`, optional `reverted_at`, and `provider`.
+- **Notable status/error behavior:** `400` invalid `stored_lemma`. `503` DB unavailable/locked.
+
+### POST `/api/wordbank/lexemes/revert-verification-change`
+- **Request model:** `RevertVerificationChangeRequest`.
+- **Response model:** `RevertVerificationChangeResponse`.
+- **Notable request/behavior details:**
+  - Reverts a per-lemma change-log entry by restoring the stored `before_json` snapshot directly in the DB.
+  - Supported revert targets: `fix_translation`, `fix_variations`.
+  - Rejects missing `stored_lemma`; mismatched or unknown change ids return body `status = "not_found"`.
+  - Already reverted entries return body `status = "already_reverted"`.
+- **Notable status/error behavior:** `400` invalid request body. `503` DB unavailable/locked.
 
 ### POST `/api/wordbank/translation`
 - **Request model:** `GenerateTranslationRequest`.

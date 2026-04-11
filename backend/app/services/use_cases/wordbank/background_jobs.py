@@ -169,7 +169,7 @@ class WordbankBackgroundJobRunner:
         stored_lemma = _string_value(payload, "stored_lemma")
         stored_surface_form = _optional_string_value(payload, "stored_surface_form")
         if job_type == "verify_word":
-            use_case.process_queued_verification_if_current(
+            result = use_case.process_queued_verification_if_current(
                 stored_lemma,
                 stored_surface_form,
                 meaning_id=_optional_int_value(payload, "meaning_id"),
@@ -177,6 +177,14 @@ class WordbankBackgroundJobRunner:
                 expected_generation=_optional_int_value(payload, "request_generation"),
                 review_intent=_optional_string_value(payload, "review_intent") or "general",
             )
+            if result == "stale":
+                self._requeue_stale_verify_word_job(
+                    use_case,
+                    stored_lemma=stored_lemma,
+                    stored_surface_form=stored_surface_form,
+                    meaning_id=_optional_int_value(payload, "meaning_id"),
+                    review_intent=_optional_string_value(payload, "review_intent") or "general",
+                )
             return
         if job_type == "generate_pronunciation":
             requested_forms = _optional_string_list(payload, "requested_forms")
@@ -190,6 +198,33 @@ class WordbankBackgroundJobRunner:
             use_case.process_queued_related_words(stored_lemma)
             return
         raise ValueError(f"Unsupported background job type: {job_type}")
+
+    def _requeue_stale_verify_word_job(
+        self,
+        use_case: WordbankUseCase,
+        *,
+        stored_lemma: str,
+        stored_surface_form: str | None,
+        meaning_id: int | None,
+        review_intent: str,
+    ) -> None:
+        repository = WordbankRepository(self._db_path)
+        lexeme = repository.get_lexeme(stored_lemma)
+        if lexeme is None:
+            return
+        current_record = repository.get_verification_record(
+            lexeme_id=lexeme.id,
+            meaning_id=meaning_id,
+            stored_surface_form=stored_surface_form,
+        )
+        if current_record is None or current_record.status != "queued":
+            return
+        use_case.queue_verification(
+            stored_lemma,
+            stored_surface_form,
+            meaning_id=meaning_id,
+            review_intent=review_intent,
+        )
 
 
 def _string_value(payload: dict[str, object], key: str) -> str:

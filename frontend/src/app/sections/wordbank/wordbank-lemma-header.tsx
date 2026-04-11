@@ -1,4 +1,4 @@
-import type { LemmaDetailsResponse, VerificationOverview } from "@/app/core"
+import type { LemmaDetailsResponse, VerificationChangeEntry, VerificationOverview } from "@/app/core"
 import { additionalTranslationsDisplay, badgesForSavedForm, corSecondaryBadgeClass, normalizeSearchWord, posBadgeClass, semanticCategoryBadgeClass } from "@/app/core"
 import { WordbankPronunciationWord } from "@/app/sections/wordbank/wordbank-pronunciation-word"
 import { WordbankVerificationPopover } from "@/app/sections/wordbank/wordbank-verification-popover"
@@ -20,11 +20,15 @@ type WordbankLemmaHeaderProps = {
   isRethinkingCategories: boolean
   onRethinkCategories: (meaningId: number | null) => void
   verificationOverview: VerificationOverview
+  verificationChanges: VerificationChangeEntry[]
+  isLoadingVerificationChanges: boolean
   isApplyingVerificationChanges: boolean
   isRetryingVerification: boolean
+  isRevertingVerificationChange: boolean
   onMarkVisibleVerificationNotificationsAsRead: () => void
   onApplyVerificationAction: (targetKey: string, actionIndex: number) => void
   onRetryVerificationTarget: (targetKey: string) => void
+  onRevertVerificationChange: (changeId: number) => void
   showSupplementaryMetadata: boolean
 }
 
@@ -41,11 +45,15 @@ export function WordbankLemmaHeader({
   isRethinkingCategories,
   onRethinkCategories,
   verificationOverview,
+  verificationChanges,
+  isLoadingVerificationChanges,
   isApplyingVerificationChanges,
   isRetryingVerification,
+  isRevertingVerificationChange,
   onMarkVisibleVerificationNotificationsAsRead,
   onApplyVerificationAction,
   onRetryVerificationTarget,
+  onRevertVerificationChange,
   showSupplementaryMetadata,
 }: WordbankLemmaHeaderProps) {
   const normalizedSelectedLemma = (lemmaDetails.lemma ?? selectedLemma).trim().toLocaleLowerCase("da-DK")
@@ -146,8 +154,11 @@ export function WordbankLemmaHeader({
         <div className="shrink-0">
           <WordbankVerificationPopover
             verificationOverview={verificationOverview}
+            changes={verificationChanges}
+            isLoadingChanges={isLoadingVerificationChanges}
             isApplyingVerificationChanges={isApplyingVerificationChanges}
             isRetryingVerification={isRetryingVerification}
+            isRevertingChange={isRevertingVerificationChange}
             onOpenChange={(open) => {
               if (open) {
                 onMarkVisibleVerificationNotificationsAsRead()
@@ -155,6 +166,7 @@ export function WordbankLemmaHeader({
             }}
             onApplyVerificationAction={onApplyVerificationAction}
             onRetryVerificationTarget={onRetryVerificationTarget}
+            onRevertChange={onRevertVerificationChange}
           />
         </div>
       </div>

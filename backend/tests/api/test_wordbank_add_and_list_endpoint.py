@@ -1398,3 +1398,67 @@ def test_apply_verification_changes_rejects_surface_scoped_fix_translation(tmp_p
 
     assert apply_response.status_code == 400
     assert "surface-form verification targets" in apply_response.json()["detail"]
+
+
+def test_verification_change_history_endpoints_list_and_revert(tmp_path, stub_nlp_adapter_factory) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    apply_migrations(db_path)
+    app = create_app(build_test_settings(db_path), nlp_adapter_factory=stub_nlp_adapter_factory)
+
+    with TestClient(app) as client:
+        added = client.post(
+            "/api/wordbank/lexemes",
+            json={"surface_token": "Bogen", "lemma_candidate": "bog"},
+        )
+        assert added.status_code == 200
+        meaning_id = added.json()["meaning"]["id"]
+
+        applied = client.post(
+            "/api/wordbank/lexemes/apply-verification-changes",
+            json={
+                "stored_lemma": "bog",
+                "stored_surface_form": None,
+                "meaning_id": meaning_id,
+                "provider": "gemini",
+                "action": {
+                    "action_type": "fix_translation",
+                    "english_translation": "book",
+                },
+            },
+        )
+        assert applied.status_code == 200
+
+        changes = client.get(
+            "/api/wordbank/lexemes/verification-changes",
+            params={"stored_lemma": "bog"},
+        )
+
+        assert changes.status_code == 200
+        payload = changes.json()
+        assert len(payload["items"]) == 1
+        assert payload["items"][0]["action_type"] == "fix_translation"
+        assert payload["items"][0]["stored_lemma"] == "bog"
+        change_id = payload["items"][0]["id"]
+
+        reverted = client.post(
+            "/api/wordbank/lexemes/revert-verification-change",
+            json={"change_id": change_id, "stored_lemma": "bog"},
+        )
+
+    assert reverted.status_code == 200
+    assert reverted.json()["status"] == "reverted"
+
+    with get_connection(db_path) as conn:
+        meaning_row = conn.execute(
+            "SELECT english_translation FROM lexeme_meanings WHERE id = ?",
+            (meaning_id,),
+        ).fetchone()
+        change_row = conn.execute(
+            "SELECT reverted_at FROM verification_change_log WHERE id = ?",
+            (change_id,),
+        ).fetchone()
+
+    assert meaning_row is not None
+    assert meaning_row["english_translation"] is None
+    assert change_row is not None
+    assert change_row["reverted_at"] is not None

@@ -176,6 +176,28 @@ export type ApplyVerificationChangesResponse = {
   target_meaning_id: number | null
 }
 
+export type VerificationChangeEntry = {
+  id: number
+  stored_lemma: string
+  stored_surface_form: string | null
+  meaning_id: number | null
+  action_type: string
+  before_json: Record<string, unknown>
+  after_json: Record<string, unknown>
+  applied_at: string
+  reverted_at: string | null
+  provider: string | null
+}
+
+export type GetVerificationChangesResponse = {
+  items: VerificationChangeEntry[]
+}
+
+export type RevertVerificationChangeResponse = {
+  status: "reverted" | "already_reverted" | "not_found"
+  change_id: number
+}
+
 export type WordbankLemma = {
   lemma: string
   display_lemma?: string | null

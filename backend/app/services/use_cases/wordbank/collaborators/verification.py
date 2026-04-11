@@ -59,6 +59,8 @@ logger = logging.getLogger(__name__)
 class VerificationCollaborator:
     """Handles word verification, applying changes, and the Gemini change log."""
 
+    _AUTO_APPLY_ACTION_TYPES = frozenset({"fix_translation", "fix_variations"})
+
     def __init__(
         self,
         verification_service: WordVerificationService | None,
@@ -100,6 +102,11 @@ class VerificationCollaborator:
             verification=verification,
             review_intent=normalize_review_intent(review_intent),
             latest_snapshot_hash=self._verification_payload_hash(payload),
+        )
+        self._auto_apply_eligible_actions(
+            stored_lemma=normalized_lemma,
+            stored_surface_form=normalized_surface,
+            meaning_id=meaning_id,
         )
         applied_categories = self._classify_and_persist_categories(
             stored_lemma=normalized_lemma,
@@ -147,7 +154,7 @@ class VerificationCollaborator:
         review_intent: str = "general",
     ) -> str:
         normalized_review_intent = normalize_review_intent(review_intent)
-        return process_queued_verification_if_current(
+        result = process_queued_verification_if_current(
             stored_lemma=stored_lemma,
             stored_surface_form=stored_surface_form,
             meaning_id=meaning_id,
@@ -179,6 +186,13 @@ class VerificationCollaborator:
                 payload=payload,
             ),
         )
+        if result == "persisted":
+            self._auto_apply_eligible_actions(
+                stored_lemma=stored_lemma,
+                stored_surface_form=stored_surface_form,
+                meaning_id=meaning_id,
+            )
+        return result
 
     def queue_verification_request(
         self,
@@ -697,6 +711,42 @@ class VerificationCollaborator:
             for key, value in asdict(payload).items()
         }
         return json.dumps(serialized, ensure_ascii=True, sort_keys=True)
+
+    def _auto_apply_eligible_actions(
+        self,
+        *,
+        stored_lemma: str,
+        stored_surface_form: str | None,
+        meaning_id: int | None,
+    ) -> None:
+        """Auto-apply fix_translation and fix_variations actions after verification persists."""
+        repository = WordbankRepository(self._db_path)
+        lexeme = repository.get_lexeme(stored_lemma)
+        if lexeme is None:
+            return
+        record = repository.get_verification_record(
+            lexeme_id=lexeme.id,
+            meaning_id=meaning_id,
+            stored_surface_form=stored_surface_form,
+        )
+        if record is None or not record.suggested_actions:
+            return
+        for action in record.suggested_actions:
+            action_type = action.get("action_type")
+            if action_type not in self._AUTO_APPLY_ACTION_TYPES:
+                continue
+            try:
+                self.apply_verification_changes(
+                    stored_lemma=stored_lemma,
+                    stored_surface_form=stored_surface_form,
+                    meaning_id=meaning_id,
+                    action=action,
+                )
+            except Exception:
+                logger.exception(
+                    "wordbank_auto_apply_failed",
+                    extra={"stored_lemma": stored_lemma, "action_type": action_type},
+                )
 
     def get_verification_changes(self, stored_lemma: str) -> GetVerificationChangesResponse:
         normalized_lemma = normalize_token(stored_lemma)

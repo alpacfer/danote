@@ -210,7 +210,7 @@ export function lemmaTranslationWithGloss(
   if (translationParts.some((part) => part.localeCompare(normalizedGlossTranslation, "en", { sensitivity: "base" }) === 0)) {
     return normalizedLemmaTranslation
   }
-  return `${normalizedLemmaTranslation}, ${normalizedGlossTranslation}`
+  return `${normalizedLemmaTranslation} (${normalizedGlossTranslation})`
 }
 
 export function additionalTranslationsDisplay(

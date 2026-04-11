@@ -12,6 +12,7 @@ from app.services.use_cases.wordbank.verification_change_log import (
     revert_fix_variations,
 )
 from tests.helpers.factories import _db_path
+from tests.helpers.fakes import FakeVerificationService
 
 
 def _setup_word(db_path: Path, lemma: str = "løbe", translation: str = "to run") -> tuple[int, int]:
@@ -171,3 +172,33 @@ def test_revert_fix_variations_restores_surface_forms(tmp_path: Path) -> None:
     restored = query_surface_forms_snapshot(db_path, lexeme_id=lexeme_id, meaning_id=meaning_id)
     assert len(restored) == len(original_surfaces)
     assert any(f["form"] == "løbe" for f in restored)
+
+
+def test_auto_apply_fix_translation_on_verify(tmp_path: Path) -> None:
+    db_path = _db_path(tmp_path)
+    _, meaning_id = _setup_word(db_path, "løbe", translation="to run")
+    use_case = WordbankUseCase(
+        db_path,
+        verification_service=FakeVerificationService(
+            verdict="flagged",
+            message="Wrong translation",
+            actions=[{"action_type": "fix_translation", "english_translation": "to walk", "reason": "more accurate"}],
+        ),
+    )
+    use_case.verify_added_word("løbe", None, meaning_id=meaning_id)
+
+    with get_connection(db_path) as conn:
+        meaning_row = conn.execute(
+            "SELECT english_translation FROM lexeme_meanings WHERE id = ?",
+            (meaning_id,),
+        ).fetchone()
+    assert meaning_row is not None
+    assert meaning_row["english_translation"] == "to walk"
+
+    repository = WordbankRepository(db_path)
+    # Change log was written
+    entries = repository.get_change_log_entries_for_lemma("løbe")
+    assert len(entries) == 1
+    assert entries[0].action_type == "fix_translation"
+    assert entries[0].meaning_id == meaning_id
+    assert entries[0].reverted_at is None
