@@ -3,6 +3,7 @@ import { useEffect } from "react"
 import { normalizeSearchWord } from "@/app/core"
 import type { WordbankSectionProps } from "@/app/sections/wordbank/wordbank-section-types"
 import { WordbankDetailsLoadingSkeleton, WordbankLemmaHeader } from "@/app/sections/wordbank/wordbank-lemma-header"
+import { WordbankLinkedSentences } from "@/app/sections/wordbank/wordbank-linked-sentences"
 import { WordbankMeaningSections } from "@/app/sections/wordbank/wordbank-meaning-sections"
 import { WordbankRelatedWords } from "@/app/sections/wordbank/wordbank-related-words"
 import { WordbankVariationGrid } from "@/app/sections/wordbank/wordbank-variation-grid"
@@ -40,6 +41,7 @@ type WordbankWordPageProps = Pick<
   | "onRevertVerificationChange"
   | "onSaveRelatedWordFromSearchSeed"
   | "onOpenRelatedWordTarget"
+  | "onOpenSentence"
 >
 
 export function WordbankWordPage({
@@ -73,6 +75,7 @@ export function WordbankWordPage({
   onRevertVerificationChange,
   onSaveRelatedWordFromSearchSeed,
   onOpenRelatedWordTarget,
+  onOpenSentence,
 }: WordbankWordPageProps) {
   const normalizedRequestedLemma = normalizeSearchWord(selectedLemma ?? "")
   const normalizedLoadedLemma = normalizeSearchWord(lemmaDetails?.lemma ?? "")
@@ -173,6 +176,10 @@ export function WordbankWordPage({
             relatedWords={activeLemmaDetails.related_words}
             onSaveRelatedWordFromSearchSeed={onSaveRelatedWordFromSearchSeed}
             onOpenRelatedWordTarget={onOpenRelatedWordTarget}
+          />
+          <WordbankLinkedSentences
+            linkedSentences={activeLemmaDetails.linked_sentences}
+            onOpenSentence={onOpenSentence}
           />
         </div>
       </ScrollArea>

@@ -52,4 +52,5 @@ export type WordbankSectionProps = {
     searchSeed?: SearchSaveSeed | null,
   ) => Promise<string | null>
   onOpenRelatedWordTarget: (lemma: string, meaningId: number | null) => void
+  onOpenSentence?: (id: number) => void
 }
