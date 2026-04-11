@@ -14,7 +14,6 @@ def test_analyze_use_case_propagates_pos_and_morphology(tmp_path: Path) -> None:
     use_case = AnalyzeNoteUseCase(
         _db_path(tmp_path),
         nlp_adapter=FakeNLPAdapter(),
-        typo_engine=None,
     )
 
     tokens = use_case.execute("Hej bog")
@@ -30,7 +29,6 @@ def test_analyze_use_case_skips_short_letter_words(tmp_path: Path) -> None:
     use_case = AnalyzeNoteUseCase(
         _db_path(tmp_path),
         nlp_adapter=FakeNLPAdapter(),
-        typo_engine=None,
     )
 
     tokens = use_case.execute("i to hej bog")
@@ -41,7 +39,6 @@ def test_analyze_use_case_filters_non_word_tokens(tmp_path: Path) -> None:
     use_case = AnalyzeNoteUseCase(
         _db_path(tmp_path),
         nlp_adapter=FakeNLPAdapter(),
-        typo_engine=None,
     )
 
     tokens = use_case.execute("Hej, bog")
@@ -52,7 +49,6 @@ def test_analyze_use_case_includes_pos_and_morphology(tmp_path: Path) -> None:
     use_case = AnalyzeNoteUseCase(
         _db_path(tmp_path),
         nlp_adapter=FakeNLPAdapter(),
-        typo_engine=None,
     )
 
     tokens = use_case.execute("Hej, bog")
@@ -92,7 +88,6 @@ def test_analyze_use_case_ignores_comment_text_after_hash(tmp_path: Path) -> Non
     use_case = AnalyzeNoteUseCase(
         _db_path(tmp_path),
         nlp_adapter=WhitespaceNLPAdapter(),
-        typo_engine=None,
     )
 
     tokens = use_case.execute("hej # ignore me\nverden")

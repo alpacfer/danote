@@ -51,7 +51,6 @@ class WordbankUseCase:
     def __init__(
         self,
         db_path,
-        typo_engine=None,
         translation_service: TranslationService | None = None,
         gemini_word_translation_service: GeminiWordTranslationService | None = None,
         gemini_related_words_service: GeminiRelatedWordsService | None = None,
@@ -62,7 +61,7 @@ class WordbankUseCase:
         tts_service: TTSService | None = None,
         gemini_changes_log_path: Path | None = None,
     ):
-        nlp = NLPCollaborator(nlp_adapter, typo_engine, cor_lexicon_service)
+        nlp = NLPCollaborator(nlp_adapter, cor_lexicon_service)
         pronunciation = PronunciationCollaborator(tts_service, db_path)
         translation = TranslationCollaborator(
             translation_service,

@@ -57,7 +57,6 @@ def resolve_query(
     classifier = LemmaAwareClassifier(
         db_path,
         nlp_adapter=None,
-        typo_engine=nlp.typo_engine,
     )
     token = classifier.classify(normalized_query)
     cor_add_options = build_cor_add_options(

@@ -156,7 +156,6 @@ class WordbankBackgroundJobRunner:
     def _handle_job(self, job_type: str, payload: dict[str, object]) -> None:
         use_case = WordbankUseCase(
             self._db_path,
-            typo_engine=self._services.typo_engine,
             translation_service=self._services.translation_service,
             gemini_word_translation_service=self._services.gemini_word_translation_service,
             gemini_related_words_service=self._services.gemini_related_words_service,

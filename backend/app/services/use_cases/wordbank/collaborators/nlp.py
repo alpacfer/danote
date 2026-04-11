@@ -12,11 +12,9 @@ class NLPCollaborator:
     def __init__(
         self,
         nlp_adapter,
-        typo_engine,
         cor_lexicon_service: CORLexiconService | None = None,
     ) -> None:
         self._nlp_adapter = nlp_adapter
-        self._typo_engine = typo_engine
         self._cor_lexicon_service = cor_lexicon_service
         self._pos_morph_cache: dict[tuple[str, str | None], tuple[str | None, str | None]] = {}
 
@@ -81,16 +79,10 @@ class NLPCollaborator:
             self._pos_morph_cache.pop(key, None)
 
     def invalidate_typo_cache(self) -> None:
-        if self._typo_engine is not None:
-            self._typo_engine.invalidate_cache()
+        pass  # no-op: typo engine removed
 
     def add_user_lexeme(self, lemma: str) -> None:
-        if self._typo_engine is not None:
-            self._typo_engine.add_user_lexeme(lemma)
-
-    @property
-    def typo_engine(self):
-        return self._typo_engine
+        pass  # no-op: typo engine removed
 
     @staticmethod
     def normalize_optional_pos_tag(value: str | None) -> str | None:
