@@ -46,6 +46,7 @@ def test_db_init_creates_expected_tables(tmp_path) -> None:
         "typo_feedback",
         "ignored_tokens",
         "sentence_bank",
+        "sentence_bank_tokens",
     }.issubset(table_names)
 
 

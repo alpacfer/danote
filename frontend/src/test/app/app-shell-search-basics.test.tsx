@@ -149,6 +149,23 @@ describe("App shell and search", () => {
     expect(await screen.findByRole("heading", { name: /^bog$/i })).toBeInTheDocument()
   })
 
+  it("command search preserves typed spaces so sentence queries can be entered", async () => {
+    mockFetchImplementation({
+      lemmasResponse: { items: [] },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    const commandDialog = await screen.findByRole("dialog")
+    const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i) as HTMLInputElement
+
+    fireEvent.change(searchInput, { target: { value: "jeg " } })
+
+    expect(searchInput.value).toBe("jeg ")
+  })
+
   it("command search does not use legacy local lemma fallback when API search returns no matches", async () => {
     mockFetchImplementation({
       lemmasResponse: {

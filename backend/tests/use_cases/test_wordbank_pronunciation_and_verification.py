@@ -9,6 +9,7 @@ from app.api.schemas.v1.wordbank import LemmaDetailsResponse
 from app.db.migrations import get_connection
 from app.nlp.adapter import NLPToken
 from app.services.tts import PronunciationAudio
+from app.db.repositories.wordbank import WordbankRepository
 from app.services.use_cases.wordbank import WordbankUseCase
 from app.services.verification import GeminiWordVerificationService, WordVerificationAction
 from tests.helpers.factories import _bog_homograph_cor_local, _cor_local_entry, _db_path
@@ -2240,15 +2241,19 @@ def test_verify_word_background_job_auto_applies_fix_translation_for_homograph_m
         (2, None),
     ]
 
+    _shared_nlp = shared_nlp
+    _cor_local = cor_local
+    _verification_service = verification_service
+
     class _Services:
         typo_engine = None
-        translation_service = translation_service
+        translation_service = FakeTranslationService({"person": "person", "jordlag": "soil layer"})
         gemini_word_translation_service = FakeGeminiWordTranslationService({})
         gemini_related_words_service = None
-        nlp_adapter = shared_nlp
+        nlp_adapter = _shared_nlp
         cor_lexicon_service = None
-        cor_local_lexicon_service = cor_local
-        word_verification_service = verification_service
+        cor_local_lexicon_service = _cor_local
+        word_verification_service = _verification_service
         tts_service = FakeTTSService({})
 
     runner = WordbankBackgroundJobRunner(
@@ -2383,15 +2388,19 @@ def test_verify_word_background_job_requeues_stale_sibling_targets_after_auto_ap
         },
     )
 
+    _shared_nlp = shared_nlp
+    _cor_local = cor_local
+    _verification_service = verification_service
+
     class _Services:
         typo_engine = None
-        translation_service = translation_service
+        translation_service = FakeTranslationService({"person": "person", "jordlag": "soil layer"})
         gemini_word_translation_service = FakeGeminiWordTranslationService({})
         gemini_related_words_service = None
-        nlp_adapter = shared_nlp
+        nlp_adapter = _shared_nlp
         cor_lexicon_service = None
-        cor_local_lexicon_service = cor_local
-        word_verification_service = verification_service
+        cor_local_lexicon_service = _cor_local
+        word_verification_service = _verification_service
         tts_service = FakeTTSService({})
 
     runner = WordbankBackgroundJobRunner(
@@ -2402,7 +2411,7 @@ def test_verify_word_background_job_requeues_stale_sibling_targets_after_auto_ap
         poll_interval_seconds=0.05,
     )
     runner.start()
-    time.sleep(0.9)
+    time.sleep(2.0)
     runner.stop()
 
     details = use_case.get_lemma_details("mor")

@@ -337,6 +337,14 @@ Shared by header + section rows + variation rows.
   - word page computes gloss translations for search-saved meaning sections; raw gloss not promoted to `english_translation`; UI omits untranslated gloss
   - only selected surface stored; no full paradigm hydration
 
+## Linked sentence cards
+
+- Word pages now include a `Sentences` section below related words when lemma details include `linked_sentences`.
+- Each card shows:
+  - source sentence
+  - sentence translation
+- No per-token cards render on the word page. Detailed token analysis remains in the Sentencebank section.
+
 ## Complete variations follow-up
 
 - `POST /api/wordbank/lexemes/complete-variations`

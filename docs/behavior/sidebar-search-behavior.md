@@ -13,7 +13,7 @@ Exact behavior of sidebar command search ("Search words and notes...").
 
 - Open via: sidebar "Search..." button, `Cmd/Ctrl+K`.
 - Close → clears `searchQuery` + command selection override.
-- Input normalized via `normalizeSearchWord(...)` before state update.
+- Input keeps the raw typed value so spaces survive while composing a sentence query. Normalization happens downstream in `useSidebarSearch`.
 - Placeholder: `Search words and notes...`
 
 ## Data sources
@@ -22,6 +22,16 @@ Exact behavior of sidebar command search ("Search words and notes...").
 2. **COR form analyses** (backend COR endpoint, two-phase fetch)
 3. **Saved notes** (local in-memory filter)
 4. **Static pages** (Playground/Notes/Wordbank/Sentencebank/Developer)
+5. **Sentence mode** (multi-word Danish phrase translation preview)
+
+## Sentence mode
+
+- Trigger: normalized query contains 2 or more whitespace-delimited words.
+- Preview endpoint: `POST /api/wordbank/phrase-translation`.
+- Result set: exactly one row under `Sentence`.
+- While sentence mode is active, sidebar suppresses saved-word, COR, notes, and page groups.
+- Save action: `POST /api/sentencebank/sentences`, then close dialog.
+- Successful sentence save increments both `sentencebankRefreshTick` and `wordbankRefreshTick` because sentence save now mutates both stores.
 
 ### Notes filtering
 

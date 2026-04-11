@@ -152,4 +152,5 @@ def map_lemma_details_response(response: LemmaDetailsResponse) -> LemmaDetailsRe
         meaning_sections=[],
         surface_forms=surface_forms,
         related_words=response.related_words,
+        linked_sentences=response.linked_sentences,
     )

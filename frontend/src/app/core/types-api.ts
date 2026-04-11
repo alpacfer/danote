@@ -286,6 +286,14 @@ export type LemmaDetailsResponse = {
       candidate_variants?: CORSearchVariant[]
     }>
   }
+  linked_sentences?: Array<{
+    id: number
+    source_text: string
+    english_translation?: string | null
+    created_at: string
+    matched_token_indexes?: number[]
+    tokens: SentenceTokenCard[]
+  }>
   lemma: string
   english_translation: string | null
   additional_translations?: string[]
@@ -375,11 +383,25 @@ export type GeneratePhraseTranslationResponse = {
   english_translation: string | null
 }
 
+export type SentenceTokenCard = {
+  token_index: number
+  surface_form: string
+  stored_lemma: string
+  lexeme_id: number
+  meaning_id: number | null
+  pos_tag: string | null
+  morphology: string | null
+  gloss: string | null
+  english_translation: string | null
+  gloss_translation: string | null
+}
+
 export type SentencebankSentence = {
   id: number
   source_text: string
   english_translation: string | null
   created_at: string
+  tokens?: SentenceTokenCard[]
 }
 
 export type SentenceListResponse = {
@@ -387,9 +409,12 @@ export type SentenceListResponse = {
 }
 
 export type AddSentenceResponse = {
+  id?: number
   status: "inserted" | "exists"
   source_text: string
   english_translation: string | null
+  created_at?: string
+  tokens?: SentenceTokenCard[]
   message: string
 }
 

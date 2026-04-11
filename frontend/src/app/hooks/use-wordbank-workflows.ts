@@ -307,6 +307,9 @@ export function useWordbankWorkflows({
       )
       toast.success(payload.message)
       setSentencebankRefreshTick((current) => current + 1)
+      if (payload.status === "inserted") {
+        setWordbankRefreshTick((current) => current + 1)
+      }
       onSentenceSaved?.()
     } catch (error) {
       const message = error instanceof Error ? error.message : "Could not save sentence. Try again."

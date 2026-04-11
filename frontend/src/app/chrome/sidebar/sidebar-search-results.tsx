@@ -19,6 +19,7 @@ import {
 } from "@/app/core"
 
 import { SidebarCorResults } from "@/app/chrome/sidebar/sidebar-cor-results"
+import { SidebarSentenceResult } from "@/app/chrome/sidebar/sidebar-sentence-result"
 import { SidebarWordbankResults } from "@/app/chrome/sidebar/sidebar-wordbank-results"
 
 type PageItem = {
@@ -31,6 +32,7 @@ type PageItem = {
 
 export type SidebarSearchResultsState = {
   normalizedQuery: string
+  isSentenceMode: boolean
   hasAnyResults: boolean
   hasWordbankSectionResults: boolean
   hasWordbankActions: boolean
@@ -41,6 +43,11 @@ export type SidebarSearchResultsState = {
 }
 
 export type SidebarSearchResultsData = {
+  sentenceSearchResult: {
+    source_text: string
+    english_translation: string | null
+  } | null
+  isSentenceTranslationLoading: boolean
   orderedWordbankResults: WordbankSearchItem[]
   displayVariantBySavedResult: Map<string, { group: CORSearchGroup; variant: CORSearchVariant }>
   addVariationBySavedResult: Map<string, { group: CORSearchGroup; variant: CORSearchVariant }>
@@ -56,6 +63,7 @@ export type SidebarSearchResultsData = {
 }
 
 export type SidebarSearchResultsActions = {
+  onAddSentenceFromSearch: (sourceText: string) => Promise<void>
   onSetSearchQuery: (query: string) => void
   onOpenSavedNote: (noteId: string) => void
   onOpenWordbankLemma: (lemma: string) => void
@@ -81,6 +89,20 @@ type SidebarSearchResultsProps = {
 }
 
 export function SidebarSearchResults({ state, data, actions }: SidebarSearchResultsProps) {
+  if (state.isSentenceMode && data.sentenceSearchResult) {
+    return (
+      <CommandList>
+        <SidebarSentenceResult
+          sourceText={data.sentenceSearchResult.source_text}
+          englishTranslation={data.sentenceSearchResult.english_translation}
+          isTranslationLoading={data.isSentenceTranslationLoading}
+          onSaveSentence={actions.onAddSentenceFromSearch}
+          onCloseSearch={actions.onCloseSearch}
+        />
+      </CommandList>
+    )
+  }
+
   const dymSuggestion = state.wordbankDidYouMean ?? state.corDidYouMean
 
   // Wordbank goes to the direct section when there's no DYM correction, or when

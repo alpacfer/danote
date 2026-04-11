@@ -53,6 +53,7 @@ class MeaningSectionSelectionInput:
     morphology: str | None = None
     gloss: str | None = None
     english_translation: str | None = None
+    sentence_context: str | None = None
     meaning_candidates: list[MeaningSectionCandidateInput] = field(default_factory=list)
 
 

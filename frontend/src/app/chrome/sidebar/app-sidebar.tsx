@@ -15,7 +15,6 @@ import { savedWordbankResultKey } from "@/app/chrome/sidebar/use-sidebar-search-
 import {
   BACKEND_URL,
   createApiClient,
-  normalizeSearchWord,
   type AppSection,
   type CORSearchVariant,
   type SavedNote,
@@ -54,6 +53,7 @@ export type AppSidebarProps = {
   onOpenWordbankLemma: (lemma: string) => void
   onOpenWordbankMeaning: (lemma: string, meaningId: number) => void
   onOpenSavedNote: (noteId: string) => void
+  onAddSentenceToSentencebank: (sourceText: string) => Promise<void>
   onAddWordFromSearch: (
     surfaceToken: string,
     lemmaCandidate: string | null,
@@ -82,6 +82,7 @@ export function AppSidebar({
   onOpenWordbankLemma,
   onOpenWordbankMeaning,
   onOpenSavedNote,
+  onAddSentenceToSentencebank,
   onAddWordFromSearch,
 }: AppSidebarProps) {
   const [isSearchOpen, setIsSearchOpen] = useState(false)
@@ -93,6 +94,9 @@ export function AppSidebar({
     searchQuery,
     setSearchQuery,
     normalizedQuery,
+    isSentenceMode,
+    sentenceSearchResult,
+    isSentenceTranslationLoading,
     matchingNotes,
     searchApiMatches,
     wordbankDidYouMean,
@@ -171,7 +175,9 @@ export function AppSidebar({
 
   const hasNoteResults = matchingNotes.length > 0
   const hasPageResults = matchingPageItems.length > 0
-  const hasAnyResults = hasWordbankSectionResults || hasNoteResults || hasPageResults
+  const hasAnyResults = isSentenceMode
+    ? Boolean(sentenceSearchResult)
+    : (hasWordbankSectionResults || hasNoteResults || hasPageResults)
 
   const orderedCorVariantsToRender = useMemo(() => {
     const variants: CORSearchVariant[] = []
@@ -187,6 +193,9 @@ export function AppSidebar({
 
   const orderedCommandItemValues = useMemo(() => {
     const values: string[] = []
+    if (isSentenceMode && sentenceSearchResult) {
+      return ["sentence-translation-result"]
+    }
     // Direct wordbank (no wordbank correction)
     if (!wordbankDidYouMean) {
       for (const item of orderedWordbankResults) {
@@ -222,7 +231,7 @@ export function AppSidebar({
       values.push(page.key)
     }
     return values
-  }, [corDidYouMean, matchingNotes, matchingPageItems, orderedCorVariantsToRender, orderedWordbankResults, wordbankDidYouMean])
+  }, [corDidYouMean, isSentenceMode, matchingNotes, matchingPageItems, orderedCorVariantsToRender, orderedWordbankResults, sentenceSearchResult, wordbankDidYouMean])
 
   const commandSelectionValue = useMemo(() => {
     if (commandSelectionOverride && orderedCommandItemValues.includes(commandSelectionOverride)) {
@@ -233,6 +242,7 @@ export function AppSidebar({
 
   const searchResultState: SidebarSearchResultsState = {
     normalizedQuery,
+    isSentenceMode,
     hasAnyResults,
     hasWordbankSectionResults,
     hasWordbankActions,
@@ -243,6 +253,8 @@ export function AppSidebar({
   }
 
   const searchResultData: SidebarSearchResultsData = {
+    sentenceSearchResult,
+    isSentenceTranslationLoading,
     orderedWordbankResults,
     displayVariantBySavedResult,
     addVariationBySavedResult,
@@ -258,6 +270,9 @@ export function AppSidebar({
   }
 
   const searchResultActions: SidebarSearchResultsActions = {
+    onAddSentenceFromSearch: async (sourceText: string) => {
+      await onAddSentenceToSentencebank(sourceText)
+    },
     onSetSearchQuery: (query: string) => { setSearchQuery(query) },
     onOpenSavedNote,
     onOpenWordbankLemma,
@@ -295,7 +310,7 @@ export function AppSidebar({
             placeholder="Search words and notes..."
             value={searchQuery}
             onValueChange={(value) => {
-              setSearchQuery(normalizeSearchWord(value))
+              setSearchQuery(value)
               setCommandSelectionOverride("")
             }}
             aria-label="command search"

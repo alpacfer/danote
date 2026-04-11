@@ -125,46 +125,46 @@ describe("App shell and search", () => {
           if (!String(input).endsWith("/api/wordbank/lexemes")) {
             return false
           }
-        const body = JSON.parse(String(init?.body ?? "{}")) as {
-          surface_token?: string
-          lemma_candidate?: string
-          cor_id?: string
-          pos_tag?: string
-          morphology?: string
-          search_seed?: {
-            lemma?: string
-            surface?: string
+          const body = JSON.parse(String(init?.body ?? "{}")) as {
+            surface_token?: string
+            lemma_candidate?: string
             cor_id?: string
-            cor_lemma_idx?: number
-            meaning_key?: string
-            gloss?: string | null
-            english_translation?: string | null
-            pos_tag?: string | null
-            morphology?: string | null
-            target_meaning_id?: number | null
+            pos_tag?: string
+            morphology?: string
+            search_seed?: {
+              lemma?: string
+              surface?: string
+              cor_id?: string
+              cor_lemma_idx?: number
+              meaning_key?: string
+              gloss?: string | null
+              english_translation?: string | null
+              pos_tag?: string | null
+              morphology?: string | null
+              target_meaning_id?: number | null
+            }
           }
-        }
-        return (
-          body.surface_token === "lærer"
-          && body.lemma_candidate === "lære"
-          && body.cor_id === "COR.30686.203.01"
-          && body.pos_tag === "VERB"
-          && body.morphology === "Tense=Pres|VerbForm=Fin|Voice=Act"
-          && body.search_seed?.lemma === "lære"
-          && body.search_seed?.surface === "lærer"
-          && body.search_seed?.cor_id === "COR.30686.203.01"
-          && body.search_seed?.cor_lemma_idx === 30686
-          && body.search_seed?.meaning_key === "learn"
-          && body.search_seed?.gloss === "learn"
-          && body.search_seed?.english_translation === "to learn"
-          && body.search_seed?.pos_tag === "VERB"
-          && body.search_seed?.morphology === "Tense=Pres|VerbForm=Fin|Voice=Act"
-        )
-      }),
-    ).toBe(true)
-  }, 10_000)
+          return (
+            body.surface_token === "lærer"
+            && body.lemma_candidate === "lære"
+            && body.cor_id === "COR.30686.203.01"
+            && body.pos_tag === "VERB"
+            && body.morphology === "Tense=Pres|VerbForm=Fin|Voice=Act"
+            && body.search_seed?.lemma === "lære"
+            && body.search_seed?.surface === "lærer"
+            && body.search_seed?.cor_id === "COR.30686.203.01"
+            && body.search_seed?.cor_lemma_idx === 30686
+            && body.search_seed?.meaning_key === "learn"
+            && body.search_seed?.gloss === "learn"
+            && body.search_seed?.english_translation === "to learn"
+            && body.search_seed?.pos_tag === "VERB"
+            && body.search_seed?.morphology === "Tense=Pres|VerbForm=Fin|Voice=Act"
+          )
+        }),
+      ).toBe(true)
+    }, { timeout: 10_000 })
 
-  expect(
+    expect(
       fetchSpy.mock.calls.some(([input]) => String(input).endsWith("/api/wordbank/resolve-query")),
     ).toBe(false)
     expect(
@@ -172,6 +172,88 @@ describe("App shell and search", () => {
     ).toBe(false)
     expect(
       fetchSpy.mock.calls.some(([input]) => String(input).endsWith("/api/wordbank/lexemes/pronunciation")),
+    ).toBe(false)
+  })
+
+  it("request-shape: multi-word search switches to sentence mode, hides other groups, and saving refreshes both sentencebank and wordbank", async () => {
+    const fetchSpy = mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      sentencebankResponse: { items: [] },
+      phraseTranslationResponse: {
+        status: "generated",
+        source_text: "jeg elsker dansk",
+        english_translation: "i love danish",
+      },
+      addSentenceResponse: {
+        status: "inserted",
+        id: 99,
+        source_text: "jeg elsker dansk",
+        english_translation: "i love danish",
+        created_at: "2026-04-11T10:00:00.000Z",
+        tokens: [
+          {
+            token_index: 0,
+            surface_form: "jeg",
+            stored_lemma: "jeg",
+            lexeme_id: 1,
+            meaning_id: null,
+            pos_tag: "PRON",
+            morphology: "PronType=Prs",
+            gloss: null,
+            english_translation: "i",
+            gloss_translation: null,
+          },
+        ],
+        message: 'Added "jeg elsker dansk" to sentencebank.',
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    const initialSentencebankGetCount = fetchSpy.mock.calls.filter(
+      ([input, init]) => String(input).endsWith("/api/sentencebank/sentences") && !init?.method,
+    ).length
+    const initialWordbankGetCount = fetchSpy.mock.calls.filter(
+      ([input, init]) => String(input).endsWith("/api/wordbank/lemmas") && !init?.method,
+    ).length
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    const commandDialog = await screen.findByRole("dialog")
+    const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
+    fireEvent.change(searchInput, { target: { value: "jeg elsker dansk" } })
+
+    expect(await within(commandDialog).findByText(/^jeg elsker dansk$/i)).toBeInTheDocument()
+    expect(await within(commandDialog).findByText(/^i love danish$/i)).toBeInTheDocument()
+    expect(within(commandDialog).getByText(/^Sentence$/i)).toBeInTheDocument()
+    expect(within(commandDialog).queryByText(/^Wordbank$/i)).not.toBeInTheDocument()
+    expect(within(commandDialog).queryByText(/^Notes$/i)).not.toBeInTheDocument()
+    expect(within(commandDialog).queryByText(/^Pages$/i)).not.toBeInTheDocument()
+
+    fireEvent.click(await within(commandDialog).findByText(/^jeg elsker dansk$/i))
+
+    await waitFor(() => {
+      expect(
+        fetchSpy.mock.calls.some(([input, init]) =>
+          String(input).endsWith("/api/wordbank/phrase-translation") && init?.method === "POST"),
+      ).toBe(true)
+      expect(
+        fetchSpy.mock.calls.some(([input, init]) =>
+          String(input).endsWith("/api/sentencebank/sentences") && init?.method === "POST"),
+      ).toBe(true)
+      expect(fetchSpy.mock.calls.filter(
+        ([input, init]) => String(input).endsWith("/api/sentencebank/sentences") && !init?.method,
+      ).length).toBeGreaterThan(initialSentencebankGetCount)
+      expect(fetchSpy.mock.calls.filter(
+        ([input, init]) => String(input).endsWith("/api/wordbank/lemmas") && !init?.method,
+      ).length).toBeGreaterThan(initialWordbankGetCount)
+    })
+
+    expect(
+      fetchSpy.mock.calls.some(([input]) => String(input).endsWith("/api/wordbank/resolve-query")),
+    ).toBe(false)
+    expect(
+      fetchSpy.mock.calls.some(([input]) => String(input).includes("/api/wordbank/search/cor-form?")),
     ).toBe(false)
   })
 

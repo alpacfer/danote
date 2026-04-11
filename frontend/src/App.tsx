@@ -30,6 +30,7 @@ function App() {
     openWordbankMeaning,
     openWordbankRoot,
     openSavedNoteById,
+    addSentenceToSentencebank,
     addWordFromSearch,
     openSaveDialog,
     sectionProps,
@@ -52,6 +53,7 @@ function App() {
         onOpenWordbankLemma={openWordbankLemma}
         onOpenWordbankMeaning={openWordbankMeaning}
         onOpenSavedNote={openSavedNoteById}
+        onAddSentenceToSentencebank={addSentenceToSentencebank}
         onAddWordFromSearch={addWordFromSearch}
       />
       <SidebarInset>

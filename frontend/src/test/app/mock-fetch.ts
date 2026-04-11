@@ -540,6 +540,12 @@ export function mockFetchImplementation(options?: {
   }
   enrichTokenHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
   translationHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+  phraseTranslationResponse?: {
+    status: "generated" | "unavailable"
+    source_text: string
+    english_translation: string | null
+  }
+  phraseTranslationHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
   reverseTranslationResponse?: {
     status: "generated" | "unavailable"
     source_word: string
@@ -559,13 +565,39 @@ export function mockFetchImplementation(options?: {
       source_text: string
       english_translation?: string | null
       created_at: string
+      tokens?: Array<{
+        token_index: number
+        surface_form: string
+        stored_lemma: string
+        lexeme_id: number
+        meaning_id?: number | null
+        pos_tag?: string | null
+        morphology?: string | null
+        gloss?: string | null
+        english_translation?: string | null
+        gloss_translation?: string | null
+      }>
     }>
   }
   addSentenceOk?: boolean
   addSentenceResponse?: {
     status: "inserted" | "exists"
+    id?: number
     source_text: string
     english_translation: string | null
+    created_at?: string
+    tokens?: Array<{
+      token_index: number
+      surface_form: string
+      stored_lemma: string
+      lexeme_id: number
+      meaning_id?: number | null
+      pos_tag?: string | null
+      morphology?: string | null
+      gloss?: string | null
+      english_translation?: string | null
+      gloss_translation?: string | null
+    }>
     message: string
   }
 }) {
@@ -756,6 +788,11 @@ export function mockFetchImplementation(options?: {
     source_word: "kat",
     lemma: "kat",
     english_translation: null,
+  }
+  const phraseTranslationResponse = options?.phraseTranslationResponse ?? {
+    status: "generated" as const,
+    source_text: "Jeg elsker dansk",
+    english_translation: "i love danish",
   }
   const reverseTranslationResponse = options?.reverseTranslationResponse ?? {
     status: "unavailable" as const,
@@ -1162,6 +1199,13 @@ export function mockFetchImplementation(options?: {
         return options.translationHandler(input, init)
       }
       return responseOf(translationResponse)
+    }
+
+    if (url.endsWith("/api/wordbank/phrase-translation")) {
+      if (options?.phraseTranslationHandler) {
+        return options.phraseTranslationHandler(input, init)
+      }
+      return responseOf(phraseTranslationResponse)
     }
 
     if (url.endsWith("/api/wordbank/reverse-translation")) {

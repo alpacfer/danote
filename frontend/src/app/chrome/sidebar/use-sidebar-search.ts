@@ -5,7 +5,9 @@ import {
   BACKEND_URL,
   SEARCH_RESOLVE_DEBOUNCE_MS,
   createApiClient,
+  hasMultipleWords,
   isShortLetterWord,
+  type GeneratePhraseTranslationResponse,
   normalizeSearchWord,
   type CORSearchFormResponse,
   type SavedNote,
@@ -33,6 +35,12 @@ export function useSidebarSearch({
   const [corDidYouMean, setCorDidYouMean] = useState<string | null>(null)
   const [corFormSearchResult, setCorFormSearchResult] = useState<{ query: string; payload: CORSearchFormResponse } | null>(null)
   const [isCorTranslationsLoading, setIsCorTranslationsLoading] = useState(false)
+  const [sentenceSearchResult, setSentenceSearchResult] = useState<{
+    query: string
+    source_text: string
+    english_translation: string | null
+  } | null>(null)
+  const [isSentenceTranslationLoading, setIsSentenceTranslationLoading] = useState(false)
   const apiClient = useMemo(
     () => createApiClient({ backendUrl: BACKEND_URL, extractErrorMessage }),
     [],
@@ -40,6 +48,7 @@ export function useSidebarSearch({
 
   const normalizedQuery = normalizeSearchWord(searchQuery)
   const trimmedQuery = normalizedQuery
+  const isSentenceMode = hasMultipleWords(trimmedQuery)
 
   const matchingNotes = useMemo(() => {
     if (!normalizedQuery) {
@@ -60,6 +69,7 @@ export function useSidebarSearch({
     const clearId = window.setTimeout(() => {
       setSearchApiMatches([])
       setCorFormSearchResult(null)
+      setSentenceSearchResult(null)
     }, 0)
     return () => {
       window.clearTimeout(clearId)
@@ -76,7 +86,7 @@ export function useSidebarSearch({
       }, 0)
     }
 
-    if (!normalizedQuery || normalizedQuery.length < 2) {
+    if (isSentenceMode || !normalizedQuery || normalizedQuery.length < 2) {
       commitSearchMatches([])
       setWordbankDidYouMean(null)
       return () => {
@@ -135,10 +145,10 @@ export function useSidebarSearch({
       window.clearTimeout(timeoutId)
       controller.abort()
     }
-  }, [apiClient, normalizedQuery, searchTranslationConfigVersion, trimmedQuery, wordbankCacheVersion])
+  }, [apiClient, isSentenceMode, normalizedQuery, searchTranslationConfigVersion, trimmedQuery, wordbankCacheVersion])
 
   useEffect(() => {
-    if (!normalizedQuery || /\s/u.test(normalizedQuery) || isShortLetterWord(normalizedQuery)) {
+    if (isSentenceMode || !normalizedQuery || /\s/u.test(normalizedQuery) || isShortLetterWord(normalizedQuery)) {
       setIsCorTranslationsLoading(false)
       setCorDidYouMean(null)
       return
@@ -196,7 +206,61 @@ export function useSidebarSearch({
       controller.abort()
       setIsCorTranslationsLoading(false)
     }
-  }, [apiClient, normalizedQuery, searchTranslationConfigVersion, trimmedQuery, wordbankCacheVersion])
+  }, [apiClient, isSentenceMode, normalizedQuery, searchTranslationConfigVersion, trimmedQuery, wordbankCacheVersion])
+
+  useEffect(() => {
+    if (!isSentenceMode || !trimmedQuery) {
+      setSentenceSearchResult(null)
+      setIsSentenceTranslationLoading(false)
+      return
+    }
+
+    let cancelled = false
+    setSentenceSearchResult({
+      query: normalizedQuery,
+      source_text: trimmedQuery,
+      english_translation: null,
+    })
+    setIsSentenceTranslationLoading(true)
+
+    const timeoutId = window.setTimeout(() => {
+      void (async () => {
+        try {
+          const payload = await apiClient.postJson<GeneratePhraseTranslationResponse>(
+            "/api/wordbank/phrase-translation",
+            { source_text: trimmedQuery },
+            "Could not generate phrase translation.",
+          )
+          if (cancelled) {
+            return
+          }
+          setSentenceSearchResult({
+            query: normalizedQuery,
+            source_text: payload.source_text || trimmedQuery,
+            english_translation: payload.english_translation ?? null,
+          })
+        } catch {
+          if (!cancelled) {
+            setSentenceSearchResult({
+              query: normalizedQuery,
+              source_text: trimmedQuery,
+              english_translation: null,
+            })
+          }
+        } finally {
+          if (!cancelled) {
+            setIsSentenceTranslationLoading(false)
+          }
+        }
+      })()
+    }, SEARCH_RESOLVE_DEBOUNCE_MS)
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(timeoutId)
+      setIsSentenceTranslationLoading(false)
+    }
+  }, [apiClient, isSentenceMode, normalizedQuery, trimmedQuery])
 
   const activeCorFormSearchResult = useMemo(() => {
     if (!corFormSearchResult || corFormSearchResult.query !== normalizedQuery) {
@@ -209,6 +273,9 @@ export function useSidebarSearch({
     searchQuery,
     setSearchQuery,
     normalizedQuery,
+    isSentenceMode,
+    sentenceSearchResult,
+    isSentenceTranslationLoading,
     matchingNotes,
     searchApiMatches,
     wordbankDidYouMean,

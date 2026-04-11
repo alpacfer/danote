@@ -1,5 +1,6 @@
 from app.db.migrations import apply_migrations
 from app.db.repositories import SentencebankRepository, WordbankRepository
+from app.db.repositories.sentencebank import SentenceTokenWriteRecord
 
 
 def _insert_meaning_scoped_lemma(
@@ -336,12 +337,39 @@ def test_sentencebank_repository_round_trips_sentences(tmp_path) -> None:
     db_path = tmp_path / "danote.sqlite3"
     apply_migrations(db_path)
     repository = SentencebankRepository(db_path)
+    wordbank_repository = WordbankRepository(db_path)
+    lexeme_id, _ = wordbank_repository.insert_or_load_lexeme(
+        stored_lemma="jeg",
+        translation=None,
+        provider=None,
+        pos_tag="PRON",
+        morphology="PronType=Prs",
+    )
 
-    repository.insert_sentence(
+    sentence_id = repository.insert_sentence(
         source_text="Jeg læser en bog",
         normalized_sentence="jeg læser en bog",
         english_translation="i read a book",
         translation_provider="stub",
+    )
+    repository.replace_sentence_tokens(
+        sentence_id=sentence_id,
+        tokens=[
+            SentenceTokenWriteRecord(
+                token_index=0,
+                surface_form="Jeg",
+                normalized_surface="jeg",
+                stored_lemma="jeg",
+                lexeme_id=lexeme_id,
+                meaning_id=None,
+                cor_id=None,
+                pos_tag="PRON",
+                morphology="PronType=Prs",
+                gloss=None,
+                english_translation=None,
+                gloss_translation=None,
+            ),
+        ],
     )
 
     existing = repository.find_by_normalized_sentence("jeg læser en bog")
@@ -350,3 +378,4 @@ def test_sentencebank_repository_round_trips_sentences(tmp_path) -> None:
     assert existing is not None
     assert existing.source_text == "Jeg læser en bog"
     assert rows[0].english_translation == "i read a book"
+    assert existing.tokens[0].surface_form == "Jeg"

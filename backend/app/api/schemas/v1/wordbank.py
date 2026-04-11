@@ -4,6 +4,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, model_serializer
 
+from app.api.schemas.v1.sentencebank import SentenceTokenCard
+
 
 class AddWordRequest(BaseModel):
     class SearchSeed(BaseModel):
@@ -466,6 +468,19 @@ class LemmaDetailsResponse(BaseModel):
             data = handler(self)
             return {key: value for key, value in data.items() if value is not None}
 
+    class LinkedSentence(BaseModel):
+        id: int
+        source_text: str
+        english_translation: str | None = None
+        created_at: str
+        matched_token_indexes: list[int] = Field(default_factory=list)
+        tokens: list[SentenceTokenCard] = Field(default_factory=list)
+
+        @model_serializer(mode="wrap")
+        def _serialize_without_empty_fields(self, handler):
+            data = handler(self)
+            return {key: value for key, value in data.items() if value is not None}
+
     lemma: str
     english_translation: str | None
     additional_translations: list[str] = Field(default_factory=list)
@@ -477,6 +492,7 @@ class LemmaDetailsResponse(BaseModel):
     related_words: RelatedWordsSection = Field(
         default_factory=lambda: LemmaDetailsResponse.RelatedWordsSection(status="empty", items=[])
     )
+    linked_sentences: list[LinkedSentence] = Field(default_factory=list)
 
 
 class ResetDatabaseResponse(BaseModel):

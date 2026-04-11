@@ -561,6 +561,7 @@ class TranslationCollaborator:
         morphology: str | None,
         gloss: str | None,
         english_translation: str | None,
+        sentence_context: str | None = None,
         meaning_candidates: list[object],
     ) -> int | None:
         if self._gemini_word_translation_service is None or not meaning_candidates:
@@ -599,6 +600,7 @@ class TranslationCollaborator:
             morphology=morphology,
             gloss=normalize_translation_value(gloss),
             english_translation=normalize_translation_value(english_translation),
+            sentence_context=" ".join(sentence_context.strip().split()) if isinstance(sentence_context, str) and sentence_context.strip() else None,
             meaning_candidates=candidate_payloads,
         )
         try:

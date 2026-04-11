@@ -104,6 +104,10 @@ class WordbankUseCase:
             verification=verification,
         )
 
+    @property
+    def runtime(self) -> WordbankRuntime:
+        return self._runtime
+
     def add_word(
         self,
         surface_token: str,

@@ -70,11 +70,13 @@ Routes: `backend/app/api/routes/`. DTOs: `backend/app/api/schemas/v1/`. Some tok
 - **Request model:** `AddSentenceRequest`.
 - **Response model:** `AddSentenceResponse`.
 - **Notable status/error behavior:** `503` DB unavailable/locked. `400` value errors. body `status`: `inserted` or `exists`.
+- **Field invariants:** response now includes hydrated sentence details (`id`, `created_at`, `tokens[]`). `tokens[]` carries `token_index`, `surface_form`, `stored_lemma`, `lexeme_id`, nullable `meaning_id`, POS/morphology, optional gloss, and translation fields.
 
 ### GET `/api/sentencebank/sentences`
 - **Request model:** none.
 - **Response model:** `SentenceListResponse`.
 - **Notable status/error behavior:** `503` DB unavailable/locked.
+- **Field invariants:** each item includes nested `tokens[]` using the same sentence-token card contract as `POST`.
 
 ## Wordbank
 
@@ -274,6 +276,7 @@ Routes: `backend/app/api/routes/`. DTOs: `backend/app/api/schemas/v1/`. Some tok
   - Noun `surface_forms[]` ordered: non-slot/irregular first, then singular-definite, plural-indefinite, plural-definite.
   - Verification objects use same additive fields as add/verify responses.
   - Root `related_words`: `status` = `queued` (running) | `ready` (has `items[]`) | `empty` (no components survive filtering) | `error` (job failed).
+  - Root `linked_sentences[]`: lemma-level reverse sentence links with `id`, `source_text`, `english_translation`, `created_at`, `matched_token_indexes[]`, and nested sentence `tokens[]`.
   - Each `related_words.items[]` row:
     - `relation_type`: `compound_component | compound_host`
     - Gemini-provided `lemma`, `english_translation`, `pos_tag`

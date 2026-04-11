@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+from app.api.schemas.v1.sentencebank import SentenceTokenCard
 from app.api.schemas.v1.wordbank import LemmaDetailsResponse, VerificationResult
+from app.db.repositories import SentencebankRepository
 from app.services.token_classifier import normalize_token
 from app.services.use_cases.wordbank.gloss_translations import (
     gloss_translation as resolve_gloss_translation,
@@ -34,6 +36,7 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
         owner_lexeme_id=lexeme.id,
         stored_lemma=lexeme.lemma,
     )
+    linked_sentences = _linked_sentences(runtime, lexeme.lemma)
     verification_records = {
         (
             record.meaning_id,
@@ -51,6 +54,7 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
             verification_records,
             category_assignments,
             related_words,
+            linked_sentences,
             root_additional_translations,
         )
 
@@ -66,6 +70,7 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
             verification=verification_records.get((None, None)),
             meaning_sections=[],
             related_words=related_words,
+            linked_sentences=linked_sentences,
             surface_forms=order_surface_form_details(
                 [
                     _surface_form_details(
@@ -175,6 +180,7 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
         ],
         surface_forms=top_level_surface_forms,
         related_words=related_words,
+        linked_sentences=linked_sentences,
     )
 
 
@@ -186,6 +192,7 @@ def _get_manual_lemma_details(
     verification_records,
     category_assignments: dict[int | None, list[str]],
     related_words: LemmaDetailsResponse.RelatedWordsSection,
+    linked_sentences: list[LemmaDetailsResponse.LinkedSentence],
     root_additional_translations: list[str],
 ) -> LemmaDetailsResponse:
     normalized_lemma = normalize_token(lexeme.lemma)
@@ -201,6 +208,7 @@ def _get_manual_lemma_details(
             verification=verification_records.get((None, None)),
             meaning_sections=[],
             related_words=related_words,
+            linked_sentences=linked_sentences,
             surface_forms=order_surface_form_details(
                 [
                     _manual_surface_form_details(
@@ -296,7 +304,37 @@ def _get_manual_lemma_details(
         ],
         surface_forms=top_level_surface_forms,
         related_words=related_words,
+        linked_sentences=linked_sentences,
     )
+
+
+def _linked_sentences(runtime: WordbankRuntime, lemma: str) -> list[LemmaDetailsResponse.LinkedSentence]:
+    rows = SentencebankRepository(runtime.db_path).list_linked_sentences_for_lemma(lemma)
+    return [
+        LemmaDetailsResponse.LinkedSentence(
+            id=row.id,
+            source_text=row.source_text,
+            english_translation=row.english_translation,
+            created_at=row.created_at,
+            matched_token_indexes=list(row.matched_token_indexes),
+            tokens=[
+                SentenceTokenCard(
+                    token_index=token.token_index,
+                    surface_form=token.surface_form,
+                    stored_lemma=token.stored_lemma,
+                    lexeme_id=token.lexeme_id,
+                    meaning_id=token.meaning_id,
+                    pos_tag=token.pos_tag,
+                    morphology=token.morphology,
+                    gloss=token.gloss,
+                    english_translation=token.english_translation,
+                    gloss_translation=token.gloss_translation,
+                )
+                for token in row.tokens
+            ],
+        )
+        for row in rows
+    ]
 
 
 def _surface_form_details(

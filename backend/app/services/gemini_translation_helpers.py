@@ -119,6 +119,7 @@ def build_meaning_section_selection_prompt(payload: MeaningSectionSelectionInput
         "morphology": payload.morphology,
         "gloss": payload.gloss,
         "english_translation": payload.english_translation,
+        "sentence_context_da": payload.sentence_context,
     }
     candidates = [asdict(item) for item in payload.meaning_candidates]
     return (
@@ -127,6 +128,7 @@ def build_meaning_section_selection_prompt(payload: MeaningSectionSelectionInput
         "Rules:\n"
         "- Choose exactly one section id if there is a confident semantic match.\n"
         "- Use gloss, translation, POS, and morphology as hard disambiguation signals.\n"
+        "- Use sentence_context_da when present to disambiguate homographs from real sentence usage.\n"
         "- Return null if no section is a confident match.\n"
         "- Do not explain your reasoning.\n"
         f"Word context:\n{json.dumps(context, ensure_ascii=False)}\n"

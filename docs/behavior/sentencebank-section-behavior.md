@@ -4,7 +4,7 @@
 
 ### UI section renderer
 
-`SentencebankSection` in `frontend/src/app/sections/sentencebank-section.tsx`. Props: `sentencebankError`, `isSentencebankLoading`, `sentences`.
+`SentencebankSection` in `frontend/src/app/sections/sentencebank-section.tsx`. Props: `sentencebankError`, `isSentencebankLoading`, `sentences`, `onOpenWordbankLemma`, `onOpenWordbankMeaning`.
 
 ### Sentence add flow from Playground
 
@@ -13,7 +13,7 @@
 2. Enforce `hasMultipleWords` before allowing save
 3. Build `normalizePhraseKey`, block duplicates against existing entries
 4. `POST /api/sentencebank/sentences` with `{ source_text: normalizedSelection }`
-5. Success → toast, increment `sentencebankRefreshTick`, invoke `onSentenceSaved`
+5. Success → toast, increment `sentencebankRefreshTick` and `wordbankRefreshTick`, invoke `onSentenceSaved`
 6. Failure → toast error, clear saving flag in `finally`
 
 ## 2) Loading and error states
@@ -35,7 +35,17 @@ Inserts are idempotent from UI perspective regardless of spacing/casing differen
 
 ## 4) List rendering
 
-Each row: `source_text` primary line, `english_translation` secondary line. Translation fallback: null/undefined/blank-after-trim → `No translation available.` Whitespace-only translations treated as missing.
+Each row renders:
+- `source_text` primary line
+- `english_translation` secondary line (`No translation available.` fallback)
+- token-card grid in sentence order when `tokens.length > 0`
+
+Each token card renders:
+- surface form
+- linked lemma hint when the saved lemma differs from the surface
+- translation/gloss line
+- POS/morphology badges
+- click action opening the linked word page (`meaning_id` when present, lemma page otherwise)
 
 ## 5) Refresh / invalidation
 
@@ -44,7 +54,8 @@ Each row: `source_text` primary line, `english_translation` secondary line. Tran
 ## 6) Test map
 
 - `frontend/src/test/app/app-sentencebank.test.tsx` — saved sentence items shown when fetched
+- `frontend/src/test/app/app-sentencebank.test.tsx` — token cards render and open linked word pages
 - `frontend/src/test/app/app-shell-search-basics.test.tsx` — Sentencebank nav entry in shell/sidebar
-- `frontend/src/test/app/app-shell-search-actions.test.tsx` — translation fallback string absent when data present
+- `frontend/src/test/app/app-shell-search-actions.test.tsx` — sentence-mode save refreshes sentencebank + wordbank
 
 Note: `frontend/src/test/app/app-playground-actions.test.tsx` covers popover action mechanics for adding words. No dedicated end-to-end test exercises full `Add to sentencebank` path (normalization, duplicate suppression, tick refetch) in one file.
