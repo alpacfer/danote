@@ -7,8 +7,11 @@ from pathlib import Path
 
 from app.api.schemas.v1.wordbank import (
     ApplyVerificationChangesResponse,
+    GetVerificationChangesResponse,
     QueueVerificationResponse,
+    RevertVerificationChangeResponse,
     RethinkCategoriesResponse,
+    VerificationChangeEntry,
     VerificationResult,
     VerifyWordResponse,
 )
@@ -16,6 +19,12 @@ from app.db.repositories.wordbank import WordbankRepository
 from app.services.token_classifier import normalize_token
 from app.services.use_cases.wordbank.collaborators.cor import CorResolutionCollaborator
 from app.services.use_cases.wordbank.collaborators.nlp import NLPCollaborator
+from app.services.use_cases.wordbank.verification_change_log import (
+    build_change_log_before_json,
+    query_surface_forms_snapshot,
+    revert_fix_translation,
+    revert_fix_variations,
+)
 from app.services.use_cases.wordbank.verification_input_builder import build_verification_input
 from app.services.use_cases.wordbank.verification_actions import apply_verification_action
 from app.services.use_cases.wordbank.verification_apply_resolution import (
@@ -302,6 +311,19 @@ class VerificationCollaborator:
             meaning_id=meaning_id,
             action=action,
         )
+        # Capture surface forms before action for fix_variations revert support
+        action_type_str = str(action.get("action_type", ""))
+        pre_apply_surfaces: list[dict[str, object]] | None = None
+        if action_type_str == "fix_variations":
+            repository = WordbankRepository(self._db_path)
+            lexeme = repository.get_lexeme(normalized_lemma)
+            if lexeme is not None:
+                pre_apply_surfaces = query_surface_forms_snapshot(
+                    self._db_path,
+                    lexeme_id=lexeme.id,
+                    meaning_id=meaning_id,
+                )
+
         result = apply_verification_action(
             db_path=self._db_path,
             cor=self._cor,
@@ -324,6 +346,16 @@ class VerificationCollaborator:
                     **result.log_payload,
                 }
             )
+
+        self._write_change_log_db_entry(
+            stored_lemma=normalized_lemma,
+            stored_surface_form=normalized_surface,
+            meaning_id=meaning_id,
+            result=result,
+            pre_apply_surfaces=pre_apply_surfaces,
+            provider_name=provider_name,
+            applied_at=now_utc_iso(),
+        )
 
         update_persisted_verification_after_apply(
             db_path=self._db_path,
@@ -421,6 +453,44 @@ class VerificationCollaborator:
                 "wordbank_gemini_change_log_write_failed",
                 extra={"gemini_changes_log_path": str(self._gemini_changes_log_path)},
             )
+
+    def _write_change_log_db_entry(
+        self,
+        *,
+        stored_lemma: str,
+        stored_surface_form: str | None,
+        meaning_id: int | None,
+        result,
+        pre_apply_surfaces: list[dict[str, object]] | None,
+        provider_name: str,
+        applied_at: str,
+    ) -> None:
+        if result.log_payload is None or result.status != "applied":
+            return
+        action_type = str(result.log_payload.get("action_type", ""))
+        if action_type not in {"fix_translation", "fix_variations"}:
+            return
+        before_json = build_change_log_before_json(
+            action_type=action_type,
+            meaning_id=meaning_id,
+            before_snapshot=dict(result.log_payload.get("before") or {}),
+            pre_apply_surfaces=pre_apply_surfaces,
+        )
+        after_json = dict(result.log_payload.get("after") or {})
+        repository = WordbankRepository(self._db_path)
+        try:
+            repository.insert_change_log_entry(
+                stored_lemma=stored_lemma,
+                stored_surface_form=stored_surface_form,
+                meaning_id=meaning_id,
+                action_type=action_type,
+                before_json=before_json,
+                after_json=after_json,
+                applied_at=applied_at,
+                provider=provider_name,
+            )
+        except Exception:
+            logger.exception("wordbank_change_log_db_write_failed", extra={"stored_lemma": stored_lemma})
 
     def _verification_metadata(
         self,
@@ -627,3 +697,63 @@ class VerificationCollaborator:
             for key, value in asdict(payload).items()
         }
         return json.dumps(serialized, ensure_ascii=True, sort_keys=True)
+
+    def get_verification_changes(self, stored_lemma: str) -> GetVerificationChangesResponse:
+        normalized_lemma = normalize_token(stored_lemma)
+        if not normalized_lemma:
+            raise ValueError("stored_lemma is required")
+        repository = WordbankRepository(self._db_path)
+        records = repository.get_change_log_entries_for_lemma(normalized_lemma)
+        items = [
+            VerificationChangeEntry(
+                id=r.id,
+                stored_lemma=r.stored_lemma,
+                stored_surface_form=r.stored_surface_form,
+                meaning_id=r.meaning_id,
+                action_type=r.action_type,
+                before_json=json.loads(r.before_json),
+                after_json=json.loads(r.after_json),
+                applied_at=r.applied_at,
+                reverted_at=r.reverted_at,
+                provider=r.provider,
+            )
+            for r in records
+        ]
+        return GetVerificationChangesResponse(items=items)
+
+    def revert_verification_change(
+        self,
+        change_id: int,
+        stored_lemma: str,
+    ) -> RevertVerificationChangeResponse:
+        normalized_lemma = normalize_token(stored_lemma)
+        if not normalized_lemma:
+            raise ValueError("stored_lemma is required")
+        repository = WordbankRepository(self._db_path)
+        entry = repository.get_change_log_entry(change_id)
+        if entry is None or entry.stored_lemma != normalized_lemma:
+            return RevertVerificationChangeResponse(status="not_found", change_id=change_id)
+        if entry.reverted_at is not None:
+            return RevertVerificationChangeResponse(status="already_reverted", change_id=change_id)
+
+        before = json.loads(entry.before_json)
+        if entry.action_type == "fix_translation":
+            revert_fix_translation(
+                db_path=self._db_path,
+                stored_lemma=normalized_lemma,
+                meaning_id=entry.meaning_id,
+                old_translation=before.get("english_translation"),
+            )
+        elif entry.action_type == "fix_variations":
+            revert_fix_variations(
+                db_path=self._db_path,
+                stored_lemma=normalized_lemma,
+                meaning_id=entry.meaning_id,
+                surface_forms_snapshot=before.get("surface_forms", []),
+            )
+        else:
+            return RevertVerificationChangeResponse(status="not_found", change_id=change_id)
+
+        self._nlp.invalidate_pos_cache(normalized_lemma, entry.stored_surface_form)
+        repository.set_change_log_reverted(change_id, now_utc_iso())
+        return RevertVerificationChangeResponse(status="reverted", change_id=change_id)
