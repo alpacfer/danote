@@ -42,3 +42,7 @@ cd frontend && npx vitest run src/test/path/to/file.test.tsx
 - Test observable DOM behavior — not hook state or impl details
 
 **Test file location:** `frontend/src/test/` — mirror source structure
+
+## Size limits
+
+- Test files: target ≤1200 lines.
