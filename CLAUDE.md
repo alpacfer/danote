@@ -137,9 +137,9 @@ Targeted: frontend-only → nearest Vitest; backend-only → nearest pytest; doc
 - Read related docs (`README.md`, `docs/`) before implementing.
 - Any code/config/API/schema change → update docs same PR.
 - No doc changes → PR must include "No documentation impact" justification.
-- API route/schema changes → `docs/api-contract.md`.
+- API route/schema changes → `docs/contracts/api-contract.md`.
 - Command/setup changes → `README.md` + `docs/`.
-- Version/dep changes → `docs/versions.md`.
+- Version/dep changes → `docs/reference/versions.md`.
 - Completion checklists → explicit docs parity checkbox.
 
 ## Maintainability

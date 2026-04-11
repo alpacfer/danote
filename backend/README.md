@@ -180,7 +180,7 @@ export DANOTE_TTS_AZURE_REGION="your-speech-region"
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-Configuration reference: [`../docs/configuration-reference.md`](../docs/configuration-reference.md).
+Configuration reference: [`../docs/reference/configuration-reference.md`](../docs/reference/configuration-reference.md).
 
 ### Configuration precedence
 
@@ -190,7 +190,7 @@ Backend settings are resolved in this order:
 2. `<repo-root>/.env.local`
 3. hardcoded defaults in `backend/app/core/config.py`
 
-For the complete variable catalog (defaults, accepted values, and fallback/alias behavior), see [`../docs/configuration-reference.md`](../docs/configuration-reference.md).
+For the complete variable catalog (defaults, accepted values, and fallback/alias behavior), see [`../docs/reference/configuration-reference.md`](../docs/reference/configuration-reference.md).
 
 ## API
 
@@ -239,4 +239,4 @@ Dependency lock policy:
 
 - Canonical backend install file: `requirements.lock.txt`.
 - Refresh lock file with `../scripts/sync-backend-lock.sh` when dependency inputs change.
-- See `../docs/backend-dependency-locking.md` for details.
+- See `../docs/architecture/backend-dependency-locking.md` for details.

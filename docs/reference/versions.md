@@ -47,7 +47,7 @@ Tracks baseline dev env and dependency locking for reproducibility.
 - Seed loader: `backend/scripts/seed_db.py` (idempotent)
 - Seed lexemes: `bog`, `kan`, `lide`
 - Lookup service (checkpoint 8): lemma-aware classifier (`known` / `variation` / `new`)
-- Analysis endpoint (checkpoint 9): `POST /api/analyze` stable token list schema (see `docs/api-contract.md`)
+- Analysis endpoint (checkpoint 9): `POST /api/analyze` stable token list schema (see `../contracts/api-contract.md`)
 - NLP adapter: `app/nlp/adapter.py`
 - Danish NLP impl: `DaCyLemmyNLPAdapter` in `app/nlp/danish.py`
 - Danish NLP model (fixed): `da_dacy_small_trf-0.2.0`

@@ -146,7 +146,7 @@ Wire `onSetSearchQuery` action through to `SidebarSearchResults`.
 
 ## API contract update
 
-`docs/api-contract.md`: update `/api/wordbank/search` and `/api/wordbank/search/cor-form` response models to document `did_you_mean` field.
+`docs/contracts/api-contract.md`: update `/api/wordbank/search` and `/api/wordbank/search/cor-form` response models to document `did_you_mean` field.
 
 ---
 

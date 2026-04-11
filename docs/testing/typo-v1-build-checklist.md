@@ -4,9 +4,9 @@ Maps typo v1 plan to current Danote repo layout.
 
 ## 1) Contracts and config
 
-- [x] `docs/typo-v1-contract.md`
+- [x] `docs/contracts/typo-v1-contract.md`
 - [x] `backend/app/core/typo_policy.v1.json`
-- [x] `docs/typo-benchmark-schema-v1.md`
+- [x] `docs/contracts/typo-benchmark-schema-v1.md`
 
 ## 2) Database and migrations
 
@@ -32,7 +32,7 @@ Tests: extend `backend/tests/services/test_token_classifier_unit.py`, `test_toke
 
 ## 5) Analyze API schema update
 
-Update: `backend/app/api/routes/analyze.py`, `docs/api-contract.md` (new v1 section, keep v0 compat).
+Update: `backend/app/api/routes/analyze.py`, `docs/contracts/api-contract.md` (new v1 section, keep v0 compat).
 
 Token fields to add: `suggestions`, `confidence`, `reason_tags`.
 

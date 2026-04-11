@@ -54,7 +54,7 @@
   - add word
   - backend restart
   - persistence re-check
-- Manual browser flow: `docs/manual-demo-script.md`
+- Manual browser flow: root [docs index](../README.md) plus the relevant section behavior docs in `docs/behavior/`
 
 ## Fixture Baseline
 

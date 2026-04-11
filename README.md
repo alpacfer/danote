@@ -12,7 +12,7 @@ Language-learning note-taking web app (Danish-first) with a browser frontend and
 
 ## Documentation Hub
 
-- Start here: [`docs/README.md`](docs/README.md) for the discoverability + freshness index.
+- Start here: [`docs/README.md`](docs/README.md) for the docs map and category index.
 
 ## Run Instructions
 
@@ -58,7 +58,7 @@ make agent-verify
 Agent-specific guidance:
 
 - `AGENTS.md`
-- `docs/agent-playbook.md`
+- `CLAUDE.md`
 
 One-command startup (recommended):
 
@@ -75,7 +75,7 @@ user-locally when missing, provisions Python `3.11`, recreates stale backend vir
 `node` and `npm` are still required locally; when they are missing or too old, the script prints
 platform-specific install commands and exits before partial startup.
 
-Configuration reference: [`docs/configuration-reference.md`](docs/configuration-reference.md).
+Configuration reference: [`docs/reference/configuration-reference.md`](docs/reference/configuration-reference.md).
 
 ### Configuration precedence
 
@@ -94,7 +94,7 @@ DANOTE_WORD_VERIFICATION_GEMINI_API_KEY=your-gemini-key
 DANOTE_WORDBANK_BACKGROUND_JOB_WORKERS=4
 ```
 
-See the full per-variable reference (defaults, accepted values, and fallback interactions) in [`docs/configuration-reference.md`](docs/configuration-reference.md).
+See the full per-variable reference (defaults, accepted values, and fallback interactions) in [`docs/reference/configuration-reference.md`](docs/reference/configuration-reference.md).
 
 Word verification, pronunciation, and related-word enrichment now run through the shared wordbank queue.
 `DANOTE_WORDBANK_BACKGROUND_JOB_WORKERS` controls how many queued wordbank jobs can execute in parallel.
@@ -214,28 +214,25 @@ cd <repo-root>
 ./scripts/e2e-regression.sh
 ```
 
-Manual demo and release docs:
+Behavior and workflow docs:
 
-- `docs/manual-demo-script.md`
-- `docs/app-shell-behavior.md`
-- `docs/release-checklist-prototype-v0.md`
-- `docs/sentencebank-section-behavior.md`
-- `docs/sidebar-search-behavior.md`
-- `docs/wordbank-section-behavior.md`
-- `docs/lemma-benchmark-baseline.md`
-- `docs/lemma-benchmark-report-v0.md`
-- `docs/playground-section-behavior.md`
-- `docs/notes-section-behavior.md`
-- `docs/developer-section-behavior.md`
+- `docs/behavior/app-shell-behavior.md`
+- `docs/behavior/sentencebank-section-behavior.md`
+- `docs/behavior/sidebar-search-behavior.md`
+- `docs/behavior/wordbank-section-behavior.md`
+- `docs/behavior/playground-section-behavior.md`
+- `docs/behavior/notes-section-behavior.md`
+- `docs/behavior/developer-section-behavior.md`
+- `docs/testing/test-plan.md`
 
 ## Reproducibility
 
 - Lockfiles must be committed when dependencies are introduced.
-- Environment/runtime versions are tracked in `docs/versions.md`.
+- Environment/runtime versions are tracked in `docs/reference/versions.md`.
 
 
 ## Priority C references
 
-- Backend dependency locking: `docs/backend-dependency-locking.md`
-- ADR index: `docs/adr/README.md`
-- Test pyramid + CI split: `docs/test-pyramid-and-ci.md`
+- Backend dependency locking: `docs/architecture/backend-dependency-locking.md`
+- ADR index: `docs/architecture/adr/README.md`
+- Test pyramid + CI split: `docs/testing/test-pyramid-and-ci.md`
