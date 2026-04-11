@@ -14,16 +14,16 @@ cd backend && PYTHONPATH=. .venv/bin/pytest -q tests/path/to/test_file.py
 ```
 
 **Layer placement:**
-- `tests/use_cases/` — orchestration, DB interactions, service calls
+- `tests/use_cases/` — orchestration, DB, service calls
 - `tests/services/` — pure domain logic, transformations
-- `tests/api/` — HTTP status codes and response shape only, never business logic
+- `tests/api/` — HTTP codes + response shape only, no business logic
 
 **Required patterns:**
-- `from __future__ import annotations` at top of every test file
-- Inject dependencies via constructor — never mock internals with `unittest.mock.patch`
-- `_db_path(tmp_path)` from `tests/helpers/factories.py` for isolated DB paths
-- `FakeNLPAdapter` / `StubNLPAdapter` from `tests/helpers/fakes.py` — never instantiate real NLP in unit tests
-- Session-level file snapshots (e.g., `gemini-applied-changes.jsonl`) are auto-restored via `conftest.py` — don't add extra cleanup
+- `from __future__ import annotations` top of every test file
+- Inject via constructor — never mock internals with `unittest.mock.patch`
+- `_db_path(tmp_path)` from `tests/helpers/factories.py` — isolated DB paths
+- `FakeNLPAdapter` / `StubNLPAdapter` from `tests/helpers/fakes.py` — no real NLP in unit tests
+- Session-level snapshots (e.g., `gemini-applied-changes.jsonl`) auto-restored via `conftest.py` — no extra cleanup
 
 **Naming:** `test_<what>_<condition>_<expected_outcome>`
 
@@ -35,10 +35,10 @@ cd frontend && npx vitest run src/test/path/to/file.test.tsx
 ```
 
 **Required patterns:**
-- Import test utilities from `@/test/app-test-helpers` — do not import from `@testing-library/react` directly
-- `renderApp()` for full integration tests; use focused component renders only for isolated unit tests
-- `mockFetchImplementation({ analyzeTokens: [...] })` to stub backend responses
-- `vi.useRealTimers()` for async timing tests
-- Test user-observable DOM behavior — not internal hook state or implementation details
+- Import utils from `@/test/app-test-helpers` — never from `@testing-library/react`
+- `renderApp()` for full integration tests; focused renders for isolated unit tests
+- `mockFetchImplementation({ analyzeTokens: [...] })` stub backend responses
+- `vi.useRealTimers()` async timing tests
+- Test observable DOM behavior — not hook state or impl details
 
-**Test file location:** `frontend/src/test/` — mirror the source structure
+**Test file location:** `frontend/src/test/` — mirror source structure

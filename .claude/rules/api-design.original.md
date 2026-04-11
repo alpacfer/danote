@@ -12,17 +12,17 @@ paths:
 2. Use-case logic in `services/use_cases/`
 3. Route handler last (thin wiring only)
 
-No inline models in route files. Routes import from `api/schemas/v1/`.
+Never define models inline in route files. Routes import from `api/schemas/v1/`.
 
 ## Route handlers must stay thin
 
-Route handler only:
+A route handler should only:
 - Validate input (via Pydantic schema)
 - Call one use-case method
 - Map exceptions to HTTP status codes
-- Return typed response
+- Return a typed response
 
-No business logic, no DB calls, no service calls directly from route.
+No business logic, no DB calls, no service calls directly from a route.
 
 ## Standard error mapping
 
@@ -35,7 +35,7 @@ No business logic, no DB calls, no service calls directly from route.
 
 ## API contract sync
 
-Added/removed/modified route → update `docs/api-contract.md` in same change.
+Any added, removed, or modified route must update `docs/api-contract.md` in the same change.
 Format per endpoint:
 ```markdown
 ### METHOD `/api/path`

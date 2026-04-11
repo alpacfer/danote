@@ -8,23 +8,23 @@ paths:
 
 ## Component and hook boundaries
 
-- Components render and handle UI events only — no data fetching, no API calls
-- Data fetching and side effects live in hooks (`src/app/hooks/[domain]/`)
-- Hooks are organized by domain: `hooks/playground/`, `hooks/wordbank/`, etc.
-- `App.tsx` is a thin orchestrator — no workflow logic
+- Components: render + UI events only. No fetch, no API calls.
+- Fetch + side effects → hooks (`src/app/hooks/[domain]/`)
+- Hooks by domain: `hooks/playground/`, `hooks/wordbank/`, etc.
+- `App.tsx` thin orchestrator. No workflow logic.
 
 ## shadcn/ui first
 
-Before building any UI primitive:
-1. Check `src/components/ui/` — it may already exist
-2. Check shadcn/ui docs for the right component
-3. Install via `npx shadcn@latest add <component>` — never handcraft component source
-4. Compose around the generated API; style via props/classNames
+Before any UI primitive:
+1. Check `src/components/ui/` — may already exist
+2. Check shadcn/ui docs for right component
+3. Install via `npx shadcn@latest add <component>` — never handcraft source
+4. Compose on generated API. Style via props/classNames.
 
 ## TypeScript
 
-- No `any` — use explicit types at all module boundaries
-- Keep state shapes typed and named by domain
+- No `any`. Explicit types at module boundaries.
+- State: typed, domain-named.
 - Path alias: `@/*` → `./src/*`
 
 ## File size limits (enforced by `make maintainability-check`)
@@ -36,4 +36,4 @@ Before building any UI primitive:
 | Custom hook | ≤ 220 lines | one workflow/domain |
 | Function | ≤ 60 lines | split into helpers if deeper |
 
-If you're about to push a file over 450 lines, split it in the same change.
+File >450 lines: split in same change.
