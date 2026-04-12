@@ -17,7 +17,7 @@ def test_parse_result_valid_sentence() -> None:
 
 
 def test_parse_result_with_errors() -> None:
-    raw = '{"is_valid": false, "errors": [{"start": 7, "end": 11, "message": "typo"}], "corrected_text": "jeg er glad", "language": "da"}'
+    raw = '{"is_valid": false, "errors": [{"start": 7, "end": 11, "message": "typo"}], "corrected_text": "Jeg er glad", "language": "da"}'
     result = _parse_result(raw, "jeg er glat")
     assert result.is_valid is False
     assert len(result.errors) == 1
@@ -57,3 +57,17 @@ def test_parse_result_skips_malformed_error_spans() -> None:
     result = _parse_result(raw, "fix me")
     assert len(result.errors) == 1
     assert result.errors[0].start == 0
+
+
+def test_parse_result_preserves_initial_capitalization_style() -> None:
+    raw = '{"is_valid": false, "errors": [{"start": 4, "end": 9, "message": "typo"}], "corrected_text": "jeg er glad", "language": "da"}'
+    result = _parse_result(raw, "Jeg er glat")
+    assert result.corrected_text == "Jeg er glad"
+
+
+def test_parse_result_ignores_sentence_initial_capitalization_only_error() -> None:
+    raw = '{"is_valid": false, "errors": [{"start": 0, "end": 1, "message": "capitalization"}], "corrected_text": "Jeg er glad", "language": "da"}'
+    result = _parse_result(raw, "jeg er glad")
+    assert result.is_valid is True
+    assert result.errors == []
+    assert result.corrected_text is None

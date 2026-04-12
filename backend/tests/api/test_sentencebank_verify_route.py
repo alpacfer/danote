@@ -64,7 +64,7 @@ def test_verify_sentence_too_long_returns_422(tmp_path, stub_nlp_adapter_factory
     with TestClient(app) as client:
         response = client.post(
             "/api/sentencebank/verify-sentence",
-            json={"source_text": "a" * 51},
+            json={"source_text": "a" * 101},
         )
     assert response.status_code == 422
 

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react"
 import { BookOpen, NotebookPen, Settings } from "lucide-react"
 
 import { ThemeToggleButton } from "@/app/chrome/theme-toggle-button"
+import { SidebarSearchInput } from "@/app/chrome/sidebar/sidebar-search-input"
 import {
   SidebarSearchResults,
   type SidebarSearchResultsActions,
@@ -24,7 +25,7 @@ import {
   type WordbankSearchItem,
 } from "@/app/core"
 import { Button } from "@/components/ui/button"
-import { CommandDialog, CommandInput } from "@/components/ui/command"
+import { CommandDialog } from "@/components/ui/command"
 import {
   Sidebar,
   SidebarContent,
@@ -242,6 +243,42 @@ export function AppSidebar({
     return orderedCommandItemValues[0] ?? ""
   }, [commandSelectionOverride, orderedCommandItemValues])
 
+  const closeSearch = () => {
+    setIsSearchOpen(false)
+    setSearchQuery("")
+    setCommandSelectionOverride("")
+  }
+
+  const saveSentenceFromSearch = (sourceText: string) => {
+    closeSearch()
+    void onAddSentenceToSentencebank(sourceText)
+  }
+
+  useEffect(() => {
+    if (!isSearchOpen) {
+      return
+    }
+
+    const nextValue = orderedCommandItemValues[0] ?? ""
+    if (!nextValue) {
+      if (commandSelectionOverride) {
+        setCommandSelectionOverride("")
+      }
+      return
+    }
+
+    if (isSentenceMode) {
+      if (commandSelectionOverride !== nextValue) {
+        setCommandSelectionOverride(nextValue)
+      }
+      return
+    }
+
+    if (!commandSelectionOverride || !orderedCommandItemValues.includes(commandSelectionOverride)) {
+      setCommandSelectionOverride(nextValue)
+    }
+  }, [commandSelectionOverride, isSearchOpen, isSentenceMode, orderedCommandItemValues])
+
   const searchResultState: SidebarSearchResultsState = {
     normalizedQuery,
     isSentenceMode,
@@ -275,17 +312,14 @@ export function AppSidebar({
 
   const searchResultActions: SidebarSearchResultsActions = {
     onAddSentenceFromSearch: async (sourceText: string) => {
-      await onAddSentenceToSentencebank(sourceText)
+      saveSentenceFromSearch(sourceText)
     },
     onSetSearchQuery: (query: string) => { setSearchQuery(query) },
     onOpenSavedNote,
     onOpenWordbankLemma,
     onOpenWordbankMeaning,
     onAddWordFromSearch,
-    onCloseSearch: () => {
-      setIsSearchOpen(false)
-      setSearchQuery("")
-    },
+    onCloseSearch: closeSearch,
   }
 
   return (
@@ -310,14 +344,28 @@ export function AppSidebar({
           title="Search wordbank and notes"
           description="Search saved words, local COR analyses, and notes."
         >
-          <CommandInput
-            placeholder="Search words and notes..."
+          <SidebarSearchInput
             value={searchQuery}
+            sentenceVerification={sentenceVerification}
+            onKeyDown={(event) => {
+              if (
+                event.key !== "Enter"
+                || !isSentenceMode
+                || !sentenceSearchResult
+                || isSentenceVerificationLoading
+                || sentenceVerification === null
+              ) {
+                return
+              }
+
+              event.preventDefault()
+              event.stopPropagation()
+              saveSentenceFromSearch(sentenceVerification.corrected_text ?? sentenceSearchResult.source_text)
+            }}
             onValueChange={(value) => {
               setSearchQuery(value)
               setCommandSelectionOverride("")
             }}
-            aria-label="command search"
           />
           <SidebarSearchResults
             state={searchResultState}

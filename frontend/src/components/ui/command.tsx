@@ -75,23 +75,48 @@ function CommandDialog({
 }
 
 function CommandInput({
+  overlay,
+  suffix,
+  concealValue = false,
   className,
   ...props
-}: React.ComponentProps<typeof CommandPrimitive.Input>) {
+}: React.ComponentProps<typeof CommandPrimitive.Input> & {
+  overlay?: React.ReactNode
+  suffix?: React.ReactNode
+  concealValue?: boolean
+}) {
   return (
     <div
       data-slot="command-input-wrapper"
       className="flex h-9 items-center gap-2 border-b px-3"
     >
       <SearchIcon className="size-4 shrink-0 opacity-50" />
-      <CommandPrimitive.Input
-        data-slot="command-input"
-        className={cn(
-          "placeholder:text-muted-foreground flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-hidden disabled:cursor-not-allowed disabled:opacity-50",
-          className
-        )}
-        {...props}
-      />
+      <div className="relative min-w-0 flex-1">
+        {overlay ? (
+          <div
+            aria-hidden="true"
+            data-slot="command-input-overlay"
+            className="text-foreground pointer-events-none absolute inset-0 flex items-center overflow-hidden py-3 text-sm whitespace-pre"
+          >
+            {overlay}
+          </div>
+        ) : null}
+        <CommandPrimitive.Input
+          data-slot="command-input"
+          className={cn(
+            "placeholder:text-muted-foreground flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-hidden disabled:cursor-not-allowed disabled:opacity-50",
+            suffix ? "pr-28" : "",
+            concealValue ? "relative z-10 text-transparent caret-foreground" : "",
+            className
+          )}
+          {...props}
+        />
+        {suffix ? (
+          <div className="pointer-events-none absolute inset-y-0 right-9 flex min-w-10 items-center justify-end">
+            {suffix}
+          </div>
+        ) : null}
+      </div>
     </div>
   )
 }

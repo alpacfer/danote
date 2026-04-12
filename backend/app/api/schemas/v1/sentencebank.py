@@ -46,7 +46,7 @@ class SentenceVerificationErrorItem(BaseModel):
 
 
 class VerifySentenceRequest(BaseModel):
-    source_text: str = Field(..., min_length=1, max_length=50)
+    source_text: str = Field(..., min_length=1, max_length=100)
 
 
 class VerifySentenceResponse(BaseModel):

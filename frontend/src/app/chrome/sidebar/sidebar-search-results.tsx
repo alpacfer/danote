@@ -96,13 +96,13 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
     return (
       <CommandList>
         <SidebarSentenceResult
+          key={data.isSentenceVerificationLoading ? "sentence-result-loading" : "sentence-result-ready"}
           sourceText={data.sentenceSearchResult.source_text}
           englishTranslation={data.sentenceSearchResult.english_translation}
           isTranslationLoading={data.isSentenceTranslationLoading}
           sentenceVerification={data.sentenceVerification}
           isSentenceVerificationLoading={data.isSentenceVerificationLoading}
           onSaveSentence={actions.onAddSentenceFromSearch}
-          onCloseSearch={actions.onCloseSearch}
         />
       </CommandList>
     )

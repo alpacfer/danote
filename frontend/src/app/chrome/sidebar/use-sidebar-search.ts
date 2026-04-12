@@ -5,6 +5,7 @@ import {
   BACKEND_URL,
   SEARCH_RESOLVE_DEBOUNCE_MS,
   SENTENCE_VERIFY_DEBOUNCE_MS,
+  SENTENCE_VERIFY_MAX_CHARS,
   createApiClient,
   hasMultipleWords,
   isShortLetterWord,
@@ -54,7 +55,11 @@ export function useSidebarSearch({
 
   const normalizedQuery = normalizeSearchWord(searchQuery)
   const trimmedQuery = normalizedQuery
-  const isSentenceMode = hasMultipleWords(trimmedQuery) && trimmedQuery.length <= 50
+  const isSentenceMode = hasMultipleWords(trimmedQuery) && trimmedQuery.length <= SENTENCE_VERIFY_MAX_CHARS
+  const activeSentenceVerification = sentenceVerification?.query === trimmedQuery
+    ? sentenceVerification.result
+    : null
+  const activeSentenceTranslationSource = activeSentenceVerification?.corrected_text ?? trimmedQuery
 
   const matchingNotes = useMemo(() => {
     if (!normalizedQuery) {
@@ -218,7 +223,7 @@ export function useSidebarSearch({
   }, [apiClient, isSentenceMode, normalizedQuery, searchTranslationConfigVersion, trimmedQuery, wordbankCacheVersion])
 
   useEffect(() => {
-    if (!isSentenceMode || !trimmedQuery) {
+    if (!isSentenceMode || !activeSentenceTranslationSource) {
       setSentenceSearchResult(null)
       setIsSentenceTranslationLoading(false)
       return
@@ -227,7 +232,7 @@ export function useSidebarSearch({
     let cancelled = false
     setSentenceSearchResult({
       query: normalizedQuery,
-      source_text: trimmedQuery,
+      source_text: activeSentenceTranslationSource,
       english_translation: null,
     })
     setIsSentenceTranslationLoading(true)
@@ -237,7 +242,7 @@ export function useSidebarSearch({
         try {
           const payload = await apiClient.postJson<GeneratePhraseTranslationResponse>(
             "/api/wordbank/phrase-translation",
-            { source_text: trimmedQuery },
+            { source_text: activeSentenceTranslationSource },
             "Could not generate phrase translation.",
           )
           if (cancelled) {
@@ -245,14 +250,14 @@ export function useSidebarSearch({
           }
           setSentenceSearchResult({
             query: normalizedQuery,
-            source_text: payload.source_text || trimmedQuery,
+            source_text: payload.source_text || activeSentenceTranslationSource,
             english_translation: payload.english_translation ?? null,
           })
         } catch {
           if (!cancelled) {
             setSentenceSearchResult({
               query: normalizedQuery,
-              source_text: trimmedQuery,
+              source_text: activeSentenceTranslationSource,
               english_translation: null,
             })
           }
@@ -269,7 +274,7 @@ export function useSidebarSearch({
       window.clearTimeout(timeoutId)
       setIsSentenceTranslationLoading(false)
     }
-  }, [apiClient, isSentenceMode, normalizedQuery, trimmedQuery])
+  }, [activeSentenceTranslationSource, apiClient, isSentenceMode, normalizedQuery])
 
   useEffect(() => {
     if (!isSentenceMode || !trimmedQuery) {
@@ -352,9 +357,7 @@ export function useSidebarSearch({
     corDidYouMean,
     activeCorFormSearchResult,
     isCorTranslationsLoading,
-    sentenceVerification: sentenceVerification?.query === trimmedQuery
-      ? sentenceVerification.result
-      : null,
+    sentenceVerification: activeSentenceVerification,
     isSentenceVerificationLoading,
     sentenceVerificationError,
   }

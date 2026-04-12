@@ -40,8 +40,77 @@ def _build_prompt(source_text: str) -> str:
         '- "is_valid": true if no errors, false otherwise\n'
         '- "errors": array of {start, end, message} with 0-indexed char offsets for each error; empty if valid\n'
         '- "corrected_text": fully corrected sentence string if is_valid is false, null if is_valid is true\n'
-        '- "language": "da" if Danish, "en" if English, "unknown" otherwise'
+        '- "language": "da" if Danish, "en" if English, "unknown" otherwise\n'
+        "Keep the same capitalization style at the start of the sentence as the source text.\n"
+        "Do not flag sentence-initial capitalization by itself as an error."
     )
+
+
+def _preserve_leading_letter_case(source_text: str, corrected_text: str | None) -> str | None:
+    if not corrected_text:
+        return None
+
+    source_index = next((idx for idx, char in enumerate(source_text) if char.isalpha()), None)
+    corrected_index = next((idx for idx, char in enumerate(corrected_text) if char.isalpha()), None)
+    if source_index is None or corrected_index is None:
+        return corrected_text
+
+    source_char = source_text[source_index]
+    corrected_char = corrected_text[corrected_index]
+    if source_char.islower() and corrected_char.isupper():
+        return (
+            corrected_text[:corrected_index]
+            + corrected_char.lower()
+            + corrected_text[corrected_index + 1:]
+        )
+    if source_char.isupper() and corrected_char.islower():
+        return (
+            corrected_text[:corrected_index]
+            + corrected_char.upper()
+            + corrected_text[corrected_index + 1:]
+        )
+    return corrected_text
+
+
+def _leading_alpha_index(text: str) -> int | None:
+    return next((idx for idx, char in enumerate(text) if char.isalpha()), None)
+
+
+def _leading_token_end(text: str, start_index: int | None) -> int | None:
+    if start_index is None:
+        return None
+    index = start_index
+    while index < len(text) and not text[index].isspace():
+        index += 1
+    return index
+
+
+def _is_ignorable_leading_capitalization_error(
+    error: SentenceVerificationErrorSpan,
+    source_text: str,
+    corrected_text: str | None,
+) -> bool:
+    if not corrected_text:
+        return False
+
+    leading_start = _leading_alpha_index(source_text)
+    leading_end = _leading_token_end(source_text, leading_start)
+    if leading_start is None or leading_end is None:
+        return False
+
+    start = max(error.start, 0)
+    end = min(error.end, len(source_text), len(corrected_text))
+    if start >= end:
+        return False
+    if start < leading_start or end > leading_end:
+        return False
+
+    source_slice = source_text[start:end]
+    corrected_slice = corrected_text[start:end]
+    if len(source_slice) != len(corrected_slice):
+        return False
+
+    return source_slice != corrected_slice and source_slice.casefold() == corrected_slice.casefold()
 
 
 def _parse_result(raw: str | None, source_text: str) -> SentenceVerificationResult:
@@ -55,7 +124,8 @@ def _parse_result(raw: str | None, source_text: str) -> SentenceVerificationResu
     is_valid = bool(data.get("is_valid", True))
     raw_language = data.get("language", "unknown")
     language: Literal["da", "en", "unknown"] = raw_language if raw_language in ("da", "en") else "unknown"
-    corrected_text = data.get("corrected_text") or None
+    raw_corrected_text = data.get("corrected_text") or None
+    corrected_text = _preserve_leading_letter_case(source_text, raw_corrected_text)
     raw_errors = data.get("errors") or []
     errors: list[SentenceVerificationErrorSpan] = []
     for e in raw_errors:
@@ -70,10 +140,20 @@ def _parse_result(raw: str | None, source_text: str) -> SentenceVerificationResu
             end=end,
             message=str(e.get("message", "")),
         ))
+    filtered_errors = [
+        error for error in errors
+        if not _is_ignorable_leading_capitalization_error(error, source_text, raw_corrected_text)
+    ]
+    normalized_is_valid = is_valid if filtered_errors else True
+    normalized_corrected_text = (
+        None
+        if corrected_text == source_text and not filtered_errors
+        else corrected_text
+    )
     return SentenceVerificationResult(
-        is_valid=is_valid,
-        errors=errors,
-        corrected_text=corrected_text,
+        is_valid=normalized_is_valid,
+        errors=filtered_errors,
+        corrected_text=normalized_corrected_text,
         language=language,
     )
 

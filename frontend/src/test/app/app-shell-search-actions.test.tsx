@@ -226,20 +226,20 @@ describe("App shell and search", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
-    const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
+    const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i) as HTMLInputElement
     fireEvent.change(searchInput, { target: { value: "jeg elsker dansk" } })
 
-    expect(await within(commandDialog).findByText(/^jeg elsker dansk$/i)).toBeInTheDocument()
+    expect(searchInput.value).toBe("jeg elsker dansk")
     expect(await within(commandDialog).findByText(/^i love danish$/i)).toBeInTheDocument()
     expect(within(commandDialog).getByText(/^Sentence$/i)).toBeInTheDocument()
     expect(within(commandDialog).queryByText(/^Wordbank$/i)).not.toBeInTheDocument()
     expect(within(commandDialog).queryByText(/^Notes$/i)).not.toBeInTheDocument()
     expect(within(commandDialog).queryByText(/^Pages$/i)).not.toBeInTheDocument()
 
-    const sentenceOption = await within(commandDialog).findByRole("option")
     await waitFor(() => {
-      expect(sentenceOption).not.toHaveAttribute("aria-disabled", "true")
+      expect(within(commandDialog).getByRole("option")).not.toHaveAttribute("aria-disabled", "true")
     })
+    const sentenceOption = within(commandDialog).getByRole("option")
     fireEvent.click(sentenceOption)
 
     await waitFor(() => {

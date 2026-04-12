@@ -1,4 +1,4 @@
-import { fireEvent, mockFetchImplementation, renderApp, screen, waitFor, within } from "@/test/app-test-helpers"
+import { fireEvent, mockFetchImplementation, renderApp, responseOf, screen, vi, waitFor, within } from "@/test/app-test-helpers"
 
 function openSearch() {
   fireEvent.click(screen.getByRole("button", { name: /search/i }))
@@ -8,6 +8,10 @@ function openSearch() {
 function typeInSearch(dialog: HTMLElement, text: string) {
   const input = within(dialog).getByPlaceholderText(/search words and notes/i)
   fireEvent.change(input, { target: { value: text } })
+}
+
+function getSentenceOption(dialog: HTMLElement) {
+  return within(dialog).getByRole("option")
 }
 
 describe("Sentence verification in search", () => {
@@ -22,11 +26,10 @@ describe("Sentence verification in search", () => {
     const dialog = await openSearch()
     typeInSearch(dialog, "jeg er glad")
 
-    expect(await within(dialog).findByTestId("sentence-verification-skeleton")).toBeInTheDocument()
-    expect(within(dialog).getByRole("option")).toHaveAttribute("aria-disabled", "true")
+    expect(await within(dialog).findByRole("option")).toHaveAttribute("aria-disabled", "true")
   })
 
-  it("enables save after successful verification", async () => {
+  it("enables save after successful verification and shows the sentence above the translation", async () => {
     mockFetchImplementation({
       lemmasResponse: { items: [] },
       verifySentenceResponse: {
@@ -34,6 +37,11 @@ describe("Sentence verification in search", () => {
         errors: [],
         corrected_text: null,
         language: "da",
+      },
+      phraseTranslationResponse: {
+        status: "generated",
+        source_text: "jeg er glad",
+        english_translation: "i am happy",
       },
     })
 
@@ -44,11 +52,14 @@ describe("Sentence verification in search", () => {
     typeInSearch(dialog, "jeg er glad")
 
     await waitFor(() => {
-      expect(within(dialog).getByRole("option")).not.toHaveAttribute("aria-disabled", "true")
+      expect(getSentenceOption(dialog)).not.toHaveAttribute("aria-disabled", "true")
     })
+    const option = getSentenceOption(dialog)
+    expect(within(option).getByText(/^jeg er glad$/i)).toBeInTheDocument()
+    expect(within(option).getByText("i am happy")).toBeInTheDocument()
   })
 
-  it("does not enter sentence mode for multi-word queries over 50 chars", async () => {
+  it("does not enter sentence mode for multi-word queries over 100 chars", async () => {
     mockFetchImplementation({
       lemmasResponse: { items: [] },
     })
@@ -57,14 +68,34 @@ describe("Sentence verification in search", () => {
     await screen.findByLabelText("backend-connection-status")
 
     const dialog = await openSearch()
-    typeInSearch(dialog, "et meget langt eksempel på en sætning med mange ord her")
+    typeInSearch(
+      dialog,
+      "et meget langt eksempel på en sætning med mange ord her som fortsætter langt ud over den nye grænse for søgning",
+    )
 
     expect(within(dialog).queryByText(/^Sentence$/i)).not.toBeInTheDocument()
     expect(within(dialog).queryByTestId("sentence-search-translation-skeleton")).not.toBeInTheDocument()
     expect(within(dialog).queryByTestId("sentence-verification-skeleton")).not.toBeInTheDocument()
   })
 
-  it("shows corrected sentence when verification finds errors", async () => {
+  it("shows a characters remaining indicator for sentence-length searches", async () => {
+    mockFetchImplementation({
+      lemmasResponse: { items: [] },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    const dialog = await openSearch()
+    typeInSearch(dialog, "jeg er glad")
+
+    const counter = await within(dialog).findByTestId("sentence-search-character-counter")
+    expect(counter).toHaveTextContent("11/100")
+    expect(counter).toHaveAttribute("title", "89 characters remaining")
+  })
+
+  it("underlines the typo in the input and shows only the correction plus corrected translation in the card", async () => {
+    const translationRequests: string[] = []
     mockFetchImplementation({
       lemmasResponse: { items: [] },
       verifySentenceResponse: {
@@ -72,6 +103,16 @@ describe("Sentence verification in search", () => {
         errors: [{ start: 7, end: 11, message: "typo" }],
         corrected_text: "jeg er glad",
         language: "da",
+      },
+      phraseTranslationHandler: async (_input, init) => {
+        const body = JSON.parse(String(init?.body ?? "{}")) as { source_text?: string }
+        const sourceText = body.source_text ?? ""
+        translationRequests.push(sourceText)
+        return responseOf({
+          status: "generated",
+          source_text: sourceText,
+          english_translation: sourceText === "jeg er glad" ? "i am happy" : "i am slick",
+        })
       },
     })
 
@@ -81,8 +122,49 @@ describe("Sentence verification in search", () => {
     const dialog = await openSearch()
     typeInSearch(dialog, "jeg er glat")
 
-    expect(await within(dialog).findByText("Corrected:")).toBeInTheDocument()
-    expect(within(dialog).getByText("jeg er glad")).toBeInTheDocument()
+    await waitFor(() => {
+      expect(translationRequests).toContain("jeg er glad")
+    })
+
+    const overlay = await within(dialog).findByTestId("sentence-search-input-overlay")
+    const option = getSentenceOption(dialog)
+    expect(within(overlay).getByText("glat")).toHaveClass("underline")
+    expect(within(option).getByText("jeg er glad")).toBeInTheDocument()
+    expect(await within(option).findByText("i am happy")).toBeInTheDocument()
+    expect(within(option).queryByText(/^jeg er glat$/i)).not.toBeInTheDocument()
+    expect(within(option).queryByText("Corrected:")).not.toBeInTheDocument()
+  })
+
+  it("does not show an underline when capitalization-only findings have already been filtered out", async () => {
+    mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      verifySentenceResponse: {
+        is_valid: true,
+        errors: [],
+        corrected_text: null,
+        language: "da",
+      },
+      phraseTranslationResponse: {
+        status: "generated",
+        source_text: "jeg er glad",
+        english_translation: "i am happy",
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    const dialog = await openSearch()
+    typeInSearch(dialog, "jeg er glad")
+
+    await waitFor(() => {
+      expect(getSentenceOption(dialog)).not.toHaveAttribute("aria-disabled", "true")
+    })
+
+    const option = getSentenceOption(dialog)
+    expect(within(dialog).queryByTestId("sentence-search-input-overlay")).not.toBeInTheDocument()
+    expect(within(option).getByText(/^jeg er glad$/i)).toBeInTheDocument()
+    expect(within(option).getByText("i am happy")).toBeInTheDocument()
   })
 
   it("saves the corrected sentence text when verification returns a correction", async () => {
@@ -110,10 +192,10 @@ describe("Sentence verification in search", () => {
     const dialog = await openSearch()
     typeInSearch(dialog, "jeg er glat")
 
-    const item = await within(dialog).findByRole("option")
     await waitFor(() => {
-      expect(item).not.toHaveAttribute("aria-disabled", "true")
+      expect(getSentenceOption(dialog)).not.toHaveAttribute("aria-disabled", "true")
     })
+    const item = getSentenceOption(dialog)
     fireEvent.click(item)
 
     await waitFor(() => {
@@ -154,10 +236,10 @@ describe("Sentence verification in search", () => {
     const dialog = await openSearch()
     typeInSearch(dialog, "jeg er glad")
 
-    const item = await within(dialog).findByRole("option")
     await waitFor(() => {
-      expect(item).not.toHaveAttribute("aria-disabled", "true")
+      expect(getSentenceOption(dialog)).not.toHaveAttribute("aria-disabled", "true")
     })
+    const item = getSentenceOption(dialog)
     fireEvent.click(item)
 
     await waitFor(() => {
@@ -171,5 +253,110 @@ describe("Sentence verification in search", () => {
         }),
       ).toBe(true)
     })
+  })
+
+  it("pressing Enter once saves the selected sentence result", async () => {
+    const fetchSpy = mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      verifySentenceResponse: {
+        is_valid: true,
+        errors: [],
+        corrected_text: null,
+        language: "da",
+      },
+      phraseTranslationResponse: {
+        status: "generated",
+        source_text: "jeg er glad",
+        english_translation: "i am happy",
+      },
+      addSentenceResponse: {
+        status: "inserted",
+        id: 88,
+        source_text: "jeg er glad",
+        english_translation: "i am happy",
+        created_at: "2026-04-12T10:00:00.000Z",
+        message: 'Added "jeg er glad" to sentencebank.',
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    const dialog = await openSearch()
+    const input = within(dialog).getByPlaceholderText(/search words and notes/i)
+    fireEvent.change(input, { target: { value: "jeg er glad" } })
+
+    await waitFor(() => {
+      const option = getSentenceOption(dialog)
+      expect(option).toHaveAttribute("data-selected", "true")
+      expect(option).not.toHaveAttribute("aria-disabled", "true")
+    })
+
+    fireEvent.keyDown(input, { key: "Enter" })
+
+    await waitFor(() => {
+      expect(
+        fetchSpy.mock.calls.filter(
+          ([request, init]) =>
+            String(request).endsWith("/api/sentencebank/sentences")
+            && init?.method === "POST",
+        ),
+      ).toHaveLength(1)
+    })
+  })
+
+  it("closes search immediately while sentence save continues in the background", async () => {
+    let resolveAddSentence: ((response: Response) => void) | null = null
+    const addSentenceStarted = vi.fn()
+
+    mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      verifySentenceResponse: {
+        is_valid: true,
+        errors: [],
+        corrected_text: null,
+        language: "da",
+      },
+      phraseTranslationResponse: {
+        status: "generated",
+        source_text: "jeg er glad",
+        english_translation: "i am happy",
+      },
+      addSentenceHandler: async () => {
+        addSentenceStarted()
+        return await new Promise<Response>((resolve) => {
+          resolveAddSentence = resolve
+        })
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    const dialog = await openSearch()
+    const input = within(dialog).getByPlaceholderText(/search words and notes/i)
+    fireEvent.change(input, { target: { value: "jeg er glad" } })
+
+    await waitFor(() => {
+      const option = getSentenceOption(dialog)
+      expect(option).toHaveAttribute("data-selected", "true")
+      expect(option).not.toHaveAttribute("aria-disabled", "true")
+    })
+
+    fireEvent.keyDown(input, { key: "Enter" })
+
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    })
+    expect(addSentenceStarted).toHaveBeenCalledTimes(1)
+
+    resolveAddSentence?.(responseOf({
+      status: "inserted",
+      id: 90,
+      source_text: "jeg er glad",
+      english_translation: "i am happy",
+      created_at: "2026-04-12T10:00:00.000Z",
+      message: 'Added "jeg er glad" to sentencebank.',
+    }))
   })
 })

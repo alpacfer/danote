@@ -600,6 +600,7 @@ export function mockFetchImplementation(options?: {
     }>
     message: string
   }
+  addSentenceHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
   verifySentenceResponse?: {
     is_valid: boolean
     errors: Array<{ start: number; end: number; message: string }>
@@ -1271,6 +1272,9 @@ export function mockFetchImplementation(options?: {
     }
 
     if (url.endsWith("/api/sentencebank/sentences") && init?.method === "POST") {
+      if (options?.addSentenceHandler) {
+        return options.addSentenceHandler(input, init)
+      }
       if (!addSentenceOk) {
         throw new Error("add sentence request failed")
       }
