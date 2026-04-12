@@ -25,8 +25,13 @@ def test_meaning_selection_prompt_serializes_slot_dataclasses() -> None:
         MeaningSectionSelectionInput(
             surface_form="bogen",
             lemma="bog",
-            meaning_candidates=[MeaningSectionCandidateInput(id=10, meaning_key="book")],
+            sentence_context="Jeg læser bogen i sofaen",
+            meaning_candidates=[MeaningSectionCandidateInput(id=10, lemma="bog", meaning_key="book")],
         )
     )
     assert '"id": 10' in prompt
+    assert '"lemma": "bog"' in prompt
+    assert '"lemma_frame_da": "bog"' in prompt
     assert '"meaning_key": "book"' in prompt
+    assert '"sentence_context_da": "Jeg læser bogen i sofaen"' in prompt
+    assert '"sentence_context_target_marked_da": "Jeg læser [bogen] i sofaen"' in prompt

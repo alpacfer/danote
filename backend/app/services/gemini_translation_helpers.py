@@ -26,6 +26,20 @@ def _danish_lemma_frame(lemma: str | None, pos_tag: str | None) -> str | None:
     return normalized_lemma
 
 
+def _mark_surface_in_sentence(sentence: str | None, surface_form: str | None) -> str | None:
+    normalized_sentence = " ".join((sentence or "").strip().split())
+    normalized_surface = " ".join((surface_form or "").strip().split())
+    if not normalized_sentence or not normalized_surface:
+        return None
+    lower_sentence = normalized_sentence.lower()
+    lower_surface = normalized_surface.lower()
+    start = lower_sentence.find(lower_surface)
+    if start == -1:
+        return normalized_sentence
+    end = start + len(normalized_surface)
+    return f"{normalized_sentence[:start]}[{normalized_sentence[start:end]}]{normalized_sentence[end:]}"
+
+
 def build_translation_prompt(payload: ContextualWordTranslationInput) -> str:
     lemma_frame = _danish_lemma_frame(payload.lemma, payload.pos_tag)
     context = {
@@ -115,24 +129,34 @@ def build_meaning_section_selection_prompt(payload: MeaningSectionSelectionInput
     context = {
         "surface_form_da": payload.surface_form,
         "lemma_da": payload.lemma,
+        "lemma_frame_da": _danish_lemma_frame(payload.lemma, payload.pos_tag),
         "pos_tag": payload.pos_tag,
         "morphology": payload.morphology,
         "gloss": payload.gloss,
         "english_translation": payload.english_translation,
         "sentence_context_da": payload.sentence_context,
+        "sentence_context_target_marked_da": _mark_surface_in_sentence(payload.sentence_context, payload.surface_form),
     }
-    candidates = [asdict(item) for item in payload.meaning_candidates]
+    candidates = [
+        {
+            **asdict(item),
+            "lemma_frame_da": _danish_lemma_frame(item.lemma, item.pos_tag),
+        }
+        for item in payload.meaning_candidates
+    ]
     return (
-        "You are assigning a Danish non-verb word to one existing meaning section.\n"
+        "You are assigning one Danish word occurrence from a sentence to one candidate meaning section.\n"
         "Return JSON only: {\"meaning_section_id\": <integer|null>}\n"
         "Rules:\n"
-        "- Choose exactly one section id if there is a confident semantic match.\n"
-        "- Use gloss, translation, POS, and morphology as hard disambiguation signals.\n"
-        "- Use sentence_context_da when present to disambiguate homographs from real sentence usage.\n"
-        "- Return null if no section is a confident match.\n"
+        "- Choose exactly one section id if one candidate clearly fits the target occurrence.\n"
+        "- Use sentence_context_da and sentence_context_target_marked_da to identify the intended meaning of the target occurrence inside the full sentence.\n"
+        "- Candidate options may differ by lemma, POS, and morphology even when the same Danish surface form can realize multiple words.\n"
+        "- Use lemma, lemma_frame_da, gloss, english_translation, POS, and morphology as disambiguation signals.\n"
+        "- Prefer the candidate whose POS/morphology best matches the target occurrence in the sentence.\n"
+        "- Return null only if the candidates still cannot be distinguished confidently from the sentence and option data.\n"
         "- Do not explain your reasoning.\n"
         f"Word context:\n{json.dumps(context, ensure_ascii=False)}\n"
-        f"Meaning sections:\n{json.dumps(candidates, ensure_ascii=False)}"
+        f"Candidate meaning sections:\n{json.dumps(candidates, ensure_ascii=False)}"
     )
 
 
@@ -261,6 +285,8 @@ def parse_meaning_section_payload(payload: object, *, valid_ids: set[int]) -> in
     if not isinstance(payload, dict):
         return None
     value = payload.get("meaning_section_id")
+    if isinstance(value, str) and value.strip().isdigit():
+        value = int(value.strip())
     if not isinstance(value, int) or value not in valid_ids:
         return None
     return value

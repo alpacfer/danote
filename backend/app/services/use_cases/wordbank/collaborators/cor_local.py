@@ -246,6 +246,33 @@ def cor_local_entries_for_form(
     return filtered
 
 
+def cor_local_entries_for_surface_form(
+    cor_local_lexicon_service: CORLocalLexiconService | None,
+    *,
+    form: str,
+    preferred_pos_tag: str | None,
+) -> list[CORLocalEntry]:
+    if cor_local_lexicon_service is None:
+        return []
+    normalized_form = normalize_token(form)
+    if not normalized_form:
+        return []
+    try:
+        entries = cor_local_lexicon_service.lookup_form(normalized_form, limit=500)
+    except FileNotFoundError:
+        return []
+    if not entries:
+        return []
+    filtered = [entry for entry in entries if entry.norm == "N"]
+    if preferred_pos_tag:
+        preferred = [entry for entry in filtered if entry.pos_tag == preferred_pos_tag]
+        if preferred:
+            filtered = preferred
+    filtered = consolidate_cor_local_entries(filtered)
+    filtered = drop_glossless_when_gloss_exists(filtered)
+    return filtered
+
+
 def best_cor_local_lemma_entry(
     cor_local_lexicon_service: CORLocalLexiconService | None,
     *,

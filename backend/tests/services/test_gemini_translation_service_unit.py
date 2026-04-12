@@ -241,8 +241,8 @@ def test_gemini_word_translation_service_selects_existing_meaning_section(monkey
             surface_form="bogens",
             lemma="bog",
             meaning_candidates=[
-                MeaningSectionCandidateInput(id=1, meaning_key="book", gloss="book"),
-                MeaningSectionCandidateInput(id=2, meaning_key="swamp", gloss="swamp"),
+                MeaningSectionCandidateInput(id=1, lemma="bog", meaning_key="book", gloss="book"),
+                MeaningSectionCandidateInput(id=2, lemma="bog", meaning_key="swamp", gloss="swamp"),
             ],
         )
     )
@@ -250,7 +250,7 @@ def test_gemini_word_translation_service_selects_existing_meaning_section(monkey
     assert selected == 2
     prompt = str(fake_client.models.calls[0]["contents"])
     assert "meaning_section_id" in prompt
-    assert "Meaning sections" in prompt
+    assert "Candidate meaning sections" in prompt
 
 
 def test_gemini_word_translation_service_returns_none_for_invalid_meaning_section(monkeypatch) -> None:
@@ -263,8 +263,8 @@ def test_gemini_word_translation_service_returns_none_for_invalid_meaning_sectio
             surface_form="bogens",
             lemma="bog",
             meaning_candidates=[
-                MeaningSectionCandidateInput(id=1, meaning_key="book", gloss="book"),
-                MeaningSectionCandidateInput(id=2, meaning_key="swamp", gloss="swamp"),
+                MeaningSectionCandidateInput(id=1, lemma="bog", meaning_key="book", gloss="book"),
+                MeaningSectionCandidateInput(id=2, lemma="bog", meaning_key="swamp", gloss="swamp"),
             ],
         )
     )

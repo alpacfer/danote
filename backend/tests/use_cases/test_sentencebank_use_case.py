@@ -212,7 +212,7 @@ def test_sentencebank_homograph_token_uses_gemini_sentence_selection(tmp_path: P
     assert inserted.tokens[0].gloss == "person"
 
 
-def test_sentencebank_homograph_token_without_confident_selection_saves_root_level_link(
+def test_sentencebank_homograph_token_without_confident_selection_skips_ambiguous_word_save(
     tmp_path: Path,
 ) -> None:
     db_path = _db_path(tmp_path)
@@ -260,12 +260,76 @@ def test_sentencebank_homograph_token_without_confident_selection_saves_root_lev
     )
 
     inserted = sentencebank_use_case.add_sentence("Min mor kommer")
-    details = wordbank_use_case.get_lemma_details("mor")
 
-    assert inserted.tokens[0].meaning_id is None
-    assert inserted.tokens[0].stored_lemma == "mor"
-    assert details.linked_sentences
-    assert details.linked_sentences[0].matched_token_indexes == [0]
+    assert inserted.tokens == []
+    assert wordbank_use_case.runtime.repository.get_lexeme("mor") is None
+
+
+def test_sentencebank_exact_form_ambiguity_skips_persistence_without_gemini_selection(tmp_path: Path) -> None:
+    db_path = _db_path(tmp_path)
+    nlp_adapter = MappingNLPAdapter(
+        {
+            "De bad": [
+                NLPToken(text="bad", lemma="bede", pos="VERB", morphology="Tense=Past|VerbForm=Fin|Voice=Act", is_punctuation=False),
+            ],
+        }
+    )
+    bath = _cor_local_entry(
+        cor_id="COR.BAD.NOUN.01",
+        lemma="bad",
+        gloss=None,
+        form="bad",
+        lemma_idx=50435,
+        pos_tag="NOUN",
+        morphology="Gender=Neut|Number=Sing|Definite=Ind",
+        gram_raw="sb.itk.sg.ubest",
+    )
+    bathe = _cor_local_entry(
+        cor_id="COR.BADE.IMP.01",
+        lemma="bade",
+        gloss=None,
+        form="bad",
+        lemma_idx=35531,
+        pos_tag="VERB",
+        morphology="Mood=Imp|VerbForm=Fin",
+        gram_raw="vb.imp",
+    )
+    pray = _cor_local_entry(
+        cor_id="COR.BEDE.PAST.01",
+        lemma="bede",
+        gloss=None,
+        form="bad",
+        lemma_idx=30669,
+        pos_tag="VERB",
+        morphology="Tense=Past|VerbForm=Fin|Voice=Act",
+        gram_raw="vb.præt.akt",
+    )
+    gemini_service = SelectingGeminiService(selected_id=None)
+    wordbank_use_case = WordbankUseCase(
+        db_path,
+        translation_service=FakeTranslationService({}),
+        gemini_word_translation_service=gemini_service,
+        cor_local_lexicon_service=FakeCORLocalLexiconService(
+            by_form={"bad": [bath, bathe, pray]},
+            by_lemma_idx={50435: [bath], 35531: [bathe], 30669: [pray]},
+        ),
+        nlp_adapter=nlp_adapter,
+    )
+    sentencebank_use_case = SentencebankUseCase(
+        db_path,
+        nlp_adapter=nlp_adapter,
+        wordbank_use_case=wordbank_use_case,
+    )
+
+    inserted = sentencebank_use_case.add_sentence("De bad")
+
+    assert gemini_service.calls
+    assert len(gemini_service.calls[0].meaning_candidates) == 3
+    assert {item.lemma for item in gemini_service.calls[0].meaning_candidates} == {"bad", "bade", "bede"}
+    assert inserted.tokens == []
+    assert wordbank_use_case.runtime.repository.get_lexeme("bad") is None
+    assert wordbank_use_case.runtime.repository.get_lexeme("bade") is None
+    assert wordbank_use_case.runtime.repository.get_lexeme("bede") is None
 
 
 def test_sentencebank_save_skips_proper_nouns_and_later_capitalized_tokens(tmp_path: Path) -> None:

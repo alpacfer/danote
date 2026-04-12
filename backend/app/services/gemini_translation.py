@@ -37,6 +37,7 @@ class ContextualWordTranslationInput:
 @dataclass(frozen=True, slots=True)
 class MeaningSectionCandidateInput:
     id: int
+    lemma: str
     meaning_key: str
     cor_lemma_idx: int | None = None
     gloss: str | None = None

@@ -119,10 +119,7 @@ export function WordbankLemmaHeader({
   const categories = lemmaDetails.categories ?? []
 
   return (
-    <div
-      id="wordbank-lemma-header"
-      data-testid={!lemmaDetails.is_sectioned ? "wordbank-lemma-scope-card" : undefined}
-    >
+    <div id="wordbank-lemma-header">
       {/* Category badges */}
       {categories.length > 0 ? (
         <div data-testid="wordbank-lemma-category-badges" className="flex flex-wrap justify-end gap-1.5">

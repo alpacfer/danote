@@ -14,6 +14,7 @@ from app.services.use_cases.wordbank.collaborators.cor_local import (
     best_cor_local_lemma_entry,
     cor_local_entries_for_lemma_idx,
     cor_local_entries_for_form,
+    cor_local_entries_for_surface_form,
     cor_local_entry_for_cor_id,
     lookup_translation_for_cor_gloss,
     search_cor_form,
@@ -141,6 +142,18 @@ class CorResolutionCollaborator:
             lemma=lemma,
             preferred_pos_tag=preferred_pos_tag,
             preferred_lemma_idx=preferred_lemma_idx,
+        )
+
+    def cor_local_entries_for_surface_form(
+        self,
+        *,
+        form: str,
+        preferred_pos_tag: str | None,
+    ) -> list[CORLocalEntry]:
+        return cor_local_entries_for_surface_form(
+            self._cor_local_lexicon_service,
+            form=form,
+            preferred_pos_tag=preferred_pos_tag,
         )
 
     def best_cor_local_lemma_entry(

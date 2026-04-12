@@ -751,6 +751,34 @@ describe("App wordbank", () => {
     expect(within(table).getByText(/^definite$/i)).toBeInTheDocument()
   })
 
+  it("renderer-only: non-sectioned word pages keep the paradigm table inside the scope card", async () => {
+    mockFetchImplementation({
+      lemmasResponse: {
+        items: [{ lemma: "bad", variation_count: 0 }],
+      },
+      lemmaDetailsResponse: {
+        lemma: "bad",
+        english_translation: "bath",
+        is_sectioned: false,
+        pos_tag: "NOUN",
+        morphology: "Gender=Neut|Number=Sing|Definite=Ind",
+        surface_forms: [
+          { form: "bad", pos_tag: "NOUN", morphology: "Gender=Neut|Number=Sing|Definite=Ind", has_pronunciation: false },
+          { form: "badet", pos_tag: "NOUN", morphology: "Gender=Neut|Number=Sing|Definite=Def", has_pronunciation: false },
+        ],
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+    fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /bad/i }))
+
+    const scopeCard = await screen.findByTestId("wordbank-lemma-scope-card")
+    expect(within(scopeCard).getByRole("heading", { name: /^bad$/i })).toBeInTheDocument()
+    expect(within(scopeCard).getByRole("table")).toBeInTheDocument()
+  })
+
   it("renderer-only: sectioned noun word pages render irregular variations before the standard noun slots", async () => {
     mockFetchImplementation({
       lemmasResponse: {

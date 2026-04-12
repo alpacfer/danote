@@ -97,6 +97,12 @@ class _SentenceMeaningCandidate:
     cor_id: str | None
 
 
+@dataclass(frozen=True, slots=True)
+class _SentenceCandidateResolution:
+    candidate: _SentenceMeaningCandidate | None
+    is_ambiguous: bool
+
+
 class SentencebankUseCase:
     def __init__(
         self,
@@ -229,7 +235,7 @@ class SentencebankUseCase:
             if not normalized_surface:
                 continue
             lemma_candidate = normalize_token(raw_lemma_candidate) or normalized_surface
-            token, is_new = self._resolve_sentence_token(
+            resolved_token = self._resolve_sentence_token(
                 runtime,
                 token_index=len(resolved),
                 display_surface=surface_form,
@@ -239,6 +245,9 @@ class SentencebankUseCase:
                 morphology=nlp_token.morphology,
                 sentence_context=source_text,
             )
+            if resolved_token is None:
+                continue
+            token, is_new = resolved_token
             resolved.append(token)
             if is_new:
                 new_tokens.append({
@@ -259,7 +268,7 @@ class SentencebankUseCase:
         pos_tag: str | None,
         morphology: str | None,
         sentence_context: str,
-    ) -> tuple[SentenceTokenWriteRecord, bool]:
+    ) -> tuple[SentenceTokenWriteRecord, bool] | None:
         existing = _existing_saved_token(
             runtime,
             display_surface=display_surface,
@@ -270,7 +279,7 @@ class SentencebankUseCase:
         if existing is not None:
             return existing, False
 
-        selected_candidate = _select_sentence_candidate(
+        candidate_resolution = _select_sentence_candidate(
             runtime,
             surface_form=normalized_surface,
             lemma_candidate=lemma_candidate,
@@ -278,7 +287,10 @@ class SentencebankUseCase:
             morphology=morphology,
             sentence_context=sentence_context,
         )
+        selected_candidate = candidate_resolution.candidate
         if selected_candidate is None:
+            if candidate_resolution.is_ambiguous:
+                return None
             return _save_root_level_sentence_token(
                 runtime,
                 token_index=token_index,
@@ -313,6 +325,9 @@ class SentencebankUseCase:
             )
             if persisted is not None:
                 return persisted, True
+
+        if candidate_resolution.is_ambiguous:
+            return None
 
         return _save_root_level_sentence_token(
             runtime,
@@ -566,7 +581,7 @@ def _select_sentence_candidate(
     pos_tag: str | None,
     morphology: str | None,
     sentence_context: str,
-) -> _SentenceMeaningCandidate | None:
+) -> _SentenceCandidateResolution:
     entries = _candidate_entries_for_sentence_token(
         runtime,
         surface_form=surface_form,
@@ -574,12 +589,12 @@ def _select_sentence_candidate(
         pos_tag=pos_tag,
     )
     if not entries:
-        return None
+        return _SentenceCandidateResolution(candidate=None, is_ambiguous=False)
     candidates = _group_sentence_candidates(runtime, entries=entries)
     if not candidates:
-        return None
+        return _SentenceCandidateResolution(candidate=None, is_ambiguous=False)
     if len(candidates) == 1:
-        return candidates[0]
+        return _SentenceCandidateResolution(candidate=candidates[0], is_ambiguous=False)
     selected_id = runtime.translation.select_meaning_section(
         surface_form=surface_form,
         lemma=lemma_candidate,
@@ -591,8 +606,9 @@ def _select_sentence_candidate(
         meaning_candidates=candidates,
     )
     if selected_id is None:
-        return None
-    return next((candidate for candidate in candidates if candidate.id == selected_id), None)
+        return _SentenceCandidateResolution(candidate=None, is_ambiguous=True)
+    selected_candidate = next((candidate for candidate in candidates if candidate.id == selected_id), None)
+    return _SentenceCandidateResolution(candidate=selected_candidate, is_ambiguous=True)
 
 
 def _candidate_entries_for_sentence_token(
@@ -618,6 +634,14 @@ def _candidate_entries_for_sentence_token(
                     continue
                 seen.add(entry.cor_id)
                 entries.append(entry)
+        for entry in runtime.cor.cor_local_entries_for_surface_form(
+            form=surface_form,
+            preferred_pos_tag=preferred_pos_tag,
+        ):
+            if entry.cor_id in seen:
+                continue
+            seen.add(entry.cor_id)
+            entries.append(entry)
         if entries:
             break
     return entries

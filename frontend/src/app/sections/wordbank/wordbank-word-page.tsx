@@ -7,6 +7,7 @@ import { WordbankLinkedSentences } from "@/app/sections/wordbank/wordbank-linked
 import { WordbankMeaningSections } from "@/app/sections/wordbank/wordbank-meaning-sections"
 import { WordbankRelatedWords } from "@/app/sections/wordbank/wordbank-related-words"
 import { WordbankVariationGrid } from "@/app/sections/wordbank/wordbank-variation-grid"
+import { Card, CardContent } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
 type WordbankWordPageProps = Pick<
@@ -109,6 +110,33 @@ export function WordbankWordPage({
     return isLemmaDetailsLoading ? null : <p className="text-muted-foreground text-sm">No details found for this lemma.</p>
   }
 
+  const lemmaHeader = (
+    <WordbankLemmaHeader
+      selectedLemma={selectedLemma ?? activeLemmaDetails.lemma}
+      selectedMeaningId={selectedMeaningId}
+      lemmaDetails={activeLemmaDetails}
+      pronunciationLoadingByForm={pronunciationLoadingByForm}
+      regeneratingPronunciationByForm={regeneratingPronunciationByForm}
+      onPlayPronunciation={onPlayPronunciation}
+      onRegeneratePronunciation={onRegeneratePronunciation}
+      isFindingAlternativeTranslations={isFindingAlternativeTranslations}
+      onFindAlternativeTranslations={onFindAlternativeTranslations}
+      isRethinkingCategories={isRethinkingCategories}
+      onRethinkCategories={onRethinkCategories}
+      verificationOverview={verificationOverview}
+      verificationChanges={verificationChanges}
+      isLoadingVerificationChanges={isLoadingVerificationChanges}
+      isApplyingVerificationChanges={isApplyingVerificationChanges}
+      isRetryingVerification={isRetryingVerification}
+      isRevertingVerificationChange={isRevertingVerificationChange}
+      onMarkVisibleVerificationNotificationsAsRead={onMarkVisibleVerificationNotificationsAsRead}
+      onApplyVerificationAction={onApplyVerificationAction}
+      onRetryVerificationTarget={onRetryVerificationTarget}
+      onRevertVerificationChange={onRevertVerificationChange}
+      showSupplementaryMetadata={!isSectioned}
+    />
+  )
+
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
       {lemmaDetailsError ? (
@@ -118,59 +146,43 @@ export function WordbankWordPage({
       ) : null}
       <ScrollArea className="min-h-0 flex-1">
         <div className="space-y-3 pr-1">
-          <WordbankLemmaHeader
-            selectedLemma={selectedLemma ?? activeLemmaDetails.lemma}
-            selectedMeaningId={selectedMeaningId}
-            lemmaDetails={activeLemmaDetails}
-            pronunciationLoadingByForm={pronunciationLoadingByForm}
-            regeneratingPronunciationByForm={regeneratingPronunciationByForm}
-            onPlayPronunciation={onPlayPronunciation}
-            onRegeneratePronunciation={onRegeneratePronunciation}
-            isFindingAlternativeTranslations={isFindingAlternativeTranslations}
-            onFindAlternativeTranslations={onFindAlternativeTranslations}
-            isRethinkingCategories={isRethinkingCategories}
-            onRethinkCategories={onRethinkCategories}
-            verificationOverview={verificationOverview}
-            verificationChanges={verificationChanges}
-            isLoadingVerificationChanges={isLoadingVerificationChanges}
-            isApplyingVerificationChanges={isApplyingVerificationChanges}
-            isRetryingVerification={isRetryingVerification}
-            isRevertingVerificationChange={isRevertingVerificationChange}
-            onMarkVisibleVerificationNotificationsAsRead={onMarkVisibleVerificationNotificationsAsRead}
-            onApplyVerificationAction={onApplyVerificationAction}
-            onRetryVerificationTarget={onRetryVerificationTarget}
-            onRevertVerificationChange={onRevertVerificationChange}
-            showSupplementaryMetadata={!isSectioned}
-          />
           {isSectioned ? (
-            <WordbankMeaningSections
-              lemma={activeLemmaDetails.lemma}
-              lemmaSurfaceForms={activeLemmaDetails.surface_forms}
-              meaningSections={meaningSections}
-              selectedMeaningId={selectedMeaningId}
-              pronunciationLoadingByForm={pronunciationLoadingByForm}
-              regeneratingPronunciationByForm={regeneratingPronunciationByForm}
-              onPlayPronunciation={onPlayPronunciation}
-              onRegeneratePronunciation={onRegeneratePronunciation}
-              isFindingAlternativeTranslations={isFindingAlternativeTranslations}
-              onFindAlternativeTranslations={onFindAlternativeTranslations}
-              isRethinkingCategories={isRethinkingCategories}
-              onRethinkCategories={onRethinkCategories}
-              isCompletingMeaningVariations={isCompletingMeaningVariations}
-              onCompleteMeaningVariations={onCompleteMeaningVariations}
-              rerunningMeaningVerificationById={rerunningMeaningVerificationById}
-              onRerunMeaningVerification={onRerunMeaningVerification}
-            />
+            <>
+              {lemmaHeader}
+              <WordbankMeaningSections
+                lemma={activeLemmaDetails.lemma}
+                lemmaSurfaceForms={activeLemmaDetails.surface_forms}
+                meaningSections={meaningSections}
+                selectedMeaningId={selectedMeaningId}
+                pronunciationLoadingByForm={pronunciationLoadingByForm}
+                regeneratingPronunciationByForm={regeneratingPronunciationByForm}
+                onPlayPronunciation={onPlayPronunciation}
+                onRegeneratePronunciation={onRegeneratePronunciation}
+                isFindingAlternativeTranslations={isFindingAlternativeTranslations}
+                onFindAlternativeTranslations={onFindAlternativeTranslations}
+                isRethinkingCategories={isRethinkingCategories}
+                onRethinkCategories={onRethinkCategories}
+                isCompletingMeaningVariations={isCompletingMeaningVariations}
+                onCompleteMeaningVariations={onCompleteMeaningVariations}
+                rerunningMeaningVerificationById={rerunningMeaningVerificationById}
+                onRerunMeaningVerification={onRerunMeaningVerification}
+              />
+            </>
           ) : (
-            <WordbankVariationGrid
-              allSurfaceForms={activeLemmaDetails.surface_forms}
-              variationForms={variationForms}
-              posTag={activeLemmaDetails.pos_tag}
-              pronunciationLoadingByForm={pronunciationLoadingByForm}
-              regeneratingPronunciationByForm={regeneratingPronunciationByForm}
-              onPlayPronunciation={onPlayPronunciation}
-              onRegeneratePronunciation={onRegeneratePronunciation}
-            />
+            <Card data-testid="wordbank-lemma-scope-card" className="py-5">
+              <CardContent className="space-y-3">
+                {lemmaHeader}
+                <WordbankVariationGrid
+                  allSurfaceForms={activeLemmaDetails.surface_forms}
+                  variationForms={variationForms}
+                  posTag={activeLemmaDetails.pos_tag}
+                  pronunciationLoadingByForm={pronunciationLoadingByForm}
+                  regeneratingPronunciationByForm={regeneratingPronunciationByForm}
+                  onPlayPronunciation={onPlayPronunciation}
+                  onRegeneratePronunciation={onRegeneratePronunciation}
+                />
+              </CardContent>
+            </Card>
           )}
           <WordbankRelatedWords
             relatedWords={activeLemmaDetails.related_words}

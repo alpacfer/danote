@@ -670,6 +670,7 @@ class TranslationCollaborator:
             candidate_payloads.append(
                 MeaningSectionCandidateInput(
                     id=candidate_id,
+                    lemma=str(getattr(candidate, "lemma", "")).strip(),
                     meaning_key=str(getattr(candidate, "meaning_key", "")),
                     cor_lemma_idx=getattr(candidate, "cor_lemma_idx", None),
                     gloss=normalize_translation_value(getattr(candidate, "gloss", None)),
