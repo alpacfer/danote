@@ -6,6 +6,8 @@ import time
 from dataclasses import dataclass, field
 from typing import Literal, Protocol
 
+from app.services.gemini_translation_helpers import is_retryable_exception
+
 
 class SentenceVerificationError(RuntimeError):
     """Raised when Gemini sentence verification cannot complete."""
@@ -188,7 +190,6 @@ class GeminiSentenceVerificationService:
 
     @staticmethod
     def _is_retryable_exception(exc: Exception) -> bool:
-        from app.services.gemini_translation_helpers import is_retryable_exception
         return is_retryable_exception(
             exc,
             exception_status_code=GeminiSentenceVerificationService._exception_status_code,
@@ -196,10 +197,13 @@ class GeminiSentenceVerificationService:
 
     @staticmethod
     def _exception_status_code(exc: Exception) -> int | None:
-        status_code = getattr(exc, "status_code", None)
-        if isinstance(status_code, int):
-            return status_code
-        code = getattr(exc, "code", None)
-        if isinstance(code, int):
-            return code
+        for candidate in (exc, getattr(exc, "response", None), getattr(exc, "cause", None)):
+            if candidate is None:
+                continue
+            status_code = getattr(candidate, "status_code", None)
+            if isinstance(status_code, int):
+                return status_code
+            code = getattr(candidate, "code", None)
+            if isinstance(code, int):
+                return code
         return None
