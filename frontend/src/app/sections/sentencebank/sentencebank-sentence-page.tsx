@@ -1,4 +1,7 @@
+import { useState } from "react"
+
 import { type SentencebankSentence } from "@/app/core"
+import { SentenceHighlightedText } from "@/app/components/sentence-highlighted-text"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import { SentencebankTokenButton } from "@/app/sections/sentencebank/sentencebank-token-button"
@@ -20,6 +23,8 @@ export function SentencebankSentencePage({
   onOpenWordbankLemma,
   onOpenWordbankMeaning,
 }: SentencebankSentencePageProps) {
+  const [highlightedTokenIndex, setHighlightedTokenIndex] = useState<number | null>(null)
+
   if (!sentence) {
     return <p className="text-muted-foreground text-sm">Sentence not found.</p>
   }
@@ -31,7 +36,13 @@ export function SentencebankSentencePage({
     <ScrollArea className="min-h-0 flex-1">
       <div className="space-y-4 pr-1">
         <div className="space-y-1">
-          <p className="text-base font-medium leading-relaxed max-w-[70ch] break-words">{sentence.source_text}</p>
+          <p className="text-base font-medium leading-relaxed max-w-[70ch] break-words">
+            <SentenceHighlightedText
+              sourceText={sentence.source_text}
+              tokens={sentence.tokens}
+              highlightedTokenIndexes={typeof highlightedTokenIndex === "number" ? [highlightedTokenIndex] : []}
+            />
+          </p>
           {translation ? (
             <p className="text-muted-foreground text-sm max-w-[70ch] break-words">{translation}</p>
           ) : isLoadingTokens ? (
@@ -54,6 +65,7 @@ export function SentencebankSentencePage({
                 token={token}
                 onOpenWordbankLemma={onOpenWordbankLemma}
                 onOpenWordbankMeaning={onOpenWordbankMeaning}
+                onHighlightTokenIndex={setHighlightedTokenIndex}
               />
             ))}
           </div>

@@ -342,6 +342,7 @@ Shared by header + section rows + variation rows.
 - Word pages now include a `Sentences` section below related words when lemma details include `linked_sentences`.
 - Each card shows:
   - source sentence
+  - underlined matched Danish token(s) from `matched_token_indexes` when the backend supplies token alignment
   - sentence translation
 - No per-token cards render on the word page. Detailed token analysis remains in the Sentencebank section.
 

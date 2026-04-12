@@ -151,4 +151,58 @@ describe("App sentencebank", () => {
     expect(await screen.findByRole("heading", { name: /^elske$/i })).toBeInTheDocument()
     expect(screen.getByText(/^love$/i)).toBeInTheDocument()
   })
+
+  it("hovering a token card underlines that word in the sentence text", async () => {
+    mockFetchImplementation({
+      sentencebankResponse: {
+        items: [
+          {
+            id: 1,
+            source_text: "Jeg elsker dansk",
+            english_translation: "i love danish",
+            created_at: "2026-02-28T12:00:00.000Z",
+            tokens: [
+              {
+                token_index: 0,
+                surface_form: "Jeg",
+                stored_lemma: "jeg",
+                lexeme_id: 11,
+                meaning_id: null,
+                pos_tag: "PRON",
+                morphology: "PronType=Prs",
+                english_translation: "i",
+                gloss_translation: null,
+              },
+              {
+                token_index: 1,
+                surface_form: "elsker",
+                stored_lemma: "elske",
+                lexeme_id: 12,
+                meaning_id: 3,
+                pos_tag: "VERB",
+                morphology: "Tense=Pres|VerbForm=Fin|Voice=Act",
+                english_translation: "love",
+                gloss_translation: "love",
+              },
+            ],
+          },
+        ],
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /sentencebank/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /jeg elsker dansk/i }))
+
+    const elskerButton = await screen.findByRole("button", { name: /elsker/i })
+    fireEvent.mouseEnter(elskerButton)
+
+    const sentenceLine = screen.getByText((_, element) => element?.textContent === "Jeg elsker dansk")
+    expect(Array.from(sentenceLine.querySelectorAll("span.underline")).map((element) => element.textContent)).toEqual(["elsker"])
+
+    fireEvent.mouseLeave(elskerButton)
+    expect(sentenceLine.querySelector("span.underline")).toBeNull()
+  })
 })

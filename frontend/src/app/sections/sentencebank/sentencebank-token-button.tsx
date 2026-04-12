@@ -11,12 +11,14 @@ type SentencebankTokenButtonProps = {
   token: SentenceTokenCard
   onOpenWordbankLemma: (lemma: string) => void
   onOpenWordbankMeaning: (lemma: string, meaningId: number) => void
+  onHighlightTokenIndex?: (tokenIndex: number | null) => void
 }
 
 export function SentencebankTokenButton({
   token,
   onOpenWordbankLemma,
   onOpenWordbankMeaning,
+  onHighlightTokenIndex,
 }: SentencebankTokenButtonProps) {
   const lemmaDisplay = lemmaDisplayForSavedForm({
     form: token.surface_form,
@@ -36,6 +38,10 @@ export function SentencebankTokenButton({
     <button
       type="button"
       className="bg-muted/35 hover:bg-accent/60 rounded-xl border px-3 py-2 text-left transition-colors"
+      onMouseEnter={() => onHighlightTokenIndex?.(token.token_index)}
+      onMouseLeave={() => onHighlightTokenIndex?.(null)}
+      onFocus={() => onHighlightTokenIndex?.(token.token_index)}
+      onBlur={() => onHighlightTokenIndex?.(null)}
       onClick={() => {
         if (typeof token.meaning_id === "number") {
           onOpenWordbankMeaning(token.stored_lemma, token.meaning_id)

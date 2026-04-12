@@ -402,8 +402,13 @@ describe("App wordbank", () => {
 
     expect(await screen.findByRole("heading", { name: /^lærer$/i })).toBeInTheDocument()
     expect(screen.getByRole("heading", { name: /sentences/i })).toBeInTheDocument()
-    const sentenceCard = screen.getByText(/^Læreren hjælper lærere$/i).closest("[data-slot='card']")
+    const sentenceCard = screen
+      .getByText((_, element) => element?.textContent === "Læreren hjælper lærere")
+      .closest("[data-slot='card']")
     expect(sentenceCard).toBeTruthy()
+    expect(
+      Array.from((sentenceCard as HTMLElement).querySelectorAll("span.underline")).map((element) => element.textContent),
+    ).toEqual(["Læreren", "lærere"])
     expect(screen.getByText(/the teacher helps teachers/i)).toBeInTheDocument()
     expect(within(sentenceCard as HTMLElement).queryByRole("button")).not.toBeInTheDocument()
   })

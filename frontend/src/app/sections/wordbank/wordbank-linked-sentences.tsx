@@ -1,4 +1,5 @@
 import { type LemmaDetailsResponse } from "@/app/core"
+import { SentenceHighlightedText } from "@/app/components/sentence-highlighted-text"
 import { Card, CardContent } from "@/components/ui/card"
 
 type LinkedSentence = NonNullable<LemmaDetailsResponse["linked_sentences"]>[number]
@@ -32,7 +33,13 @@ export function WordbankLinkedSentences({
               className={onOpenSentence ? "hover:bg-accent/40 transition-colors cursor-pointer" : undefined}
             >
               <CardContent className="space-y-1">
-                <p className="text-base font-medium leading-relaxed break-words">{sentence.source_text}</p>
+                <p className="text-base font-medium leading-relaxed break-words">
+                  <SentenceHighlightedText
+                    sourceText={sentence.source_text}
+                    tokens={sentence.tokens}
+                    highlightedTokenIndexes={sentence.matched_token_indexes}
+                  />
+                </p>
                 <p className="text-muted-foreground text-sm break-words">
                   {sentence.english_translation?.trim() || "No translation available."}
                 </p>

@@ -45,6 +45,7 @@ Each token card renders:
 - linked lemma hint when the saved lemma differs from the surface
 - translation/gloss line
 - POS/morphology badges
+- hover/focus state underlines the matching token inside the sentence line on the sentence page
 - click action opening the linked word page (`meaning_id` when present, lemma page otherwise)
 
 ## 5) Refresh / invalidation
