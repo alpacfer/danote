@@ -97,6 +97,8 @@ export function AppSidebar({
     isSentenceMode,
     sentenceSearchResult,
     isSentenceTranslationLoading,
+    sentenceVerification,
+    isSentenceVerificationLoading,
     matchingNotes,
     searchApiMatches,
     wordbankDidYouMean,
@@ -255,6 +257,8 @@ export function AppSidebar({
   const searchResultData: SidebarSearchResultsData = {
     sentenceSearchResult,
     isSentenceTranslationLoading,
+    sentenceVerification,
+    isSentenceVerificationLoading,
     orderedWordbankResults,
     displayVariantBySavedResult,
     addVariationBySavedResult,

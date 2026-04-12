@@ -15,6 +15,7 @@ import {
   type SavedNote,
   type SearchSaveSeed,
   type SearchFeedbackContext,
+  type VerifySentenceResponse,
   type WordbankSearchItem,
 } from "@/app/core"
 
@@ -48,6 +49,8 @@ export type SidebarSearchResultsData = {
     english_translation: string | null
   } | null
   isSentenceTranslationLoading: boolean
+  sentenceVerification: VerifySentenceResponse | null
+  isSentenceVerificationLoading: boolean
   orderedWordbankResults: WordbankSearchItem[]
   displayVariantBySavedResult: Map<string, { group: CORSearchGroup; variant: CORSearchVariant }>
   addVariationBySavedResult: Map<string, { group: CORSearchGroup; variant: CORSearchVariant }>
@@ -96,6 +99,8 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
           sourceText={data.sentenceSearchResult.source_text}
           englishTranslation={data.sentenceSearchResult.english_translation}
           isTranslationLoading={data.isSentenceTranslationLoading}
+          sentenceVerification={data.sentenceVerification}
+          isSentenceVerificationLoading={data.isSentenceVerificationLoading}
           onSaveSentence={actions.onAddSentenceFromSearch}
           onCloseSearch={actions.onCloseSearch}
         />
