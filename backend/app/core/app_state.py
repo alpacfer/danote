@@ -17,6 +17,7 @@ class BackendServices:
     gemini_word_translation_service: Any = None
     gemini_related_words_service: Any = None
     word_verification_service: Any = None
+    sentence_verification_service: Any = None
     tts_service: Any = None
 
 
@@ -82,6 +83,7 @@ def close_runtime_services(app: FastAPI) -> None:
         "gemini_word_translation_service",
         "gemini_related_words_service",
         "word_verification_service",
+        "sentence_verification_service",
         "tts_service",
     ):
         service = getattr(services, field_name, None)

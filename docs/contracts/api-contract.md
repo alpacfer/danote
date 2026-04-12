@@ -78,6 +78,11 @@ Routes: `backend/app/api/routes/`. DTOs: `backend/app/api/schemas/v1/`. Some tok
 - **Notable status/error behavior:** `503` DB unavailable/locked.
 - **Field invariants:** each item includes nested `tokens[]` using the same sentence-token card contract as `POST`.
 
+### POST `/api/sentencebank/verify-sentence`
+- **Request model:** `VerifySentenceRequest` (`source_text: str`, max 50 chars).
+- **Response model:** `VerifySentenceResponse` (`is_valid`, `errors: [{start, end, message}]`, `corrected_text`, `language`).
+- **Notable status/error behavior:** `422` empty or >50 char text. `503` DB unavailable. No Gemini service → returns `is_valid=true`.
+
 ## Wordbank
 
 ### POST `/api/wordbank/lexemes`

@@ -37,3 +37,20 @@ class AddSentenceResponse(SentenceSummary):
 
 class SentenceListResponse(BaseModel):
     items: list[SentenceSummary]
+
+
+class SentenceVerificationErrorItem(BaseModel):
+    start: int
+    end: int
+    message: str
+
+
+class VerifySentenceRequest(BaseModel):
+    source_text: str = Field(..., min_length=1, max_length=50)
+
+
+class VerifySentenceResponse(BaseModel):
+    is_valid: bool
+    errors: list[SentenceVerificationErrorItem] = Field(default_factory=list)
+    corrected_text: str | None = None
+    language: Literal["da", "en", "unknown"] = "unknown"

@@ -15,6 +15,8 @@ from app.api.schemas.v1.sentencebank import (
     AddSentenceRequest,
     AddSentenceResponse,
     SentenceListResponse,
+    VerifySentenceRequest,
+    VerifySentenceResponse,
 )
 from app.services.use_cases import SentencebankUseCase
 
@@ -29,6 +31,7 @@ def _sentencebank_use_case(request: Request) -> SentencebankUseCase:
         translation_service=services.translation_service,
         nlp_adapter=services.nlp_adapter,
         wordbank_use_case=build_wordbank_use_case(request),
+        sentence_verification_service=services.sentence_verification_service,
     )
 
 
@@ -48,4 +51,13 @@ def list_sentences(request: Request) -> SentenceListResponse:
         request,
         lambda: _sentencebank_use_case(request).list_sentences(),
         error_log_name="sentencebank_db_operational_error",
+    )
+
+
+@router.post("/sentencebank/verify-sentence", response_model=VerifySentenceResponse)
+def verify_sentence(payload: VerifySentenceRequest, request: Request) -> VerifySentenceResponse:
+    return run_db_operation(
+        request,
+        lambda: _sentencebank_use_case(request).verify_sentence(payload.source_text),
+        error_log_name="sentencebank_verify_db_operational_error",
     )

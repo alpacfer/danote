@@ -8,6 +8,8 @@ from app.api.schemas.v1.sentencebank import (
     SentenceListResponse,
     SentenceSummary,
     SentenceTokenCard,
+    SentenceVerificationErrorItem,
+    VerifySentenceResponse,
 )
 from app.db.repositories import SentencebankRepository
 from app.db.repositories.sentencebank import SentenceRecord, SentenceTokenWriteRecord
@@ -28,6 +30,7 @@ from app.services.use_cases.wordbank.verification_targets import (
     discover_word_page_verification_targets,
     queue_verification_targets,
 )
+from app.services.sentence_verification import SentenceVerificationService
 from app.services.verification import WordVerificationInput
 
 
@@ -56,11 +59,13 @@ class SentencebankUseCase:
         translation_service: TranslationService | None = None,
         nlp_adapter: NLPAdapter | None = None,
         wordbank_use_case: WordbankUseCase | None = None,
+        sentence_verification_service: SentenceVerificationService | None = None,
     ):
         self._repository = SentencebankRepository(db_path)
         self._translation_service = translation_service
         self._nlp_adapter = nlp_adapter
         self._wordbank_use_case = wordbank_use_case
+        self._sentence_verification_service = sentence_verification_service
 
     def add_sentence(self, source_text: str) -> AddSentenceResponse:
         normalized_source_text = _normalize_sentence_text(source_text)
@@ -110,6 +115,23 @@ class SentencebankUseCase:
         if not normalized_lemma:
             return []
         return [_sentence_summary(row) for row in self._repository.list_linked_sentences_for_lemma(normalized_lemma)]
+
+    def verify_sentence(self, source_text: str) -> VerifySentenceResponse:
+        normalized = _normalize_sentence_text(source_text)
+        if not normalized:
+            raise ValueError("source_text is required")
+        if self._sentence_verification_service is None:
+            return VerifySentenceResponse(is_valid=True, errors=[], corrected_text=None, language="unknown")
+        result = self._sentence_verification_service.verify_sentence(normalized)
+        return VerifySentenceResponse(
+            is_valid=result.is_valid,
+            errors=[
+                SentenceVerificationErrorItem(start=e.start, end=e.end, message=e.message)
+                for e in result.errors
+            ],
+            corrected_text=result.corrected_text,
+            language=result.language,
+        )
 
     def _lookup_phrase_translation(self, source_text: str) -> str | None:
         if self._wordbank_use_case is not None:
