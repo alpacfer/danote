@@ -37,6 +37,7 @@ class BackendRuntimeState:
     gemini_word_translation_error: str | None = None
     related_words_error: str | None = None
     word_verification_error: str | None = None
+    sentence_verification_error: str | None = None
     tts_error: str | None = None
 
 

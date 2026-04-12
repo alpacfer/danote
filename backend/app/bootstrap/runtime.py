@@ -11,6 +11,7 @@ from app.bootstrap.runtime_db import initialize_database
 from app.bootstrap.runtime_gemini_word_translation import initialize_gemini_word_translation
 from app.bootstrap.runtime_nlp import initialize_nlp
 from app.bootstrap.runtime_related_words import initialize_related_words
+from app.bootstrap.runtime_sentence_verification import initialize_sentence_verification
 from app.bootstrap.runtime_steps import StartupStep, run_startup_step
 from app.bootstrap.runtime_translation import initialize_translation
 from app.bootstrap.runtime_tts import initialize_tts
@@ -68,6 +69,7 @@ def build_startup_steps(
         StartupStep("gemini_word_translation", initialize_gemini_word_translation),
         StartupStep("related_words", initialize_related_words),
         StartupStep("word_verification", initialize_word_verification),
+        StartupStep("sentence_verification", initialize_sentence_verification),
         StartupStep("tts", initialize_tts),
     )
 
