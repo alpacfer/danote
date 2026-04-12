@@ -319,6 +319,7 @@ export function useWordbankWorkflows({
     }
     const selectionKey = normalizePhraseKey(normalizedSelection)
     if (sentences.some((sentence) => normalizePhraseKey(sentence.source_text) === selectionKey)) {
+      toast.info("Sentence already saved.")
       return
     }
 

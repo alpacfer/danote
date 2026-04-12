@@ -47,6 +47,7 @@ export function useVerificationChanges({
       setChanges(payload.items)
     } catch {
       setChanges([])
+      toast.error("Could not load change history.")
     } finally {
       setIsLoadingChanges(false)
     }

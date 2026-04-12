@@ -310,7 +310,7 @@ function isAutoApplySettling(target: VerificationTargetView): boolean {
   }
   const completedAt = verification.completed_at ?? verification.requested_at
   if (!completedAt) {
-    return true
+    return false
   }
   const completedAtMillis = Date.parse(completedAt)
   if (Number.isNaN(completedAtMillis)) {

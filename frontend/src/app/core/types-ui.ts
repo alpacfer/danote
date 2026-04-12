@@ -87,7 +87,7 @@ export type VerificationSuccessDetail = {
   rawMessage: string
   storedSurfaceForm: string | null
   meaningId: number | null
-  verifiedAt: string
+  verifiedAt: string | null
 }
 
 export type VerificationQueuedDetail = {

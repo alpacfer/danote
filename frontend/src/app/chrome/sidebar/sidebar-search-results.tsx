@@ -116,14 +116,13 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
   // the normalized query).
   const hasDirectWordbank = data.orderedWordbankResults.length > 0
     && (!state.wordbankDidYouMean || data.exactSavedVariationKeySet.size > 0)
-  const hasDirectCor = !state.corDidYouMean && data.corSearchVariantsToRender.length > 0
+  const hasDirectCor = data.corSearchVariantsToRender.length > 0
   const hasDirectResults = hasDirectWordbank || hasDirectCor
 
   const hasCorrectedWordbank = Boolean(state.wordbankDidYouMean)
     && data.orderedWordbankResults.length > 0
     && !hasDirectWordbank
-  const hasCorrectedCor = Boolean(state.corDidYouMean) && data.corSearchVariantsToRender.length > 0
-  const hasCorrectedResults = hasCorrectedWordbank || hasCorrectedCor
+  const hasCorrectedResults = hasCorrectedWordbank
 
   const hasWordbankSection = hasDirectResults || hasCorrectedResults
 
@@ -193,18 +192,6 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
               onAddWordFromSearch={actions.onAddWordFromSearch}
               onOpenWordbankLemma={actions.onOpenWordbankLemma}
               onOpenWordbankMeaning={actions.onOpenWordbankMeaning}
-              onCloseSearch={actions.onCloseSearch}
-            />
-          ) : null}
-          {hasCorrectedCor ? (
-            <SidebarCorResults
-              orderedCorSearchGroups={data.orderedCorSearchGroups}
-              corSearchVariantsToRender={data.corSearchVariantsToRender}
-              variationCandidateCorIdSet={data.variationCandidateCorIdSet}
-              normalizedQuery={state.normalizedQuery}
-              corVariantItemValue={data.corVariantItemValue}
-              isTranslationsLoading={data.isCorTranslationsLoading}
-              onAddWordFromSearch={actions.onAddWordFromSearch}
               onCloseSearch={actions.onCloseSearch}
             />
           ) : null}

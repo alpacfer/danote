@@ -59,7 +59,7 @@ export function useSidebarSearch({
   const activeSentenceVerification = sentenceVerification?.query === trimmedQuery
     ? sentenceVerification.result
     : null
-  const activeSentenceTranslationSource = activeSentenceVerification?.corrected_text ?? trimmedQuery
+  const activeSentenceTranslationSource = activeSentenceVerification?.corrected_text || trimmedQuery
 
   const matchingNotes = useMemo(() => {
     if (!normalizedQuery) {
@@ -316,7 +316,6 @@ export function useSidebarSearch({
               corrected_text: null,
               language: "unknown",
             }
-            sentenceVerificationCacheRef.current.set(trimmedQuery, fallback)
             setSentenceVerificationError(
               error instanceof Error ? error.message : "Could not verify sentence.",
             )
@@ -335,7 +334,7 @@ export function useSidebarSearch({
       window.clearTimeout(timeoutId)
       setIsSentenceVerificationLoading(false)
     }
-  }, [apiClient, isSentenceMode, trimmedQuery])
+  }, [apiClient, isSentenceMode, trimmedQuery, wordbankCacheVersion, searchTranslationConfigVersion])
 
   const activeCorFormSearchResult = useMemo(() => {
     if (!corFormSearchResult || corFormSearchResult.query !== normalizedQuery) {

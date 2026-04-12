@@ -91,7 +91,7 @@ export function WordbankVariationGrid({
   // Fallback: 2-column grid
   return (
     <div className="grid gap-3 md:grid-cols-2">
-      {resolvedVariationForms.map((form) => {
+      {resolvedVariationForms.map((form, index) => {
         const formLemmaDisplay = lemmaDisplayForSavedForm(form)
         const formLemmaTranslation = lemmaTranslationWithGloss(
           form.lemma_translation ?? null,
@@ -102,7 +102,7 @@ export function WordbankVariationGrid({
         const isRegenerating = Boolean(regeneratingPronunciationByForm[normalizedForm])
         return (
           <Card
-            key={form.form}
+            key={`${form.form}-${index}`}
             variant="subtle"
             className="bg-muted/30 p-3 dark:bg-muted/15"
           >

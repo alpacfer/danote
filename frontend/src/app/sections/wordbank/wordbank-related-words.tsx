@@ -4,6 +4,7 @@ import { Eye, Plus } from "lucide-react"
 import {
   badgesFromGramRaw,
   corSecondaryBadgeClass,
+  normalizeSearchWord,
   posBadgeClass,
   primaryPosLabel,
   type CORSearchVariant,
@@ -89,7 +90,7 @@ export function WordbankRelatedWords({
                       variant="ghost"
                       className="hover:bg-accent/60 h-auto w-full items-center justify-between rounded-none px-4 py-4 text-left"
                       aria-label={`Open ${item.lemma} in wordbank`}
-                      onClick={() => onOpenRelatedWordTarget(item.saved_match.target_lemma ?? item.lemma, item.saved_match.target_meaning_id ?? null)}
+                      onClick={() => onOpenRelatedWordTarget(normalizeSearchWord(item.saved_match.target_lemma ?? item.lemma), item.saved_match.target_meaning_id ?? null)}
                     >
                       <RelatedWordCardBody item={item} uniqueVariant={uniqueVariant} isAmbiguous={false} />
                       <Eye className="text-muted-foreground size-4 shrink-0 self-center" />

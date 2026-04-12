@@ -79,12 +79,12 @@ export function buildNounParadigm(surfaceForms: SurfaceForm[]): ParadigmTableDat
 
 export function buildAdjectiveParadigm(surfaceForms: SurfaceForm[]): ParadigmTableData | null {
   const cells = createEmptyCells()
-  const groupedOtherForms = new Map<string, SurfaceForm>()
+  const otherForms: SurfaceForm[] = []
 
   for (const form of surfaceForms) {
     const slots = adjectiveSlotsForForm(form)
     if (slots.length === 0) {
-      groupedOtherForms.set(form.form, form)
+      otherForms.push(form)
       continue
     }
     let assigned = false
@@ -102,7 +102,7 @@ export function buildAdjectiveParadigm(surfaceForms: SurfaceForm[]): ParadigmTab
       }
     }
     if (!assigned) {
-      groupedOtherForms.set(form.form, form)
+      otherForms.push(form)
     }
   }
 
@@ -114,18 +114,18 @@ export function buildAdjectiveParadigm(surfaceForms: SurfaceForm[]): ParadigmTab
     rows: [...PARADIGM_ROWS],
     columns: [...PARADIGM_COLUMNS],
     cells,
-    supplementaryGroups: groupedOtherForms.size > 0 ? [{ label: "Other forms", forms: [...groupedOtherForms.values()] }] : [],
+    supplementaryGroups: otherForms.length > 0 ? [{ label: "Other forms", forms: otherForms }] : [],
   }
 }
 
 export function buildVerbParadigm(surfaceForms: SurfaceForm[]): ParadigmTableData | null {
   const cells = VERB_PARADIGM_ROWS.map((row) => ({ row, column: "Form", entries: [] as ParadigmCellEntry[] }))
-  const groupedOtherForms = new Map<string, SurfaceForm>()
+  const otherForms: SurfaceForm[] = []
 
   for (const form of surfaceForms) {
     const slots = verbSlotsForForm(form)
     if (slots.length === 0) {
-      groupedOtherForms.set(form.form, form)
+      otherForms.push(form)
       continue
     }
     for (const slot of slots) {
@@ -141,7 +141,7 @@ export function buildVerbParadigm(surfaceForms: SurfaceForm[]): ParadigmTableDat
     rows: [...VERB_PARADIGM_ROWS],
     columns: [...VERB_PARADIGM_COLUMNS],
     cells,
-    supplementaryGroups: groupedOtherForms.size > 0 ? [{ label: "Other forms", forms: [...groupedOtherForms.values()] }] : [],
+    supplementaryGroups: otherForms.length > 0 ? [{ label: "Other forms", forms: otherForms }] : [],
   }
 }
 

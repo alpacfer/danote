@@ -173,7 +173,7 @@ export function verificationTargetTimestampMeta(target: VerificationTargetView):
   if (target.successDetail) {
     return {
       label: "Verified",
-      value: formatSavedNoteTimestamp(target.successDetail.verifiedAt),
+      value: target.successDetail.verifiedAt ? formatSavedNoteTimestamp(target.successDetail.verifiedAt) : "Unknown",
     }
   }
   if (target.errorDetail) {
@@ -224,7 +224,7 @@ export function latestVerifiedTimestamp(targets: VerificationTargetView[]): stri
   const verifiedAt = targets
     .map((target) => target.successDetail?.verifiedAt ?? null)
     .filter((value): value is string => Boolean(value))
-    .sort((a, b) => b.localeCompare(a))[0] ?? null
+    .sort((a, b) => (a < b ? 1 : a > b ? -1 : 0))[0] ?? null
 
   return verifiedAt ? formatSavedNoteTimestamp(verifiedAt) : null
 }

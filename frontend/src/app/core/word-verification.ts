@@ -82,7 +82,7 @@ export function mapVerificationResultToSuccessDetail(
     rawMessage: genericSuccessMessage(compactMessage(verification.message)),
     storedSurfaceForm: normalizeSearchWord(verification.stored_surface_form ?? "") || null,
     meaningId,
-    verifiedAt: verification.completed_at || verification.requested_at || new Date().toISOString(),
+    verifiedAt: verification.completed_at || verification.requested_at || null,
   }
 }
 
