@@ -37,7 +37,7 @@ Inserts are idempotent from UI perspective regardless of spacing/casing differen
 
 Each row renders:
 - `source_text` primary line
-- `english_translation` secondary line (`No translation available.` fallback)
+- `english_translation` secondary line, rendered with sentence-style capitalization (`No translation available.` fallback)
 - token-card grid in sentence order when `tokens.length > 0`
 
 Each token card renders:

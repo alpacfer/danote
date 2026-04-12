@@ -1,6 +1,6 @@
 import { useState } from "react"
 
-import { type SentencebankSentence } from "@/app/core"
+import { formatSentenceTranslation, type SentencebankSentence } from "@/app/core"
 import { SentenceHighlightedText } from "@/app/components/sentence-highlighted-text"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -30,7 +30,7 @@ export function SentencebankSentencePage({
   }
 
   const skeletonCount = Math.max(wordCount(sentence.source_text), 1)
-  const translation = sentence.english_translation?.trim() ?? ""
+  const translation = formatSentenceTranslation(sentence.english_translation) ?? ""
 
   return (
     <ScrollArea className="min-h-0 flex-1">

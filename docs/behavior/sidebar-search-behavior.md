@@ -30,6 +30,9 @@ Exact behavior of sidebar command search ("Search words and notes...").
 - Preview endpoint: `POST /api/wordbank/phrase-translation`.
 - Result set: exactly one row under `Sentence`.
 - While sentence mode is active, sidebar suppresses saved-word, COR, notes, and page groups.
+- Translation and verification requests receive whitespace-normalized sentence text with the user's capitalization preserved.
+- Sentence translation display is sentence-cased; the UI no longer lowercases translation text.
+- Sentence verification corrections preserve initial capitalization and must not append a trailing period unless the source already has one.
 - Save action: `POST /api/sentencebank/sentences`, then close dialog.
 - Successful sentence save increments both `sentencebankRefreshTick` and `wordbankRefreshTick` because sentence save now mutates both stores.
 

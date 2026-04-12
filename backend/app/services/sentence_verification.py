@@ -42,7 +42,8 @@ def _build_prompt(source_text: str) -> str:
         '- "corrected_text": fully corrected sentence string if is_valid is false, null if is_valid is true\n'
         '- "language": "da" if Danish, "en" if English, "unknown" otherwise\n'
         "Keep the same capitalization style at the start of the sentence as the source text.\n"
-        "Do not flag sentence-initial capitalization by itself as an error."
+        "Do not flag sentence-initial capitalization by itself as an error.\n"
+        "Never add a trailing period to corrected_text unless the source text already ends with a period."
     )
 
 
@@ -70,6 +71,20 @@ def _preserve_leading_letter_case(source_text: str, corrected_text: str | None) 
             + corrected_text[corrected_index + 1:]
         )
     return corrected_text
+
+
+def _preserve_terminal_period_style(source_text: str, corrected_text: str | None) -> str | None:
+    if not corrected_text:
+        return None
+
+    trimmed_source = source_text.rstrip()
+    trimmed_corrected = corrected_text.rstrip()
+    if not trimmed_corrected.endswith(".") or trimmed_source.endswith("."):
+        return corrected_text
+
+    without_period = trimmed_corrected[:-1].rstrip()
+    trailing_whitespace = corrected_text[len(trimmed_corrected):]
+    return without_period + trailing_whitespace
 
 
 def _is_ignorable_case_only_error(
@@ -105,7 +120,10 @@ def _parse_result(raw: str | None, source_text: str) -> SentenceVerificationResu
     raw_language = data.get("language", "unknown")
     language: Literal["da", "en", "unknown"] = raw_language if raw_language in ("da", "en") else "unknown"
     raw_corrected_text = data.get("corrected_text") or None
-    corrected_text = _preserve_leading_letter_case(source_text, raw_corrected_text)
+    corrected_text = _preserve_terminal_period_style(
+        source_text,
+        _preserve_leading_letter_case(source_text, raw_corrected_text),
+    )
     raw_errors = data.get("errors") or []
     errors: list[SentenceVerificationErrorSpan] = []
     for e in raw_errors:

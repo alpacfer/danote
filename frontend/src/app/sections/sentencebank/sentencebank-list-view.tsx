@@ -1,4 +1,4 @@
-import { type SentencebankSentence } from "@/app/core"
+import { formatSentenceTranslation, type SentencebankSentence } from "@/app/core"
 import { Card, CardContent } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -61,7 +61,7 @@ export function SentencebankListView({
               <CardContent className="space-y-2">
                 <p className="text-base font-medium leading-relaxed max-w-[70ch] break-words">{sentence.source_text}</p>
                 <p className="text-muted-foreground text-sm max-w-[70ch] break-words">
-                  {sentence.english_translation?.trim() || "No translation available."}
+                  {formatSentenceTranslation(sentence.english_translation) || "No translation available."}
                 </p>
               </CardContent>
             </Card>

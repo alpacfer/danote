@@ -77,7 +77,7 @@ sentenceVerificationError: string | null
 
 **Cache:** `sentenceVerificationCacheRef: Map<string, VerifySentenceResponse>` keyed by normalized query. Same text → skip Gemini, return cached result immediately.
 
-**Debounced effect:** fires ~600ms after user stops typing (longer than `SEARCH_RESOLVE_DEBOUNCE_MS` = 220ms). Only runs when `isSentenceMode && trimmedQuery.length <= 50`. Resets on query change. Clears when exiting sentence mode.
+**Debounced effect:** fires ~600ms after user stops typing (longer than `SEARCH_RESOLVE_DEBOUNCE_MS` = 220ms). Only runs when `isSentenceMode && sentenceQuery.length <= 50`. Resets on query change. Clears when exiting sentence mode. Verification requests use whitespace-normalized text with the user's capitalization preserved.
 
 ### `SidebarSentenceResult`
 
@@ -103,12 +103,12 @@ User types "jeg er glat" (≤50 chars, 2+ words)
   → translation debounce (220ms) → POST /api/wordbank/phrase-translation  [existing]
   → verification debounce (600ms) → POST /api/sentencebank/verify-sentence [new]
       Gemini returns: { is_valid: false, errors: [{start:7,end:11,message:"typo"}],
-                        corrected_text: "jeg er glad", language: "da" }
+                        corrected_text: "Jeg er glad", language: "da" }
   → SidebarSentenceResult shows:
       "jeg er [glat]"  ← red wavy underline on "glat"
-      Corrected: "jeg er glad"
+      Corrected: "Jeg er glad"
       [+] button enabled
-  → User clicks [+] → saves "jeg er glad"
+  → User clicks [+] → saves "Jeg er glad"
 ```
 
 For valid sentences (`is_valid: true`), no underlines, corrected_text is null, saves original text.

@@ -609,6 +609,7 @@ export function mockFetchImplementation(options?: {
     language: "da" | "en" | "unknown"
   }
   verifySentenceOk?: boolean
+  verifySentenceHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
 }) {
   const healthOk = options?.healthOk ?? true
   const healthStatus = options?.healthStatus ?? "ok"
@@ -801,7 +802,7 @@ export function mockFetchImplementation(options?: {
   const phraseTranslationResponse = options?.phraseTranslationResponse ?? {
     status: "generated" as const,
     source_text: "Jeg elsker dansk",
-    english_translation: "i love danish",
+    english_translation: "I love Danish",
   }
   const reverseTranslationResponse = options?.reverseTranslationResponse ?? {
     status: "unavailable" as const,
@@ -1266,6 +1267,9 @@ export function mockFetchImplementation(options?: {
     }
 
     if (url.endsWith("/api/sentencebank/verify-sentence")) {
+      if (options?.verifySentenceHandler) {
+        return options.verifySentenceHandler(input, init)
+      }
       if (options?.verifySentenceOk === false) {
         throw new Error("verify sentence request failed")
       }

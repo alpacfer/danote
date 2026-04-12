@@ -7,6 +7,7 @@ import {
   SENTENCE_VERIFY_DEBOUNCE_MS,
   SENTENCE_VERIFY_MAX_CHARS,
   createApiClient,
+  normalizeSentenceText,
   hasMultipleWords,
   isShortLetterWord,
   type GeneratePhraseTranslationResponse,
@@ -53,13 +54,14 @@ export function useSidebarSearch({
     [],
   )
 
+  const sentenceQuery = normalizeSentenceText(searchQuery)
   const normalizedQuery = normalizeSearchWord(searchQuery)
   const trimmedQuery = normalizedQuery
-  const isSentenceMode = hasMultipleWords(trimmedQuery) && trimmedQuery.length <= SENTENCE_VERIFY_MAX_CHARS
-  const activeSentenceVerification = sentenceVerification?.query === trimmedQuery
+  const isSentenceMode = hasMultipleWords(sentenceQuery) && sentenceQuery.length <= SENTENCE_VERIFY_MAX_CHARS
+  const activeSentenceVerification = sentenceVerification?.query === sentenceQuery
     ? sentenceVerification.result
     : null
-  const activeSentenceTranslationSource = activeSentenceVerification?.corrected_text || trimmedQuery
+  const activeSentenceTranslationSource = activeSentenceVerification?.corrected_text || sentenceQuery
 
   const matchingNotes = useMemo(() => {
     if (!normalizedQuery) {
@@ -233,7 +235,7 @@ export function useSidebarSearch({
 
     let cancelled = false
     setSentenceSearchResult({
-      query: normalizedQuery,
+      query: sentenceQuery,
       source_text: activeSentenceTranslationSource,
       english_translation: null,
     })
@@ -251,14 +253,14 @@ export function useSidebarSearch({
             return
           }
           setSentenceSearchResult({
-            query: normalizedQuery,
+            query: sentenceQuery,
             source_text: payload.source_text || activeSentenceTranslationSource,
             english_translation: payload.english_translation ?? null,
           })
         } catch {
           if (!cancelled) {
             setSentenceSearchResult({
-              query: normalizedQuery,
+              query: sentenceQuery,
               source_text: activeSentenceTranslationSource,
               english_translation: null,
             })
@@ -276,19 +278,19 @@ export function useSidebarSearch({
       window.clearTimeout(timeoutId)
       setIsSentenceTranslationLoading(false)
     }
-  }, [activeSentenceTranslationSource, apiClient, isSentenceMode, normalizedQuery])
+  }, [activeSentenceTranslationSource, apiClient, isSentenceMode, sentenceQuery])
 
   useEffect(() => {
-    if (!isSentenceMode || !trimmedQuery) {
+    if (!isSentenceMode || !sentenceQuery) {
       setSentenceVerification(null)
       setSentenceVerificationError(null)
       setIsSentenceVerificationLoading(false)
       return
     }
 
-    const cached = sentenceVerificationCacheRef.current.get(trimmedQuery)
+    const cached = sentenceVerificationCacheRef.current.get(sentenceQuery)
     if (cached) {
-      setSentenceVerification({ query: trimmedQuery, result: cached })
+      setSentenceVerification({ query: sentenceQuery, result: cached })
       setIsSentenceVerificationLoading(false)
       setSentenceVerificationError(null)
       return
@@ -304,12 +306,12 @@ export function useSidebarSearch({
         try {
           const result = await apiClient.postJson<VerifySentenceResponse>(
             "/api/sentencebank/verify-sentence",
-            { source_text: trimmedQuery },
+            { source_text: sentenceQuery },
             "Could not verify sentence.",
           )
           if (cancelled) return
-          sentenceVerificationCacheRef.current.set(trimmedQuery, result)
-          setSentenceVerification({ query: trimmedQuery, result })
+          sentenceVerificationCacheRef.current.set(sentenceQuery, result)
+          setSentenceVerification({ query: sentenceQuery, result })
         } catch (error) {
           if (!cancelled) {
             const fallback: VerifySentenceResponse = {
@@ -321,7 +323,7 @@ export function useSidebarSearch({
             setSentenceVerificationError(
               error instanceof Error ? error.message : "Could not verify sentence.",
             )
-            setSentenceVerification({ query: trimmedQuery, result: fallback })
+            setSentenceVerification({ query: sentenceQuery, result: fallback })
           }
         } finally {
           if (!cancelled) {
@@ -336,7 +338,7 @@ export function useSidebarSearch({
       window.clearTimeout(timeoutId)
       setIsSentenceVerificationLoading(false)
     }
-  }, [apiClient, isSentenceMode, trimmedQuery, wordbankCacheVersion, searchTranslationConfigVersion])
+  }, [apiClient, isSentenceMode, sentenceQuery, wordbankCacheVersion, searchTranslationConfigVersion])
 
   const activeCorFormSearchResult = useMemo(() => {
     if (!corFormSearchResult || corFormSearchResult.query !== normalizedQuery) {

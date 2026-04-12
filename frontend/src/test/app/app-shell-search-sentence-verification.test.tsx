@@ -65,7 +65,7 @@ describe("Sentence verification in search", () => {
       phraseTranslationResponse: {
         status: "generated",
         source_text: "jeg er glad",
-        english_translation: "i am happy",
+        english_translation: "I am happy",
       },
     })
 
@@ -80,7 +80,7 @@ describe("Sentence verification in search", () => {
     })
     const option = getSentenceOption(dialog)
     expect(within(option).getByText(/^jeg er glad$/i)).toBeInTheDocument()
-    expect(within(option).getByText("i am happy")).toBeInTheDocument()
+    expect(within(option).getByText("I am happy")).toBeInTheDocument()
   })
 
   it("does not enter sentence mode for multi-word queries over 100 chars", async () => {
@@ -125,7 +125,7 @@ describe("Sentence verification in search", () => {
       verifySentenceResponse: {
         is_valid: false,
         errors: [{ start: 7, end: 11, message: "typo" }],
-        corrected_text: "jeg er glad",
+        corrected_text: "Jeg er glad",
         language: "da",
       },
       phraseTranslationHandler: async (_input, init) => {
@@ -135,7 +135,7 @@ describe("Sentence verification in search", () => {
         return responseOf({
           status: "generated",
           source_text: sourceText,
-          english_translation: sourceText === "jeg er glad" ? "i am happy" : "i am slick",
+          english_translation: sourceText === "Jeg er glad" ? "I am happy" : "I am slick",
         })
       },
     })
@@ -144,19 +144,58 @@ describe("Sentence verification in search", () => {
     await screen.findByLabelText("backend-connection-status")
 
     const dialog = await openSearch()
-    typeInSearch(dialog, "jeg er glat")
+    typeInSearch(dialog, "Jeg er glat")
 
     await waitFor(() => {
-      expect(translationRequests).toContain("jeg er glad")
+      expect(translationRequests).toContain("Jeg er glad")
     })
 
     const overlay = await within(dialog).findByTestId("sentence-search-input-overlay")
     const option = getSentenceOption(dialog)
     expect(within(overlay).getByText("glat")).toHaveClass("underline")
-    expect(within(option).getByText("jeg er glad")).toBeInTheDocument()
-    expect(await within(option).findByText("i am happy")).toBeInTheDocument()
-    expect(within(option).queryByText(/^jeg er glat$/i)).not.toBeInTheDocument()
+    expect(within(option).getByText("Jeg er glad")).toBeInTheDocument()
+    expect(await within(option).findByText("I am happy")).toBeInTheDocument()
+    expect(within(option).queryByText(/^Jeg er glat$/i)).not.toBeInTheDocument()
     expect(within(option).queryByText("Corrected:")).not.toBeInTheDocument()
+  })
+
+  it("sends capitalization-preserving sentence text to both translation and verification", async () => {
+    const phraseRequests: string[] = []
+    const verificationRequests: string[] = []
+
+    mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      phraseTranslationHandler: async (_input, init) => {
+        const body = JSON.parse(String(init?.body ?? "{}")) as { source_text?: string }
+        phraseRequests.push(body.source_text ?? "")
+        return responseOf({
+          status: "generated",
+          source_text: body.source_text ?? "",
+          english_translation: "I am happy",
+        })
+      },
+      verifySentenceHandler: async (_input, init) => {
+        const body = JSON.parse(String(init?.body ?? "{}")) as { source_text?: string }
+        verificationRequests.push(body.source_text ?? "")
+        return responseOf({
+          is_valid: true,
+          errors: [],
+          corrected_text: null,
+          language: "da",
+        })
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    const dialog = await openSearch()
+    typeInSearch(dialog, "Jeg er glad")
+
+    await waitFor(() => {
+      expect(phraseRequests).toContain("Jeg er glad")
+      expect(verificationRequests).toContain("Jeg er glad")
+    })
   })
 
   it("expands typo underline spans to the full word in the input", async () => {
@@ -171,7 +210,7 @@ describe("Sentence verification in search", () => {
       phraseTranslationResponse: {
         status: "generated",
         source_text: "jeg er glad",
-        english_translation: "i am happy",
+        english_translation: "I am happy",
       },
     })
 
@@ -214,7 +253,7 @@ describe("Sentence verification in search", () => {
     const option = getSentenceOption(dialog)
     expect(within(dialog).queryByTestId("sentence-search-input-overlay")).not.toBeInTheDocument()
     expect(within(option).getByText(/^jeg er glad$/i)).toBeInTheDocument()
-    expect(within(option).getByText("i am happy")).toBeInTheDocument()
+    expect(within(option).getByText("I am happy")).toBeInTheDocument()
   })
 
   it("saves the corrected sentence text when verification returns a correction", async () => {
@@ -223,16 +262,16 @@ describe("Sentence verification in search", () => {
       verifySentenceResponse: {
         is_valid: false,
         errors: [{ start: 7, end: 11, message: "typo" }],
-        corrected_text: "jeg er glad",
+        corrected_text: "Jeg er glad",
         language: "da",
       },
       addSentenceResponse: {
         status: "inserted",
         id: 99,
-        source_text: "jeg er glad",
+        source_text: "Jeg er glad",
         english_translation: null,
         created_at: "2026-04-12T10:00:00.000Z",
-        message: 'Added "jeg er glad" to sentencebank.',
+        message: 'Added "Jeg er glad" to sentencebank.',
       },
     })
 
@@ -240,7 +279,7 @@ describe("Sentence verification in search", () => {
     await screen.findByLabelText("backend-connection-status")
 
     const dialog = await openSearch()
-    typeInSearch(dialog, "jeg er glat")
+    typeInSearch(dialog, "Jeg er glat")
 
     await waitFor(() => {
       expect(getSentenceOption(dialog)).not.toHaveAttribute("aria-disabled", "true")
@@ -255,7 +294,7 @@ describe("Sentence verification in search", () => {
             return false
           }
           const body = JSON.parse(String(init.body ?? "{}")) as { source_text?: string }
-          return body.source_text === "jeg er glad"
+          return body.source_text === "Jeg er glad"
         }),
       ).toBe(true)
     })
@@ -276,7 +315,7 @@ describe("Sentence verification in search", () => {
       phraseTranslationResponse: {
         status: "generated",
         source_text: "jeg er glad",
-        english_translation: "i am happy",
+        english_translation: "I am happy",
       },
       addSentenceHandler: async () => {
         await new Promise<void>((resolve) => {
@@ -286,7 +325,7 @@ describe("Sentence verification in search", () => {
           status: "inserted",
           id: 91,
           source_text: "jeg er glad",
-          english_translation: "i am happy",
+          english_translation: "I am happy",
           created_at: "2026-04-12T10:00:00.000Z",
           tokens: [],
           message: 'Added "jeg er glad" to sentencebank.',
@@ -303,11 +342,11 @@ describe("Sentence verification in search", () => {
     await waitFor(() => {
       expect(getSentenceOption(dialog)).not.toHaveAttribute("aria-disabled", "true")
     })
-    expect(await within(dialog).findByText("i am happy")).toBeInTheDocument()
+    expect(await within(dialog).findByText("I am happy")).toBeInTheDocument()
 
     fireEvent.click(getSentenceOption(dialog))
 
-    expect(await screen.findByText("i am happy")).toBeInTheDocument()
+    expect(await screen.findByText("I am happy")).toBeInTheDocument()
     expect(screen.queryByTestId("sentence-page-translation-skeleton")).not.toBeInTheDocument()
 
     await act(async () => {
@@ -322,7 +361,7 @@ describe("Sentence verification in search", () => {
       phraseTranslationResponse: {
         status: "generated",
         source_text: "jeg er glad",
-        english_translation: "i am happy",
+        english_translation: "I am happy",
       },
       addSentenceResponse: {
         status: "inserted",
@@ -371,13 +410,13 @@ describe("Sentence verification in search", () => {
       phraseTranslationResponse: {
         status: "generated",
         source_text: "jeg er glad",
-        english_translation: "i am happy",
+        english_translation: "I am happy",
       },
       addSentenceResponse: {
         status: "inserted",
         id: 88,
         source_text: "jeg er glad",
-        english_translation: "i am happy",
+        english_translation: "I am happy",
         created_at: "2026-04-12T10:00:00.000Z",
         message: 'Added "jeg er glad" to sentencebank.',
       },
@@ -421,7 +460,7 @@ describe("Sentence verification in search", () => {
           {
             id: 90,
             source_text: "jeg er glad",
-            english_translation: "i am happy",
+            english_translation: "I am happy",
             created_at: "2026-04-12T10:00:00.000Z",
             tokens: [
               {
@@ -449,7 +488,7 @@ describe("Sentence verification in search", () => {
       phraseTranslationResponse: {
         status: "generated",
         source_text: "jeg er glad",
-        english_translation: "i am happy",
+        english_translation: "I am happy",
       },
       addSentenceHandler: async () => {
         addSentenceStarted()
@@ -484,7 +523,7 @@ describe("Sentence verification in search", () => {
       status: "inserted",
       id: 90,
       source_text: "jeg er glad",
-      english_translation: "i am happy",
+      english_translation: "I am happy",
       created_at: "2026-04-12T10:00:00.000Z",
       tokens: [
         {

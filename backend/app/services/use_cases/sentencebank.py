@@ -38,6 +38,19 @@ def _normalize_sentence_text(source_text: str) -> str:
     return " ".join(source_text.strip().split())
 
 
+def _capitalize_sentence_translation(english_translation: str | None) -> str | None:
+    if not isinstance(english_translation, str):
+        return None
+    cleaned = " ".join(english_translation.strip().split())
+    if not cleaned:
+        return None
+
+    alpha_index = next((idx for idx, char in enumerate(cleaned) if char.isalpha()), None)
+    if alpha_index is None or cleaned[alpha_index].isupper():
+        return cleaned
+    return cleaned[:alpha_index] + cleaned[alpha_index].upper() + cleaned[alpha_index + 1:]
+
+
 def _starts_with_uppercase_letter(text: str) -> bool:
     for char in text:
         if char.isalpha():
@@ -179,10 +192,7 @@ class SentencebankUseCase:
             translated = self._translation_service.translate_da_to_en(source_text)
             if not isinstance(translated, str):
                 return None
-            cleaned = " ".join(translated.strip().split())
-            if not cleaned:
-                return None
-            return cleaned.lower()
+            return _capitalize_sentence_translation(translated)
         except Exception:
             return None
 

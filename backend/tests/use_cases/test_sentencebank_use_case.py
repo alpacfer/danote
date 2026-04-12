@@ -58,13 +58,13 @@ def test_sentencebank_use_case_add_and_list(tmp_path: Path) -> None:
 
     assert inserted.status == "inserted"
     assert inserted.source_text == "Jeg elsker dansk"
-    assert inserted.english_translation == "i love danish"
+    assert inserted.english_translation == "I love danish"
     assert duplicate.status == "exists"
     assert listing.items[0].source_text == "Jeg elsker dansk"
     assert duplicate.tokens == []
 
 
-def test_sentencebank_translation_is_normalized_to_lowercase(tmp_path: Path) -> None:
+def test_sentencebank_translation_preserves_provider_text_without_forcing_lowercase(tmp_path: Path) -> None:
     use_case = SentencebankUseCase(
         _db_path(tmp_path),
         translation_service=FakeTranslationService({"Jeg elsker dansk": "I LOVE DANISH"}),
@@ -73,12 +73,12 @@ def test_sentencebank_translation_is_normalized_to_lowercase(tmp_path: Path) -> 
     inserted = use_case.add_sentence("Jeg elsker dansk")
 
     assert inserted.status == "inserted"
-    assert inserted.english_translation == "i love danish"
+    assert inserted.english_translation == "I LOVE DANISH"
 
 
 def test_sentencebank_save_reuses_cached_phrase_translation(tmp_path: Path) -> None:
     db_path = _db_path(tmp_path)
-    translation_service = FakeTranslationService({"jeg kan godt lide det": "i like it"})
+    translation_service = FakeTranslationService({"Jeg kan godt lide det": "i like it"})
     wordbank_use_case = WordbankUseCase(
         db_path,
         translation_service=translation_service,
@@ -94,8 +94,8 @@ def test_sentencebank_save_reuses_cached_phrase_translation(tmp_path: Path) -> N
 
     assert preview.status == "generated"
     assert inserted.status == "inserted"
-    assert inserted.english_translation == "i like it"
-    assert translation_service.calls == ["jeg kan godt lide det"]
+    assert inserted.english_translation == "I like it"
+    assert translation_service.calls == ["Jeg kan godt lide det"]
 
 
 def test_sentencebank_save_persists_every_word_token_in_order_including_short_and_repeated_words(

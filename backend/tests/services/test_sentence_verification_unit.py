@@ -79,3 +79,9 @@ def test_parse_result_ignores_mid_sentence_capitalization_only_error() -> None:
     assert result.is_valid is True
     assert result.errors == []
     assert result.corrected_text is None
+
+
+def test_parse_result_removes_unrequested_terminal_period() -> None:
+    raw = '{"is_valid": false, "errors": [{"start": 7, "end": 11, "message": "typo"}], "corrected_text": "jeg er glad.", "language": "da"}'
+    result = _parse_result(raw, "jeg er glat")
+    assert result.corrected_text == "jeg er glad"

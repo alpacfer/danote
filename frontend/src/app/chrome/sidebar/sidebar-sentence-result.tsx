@@ -1,5 +1,6 @@
 import { Loader2, Plus } from "lucide-react"
 
+import { formatSentenceTranslation } from "@/app/core"
 import { CommandGroup, CommandItem } from "@/components/ui/command"
 import { Skeleton } from "@/components/ui/skeleton"
 import { type VerifySentenceResponse } from "@/app/core/types-api"
@@ -24,6 +25,7 @@ export function SidebarSentenceResult({
   const isSaveDisabled = isSentenceVerificationLoading || sentenceVerification === null
   const textToSave = sentenceVerification?.corrected_text ?? sourceText
   const displayText = textToSave.trim() || sourceText
+  const displayTranslation = formatSentenceTranslation(englishTranslation)
 
   return (
     <CommandGroup heading="Sentence">
@@ -42,7 +44,7 @@ export function SidebarSentenceResult({
             <Skeleton className="h-4 w-28" data-testid="sentence-search-translation-skeleton" />
           ) : (
             <span className="text-muted-foreground text-xs leading-4 break-words">
-              {englishTranslation?.trim() || "No translation available."}
+              {displayTranslation || "No translation available."}
             </span>
           )}
         </div>

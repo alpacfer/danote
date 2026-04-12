@@ -1,4 +1,4 @@
-import { type LemmaDetailsResponse } from "@/app/core"
+import { formatSentenceTranslation, type LemmaDetailsResponse } from "@/app/core"
 import { SentenceHighlightedText } from "@/app/components/sentence-highlighted-text"
 import { Card, CardContent } from "@/components/ui/card"
 
@@ -41,7 +41,7 @@ export function WordbankLinkedSentences({
                   />
                 </p>
                 <p className="text-muted-foreground text-sm break-words">
-                  {sentence.english_translation?.trim() || "No translation available."}
+                  {formatSentenceTranslation(sentence.english_translation) || "No translation available."}
                 </p>
               </CardContent>
             </Card>

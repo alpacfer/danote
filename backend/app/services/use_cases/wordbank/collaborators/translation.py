@@ -63,6 +63,48 @@ from app.services.use_cases.wordbank.collaborators.translation_word_frames impor
 logger = logging.getLogger(__name__)
 
 
+def _normalize_sentence_text(source_text: str) -> str:
+    return " ".join(source_text.strip().split())
+
+
+def _normalize_sentence_translation_value(value: str | None) -> str | None:
+    if not isinstance(value, str):
+        return None
+    cleaned = " ".join(value.strip().split())
+    return cleaned or None
+
+
+def _align_sentence_translation_capitalization(
+    source_text: str,
+    english_translation: str | None,
+) -> str | None:
+    if not english_translation:
+        return None
+
+    source_index = next((idx for idx, char in enumerate(source_text) if char.isalpha()), None)
+    translation_index = next((idx for idx, char in enumerate(english_translation) if char.isalpha()), None)
+    if translation_index is None:
+        return english_translation
+
+    translation_char = english_translation[translation_index]
+    if source_index is None or source_text[source_index].islower():
+        if translation_char.islower():
+            return (
+                english_translation[:translation_index]
+                + translation_char.upper()
+                + english_translation[translation_index + 1:]
+            )
+        return english_translation
+
+    if source_text[source_index].isupper() and translation_char.islower():
+        return (
+            english_translation[:translation_index]
+            + translation_char.upper()
+            + english_translation[translation_index + 1:]
+        )
+    return english_translation
+
+
 @dataclass(frozen=True, slots=True)
 class TranslationLookupResult:
     translation: str | None
@@ -120,7 +162,8 @@ class TranslationCollaborator:
 
     def generate_phrase_translation(self, source_text: str) -> GeneratePhraseTranslationResponse:
         normalized_source_text = normalize_token(source_text)
-        if not normalized_source_text:
+        display_source_text = _normalize_sentence_text(source_text)
+        if not normalized_source_text or not display_source_text:
             raise ValueError("source_text is required")
 
         with get_connection(self._db_path) as conn:
@@ -135,14 +178,20 @@ class TranslationCollaborator:
             ).fetchone()
 
             if existing is not None:
-                cached_translation = existing["english_translation"]
+                cached_translation = _align_sentence_translation_capitalization(
+                    display_source_text,
+                    _normalize_sentence_translation_value(existing["english_translation"]),
+                )
                 return GeneratePhraseTranslationResponse(
                     status="cached" if cached_translation else "unavailable",
-                    source_text=normalized_source_text,
+                    source_text=display_source_text,
                     english_translation=cached_translation,
                 )
 
-            english_translation = self.lookup_translation(normalized_source_text)
+            english_translation = _align_sentence_translation_capitalization(
+                display_source_text,
+                self._lookup_phrase_translation(display_source_text),
+            )
             provider = provider_name(self._translation_service)
             conn.execute(
                 """
@@ -162,7 +211,7 @@ class TranslationCollaborator:
 
         return GeneratePhraseTranslationResponse(
             status="generated" if english_translation else "unavailable",
-            source_text=normalized_source_text,
+            source_text=display_source_text,
             english_translation=english_translation,
         )
 
@@ -199,6 +248,47 @@ class TranslationCollaborator:
 
     def lookup_translation(self, source_word: str) -> str | None:
         return self.lookup_translation_result(source_word).value
+
+    def _lookup_phrase_translation(self, source_text: str) -> str | None:
+        if self._translation_service is None:
+            return None
+        try:
+            translated = self._translation_service.translate_da_to_en(source_text)
+            if translated is None:
+                normalized_source_text = normalize_token(source_text)
+                if normalized_source_text and normalized_source_text != source_text:
+                    translated = self._translation_service.translate_da_to_en(normalized_source_text)
+            return _normalize_sentence_translation_value(translated)
+        except (TranslationError, httpx.TimeoutException, TimeoutError) as exc:
+            log_provider_failure(
+                logger=logger,
+                provider=provider_name(self._translation_service),
+                operation="translate_da_to_en",
+                reason=ProviderFailureReason.TIMEOUT,
+                retryable=True,
+                exc=exc,
+            )
+            return None
+        except (httpx.HTTPStatusError, PermissionError) as exc:
+            log_provider_failure(
+                logger=logger,
+                provider=provider_name(self._translation_service),
+                operation="translate_da_to_en",
+                reason=ProviderFailureReason.HTTP,
+                retryable=False,
+                exc=exc,
+            )
+            return None
+        except Exception as exc:
+            log_provider_failure(
+                logger=logger,
+                provider=provider_name(self._translation_service),
+                operation="translate_da_to_en",
+                reason=ProviderFailureReason.UNKNOWN,
+                retryable=False,
+                exc=exc,
+            )
+            return None
 
     def lookup_translation_result(self, source_word: str) -> ProviderCallResult:
         if self._translation_service is None:

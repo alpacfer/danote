@@ -324,11 +324,11 @@ def test_wordbank_phrase_translation_does_not_use_gemini_when_azure_echoes_input
     generated = use_case.generate_phrase_translation("Mere")
 
     assert generated.status == "generated"
-    assert generated.english_translation == "mere"
+    assert generated.english_translation == "Mere"
     assert gemini_translation.calls == []
 
 def test_wordbank_phrase_translation_caches_by_normalized_phrase(tmp_path: Path) -> None:
-    translation_service = FakeTranslationService({"jeg kan godt lide det": "i like it"})
+    translation_service = FakeTranslationService({"Jeg kan godt lide det": "i like it"})
     use_case = WordbankUseCase(
         _db_path(tmp_path),
         translation_service=translation_service,
@@ -338,12 +338,12 @@ def test_wordbank_phrase_translation_caches_by_normalized_phrase(tmp_path: Path)
     cached = use_case.generate_phrase_translation("  jeg   kan godt   lide det ")
 
     assert generated.status == "generated"
-    assert generated.source_text == "jeg kan godt lide det"
-    assert generated.english_translation == "i like it"
+    assert generated.source_text == "Jeg kan godt lide det"
+    assert generated.english_translation == "I like it"
     assert cached.status == "cached"
     assert cached.source_text == "jeg kan godt lide det"
-    assert cached.english_translation == "i like it"
-    assert translation_service.calls == ["jeg kan godt lide det"]
+    assert cached.english_translation == "I like it"
+    assert translation_service.calls == ["Jeg kan godt lide det"]
 
 def test_wordbank_generate_reverse_translation_uses_en_to_da_provider(tmp_path: Path) -> None:
     use_case = WordbankUseCase(

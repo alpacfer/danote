@@ -49,6 +49,37 @@ export function normalizeSearchWord(value: string): string {
   return normalizePhraseKey(value)
 }
 
+export function normalizeSentenceText(value: string): string {
+  return value.replace(/\s+/gu, " ").trim()
+}
+
+export function formatSentenceTranslation(value: string | null | undefined): string | null {
+  if (typeof value !== "string") {
+    return null
+  }
+
+  const cleaned = normalizeSentenceText(value)
+  if (!cleaned) {
+    return null
+  }
+
+  const alphaIndex = Array.from(cleaned).findIndex((character) => /\p{L}/u.test(character))
+  if (alphaIndex < 0) {
+    return cleaned
+  }
+
+  const character = cleaned[alphaIndex]
+  if (character === character.toLocaleUpperCase("en-US")) {
+    return cleaned
+  }
+
+  return (
+    cleaned.slice(0, alphaIndex)
+    + character.toLocaleUpperCase("en-US")
+    + cleaned.slice(alphaIndex + 1)
+  )
+}
+
 export function isShortLetterWord(value: string): boolean {
   const cleaned = value.trim()
   if (!cleaned) {
