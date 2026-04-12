@@ -184,6 +184,12 @@ describe("App shell and search", () => {
         source_text: "jeg elsker dansk",
         english_translation: "i love danish",
       },
+      verifySentenceResponse: {
+        is_valid: true,
+        errors: [],
+        corrected_text: null,
+        language: "da",
+      },
       addSentenceResponse: {
         status: "inserted",
         id: 99,
@@ -230,7 +236,11 @@ describe("App shell and search", () => {
     expect(within(commandDialog).queryByText(/^Notes$/i)).not.toBeInTheDocument()
     expect(within(commandDialog).queryByText(/^Pages$/i)).not.toBeInTheDocument()
 
-    fireEvent.click(await within(commandDialog).findByText(/^jeg elsker dansk$/i))
+    const sentenceOption = await within(commandDialog).findByRole("option")
+    await waitFor(() => {
+      expect(sentenceOption).not.toHaveAttribute("aria-disabled", "true")
+    })
+    fireEvent.click(sentenceOption)
 
     await waitFor(() => {
       expect(

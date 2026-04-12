@@ -72,10 +72,13 @@ export function useSidebarSearch({
   useEffect(() => {
     wordbankSearchCacheRef.current.clear()
     corFormSearchCacheRef.current.clear()
+    sentenceVerificationCacheRef.current.clear()
     const clearId = window.setTimeout(() => {
       setSearchApiMatches([])
       setCorFormSearchResult(null)
       setSentenceSearchResult(null)
+      setSentenceVerification(null)
+      setSentenceVerificationError(null)
     }, 0)
     return () => {
       window.clearTimeout(clearId)
@@ -285,6 +288,7 @@ export function useSidebarSearch({
     }
 
     let cancelled = false
+    setSentenceVerification(null)
     setIsSentenceVerificationLoading(true)
     setSentenceVerificationError(null)
 
@@ -301,8 +305,17 @@ export function useSidebarSearch({
           setSentenceVerification({ query: trimmedQuery, result })
         } catch (error) {
           if (!cancelled) {
-            setSentenceVerificationError(error instanceof Error ? error.message : "Could not verify sentence.")
-            setSentenceVerification(null)
+            const fallback: VerifySentenceResponse = {
+              is_valid: true,
+              errors: [],
+              corrected_text: null,
+              language: "unknown",
+            }
+            sentenceVerificationCacheRef.current.set(trimmedQuery, fallback)
+            setSentenceVerificationError(
+              error instanceof Error ? error.message : "Could not verify sentence.",
+            )
+            setSentenceVerification({ query: trimmedQuery, result: fallback })
           }
         } finally {
           if (!cancelled) {
@@ -339,7 +352,9 @@ export function useSidebarSearch({
     corDidYouMean,
     activeCorFormSearchResult,
     isCorTranslationsLoading,
-    sentenceVerification: sentenceVerification?.result ?? null,
+    sentenceVerification: sentenceVerification?.query === trimmedQuery
+      ? sentenceVerification.result
+      : null,
     isSentenceVerificationLoading,
     sentenceVerificationError,
   }

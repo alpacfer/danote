@@ -19,7 +19,13 @@ def initialize_sentence_verification(
     _close_service(get_runtime_state(app).services.sentence_verification_service)
     set_service_field(app, "sentence_verification_service", None)
 
-    gemini_key = settings.gemini_api_key
+    using_word_verification_settings = bool(settings.word_verification_gemini_api_key)
+    gemini_key = settings.word_verification_gemini_api_key or settings.gemini_api_key
+    model = (
+        settings.word_verification_gemini_model
+        if using_word_verification_settings
+        else settings.gemini_model
+    )
     if gemini_key:
         try:
             set_service_field(
@@ -27,7 +33,7 @@ def initialize_sentence_verification(
                 "sentence_verification_service",
                 GeminiSentenceVerificationService(
                     api_key=gemini_key,
-                    model=settings.gemini_model,
+                    model=model,
                 ),
             )
             logger.info("backend_sentence_verification_startup_ok")

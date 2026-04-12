@@ -7,18 +7,24 @@ import { type SentenceVerificationErrorItem, type VerifySentenceResponse } from 
 type TextSegment = { text: string; isError: boolean }
 
 function buildSegments(text: string, errors: SentenceVerificationErrorItem[]): TextSegment[] {
-  if (!errors.length) return [{ text, isError: false }]
+  if (!errors.length) {
+    return [{ text, isError: false }]
+  }
 
   const sorted = [...errors].sort((a, b) => a.start - b.start)
   const segments: TextSegment[] = []
   let cursor = 0
 
   for (const err of sorted) {
-    if (err.start > cursor) {
-      segments.push({ text: text.slice(cursor, err.start), isError: false })
+    const start = Math.max(cursor, Math.min(err.start, text.length))
+    const end = Math.max(start, Math.min(err.end, text.length))
+    if (start > cursor) {
+      segments.push({ text: text.slice(cursor, start), isError: false })
     }
-    segments.push({ text: text.slice(err.start, err.end), isError: true })
-    cursor = err.end
+    if (end > start) {
+      segments.push({ text: text.slice(start, end), isError: true })
+    }
+    cursor = end
   }
 
   if (cursor < text.length) {
@@ -74,7 +80,10 @@ export function SidebarSentenceResult({
             {segments
               ? segments.map((seg, i) =>
                   seg.isError ? (
-                    <span key={i} className="underline decoration-red-500 decoration-wavy">
+                    <span
+                      key={i}
+                      className="underline decoration-red-500 decoration-wavy"
+                    >
                       {seg.text}
                     </span>
                   ) : (
@@ -91,10 +100,13 @@ export function SidebarSentenceResult({
             </span>
           )}
           {hasErrors && sentenceVerification.corrected_text ? (
-            <p className="text-xs text-muted-foreground mt-1">
-              <span className="font-medium">Corrected: </span>
-              {sentenceVerification.corrected_text}
-            </p>
+            <div className="mt-0.5 space-y-0.5">
+              <span className="text-muted-foreground text-xs">Corrected:</span>
+              <p className="text-sm font-medium break-words">{sentenceVerification.corrected_text}</p>
+            </div>
+          ) : null}
+          {isSentenceVerificationLoading ? (
+            <Skeleton className="h-3 w-24" data-testid="sentence-verification-skeleton" />
           ) : null}
         </div>
         {isSentenceVerificationLoading ? (

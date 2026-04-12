@@ -600,6 +600,13 @@ export function mockFetchImplementation(options?: {
     }>
     message: string
   }
+  verifySentenceResponse?: {
+    is_valid: boolean
+    errors: Array<{ start: number; end: number; message: string }>
+    corrected_text: string | null
+    language: "da" | "en" | "unknown"
+  }
+  verifySentenceOk?: boolean
 }) {
   const healthOk = options?.healthOk ?? true
   const healthStatus = options?.healthStatus ?? "ok"
@@ -854,6 +861,12 @@ export function mockFetchImplementation(options?: {
     source_text: "Jeg elsker dansk",
     english_translation: "I love Danish",
     message: "Added sentence.",
+  }
+  const verifySentenceResponse = options?.verifySentenceResponse ?? {
+    is_valid: true,
+    errors: [],
+    corrected_text: null,
+    language: "unknown" as const,
   }
 
   return vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
@@ -1248,6 +1261,13 @@ export function mockFetchImplementation(options?: {
         return options.speechProbeHandler(input, init)
       }
       return responseOf(speechProbeResponse)
+    }
+
+    if (url.endsWith("/api/sentencebank/verify-sentence")) {
+      if (options?.verifySentenceOk === false) {
+        throw new Error("verify sentence request failed")
+      }
+      return responseOf(verifySentenceResponse)
     }
 
     if (url.endsWith("/api/sentencebank/sentences") && init?.method === "POST") {
