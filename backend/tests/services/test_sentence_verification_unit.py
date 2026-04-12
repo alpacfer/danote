@@ -71,3 +71,11 @@ def test_parse_result_ignores_sentence_initial_capitalization_only_error() -> No
     assert result.is_valid is True
     assert result.errors == []
     assert result.corrected_text is None
+
+
+def test_parse_result_ignores_mid_sentence_capitalization_only_error() -> None:
+    raw = '{"is_valid": false, "errors": [{"start": 7, "end": 10, "message": "capitalization"}], "corrected_text": "jeg er Glad", "language": "da"}'
+    result = _parse_result(raw, "jeg er glad")
+    assert result.is_valid is True
+    assert result.errors == []
+    assert result.corrected_text is None

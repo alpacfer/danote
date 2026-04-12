@@ -38,6 +38,38 @@ def _normalize_sentence_text(source_text: str) -> str:
     return " ".join(source_text.strip().split())
 
 
+def _starts_with_uppercase_letter(text: str) -> bool:
+    for char in text:
+        if char.isalpha():
+            return char.isupper()
+    return False
+
+
+def _has_internal_uppercase_letter(text: str) -> bool:
+    seen_alpha = False
+    for char in text:
+        if not char.isalpha():
+            continue
+        if seen_alpha and char.isupper():
+            return True
+        seen_alpha = True
+    return False
+
+
+def _should_skip_sentence_wordbank_token(
+    *,
+    surface_form: str,
+    lemma_candidate: str,
+    pos_tag: str | None,
+    token_index: int,
+) -> bool:
+    if (pos_tag or "").strip().upper() == "PROPN":
+        return True
+    if token_index > 0 and _starts_with_uppercase_letter(surface_form):
+        return True
+    return _has_internal_uppercase_letter(surface_form) or _has_internal_uppercase_letter(lemma_candidate)
+
+
 @dataclass(frozen=True, slots=True)
 class _SentenceMeaningCandidate:
     id: int
@@ -175,10 +207,18 @@ class SentencebankUseCase:
                 continue
             if not is_wordlike_token(surface_form):
                 continue
+            raw_lemma_candidate = (nlp_token.lemma or "").strip()
+            if _should_skip_sentence_wordbank_token(
+                surface_form=surface_form,
+                lemma_candidate=raw_lemma_candidate or surface_form,
+                pos_tag=nlp_token.pos,
+                token_index=len(resolved),
+            ):
+                continue
             normalized_surface = normalize_token(surface_form)
             if not normalized_surface:
                 continue
-            lemma_candidate = normalize_token(nlp_token.lemma or "") or normalized_surface
+            lemma_candidate = normalize_token(raw_lemma_candidate) or normalized_surface
             token, is_new = self._resolve_sentence_token(
                 runtime,
                 token_index=len(resolved),

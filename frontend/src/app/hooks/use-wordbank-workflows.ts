@@ -37,12 +37,14 @@ type UseWordbankWorkflowsParams = {
   setShowLemmaDetailsLoadingSkeleton: Dispatch<SetStateAction<boolean>>
   trackQueuedPronunciationForms: (lemma: string, forms: string[]) => void
   sentences: SentencebankSentence[]
+  setSentences: Dispatch<SetStateAction<SentencebankSentence[]>>
   setAnalysisRefreshTick: Dispatch<SetStateAction<number>>
   setWordbankRefreshTick: Dispatch<SetStateAction<number>>
   setSentencebankRefreshTick: Dispatch<SetStateAction<number>>
   setActiveSection: (value: AppSection) => void
   setSelectedLemma: (value: string | null) => void
   setSelectedMeaningId: (value: number | null) => void
+  openSentence: (id: number) => void
   openWordbankTarget: (lemma: string, meaningId: number | null) => void
   postTokenFeedback: (payload: TokenFeedbackPayload) => Promise<void>
   onSentenceSaved?: () => void
@@ -75,12 +77,14 @@ export function useWordbankWorkflows({
   setShowLemmaDetailsLoadingSkeleton,
   trackQueuedPronunciationForms,
   sentences,
+  setSentences,
   setAnalysisRefreshTick,
   setWordbankRefreshTick,
   setSentencebankRefreshTick,
   setActiveSection,
   setSelectedLemma,
   setSelectedMeaningId,
+  openSentence,
   openWordbankTarget,
   postTokenFeedback,
   onSentenceSaved,
@@ -174,6 +178,28 @@ export function useWordbankWorkflows({
     trackQueuedPronunciationForms,
     trackQueuedVerificationTargets,
   })
+
+  function upsertSentence(payload: AddSentenceResponse) {
+    if (payload.id == null) {
+      return
+    }
+    const nextSentence: SentencebankSentence = {
+      id: payload.id,
+      source_text: payload.source_text,
+      english_translation: payload.english_translation,
+      created_at: payload.created_at ?? new Date().toISOString(),
+      tokens: payload.tokens ?? [],
+    }
+    setSentences((current) => {
+      const existingIndex = current.findIndex((sentence) => sentence.id === nextSentence.id)
+      if (existingIndex === -1) {
+        return [nextSentence, ...current]
+      }
+      const next = [...current]
+      next[existingIndex] = nextSentence
+      return next
+    })
+  }
 
   async function addWordToWordbank(
     surfaceToken: string,
@@ -306,9 +332,13 @@ export function useWordbankWorkflows({
         "Could not save sentence.",
       )
       toast.success(payload.message)
+      upsertSentence(payload)
       setSentencebankRefreshTick((current) => current + 1)
       if (payload.status === "inserted") {
         setWordbankRefreshTick((current) => current + 1)
+      }
+      if (payload.id != null) {
+        openSentence(payload.id)
       }
       onSentenceSaved?.()
     } catch (error) {

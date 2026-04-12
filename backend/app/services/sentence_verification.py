@@ -72,20 +72,7 @@ def _preserve_leading_letter_case(source_text: str, corrected_text: str | None) 
     return corrected_text
 
 
-def _leading_alpha_index(text: str) -> int | None:
-    return next((idx for idx, char in enumerate(text) if char.isalpha()), None)
-
-
-def _leading_token_end(text: str, start_index: int | None) -> int | None:
-    if start_index is None:
-        return None
-    index = start_index
-    while index < len(text) and not text[index].isspace():
-        index += 1
-    return index
-
-
-def _is_ignorable_leading_capitalization_error(
+def _is_ignorable_case_only_error(
     error: SentenceVerificationErrorSpan,
     source_text: str,
     corrected_text: str | None,
@@ -93,16 +80,9 @@ def _is_ignorable_leading_capitalization_error(
     if not corrected_text:
         return False
 
-    leading_start = _leading_alpha_index(source_text)
-    leading_end = _leading_token_end(source_text, leading_start)
-    if leading_start is None or leading_end is None:
-        return False
-
     start = max(error.start, 0)
     end = min(error.end, len(source_text), len(corrected_text))
     if start >= end:
-        return False
-    if start < leading_start or end > leading_end:
         return False
 
     source_slice = source_text[start:end]
@@ -142,12 +122,18 @@ def _parse_result(raw: str | None, source_text: str) -> SentenceVerificationResu
         ))
     filtered_errors = [
         error for error in errors
-        if not _is_ignorable_leading_capitalization_error(error, source_text, raw_corrected_text)
+        if not _is_ignorable_case_only_error(error, source_text, raw_corrected_text)
     ]
     normalized_is_valid = is_valid if filtered_errors else True
     normalized_corrected_text = (
         None
-        if corrected_text == source_text and not filtered_errors
+        if (
+            corrected_text is None
+            or (
+                not filtered_errors
+                and corrected_text.casefold() == source_text.casefold()
+            )
+        )
         else corrected_text
     )
     return SentenceVerificationResult(

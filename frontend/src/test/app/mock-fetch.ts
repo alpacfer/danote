@@ -579,6 +579,7 @@ export function mockFetchImplementation(options?: {
       }>
     }>
   }
+  sentencebankHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
   addSentenceOk?: boolean
   addSentenceResponse?: {
     status: "inserted" | "exists"
@@ -1282,6 +1283,9 @@ export function mockFetchImplementation(options?: {
     }
 
     if (url.endsWith("/api/sentencebank/sentences")) {
+      if (options?.sentencebankHandler) {
+        return options.sentencebankHandler(input, init)
+      }
       if (!sentencebankOk) {
         throw new Error("sentencebank request failed")
       }

@@ -24,12 +24,14 @@ export function useWordbankComposition({ foundation, onSentenceSaved }: UseWordb
     setIsLemmaDetailsLoading: lexiconData.setIsLemmaDetailsLoading,
     setShowLemmaDetailsLoadingSkeleton: lexiconData.setShowLemmaDetailsLoadingSkeleton,
     sentences: lexiconData.sentences,
+    setSentences: lexiconData.setSentences,
     setAnalysisRefreshTick: analysis.setAnalysisRefreshTick,
     setWordbankRefreshTick: foundation.setWordbankRefreshTick,
     setSentencebankRefreshTick: foundation.setSentencebankRefreshTick,
     setActiveSection: navigation.setActiveSection,
     setSelectedLemma: navigation.setSelectedLemma,
     setSelectedMeaningId: navigation.setSelectedMeaningId,
+    openSentence: navigation.openSentence,
     openWordbankTarget: (lemma, meaningId) => {
       navigation.setActiveSection("wordbank")
       navigation.setSelectedLemma(lemma)

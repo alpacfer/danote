@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import pytest
 
 from app.nlp.adapter import NLPToken
 from app.services.use_cases.sentencebank import SentencebankUseCase
@@ -265,6 +266,66 @@ def test_sentencebank_homograph_token_without_confident_selection_saves_root_lev
     assert inserted.tokens[0].stored_lemma == "mor"
     assert details.linked_sentences
     assert details.linked_sentences[0].matched_token_indexes == [0]
+
+
+def test_sentencebank_save_skips_proper_nouns_and_later_capitalized_tokens(tmp_path: Path) -> None:
+    db_path = _db_path(tmp_path)
+    nlp_adapter = MappingNLPAdapter(
+        {
+            "Jeg møder Anders i Aarhus": [
+                NLPToken(text="Jeg", lemma="jeg", pos="PRON", morphology="PronType=Prs", is_punctuation=False),
+                NLPToken(text="møder", lemma="møde", pos="VERB", morphology="Tense=Pres|VerbForm=Fin", is_punctuation=False),
+                NLPToken(text="Anders", lemma="anders", pos="PROPN", morphology=None, is_punctuation=False),
+                NLPToken(text="i", lemma="i", pos="ADP", morphology=None, is_punctuation=False),
+                NLPToken(text="Aarhus", lemma="aarhus", pos="PROPN", morphology=None, is_punctuation=False),
+            ],
+        }
+    )
+    translation_service = FakeTranslationService({"jeg": "i", "møde": "meet", "i": "in"})
+    wordbank_use_case = WordbankUseCase(
+        db_path,
+        translation_service=translation_service,
+        nlp_adapter=nlp_adapter,
+    )
+    sentencebank_use_case = SentencebankUseCase(
+        db_path,
+        nlp_adapter=nlp_adapter,
+        wordbank_use_case=wordbank_use_case,
+    )
+
+    inserted = sentencebank_use_case.add_sentence("Jeg møder Anders i Aarhus")
+    saved_lemmas = {item.lemma for item in wordbank_use_case.list_lemmas().items}
+
+    assert [token.surface_form for token in inserted.tokens] == ["Jeg", "møder", "i"]
+    assert [token.stored_lemma for token in inserted.tokens] == ["jeg", "møde", "i"]
+    assert "anders" not in saved_lemmas
+    assert "aarhus" not in saved_lemmas
+
+
+def test_sentencebank_save_skips_capitalized_name_after_punctuation(tmp_path: Path) -> None:
+    db_path = _db_path(tmp_path)
+    nlp_adapter = MappingNLPAdapter(
+        {
+            "I elsker dig, Cornelius": [
+                NLPToken(text="I", lemma="i", pos="PRON", morphology=None, is_punctuation=False),
+                NLPToken(text="elsker", lemma="elske", pos="VERB", morphology="Tense=Pres|VerbForm=Fin", is_punctuation=False),
+                NLPToken(text="dig", lemma="du", pos="PRON", morphology=None, is_punctuation=False),
+                NLPToken(text=",", lemma=None, pos=None, morphology=None, is_punctuation=True),
+                NLPToken(text="Cornelius", lemma="cornelius", pos="NOUN", morphology=None, is_punctuation=False),
+            ],
+        }
+    )
+    wordbank_use_case = WordbankUseCase(db_path, nlp_adapter=nlp_adapter)
+    sentencebank_use_case = SentencebankUseCase(
+        db_path,
+        nlp_adapter=nlp_adapter,
+        wordbank_use_case=wordbank_use_case,
+    )
+
+    inserted = sentencebank_use_case.add_sentence("I elsker dig, Cornelius")
+
+    assert [token.surface_form for token in inserted.tokens] == ["I", "elsker", "dig"]
+    assert wordbank_use_case.runtime.repository.get_lexeme("cornelius") is None
 
 
 class FakeVerificationService:

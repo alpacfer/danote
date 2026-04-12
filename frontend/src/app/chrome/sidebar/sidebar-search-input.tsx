@@ -18,6 +18,10 @@ function isWhitespace(char: string) {
   return /\s/u.test(char)
 }
 
+function isWordCharacter(char: string) {
+  return /[\p{L}\p{N}'’-]/u.test(char)
+}
+
 function buildNormalizedToRawIndexMap(rawText: string): number[] {
   const map: number[] = []
   let index = 0
@@ -58,9 +62,21 @@ function mapVerificationErrorsToRawInput(
     ) {
       return []
     }
+    let expandedStart = start
+    let expandedEnd = lastCharacterIndex + 1
+    if (isWordCharacter(rawText[start])) {
+      while (expandedStart > 0 && isWordCharacter(rawText[expandedStart - 1])) {
+        expandedStart -= 1
+      }
+    }
+    if (isWordCharacter(rawText[lastCharacterIndex])) {
+      while (expandedEnd < rawText.length && isWordCharacter(rawText[expandedEnd])) {
+        expandedEnd += 1
+      }
+    }
     return [{
-      start,
-      end: lastCharacterIndex + 1,
+      start: expandedStart,
+      end: expandedEnd,
       message: error.message,
     }]
   })

@@ -32,6 +32,30 @@ describe("Sentence verification in search", () => {
   it("enables save after successful verification and shows the sentence above the translation", async () => {
     mockFetchImplementation({
       lemmasResponse: { items: [] },
+      sentencebankResponse: {
+        items: [
+          {
+            id: 90,
+            source_text: "jeg er glad",
+            english_translation: "i am happy",
+            created_at: "2026-04-12T10:00:00.000Z",
+            tokens: [
+              {
+                token_index: 0,
+                surface_form: "jeg",
+                stored_lemma: "jeg",
+                lexeme_id: 1,
+                meaning_id: null,
+                pos_tag: "PRON",
+                morphology: "PronType=Prs",
+                gloss: null,
+                english_translation: "i",
+                gloss_translation: null,
+              },
+            ],
+          },
+        ],
+      },
       verifySentenceResponse: {
         is_valid: true,
         errors: [],
@@ -133,6 +157,32 @@ describe("Sentence verification in search", () => {
     expect(await within(option).findByText("i am happy")).toBeInTheDocument()
     expect(within(option).queryByText(/^jeg er glat$/i)).not.toBeInTheDocument()
     expect(within(option).queryByText("Corrected:")).not.toBeInTheDocument()
+  })
+
+  it("expands typo underline spans to the full word in the input", async () => {
+    mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      verifySentenceResponse: {
+        is_valid: false,
+        errors: [{ start: 8, end: 10, message: "partial typo span" }],
+        corrected_text: "jeg er glad",
+        language: "da",
+      },
+      phraseTranslationResponse: {
+        status: "generated",
+        source_text: "jeg er glad",
+        english_translation: "i am happy",
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    const dialog = await openSearch()
+    typeInSearch(dialog, "jeg er glat")
+
+    const overlay = await within(dialog).findByTestId("sentence-search-input-overlay")
+    expect(within(overlay).getByText("glat")).toHaveClass("underline")
   })
 
   it("does not show an underline when capitalization-only findings have already been filtered out", async () => {
@@ -308,9 +358,34 @@ describe("Sentence verification in search", () => {
   it("closes search immediately while sentence save continues in the background", async () => {
     let resolveAddSentence: ((response: Response) => void) | null = null
     const addSentenceStarted = vi.fn()
+    let hasSavedSentence = false
 
     mockFetchImplementation({
       lemmasResponse: { items: [] },
+      sentencebankHandler: async () => responseOf({
+        items: hasSavedSentence ? [
+          {
+            id: 90,
+            source_text: "jeg er glad",
+            english_translation: "i am happy",
+            created_at: "2026-04-12T10:00:00.000Z",
+            tokens: [
+              {
+                token_index: 0,
+                surface_form: "jeg",
+                stored_lemma: "jeg",
+                lexeme_id: 1,
+                meaning_id: null,
+                pos_tag: "PRON",
+                morphology: "PronType=Prs",
+                gloss: null,
+                english_translation: "i",
+                gloss_translation: null,
+              },
+            ],
+          },
+        ] : [],
+      }),
       verifySentenceResponse: {
         is_valid: true,
         errors: [],
@@ -349,6 +424,7 @@ describe("Sentence verification in search", () => {
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
     })
     expect(addSentenceStarted).toHaveBeenCalledTimes(1)
+    hasSavedSentence = true
 
     resolveAddSentence?.(responseOf({
       status: "inserted",
@@ -356,7 +432,23 @@ describe("Sentence verification in search", () => {
       source_text: "jeg er glad",
       english_translation: "i am happy",
       created_at: "2026-04-12T10:00:00.000Z",
+      tokens: [
+        {
+          token_index: 0,
+          surface_form: "jeg",
+          stored_lemma: "jeg",
+          lexeme_id: 1,
+          meaning_id: null,
+          pos_tag: "PRON",
+          morphology: "PronType=Prs",
+          gloss: null,
+          english_translation: "i",
+          gloss_translation: null,
+        },
+      ],
       message: 'Added "jeg er glad" to sentencebank.',
     }))
+
+    expect(await screen.findByText(/^jeg er glad$/i)).toBeInTheDocument()
   })
 })

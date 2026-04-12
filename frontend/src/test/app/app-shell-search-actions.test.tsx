@@ -176,9 +176,33 @@ describe("App shell and search", () => {
   })
 
   it("request-shape: multi-word search switches to sentence mode, hides other groups, and saving refreshes both sentencebank and wordbank", async () => {
+    let hasSavedSentence = false
     const fetchSpy = mockFetchImplementation({
       lemmasResponse: { items: [] },
-      sentencebankResponse: { items: [] },
+      sentencebankHandler: async () => responseOf({
+        items: hasSavedSentence ? [
+          {
+            id: 99,
+            source_text: "jeg elsker dansk",
+            english_translation: "i love danish",
+            created_at: "2026-04-11T10:00:00.000Z",
+            tokens: [
+              {
+                token_index: 0,
+                surface_form: "jeg",
+                stored_lemma: "jeg",
+                lexeme_id: 1,
+                meaning_id: null,
+                pos_tag: "PRON",
+                morphology: "PronType=Prs",
+                gloss: null,
+                english_translation: "i",
+                gloss_translation: null,
+              },
+            ],
+          },
+        ] : [],
+      }),
       phraseTranslationResponse: {
         status: "generated",
         source_text: "jeg elsker dansk",
@@ -213,6 +237,7 @@ describe("App shell and search", () => {
         message: 'Added "jeg elsker dansk" to sentencebank.',
       },
     })
+    hasSavedSentence = false
 
     renderApp()
     await screen.findByLabelText("backend-connection-status")
@@ -241,6 +266,7 @@ describe("App shell and search", () => {
     })
     const sentenceOption = within(commandDialog).getByRole("option")
     fireEvent.click(sentenceOption)
+    hasSavedSentence = true
 
     await waitFor(() => {
       expect(
@@ -258,6 +284,8 @@ describe("App shell and search", () => {
         ([input, init]) => String(input).endsWith("/api/wordbank/lemmas") && !init?.method,
       ).length).toBeGreaterThan(initialWordbankGetCount)
     })
+
+    expect(await screen.findByText(/^jeg elsker dansk$/i)).toBeInTheDocument()
 
     expect(
       fetchSpy.mock.calls.some(([input]) => String(input).endsWith("/api/wordbank/resolve-query")),
