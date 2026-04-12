@@ -4,6 +4,7 @@ import { toast } from "sonner"
 import {
   BACKEND_URL,
   SEARCH_RESOLVE_DEBOUNCE_MS,
+  SENTENCE_VERIFY_DEBOUNCE_MS,
   createApiClient,
   hasMultipleWords,
   isShortLetterWord,
@@ -13,6 +14,7 @@ import {
   type SavedNote,
   type WordbankSearchItem,
   type WordbankSearchResponse,
+  type VerifySentenceResponse,
 } from "@/app/core"
 import { extractErrorMessage } from "@/app/hooks/app/controller/runtime-utils"
 
@@ -41,6 +43,10 @@ export function useSidebarSearch({
     english_translation: string | null
   } | null>(null)
   const [isSentenceTranslationLoading, setIsSentenceTranslationLoading] = useState(false)
+  const [sentenceVerification, setSentenceVerification] = useState<{ query: string; result: VerifySentenceResponse } | null>(null)
+  const [isSentenceVerificationLoading, setIsSentenceVerificationLoading] = useState(false)
+  const [sentenceVerificationError, setSentenceVerificationError] = useState<string | null>(null)
+  const sentenceVerificationCacheRef = useRef<Map<string, VerifySentenceResponse>>(new Map())
   const apiClient = useMemo(
     () => createApiClient({ backendUrl: BACKEND_URL, extractErrorMessage }),
     [],
@@ -48,7 +54,7 @@ export function useSidebarSearch({
 
   const normalizedQuery = normalizeSearchWord(searchQuery)
   const trimmedQuery = normalizedQuery
-  const isSentenceMode = hasMultipleWords(trimmedQuery)
+  const isSentenceMode = hasMultipleWords(trimmedQuery) && trimmedQuery.length <= 50
 
   const matchingNotes = useMemo(() => {
     if (!normalizedQuery) {
@@ -262,6 +268,57 @@ export function useSidebarSearch({
     }
   }, [apiClient, isSentenceMode, normalizedQuery, trimmedQuery])
 
+  useEffect(() => {
+    if (!isSentenceMode || !trimmedQuery) {
+      setSentenceVerification(null)
+      setSentenceVerificationError(null)
+      setIsSentenceVerificationLoading(false)
+      return
+    }
+
+    const cached = sentenceVerificationCacheRef.current.get(trimmedQuery)
+    if (cached) {
+      setSentenceVerification({ query: trimmedQuery, result: cached })
+      setIsSentenceVerificationLoading(false)
+      setSentenceVerificationError(null)
+      return
+    }
+
+    let cancelled = false
+    setIsSentenceVerificationLoading(true)
+    setSentenceVerificationError(null)
+
+    const timeoutId = window.setTimeout(() => {
+      void (async () => {
+        try {
+          const result = await apiClient.postJson<VerifySentenceResponse>(
+            "/api/sentencebank/verify-sentence",
+            { source_text: trimmedQuery },
+            "Could not verify sentence.",
+          )
+          if (cancelled) return
+          sentenceVerificationCacheRef.current.set(trimmedQuery, result)
+          setSentenceVerification({ query: trimmedQuery, result })
+        } catch (error) {
+          if (!cancelled) {
+            setSentenceVerificationError(error instanceof Error ? error.message : "Could not verify sentence.")
+            setSentenceVerification(null)
+          }
+        } finally {
+          if (!cancelled) {
+            setIsSentenceVerificationLoading(false)
+          }
+        }
+      })()
+    }, SENTENCE_VERIFY_DEBOUNCE_MS)
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(timeoutId)
+      setIsSentenceVerificationLoading(false)
+    }
+  }, [apiClient, isSentenceMode, trimmedQuery])
+
   const activeCorFormSearchResult = useMemo(() => {
     if (!corFormSearchResult || corFormSearchResult.query !== normalizedQuery) {
       return null
@@ -282,5 +339,8 @@ export function useSidebarSearch({
     corDidYouMean,
     activeCorFormSearchResult,
     isCorTranslationsLoading,
+    sentenceVerification: sentenceVerification?.result ?? null,
+    isSentenceVerificationLoading,
+    sentenceVerificationError,
   }
 }
