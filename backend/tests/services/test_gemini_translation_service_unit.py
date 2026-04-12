@@ -272,6 +272,45 @@ def test_gemini_word_translation_service_returns_none_for_invalid_meaning_sectio
     assert selected is None
 
 
+def test_gemini_word_translation_service_selects_meaning_sections_in_batch(monkeypatch) -> None:
+    service = GeminiFlashLiteWordTranslationService(api_key="test-key")
+    fake_client = _FakeClient(
+        [
+            _FakeResponse(
+                None,
+                parsed={"items": [{"id": "0", "meaning_section_id": 2}, {"id": "1", "meaning_section_id": None}]},
+            )
+        ]
+    )
+    monkeypatch.setattr(service, "_ensure_client", lambda: fake_client)
+
+    selected = service.select_meaning_sections_batch(
+        [
+            MeaningSectionSelectionInput(
+                surface_form="bogens",
+                lemma="bog",
+                meaning_candidates=[
+                    MeaningSectionCandidateInput(id=1, lemma="bog", meaning_key="book", gloss="book"),
+                    MeaningSectionCandidateInput(id=2, lemma="bog", meaning_key="swamp", gloss="swamp"),
+                ],
+            ),
+            MeaningSectionSelectionInput(
+                surface_form="mor",
+                lemma="mor",
+                meaning_candidates=[
+                    MeaningSectionCandidateInput(id=3, lemma="mor", meaning_key="mother", gloss="person"),
+                    MeaningSectionCandidateInput(id=4, lemma="mor", meaning_key="soil", gloss="soil"),
+                ],
+            ),
+        ]
+    )
+
+    assert selected == [2, None]
+    prompt = str(fake_client.models.calls[0]["contents"])
+    assert "candidate_meaning_sections" in prompt
+    assert '"id": "0"' in prompt
+
+
 def test_gemini_word_translation_service_uses_nullable_batch_schema() -> None:
     service = GeminiFlashLiteWordTranslationService(api_key="test-key")
 

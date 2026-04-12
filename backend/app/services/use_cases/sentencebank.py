@@ -101,6 +101,19 @@ class _SentenceMeaningCandidate:
 class _SentenceCandidateResolution:
     candidate: _SentenceMeaningCandidate | None
     is_ambiguous: bool
+    candidates: tuple[_SentenceMeaningCandidate, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class _PendingSentenceTokenSelection:
+    token_index: int
+    display_surface: str
+    normalized_surface: str
+    lemma_candidate: str
+    pos_tag: str | None
+    morphology: str | None
+    sentence_context: str
+    candidates: tuple[_SentenceMeaningCandidate, ...]
 
 
 class SentencebankUseCase:
@@ -215,7 +228,9 @@ class SentencebankUseCase:
         if self._nlp_adapter is None or self._wordbank_use_case is None:
             return [], []
         runtime = self._wordbank_use_case.runtime
-        resolved: list[SentenceTokenWriteRecord] = []
+        pending_selection_results: dict[int, _SentenceMeaningCandidate | None] = {}
+        pending_selections: list[_PendingSentenceTokenSelection] = []
+        planned_tokens: list[tuple[SentenceTokenWriteRecord, bool] | _PendingSentenceTokenSelection] = []
         new_tokens: list[dict[str, object]] = []
         for nlp_token in self._nlp_adapter.tokenize(source_text):
             surface_form = nlp_token.text.strip()
@@ -228,7 +243,7 @@ class SentencebankUseCase:
                 surface_form=surface_form,
                 lemma_candidate=raw_lemma_candidate or surface_form,
                 pos_tag=nlp_token.pos,
-                token_index=len(resolved),
+                token_index=len(planned_tokens),
             ):
                 continue
             normalized_surface = normalize_token(surface_form)
@@ -237,7 +252,7 @@ class SentencebankUseCase:
             lemma_candidate = normalize_token(raw_lemma_candidate) or normalized_surface
             resolved_token = self._resolve_sentence_token(
                 runtime,
-                token_index=len(resolved),
+                token_index=len(planned_tokens),
                 display_surface=surface_form,
                 normalized_surface=normalized_surface,
                 lemma_candidate=lemma_candidate,
@@ -247,12 +262,41 @@ class SentencebankUseCase:
             )
             if resolved_token is None:
                 continue
-            token, is_new = resolved_token
+            if isinstance(resolved_token, _PendingSentenceTokenSelection):
+                pending_selections.append(resolved_token)
+                planned_tokens.append(resolved_token)
+                continue
+            planned_tokens.append(resolved_token)
+
+        if pending_selections:
+            selected_candidates = _batch_select_sentence_candidates(runtime, pending_selections)
+            for selection, selected_candidate in zip(pending_selections, selected_candidates, strict=False):
+                pending_selection_results[selection.token_index] = selected_candidate
+
+        resolved: list[SentenceTokenWriteRecord] = []
+        for planned_token in planned_tokens:
+            if isinstance(planned_token, _PendingSentenceTokenSelection):
+                selected_candidate = pending_selection_results.get(planned_token.token_index)
+                resolved_token = _finalize_pending_sentence_token(
+                    self._wordbank_use_case,
+                    runtime,
+                    selection=planned_token,
+                    selected_candidate=selected_candidate,
+                )
+                if resolved_token is None:
+                    continue
+                token, is_new = resolved_token
+            else:
+                token, is_new = planned_token
             resolved.append(token)
             if is_new:
                 new_tokens.append({
                     "stored_lemma": token.stored_lemma,
-                    "stored_surface_form": token.normalized_surface,
+                    "stored_surface_form": (
+                        token.normalized_surface
+                        if token.normalized_surface != token.stored_lemma
+                        else None
+                    ),
                     "meaning_id": token.meaning_id,
                 })
         return resolved, new_tokens
@@ -268,7 +312,7 @@ class SentencebankUseCase:
         pos_tag: str | None,
         morphology: str | None,
         sentence_context: str,
-    ) -> tuple[SentenceTokenWriteRecord, bool] | None:
+    ) -> tuple[SentenceTokenWriteRecord, bool] | _PendingSentenceTokenSelection | None:
         existing = _existing_saved_token(
             runtime,
             display_surface=display_surface,
@@ -290,7 +334,16 @@ class SentencebankUseCase:
         selected_candidate = candidate_resolution.candidate
         if selected_candidate is None:
             if candidate_resolution.is_ambiguous:
-                return None
+                return _PendingSentenceTokenSelection(
+                    token_index=token_index,
+                    display_surface=display_surface,
+                    normalized_surface=normalized_surface,
+                    lemma_candidate=lemma_candidate,
+                    pos_tag=pos_tag,
+                    morphology=morphology,
+                    sentence_context=sentence_context,
+                    candidates=candidate_resolution.candidates,
+                )
             return _save_root_level_sentence_token(
                 runtime,
                 token_index=token_index,
@@ -303,6 +356,7 @@ class SentencebankUseCase:
                 gloss=None,
                 english_translation=None,
                 gloss_translation=None,
+                queue_verification=False,
             ), True
 
         persisted_response = _persist_candidate_to_wordbank(
@@ -341,6 +395,7 @@ class SentencebankUseCase:
             gloss=selected_candidate.gloss,
             english_translation=selected_candidate.english_translation,
             gloss_translation=selected_candidate.gloss_translation,
+            queue_verification=False,
         ), True
 
 
@@ -356,6 +411,7 @@ def _persist_candidate_to_wordbank(
         return wordbank_use_case.add_word(
             normalized_surface,
             candidate.lemma,
+            queue_verification=False,
             search_seed={
                 "lemma": candidate.lemma,
                 "surface": normalized_surface,
@@ -479,6 +535,7 @@ def _save_root_level_sentence_token(
     gloss: str | None,
     english_translation: str | None,
     gloss_translation: str | None,
+    queue_verification: bool = True,
 ) -> SentenceTokenWriteRecord:
     lexeme_id, _inserted_lexeme = runtime.repository.insert_or_load_lexeme(
         stored_lemma=lemma,
@@ -503,11 +560,12 @@ def _save_root_level_sentence_token(
         )
     runtime.nlp.add_user_lexeme(lemma)
     runtime.nlp.invalidate_pos_cache(lemma, normalized_surface)
-    queue_verification_targets(
-        runtime,
-        stored_lemma=lemma,
-        targets=discover_word_page_verification_targets(runtime, stored_lemma=lemma),
-    )
+    if queue_verification:
+        queue_verification_targets(
+            runtime,
+            stored_lemma=lemma,
+            targets=discover_word_page_verification_targets(runtime, stored_lemma=lemma),
+        )
     queue_pronunciation_generation(
         runtime,
         stored_lemma=lemma,
@@ -537,19 +595,47 @@ def _batch_verify_new_sentence_tokens(
     sentence_context: str,
 ) -> None:
     """Batch-verify newly persisted sentence tokens via single Gemini call."""
+    verification_pairs = [
+        (meta, _build_verification_input(runtime, meta))
+        for meta in new_token_metadata
+    ]
+    fallback_metadata = [meta for meta, verification_input in verification_pairs if verification_input is None]
+    valid_pairs = [(meta, verification_input) for meta, verification_input in verification_pairs if verification_input is not None]
+    valid_inputs = [verification_input for _meta, verification_input in valid_pairs]
+    if fallback_metadata:
+        _queue_sentence_token_verification_fallback(runtime, fallback_metadata)
+    if not valid_inputs:
+        return
     try:
-        verification_inputs = [
-            _build_verification_input(runtime, meta)
-            for meta in new_token_metadata
-        ]
-        valid_inputs = [inp for inp in verification_inputs if inp is not None]
-        if not valid_inputs:
-            return
-        runtime.verification.verify_word_entries_batch(
+        results = runtime.verification.verify_word_entries_batch(
             valid_inputs, sentence_context=sentence_context,
         )
+        error_metadata = [
+            meta
+            for (meta, _verification_input), result in zip(valid_pairs, results, strict=False)
+            if result.status == "error"
+        ]
+        if error_metadata:
+            _queue_sentence_token_verification_fallback(runtime, error_metadata)
     except Exception:
-        pass  # fallback: individual queue already happened during token resolution
+        _queue_sentence_token_verification_fallback(runtime, new_token_metadata)
+
+
+def _queue_sentence_token_verification_fallback(
+    runtime: WordbankRuntime,
+    metadata_items: list[dict[str, object]],
+) -> None:
+    queued_lemmas: set[str] = set()
+    for meta in metadata_items:
+        stored_lemma = normalize_token(str(meta.get("stored_lemma", "")))
+        if not stored_lemma or stored_lemma in queued_lemmas:
+            continue
+        queued_lemmas.add(stored_lemma)
+        queue_verification_targets(
+            runtime,
+            stored_lemma=stored_lemma,
+            targets=discover_word_page_verification_targets(runtime, stored_lemma=stored_lemma),
+        )
 
 
 def _build_verification_input(
@@ -563,14 +649,92 @@ def _build_verification_input(
     meaning_id = meta.get("meaning_id")
     if not stored_lemma:
         return None
+    normalized_surface_form = str(stored_surface_form) if stored_surface_form else None
+    if normalized_surface_form == stored_lemma:
+        normalized_surface_form = None
     return build_verification_input(
         db_path=runtime.verification._db_path,
         nlp=runtime.nlp,
         cor=runtime.cor,
         stored_lemma=stored_lemma,
-        stored_surface_form=str(stored_surface_form) if stored_surface_form else None,
+        stored_surface_form=normalized_surface_form,
         meaning_id=int(meaning_id) if isinstance(meaning_id, int) and meaning_id else None,
     )
+
+
+def _batch_select_sentence_candidates(
+    runtime: WordbankRuntime,
+    pending_selections: list[_PendingSentenceTokenSelection],
+) -> list[_SentenceMeaningCandidate | None]:
+    selected_ids = runtime.translation.select_meaning_sections_batch(
+        [
+            {
+                "surface_form": selection.normalized_surface,
+                "lemma": selection.lemma_candidate,
+                "pos_tag": selection.pos_tag,
+                "morphology": selection.morphology,
+                "gloss": None,
+                "english_translation": None,
+                "sentence_context": selection.sentence_context,
+                "meaning_candidates": list(selection.candidates),
+            }
+            for selection in pending_selections
+        ]
+    )
+    resolved: list[_SentenceMeaningCandidate | None] = []
+    for selection, selected_id in zip(pending_selections, selected_ids, strict=False):
+        resolved.append(
+            next((candidate for candidate in selection.candidates if candidate.id == selected_id), None)
+        )
+    if len(resolved) < len(pending_selections):
+        resolved.extend([None] * (len(pending_selections) - len(resolved)))
+    return resolved
+
+
+def _finalize_pending_sentence_token(
+    wordbank_use_case: WordbankUseCase | None,
+    runtime: WordbankRuntime,
+    *,
+    selection: _PendingSentenceTokenSelection,
+    selected_candidate: _SentenceMeaningCandidate | None,
+) -> tuple[SentenceTokenWriteRecord, bool] | None:
+    if selected_candidate is None:
+        return None
+    persisted_response = _persist_candidate_to_wordbank(
+        wordbank_use_case,
+        normalized_surface=selection.normalized_surface,
+        candidate=selected_candidate,
+    )
+    if persisted_response is not None:
+        persisted = _sentence_token_from_saved_word(
+            runtime,
+            token_index=selection.token_index,
+            display_surface=selection.display_surface,
+            normalized_surface=selection.normalized_surface,
+            stored_lemma=selected_candidate.lemma,
+            meaning_id=(
+                persisted_response.meaning.id
+                if persisted_response.meaning is not None
+                else None
+            ),
+        )
+        if persisted is not None:
+            return persisted, True
+
+    return _save_root_level_sentence_token(
+        runtime,
+        token_index=selection.token_index,
+        display_surface=selection.display_surface,
+        normalized_surface=selection.normalized_surface,
+        lemma=selected_candidate.lemma,
+        pos_tag=selected_candidate.pos_tag or selection.pos_tag,
+        morphology=selected_candidate.morphology or selection.morphology,
+        cor_id=selected_candidate.cor_id,
+        gloss=selected_candidate.gloss,
+        english_translation=selected_candidate.english_translation,
+        gloss_translation=selected_candidate.gloss_translation,
+        queue_verification=False,
+    ), True
 
 
 def _select_sentence_candidate(
@@ -589,26 +753,13 @@ def _select_sentence_candidate(
         pos_tag=pos_tag,
     )
     if not entries:
-        return _SentenceCandidateResolution(candidate=None, is_ambiguous=False)
+        return _SentenceCandidateResolution(candidate=None, is_ambiguous=False, candidates=())
     candidates = _group_sentence_candidates(runtime, entries=entries)
     if not candidates:
-        return _SentenceCandidateResolution(candidate=None, is_ambiguous=False)
+        return _SentenceCandidateResolution(candidate=None, is_ambiguous=False, candidates=())
     if len(candidates) == 1:
-        return _SentenceCandidateResolution(candidate=candidates[0], is_ambiguous=False)
-    selected_id = runtime.translation.select_meaning_section(
-        surface_form=surface_form,
-        lemma=lemma_candidate,
-        pos_tag=pos_tag,
-        morphology=morphology,
-        gloss=None,
-        english_translation=None,
-        sentence_context=sentence_context,
-        meaning_candidates=candidates,
-    )
-    if selected_id is None:
-        return _SentenceCandidateResolution(candidate=None, is_ambiguous=True)
-    selected_candidate = next((candidate for candidate in candidates if candidate.id == selected_id), None)
-    return _SentenceCandidateResolution(candidate=selected_candidate, is_ambiguous=True)
+        return _SentenceCandidateResolution(candidate=candidates[0], is_ambiguous=False, candidates=tuple(candidates))
+    return _SentenceCandidateResolution(candidate=None, is_ambiguous=True, candidates=tuple(candidates))
 
 
 def _candidate_entries_for_sentence_token(

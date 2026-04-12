@@ -98,6 +98,7 @@ def add_word(
     pos_tag: str | None = None,
     morphology: str | None = None,
     search_seed: dict[str, object] | None = None,
+    queue_verification: bool = True,
 ) -> AddWordResponse:
     if search_seed is not None:
         return add_word_from_search_seed(
@@ -105,6 +106,7 @@ def add_word(
             surface_token=surface_token,
             lemma_candidate=lemma_candidate,
             search_seed=search_seed,
+            queue_verification=queue_verification,
         )
     ensure_wordbank_meaning_compatibility(runtime)
     inputs = _normalize_add_word_inputs(runtime, surface_token, lemma_candidate, cor_id, pos_tag, morphology)

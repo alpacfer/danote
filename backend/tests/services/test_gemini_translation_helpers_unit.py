@@ -1,7 +1,9 @@
 from app.services.gemini_translation import MeaningSectionCandidateInput, MeaningSectionSelectionInput
 from app.services.gemini_translation_helpers import (
+    build_batch_meaning_section_selection_prompt,
     build_meaning_section_selection_prompt,
     normalize_translation_value,
+    parse_batch_meaning_section_payload,
     parse_meaning_section_payload,
     parse_translation,
 )
@@ -20,6 +22,15 @@ def test_parse_meaning_section_payload_filters_invalid_ids() -> None:
     assert parse_meaning_section_payload({"meaning_section_id": 1}, valid_ids={1}) == 1
 
 
+def test_parse_batch_meaning_section_payload_filters_invalid_ids() -> None:
+    parsed = parse_batch_meaning_section_payload(
+        {"items": [{"id": "0", "meaning_section_id": 2}, {"id": "1", "meaning_section_id": None}]},
+        expected_ids=["0", "1"],
+        valid_ids_by_item={"0": {1}, "1": {3}},
+    )
+    assert parsed == {"0": None, "1": None}
+
+
 def test_meaning_selection_prompt_serializes_slot_dataclasses() -> None:
     prompt = build_meaning_section_selection_prompt(
         MeaningSectionSelectionInput(
@@ -35,3 +46,24 @@ def test_meaning_selection_prompt_serializes_slot_dataclasses() -> None:
     assert '"meaning_key": "book"' in prompt
     assert '"sentence_context_da": "Jeg læser bogen i sofaen"' in prompt
     assert '"sentence_context_target_marked_da": "Jeg læser [bogen] i sofaen"' in prompt
+
+
+def test_batch_meaning_selection_prompt_serializes_items() -> None:
+    prompt = build_batch_meaning_section_selection_prompt(
+        [
+            {
+                "id": "0",
+                "word_context": {
+                    "surface_form_da": "bogen",
+                    "lemma_da": "bog",
+                    "sentence_context_da": "Jeg læser bogen i sofaen",
+                },
+                "candidate_meaning_sections": [
+                    {"id": 10, "lemma": "bog", "meaning_key": "book"},
+                ],
+            }
+        ]
+    )
+    assert '"id": "0"' in prompt
+    assert '"surface_form_da": "bogen"' in prompt
+    assert '"id": 10' in prompt

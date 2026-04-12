@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import sqlite3
 import pytest
 
 from app.nlp.adapter import NLPToken
@@ -37,6 +38,7 @@ class SelectingGeminiService:
     def __init__(self, selected_id: int | None):
         self._selected_id = selected_id
         self.calls = []
+        self.batch_calls = []
 
     def translate_word(self, _payload) -> str | None:
         return None
@@ -44,6 +46,10 @@ class SelectingGeminiService:
     def select_meaning_section(self, payload) -> int | None:
         self.calls.append(payload)
         return self._selected_id
+
+    def select_meaning_sections_batch(self, payloads) -> list[int | None]:
+        self.batch_calls.append(payloads)
+        return [self._selected_id for _ in payloads]
 
 
 def test_sentencebank_use_case_add_and_list(tmp_path: Path) -> None:
@@ -206,8 +212,8 @@ def test_sentencebank_homograph_token_uses_gemini_sentence_selection(tmp_path: P
 
     inserted = sentencebank_use_case.add_sentence("Min mor kommer")
 
-    assert gemini_service.calls
-    assert gemini_service.calls[0].sentence_context == "Min mor kommer"
+    assert gemini_service.batch_calls
+    assert gemini_service.batch_calls[0][0].sentence_context == "Min mor kommer"
     assert inserted.tokens[0].meaning_id is not None
     assert inserted.tokens[0].gloss == "person"
 
@@ -262,6 +268,49 @@ def test_sentencebank_homograph_token_without_confident_selection_skips_ambiguou
     inserted = sentencebank_use_case.add_sentence("Min mor kommer")
 
     assert inserted.tokens == []
+
+
+def test_sentencebank_batches_multiple_ambiguous_token_selections(tmp_path: Path) -> None:
+    db_path = _db_path(tmp_path)
+    nlp_adapter = MappingNLPAdapter(
+        {
+            "Hvis at": [
+                NLPToken(text="Hvis", lemma="hvis", pos="SCONJ", morphology=None, is_punctuation=False),
+                NLPToken(text="at", lemma="at", pos="PART", morphology="PartType=Inf", is_punctuation=False),
+            ],
+        }
+    )
+    gemini_service = SelectingGeminiService(selected_id=1)
+    wordbank_use_case = WordbankUseCase(
+        db_path,
+        translation_service=FakeTranslationService({}),
+        gemini_word_translation_service=gemini_service,
+        cor_local_lexicon_service=FakeCORLocalLexiconService(
+            by_form={
+                "hvis": [
+                    _cor_local_entry(cor_id="COR.HVIS.1", lemma="hvis", gloss=None, form="hvis", lemma_idx=1, pos_tag="CCONJ", morphology=None, gram_raw="konj"),
+                    _cor_local_entry(cor_id="COR.HVIS.2", lemma="hvis", gloss=None, form="hvis", lemma_idx=2, pos_tag="PRON", morphology=None, gram_raw="pron"),
+                ],
+                "at": [
+                    _cor_local_entry(cor_id="COR.AT.1", lemma="at", gloss=None, form="at", lemma_idx=3, pos_tag="CCONJ", morphology=None, gram_raw="konj"),
+                    _cor_local_entry(cor_id="COR.AT.2", lemma="at", gloss=None, form="at", lemma_idx=4, pos_tag=None, morphology=None, gram_raw="part"),
+                ],
+            },
+            by_lemma_idx={1: [], 2: [], 3: [], 4: []},
+        ),
+        nlp_adapter=nlp_adapter,
+    )
+    sentencebank_use_case = SentencebankUseCase(
+        db_path,
+        nlp_adapter=nlp_adapter,
+        wordbank_use_case=wordbank_use_case,
+    )
+
+    inserted = sentencebank_use_case.add_sentence("Hvis at")
+
+    assert inserted.status == "inserted"
+    assert len(gemini_service.batch_calls) == 1
+    assert len(gemini_service.batch_calls[0]) == 2
     assert wordbank_use_case.runtime.repository.get_lexeme("mor") is None
 
 
@@ -323,9 +372,9 @@ def test_sentencebank_exact_form_ambiguity_skips_persistence_without_gemini_sele
 
     inserted = sentencebank_use_case.add_sentence("De bad")
 
-    assert gemini_service.calls
-    assert len(gemini_service.calls[0].meaning_candidates) == 3
-    assert {item.lemma for item in gemini_service.calls[0].meaning_candidates} == {"bad", "bade", "bede"}
+    assert gemini_service.batch_calls
+    assert len(gemini_service.batch_calls[0][0].meaning_candidates) == 3
+    assert {item.lemma for item in gemini_service.batch_calls[0][0].meaning_candidates} == {"bad", "bade", "bede"}
     assert inserted.tokens == []
     assert wordbank_use_case.runtime.repository.get_lexeme("bad") is None
     assert wordbank_use_case.runtime.repository.get_lexeme("bade") is None
@@ -446,6 +495,66 @@ def test_sentencebank_add_sentence_triggers_batch_verification(tmp_path: Path) -
     batch_payloads, batch_context = verification_service.batch_calls[0]
     assert batch_context == "Huset er stort"
     assert len(batch_payloads) >= 1
+    with sqlite3.connect(db_path) as conn:
+        queued_verify_jobs = conn.execute(
+            """
+            SELECT COUNT(*)
+            FROM wordbank_background_jobs
+            WHERE job_type = 'verify_word' AND status = 'pending'
+            """
+        ).fetchone()[0]
+        queued_verification_records = conn.execute(
+            """
+            SELECT COUNT(*)
+            FROM wordbank_verification_records
+            WHERE status = 'queued'
+            """
+        ).fetchone()[0]
+    assert queued_verify_jobs == 0
+    assert queued_verification_records == 0
+
+
+def test_sentencebank_batch_verification_persists_lemma_targets_for_lemma_form_tokens(tmp_path: Path) -> None:
+    db_path = _db_path(tmp_path)
+    nlp_adapter = MappingNLPAdapter(
+        {
+            "kat hund": [
+                NLPToken(text="kat", lemma="kat", pos="NOUN", morphology="Gender=Com|Number=Sing|Definite=Ind", is_punctuation=False),
+                NLPToken(text="hund", lemma="hund", pos="NOUN", morphology="Gender=Com|Number=Sing|Definite=Ind", is_punctuation=False),
+            ],
+        }
+    )
+    verification_service = FakeVerificationService()
+    wordbank_use_case = WordbankUseCase(
+        db_path,
+        nlp_adapter=nlp_adapter,
+        verification_service=verification_service,
+    )
+    sentencebank_use_case = SentencebankUseCase(
+        db_path,
+        nlp_adapter=nlp_adapter,
+        wordbank_use_case=wordbank_use_case,
+    )
+
+    sentencebank_use_case.add_sentence("kat hund")
+
+    with sqlite3.connect(db_path) as conn:
+        verified_lemma_targets = conn.execute(
+            """
+            SELECT COUNT(*)
+            FROM wordbank_verification_records
+            WHERE status = 'verified' AND stored_surface_form IS NULL
+            """
+        ).fetchone()[0]
+        verified_hidden_surface_targets = conn.execute(
+            """
+            SELECT COUNT(*)
+            FROM wordbank_verification_records
+            WHERE status = 'verified' AND stored_surface_form IN ('kat', 'hund')
+            """
+        ).fetchone()[0]
+    assert verified_lemma_targets == 2
+    assert verified_hidden_surface_targets == 0
 
 
 def test_sentencebank_add_sentence_falls_back_on_batch_failure(tmp_path: Path) -> None:
@@ -494,3 +603,20 @@ def test_sentencebank_add_sentence_falls_back_on_batch_failure(tmp_path: Path) -
 
     assert inserted.status == "inserted"
     assert verification_service.batch_called
+    with sqlite3.connect(db_path) as conn:
+        queued_verify_jobs = conn.execute(
+            """
+            SELECT COUNT(*)
+            FROM wordbank_background_jobs
+            WHERE job_type = 'verify_word' AND status = 'pending'
+            """
+        ).fetchone()[0]
+        queued_verification_records = conn.execute(
+            """
+            SELECT COUNT(*)
+            FROM wordbank_verification_records
+            WHERE status = 'queued'
+            """
+        ).fetchone()[0]
+    assert queued_verify_jobs >= 1
+    assert queued_verification_records >= 1

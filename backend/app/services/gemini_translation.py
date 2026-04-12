@@ -8,8 +8,10 @@ from typing import Protocol
 
 from app.services.gemini_translation_helpers import (
     build_alternative_translations_prompt,
+    build_batch_meaning_section_selection_prompt,
     build_batch_translation_prompt,
     build_meaning_section_selection_prompt,
+    parse_batch_meaning_section_payload,
     build_translation_prompt,
     is_retryable_exception,
     normalize_translation_value,
@@ -83,6 +85,9 @@ class GeminiWordTranslationService(Protocol):
         self, payloads: list[ContextualWordTranslationInput]
     ) -> list[str | None]: ...
     def select_meaning_section(self, payload: MeaningSectionSelectionInput) -> int | None: ...
+    def select_meaning_sections_batch(
+        self, payloads: list[MeaningSectionSelectionInput]
+    ) -> list[int | None]: ...
     def find_alternative_translations(
         self, payload: AlternativeTranslationsInput
     ) -> AlternativeTranslationsResult: ...
@@ -195,6 +200,37 @@ class GeminiFlashLiteWordTranslationService:
         )
         return self._parse_meaning_section_id(response, valid_ids={item.id for item in payload.meaning_candidates})
 
+    def select_meaning_sections_batch(
+        self,
+        payloads: list[MeaningSectionSelectionInput],
+    ) -> list[int | None]:
+        if not payloads:
+            return []
+        request_items: list[dict[str, object]] = []
+        expected_ids: list[str] = []
+        valid_ids_by_item: dict[str, set[int]] = {}
+        for index, payload in enumerate(payloads):
+            item_id = str(index)
+            expected_ids.append(item_id)
+            valid_ids_by_item[item_id] = {item.id for item in payload.meaning_candidates}
+            request_items.append(
+                {
+                    "id": item_id,
+                    "word_context": self._meaning_section_context(payload),
+                    "candidate_meaning_sections": self._meaning_section_candidates(payload),
+                }
+            )
+        response = self._generate_content(
+            self._batch_meaning_section_selection_prompt(request_items),
+            config=self._batch_meaning_section_selection_response_config(item_count=len(request_items)),
+        )
+        parsed = self._parse_batch_meaning_section_ids(
+            response,
+            expected_ids=expected_ids,
+            valid_ids_by_item=valid_ids_by_item,
+        )
+        return [parsed.get(item_id) for item_id in expected_ids]
+
     def find_alternative_translations(
         self,
         payload: AlternativeTranslationsInput,
@@ -217,6 +253,9 @@ class GeminiFlashLiteWordTranslationService:
 
     def _meaning_section_selection_prompt(self, payload: MeaningSectionSelectionInput) -> str:
         return build_meaning_section_selection_prompt(payload)
+
+    def _batch_meaning_section_selection_prompt(self, items: list[dict[str, object]]) -> str:
+        return build_batch_meaning_section_selection_prompt(items)
 
     def _alternative_translations_prompt(self, payload: AlternativeTranslationsInput) -> str:
         return build_alternative_translations_prompt(payload)
@@ -286,6 +325,36 @@ class GeminiFlashLiteWordTranslationService:
             },
             temperature=0,
             max_output_tokens=64,
+            thinking_config=genai_types.ThinkingConfig(thinking_budget=0),
+        )
+
+    def _batch_meaning_section_selection_response_config(self, *, item_count: int) -> object:
+        genai_types = self._genai_types()
+        max_output_tokens = min(2048, max(128, item_count * 32))
+        return genai_types.GenerateContentConfig(
+            response_mime_type="application/json",
+            response_schema={
+                "type": "OBJECT",
+                "properties": {
+                    "items": {
+                        "type": "ARRAY",
+                        "items": {
+                            "type": "OBJECT",
+                            "properties": {
+                                "id": {"type": "STRING"},
+                                "meaning_section_id": {
+                                    "type": "INTEGER",
+                                    "nullable": True,
+                                },
+                            },
+                            "required": ["id", "meaning_section_id"],
+                        },
+                    }
+                },
+                "required": ["items"],
+            },
+            temperature=0,
+            max_output_tokens=max_output_tokens,
             thinking_config=genai_types.ThinkingConfig(thinking_budget=0),
         )
 
@@ -428,8 +497,66 @@ class GeminiFlashLiteWordTranslationService:
             return None
         return self._parse_meaning_section_payload(payload, valid_ids=valid_ids)
 
+    def _parse_batch_meaning_section_ids(
+        self,
+        response: object,
+        *,
+        expected_ids: list[str],
+        valid_ids_by_item: dict[str, set[int]],
+    ) -> dict[str, int | None]:
+        parsed_payload = getattr(response, "parsed", None)
+        parsed = self._parse_batch_meaning_section_payload(
+            parsed_payload,
+            expected_ids=expected_ids,
+            valid_ids_by_item=valid_ids_by_item,
+        )
+        if parsed is not None:
+            return parsed
+
+        raw_text = getattr(response, "text", None)
+        if not isinstance(raw_text, str):
+            return {}
+        cleaned = raw_text.strip()
+        if cleaned.startswith("```"):
+            cleaned = cleaned.removeprefix("```json").removeprefix("```").strip()
+            if cleaned.endswith("```"):
+                cleaned = cleaned[:-3].strip()
+        try:
+            payload = json.loads(cleaned)
+        except ValueError:
+            return {}
+        parsed = self._parse_batch_meaning_section_payload(
+            payload,
+            expected_ids=expected_ids,
+            valid_ids_by_item=valid_ids_by_item,
+        )
+        return parsed or {}
+
     def _parse_meaning_section_payload(self, payload: object, *, valid_ids: set[int]) -> int | None:
         return parse_meaning_section_payload(payload, valid_ids=valid_ids)
+
+    def _parse_batch_meaning_section_payload(
+        self,
+        payload: object,
+        *,
+        expected_ids: list[str],
+        valid_ids_by_item: dict[str, set[int]],
+    ) -> dict[str, int | None] | None:
+        return parse_batch_meaning_section_payload(
+            payload,
+            expected_ids=expected_ids,
+            valid_ids_by_item=valid_ids_by_item,
+        )
+
+    def _meaning_section_context(self, payload: MeaningSectionSelectionInput) -> dict[str, object]:
+        from app.services.gemini_translation_helpers import _meaning_section_context
+
+        return _meaning_section_context(payload)
+
+    def _meaning_section_candidates(self, payload: MeaningSectionSelectionInput) -> list[dict[str, object]]:
+        from app.services.gemini_translation_helpers import _meaning_section_candidates
+
+        return _meaning_section_candidates(payload)
 
     def _parse_alternative_translations(self, response: object) -> AlternativeTranslationsResult:
         parsed_payload = getattr(response, "parsed", None)

@@ -22,6 +22,7 @@ def add_word_from_search_seed(
     surface_token: str,
     lemma_candidate: str | None,
     search_seed: dict[str, object],
+    queue_verification: bool = True,
 ) -> AddWordResponse:
     ensure_wordbank_meaning_compatibility(runtime)
     seed = normalize_search_seed(search_seed)
@@ -33,16 +34,24 @@ def add_word_from_search_seed(
         raise ValueError("search_seed.lemma must match lemma_candidate")
 
     persist_result = persist_search_seed_surface_form(runtime, seed=seed)
-    verification = runtime.verification.queued_verification_result(
-        stored_surface_form=seed.surface,
+    verification = (
+        runtime.verification.queued_verification_result(
+            stored_surface_form=seed.surface,
+        )
+        if queue_verification
+        else None
     )
-    queued_verification_targets = queue_verification_targets(
-        runtime,
-        stored_lemma=seed.lemma,
-        targets=discover_word_page_verification_targets(
+    queued_verification_targets = (
+        queue_verification_targets(
             runtime,
             stored_lemma=seed.lemma,
-        ),
+            targets=discover_word_page_verification_targets(
+                runtime,
+                stored_lemma=seed.lemma,
+            ),
+        )
+        if queue_verification
+        else []
     )
     pronunciation = runtime.pronunciation.queued_pronunciation_result(seed.lemma, seed.surface)
     queued_pronunciation_forms = queue_pronunciation_generation(

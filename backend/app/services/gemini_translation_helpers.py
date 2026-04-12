@@ -126,24 +126,8 @@ def build_batch_translation_prompt(items: list[BatchContextualWordTranslationReq
 
 
 def build_meaning_section_selection_prompt(payload: MeaningSectionSelectionInput) -> str:
-    context = {
-        "surface_form_da": payload.surface_form,
-        "lemma_da": payload.lemma,
-        "lemma_frame_da": _danish_lemma_frame(payload.lemma, payload.pos_tag),
-        "pos_tag": payload.pos_tag,
-        "morphology": payload.morphology,
-        "gloss": payload.gloss,
-        "english_translation": payload.english_translation,
-        "sentence_context_da": payload.sentence_context,
-        "sentence_context_target_marked_da": _mark_surface_in_sentence(payload.sentence_context, payload.surface_form),
-    }
-    candidates = [
-        {
-            **asdict(item),
-            "lemma_frame_da": _danish_lemma_frame(item.lemma, item.pos_tag),
-        }
-        for item in payload.meaning_candidates
-    ]
+    context = _meaning_section_context(payload)
+    candidates = _meaning_section_candidates(payload)
     return (
         "You are assigning one Danish word occurrence from a sentence to one candidate meaning section.\n"
         "Return JSON only: {\"meaning_section_id\": <integer|null>}\n"
@@ -158,6 +142,51 @@ def build_meaning_section_selection_prompt(payload: MeaningSectionSelectionInput
         f"Word context:\n{json.dumps(context, ensure_ascii=False)}\n"
         f"Candidate meaning sections:\n{json.dumps(candidates, ensure_ascii=False)}"
     )
+
+
+def build_batch_meaning_section_selection_prompt(
+    items: list[dict[str, object]],
+) -> str:
+    return (
+        "You are assigning multiple Danish word occurrences from one or more sentences to candidate meaning sections.\n"
+        "Return JSON only with this exact shape: "
+        "{\"items\":[{\"id\":\"0\",\"meaning_section_id\":123}]}\n"
+        "Rules:\n"
+        "- Return exactly one item for every input id.\n"
+        "- Copy each id exactly.\n"
+        "- Choose exactly one section id if one candidate clearly fits the target occurrence.\n"
+        "- Return null only if the candidates still cannot be distinguished confidently from the sentence and option data.\n"
+        "- Use sentence_context_da and sentence_context_target_marked_da to identify the intended meaning of the target occurrence inside the full sentence.\n"
+        "- Candidate options may differ by lemma, POS, and morphology even when the same Danish surface form can realize multiple words.\n"
+        "- Use lemma, lemma_frame_da, gloss, english_translation, POS, and morphology as disambiguation signals.\n"
+        "- Prefer the candidate whose POS/morphology best matches the target occurrence in the sentence.\n"
+        "- Do not explain your reasoning.\n"
+        f"Items:\n{json.dumps(items, ensure_ascii=False)}"
+    )
+
+
+def _meaning_section_context(payload: MeaningSectionSelectionInput) -> dict[str, object]:
+    return {
+        "surface_form_da": payload.surface_form,
+        "lemma_da": payload.lemma,
+        "lemma_frame_da": _danish_lemma_frame(payload.lemma, payload.pos_tag),
+        "pos_tag": payload.pos_tag,
+        "morphology": payload.morphology,
+        "gloss": payload.gloss,
+        "english_translation": payload.english_translation,
+        "sentence_context_da": payload.sentence_context,
+        "sentence_context_target_marked_da": _mark_surface_in_sentence(payload.sentence_context, payload.surface_form),
+    }
+    
+
+def _meaning_section_candidates(payload: MeaningSectionSelectionInput) -> list[dict[str, object]]:
+    return [
+        {
+            **asdict(item),
+            "lemma_frame_da": _danish_lemma_frame(item.lemma, item.pos_tag),
+        }
+        for item in payload.meaning_candidates
+    ]
 
 
 def build_alternative_translations_prompt(payload: AlternativeTranslationsInput) -> str:
@@ -290,6 +319,37 @@ def parse_meaning_section_payload(payload: object, *, valid_ids: set[int]) -> in
     if not isinstance(value, int) or value not in valid_ids:
         return None
     return value
+
+
+def parse_batch_meaning_section_payload(
+    payload: object,
+    *,
+    expected_ids: list[str],
+    valid_ids_by_item: dict[str, set[int]],
+) -> dict[str, int | None] | None:
+    items: Any = payload.get("items") if isinstance(payload, dict) else None
+    if not isinstance(items, list):
+        return None
+
+    expected = set(expected_ids)
+    parsed: dict[str, int | None] = {}
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        item_id = item.get("id")
+        if not isinstance(item_id, str) or item_id not in expected:
+            continue
+        value = item.get("meaning_section_id")
+        if isinstance(value, str) and value.strip().isdigit():
+            value = int(value.strip())
+        if value is None:
+            parsed[item_id] = None
+            continue
+        if isinstance(value, int) and value in valid_ids_by_item.get(item_id, set()):
+            parsed[item_id] = value
+            continue
+        parsed[item_id] = None
+    return parsed
 
 
 def parse_alternative_translations_payload(payload: object) -> AlternativeTranslationsResult | None:

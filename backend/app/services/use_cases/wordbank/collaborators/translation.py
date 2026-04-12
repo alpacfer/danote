@@ -709,6 +709,77 @@ class TranslationCollaborator:
             return None
         return selected
 
+    def select_meaning_sections_batch(
+        self,
+        payloads: list[dict[str, object]],
+    ) -> list[int | None]:
+        if self._gemini_word_translation_service is None or not payloads:
+            return [None] * len(payloads)
+        selector = getattr(self._gemini_word_translation_service, "select_meaning_sections_batch", None)
+        if not callable(selector):
+            return [
+                self.select_meaning_section(
+                    surface_form=str(payload.get("surface_form", "")),
+                    lemma=str(payload.get("lemma", "")),
+                    pos_tag=payload.get("pos_tag") if isinstance(payload.get("pos_tag"), str) else None,
+                    morphology=payload.get("morphology") if isinstance(payload.get("morphology"), str) else None,
+                    gloss=payload.get("gloss") if isinstance(payload.get("gloss"), str) else None,
+                    english_translation=payload.get("english_translation") if isinstance(payload.get("english_translation"), str) else None,
+                    sentence_context=payload.get("sentence_context") if isinstance(payload.get("sentence_context"), str) else None,
+                    meaning_candidates=list(payload.get("meaning_candidates") or []),
+                )
+                for payload in payloads
+            ]
+
+        normalized_payloads: list[MeaningSectionSelectionInput] = []
+        for payload in payloads:
+            candidate_payloads: list[MeaningSectionCandidateInput] = []
+            for candidate in list(payload.get("meaning_candidates") or []):
+                candidate_id = getattr(candidate, "id", None)
+                if not isinstance(candidate_id, int):
+                    continue
+                candidate_payloads.append(
+                    MeaningSectionCandidateInput(
+                        id=candidate_id,
+                        lemma=str(getattr(candidate, "lemma", "")).strip(),
+                        meaning_key=str(getattr(candidate, "meaning_key", "")),
+                        cor_lemma_idx=getattr(candidate, "cor_lemma_idx", None),
+                        gloss=normalize_translation_value(getattr(candidate, "gloss", None)),
+                        english_translation=normalize_translation_value(
+                            getattr(candidate, "english_translation", None)
+                        ),
+                        pos_tag=getattr(candidate, "pos_tag", None),
+                        morphology=getattr(candidate, "morphology", None),
+                    )
+                )
+            normalized_payloads.append(
+                MeaningSectionSelectionInput(
+                    surface_form=str(payload.get("surface_form", "")).strip(),
+                    lemma=str(payload.get("lemma", "")).strip(),
+                    pos_tag=payload.get("pos_tag") if isinstance(payload.get("pos_tag"), str) else None,
+                    morphology=payload.get("morphology") if isinstance(payload.get("morphology"), str) else None,
+                    gloss=normalize_translation_value(payload.get("gloss") if isinstance(payload.get("gloss"), str) else None),
+                    english_translation=normalize_translation_value(
+                        payload.get("english_translation") if isinstance(payload.get("english_translation"), str) else None
+                    ),
+                    sentence_context=" ".join(str(payload.get("sentence_context", "")).strip().split()) or None,
+                    meaning_candidates=candidate_payloads,
+                )
+            )
+
+        try:
+            selected = selector(normalized_payloads)
+        except (GeminiTranslationError, httpx.HTTPError, TimeoutError, ValueError, TypeError) as exc:
+            log_provider_failure(logger=logger,
+                provider=contextual_provider_name(self._gemini_word_translation_service),
+                operation="select_meaning_sections_batch",
+                reason=ProviderFailureReason.PARSE,
+                retryable=False,
+                exc=exc,
+            )
+            return [None] * len(payloads)
+        return [value if isinstance(value, int) else None for value in selected[:len(payloads)]] + [None] * max(0, len(payloads) - len(selected))
+
     def provider_name(self) -> str:
         return resolve_provider_name(self._translation_service)
 

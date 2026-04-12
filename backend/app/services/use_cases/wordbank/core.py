@@ -117,6 +117,7 @@ class WordbankUseCase:
         pos_tag: str | None = None,
         morphology: str | None = None,
         search_seed: dict[str, object] | None = None,
+        queue_verification: bool = True,
     ):
         return add_word(
             self._runtime,
@@ -126,6 +127,7 @@ class WordbankUseCase:
             pos_tag=pos_tag,
             morphology=morphology,
             search_seed=search_seed,
+            queue_verification=queue_verification,
         )
 
     def generate_pronunciation_for_added_word(
