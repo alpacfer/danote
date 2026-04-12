@@ -7,6 +7,7 @@ export type SentencebankSectionAdapterArgs = {
   isSentencebankLoading: ComponentProps<typeof SentencebankSection>["isSentencebankLoading"]
   sentences: ComponentProps<typeof SentencebankSection>["sentences"]
   selectedSentenceId: ComponentProps<typeof SentencebankSection>["selectedSentenceId"]
+  pendingSentence: ComponentProps<typeof SentencebankSection>["pendingSentence"]
   openSentence: ComponentProps<typeof SentencebankSection>["onOpenSentence"]
   openWordbankLemma: ComponentProps<typeof SentencebankSection>["onOpenWordbankLemma"]
   openWordbankMeaning: ComponentProps<typeof SentencebankSection>["onOpenWordbankMeaning"]
@@ -17,6 +18,7 @@ export function buildSentencebankSectionProps({
   isSentencebankLoading,
   sentences,
   selectedSentenceId,
+  pendingSentence,
   openSentence,
   openWordbankLemma,
   openWordbankMeaning,
@@ -26,6 +28,7 @@ export function buildSentencebankSectionProps({
     isSentencebankLoading,
     sentences,
     selectedSentenceId,
+    pendingSentence,
     onOpenSentence: openSentence,
     onOpenWordbankLemma: openWordbankLemma,
     onOpenWordbankMeaning: openWordbankMeaning,

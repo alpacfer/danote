@@ -44,6 +44,7 @@ describe("section prop adapters", () => {
       openWordbankLemma,
       openWordbankMeaning,
       selectedSentenceId: 42,
+      pendingSentence: null,
       openSentence,
     })
 
@@ -54,6 +55,7 @@ describe("section prop adapters", () => {
       onOpenWordbankLemma: openWordbankLemma,
       onOpenWordbankMeaning: openWordbankMeaning,
       selectedSentenceId: 42,
+      pendingSentence: null,
       onOpenSentence: openSentence,
     })
   })

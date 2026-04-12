@@ -54,7 +54,7 @@ export type AppSidebarProps = {
   onOpenWordbankLemma: (lemma: string) => void
   onOpenWordbankMeaning: (lemma: string, meaningId: number) => void
   onOpenSavedNote: (noteId: string) => void
-  onAddSentenceToSentencebank: (sourceText: string) => Promise<void>
+  onAddSentenceToSentencebank: (sourceText: string, englishTranslation?: string | null) => Promise<void>
   onAddWordFromSearch: (
     surfaceToken: string,
     lemmaCandidate: string | null,
@@ -249,9 +249,9 @@ export function AppSidebar({
     setCommandSelectionOverride("")
   }
 
-  const saveSentenceFromSearch = (sourceText: string) => {
+  const saveSentenceFromSearch = (sourceText: string, englishTranslation: string | null = null) => {
     closeSearch()
-    void onAddSentenceToSentencebank(sourceText)
+    void onAddSentenceToSentencebank(sourceText, englishTranslation)
   }
 
   useEffect(() => {
@@ -312,7 +312,7 @@ export function AppSidebar({
 
   const searchResultActions: SidebarSearchResultsActions = {
     onAddSentenceFromSearch: async (sourceText: string) => {
-      saveSentenceFromSearch(sourceText)
+      saveSentenceFromSearch(sourceText, sentenceSearchResult?.english_translation ?? null)
     },
     onSetSearchQuery: (query: string) => { setSearchQuery(query) },
     onOpenSavedNote,
@@ -360,7 +360,10 @@ export function AppSidebar({
 
               event.preventDefault()
               event.stopPropagation()
-              saveSentenceFromSearch(sentenceVerification.corrected_text ?? sentenceSearchResult.source_text)
+              saveSentenceFromSearch(
+                sentenceVerification.corrected_text ?? sentenceSearchResult.source_text,
+                sentenceSearchResult.english_translation ?? null,
+              )
             }}
             onValueChange={(value) => {
               setSearchQuery(value)

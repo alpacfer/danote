@@ -153,6 +153,7 @@ export function useAppController() {
       isSentencebankLoading: lexiconData.isSentencebankLoading,
       sentences: lexiconData.sentences,
       selectedSentenceId: navigation.selectedSentenceId,
+      pendingSentence: navigation.pendingSentence,
       openSentence: navigation.openSentence,
       openWordbankLemma: navigation.openWordbankLemma,
       openWordbankMeaning: navigation.openWordbankMeaning,

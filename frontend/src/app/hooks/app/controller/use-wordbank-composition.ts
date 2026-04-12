@@ -31,6 +31,7 @@ export function useWordbankComposition({ foundation, onSentenceSaved }: UseWordb
     setActiveSection: navigation.setActiveSection,
     setSelectedLemma: navigation.setSelectedLemma,
     setSelectedMeaningId: navigation.setSelectedMeaningId,
+    openPendingSentence: navigation.openPendingSentence,
     openSentence: navigation.openSentence,
     openWordbankTarget: (lemma, meaningId) => {
       navigation.setActiveSection("wordbank")

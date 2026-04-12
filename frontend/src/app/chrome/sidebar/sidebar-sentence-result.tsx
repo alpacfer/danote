@@ -10,7 +10,7 @@ type SidebarSentenceResultProps = {
   isTranslationLoading: boolean
   sentenceVerification: VerifySentenceResponse | null
   isSentenceVerificationLoading: boolean
-  onSaveSentence: (sourceText: string) => Promise<void>
+  onSaveSentence: (sourceText: string, englishTranslation: string | null) => Promise<void>
 }
 
 export function SidebarSentenceResult({
@@ -32,7 +32,7 @@ export function SidebarSentenceResult({
         disabled={isSaveDisabled}
         onSelect={() => {
           if (isSaveDisabled) return
-          void onSaveSentence(textToSave)
+          void onSaveSentence(textToSave, englishTranslation)
         }}
         className="flex items-center justify-between gap-3"
       >

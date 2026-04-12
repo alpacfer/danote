@@ -16,7 +16,7 @@ type BuildPlaygroundPropsArgs = {
   generatePhraseTranslationError: string | null
   isSavingSentence: boolean
   isSelectedPhraseSaved: boolean
-  addSentenceToSentencebank: (text: string) => Promise<void>
+  addSentenceToSentencebank: (text: string, englishTranslation?: string | null) => Promise<void>
   highlightPopover: PlaygroundSectionProps["highlightPopover"]
   handleHighlightPopoverOpenChange: (open: boolean) => void
   popoverDisplayToken: PlaygroundSectionProps["popoverDisplayToken"]
@@ -63,7 +63,7 @@ export function buildPlaygroundProps(args: BuildPlaygroundPropsArgs): Playground
     isSavingSentence: args.isSavingSentence,
     isSelectedPhraseSaved: args.isSelectedPhraseSaved,
     onAddSentenceFromPhrase: () => {
-      void args.addSentenceToSentencebank(args.phrasePopover.selectedText)
+      void args.addSentenceToSentencebank(args.phrasePopover.selectedText, args.phraseTranslation)
     },
     highlightPopover: args.highlightPopover,
     onHighlightPopoverOpenChange: args.handleHighlightPopoverOpenChange,

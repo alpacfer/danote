@@ -66,7 +66,7 @@ export type SidebarSearchResultsData = {
 }
 
 export type SidebarSearchResultsActions = {
-  onAddSentenceFromSearch: (sourceText: string) => Promise<void>
+  onAddSentenceFromSearch: (sourceText: string, englishTranslation: string | null) => Promise<void>
   onSetSearchQuery: (query: string) => void
   onOpenSavedNote: (noteId: string) => void
   onOpenWordbankLemma: (lemma: string) => void
@@ -116,13 +116,14 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
   // the normalized query).
   const hasDirectWordbank = data.orderedWordbankResults.length > 0
     && (!state.wordbankDidYouMean || data.exactSavedVariationKeySet.size > 0)
-  const hasDirectCor = data.corSearchVariantsToRender.length > 0
+  const hasDirectCor = !state.corDidYouMean && data.corSearchVariantsToRender.length > 0
   const hasDirectResults = hasDirectWordbank || hasDirectCor
 
   const hasCorrectedWordbank = Boolean(state.wordbankDidYouMean)
     && data.orderedWordbankResults.length > 0
     && !hasDirectWordbank
-  const hasCorrectedResults = hasCorrectedWordbank
+  const hasCorrectedCor = Boolean(state.corDidYouMean) && data.corSearchVariantsToRender.length > 0
+  const hasCorrectedResults = hasCorrectedWordbank || hasCorrectedCor
 
   const hasWordbankSection = hasDirectResults || hasCorrectedResults
 
@@ -177,9 +178,21 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
         </>
       ) : null}
 
-      {/* Corrected results — for the DYM suggestion word */}
+      {/* Corrected results — for the DYM suggestion word, COR first then saved */}
       {hasCorrectedResults ? (
         <CommandGroup heading="Wordbank">
+          {hasCorrectedCor ? (
+            <SidebarCorResults
+              orderedCorSearchGroups={data.orderedCorSearchGroups}
+              corSearchVariantsToRender={data.corSearchVariantsToRender}
+              variationCandidateCorIdSet={data.variationCandidateCorIdSet}
+              normalizedQuery={state.normalizedQuery}
+              corVariantItemValue={data.corVariantItemValue}
+              isTranslationsLoading={data.isCorTranslationsLoading}
+              onAddWordFromSearch={actions.onAddWordFromSearch}
+              onCloseSearch={actions.onCloseSearch}
+            />
+          ) : null}
           {hasCorrectedWordbank ? (
             <SidebarWordbankResults
               orderedWordbankResults={data.orderedWordbankResults}

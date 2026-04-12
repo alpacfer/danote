@@ -44,6 +44,7 @@ type UseWordbankWorkflowsParams = {
   setActiveSection: (value: AppSection) => void
   setSelectedLemma: (value: string | null) => void
   setSelectedMeaningId: (value: number | null) => void
+  openPendingSentence: (text: string, englishTranslation?: string | null) => void
   openSentence: (id: number) => void
   openWordbankTarget: (lemma: string, meaningId: number | null) => void
   postTokenFeedback: (payload: TokenFeedbackPayload) => Promise<void>
@@ -84,6 +85,7 @@ export function useWordbankWorkflows({
   setActiveSection,
   setSelectedLemma,
   setSelectedMeaningId,
+  openPendingSentence,
   openSentence,
   openWordbankTarget,
   postTokenFeedback,
@@ -312,7 +314,7 @@ export function useWordbankWorkflows({
     }
   }
 
-  async function addSentenceToSentencebank(selectedText: string) {
+  async function addSentenceToSentencebank(selectedText: string, englishTranslation: string | null = null) {
     const normalizedSelection = selectedText.replace(/\s+/gu, " ").trim()
     if (!normalizedSelection || !hasMultipleWords(normalizedSelection)) {
       return
@@ -323,6 +325,8 @@ export function useWordbankWorkflows({
       return
     }
 
+    openPendingSentence(normalizedSelection, englishTranslation)
+    onSentenceSaved?.()
     setIsSavingSentence(true)
     try {
       const payload = await apiClient.postJson<AddSentenceResponse>(
@@ -341,7 +345,6 @@ export function useWordbankWorkflows({
       if (payload.id != null) {
         openSentence(payload.id)
       }
-      onSentenceSaved?.()
     } catch (error) {
       const message = error instanceof Error ? error.message : "Could not save sentence. Try again."
       toast.error(message)

@@ -1,4 +1,4 @@
-import { fireEvent, mockFetchImplementation, renderApp, responseOf, screen, vi, waitFor, within } from "@/test/app-test-helpers"
+import { act, fireEvent, mockFetchImplementation, renderApp, responseOf, screen, vi, waitFor, within } from "@/test/app-test-helpers"
 
 function openSearch() {
   fireEvent.click(screen.getByRole("button", { name: /search/i }))
@@ -258,6 +258,60 @@ describe("Sentence verification in search", () => {
           return body.source_text === "jeg er glad"
         }),
       ).toBe(true)
+    })
+  })
+
+  it("shows the generated translation on the pending sentence page while the saved sentence is still loading", async () => {
+    let resolveAddSentence: (() => void) | null = null
+
+    mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      sentencebankResponse: { items: [] },
+      verifySentenceResponse: {
+        is_valid: true,
+        errors: [],
+        corrected_text: null,
+        language: "da",
+      },
+      phraseTranslationResponse: {
+        status: "generated",
+        source_text: "jeg er glad",
+        english_translation: "i am happy",
+      },
+      addSentenceHandler: async () => {
+        await new Promise<void>((resolve) => {
+          resolveAddSentence = resolve
+        })
+        return responseOf({
+          status: "inserted",
+          id: 91,
+          source_text: "jeg er glad",
+          english_translation: "i am happy",
+          created_at: "2026-04-12T10:00:00.000Z",
+          tokens: [],
+          message: 'Added "jeg er glad" to sentencebank.',
+        })
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    const dialog = await openSearch()
+    typeInSearch(dialog, "jeg er glad")
+
+    await waitFor(() => {
+      expect(getSentenceOption(dialog)).not.toHaveAttribute("aria-disabled", "true")
+    })
+    expect(await within(dialog).findByText("i am happy")).toBeInTheDocument()
+
+    fireEvent.click(getSentenceOption(dialog))
+
+    expect(await screen.findByText("i am happy")).toBeInTheDocument()
+    expect(screen.queryByTestId("sentence-page-translation-skeleton")).not.toBeInTheDocument()
+
+    await act(async () => {
+      resolveAddSentence?.()
     })
   })
 
