@@ -23,6 +23,7 @@ from app.services.use_cases import SentencebankUseCase
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
+
 def _sentencebank_use_case(request: Request) -> SentencebankUseCase:
     settings = get_settings(request)
     services = get_services(request)
