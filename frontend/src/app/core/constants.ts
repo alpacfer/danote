@@ -1,6 +1,7 @@
 export const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? "http://127.0.0.1:8000"
 export const ANALYZE_DEBOUNCE_MS = 450
 export const SEARCH_RESOLVE_DEBOUNCE_MS = 220
+export const SENTENCE_VERIFY_DEBOUNCE_MS = 600
 export const POPOVER_ENRICH_CACHE_TTL_MS = 60_000
 export const PHRASE_TRANSLATION_DELAY_MS = 1000
 export const NLP_MODEL_OPTIONS = [

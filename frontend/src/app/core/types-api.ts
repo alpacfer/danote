@@ -469,3 +469,16 @@ export type SearchFeedbackContext = {
   predictedStatus: TokenClassification
   suggestionsShown: string[]
 }
+
+export interface SentenceVerificationErrorItem {
+  start: number
+  end: number
+  message: string
+}
+
+export interface VerifySentenceResponse {
+  is_valid: boolean
+  errors: SentenceVerificationErrorItem[]
+  corrected_text: string | null
+  language: "da" | "en" | "unknown"
+}
