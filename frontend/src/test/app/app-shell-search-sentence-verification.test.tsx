@@ -16,8 +16,23 @@ function getSentenceOption(dialog: HTMLElement) {
 
 describe("Sentence verification in search", () => {
   it("shows verification loading UI while verifying a sentence", async () => {
+    let resolvePreview: (() => void) | null = null
     mockFetchImplementation({
       lemmasResponse: { items: [] },
+      sentenceSearchPreviewHandler: async () => {
+        await new Promise<void>((resolve) => {
+          resolvePreview = resolve
+        })
+        return responseOf({
+          status: "ready",
+          query_language: "da",
+          source_text: "jeg er glad",
+          english_translation: "I am happy",
+          is_valid: true,
+          errors: [],
+          message: null,
+        })
+      },
     })
 
     renderApp()
@@ -27,6 +42,8 @@ describe("Sentence verification in search", () => {
     typeInSearch(dialog, "jeg er glad")
 
     expect(await within(dialog).findByRole("option")).toHaveAttribute("aria-disabled", "true")
+    expect(within(dialog).getByTestId("sentence-search-translation-skeleton")).toBeInTheDocument()
+    resolvePreview?.()
   })
 
   it("enables save after successful verification and shows the sentence above the translation", async () => {
@@ -56,16 +73,14 @@ describe("Sentence verification in search", () => {
           },
         ],
       },
-      verifySentenceResponse: {
-        is_valid: true,
-        errors: [],
-        corrected_text: null,
-        language: "da",
-      },
-      phraseTranslationResponse: {
-        status: "generated",
+      sentenceSearchPreviewResponse: {
+        status: "ready",
+        query_language: "da",
         source_text: "jeg er glad",
         english_translation: "I am happy",
+        is_valid: true,
+        errors: [],
+        message: null,
       },
     })
 
@@ -81,6 +96,8 @@ describe("Sentence verification in search", () => {
     const option = getSentenceOption(dialog)
     expect(within(option).getByText(/^jeg er glad$/i)).toBeInTheDocument()
     expect(within(option).getByText("I am happy")).toBeInTheDocument()
+    expect(within(option).queryByText("EN→DA")).not.toBeInTheDocument()
+    expect(within(option).queryByText("Auto-translated from English")).not.toBeInTheDocument()
   })
 
   it("does not enter sentence mode for multi-word queries over 100 chars", async () => {
@@ -119,23 +136,21 @@ describe("Sentence verification in search", () => {
   })
 
   it("underlines the typo in the input and shows only the correction plus corrected translation in the card", async () => {
-    const translationRequests: string[] = []
+    const previewRequests: string[] = []
     mockFetchImplementation({
       lemmasResponse: { items: [] },
-      verifySentenceResponse: {
-        is_valid: false,
-        errors: [{ start: 7, end: 11, message: "typo" }],
-        corrected_text: "Jeg er glad",
-        language: "da",
-      },
-      phraseTranslationHandler: async (_input, init) => {
+      sentenceSearchPreviewHandler: async (_input, init) => {
         const body = JSON.parse(String(init?.body ?? "{}")) as { source_text?: string }
         const sourceText = body.source_text ?? ""
-        translationRequests.push(sourceText)
+        previewRequests.push(sourceText)
         return responseOf({
-          status: "generated",
-          source_text: sourceText,
-          english_translation: sourceText === "Jeg er glad" ? "I am happy" : "I am slick",
+          status: "ready",
+          query_language: "da",
+          source_text: sourceText === "Jeg er glat" ? "Jeg er glad" : sourceText,
+          english_translation: sourceText === "Jeg er glat" ? "I am happy" : "I am slick",
+          is_valid: sourceText !== "Jeg er glat",
+          errors: sourceText === "Jeg er glat" ? [{ start: 7, end: 11, message: "typo" }] : [],
+          message: null,
         })
       },
     })
@@ -147,7 +162,7 @@ describe("Sentence verification in search", () => {
     typeInSearch(dialog, "Jeg er glat")
 
     await waitFor(() => {
-      expect(translationRequests).toContain("Jeg er glad")
+      expect(previewRequests).toContain("Jeg er glat")
     })
 
     const overlay = await within(dialog).findByTestId("sentence-search-input-overlay")
@@ -159,29 +174,22 @@ describe("Sentence verification in search", () => {
     expect(within(option).queryByText("Corrected:")).not.toBeInTheDocument()
   })
 
-  it("sends capitalization-preserving sentence text to both translation and verification", async () => {
-    const phraseRequests: string[] = []
-    const verificationRequests: string[] = []
+  it("sends capitalization-preserving sentence text to sentence preview", async () => {
+    const previewRequests: string[] = []
 
     mockFetchImplementation({
       lemmasResponse: { items: [] },
-      phraseTranslationHandler: async (_input, init) => {
+      sentenceSearchPreviewHandler: async (_input, init) => {
         const body = JSON.parse(String(init?.body ?? "{}")) as { source_text?: string }
-        phraseRequests.push(body.source_text ?? "")
+        previewRequests.push(body.source_text ?? "")
         return responseOf({
-          status: "generated",
+          status: "ready",
+          query_language: "da",
           source_text: body.source_text ?? "",
           english_translation: "I am happy",
-        })
-      },
-      verifySentenceHandler: async (_input, init) => {
-        const body = JSON.parse(String(init?.body ?? "{}")) as { source_text?: string }
-        verificationRequests.push(body.source_text ?? "")
-        return responseOf({
           is_valid: true,
           errors: [],
-          corrected_text: null,
-          language: "da",
+          message: null,
         })
       },
     })
@@ -193,24 +201,21 @@ describe("Sentence verification in search", () => {
     typeInSearch(dialog, "Jeg er glad")
 
     await waitFor(() => {
-      expect(phraseRequests).toContain("Jeg er glad")
-      expect(verificationRequests).toContain("Jeg er glad")
+      expect(previewRequests).toContain("Jeg er glad")
     })
   })
 
   it("expands typo underline spans to the full word in the input", async () => {
     mockFetchImplementation({
       lemmasResponse: { items: [] },
-      verifySentenceResponse: {
-        is_valid: false,
-        errors: [{ start: 8, end: 10, message: "partial typo span" }],
-        corrected_text: "jeg er glad",
-        language: "da",
-      },
-      phraseTranslationResponse: {
-        status: "generated",
+      sentenceSearchPreviewResponse: {
+        status: "ready",
+        query_language: "da",
         source_text: "jeg er glad",
         english_translation: "I am happy",
+        is_valid: false,
+        errors: [{ start: 8, end: 10, message: "partial typo span" }],
+        message: null,
       },
     })
 
@@ -227,16 +232,14 @@ describe("Sentence verification in search", () => {
   it("does not show an underline when capitalization-only findings have already been filtered out", async () => {
     mockFetchImplementation({
       lemmasResponse: { items: [] },
-      verifySentenceResponse: {
-        is_valid: true,
-        errors: [],
-        corrected_text: null,
-        language: "da",
-      },
-      phraseTranslationResponse: {
-        status: "generated",
+      sentenceSearchPreviewResponse: {
+        status: "ready",
+        query_language: "da",
         source_text: "jeg er glad",
         english_translation: "i am happy",
+        is_valid: true,
+        errors: [],
+        message: null,
       },
     })
 
@@ -259,11 +262,14 @@ describe("Sentence verification in search", () => {
   it("saves the corrected sentence text when verification returns a correction", async () => {
     const fetchSpy = mockFetchImplementation({
       lemmasResponse: { items: [] },
-      verifySentenceResponse: {
+      sentenceSearchPreviewResponse: {
+        status: "ready",
+        query_language: "da",
+        source_text: "Jeg er glad",
+        english_translation: null,
         is_valid: false,
         errors: [{ start: 7, end: 11, message: "typo" }],
-        corrected_text: "Jeg er glad",
-        language: "da",
+        message: null,
       },
       addSentenceResponse: {
         status: "inserted",
@@ -306,16 +312,14 @@ describe("Sentence verification in search", () => {
     mockFetchImplementation({
       lemmasResponse: { items: [] },
       sentencebankResponse: { items: [] },
-      verifySentenceResponse: {
-        is_valid: true,
-        errors: [],
-        corrected_text: null,
-        language: "da",
-      },
-      phraseTranslationResponse: {
-        status: "generated",
+      sentenceSearchPreviewResponse: {
+        status: "ready",
+        query_language: "da",
         source_text: "jeg er glad",
         english_translation: "I am happy",
+        is_valid: true,
+        errors: [],
+        message: null,
       },
       addSentenceHandler: async () => {
         await new Promise<void>((resolve) => {
@@ -357,12 +361,7 @@ describe("Sentence verification in search", () => {
   it("falls back to a savable sentence when verification fails", async () => {
     const fetchSpy = mockFetchImplementation({
       lemmasResponse: { items: [] },
-      verifySentenceOk: false,
-      phraseTranslationResponse: {
-        status: "generated",
-        source_text: "jeg er glad",
-        english_translation: "I am happy",
-      },
+      sentenceSearchPreviewOk: false,
       addSentenceResponse: {
         status: "inserted",
         id: 77,
@@ -401,16 +400,14 @@ describe("Sentence verification in search", () => {
   it("pressing Enter once saves the selected sentence result", async () => {
     const fetchSpy = mockFetchImplementation({
       lemmasResponse: { items: [] },
-      verifySentenceResponse: {
-        is_valid: true,
-        errors: [],
-        corrected_text: null,
-        language: "da",
-      },
-      phraseTranslationResponse: {
-        status: "generated",
+      sentenceSearchPreviewResponse: {
+        status: "ready",
+        query_language: "da",
         source_text: "jeg er glad",
         english_translation: "I am happy",
+        is_valid: true,
+        errors: [],
+        message: null,
       },
       addSentenceResponse: {
         status: "inserted",
@@ -479,16 +476,14 @@ describe("Sentence verification in search", () => {
           },
         ] : [],
       }),
-      verifySentenceResponse: {
-        is_valid: true,
-        errors: [],
-        corrected_text: null,
-        language: "da",
-      },
-      phraseTranslationResponse: {
-        status: "generated",
+      sentenceSearchPreviewResponse: {
+        status: "ready",
+        query_language: "da",
         source_text: "jeg er glad",
         english_translation: "I am happy",
+        is_valid: true,
+        errors: [],
+        message: null,
       },
       addSentenceHandler: async () => {
         addSentenceStarted()
@@ -543,5 +538,81 @@ describe("Sentence verification in search", () => {
     }))
 
     expect(await screen.findByText(/^jeg er glad$/i)).toBeInTheDocument()
+  })
+
+  it("shows translated-from-English icon, no raw-input underline, and saves the Danish preview", async () => {
+    const fetchSpy = mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      sentenceSearchPreviewResponse: {
+        status: "ready",
+        query_language: "en",
+        source_text: "jeg er glad",
+        english_translation: "I am happy",
+        is_valid: true,
+        errors: [],
+        message: null,
+      },
+      addSentenceResponse: {
+        status: "inserted",
+        id: 120,
+        source_text: "jeg er glad",
+        english_translation: "I am happy",
+        created_at: "2026-04-12T10:00:00.000Z",
+        message: 'Added "jeg er glad" to sentencebank.',
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    const dialog = await openSearch()
+    typeInSearch(dialog, "I am happy")
+
+    expect(await within(dialog).findByLabelText("Translated from English")).toBeInTheDocument()
+    expect(within(dialog).queryByText("EN→DA")).not.toBeInTheDocument()
+    expect(within(dialog).queryByText("Auto-translated from English")).not.toBeInTheDocument()
+    expect(within(dialog).queryByTestId("sentence-search-input-overlay")).not.toBeInTheDocument()
+
+    fireEvent.click(getSentenceOption(dialog))
+
+    await waitFor(() => {
+      expect(
+        fetchSpy.mock.calls.some(([input, init]) => {
+          if (!String(input).endsWith("/api/sentencebank/sentences") || init?.method !== "POST") {
+            return false
+          }
+          const body = JSON.parse(String(init.body ?? "{}")) as { source_text?: string }
+          return body.source_text === "jeg er glad"
+        }),
+      ).toBe(true)
+    })
+  })
+
+  it("shows a blocked English preview message and disables save", async () => {
+    mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      sentenceSearchPreviewResponse: {
+        status: "blocked",
+        query_language: "en",
+        source_text: null,
+        english_translation: null,
+        is_valid: false,
+        errors: [],
+        message: "Could not translate this English sentence to Danish.",
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    const dialog = await openSearch()
+    typeInSearch(dialog, "I am happy")
+
+    expect(await within(dialog).findByLabelText("Translated from English")).toBeInTheDocument()
+    expect(within(dialog).queryByText("EN→DA")).not.toBeInTheDocument()
+    expect(await within(dialog).findByText("Could not translate this English sentence to Danish.")).toBeInTheDocument()
+    const option = await within(dialog).findByRole("option")
+    expect(option).toHaveAttribute("aria-disabled", "true")
+    expect(within(option).getByText("Could not translate this English sentence to Danish.")).toBeInTheDocument()
   })
 })
