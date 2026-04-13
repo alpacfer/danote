@@ -58,10 +58,11 @@ class VerifySentenceResponse(BaseModel):
 
 class SentenceSearchPreviewRequest(BaseModel):
     source_text: str = Field(..., min_length=1, max_length=100)
+    fast: bool = False
 
 
 class SentenceSearchPreviewResponse(BaseModel):
-    status: Literal["ready", "blocked"]
+    status: Literal["ready", "blocked", "preview"]
     query_language: Literal["da", "en", "unknown"] = "unknown"
     source_text: str | None = None
     english_translation: str | None = None
