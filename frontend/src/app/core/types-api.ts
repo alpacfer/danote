@@ -383,6 +383,16 @@ export type GeneratePhraseTranslationResponse = {
   english_translation: string | null
 }
 
+export type SentenceSearchPreviewResponse = {
+  status: "ready" | "blocked"
+  query_language: "da" | "en" | "unknown"
+  source_text: string | null
+  english_translation: string | null
+  is_valid: boolean
+  errors: SentenceVerificationErrorItem[]
+  message: string | null
+}
+
 export type SentenceTokenCard = {
   token_index: number
   surface_form: string

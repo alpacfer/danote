@@ -15,6 +15,8 @@ from app.api.schemas.v1.sentencebank import (
     AddSentenceRequest,
     AddSentenceResponse,
     SentenceListResponse,
+    SentenceSearchPreviewRequest,
+    SentenceSearchPreviewResponse,
     VerifySentenceRequest,
     VerifySentenceResponse,
 )
@@ -61,4 +63,16 @@ def verify_sentence(payload: VerifySentenceRequest, request: Request) -> VerifyS
         request,
         lambda: _sentencebank_use_case(request).verify_sentence(payload.source_text),
         error_log_name="sentencebank_verify_db_operational_error",
+    )
+
+
+@router.post("/sentencebank/search-preview", response_model=SentenceSearchPreviewResponse)
+def sentence_search_preview(
+    payload: SentenceSearchPreviewRequest,
+    request: Request,
+) -> SentenceSearchPreviewResponse:
+    return run_db_operation(
+        request,
+        lambda: _sentencebank_use_case(request).preview_sentence_search(payload.source_text),
+        error_log_name="sentencebank_search_preview_db_operational_error",
     )

@@ -610,6 +610,17 @@ export function mockFetchImplementation(options?: {
   }
   verifySentenceOk?: boolean
   verifySentenceHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+  sentenceSearchPreviewResponse?: {
+    status: "ready" | "blocked"
+    query_language: "da" | "en" | "unknown"
+    source_text: string | null
+    english_translation: string | null
+    is_valid: boolean
+    errors: Array<{ start: number; end: number; message: string }>
+    message: string | null
+  }
+  sentenceSearchPreviewOk?: boolean
+  sentenceSearchPreviewHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
 }) {
   const healthOk = options?.healthOk ?? true
   const healthStatus = options?.healthStatus ?? "ok"
@@ -870,6 +881,15 @@ export function mockFetchImplementation(options?: {
     errors: [],
     corrected_text: null,
     language: "unknown" as const,
+  }
+  const sentenceSearchPreviewResponse = options?.sentenceSearchPreviewResponse ?? {
+    status: "ready" as const,
+    query_language: "da" as const,
+    source_text: "Jeg elsker dansk",
+    english_translation: "I love Danish",
+    is_valid: true,
+    errors: [],
+    message: null,
   }
 
   return vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
@@ -1264,6 +1284,16 @@ export function mockFetchImplementation(options?: {
         return options.speechProbeHandler(input, init)
       }
       return responseOf(speechProbeResponse)
+    }
+
+    if (url.endsWith("/api/sentencebank/search-preview")) {
+      if (options?.sentenceSearchPreviewHandler) {
+        return options.sentenceSearchPreviewHandler(input, init)
+      }
+      if (options?.sentenceSearchPreviewOk === false) {
+        throw new Error("sentence search preview request failed")
+      }
+      return responseOf(sentenceSearchPreviewResponse)
     }
 
     if (url.endsWith("/api/sentencebank/verify-sentence")) {

@@ -455,7 +455,7 @@ class WordbankReadRepository:
                         latest_snapshot_hash,
                         request_generation
                     FROM wordbank_verification_records
-                    WHERE lexeme_id = ? AND meaning_id IS NULL
+                    WHERE lexeme_id = ? AND meaning_id IS NULL AND stored_surface_form IS NULL
                     LIMIT 1
                     """,
                     (lexeme_id,),

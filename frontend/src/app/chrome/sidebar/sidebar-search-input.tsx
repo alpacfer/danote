@@ -3,8 +3,8 @@ import { useMemo, type KeyboardEventHandler } from "react"
 import {
   SENTENCE_VERIFY_MAX_CHARS,
   hasMultipleWords,
+  type SentenceSearchPreviewResponse,
   type SentenceVerificationErrorItem,
-  type VerifySentenceResponse,
 } from "@/app/core"
 import { CommandInput } from "@/components/ui/command"
 import { cn } from "@/lib/utils"
@@ -112,21 +112,24 @@ function buildSegments(text: string, errors: SentenceVerificationErrorItem[]): T
 
 type SidebarSearchInputProps = {
   value: string
-  sentenceVerification: VerifySentenceResponse | null
+  sentenceSearchPreview: SentenceSearchPreviewResponse | null
   onValueChange: (value: string) => void
   onKeyDown?: KeyboardEventHandler<HTMLInputElement>
 }
 
 export function SidebarSearchInput({
   value,
-  sentenceVerification,
+  sentenceSearchPreview,
   onValueChange,
   onKeyDown,
 }: SidebarSearchInputProps) {
   const trimmedValue = value.trim()
+  const previewErrors = sentenceSearchPreview?.query_language === "en"
+    ? []
+    : sentenceSearchPreview?.errors ?? []
   const rawErrors = useMemo(
-    () => mapVerificationErrorsToRawInput(value, sentenceVerification?.errors ?? []),
-    [sentenceVerification?.errors, value],
+    () => mapVerificationErrorsToRawInput(value, previewErrors),
+    [previewErrors, value],
   )
   const segments = useMemo(() => buildSegments(value, rawErrors), [rawErrors, value])
   const charactersRemaining = SENTENCE_VERIFY_MAX_CHARS - trimmedValue.length

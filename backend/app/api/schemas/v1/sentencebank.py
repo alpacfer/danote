@@ -54,3 +54,17 @@ class VerifySentenceResponse(BaseModel):
     errors: list[SentenceVerificationErrorItem] = Field(default_factory=list)
     corrected_text: str | None = None
     language: Literal["da", "en", "unknown"] = "unknown"
+
+
+class SentenceSearchPreviewRequest(BaseModel):
+    source_text: str = Field(..., min_length=1, max_length=100)
+
+
+class SentenceSearchPreviewResponse(BaseModel):
+    status: Literal["ready", "blocked"]
+    query_language: Literal["da", "en", "unknown"] = "unknown"
+    source_text: str | None = None
+    english_translation: str | None = None
+    is_valid: bool
+    errors: list[SentenceVerificationErrorItem] = Field(default_factory=list)
+    message: str | None = None

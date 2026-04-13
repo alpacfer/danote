@@ -22,17 +22,23 @@ Exact behavior of sidebar command search ("Search words and notes...").
 2. **COR form analyses** (backend COR endpoint, two-phase fetch)
 3. **Saved notes** (local in-memory filter)
 4. **Static pages** (Playground/Notes/Wordbank/Sentencebank/Developer)
-5. **Sentence mode** (multi-word Danish phrase translation preview)
+5. **Sentence mode** (multi-word sentence preview with Danish-first save)
 
 ## Sentence mode
 
 - Trigger: normalized query contains 2 or more whitespace-delimited words.
-- Preview endpoint: `POST /api/wordbank/phrase-translation`.
+- Preview endpoint: `POST /api/sentencebank/search-preview`.
 - Result set: exactly one row under `Sentence`.
 - While sentence mode is active, sidebar suppresses saved-word, COR, notes, and page groups.
-- Translation and verification requests receive whitespace-normalized sentence text with the user's capitalization preserved.
+- Sidebar sends one debounced sentence-preview request per normalized query and caches the full preview payload.
+- Preview requests receive whitespace-normalized sentence text with the user's capitalization preserved.
+- Danish and unknown-language queries stay in Danish-first flow: backend verifies the typed sentence, uses corrected Danish text when available, then returns the English translation for that finalized Danish sentence.
+- Explicit English queries switch flow: backend translates the query to Danish, verifies that Danish sentence, and returns the finalized Danish sentence plus English translation derived from that finalized Danish text.
+- English-origin previews render a visible `EN -> DA` badge and helper copy `Auto-translated from English`.
+- Input underline overlay only appears for non-English previews with verification errors. English-origin queries do not underline the raw English input.
 - Sentence translation display is sentence-cased; the UI no longer lowercases translation text.
 - Sentence verification corrections preserve initial capitalization and must not append a trailing period unless the source already has one.
+- English queries that cannot be translated to Danish return a blocked sentence row with an inline message and disabled save action.
 - Save action: `POST /api/sentencebank/sentences`, then close dialog.
 - Successful sentence save increments both `sentencebankRefreshTick` and `wordbankRefreshTick` because sentence save now mutates both stores.
 
@@ -68,7 +74,7 @@ Endpoints:
 
 ## Cache invalidation
 
-`wordbankCacheVersion` or `searchTranslationConfigVersion` changes → clear wordbank cache + COR cache + reset displayed results asynchronously. Ensures new saves/edits reflected + translation provider changes force refetch.
+`wordbankCacheVersion` or `searchTranslationConfigVersion` changes → clear wordbank cache + COR cache + sentence-preview cache + reset displayed results asynchronously. Ensures new saves/edits reflected + translation provider changes force refetch.
 
 ## Ranking and ordering
 
@@ -164,5 +170,6 @@ Sorted by best variant score per group:
 - Basics/minimum query: `frontend/src/test/app/app-shell-search-basics.test.tsx`
 - Actions/COR caching/debounce: `frontend/src/test/app/app-shell-search-actions.test.tsx`
 - Error handling: `frontend/src/test/app/app-shell-search-errors.test.tsx`
+- Sentence preview / English-origin behavior: `frontend/src/test/app/app-shell-search-sentence-verification.test.tsx`
 - Wordbank/search contract: `backend/tests/api/test_wordbank_add_and_list_endpoint.py`, `backend/tests/use_cases/test_wordbank_add_and_list.py`, `frontend/src/test/app/wordbank-contract-fixtures.ts`
 - Ranking/order: `frontend/src/test/app/app-shell-search-ranking-order.test.tsx`, `app-shell-search-ranking-selection.test.tsx`, `app-shell-search-ranking-results.test.tsx`, `app-shell-search-ranking-state.test.tsx`

@@ -203,16 +203,14 @@ describe("App shell and search", () => {
           },
         ] : [],
       }),
-      phraseTranslationResponse: {
-        status: "generated",
+      sentenceSearchPreviewResponse: {
+        status: "ready",
+        query_language: "da",
         source_text: "jeg elsker dansk",
         english_translation: "i love danish",
-      },
-      verifySentenceResponse: {
         is_valid: true,
         errors: [],
-        corrected_text: null,
-        language: "da",
+        message: null,
       },
       addSentenceResponse: {
         status: "inserted",
@@ -271,7 +269,7 @@ describe("App shell and search", () => {
     await waitFor(() => {
       expect(
         fetchSpy.mock.calls.some(([input, init]) =>
-          String(input).endsWith("/api/wordbank/phrase-translation") && init?.method === "POST"),
+          String(input).endsWith("/api/sentencebank/search-preview") && init?.method === "POST"),
       ).toBe(true)
       expect(
         fetchSpy.mock.calls.some(([input, init]) =>
@@ -292,6 +290,9 @@ describe("App shell and search", () => {
     ).toBe(false)
     expect(
       fetchSpy.mock.calls.some(([input]) => String(input).includes("/api/wordbank/search/cor-form?")),
+    ).toBe(false)
+    expect(
+      fetchSpy.mock.calls.some(([input]) => String(input).endsWith("/api/wordbank/phrase-translation")),
     ).toBe(false)
   })
 

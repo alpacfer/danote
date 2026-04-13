@@ -83,6 +83,18 @@ Routes: `backend/app/api/routes/`. DTOs: `backend/app/api/schemas/v1/`. Some tok
 - **Response model:** `VerifySentenceResponse` (`is_valid`, `errors: [{start, end, message}]`, `corrected_text`, `language`).
 - **Notable status/error behavior:** `422` empty or >100 char text. `503` DB unavailable. No Gemini service → returns `is_valid=true`.
 
+### POST `/api/sentencebank/search-preview`
+- **Request model:** `SentenceSearchPreviewRequest` (`source_text: str`, max 100 chars).
+- **Response model:** `SentenceSearchPreviewResponse` (`status`, `query_language`, `source_text`, `english_translation`, `is_valid`, `errors`, `message`).
+- **Notable status/error behavior:** `422` empty or >100 char text. `503` DB unavailable.
+- **Field invariants:**
+  - `source_text`: finalized Danish sentence candidate for sidebar display and save. `null` only when preview is blocked.
+  - `query_language`: detected language of the original query, not the finalized Danish sentence.
+  - `english_translation`: derived from the finalized Danish `source_text`, including English-origin queries after translation to Danish.
+  - `status = "ready"`: save may proceed when `source_text` is non-null.
+  - `status = "blocked"`: sidebar disables save and surfaces `message`.
+  - Explicit English queries translate to Danish before verification. Unknown-language queries do not auto-switch into English flow.
+
 ## Wordbank
 
 ### POST `/api/wordbank/lexemes`

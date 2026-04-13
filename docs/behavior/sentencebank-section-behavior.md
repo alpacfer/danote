@@ -16,6 +16,16 @@
 5. Success → toast, increment `sentencebankRefreshTick` and `wordbankRefreshTick`, invoke `onSentenceSaved`
 6. Failure → toast error, clear saving flag in `finally`
 
+### Sentence add flow from Sidebar Search
+
+`useSidebarSearch` + `AppSidebar` sentence mode:
+1. Normalize query for sentence mode after raw input is preserved in the command field
+2. Request `POST /api/sentencebank/search-preview`
+3. Backend returns the finalized Danish sentence candidate to save, its English translation, detected query language, and any verification findings
+4. English-origin previews show a visible `EN -> DA` indicator and helper copy before save
+5. Search save uses `preview.source_text` only, so English-origin queries save the backend-finalized Danish sentence rather than the original English input
+6. Save still calls the same `addSentenceToSentencebank` workflow and therefore keeps existing refresh and pending-page behavior
+
 ## 2) Loading and error states
 
 Render priority in `SentencebankSection`:

@@ -6,6 +6,7 @@ from typing import Literal
 from app.api.schemas.v1.sentencebank import (
     AddSentenceResponse,
     SentenceListResponse,
+    SentenceSearchPreviewResponse,
     SentenceSummary,
     SentenceTokenCard,
     SentenceVerificationErrorItem,
@@ -16,6 +17,10 @@ from app.db.repositories.sentencebank import SentenceRecord, SentenceTokenWriteR
 from app.nlp.adapter import NLPAdapter
 from app.nlp.token_filter import is_wordlike_token
 from app.services.cor_local import CORLocalEntry
+from app.services.sentence_verification import (
+    SentenceVerificationResult,
+    SentenceVerificationService,
+)
 from app.services.token_classifier import normalize_token
 from app.services.translation import TranslationService
 from app.services.use_cases.wordbank import WordbankUseCase
@@ -30,7 +35,6 @@ from app.services.use_cases.wordbank.verification_targets import (
     discover_word_page_verification_targets,
     queue_verification_targets,
 )
-from app.services.sentence_verification import SentenceVerificationService
 from app.services.verification import WordVerificationInput
 
 
@@ -49,6 +53,15 @@ def _capitalize_sentence_translation(english_translation: str | None) -> str | N
     if alpha_index is None or cleaned[alpha_index].isupper():
         return cleaned
     return cleaned[:alpha_index] + cleaned[alpha_index].upper() + cleaned[alpha_index + 1:]
+
+
+def _normalize_query_language(value: str | None) -> Literal["da", "en", "unknown"]:
+    cleaned = value.strip().lower() if isinstance(value, str) else ""
+    if cleaned == "da":
+        return "da"
+    if cleaned == "en":
+        return "en"
+    return "unknown"
 
 
 def _starts_with_uppercase_letter(text: str) -> bool:
@@ -197,6 +210,57 @@ class SentencebankUseCase:
             language=result.language,
         )
 
+    def preview_sentence_search(self, source_text: str) -> SentenceSearchPreviewResponse:
+        normalized_query = _normalize_sentence_text(source_text)
+        if not normalized_query:
+            raise ValueError("source_text is required")
+
+        initial_verification = self._verify_sentence_result(normalized_query)
+        query_language = initial_verification.language
+        if query_language == "unknown":
+            query_language = self._detect_query_language(normalized_query)
+
+        if query_language == "en":
+            translated_danish = self._lookup_reverse_translation(normalized_query)
+            if not translated_danish:
+                return SentenceSearchPreviewResponse(
+                    status="blocked",
+                    query_language="en",
+                    source_text=None,
+                    english_translation=None,
+                    is_valid=False,
+                    errors=[],
+                    message="Could not translate this English sentence to Danish.",
+                )
+            verification = self._verify_sentence_result(translated_danish)
+            final_source_text = verification.corrected_text or translated_danish
+            return SentenceSearchPreviewResponse(
+                status="ready",
+                query_language="en",
+                source_text=final_source_text,
+                english_translation=self._lookup_phrase_translation(final_source_text),
+                is_valid=verification.is_valid,
+                errors=[
+                    SentenceVerificationErrorItem(start=e.start, end=e.end, message=e.message)
+                    for e in verification.errors
+                ],
+                message=None,
+            )
+
+        final_source_text = initial_verification.corrected_text or normalized_query
+        return SentenceSearchPreviewResponse(
+            status="ready",
+            query_language=query_language,
+            source_text=final_source_text,
+            english_translation=self._lookup_phrase_translation(final_source_text),
+            is_valid=initial_verification.is_valid,
+            errors=[
+                SentenceVerificationErrorItem(start=e.start, end=e.end, message=e.message)
+                for e in initial_verification.errors
+            ],
+            message=None,
+        )
+
     def _lookup_phrase_translation(self, source_text: str) -> str | None:
         if self._wordbank_use_case is not None:
             try:
@@ -214,6 +278,47 @@ class SentencebankUseCase:
             return _capitalize_sentence_translation(translated)
         except Exception:
             return None
+
+    def _lookup_reverse_translation(self, source_text: str) -> str | None:
+        if self._translation_service is None:
+            return None
+        translate_en_to_da = getattr(self._translation_service, "translate_en_to_da", None)
+        if not callable(translate_en_to_da):
+            return None
+        try:
+            translated = translate_en_to_da(source_text)
+            return _normalize_sentence_text(translated) if isinstance(translated, str) and translated.strip() else None
+        except Exception:
+            return None
+
+    def _detect_query_language(self, source_text: str) -> Literal["da", "en", "unknown"]:
+        if self._translation_service is None:
+            return "unknown"
+        detect_source_language = getattr(self._translation_service, "detect_source_language", None)
+        if not callable(detect_source_language):
+            return "unknown"
+        try:
+            return _normalize_query_language(detect_source_language(source_text))
+        except Exception:
+            return "unknown"
+
+    def _verify_sentence_result(self, source_text: str):
+        if self._sentence_verification_service is None:
+            return SentenceVerificationResult(
+                is_valid=True,
+                errors=[],
+                corrected_text=None,
+                language="unknown",
+            )
+        try:
+            return self._sentence_verification_service.verify_sentence(source_text)
+        except Exception:
+            return SentenceVerificationResult(
+                is_valid=True,
+                errors=[],
+                corrected_text=None,
+                language="unknown",
+            )
 
     def _translation_provider_name(self) -> str:
         provider = getattr(self._translation_service, "provider", None)
@@ -274,6 +379,7 @@ class SentencebankUseCase:
                 pending_selection_results[selection.token_index] = selected_candidate
 
         resolved: list[SentenceTokenWriteRecord] = []
+        seen_verification_targets: set[tuple[str, str | None, int | None]] = set()
         for planned_token in planned_tokens:
             if isinstance(planned_token, _PendingSentenceTokenSelection):
                 selected_candidate = pending_selection_results.get(planned_token.token_index)
@@ -290,15 +396,20 @@ class SentencebankUseCase:
                 token, is_new = planned_token
             resolved.append(token)
             if is_new:
-                new_tokens.append({
-                    "stored_lemma": token.stored_lemma,
-                    "stored_surface_form": (
-                        token.normalized_surface
-                        if token.normalized_surface != token.stored_lemma
-                        else None
-                    ),
-                    "meaning_id": token.meaning_id,
-                })
+                for metadata in _verification_metadata_for_new_sentence_token(token):
+                    key = (
+                        str(metadata["stored_lemma"]),
+                        (
+                            str(metadata["stored_surface_form"])
+                            if metadata["stored_surface_form"] is not None
+                            else None
+                        ),
+                        int(metadata["meaning_id"]) if isinstance(metadata["meaning_id"], int) else None,
+                    )
+                    if key in seen_verification_targets:
+                        continue
+                    seen_verification_targets.add(key)
+                    new_tokens.append(metadata)
         return resolved, new_tokens
 
     def _resolve_sentence_token(
@@ -660,6 +771,26 @@ def _build_verification_input(
         stored_surface_form=normalized_surface_form,
         meaning_id=int(meaning_id) if isinstance(meaning_id, int) and meaning_id else None,
     )
+
+
+def _verification_metadata_for_new_sentence_token(
+    token: SentenceTokenWriteRecord,
+) -> list[dict[str, object]]:
+    root_target = {
+        "stored_lemma": token.stored_lemma,
+        "stored_surface_form": None,
+        "meaning_id": token.meaning_id,
+    }
+    if token.meaning_id is not None or token.normalized_surface == token.stored_lemma:
+        return [root_target]
+    return [
+        root_target,
+        {
+            "stored_lemma": token.stored_lemma,
+            "stored_surface_form": token.normalized_surface,
+            "meaning_id": None,
+        },
+    ]
 
 
 def _batch_select_sentence_candidates(

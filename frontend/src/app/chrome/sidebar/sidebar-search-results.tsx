@@ -13,9 +13,9 @@ import {
   type CORSearchGroup,
   type CORSearchVariant,
   type SavedNote,
+  type SentenceSearchPreviewResponse,
   type SearchSaveSeed,
   type SearchFeedbackContext,
-  type VerifySentenceResponse,
   type WordbankSearchItem,
 } from "@/app/core"
 
@@ -44,13 +44,8 @@ export type SidebarSearchResultsState = {
 }
 
 export type SidebarSearchResultsData = {
-  sentenceSearchResult: {
-    source_text: string
-    english_translation: string | null
-  } | null
-  isSentenceTranslationLoading: boolean
-  sentenceVerification: VerifySentenceResponse | null
-  isSentenceVerificationLoading: boolean
+  sentenceSearchPreview: SentenceSearchPreviewResponse | null
+  isSentenceSearchPreviewLoading: boolean
   orderedWordbankResults: WordbankSearchItem[]
   displayVariantBySavedResult: Map<string, { group: CORSearchGroup; variant: CORSearchVariant }>
   addVariationBySavedResult: Map<string, { group: CORSearchGroup; variant: CORSearchVariant }>
@@ -92,16 +87,13 @@ type SidebarSearchResultsProps = {
 }
 
 export function SidebarSearchResults({ state, data, actions }: SidebarSearchResultsProps) {
-  if (state.isSentenceMode && data.sentenceSearchResult) {
+  if (state.isSentenceMode && (data.sentenceSearchPreview || data.isSentenceSearchPreviewLoading)) {
     return (
       <CommandList>
         <SidebarSentenceResult
-          key={data.isSentenceVerificationLoading ? "sentence-result-loading" : "sentence-result-ready"}
-          sourceText={data.sentenceSearchResult.source_text}
-          englishTranslation={data.sentenceSearchResult.english_translation}
-          isTranslationLoading={data.isSentenceTranslationLoading}
-          sentenceVerification={data.sentenceVerification}
-          isSentenceVerificationLoading={data.isSentenceVerificationLoading}
+          key={data.isSentenceSearchPreviewLoading ? "sentence-result-loading" : "sentence-result-ready"}
+          sentenceSearchPreview={data.sentenceSearchPreview}
+          isSentenceSearchPreviewLoading={data.isSentenceSearchPreviewLoading}
           onSaveSentence={actions.onAddSentenceFromSearch}
         />
       </CommandList>

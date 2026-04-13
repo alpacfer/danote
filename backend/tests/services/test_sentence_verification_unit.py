@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from app.services.sentence_verification import (
     SentenceVerificationErrorSpan,
-    SentenceVerificationResult,
     _parse_result,
 )
 

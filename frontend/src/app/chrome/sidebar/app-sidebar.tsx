@@ -96,10 +96,8 @@ export function AppSidebar({
     setSearchQuery,
     normalizedQuery,
     isSentenceMode,
-    sentenceSearchResult,
-    isSentenceTranslationLoading,
-    sentenceVerification,
-    isSentenceVerificationLoading,
+    sentenceSearchPreview,
+    isSentenceSearchPreviewLoading,
     matchingNotes,
     searchApiMatches,
     wordbankDidYouMean,
@@ -179,7 +177,7 @@ export function AppSidebar({
   const hasNoteResults = matchingNotes.length > 0
   const hasPageResults = matchingPageItems.length > 0
   const hasAnyResults = isSentenceMode
-    ? Boolean(sentenceSearchResult)
+    ? Boolean(sentenceSearchPreview)
     : (hasWordbankSectionResults || hasNoteResults || hasPageResults)
 
   const orderedCorVariantsToRender = useMemo(() => {
@@ -196,7 +194,7 @@ export function AppSidebar({
 
   const orderedCommandItemValues = useMemo(() => {
     const values: string[] = []
-    if (isSentenceMode && sentenceSearchResult) {
+    if (isSentenceMode && sentenceSearchPreview) {
       return ["sentence-translation-result"]
     }
     // Direct wordbank (no wordbank correction)
@@ -234,7 +232,7 @@ export function AppSidebar({
       values.push(page.key)
     }
     return values
-  }, [corDidYouMean, isSentenceMode, matchingNotes, matchingPageItems, orderedCorVariantsToRender, orderedWordbankResults, sentenceSearchResult, wordbankDidYouMean])
+  }, [corDidYouMean, isSentenceMode, matchingNotes, matchingPageItems, orderedCorVariantsToRender, orderedWordbankResults, sentenceSearchPreview, wordbankDidYouMean])
 
   const commandSelectionValue = useMemo(() => {
     if (commandSelectionOverride && orderedCommandItemValues.includes(commandSelectionOverride)) {
@@ -292,10 +290,8 @@ export function AppSidebar({
   }
 
   const searchResultData: SidebarSearchResultsData = {
-    sentenceSearchResult,
-    isSentenceTranslationLoading,
-    sentenceVerification,
-    isSentenceVerificationLoading,
+    sentenceSearchPreview,
+    isSentenceSearchPreviewLoading,
     orderedWordbankResults,
     displayVariantBySavedResult,
     addVariationBySavedResult,
@@ -312,7 +308,7 @@ export function AppSidebar({
 
   const searchResultActions: SidebarSearchResultsActions = {
     onAddSentenceFromSearch: async (sourceText: string) => {
-      saveSentenceFromSearch(sourceText, sentenceSearchResult?.english_translation ?? null)
+      saveSentenceFromSearch(sourceText, sentenceSearchPreview?.english_translation ?? null)
     },
     onSetSearchQuery: (query: string) => { setSearchQuery(query) },
     onOpenSavedNote,
@@ -346,14 +342,15 @@ export function AppSidebar({
         >
           <SidebarSearchInput
             value={searchQuery}
-            sentenceVerification={sentenceVerification}
+            sentenceSearchPreview={sentenceSearchPreview}
             onKeyDown={(event) => {
               if (
                 event.key !== "Enter"
                 || !isSentenceMode
-                || !sentenceSearchResult
-                || isSentenceVerificationLoading
-                || sentenceVerification === null
+                || !sentenceSearchPreview
+                || isSentenceSearchPreviewLoading
+                || sentenceSearchPreview.source_text === null
+                || sentenceSearchPreview.status === "blocked"
               ) {
                 return
               }
@@ -361,8 +358,8 @@ export function AppSidebar({
               event.preventDefault()
               event.stopPropagation()
               saveSentenceFromSearch(
-                sentenceVerification.corrected_text ?? sentenceSearchResult.source_text,
-                sentenceSearchResult.english_translation ?? null,
+                sentenceSearchPreview.source_text,
+                sentenceSearchPreview.english_translation ?? null,
               )
             }}
             onValueChange={(value) => {

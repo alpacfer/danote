@@ -608,8 +608,6 @@ describe("Sentence verification in search", () => {
     const dialog = await openSearch()
     typeInSearch(dialog, "I am happy")
 
-    expect(await within(dialog).findByLabelText("Translated from English")).toBeInTheDocument()
-    expect(within(dialog).queryByText("EN→DA")).not.toBeInTheDocument()
     expect(await within(dialog).findByText("Could not translate this English sentence to Danish.")).toBeInTheDocument()
     const option = await within(dialog).findByRole("option")
     expect(option).toHaveAttribute("aria-disabled", "true")

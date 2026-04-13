@@ -10,13 +10,12 @@ import {
   normalizeSentenceText,
   hasMultipleWords,
   isShortLetterWord,
-  type GeneratePhraseTranslationResponse,
   normalizeSearchWord,
   type CORSearchFormResponse,
   type SavedNote,
+  type SentenceSearchPreviewResponse,
   type WordbankSearchItem,
   type WordbankSearchResponse,
-  type VerifySentenceResponse,
 } from "@/app/core"
 import { extractErrorMessage } from "@/app/hooks/app/controller/runtime-utils"
 
@@ -39,16 +38,13 @@ export function useSidebarSearch({
   const [corDidYouMean, setCorDidYouMean] = useState<string | null>(null)
   const [corFormSearchResult, setCorFormSearchResult] = useState<{ query: string; payload: CORSearchFormResponse } | null>(null)
   const [isCorTranslationsLoading, setIsCorTranslationsLoading] = useState(false)
-  const [sentenceSearchResult, setSentenceSearchResult] = useState<{
+  const [sentenceSearchPreview, setSentenceSearchPreview] = useState<{
     query: string
-    source_text: string
-    english_translation: string | null
+    result: SentenceSearchPreviewResponse
   } | null>(null)
-  const [isSentenceTranslationLoading, setIsSentenceTranslationLoading] = useState(false)
-  const [sentenceVerification, setSentenceVerification] = useState<{ query: string; result: VerifySentenceResponse } | null>(null)
-  const [isSentenceVerificationLoading, setIsSentenceVerificationLoading] = useState(false)
-  const [sentenceVerificationError, setSentenceVerificationError] = useState<string | null>(null)
-  const sentenceVerificationCacheRef = useRef<Map<string, VerifySentenceResponse>>(new Map())
+  const [isSentenceSearchPreviewLoading, setIsSentenceSearchPreviewLoading] = useState(false)
+  const [sentenceSearchPreviewError, setSentenceSearchPreviewError] = useState<string | null>(null)
+  const sentenceSearchPreviewCacheRef = useRef<Map<string, SentenceSearchPreviewResponse>>(new Map())
   const apiClient = useMemo(
     () => createApiClient({ backendUrl: BACKEND_URL, extractErrorMessage }),
     [],
@@ -58,10 +54,9 @@ export function useSidebarSearch({
   const normalizedQuery = normalizeSearchWord(searchQuery)
   const trimmedQuery = normalizedQuery
   const isSentenceMode = hasMultipleWords(sentenceQuery) && sentenceQuery.length <= SENTENCE_VERIFY_MAX_CHARS
-  const activeSentenceVerification = sentenceVerification?.query === sentenceQuery
-    ? sentenceVerification.result
+  const activeSentenceSearchPreview = sentenceSearchPreview?.query === sentenceQuery
+    ? sentenceSearchPreview.result
     : null
-  const activeSentenceTranslationSource = activeSentenceVerification?.corrected_text || sentenceQuery
 
   const matchingNotes = useMemo(() => {
     if (!normalizedQuery) {
@@ -79,13 +74,12 @@ export function useSidebarSearch({
   useEffect(() => {
     wordbankSearchCacheRef.current.clear()
     corFormSearchCacheRef.current.clear()
-    sentenceVerificationCacheRef.current.clear()
+    sentenceSearchPreviewCacheRef.current.clear()
     const clearId = window.setTimeout(() => {
       setSearchApiMatches([])
       setCorFormSearchResult(null)
-      setSentenceSearchResult(null)
-      setSentenceVerification(null)
-      setSentenceVerificationError(null)
+      setSentenceSearchPreview(null)
+      setSentenceSearchPreviewError(null)
     }, 0)
     return () => {
       window.clearTimeout(clearId)
@@ -227,107 +221,56 @@ export function useSidebarSearch({
   }, [apiClient, isSentenceMode, normalizedQuery, searchTranslationConfigVersion, trimmedQuery, wordbankCacheVersion])
 
   useEffect(() => {
-    if (!isSentenceMode || !activeSentenceTranslationSource) {
-      setSentenceSearchResult(null)
-      setIsSentenceTranslationLoading(false)
-      return
-    }
-
-    let cancelled = false
-    setSentenceSearchResult({
-      query: sentenceQuery,
-      source_text: activeSentenceTranslationSource,
-      english_translation: null,
-    })
-    setIsSentenceTranslationLoading(true)
-
-    const timeoutId = window.setTimeout(() => {
-      void (async () => {
-        try {
-          const payload = await apiClient.postJson<GeneratePhraseTranslationResponse>(
-            "/api/wordbank/phrase-translation",
-            { source_text: activeSentenceTranslationSource },
-            "Could not generate phrase translation.",
-          )
-          if (cancelled) {
-            return
-          }
-          setSentenceSearchResult({
-            query: sentenceQuery,
-            source_text: payload.source_text || activeSentenceTranslationSource,
-            english_translation: payload.english_translation ?? null,
-          })
-        } catch {
-          if (!cancelled) {
-            setSentenceSearchResult({
-              query: sentenceQuery,
-              source_text: activeSentenceTranslationSource,
-              english_translation: null,
-            })
-          }
-        } finally {
-          if (!cancelled) {
-            setIsSentenceTranslationLoading(false)
-          }
-        }
-      })()
-    }, SEARCH_RESOLVE_DEBOUNCE_MS)
-
-    return () => {
-      cancelled = true
-      window.clearTimeout(timeoutId)
-      setIsSentenceTranslationLoading(false)
-    }
-  }, [activeSentenceTranslationSource, apiClient, isSentenceMode, sentenceQuery])
-
-  useEffect(() => {
     if (!isSentenceMode || !sentenceQuery) {
-      setSentenceVerification(null)
-      setSentenceVerificationError(null)
-      setIsSentenceVerificationLoading(false)
+      setSentenceSearchPreview(null)
+      setSentenceSearchPreviewError(null)
+      setIsSentenceSearchPreviewLoading(false)
       return
     }
 
-    const cached = sentenceVerificationCacheRef.current.get(sentenceQuery)
+    const cached = sentenceSearchPreviewCacheRef.current.get(sentenceQuery)
     if (cached) {
-      setSentenceVerification({ query: sentenceQuery, result: cached })
-      setIsSentenceVerificationLoading(false)
-      setSentenceVerificationError(null)
+      setSentenceSearchPreview({ query: sentenceQuery, result: cached })
+      setIsSentenceSearchPreviewLoading(false)
+      setSentenceSearchPreviewError(null)
       return
     }
 
     let cancelled = false
-    setSentenceVerification(null)
-    setIsSentenceVerificationLoading(true)
-    setSentenceVerificationError(null)
+    setSentenceSearchPreview(null)
+    setIsSentenceSearchPreviewLoading(true)
+    setSentenceSearchPreviewError(null)
 
     const timeoutId = window.setTimeout(() => {
       void (async () => {
         try {
-          const result = await apiClient.postJson<VerifySentenceResponse>(
-            "/api/sentencebank/verify-sentence",
+          const result = await apiClient.postJson<SentenceSearchPreviewResponse>(
+            "/api/sentencebank/search-preview",
             { source_text: sentenceQuery },
-            "Could not verify sentence.",
+            "Could not prepare sentence preview.",
           )
           if (cancelled) return
-          sentenceVerificationCacheRef.current.set(sentenceQuery, result)
-          setSentenceVerification({ query: sentenceQuery, result })
+          sentenceSearchPreviewCacheRef.current.set(sentenceQuery, result)
+          setSentenceSearchPreview({ query: sentenceQuery, result })
         } catch (error) {
           if (!cancelled) {
-            const fallback: VerifySentenceResponse = {
+            const fallback: SentenceSearchPreviewResponse = {
+              status: "ready",
+              query_language: "unknown",
+              source_text: sentenceQuery,
+              english_translation: null,
+              message: null,
               is_valid: true,
               errors: [],
-              corrected_text: null,
-              language: "unknown",
             }
-            setSentenceVerificationError(
-              error instanceof Error ? error.message : "Could not verify sentence.",
+            setSentenceSearchPreviewError(
+              error instanceof Error ? error.message : "Could not prepare sentence preview.",
             )
-            setSentenceVerification({ query: sentenceQuery, result: fallback })
+            setSentenceSearchPreview({ query: sentenceQuery, result: fallback })
           }
         } finally {
           if (!cancelled) {
-            setIsSentenceVerificationLoading(false)
+            setIsSentenceSearchPreviewLoading(false)
           }
         }
       })()
@@ -336,7 +279,7 @@ export function useSidebarSearch({
     return () => {
       cancelled = true
       window.clearTimeout(timeoutId)
-      setIsSentenceVerificationLoading(false)
+      setIsSentenceSearchPreviewLoading(false)
     }
   }, [apiClient, isSentenceMode, sentenceQuery, wordbankCacheVersion, searchTranslationConfigVersion])
 
@@ -352,16 +295,14 @@ export function useSidebarSearch({
     setSearchQuery,
     normalizedQuery,
     isSentenceMode,
-    sentenceSearchResult,
-    isSentenceTranslationLoading,
+    sentenceSearchPreview: activeSentenceSearchPreview,
+    isSentenceSearchPreviewLoading,
     matchingNotes,
     searchApiMatches,
     wordbankDidYouMean,
     corDidYouMean,
     activeCorFormSearchResult,
     isCorTranslationsLoading,
-    sentenceVerification: activeSentenceVerification,
-    isSentenceVerificationLoading,
-    sentenceVerificationError,
+    sentenceSearchPreviewError,
   }
 }

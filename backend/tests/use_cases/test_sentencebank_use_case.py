@@ -1,13 +1,20 @@
 from __future__ import annotations
 
-from pathlib import Path
 import sqlite3
-import pytest
+from pathlib import Path
 
+from app.api.schemas.v1.sentencebank import SentenceVerificationErrorItem
 from app.nlp.adapter import NLPToken
+from app.services.sentence_verification import (
+    SentenceVerificationErrorSpan,
+    SentenceVerificationResult,
+)
 from app.services.use_cases.sentencebank import SentencebankUseCase
 from app.services.use_cases.wordbank import WordbankUseCase
-from app.services.verification import WordVerificationResult, WordCategoryClassificationResult
+from app.services.verification import (
+    WordCategoryClassificationResult,
+    WordVerificationResult,
+)
 from tests.helpers.factories import _cor_local_entry, _db_path
 from tests.helpers.fakes import (
     FakeCORLocalLexiconService,
@@ -514,6 +521,137 @@ def test_sentencebank_add_sentence_triggers_batch_verification(tmp_path: Path) -
     assert queued_verification_records == 0
 
 
+class FakeSentenceVerificationService:
+    def __init__(self, results: dict[str, SentenceVerificationResult] | None = None, *, should_raise: bool = False):
+        self._results = results or {}
+        self._should_raise = should_raise
+        self.calls: list[str] = []
+
+    def verify_sentence(self, source_text: str) -> SentenceVerificationResult:
+        self.calls.append(source_text)
+        if self._should_raise:
+            raise RuntimeError("verification unavailable")
+        return self._results.get(
+            source_text,
+            SentenceVerificationResult(
+                is_valid=True,
+                errors=[],
+                corrected_text=None,
+                language="unknown",
+            ),
+        )
+
+
+def test_sentencebank_preview_sentence_search_returns_danish_correction(tmp_path: Path) -> None:
+    verification_service = FakeSentenceVerificationService(
+        results={
+            "jeg er glat": SentenceVerificationResult(
+                is_valid=False,
+                errors=[SentenceVerificationErrorSpan(start=7, end=11, message="typo")],
+                corrected_text="jeg er glad",
+                language="da",
+            ),
+        }
+    )
+    use_case = SentencebankUseCase(
+        _db_path(tmp_path),
+        translation_service=FakeTranslationService({"jeg er glad": "i am happy"}),
+        sentence_verification_service=verification_service,
+    )
+
+    preview = use_case.preview_sentence_search("jeg er glat")
+
+    assert preview.status == "ready"
+    assert preview.query_language == "da"
+    assert preview.source_text == "jeg er glad"
+    assert preview.english_translation == "I am happy"
+    assert preview.is_valid is False
+    assert preview.errors == [SentenceVerificationErrorItem(start=7, end=11, message="typo")]
+
+
+def test_sentencebank_preview_sentence_search_translates_english_input(tmp_path: Path) -> None:
+    verification_service = FakeSentenceVerificationService(
+        results={
+            "I am happy": SentenceVerificationResult(
+                is_valid=True,
+                errors=[],
+                corrected_text=None,
+                language="en",
+            ),
+            "jeg er glad": SentenceVerificationResult(
+                is_valid=True,
+                errors=[],
+                corrected_text=None,
+                language="da",
+            ),
+        }
+    )
+    use_case = SentencebankUseCase(
+        _db_path(tmp_path),
+        translation_service=FakeTranslationService(
+            {"I am happy": "jeg er glad", "jeg er glad": "i am happy"},
+            detected_languages={"I am happy": "EN"},
+        ),
+        sentence_verification_service=verification_service,
+    )
+
+    preview = use_case.preview_sentence_search("I am happy")
+
+    assert preview.status == "ready"
+    assert preview.query_language == "en"
+    assert preview.source_text == "jeg er glad"
+    assert preview.english_translation == "I am happy"
+    assert preview.is_valid is True
+    assert preview.errors == []
+
+
+def test_sentencebank_preview_sentence_search_blocks_on_missing_english_translation(tmp_path: Path) -> None:
+    verification_service = FakeSentenceVerificationService(
+        results={
+            "I am happy": SentenceVerificationResult(
+                is_valid=True,
+                errors=[],
+                corrected_text=None,
+                language="en",
+            ),
+        }
+    )
+    use_case = SentencebankUseCase(
+        _db_path(tmp_path),
+        translation_service=FakeTranslationService({}, detected_languages={"I am happy": "EN"}),
+        sentence_verification_service=verification_service,
+    )
+
+    preview = use_case.preview_sentence_search("I am happy")
+
+    assert preview.status == "blocked"
+    assert preview.query_language == "en"
+    assert preview.source_text is None
+    assert preview.english_translation is None
+    assert preview.is_valid is False
+    assert preview.errors == []
+
+
+def test_sentencebank_preview_sentence_search_degrades_when_verification_unavailable(tmp_path: Path) -> None:
+    use_case = SentencebankUseCase(
+        _db_path(tmp_path),
+        translation_service=FakeTranslationService(
+            {"I am happy": "jeg er glad", "jeg er glad": "i am happy"},
+            detected_languages={"I am happy": "EN"},
+        ),
+        sentence_verification_service=FakeSentenceVerificationService(should_raise=True),
+    )
+
+    preview = use_case.preview_sentence_search("I am happy")
+
+    assert preview.status == "ready"
+    assert preview.query_language == "en"
+    assert preview.source_text == "jeg er glad"
+    assert preview.english_translation == "I am happy"
+    assert preview.is_valid is True
+    assert preview.errors == []
+
+
 def test_sentencebank_batch_verification_persists_lemma_targets_for_lemma_form_tokens(tmp_path: Path) -> None:
     db_path = _db_path(tmp_path)
     nlp_adapter = MappingNLPAdapter(
@@ -555,6 +693,49 @@ def test_sentencebank_batch_verification_persists_lemma_targets_for_lemma_form_t
         ).fetchone()[0]
     assert verified_lemma_targets == 2
     assert verified_hidden_surface_targets == 0
+
+
+def test_sentencebank_batch_verification_persists_root_and_surface_targets_for_inflected_verbs(
+    tmp_path: Path,
+) -> None:
+    db_path = _db_path(tmp_path)
+    nlp_adapter = MappingNLPAdapter(
+        {
+            "er": [
+                NLPToken(text="er", lemma="være", pos="AUX", morphology="Tense=Pres|VerbForm=Fin", is_punctuation=False),
+            ],
+        }
+    )
+    verification_service = FakeVerificationService()
+    verification_service.batch_calls = []
+    wordbank_use_case = WordbankUseCase(
+        db_path,
+        nlp_adapter=nlp_adapter,
+        verification_service=verification_service,
+    )
+    sentencebank_use_case = SentencebankUseCase(
+        db_path,
+        nlp_adapter=nlp_adapter,
+        wordbank_use_case=wordbank_use_case,
+    )
+
+    sentencebank_use_case.add_sentence("er")
+
+    assert len(verification_service.batch_calls) == 1
+    batch_payloads, batch_context = verification_service.batch_calls[0]
+    assert batch_context == "er"
+    assert {(payload.stored_lemma, payload.stored_surface_form, payload.meaning_id) for payload in batch_payloads} == {
+        ("være", None, None),
+        ("være", "er", None),
+    }
+
+    details = wordbank_use_case.get_lemma_details("være")
+    assert details.verification is not None
+    assert details.verification.status == "verified"
+    surface_form = next((item for item in details.surface_forms if item.form == "er"), None)
+    assert surface_form is not None
+    assert surface_form.verification is not None
+    assert surface_form.verification.status == "verified"
 
 
 def test_sentencebank_add_sentence_falls_back_on_batch_failure(tmp_path: Path) -> None:

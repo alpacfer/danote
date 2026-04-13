@@ -3,7 +3,10 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 
 from app.core.app_state import set_service_field
-from app.services.sentence_verification import SentenceVerificationErrorSpan, SentenceVerificationResult
+from app.services.sentence_verification import (
+    SentenceVerificationErrorSpan,
+    SentenceVerificationResult,
+)
 from tests.api.support import build_api_test_app
 
 
@@ -74,3 +77,123 @@ def test_verify_sentence_empty_returns_422(tmp_path, stub_nlp_adapter_factory) -
     with TestClient(app) as client:
         response = client.post("/api/sentencebank/verify-sentence", json={"source_text": ""})
     assert response.status_code == 422
+
+
+class StubSentencePreviewVerificationService:
+    def verify_sentence(self, source_text: str) -> SentenceVerificationResult:
+        if source_text == "I am happy":
+            return SentenceVerificationResult(
+                is_valid=True,
+                errors=[],
+                corrected_text=None,
+                language="en",
+            )
+        if source_text == "jeg er glat":
+            return SentenceVerificationResult(
+                is_valid=False,
+                errors=[SentenceVerificationErrorSpan(start=7, end=11, message="typo")],
+                corrected_text="jeg er glad",
+                language="da",
+            )
+        return SentenceVerificationResult(
+            is_valid=True,
+            errors=[],
+            corrected_text=None,
+            language="da",
+        )
+
+
+def test_sentence_search_preview_returns_danish_preview(tmp_path, stub_nlp_adapter_factory) -> None:
+    app = build_api_test_app(tmp_path / "db.sqlite3", nlp_adapter_factory=stub_nlp_adapter_factory)
+
+    class StubTranslationService:
+        provider = "stub"
+
+        def translate_da_to_en(self, text: str) -> str | None:
+            return "i am happy" if text == "jeg er glad" else None
+
+        def translate_en_to_da(self, text: str) -> str | None:
+            return None
+
+        def detect_source_language(self, text: str) -> str | None:
+            return "DA"
+
+    with TestClient(app) as client:
+        set_service_field(client.app, "translation_service", StubTranslationService())
+        set_service_field(client.app, "sentence_verification_service", StubSentencePreviewVerificationService())
+        response = client.post("/api/sentencebank/search-preview", json={"source_text": "jeg er glat"})
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "status": "ready",
+        "query_language": "da",
+        "source_text": "jeg er glad",
+        "english_translation": "I am happy",
+        "is_valid": False,
+        "errors": [{"start": 7, "end": 11, "message": "typo"}],
+        "message": None,
+    }
+
+
+def test_sentence_search_preview_translates_english_to_danish(tmp_path, stub_nlp_adapter_factory) -> None:
+    app = build_api_test_app(tmp_path / "db.sqlite3", nlp_adapter_factory=stub_nlp_adapter_factory)
+
+    class StubTranslationService:
+        provider = "stub"
+
+        def translate_da_to_en(self, text: str) -> str | None:
+            return "i am happy" if text == "jeg er glad" else None
+
+        def translate_en_to_da(self, text: str) -> str | None:
+            return "jeg er glad" if text == "I am happy" else None
+
+        def detect_source_language(self, text: str) -> str | None:
+            return "EN" if text == "I am happy" else "DA"
+
+    with TestClient(app) as client:
+        set_service_field(client.app, "translation_service", StubTranslationService())
+        set_service_field(client.app, "sentence_verification_service", StubSentencePreviewVerificationService())
+        response = client.post("/api/sentencebank/search-preview", json={"source_text": "I am happy"})
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "status": "ready",
+        "query_language": "en",
+        "source_text": "jeg er glad",
+        "english_translation": "I am happy",
+        "is_valid": True,
+        "errors": [],
+        "message": None,
+    }
+
+
+def test_sentence_search_preview_blocks_when_english_cannot_translate(tmp_path, stub_nlp_adapter_factory) -> None:
+    app = build_api_test_app(tmp_path / "db.sqlite3", nlp_adapter_factory=stub_nlp_adapter_factory)
+
+    class StubTranslationService:
+        provider = "stub"
+
+        def translate_da_to_en(self, text: str) -> str | None:
+            return None
+
+        def translate_en_to_da(self, text: str) -> str | None:
+            return None
+
+        def detect_source_language(self, text: str) -> str | None:
+            return "EN"
+
+    with TestClient(app) as client:
+        set_service_field(client.app, "translation_service", StubTranslationService())
+        set_service_field(client.app, "sentence_verification_service", StubSentencePreviewVerificationService())
+        response = client.post("/api/sentencebank/search-preview", json={"source_text": "I am happy"})
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "status": "blocked",
+        "query_language": "en",
+        "source_text": None,
+        "english_translation": None,
+        "is_valid": False,
+        "errors": [],
+        "message": "Could not translate this English sentence to Danish.",
+    }
