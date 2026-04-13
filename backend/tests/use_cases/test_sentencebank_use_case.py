@@ -877,6 +877,75 @@ def test_sentencebank_batch_verification_persists_root_and_surface_targets_for_i
     assert surface_form.verification.status == "verified"
 
 
+def test_sentencebank_batch_verification_persists_meaning_and_surface_targets_for_sectioned_verbs(
+    tmp_path: Path,
+) -> None:
+    db_path = _db_path(tmp_path)
+    nlp_adapter = MappingNLPAdapter(
+        {
+            "elsker": [
+                NLPToken(text="elsker", lemma="elske", pos="VERB", morphology="Tense=Pres|VerbForm=Fin|Voice=Act", is_punctuation=False),
+            ],
+        }
+    )
+    verb_entry = _cor_local_entry(
+        cor_id="COR.ELSKE.PRES.01",
+        lemma="elske",
+        gloss="love",
+        form="elsker",
+        lemma_idx=62001,
+        pos_tag="VERB",
+        morphology="Tense=Pres|VerbForm=Fin|Voice=Act",
+        gram_raw="vb.prs.akt",
+    )
+    lemma_entry = _cor_local_entry(
+        cor_id="COR.ELSKE.INF.01",
+        lemma="elske",
+        gloss="love",
+        form="elske",
+        lemma_idx=62001,
+        pos_tag="VERB",
+        morphology="VerbForm=Inf|Voice=Act",
+        gram_raw="vb.inf.akt",
+    )
+    verification_service = FakeVerificationService()
+    verification_service.batch_calls = []
+    wordbank_use_case = WordbankUseCase(
+        db_path,
+        nlp_adapter=nlp_adapter,
+        verification_service=verification_service,
+        cor_local_lexicon_service=FakeCORLocalLexiconService(
+            by_form={"elsker": [verb_entry]},
+            by_lemma_idx={62001: [lemma_entry, verb_entry]},
+        ),
+    )
+    sentencebank_use_case = SentencebankUseCase(
+        db_path,
+        nlp_adapter=nlp_adapter,
+        wordbank_use_case=wordbank_use_case,
+    )
+
+    sentencebank_use_case.add_sentence("elsker")
+
+    assert len(verification_service.batch_calls) == 1
+    batch_payloads, batch_context = verification_service.batch_calls[0]
+    assert batch_context == "elsker"
+
+    details = wordbank_use_case.get_lemma_details("elske")
+    assert len(details.meaning_sections) == 1
+    meaning = details.meaning_sections[0]
+    assert meaning.verification is not None
+    assert meaning.verification.status == "verified"
+    surface_form = next((item for item in meaning.surface_forms if item.form == "elsker"), None)
+    assert surface_form is not None
+    assert surface_form.verification is not None
+    assert surface_form.verification.status == "verified"
+    assert {(payload.stored_lemma, payload.stored_surface_form, payload.meaning_id) for payload in batch_payloads} == {
+        ("elske", None, meaning.id),
+        ("elske", "elsker", meaning.id),
+    }
+
+
 def test_sentencebank_add_sentence_falls_back_on_batch_failure(tmp_path: Path) -> None:
     db_path = _db_path(tmp_path)
     nlp_adapter = MappingNLPAdapter(

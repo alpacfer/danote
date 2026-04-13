@@ -865,14 +865,14 @@ def _verification_metadata_for_new_sentence_token(
         "stored_surface_form": None,
         "meaning_id": token.meaning_id,
     }
-    if token.meaning_id is not None or token.normalized_surface == token.stored_lemma:
+    if token.normalized_surface == token.stored_lemma:
         return [root_target]
     return [
         root_target,
         {
             "stored_lemma": token.stored_lemma,
             "stored_surface_form": token.normalized_surface,
-            "meaning_id": None,
+            "meaning_id": token.meaning_id,
         },
     ]
 
