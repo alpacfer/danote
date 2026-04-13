@@ -1,31 +1,31 @@
-import { Loader2, Plus } from "lucide-react"
+import { Languages, Loader2, Plus } from "lucide-react"
 
-import { formatSentenceTranslation } from "@/app/core"
+import { formatSentenceTranslation, type SentenceSearchPreviewResponse } from "@/app/core"
 import { CommandGroup, CommandItem } from "@/components/ui/command"
 import { Skeleton } from "@/components/ui/skeleton"
-import { type VerifySentenceResponse } from "@/app/core/types-api"
 
 type SidebarSentenceResultProps = {
-  sourceText: string
-  englishTranslation: string | null
-  isTranslationLoading: boolean
-  sentenceVerification: VerifySentenceResponse | null
-  isSentenceVerificationLoading: boolean
+  sentenceSearchPreview: SentenceSearchPreviewResponse | null
+  isSentenceSearchPreviewLoading: boolean
   onSaveSentence: (sourceText: string, englishTranslation: string | null) => Promise<void>
 }
 
 export function SidebarSentenceResult({
-  sourceText,
-  englishTranslation,
-  isTranslationLoading,
-  sentenceVerification,
-  isSentenceVerificationLoading,
+  sentenceSearchPreview,
+  isSentenceSearchPreviewLoading,
   onSaveSentence,
 }: SidebarSentenceResultProps) {
-  const isSaveDisabled = isSentenceVerificationLoading || sentenceVerification === null
-  const textToSave = sentenceVerification?.corrected_text ?? sourceText
-  const displayText = textToSave.trim() || sourceText
-  const displayTranslation = formatSentenceTranslation(englishTranslation)
+  const isBlocked = sentenceSearchPreview?.status === "blocked"
+  const isSaveDisabled = isSentenceSearchPreviewLoading
+    || sentenceSearchPreview === null
+    || sentenceSearchPreview.source_text === null
+    || isBlocked
+  const displayText = sentenceSearchPreview?.source_text?.trim() ?? null
+  const displayTranslation = formatSentenceTranslation(sentenceSearchPreview?.english_translation)
+  const isEnglishQuery = sentenceSearchPreview?.query_language === "en"
+  const secondaryText = sentenceSearchPreview?.message
+    ? sentenceSearchPreview.message
+    : (displayTranslation ?? null)
 
   return (
     <CommandGroup heading="Sentence">
@@ -34,21 +34,30 @@ export function SidebarSentenceResult({
         disabled={isSaveDisabled}
         onSelect={() => {
           if (isSaveDisabled) return
-          void onSaveSentence(textToSave, englishTranslation)
+          void onSaveSentence(
+            sentenceSearchPreview.source_text,
+            sentenceSearchPreview.english_translation,
+          )
         }}
         className="flex items-center justify-between gap-3"
       >
-        <div className="flex min-w-0 flex-col items-start gap-1">
-          <p className="text-sm font-semibold break-words">{displayText}</p>
-          {isTranslationLoading ? (
-            <Skeleton className="h-4 w-28" data-testid="sentence-search-translation-skeleton" />
-          ) : (
-            <span className="text-muted-foreground text-xs leading-4 break-words">
-              {displayTranslation || "No translation available."}
+        <div className="flex min-w-0 flex-col items-start gap-0.5">
+          {displayText ? (
+            <p className="line-clamp-2 text-sm font-semibold break-words">{displayText}</p>
+          ) : null}
+          {isSentenceSearchPreviewLoading ? (
+            <Skeleton
+              className="h-3 w-24 bg-accent group-data-[selected=true]/search-item:bg-accent-foreground/20"
+              data-testid="sentence-search-translation-skeleton"
+            />
+          ) : secondaryText ? (
+            <span className="text-muted-foreground text-xs leading-4 break-words flex items-center gap-1">
+              {isEnglishQuery ? <Languages className="size-3 shrink-0" aria-label="Translated from English" /> : null}
+              {secondaryText}
             </span>
-          )}
+          ) : null}
         </div>
-        {isSentenceVerificationLoading ? (
+        {isSentenceSearchPreviewLoading ? (
           <Loader2 className="text-muted-foreground size-4 shrink-0 animate-spin" />
         ) : (
           <Plus
