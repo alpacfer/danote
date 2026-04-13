@@ -16,12 +16,12 @@ function getSentenceOption(dialog: HTMLElement) {
 
 describe("Sentence verification in search", () => {
   it("shows verification loading UI while verifying a sentence", async () => {
-    let resolvePreview: (() => void) | null = null
+    const resolvers: Array<() => void> = []
     mockFetchImplementation({
       lemmasResponse: { items: [] },
       sentenceSearchPreviewHandler: async () => {
         await new Promise<void>((resolve) => {
-          resolvePreview = resolve
+          resolvers.push(resolve)
         })
         return responseOf({
           status: "ready",
@@ -43,7 +43,64 @@ describe("Sentence verification in search", () => {
 
     expect(await within(dialog).findByRole("option")).toHaveAttribute("aria-disabled", "true")
     expect(within(dialog).getByTestId("sentence-search-translation-skeleton")).toBeInTheDocument()
-    resolvePreview?.()
+    resolvers.forEach((resolve) => resolve())
+  })
+
+  it("shows fast preview result immediately then replaces it with the full result", async () => {
+    const previewModes: boolean[] = []
+    let resolveFullPreview: (() => void) | null = null
+
+    mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      sentenceSearchPreviewHandler: async (_input, init) => {
+        const body = JSON.parse(String(init?.body ?? "{}")) as { fast?: boolean }
+        previewModes.push(Boolean(body.fast))
+        if (body.fast) {
+          return responseOf({
+            status: "preview",
+            query_language: "da",
+            source_text: "jeg er glad",
+            english_translation: "I am happy",
+            is_valid: true,
+            errors: [],
+            message: null,
+          })
+        }
+        await new Promise<void>((resolve) => {
+          resolveFullPreview = resolve
+        })
+        return responseOf({
+          status: "ready",
+          query_language: "da",
+          source_text: "jeg er glad",
+          english_translation: "I am happy",
+          is_valid: true,
+          errors: [],
+          message: null,
+        })
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    const dialog = await openSearch()
+    typeInSearch(dialog, "jeg er glad")
+
+    await waitFor(() => {
+      expect(previewModes).toContain(true)
+      expect(previewModes).toContain(false)
+      const option = getSentenceOption(dialog)
+      expect(within(option).getByText(/^jeg er glad$/i)).toBeInTheDocument()
+      expect(within(option).getByText("I am happy")).toBeInTheDocument()
+    })
+    expect(within(dialog).queryByTestId("sentence-search-translation-skeleton")).not.toBeInTheDocument()
+
+    resolveFullPreview?.()
+
+    await waitFor(() => {
+      expect(within(dialog).queryByTestId("sentence-search-translation-skeleton")).not.toBeInTheDocument()
+    })
   })
 
   it("enables save after successful verification and shows the sentence above the translation", async () => {
@@ -256,7 +313,7 @@ describe("Sentence verification in search", () => {
     const option = getSentenceOption(dialog)
     expect(within(dialog).queryByTestId("sentence-search-input-overlay")).not.toBeInTheDocument()
     expect(within(option).getByText(/^jeg er glad$/i)).toBeInTheDocument()
-    expect(within(option).getByText("I am happy")).toBeInTheDocument()
+    expect(within(option).getByText("i am happy")).toBeInTheDocument()
   })
 
   it("saves the corrected sentence text when verification returns a correction", async () => {
@@ -586,6 +643,34 @@ describe("Sentence verification in search", () => {
         }),
       ).toBe(true)
     })
+  })
+
+  it("preserves lowercase first-word casing for corrected english previews", async () => {
+    mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      sentenceSearchPreviewResponse: {
+        status: "ready",
+        query_language: "en",
+        source_text: "jeg er glad",
+        english_translation: "i am happy",
+        is_valid: true,
+        errors: [],
+        message: null,
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    const dialog = await openSearch()
+    typeInSearch(dialog, "i am hapy")
+
+    await waitFor(() => {
+      expect(getSentenceOption(dialog)).not.toHaveAttribute("aria-disabled", "true")
+    })
+    const option = getSentenceOption(dialog)
+    expect(within(option).getByText("i am happy")).toBeInTheDocument()
+    expect(within(option).queryByText("I am happy")).not.toBeInTheDocument()
   })
 
   it("shows a blocked English preview message and disables save", async () => {

@@ -48,15 +48,15 @@ export function SidebarSentenceResult({
               {isEnglishQuery ? <Languages size={8} className="shrink-0 text-muted-foreground/60" aria-label="Translated from English" /> : null}
             </span>
           ) : null}
-          {isSentenceSearchPreviewLoading ? (
+          {secondaryText ? (
+            <span className="text-muted-foreground text-xs leading-4 break-words">
+              {secondaryText}
+            </span>
+          ) : isSentenceSearchPreviewLoading ? (
             <Skeleton
               className="h-3 w-24 bg-accent group-data-[selected=true]/search-item:bg-accent-foreground/20"
               data-testid="sentence-search-translation-skeleton"
             />
-          ) : secondaryText ? (
-            <span className="text-muted-foreground text-xs leading-4 break-words">
-              {secondaryText}
-            </span>
           ) : null}
         </div>
         {isSentenceSearchPreviewLoading ? (

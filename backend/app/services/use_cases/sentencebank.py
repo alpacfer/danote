@@ -42,6 +42,13 @@ def _normalize_sentence_text(source_text: str) -> str:
     return " ".join(source_text.strip().split())
 
 
+def _normalize_sentence_text_without_terminal_period(source_text: str) -> str:
+    normalized = _normalize_sentence_text(source_text)
+    if normalized.endswith("."):
+        return normalized[:-1].rstrip()
+    return normalized
+
+
 def _capitalize_sentence_translation(english_translation: str | None) -> str | None:
     if not isinstance(english_translation, str):
         return None
@@ -53,6 +60,32 @@ def _capitalize_sentence_translation(english_translation: str | None) -> str | N
     if alpha_index is None or cleaned[alpha_index].isupper():
         return cleaned
     return cleaned[:alpha_index] + cleaned[alpha_index].upper() + cleaned[alpha_index + 1:]
+
+
+def _preserve_leading_letter_case(source_text: str, corrected_text: str | None) -> str | None:
+    if not corrected_text:
+        return None
+
+    source_index = next((idx for idx, char in enumerate(source_text) if char.isalpha()), None)
+    corrected_index = next((idx for idx, char in enumerate(corrected_text) if char.isalpha()), None)
+    if source_index is None or corrected_index is None:
+        return corrected_text
+
+    source_char = source_text[source_index]
+    corrected_char = corrected_text[corrected_index]
+    if source_char.islower() and corrected_char.isupper():
+        return (
+            corrected_text[:corrected_index]
+            + corrected_char.lower()
+            + corrected_text[corrected_index + 1:]
+        )
+    if source_char.isupper() and corrected_char.islower():
+        return (
+            corrected_text[:corrected_index]
+            + corrected_char.upper()
+            + corrected_text[corrected_index + 1:]
+        )
+    return corrected_text
 
 
 def _normalize_query_language(value: str | None) -> Literal["da", "en", "unknown"]:
@@ -210,10 +243,13 @@ class SentencebankUseCase:
             language=result.language,
         )
 
-    def preview_sentence_search(self, source_text: str) -> SentenceSearchPreviewResponse:
+    def preview_sentence_search(self, source_text: str, *, fast: bool = False) -> SentenceSearchPreviewResponse:
         normalized_query = _normalize_sentence_text(source_text)
         if not normalized_query:
             raise ValueError("source_text is required")
+
+        if fast:
+            return self._preview_sentence_search_fast(normalized_query)
 
         initial_verification = self._verify_sentence_result(normalized_query)
         query_language = initial_verification.language
@@ -221,7 +257,11 @@ class SentencebankUseCase:
             query_language = self._detect_query_language(normalized_query)
 
         if query_language == "en":
-            translated_danish = self._lookup_reverse_translation(normalized_query)
+            english_for_translation = (
+                _preserve_leading_letter_case(normalized_query, initial_verification.corrected_text)
+                or normalized_query
+            )
+            translated_danish = self._lookup_reverse_translation(english_for_translation)
             if not translated_danish:
                 return SentenceSearchPreviewResponse(
                     status="blocked",
@@ -232,18 +272,13 @@ class SentencebankUseCase:
                     errors=[],
                     message="Could not translate this English sentence to Danish.",
                 )
-            verification = self._verify_sentence_result(translated_danish)
-            final_source_text = verification.corrected_text or translated_danish
             return SentenceSearchPreviewResponse(
                 status="ready",
                 query_language="en",
-                source_text=final_source_text,
-                english_translation=self._lookup_phrase_translation(final_source_text),
-                is_valid=verification.is_valid,
-                errors=[
-                    SentenceVerificationErrorItem(start=e.start, end=e.end, message=e.message)
-                    for e in verification.errors
-                ],
+                source_text=translated_danish,
+                english_translation=english_for_translation,
+                is_valid=True,
+                errors=[],
                 message=None,
             )
 
@@ -258,6 +293,43 @@ class SentencebankUseCase:
                 SentenceVerificationErrorItem(start=e.start, end=e.end, message=e.message)
                 for e in initial_verification.errors
             ],
+            message=None,
+        )
+
+    def _preview_sentence_search_fast(self, normalized_query: str) -> SentenceSearchPreviewResponse:
+        query_language = self._detect_query_language(normalized_query)
+        if query_language == "unknown":
+            query_language = self._heuristic_detect_language(normalized_query)
+        if query_language == "en":
+            translated_danish = self._lookup_reverse_translation(normalized_query)
+            if not translated_danish:
+                return SentenceSearchPreviewResponse(
+                    status="blocked",
+                    query_language="en",
+                    source_text=None,
+                    english_translation=None,
+                    is_valid=True,
+                    errors=[],
+                    message=None,
+                )
+            return SentenceSearchPreviewResponse(
+                status="preview",
+                query_language="en",
+                source_text=translated_danish,
+                english_translation=normalized_query,
+                is_valid=True,
+                errors=[],
+                message=None,
+            )
+
+        effective_language: Literal["da", "en", "unknown"] = "da" if query_language == "da" else "unknown"
+        return SentenceSearchPreviewResponse(
+            status="preview",
+            query_language=effective_language,
+            source_text=normalized_query,
+            english_translation=self._lookup_phrase_translation(normalized_query),
+            is_valid=True,
+            errors=[],
             message=None,
         )
 
@@ -287,7 +359,11 @@ class SentencebankUseCase:
             return None
         try:
             translated = translate_en_to_da(source_text)
-            return _normalize_sentence_text(translated) if isinstance(translated, str) and translated.strip() else None
+            return (
+                _normalize_sentence_text_without_terminal_period(translated)
+                if isinstance(translated, str) and translated.strip()
+                else None
+            )
         except Exception:
             return None
 
@@ -302,7 +378,15 @@ class SentencebankUseCase:
         except Exception:
             return "unknown"
 
-    def _verify_sentence_result(self, source_text: str):
+    def _heuristic_detect_language(self, source_text: str) -> Literal["da", "en", "unknown"]:
+        lower = source_text.lower()
+        if any(char in lower for char in ("æ", "ø", "å")):
+            return "da"
+        if source_text.isascii():
+            return "en"
+        return "unknown"
+
+    def _verify_sentence_result(self, source_text: str) -> SentenceVerificationResult:
         if self._sentence_verification_service is None:
             return SentenceVerificationResult(
                 is_valid=True,

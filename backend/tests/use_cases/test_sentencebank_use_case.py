@@ -578,18 +578,12 @@ def test_sentencebank_preview_sentence_search_translates_english_input(tmp_path:
                 corrected_text=None,
                 language="en",
             ),
-            "jeg er glad": SentenceVerificationResult(
-                is_valid=True,
-                errors=[],
-                corrected_text=None,
-                language="da",
-            ),
         }
     )
     use_case = SentencebankUseCase(
         _db_path(tmp_path),
         translation_service=FakeTranslationService(
-            {"I am happy": "jeg er glad", "jeg er glad": "i am happy"},
+            {"I am happy": "jeg er glad"},
             detected_languages={"I am happy": "EN"},
         ),
         sentence_verification_service=verification_service,
@@ -601,6 +595,59 @@ def test_sentencebank_preview_sentence_search_translates_english_input(tmp_path:
     assert preview.query_language == "en"
     assert preview.source_text == "jeg er glad"
     assert preview.english_translation == "I am happy"
+    assert preview.is_valid is True
+    assert preview.errors == []
+
+
+def test_sentencebank_preview_sentence_search_strips_terminal_period_from_danish_translation(tmp_path: Path) -> None:
+    verification_service = FakeSentenceVerificationService(
+        results={
+            "I am happy": SentenceVerificationResult(
+                is_valid=True,
+                errors=[],
+                corrected_text=None,
+                language="en",
+            ),
+        }
+    )
+    use_case = SentencebankUseCase(
+        _db_path(tmp_path),
+        translation_service=FakeTranslationService(
+            {"I am happy": "jeg er glad."},
+            detected_languages={"I am happy": "EN"},
+        ),
+        sentence_verification_service=verification_service,
+    )
+
+    preview = use_case.preview_sentence_search("I am happy")
+
+    assert preview.source_text == "jeg er glad"
+    assert preview.english_translation == "I am happy"
+
+
+def test_sentencebank_preview_sentence_search_en_uses_gemini_corrected_text(tmp_path: Path) -> None:
+    verification_service = FakeSentenceVerificationService(
+        results={
+            "i am hapy": SentenceVerificationResult(
+                is_valid=False,
+                errors=[SentenceVerificationErrorSpan(start=5, end=9, message="typo")],
+                corrected_text="I am happy",
+                language="en",
+            ),
+        }
+    )
+    use_case = SentencebankUseCase(
+        _db_path(tmp_path),
+        translation_service=FakeTranslationService({"i am happy": "jeg er glad"}),
+        sentence_verification_service=verification_service,
+    )
+
+    preview = use_case.preview_sentence_search("i am hapy")
+
+    assert preview.status == "ready"
+    assert preview.query_language == "en"
+    assert preview.source_text == "jeg er glad"
+    assert preview.english_translation == "i am happy"
     assert preview.is_valid is True
     assert preview.errors == []
 
@@ -636,7 +683,7 @@ def test_sentencebank_preview_sentence_search_degrades_when_verification_unavail
     use_case = SentencebankUseCase(
         _db_path(tmp_path),
         translation_service=FakeTranslationService(
-            {"I am happy": "jeg er glad", "jeg er glad": "i am happy"},
+            {"I am happy": "jeg er glad"},
             detected_languages={"I am happy": "EN"},
         ),
         sentence_verification_service=FakeSentenceVerificationService(should_raise=True),
@@ -650,6 +697,98 @@ def test_sentencebank_preview_sentence_search_degrades_when_verification_unavail
     assert preview.english_translation == "I am happy"
     assert preview.is_valid is True
     assert preview.errors == []
+
+
+def test_sentencebank_preview_sentence_fast_path_danish(tmp_path: Path) -> None:
+    use_case = SentencebankUseCase(
+        _db_path(tmp_path),
+        translation_service=FakeTranslationService(
+            {"jeg er glad": "i am happy"},
+            detected_languages={"jeg er glad": "DA"},
+        ),
+    )
+
+    preview = use_case.preview_sentence_search("jeg er glad", fast=True)
+
+    assert preview.status == "preview"
+    assert preview.query_language == "da"
+    assert preview.source_text == "jeg er glad"
+    assert preview.english_translation == "I am happy"
+    assert preview.is_valid is True
+    assert preview.errors == []
+
+
+def test_sentencebank_preview_sentence_fast_path_english(tmp_path: Path) -> None:
+    use_case = SentencebankUseCase(
+        _db_path(tmp_path),
+        translation_service=FakeTranslationService({"I am happy": "jeg er glad"}),
+    )
+
+    preview = use_case.preview_sentence_search("I am happy", fast=True)
+
+    assert preview.status == "preview"
+    assert preview.query_language == "en"
+    assert preview.source_text == "jeg er glad"
+    assert preview.english_translation == "I am happy"
+    assert preview.is_valid is True
+    assert preview.errors == []
+
+
+def test_sentencebank_preview_sentence_fast_path_strips_terminal_period_from_danish_translation(
+    tmp_path: Path,
+) -> None:
+    use_case = SentencebankUseCase(
+        _db_path(tmp_path),
+        translation_service=FakeTranslationService({"I am happy": "jeg er glad."}),
+    )
+
+    preview = use_case.preview_sentence_search("I am happy", fast=True)
+
+    assert preview.status == "preview"
+    assert preview.query_language == "en"
+    assert preview.source_text == "jeg er glad"
+    assert preview.english_translation == "I am happy"
+
+
+def test_sentencebank_preview_sentence_fast_path_unknown_language(tmp_path: Path) -> None:
+    use_case = SentencebankUseCase(
+        _db_path(tmp_path),
+        translation_service=FakeTranslationService({}),
+    )
+
+    preview = use_case.preview_sentence_search("café au lait", fast=True)
+
+    assert preview.status == "preview"
+    assert preview.query_language == "unknown"
+    assert preview.source_text == "café au lait"
+    assert preview.english_translation is None
+    assert preview.is_valid is True
+    assert preview.errors == []
+
+
+def test_sentencebank_preview_sentence_fast_path_skips_verification(tmp_path: Path) -> None:
+    verification_service = FakeSentenceVerificationService(
+        results={
+            "jeg er glad": SentenceVerificationResult(
+                is_valid=False,
+                errors=[SentenceVerificationErrorSpan(start=0, end=3, message="error")],
+                corrected_text="jeg er glad",
+                language="da",
+            ),
+        }
+    )
+    use_case = SentencebankUseCase(
+        _db_path(tmp_path),
+        translation_service=FakeTranslationService({"jeg er glad": "i am happy"}),
+        sentence_verification_service=verification_service,
+    )
+
+    preview = use_case.preview_sentence_search("jeg er glad", fast=True)
+
+    assert preview.status == "preview"
+    assert preview.is_valid is True
+    assert preview.errors == []
+    assert verification_service.calls == []
 
 
 def test_sentencebank_batch_verification_persists_lemma_targets_for_lemma_form_tokens(tmp_path: Path) -> None:

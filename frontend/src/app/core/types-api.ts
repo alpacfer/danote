@@ -384,7 +384,7 @@ export type GeneratePhraseTranslationResponse = {
 }
 
 export type SentenceSearchPreviewResponse = {
-  status: "ready" | "blocked"
+  status: "ready" | "blocked" | "preview"
   query_language: "da" | "en" | "unknown"
   source_text: string | null
   english_translation: string | null

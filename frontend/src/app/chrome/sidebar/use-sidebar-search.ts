@@ -4,7 +4,8 @@ import { toast } from "sonner"
 import {
   BACKEND_URL,
   SEARCH_RESOLVE_DEBOUNCE_MS,
-  SENTENCE_VERIFY_DEBOUNCE_MS,
+  SENTENCE_DEBOUNCE_DA_MS,
+  SENTENCE_DEBOUNCE_EN_MS,
   SENTENCE_VERIFY_MAX_CHARS,
   createApiClient,
   normalizeSentenceText,
@@ -23,6 +24,12 @@ type UseSidebarSearchParams = {
   savedNotes: SavedNote[]
   wordbankCacheVersion: number
   searchTranslationConfigVersion: number
+}
+
+function detectQueryLanguage(text: string): "da" | "en" | "unknown" {
+  if (/[æøåÆØÅ]/u.test(text)) return "da"
+  if ([...text].every((char) => char.charCodeAt(0) <= 0x7f)) return "en"
+  return "unknown"
 }
 
 export function useSidebarSearch({
@@ -237,44 +244,64 @@ export function useSidebarSearch({
     }
 
     let cancelled = false
+    let gotFullResult = false
     setSentenceSearchPreview(null)
     setIsSentenceSearchPreviewLoading(true)
     setSentenceSearchPreviewError(null)
+    const detectedLang = detectQueryLanguage(sentenceQuery)
+    const debounceMs = detectedLang === "da" ? SENTENCE_DEBOUNCE_DA_MS : SENTENCE_DEBOUNCE_EN_MS
 
     const timeoutId = window.setTimeout(() => {
-      void (async () => {
-        try {
-          const result = await apiClient.postJson<SentenceSearchPreviewResponse>(
-            "/api/sentencebank/search-preview",
-            { source_text: sentenceQuery },
-            "Could not prepare sentence preview.",
-          )
-          if (cancelled) return
-          sentenceSearchPreviewCacheRef.current.set(sentenceQuery, result)
-          setSentenceSearchPreview({ query: sentenceQuery, result })
-        } catch (error) {
-          if (!cancelled) {
-            const fallback: SentenceSearchPreviewResponse = {
-              status: "ready",
-              query_language: "unknown",
-              source_text: sentenceQuery,
-              english_translation: null,
-              message: null,
-              is_valid: true,
-              errors: [],
-            }
-            setSentenceSearchPreviewError(
-              error instanceof Error ? error.message : "Could not prepare sentence preview.",
-            )
-            setSentenceSearchPreview({ query: sentenceQuery, result: fallback })
+      const fastPromise = apiClient.postJson<SentenceSearchPreviewResponse>(
+        "/api/sentencebank/search-preview",
+        { source_text: sentenceQuery, fast: true },
+        "Could not prepare sentence preview.",
+      )
+      const fullPromise = apiClient.postJson<SentenceSearchPreviewResponse>(
+        "/api/sentencebank/search-preview",
+        { source_text: sentenceQuery, fast: false },
+        "Could not prepare sentence preview.",
+      )
+
+      void fastPromise
+        .then((fastResult) => {
+          if (!cancelled && !gotFullResult) {
+            setSentenceSearchPreview({ query: sentenceQuery, result: fastResult })
           }
-        } finally {
+        })
+        .catch(() => {})
+
+      void fullPromise
+        .then((fullResult) => {
+          if (cancelled) return
+          gotFullResult = true
+          sentenceSearchPreviewCacheRef.current.set(sentenceQuery, fullResult)
+          setSentenceSearchPreview({ query: sentenceQuery, result: fullResult })
+          setSentenceSearchPreviewError(null)
+        })
+        .catch((error) => {
+          if (cancelled) return
+          gotFullResult = true
+          const fallback: SentenceSearchPreviewResponse = {
+            status: "ready",
+            query_language: "unknown",
+            source_text: sentenceQuery,
+            english_translation: null,
+            message: null,
+            is_valid: true,
+            errors: [],
+          }
+          setSentenceSearchPreviewError(
+            error instanceof Error ? error.message : "Could not prepare sentence preview.",
+          )
+          setSentenceSearchPreview({ query: sentenceQuery, result: fallback })
+        })
+        .finally(() => {
           if (!cancelled) {
             setIsSentenceSearchPreviewLoading(false)
           }
-        }
-      })()
-    }, SENTENCE_VERIFY_DEBOUNCE_MS)
+        })
+    }, debounceMs)
 
     return () => {
       cancelled = true

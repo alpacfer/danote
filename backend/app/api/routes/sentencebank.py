@@ -73,6 +73,9 @@ def sentence_search_preview(
 ) -> SentenceSearchPreviewResponse:
     return run_db_operation(
         request,
-        lambda: _sentencebank_use_case(request).preview_sentence_search(payload.source_text),
+        lambda: _sentencebank_use_case(request).preview_sentence_search(
+            payload.source_text,
+            fast=payload.fast,
+        ),
         error_log_name="sentencebank_search_preview_db_operational_error",
     )

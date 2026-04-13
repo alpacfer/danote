@@ -72,6 +72,22 @@ def test_parse_result_ignores_sentence_initial_capitalization_only_error() -> No
     assert result.corrected_text is None
 
 
+def test_parse_result_ignores_english_sentence_initial_capitalization_only_error() -> None:
+    raw = '{"is_valid": false, "errors": [{"start": 0, "end": 1, "message": "capitalization"}], "corrected_text": "I am happy", "language": "en"}'
+    result = _parse_result(raw, "i am happy")
+    assert result.is_valid is True
+    assert result.errors == []
+    assert result.corrected_text is None
+
+
+def test_parse_result_preserves_source_initial_case_for_english_corrections() -> None:
+    raw = '{"is_valid": false, "errors": [{"start": 5, "end": 9, "message": "typo"}], "corrected_text": "I am happy", "language": "en"}'
+    result = _parse_result(raw, "i am hapy")
+    assert result.is_valid is False
+    assert result.errors == [SentenceVerificationErrorSpan(start=5, end=9, message="typo")]
+    assert result.corrected_text == "i am happy"
+
+
 def test_parse_result_ignores_mid_sentence_capitalization_only_error() -> None:
     raw = '{"is_valid": false, "errors": [{"start": 7, "end": 10, "message": "capitalization"}], "corrected_text": "jeg er Glad", "language": "da"}'
     result = _parse_result(raw, "jeg er glad")

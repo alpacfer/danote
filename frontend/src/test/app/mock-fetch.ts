@@ -611,7 +611,16 @@ export function mockFetchImplementation(options?: {
   verifySentenceOk?: boolean
   verifySentenceHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
   sentenceSearchPreviewResponse?: {
-    status: "ready" | "blocked"
+    status: "ready" | "blocked" | "preview"
+    query_language: "da" | "en" | "unknown"
+    source_text: string | null
+    english_translation: string | null
+    is_valid: boolean
+    errors: Array<{ start: number; end: number; message: string }>
+    message: string | null
+  }
+  sentenceSearchPreviewFastResponse?: {
+    status: "ready" | "blocked" | "preview"
     query_language: "da" | "en" | "unknown"
     source_text: string | null
     english_translation: string | null
@@ -890,6 +899,10 @@ export function mockFetchImplementation(options?: {
     is_valid: true,
     errors: [],
     message: null,
+  }
+  const sentenceSearchPreviewFastResponse = options?.sentenceSearchPreviewFastResponse ?? {
+    ...sentenceSearchPreviewResponse,
+    status: sentenceSearchPreviewResponse.status === "blocked" ? "blocked" as const : "preview" as const,
   }
 
   return vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
@@ -1293,7 +1306,8 @@ export function mockFetchImplementation(options?: {
       if (options?.sentenceSearchPreviewOk === false) {
         throw new Error("sentence search preview request failed")
       }
-      return responseOf(sentenceSearchPreviewResponse)
+      const body = JSON.parse(String(init?.body ?? "{}")) as { fast?: boolean }
+      return responseOf(body.fast ? sentenceSearchPreviewFastResponse : sentenceSearchPreviewResponse)
     }
 
     if (url.endsWith("/api/sentencebank/verify-sentence")) {

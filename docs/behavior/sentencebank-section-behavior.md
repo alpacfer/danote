@@ -20,11 +20,12 @@
 
 `useSidebarSearch` + `AppSidebar` sentence mode:
 1. Normalize query for sentence mode after raw input is preserved in the command field
-2. Request `POST /api/sentencebank/search-preview`
-3. Backend returns the finalized Danish sentence candidate to save, its English translation, detected query language, and any verification findings
-4. English-origin previews show a visible `EN -> DA` indicator and helper copy before save
-5. Search save uses `preview.source_text` only, so English-origin queries save the backend-finalized Danish sentence rather than the original English input
-6. Save still calls the same `addSentenceToSentencebank` workflow and therefore keeps existing refresh and pending-page behavior
+2. After an adaptive debounce, request `POST /api/sentencebank/search-preview` twice in parallel for the same query: first with `fast=true`, then with `fast=false`
+3. Fast preview can render immediately while the full verified result is still pending; the full result overwrites the fast result when it arrives
+4. Backend returns the finalized Danish sentence candidate to save, its English translation, detected query language, and any verification findings
+5. English-origin previews show an inline translation-origin indicator before save
+6. Search save uses `preview.source_text` only, so English-origin queries save the backend-finalized Danish sentence rather than the original English input
+7. Save still calls the same `addSentenceToSentencebank` workflow and therefore keeps existing refresh and pending-page behavior
 
 ## 2) Loading and error states
 

@@ -30,11 +30,15 @@ Exact behavior of sidebar command search ("Search words and notes...").
 - Preview endpoint: `POST /api/sentencebank/search-preview`.
 - Result set: exactly one row under `Sentence`.
 - While sentence mode is active, sidebar suppresses saved-word, COR, notes, and page groups.
-- Sidebar sends one debounced sentence-preview request per normalized query and caches the full preview payload.
+- Sidebar uses adaptive debounce before sentence preview: 200 ms for heuristic Danish queries, 350 ms for heuristic English/unknown queries.
+- After that debounce, sidebar fires two sentence-preview requests in parallel for the same normalized query:
+  - `fast: true` for immediate preview feedback
+  - `fast: false` for the final verified result
+- Only the full result is cached per normalized query. The fast result is transient UI state.
 - Preview requests receive whitespace-normalized sentence text with the user's capitalization preserved.
-- Danish and unknown-language queries stay in Danish-first flow: backend verifies the typed sentence, uses corrected Danish text when available, then returns the English translation for that finalized Danish sentence.
-- Explicit English queries switch flow: backend translates the query to Danish, verifies that Danish sentence, and returns the finalized Danish sentence plus English translation derived from that finalized Danish text.
-- English-origin previews render a visible `EN -> DA` badge and helper copy `Auto-translated from English`.
+- Danish and unknown-language queries stay in Danish-first flow: the fast result skips verification and the full result verifies the typed sentence, uses corrected Danish text when available, then returns the English translation for that finalized Danish sentence.
+- Explicit English queries switch flow: the fast result uses heuristic language detection plus translation only, and the full result translates the corrected or normalized English sentence to Danish without a second Danish verification pass.
+- English-origin previews render an inline language indicator instead of a separate badge/helper row.
 - Input underline overlay only appears for non-English previews with verification errors. English-origin queries do not underline the raw English input.
 - Sentence translation display is sentence-cased; the UI no longer lowercases translation text.
 - Sentence verification corrections preserve initial capitalization and must not append a trailing period unless the source already has one.
