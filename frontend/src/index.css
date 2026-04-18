@@ -227,8 +227,8 @@
   text-decoration-line: underline;
   text-decoration-style: solid;
   text-decoration-color: var(--danote-typo-underline);
-  text-decoration-thickness: 2px;
-  text-underline-offset: 0.12em;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 0.22em;
 }
 
 .danote-notes-editor mark[data-comment="true"] {

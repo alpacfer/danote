@@ -100,3 +100,21 @@ def test_parse_result_removes_unrequested_terminal_period() -> None:
     raw = '{"is_valid": false, "errors": [{"start": 7, "end": 11, "message": "typo"}], "corrected_text": "jeg er glad.", "language": "da"}'
     result = _parse_result(raw, "jeg er glat")
     assert result.corrected_text == "jeg er glad"
+
+
+def test_parse_result_realigns_span_to_changed_word_when_model_points_at_previous_word() -> None:
+    raw = (
+        '{"is_valid": false, "errors": [{"start": 11, "end": 14, "message": "typo"}], '
+        '"corrected_text": "vi sejler til havs igen", "language": "da"}'
+    )
+    result = _parse_result(raw, "vi sejler til hav igen")
+
+    assert result.errors == [SentenceVerificationErrorSpan(start=14, end=17, message="typo")]
+    assert result.corrected_text == "vi sejler til havs igen"
+
+
+def test_parse_result_expands_partial_word_span_to_full_changed_word() -> None:
+    raw = '{"is_valid": false, "errors": [{"start": 8, "end": 10, "message": "typo"}], "corrected_text": "jeg er glad", "language": "da"}'
+    result = _parse_result(raw, "jeg er glat")
+
+    assert result.errors == [SentenceVerificationErrorSpan(start=7, end=11, message="typo")]

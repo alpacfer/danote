@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import difflib
 import json
 import math
 import time
@@ -26,6 +27,13 @@ class SentenceVerificationResult:
     errors: list[SentenceVerificationErrorSpan]
     corrected_text: str | None
     language: Literal["da", "en", "unknown"]
+
+
+@dataclass(frozen=True, slots=True)
+class _WordSpan:
+    start: int
+    end: int
+    text: str
 
 
 class SentenceVerificationService(Protocol):
@@ -108,6 +116,87 @@ def _is_ignorable_case_only_error(
     return source_slice != corrected_slice and source_slice.casefold() == corrected_slice.casefold()
 
 
+def _is_word_character(char: str) -> bool:
+    return char.isalnum() or char in {"'", "’", "-"}
+
+
+def _word_spans(text: str) -> list[_WordSpan]:
+    spans: list[_WordSpan] = []
+    index = 0
+    while index < len(text):
+        if not _is_word_character(text[index]):
+            index += 1
+            continue
+        start = index
+        index += 1
+        while index < len(text) and _is_word_character(text[index]):
+            index += 1
+        spans.append(_WordSpan(start=start, end=index, text=text[start:index]))
+    return spans
+
+
+def _changed_source_word_spans(source_text: str, corrected_text: str | None) -> list[tuple[int, int]]:
+    if not corrected_text:
+        return []
+
+    source_words = _word_spans(source_text)
+    corrected_words = _word_spans(corrected_text)
+    if not source_words or not corrected_words:
+        return []
+
+    matcher = difflib.SequenceMatcher(
+        a=[span.text.casefold() for span in source_words],
+        b=[span.text.casefold() for span in corrected_words],
+    )
+    changed_spans: list[tuple[int, int]] = []
+    for tag, source_start_index, source_end_index, _corrected_start, _corrected_end in matcher.get_opcodes():
+        if tag != "replace" or source_start_index >= source_end_index:
+            continue
+        changed_spans.append(
+            (
+                source_words[source_start_index].start,
+                source_words[source_end_index - 1].end,
+            )
+        )
+    return changed_spans
+
+
+def _normalize_error_spans(
+    errors: list[SentenceVerificationErrorSpan],
+    source_text: str,
+    corrected_text: str | None,
+) -> list[SentenceVerificationErrorSpan]:
+    if not errors or not corrected_text:
+        return errors
+
+    changed_word_spans = _changed_source_word_spans(source_text, corrected_text)
+    if not changed_word_spans:
+        return errors
+
+    if len(errors) == len(changed_word_spans):
+        return [
+            SentenceVerificationErrorSpan(
+                start=changed_start,
+                end=changed_end,
+                message=error.message,
+            )
+            for error, (changed_start, changed_end) in zip(errors, changed_word_spans, strict=False)
+        ]
+
+    if len(errors) == 1:
+        merged_start = changed_word_spans[0][0]
+        merged_end = changed_word_spans[-1][1]
+        return [
+            SentenceVerificationErrorSpan(
+                start=merged_start,
+                end=merged_end,
+                message=errors[0].message,
+            )
+        ]
+
+    return errors
+
+
 def _parse_result(raw: str | None, source_text: str) -> SentenceVerificationResult:
     if not raw:
         return SentenceVerificationResult(is_valid=True, errors=[], corrected_text=None, language="unknown")
@@ -142,21 +231,19 @@ def _parse_result(raw: str | None, source_text: str) -> SentenceVerificationResu
         error for error in errors
         if not _is_ignorable_case_only_error(error, source_text, raw_corrected_text)
     ]
-    normalized_is_valid = is_valid if filtered_errors else True
+    normalized_errors = _normalize_error_spans(filtered_errors, source_text, corrected_text)
+    normalized_is_valid = is_valid if normalized_errors else True
     normalized_corrected_text = (
         None
         if (
             corrected_text is None
-            or (
-                not filtered_errors
-                and corrected_text.casefold() == source_text.casefold()
-            )
+            or (not normalized_errors and corrected_text.casefold() == source_text.casefold())
         )
         else corrected_text
     )
     return SentenceVerificationResult(
         is_valid=normalized_is_valid,
-        errors=filtered_errors,
+        errors=normalized_errors,
         corrected_text=normalized_corrected_text,
         language=language,
     )

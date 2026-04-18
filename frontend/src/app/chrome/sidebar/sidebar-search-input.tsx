@@ -142,7 +142,7 @@ export function SidebarSearchInput({
         segment.message ? (
           <span
             key={`${segment.text}-${index}`}
-            className="underline decoration-red-500 decoration-wavy"
+            className="underline decoration-[var(--danote-typo-underline)] decoration-[1.5px] underline-offset-[3px]"
             title={segment.message}
           >
             {segment.text}
