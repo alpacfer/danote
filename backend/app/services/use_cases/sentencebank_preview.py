@@ -177,7 +177,7 @@ def lookup_phrase_translation(
         try:
             payload = wordbank_use_case.generate_phrase_translation(source_text)
             if payload.english_translation:
-                return payload.english_translation
+                return preserve_leading_letter_case(source_text, payload.english_translation)
         except Exception:
             pass
     if translation_service is None:

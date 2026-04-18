@@ -107,7 +107,7 @@ def test_sentencebank_save_reuses_cached_phrase_translation(tmp_path: Path) -> N
 
     assert preview.status == "generated"
     assert inserted.status == "inserted"
-    assert inserted.english_translation == "I like it"
+    assert inserted.english_translation == "i like it"
     assert translation_service.calls == ["Jeg kan godt lide det"]
 
 

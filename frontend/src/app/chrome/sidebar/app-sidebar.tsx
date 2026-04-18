@@ -243,8 +243,10 @@ export function AppSidebar({
 
   const closeSearch = () => {
     setIsSearchOpen(false)
-    setSearchQuery("")
-    setCommandSelectionOverride("")
+    setTimeout(() => {
+      setSearchQuery("")
+      setCommandSelectionOverride("")
+    }, 200)
   }
 
   const saveSentenceFromSearch = (sourceText: string, englishTranslation: string | null = null) => {
@@ -330,13 +332,17 @@ export function AppSidebar({
           onOpenChange={(open) => {
             setIsSearchOpen(open)
             if (!open) {
-              setSearchQuery("")
-              setCommandSelectionOverride("")
+              setTimeout(() => {
+                setSearchQuery("")
+                setCommandSelectionOverride("")
+              }, 200)
             }
           }}
           commandShouldFilter={false}
           commandValue={commandSelectionValue}
           onCommandValueChange={setCommandSelectionOverride}
+          showCloseButton={false}
+          className="rounded-xl"
           title="Search wordbank and notes"
           description="Search saved words, local COR analyses, and notes."
         >
