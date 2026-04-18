@@ -57,7 +57,7 @@ function CommandDialog({
         <DialogDescription>{description}</DialogDescription>
       </DialogHeader>
       <DialogContent
-        className={cn("overflow-hidden p-0", className)}
+        className={cn("overflow-hidden p-0 border-0", className)}
         showCloseButton={showCloseButton}
       >
         <Command
@@ -65,7 +65,7 @@ function CommandDialog({
           value={commandValue}
           onValueChange={onCommandValueChange}
           shouldFilter={commandShouldFilter}
-          className="[&_[cmdk-group-heading]]:text-muted-foreground **:data-[slot=command-input-wrapper]:h-12 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group]]:px-2 [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-2 [&_[cmdk-item]]:py-3 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5"
+          className="[&_[cmdk-group-heading]]:text-muted-foreground **:data-[slot=command-input-wrapper]:h-12 [&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group]]:px-2 [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-3 [&_[cmdk-item]]:py-3 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5"
         >
           {children}
         </Command>
@@ -112,7 +112,7 @@ function CommandInput({
           {...props}
         />
         {suffix ? (
-          <div className="pointer-events-none absolute inset-y-0 right-3 flex min-w-10 items-center justify-end">
+          <div className="pointer-events-none absolute inset-y-0 right-0 flex min-w-10 items-center justify-end">
             {suffix}
           </div>
         ) : null}
@@ -129,7 +129,7 @@ function CommandList({
     <CommandPrimitive.List
       data-slot="command-list"
       className={cn(
-        "max-h-[300px] scroll-py-1 overflow-x-hidden overflow-y-auto",
+        "max-h-[300px] scroll-py-1 overflow-x-hidden overflow-y-auto pb-1",
         className
       )}
       {...props}

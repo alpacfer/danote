@@ -39,14 +39,19 @@ export function SidebarSentenceResult({
             sentenceSearchPreview.english_translation,
           )
         }}
-        className="flex items-center justify-between gap-3"
+        className="flex items-center gap-6 pr-6!"
       >
-        <div className="flex min-w-0 flex-col items-start gap-0.5">
+        <div className="flex min-w-0 flex-1 flex-col items-start gap-0.5">
           {displayText ? (
             <span className="flex items-center gap-1">
               <p className="line-clamp-2 text-sm font-semibold break-words">{displayText}</p>
               {isEnglishQuery ? <Languages size={8} className="shrink-0 text-muted-foreground/60" aria-label="Translated from English" /> : null}
             </span>
+          ) : isSentenceSearchPreviewLoading ? (
+            <Skeleton
+              className="h-5 w-40 bg-accent group-data-[selected=true]/search-item:bg-accent-foreground/20"
+              data-testid="sentence-search-text-skeleton"
+            />
           ) : null}
           {secondaryText ? (
             <span className="text-muted-foreground text-xs leading-4 break-words">
@@ -54,7 +59,7 @@ export function SidebarSentenceResult({
             </span>
           ) : isSentenceSearchPreviewLoading ? (
             <Skeleton
-              className="h-3 w-24 bg-accent group-data-[selected=true]/search-item:bg-accent-foreground/20"
+              className="h-4 w-24 bg-accent group-data-[selected=true]/search-item:bg-accent-foreground/20"
               data-testid="sentence-search-translation-skeleton"
             />
           ) : null}
