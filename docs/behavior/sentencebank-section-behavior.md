@@ -15,6 +15,7 @@
 4. `POST /api/sentencebank/sentences` with `{ source_text: normalizedSelection }`
 5. Success → toast, increment `sentencebankRefreshTick` and `wordbankRefreshTick`, invoke `onSentenceSaved`
 6. Failure → toast error, clear saving flag in `finally`
+7. Backend also queues sentence-level pronunciation generation when TTS is configured; the hydrated sentence payload returns `has_pronunciation=false` initially plus `pronunciation.status = "queued"`
 
 ### Sentence add flow from Sidebar Search
 
@@ -50,6 +51,14 @@ Each row renders:
 - `source_text` primary line
 - `english_translation` secondary line, rendered with sentence-style capitalization (`No translation available.` fallback)
 - token-card grid in sentence order when `tokens.length > 0`
+
+Sentence detail page header:
+- wraps the rendered sentence line in the shared pronunciation trigger used on word pages
+- click plays `/api/sentencebank/pronunciation?sentence_id=<id>`
+- right-click opens a context menu with `Say slowly` and `Regenerate audio`
+- `Say slowly` reuses the same saved sentence audio but plays it back at a reduced browser playback rate for a slower pronunciation pass
+- `Regenerate audio` posts `/api/sentencebank/sentences/pronunciation` with `{ sentence_id, force: true }`
+- icon dimming reflects `has_pronunciation`; playback still attempts the fetch so newly generated audio works after refresh
 
 Each token card renders:
 - surface form

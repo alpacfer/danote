@@ -70,13 +70,23 @@ Routes: `backend/app/api/routes/`. DTOs: `backend/app/api/schemas/v1/`. Some tok
 - **Request model:** `AddSentenceRequest`.
 - **Response model:** `AddSentenceResponse`.
 - **Notable status/error behavior:** `503` DB unavailable/locked. `400` value errors. body `status`: `inserted` or `exists`.
-- **Field invariants:** response now includes hydrated sentence details (`id`, `created_at`, `tokens[]`). `tokens[]` carries `token_index`, `surface_form`, `stored_lemma`, `lexeme_id`, nullable `meaning_id`, POS/morphology, optional gloss, and translation fields.
+- **Field invariants:** response now includes hydrated sentence details (`id`, `created_at`, `tokens[]`, `has_pronunciation`). `tokens[]` carries `token_index`, `surface_form`, `stored_lemma`, `lexeme_id`, nullable `meaning_id`, POS/morphology, optional gloss, and translation fields. Insert responses may also include `pronunciation` with `status: queued|skipped` plus `sentence_id` when background sentence audio generation is considered.
 
 ### GET `/api/sentencebank/sentences`
 - **Request model:** none.
 - **Response model:** `SentenceListResponse`.
 - **Notable status/error behavior:** `503` DB unavailable/locked.
-- **Field invariants:** each item includes nested `tokens[]` using the same sentence-token card contract as `POST`.
+- **Field invariants:** each item includes nested `tokens[]` using the same sentence-token card contract as `POST`, plus `has_pronunciation` derived from persisted sentence audio.
+
+### POST `/api/sentencebank/sentences/pronunciation`
+- **Request model:** `GenerateSentencePronunciationRequest` (`sentence_id`, `force: bool = False`).
+- **Response model:** `GenerateSentencePronunciationResponse` (`status: generated|unavailable|skipped`, `sentence_id`, `source_text`).
+- **Notable status/error behavior:** `404` sentence not found. `503` DB unavailable/locked.
+
+### GET `/api/sentencebank/pronunciation`
+- **Request model:** none (`sentence_id` query param).
+- **Response model:** raw audio bytes (`fastapi.Response`, dynamic `media_type`), not Pydantic schema.
+- **Notable status/error behavior:** `422` validation failures. `404` sentence or pronunciation not found. `503` DB unavailable/locked. `503` runtime errors when TTS is unavailable and no stored sentence audio exists.
 
 ### POST `/api/sentencebank/verify-sentence`
 - **Request model:** `VerifySentenceRequest` (`source_text: str`, max 100 chars).

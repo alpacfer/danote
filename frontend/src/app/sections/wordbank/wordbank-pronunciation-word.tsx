@@ -26,6 +26,7 @@ type WordbankPronunciationWordProps = {
   pronunciationLoadingByForm: Record<string, boolean>
   onPlayPronunciation: (form: string) => void
   contextMenuItems?: WordbankPronunciationContextMenuItem[]
+  children?: ReactNode
   className?: string
   iconClassName?: string
   as?: "h2" | "span"
@@ -38,6 +39,7 @@ export function WordbankPronunciationWord({
   pronunciationLoadingByForm,
   onPlayPronunciation,
   contextMenuItems,
+  children,
   className,
   iconClassName,
   as: Wrapper,
@@ -62,7 +64,7 @@ export function WordbankPronunciationWord({
         "disabled:pointer-events-none disabled:opacity-70",
       )}
     >
-      <span className={className}>{form}</span>
+      <span className={className}>{children ?? form}</span>
       <Volume2
         className={cn(
           "shrink-0 text-muted-foreground",

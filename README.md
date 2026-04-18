@@ -99,6 +99,7 @@ See the full per-variable reference (defaults, accepted values, and fallback int
 Word verification, pronunciation, and related-word enrichment now run through the shared wordbank queue.
 `DANOTE_WORDBANK_BACKGROUND_JOB_WORKERS` controls how many queued wordbank jobs can execute in parallel.
 Automatic wordbank add/save/complete flows enqueue pronunciation work through that shared queue and return `queued_pronunciation_forms` so the frontend can poll until audio is persisted.
+Sentencebank saves now enqueue sentence-level pronunciation through that same shared queue; saved sentence payloads expose `has_pronunciation`, and the sentence page header supports click-to-listen plus right-click regeneration.
 Automatic wordbank add/save flows also enqueue lemma-scoped related-word resolution for compound decomposition, and the saved word page snapshot now exposes `related_words.status` so the frontend can poll silently until related cards are ready.
 Related-word verb translations are normalized to English infinitive form (`to <verb>`), and compound links are bidirectional on saved word pages: saving `legeplads` will also surface `legeplads` as related on the saved `lege` and `plads` pages.
 When related-word enrichment points at an already-saved target and Gemini returns a different valid translation, that translation is persisted as an additional translation on the saved target word page instead of being discarded or waiting for a manual add.

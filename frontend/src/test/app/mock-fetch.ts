@@ -565,6 +565,7 @@ export function mockFetchImplementation(options?: {
       source_text: string
       english_translation?: string | null
       created_at: string
+      has_pronunciation?: boolean
       tokens?: Array<{
         token_index: number
         surface_form: string
@@ -587,6 +588,7 @@ export function mockFetchImplementation(options?: {
     source_text: string
     english_translation: string | null
     created_at?: string
+    has_pronunciation?: boolean
     tokens?: Array<{
       token_index: number
       surface_form: string
@@ -600,8 +602,14 @@ export function mockFetchImplementation(options?: {
       gloss_translation?: string | null
     }>
     message: string
+    pronunciation?: {
+      status: "queued" | "skipped"
+      sentence_id: number
+    } | null
   }
   addSentenceHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+  sentencePronunciationHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+  sentencePronunciationAudioHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
   verifySentenceResponse?: {
     is_valid: boolean
     errors: Array<{ start: number; end: number; message: string }>
@@ -881,9 +889,17 @@ export function mockFetchImplementation(options?: {
   const addSentenceOk = options?.addSentenceOk ?? true
   const addSentenceResponse = options?.addSentenceResponse ?? {
     status: "inserted" as const,
+    id: 1,
     source_text: "Jeg elsker dansk",
     english_translation: "I love Danish",
+    created_at: "2026-03-15T12:00:00.000Z",
+    has_pronunciation: false,
+    tokens: [],
     message: "Added sentence.",
+    pronunciation: {
+      status: "queued" as const,
+      sentence_id: 1,
+    },
   }
   const verifySentenceResponse = options?.verifySentenceResponse ?? {
     is_valid: true,
@@ -1328,6 +1344,30 @@ export function mockFetchImplementation(options?: {
         throw new Error("add sentence request failed")
       }
       return responseOf(addSentenceResponse)
+    }
+
+    if (url.endsWith("/api/sentencebank/sentences/pronunciation")) {
+      if (options?.sentencePronunciationHandler) {
+        return options.sentencePronunciationHandler(input, init)
+      }
+      const body = JSON.parse(String(init?.body ?? "{}")) as { sentence_id?: number }
+      return responseOf({
+        status: "generated",
+        sentence_id: body.sentence_id ?? 1,
+        source_text: addSentenceResponse.source_text,
+      })
+    }
+
+    if (url.includes("/api/sentencebank/pronunciation?")) {
+      if (options?.sentencePronunciationAudioHandler) {
+        return options.sentencePronunciationAudioHandler(input, init)
+      }
+      return new Response(pronunciationAudioBytes, {
+        status: 200,
+        headers: {
+          "Content-Type": pronunciationAudioContentType,
+        },
+      })
     }
 
     if (url.endsWith("/api/sentencebank/sentences")) {

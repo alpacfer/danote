@@ -9,6 +9,8 @@ from app.api.schemas.v1.root import ApiStatusEntry, HealthResponse
 from app.api.schemas.v1.sentencebank import (
     AddSentenceRequest,
     AddSentenceResponse,
+    GenerateSentencePronunciationRequest,
+    GenerateSentencePronunciationResponse,
     SentenceListResponse,
     SentenceSummary,
 )
@@ -66,6 +68,8 @@ __all__ = [
     "GenerateReverseTranslationResponse",
     "AddSentenceRequest",
     "AddSentenceResponse",
+    "GenerateSentencePronunciationRequest",
+    "GenerateSentencePronunciationResponse",
     "SentenceSummary",
     "SentenceListResponse",
     "LemmaSummary",

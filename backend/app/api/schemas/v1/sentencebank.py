@@ -27,12 +27,19 @@ class SentenceSummary(BaseModel):
     source_text: str
     english_translation: str | None
     created_at: str
+    has_pronunciation: bool = False
     tokens: list[SentenceTokenCard] = Field(default_factory=list)
+
+
+class QueuedSentencePronunciationTask(BaseModel):
+    status: Literal["queued", "skipped"]
+    sentence_id: int
 
 
 class AddSentenceResponse(SentenceSummary):
     status: Literal["inserted", "exists"]
     message: str
+    pronunciation: QueuedSentencePronunciationTask | None = None
 
 
 class SentenceListResponse(BaseModel):
@@ -69,3 +76,14 @@ class SentenceSearchPreviewResponse(BaseModel):
     is_valid: bool
     errors: list[SentenceVerificationErrorItem] = Field(default_factory=list)
     message: str | None = None
+
+
+class GenerateSentencePronunciationRequest(BaseModel):
+    sentence_id: int = Field(..., ge=1)
+    force: bool = False
+
+
+class GenerateSentencePronunciationResponse(BaseModel):
+    status: Literal["generated", "unavailable", "skipped"]
+    sentence_id: int
+    source_text: str

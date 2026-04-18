@@ -2,17 +2,21 @@ from __future__ import annotations
 
 from app.api.schemas.v1.sentencebank import (
     AddSentenceResponse,
+    GenerateSentencePronunciationResponse,
     SentenceListResponse,
     SentenceSearchPreviewResponse,
     SentenceSummary,
     VerifySentenceResponse,
 )
 from app.db.repositories import SentencebankRepository
+from app.db.repositories.wordbank_background_jobs import WordbankBackgroundJobRepository
 from app.nlp.adapter import NLPAdapter
 from app.services.sentence_verification import SentenceVerificationService
+from app.services.tts import PronunciationAudio, TTSService
 from app.services.token_classifier import normalize_token
 from app.services.translation import TranslationService
 from app.services.use_cases.sentencebank_mappers import sentence_response, sentence_summary
+from app.services.use_cases.sentencebank_pronunciation import SentencePronunciationCollaborator
 from app.services.use_cases.sentencebank_preview import (
     build_sentence_search_preview,
     build_verify_sentence_response,
@@ -35,12 +39,15 @@ class SentencebankUseCase:
         nlp_adapter: NLPAdapter | None = None,
         wordbank_use_case: WordbankUseCase | None = None,
         sentence_verification_service: SentenceVerificationService | None = None,
+        tts_service: TTSService | None = None,
     ):
         self._repository = SentencebankRepository(db_path)
         self._translation_service = translation_service
         self._nlp_adapter = nlp_adapter
         self._wordbank_use_case = wordbank_use_case
         self._sentence_verification_service = sentence_verification_service
+        self._background_jobs = WordbankBackgroundJobRepository(db_path)
+        self._pronunciation = SentencePronunciationCollaborator(tts_service, db_path)
 
     def add_sentence(self, source_text: str) -> AddSentenceResponse:
         normalized_source_text = normalize_sentence_text(source_text)
@@ -81,6 +88,13 @@ class SentencebankUseCase:
                 new_token_metadata=new_token_metadata,
                 sentence_context=normalized_source_text,
             )
+        queued_pronunciation = self._pronunciation.queued_pronunciation_result(sentence_id)
+        if queued_pronunciation.status == "queued":
+            self._background_jobs.enqueue(
+                job_type="generate_sentence_pronunciation",
+                dedupe_key=f"generate_sentence_pronunciation::{sentence_id}",
+                payload={"sentence_id": sentence_id, "force": False},
+            )
         saved = self._repository.find_by_normalized_sentence(normalized_key)
         if saved is None:
             raise RuntimeError("Sentence was saved but could not be reloaded.")
@@ -88,6 +102,7 @@ class SentencebankUseCase:
             saved,
             status="inserted",
             message=f'Added "{normalized_source_text}" to sentencebank.',
+            pronunciation=queued_pronunciation,
         )
 
     def list_sentences(self) -> SentenceListResponse:
@@ -120,3 +135,25 @@ class SentencebankUseCase:
             sentence_verification_service=self._sentence_verification_service,
             fast=fast,
         )
+
+    def generate_pronunciation_for_sentence(
+        self,
+        sentence_id: int,
+        *,
+        force: bool = False,
+    ) -> GenerateSentencePronunciationResponse:
+        return self._pronunciation.generate_pronunciation_for_sentence(
+            sentence_id,
+            force=force,
+        )
+
+    def process_queued_pronunciation(
+        self,
+        sentence_id: int,
+        *,
+        force: bool = False,
+    ) -> GenerateSentencePronunciationResponse:
+        return self.generate_pronunciation_for_sentence(sentence_id, force=force)
+
+    def get_pronunciation_audio(self, sentence_id: int) -> PronunciationAudio:
+        return self._pronunciation.get_pronunciation_audio(sentence_id)

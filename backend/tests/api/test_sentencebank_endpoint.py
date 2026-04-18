@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import time
+
 from fastapi.testclient import TestClient
 
-from app.nlp.adapter import NLPToken
 from app.core.app_state import set_service_field
+from app.db.sqlite import get_connection
+from app.nlp.adapter import NLPToken
+from app.services.tts import PronunciationAudio
 from tests.api.support import build_api_test_app
 
 
@@ -93,3 +97,94 @@ def test_sentencebank_post_and_get_include_nested_token_cards(tmp_path) -> None:
 
     assert list_response.status_code == 200
     assert [token["surface_form"] for token in list_response.json()["items"][0]["tokens"]] == ["Du", "og", "du"]
+
+
+def test_add_sentence_queues_background_pronunciation_and_persists_audio(tmp_path, stub_nlp_adapter_factory) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    app = build_api_test_app(db_path, nlp_adapter_factory=stub_nlp_adapter_factory)
+
+    class StubTTSService:
+        provider = "gemini_tts"
+        model = "gemini-2.5-flash-preview-tts"
+
+        def __init__(self) -> None:
+            self.calls: list[str] = []
+
+        def synthesize(self, text: str) -> PronunciationAudio:
+            self.calls.append(text)
+            return PronunciationAudio(audio_bytes=f"{text}-wav".encode(), mime_type="audio/wav")
+
+    tts_service = StubTTSService()
+
+    with TestClient(app) as client:
+        set_service_field(client.app, "tts_service", tts_service)
+        response = client.post("/api/sentencebank/sentences", json={"source_text": "Jeg elsker kaffe"})
+
+        deadline = time.time() + 5
+        while time.time() < deadline:
+            with get_connection(db_path) as conn:
+                jobs = conn.execute(
+                    """
+                    SELECT status
+                    FROM wordbank_background_jobs
+                    WHERE job_type = 'generate_sentence_pronunciation'
+                    ORDER BY id ASC
+                    """
+                ).fetchall()
+                row = conn.execute(
+                    """
+                    SELECT pronunciation_audio
+                    FROM sentence_bank
+                    WHERE normalized_sentence = ?
+                    """,
+                    ("jeg elsker kaffe",),
+                ).fetchone()
+            if jobs and all(str(job["status"]) == "completed" for job in jobs) and row and row["pronunciation_audio"]:
+                break
+            time.sleep(0.05)
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["pronunciation"] == {"status": "queued", "sentence_id": payload["id"]}
+    assert tts_service.calls == ["Jeg elsker kaffe"]
+
+
+def test_generate_sentence_pronunciation_endpoint_regenerates_audio(tmp_path, stub_nlp_adapter_factory) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    app = build_api_test_app(db_path, nlp_adapter_factory=stub_nlp_adapter_factory)
+
+    class StubTTSService:
+        provider = "gemini_tts"
+        model = "gemini-2.5-flash-preview-tts"
+
+        def __init__(self) -> None:
+            self.calls: list[str] = []
+
+        def synthesize(self, text: str) -> PronunciationAudio:
+            self.calls.append(text)
+            return PronunciationAudio(audio_bytes=f"{len(self.calls)}:{text}".encode(), mime_type="audio/wav")
+
+    tts_service = StubTTSService()
+
+    with TestClient(app) as client:
+        save_response = client.post("/api/sentencebank/sentences", json={"source_text": "Jeg elsker kaffe"})
+        sentence_id = int(save_response.json()["id"])
+        set_service_field(client.app, "tts_service", tts_service)
+        first_response = client.post(
+            "/api/sentencebank/sentences/pronunciation",
+            json={"sentence_id": sentence_id},
+        )
+        second_response = client.post(
+            "/api/sentencebank/sentences/pronunciation",
+            json={"sentence_id": sentence_id, "force": True},
+        )
+        audio_response = client.get("/api/sentencebank/pronunciation", params={"sentence_id": sentence_id})
+
+    assert save_response.status_code == 200
+    assert first_response.status_code == 200
+    assert second_response.status_code == 200
+    assert first_response.json()["status"] == "generated"
+    assert second_response.json()["status"] == "generated"
+    assert audio_response.status_code == 200
+    assert audio_response.content == b"2:Jeg elsker kaffe"
+    assert tts_service.calls == ["Jeg elsker kaffe", "Jeg elsker kaffe"]

@@ -1,4 +1,4 @@
-import { fireEvent, mockFetchImplementation, renderApp, screen } from "@/test/app-test-helpers"
+import { fireEvent, mockFetchImplementation, renderApp, screen, waitFor } from "@/test/app-test-helpers"
 
 describe("App sentencebank", () => {
   it("shows saved sentences in sentencebank list (no token cards)", async () => {
@@ -86,8 +86,8 @@ describe("App sentencebank", () => {
     // click the sentence card to open sentence page
     fireEvent.click(screen.getByRole("button", { name: /jeg elsker dansk/i }))
 
-    expect(screen.getByRole("button", { name: /jeg/i })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: /elsker/i })).toBeInTheDocument()
+    expect(screen.getByText(/^jeg$/i).closest("button")).toBeInTheDocument()
+    expect(screen.getByText(/^elsker$/i).closest("button")).toBeInTheDocument()
   })
 
   it("clicking token on sentence page opens wordbank word page", async () => {
@@ -146,7 +146,7 @@ describe("App sentencebank", () => {
     fireEvent.click(screen.getByRole("button", { name: /jeg elsker dansk/i }))
 
     // now click token to go to wordbank
-    fireEvent.click(await screen.findByRole("button", { name: /elsker/i }))
+    fireEvent.click((await screen.findByText(/^elsker$/i)).closest("button") as HTMLButtonElement)
 
     expect(await screen.findByRole("heading", { name: /^elske$/i })).toBeInTheDocument()
     expect(screen.getByText(/^love$/i)).toBeInTheDocument()
@@ -196,13 +196,147 @@ describe("App sentencebank", () => {
     fireEvent.click(screen.getByRole("button", { name: /sentencebank/i }))
     fireEvent.click(await screen.findByRole("button", { name: /jeg elsker dansk/i }))
 
-    const elskerButton = await screen.findByRole("button", { name: /elsker/i })
+    const elskerButton = (await screen.findByText(/^elsker$/i)).closest("button") as HTMLButtonElement
     fireEvent.mouseEnter(elskerButton)
 
-    const sentenceLine = screen.getByText((_, element) => element?.textContent === "Jeg elsker dansk")
+    const sentenceLine = screen.getByRole("button", { name: /^listen to jeg elsker dansk$/i })
     expect(Array.from(sentenceLine.querySelectorAll("span.underline")).map((element) => element.textContent)).toEqual(["elsker"])
 
     fireEvent.mouseLeave(elskerButton)
     expect(sentenceLine.querySelector("span.underline")).toBeNull()
+  })
+
+  it("request-shape: plays sentence pronunciation from the sentence page header", async () => {
+    const fetchSpy = mockFetchImplementation({
+      sentencebankResponse: {
+        items: [
+          {
+            id: 1,
+            source_text: "Jeg elsker dansk",
+            english_translation: "i love danish",
+            created_at: "2026-02-28T12:00:00.000Z",
+            has_pronunciation: true,
+            tokens: [],
+          },
+        ],
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /sentencebank/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /jeg elsker dansk/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /^listen to jeg elsker dansk$/i }))
+
+    await waitFor(() => {
+      expect(fetchSpy).toHaveBeenCalledWith(
+        expect.stringContaining("/api/sentencebank/pronunciation?sentence_id=1"),
+        undefined,
+      )
+    })
+  })
+
+  it("request-shape: regenerates sentence pronunciation from the sentence header context menu", async () => {
+    const fetchSpy = mockFetchImplementation({
+      sentencebankResponse: {
+        items: [
+          {
+            id: 1,
+            source_text: "Jeg elsker dansk",
+            english_translation: "i love danish",
+            created_at: "2026-02-28T12:00:00.000Z",
+            has_pronunciation: true,
+            tokens: [],
+          },
+        ],
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /sentencebank/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /jeg elsker dansk/i }))
+
+    const listenButton = await screen.findByRole("button", { name: /^listen to jeg elsker dansk$/i })
+    fireEvent.contextMenu(listenButton)
+    fireEvent.click(await screen.findByRole("menuitem", { name: /regenerate audio/i }))
+
+    await waitFor(() => {
+      expect(fetchSpy).toHaveBeenCalledWith(
+        expect.stringContaining("/api/sentencebank/sentences/pronunciation"),
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({
+            sentence_id: 1,
+            force: true,
+          }),
+        }),
+      )
+    })
+  })
+
+  it("interaction: sentence header context menu can say the sentence slowly", async () => {
+    const originalAudio = globalThis.Audio
+    const createdAudio: Array<{ playbackRate: number }> = []
+
+    class SlowAudioMock {
+      src = ""
+      playbackRate = 1
+
+      constructor(src?: string) {
+        this.src = src ?? ""
+        createdAudio.push(this)
+      }
+
+      play() {
+        return Promise.resolve()
+      }
+
+      pause() {}
+    }
+
+    Object.defineProperty(globalThis, "Audio", {
+      writable: true,
+      value: SlowAudioMock,
+    })
+
+    try {
+      mockFetchImplementation({
+        sentencebankResponse: {
+          items: [
+            {
+              id: 1,
+              source_text: "Jeg elsker dansk",
+              english_translation: "i love danish",
+              created_at: "2026-02-28T12:00:00.000Z",
+              has_pronunciation: true,
+              tokens: [],
+            },
+          ],
+        },
+      })
+
+      renderApp()
+      await screen.findByLabelText("backend-connection-status")
+
+      fireEvent.click(screen.getByRole("button", { name: /sentencebank/i }))
+      fireEvent.click(await screen.findByRole("button", { name: /jeg elsker dansk/i }))
+
+      const listenButton = await screen.findByRole("button", { name: /^listen to jeg elsker dansk$/i })
+      fireEvent.contextMenu(listenButton)
+      fireEvent.click(await screen.findByRole("menuitem", { name: /say slowly/i }))
+
+      await waitFor(() => {
+        expect(createdAudio).toHaveLength(1)
+      })
+      expect(createdAudio[0]?.playbackRate).toBe(0.7)
+    } finally {
+      Object.defineProperty(globalThis, "Audio", {
+        writable: true,
+        value: originalAudio,
+      })
+    }
   })
 })

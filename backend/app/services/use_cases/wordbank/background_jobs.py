@@ -10,6 +10,7 @@ from app.api.schemas.v1.wordbank import VerificationResult
 from app.db.repositories import WordbankBackgroundJobRepository
 from app.db.repositories.wordbank import WordbankRepository
 from app.db.repositories.wordbank_background_jobs import WordbankBackgroundJobRecord
+from app.services.use_cases.sentencebank import SentencebankUseCase
 from app.services.use_cases.wordbank import WordbankUseCase
 from app.services.use_cases.wordbank.verification_records import persist_verification_result
 
@@ -166,9 +167,9 @@ class WordbankBackgroundJobRunner:
             tts_service=self._services.tts_service,
             gemini_changes_log_path=self._gemini_changes_log_path,
         )
-        stored_lemma = _string_value(payload, "stored_lemma")
-        stored_surface_form = _optional_string_value(payload, "stored_surface_form")
         if job_type == "verify_word":
+            stored_lemma = _string_value(payload, "stored_lemma")
+            stored_surface_form = _optional_string_value(payload, "stored_surface_form")
             result = use_case.process_queued_verification_if_current(
                 stored_lemma,
                 stored_surface_form,
@@ -187,6 +188,8 @@ class WordbankBackgroundJobRunner:
                 )
             return
         if job_type == "generate_pronunciation":
+            stored_lemma = _string_value(payload, "stored_lemma")
+            stored_surface_form = _optional_string_value(payload, "stored_surface_form")
             requested_forms = _optional_string_list(payload, "requested_forms")
             use_case.process_queued_pronunciations(
                 stored_lemma,
@@ -194,7 +197,22 @@ class WordbankBackgroundJobRunner:
                 force=_optional_bool_value(payload, "force") or False,
             )
             return
+        if job_type == "generate_sentence_pronunciation":
+            sentence_use_case = SentencebankUseCase(
+                db_path=self._db_path,
+                translation_service=self._services.translation_service,
+                nlp_adapter=self._services.nlp_adapter,
+                wordbank_use_case=use_case,
+                sentence_verification_service=self._services.sentence_verification_service,
+                tts_service=self._services.tts_service,
+            )
+            sentence_use_case.process_queued_pronunciation(
+                _required_int_value(payload, "sentence_id"),
+                force=_optional_bool_value(payload, "force") or False,
+            )
+            return
         if job_type == "resolve_related_words":
+            stored_lemma = _string_value(payload, "stored_lemma")
             use_case.process_queued_related_words(stored_lemma)
             return
         raise ValueError(f"Unsupported background job type: {job_type}")
@@ -250,6 +268,13 @@ def _optional_int_value(payload: dict[str, object], key: str) -> int | None:
         return None
     if not isinstance(value, int):
         raise ValueError(f"Background job payload field '{key}' is invalid.")
+    return value
+
+
+def _required_int_value(payload: dict[str, object], key: str) -> int:
+    value = payload.get(key)
+    if not isinstance(value, int):
+        raise ValueError(f"Background job payload is missing '{key}'.")
     return value
 
 

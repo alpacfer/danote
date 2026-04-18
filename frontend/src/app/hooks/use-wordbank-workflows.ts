@@ -19,6 +19,7 @@ import {
 } from "@/app/core"
 import { toast } from "sonner"
 
+import { useSentencePronunciationWorkflow } from "./sentencebank/use-sentence-pronunciation-workflow"
 import { useAlternativeTranslationsWorkflow } from "./wordbank/use-alternative-translations-workflow"
 import { useCategoryRethinkingWorkflow } from "./wordbank/use-category-rethinking-workflow"
 import { useCompleteVariationsWorkflow } from "./wordbank/use-complete-variations-workflow"
@@ -113,6 +114,17 @@ export function useWordbankWorkflows({
     lemmaDetails,
     setWordbankRefreshTick,
   })
+  const {
+    pronunciationLoadingBySentenceId,
+    regeneratingPronunciationBySentenceId,
+    playPronunciation: playSentencePronunciation,
+    playPronunciationSlowly: playSentencePronunciationSlowly,
+    regeneratePronunciation: regenerateSentencePronunciation,
+  } = useSentencePronunciationWorkflow({
+    backendUrl,
+    extractErrorMessage,
+    setSentencebankRefreshTick,
+  })
 
   const {
     isRethinkingCategories,
@@ -190,6 +202,7 @@ export function useWordbankWorkflows({
       source_text: payload.source_text,
       english_translation: payload.english_translation,
       created_at: payload.created_at ?? new Date().toISOString(),
+      has_pronunciation: payload.has_pronunciation ?? false,
       tokens: payload.tokens ?? [],
     }
     setSentences((current) => {
@@ -383,6 +396,8 @@ export function useWordbankWorkflows({
     isSavingSentence,
     pronunciationLoadingByForm,
     regeneratingPronunciationByForm,
+    pronunciationLoadingBySentenceId,
+    regeneratingPronunciationBySentenceId,
     isFindingAlternativeTranslations,
     isRethinkingCategories,
     isCompletingMeaningVariations,
@@ -401,6 +416,9 @@ export function useWordbankWorkflows({
     addSentenceToSentencebank,
     playPronunciation,
     regeneratePronunciation,
+    playSentencePronunciation,
+    playSentencePronunciationSlowly,
+    regenerateSentencePronunciation,
     findAlternativeTranslations,
     rethinkCategories,
     completeMeaningVariations,

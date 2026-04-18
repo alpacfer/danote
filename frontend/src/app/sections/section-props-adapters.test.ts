@@ -36,27 +36,47 @@ describe("section prop adapters", () => {
     const openWordbankLemma = vi.fn()
     const openWordbankMeaning = vi.fn()
     const openSentence = vi.fn()
+    const playPronunciation = vi.fn(async () => undefined)
+    const playPronunciationSlowly = vi.fn(async () => undefined)
+    const regeneratePronunciation = vi.fn(async () => undefined)
 
     const result = buildSentencebankSectionProps({
       sentencebankError: null,
       isSentencebankLoading: false,
       sentences: sentences as never,
+      pronunciationLoadingBySentenceId: {},
+      regeneratingPronunciationBySentenceId: {},
       openWordbankLemma,
       openWordbankMeaning,
       selectedSentenceId: 42,
       pendingSentence: null,
       openSentence,
+      playPronunciation,
+      playPronunciationSlowly,
+      regeneratePronunciation,
     })
 
-    expect(result).toEqual({
-      sentencebankError: null,
-      isSentencebankLoading: false,
-      sentences,
-      onOpenWordbankLemma: openWordbankLemma,
-      onOpenWordbankMeaning: openWordbankMeaning,
-      selectedSentenceId: 42,
-      pendingSentence: null,
-      onOpenSentence: openSentence,
+    expect(result.sentencebankError).toBeNull()
+    expect(result.isSentencebankLoading).toBe(false)
+    expect(result.sentences).toBe(sentences)
+    expect(result.onOpenWordbankLemma).toBe(openWordbankLemma)
+    expect(result.onOpenWordbankMeaning).toBe(openWordbankMeaning)
+    expect(result.selectedSentenceId).toBe(42)
+    expect(result.pendingSentence).toBeNull()
+    expect(result.pronunciationLoadingBySentenceId).toEqual({})
+    expect(result.regeneratingPronunciationBySentenceId).toEqual({})
+
+    result.onOpenSentence(41)
+    result.onPlayPronunciation(41)
+    result.onPlayPronunciationSlowly(41)
+    result.onRegeneratePronunciation(41)
+
+    expect(openSentence).toHaveBeenCalledWith(41)
+
+    return Promise.resolve().then(() => {
+      expect(playPronunciation).toHaveBeenCalledWith(41)
+      expect(playPronunciationSlowly).toHaveBeenCalledWith(41)
+      expect(regeneratePronunciation).toHaveBeenCalledWith(41)
     })
   })
 

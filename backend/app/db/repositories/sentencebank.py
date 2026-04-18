@@ -44,6 +44,7 @@ class SentenceRecord:
     source_text: str
     english_translation: str | None
     created_at: str
+    has_pronunciation: bool = False
     tokens: tuple[SentenceTokenRecord, ...] = ()
     matched_token_indexes: tuple[int, ...] = ()
 
@@ -58,7 +59,12 @@ class SentencebankRepository:
         ) as conn:
             row = conn.execute(
                 """
-                SELECT id, source_sentence, english_translation, created_at
+                SELECT
+                    id,
+                    source_sentence,
+                    english_translation,
+                    created_at,
+                    CASE WHEN pronunciation_audio IS NOT NULL THEN 1 ELSE 0 END AS has_pronunciation
                 FROM sentence_bank
                 WHERE normalized_sentence = ?
                 LIMIT 1
@@ -69,13 +75,31 @@ class SentencebankRepository:
                 return None
             sentence_ids = [int(row["id"])]
             tokens_by_sentence = self._fetch_tokens_by_sentence(conn, sentence_ids)
-        return SentenceRecord(
-            id=int(row["id"]),
-            source_text=str(row["source_sentence"]),
-            english_translation=row["english_translation"],
-            created_at=str(row["created_at"]),
-            tokens=tuple(tokens_by_sentence.get(int(row["id"]), ())),
-        )
+        return self._sentence_record_from_row(row, tokens_by_sentence=tokens_by_sentence)
+
+    def get_sentence(self, sentence_id: int) -> SentenceRecord | None:
+        with timed_db_operation("sentencebank.get_sentence"), get_connection(
+            self._db_path, read_only=True
+        ) as conn:
+            row = conn.execute(
+                """
+                SELECT
+                    id,
+                    source_sentence,
+                    english_translation,
+                    created_at,
+                    CASE WHEN pronunciation_audio IS NOT NULL THEN 1 ELSE 0 END AS has_pronunciation
+                FROM sentence_bank
+                WHERE id = ?
+                LIMIT 1
+                """,
+                (sentence_id,),
+            ).fetchone()
+            if row is None:
+                return None
+            sentence_ids = [int(row["id"])]
+            tokens_by_sentence = self._fetch_tokens_by_sentence(conn, sentence_ids)
+        return self._sentence_record_from_row(row, tokens_by_sentence=tokens_by_sentence)
 
     def insert_sentence(
         self,
@@ -165,23 +189,19 @@ class SentencebankRepository:
         with timed_db_operation("sentencebank.list_sentences"), get_connection(self._db_path, read_only=True) as conn:
             rows = conn.execute(
                 """
-                SELECT id, source_sentence, english_translation, created_at
+                SELECT
+                    id,
+                    source_sentence,
+                    english_translation,
+                    created_at,
+                    CASE WHEN pronunciation_audio IS NOT NULL THEN 1 ELSE 0 END AS has_pronunciation
                 FROM sentence_bank
                 ORDER BY datetime(created_at) DESC, id DESC
                 """
             ).fetchall()
             sentence_ids = [int(row["id"]) for row in rows]
             tokens_by_sentence = self._fetch_tokens_by_sentence(conn, sentence_ids)
-        return [
-            SentenceRecord(
-                id=int(row["id"]),
-                source_text=str(row["source_sentence"]),
-                english_translation=row["english_translation"],
-                created_at=str(row["created_at"]),
-                tokens=tuple(tokens_by_sentence.get(int(row["id"]), ())),
-            )
-            for row in rows
-        ]
+        return [self._sentence_record_from_row(row, tokens_by_sentence=tokens_by_sentence) for row in rows]
 
     def list_linked_sentences_for_lemma(self, stored_lemma: str) -> list[SentenceRecord]:
         with timed_db_operation("sentencebank.list_linked_sentences_for_lemma"), get_connection(
@@ -193,7 +213,8 @@ class SentencebankRepository:
                     sb.id,
                     sb.source_sentence,
                     sb.english_translation,
-                    sb.created_at
+                    sb.created_at,
+                    CASE WHEN sb.pronunciation_audio IS NOT NULL THEN 1 ELSE 0 END AS has_pronunciation
                 FROM sentence_bank sb
                 WHERE EXISTS (
                     SELECT 1
@@ -218,11 +239,37 @@ class SentencebankRepository:
                 source_text=str(row["source_sentence"]),
                 english_translation=row["english_translation"],
                 created_at=str(row["created_at"]),
+                has_pronunciation=bool(row["has_pronunciation"]),
                 tokens=tuple(tokens_by_sentence.get(int(row["id"]), ())),
                 matched_token_indexes=tuple(matched_indexes_by_sentence.get(int(row["id"]), ())),
             )
             for row in rows
         ]
+
+    def update_pronunciation(
+        self,
+        *,
+        sentence_id: int,
+        audio_bytes: bytes,
+        mime_type: str,
+        provider: str | None,
+        model: str | None,
+    ) -> bool:
+        with timed_db_operation("sentencebank.update_pronunciation"), get_connection(self._db_path) as conn:
+            cursor = conn.execute(
+                """
+                UPDATE sentence_bank
+                SET pronunciation_audio = ?,
+                    pronunciation_mime_type = ?,
+                    pronunciation_provider = ?,
+                    pronunciation_model = ?,
+                    pronunciation_generated_at = CURRENT_TIMESTAMP,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (audio_bytes, mime_type, provider, model, sentence_id),
+            )
+        return cursor.rowcount == 1
 
     def _fetch_tokens_by_sentence(self, conn, sentence_ids: list[int]) -> dict[int, list[SentenceTokenRecord]]:
         if not sentence_ids:
@@ -295,3 +342,19 @@ class SentencebankRepository:
         for row in rows:
             grouped.setdefault(int(row["sentence_id"]), []).append(int(row["token_index"]))
         return grouped
+
+    def _sentence_record_from_row(
+        self,
+        row,
+        *,
+        tokens_by_sentence: dict[int, list[SentenceTokenRecord]],
+    ) -> SentenceRecord:
+        sentence_id = int(row["id"])
+        return SentenceRecord(
+            id=sentence_id,
+            source_text=str(row["source_sentence"]),
+            english_translation=row["english_translation"],
+            created_at=str(row["created_at"]),
+            has_pronunciation=bool(row["has_pronunciation"]),
+            tokens=tuple(tokens_by_sentence.get(sentence_id, ())),
+        )

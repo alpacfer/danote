@@ -371,11 +371,20 @@ def test_sentencebank_repository_round_trips_sentences(tmp_path) -> None:
             ),
         ],
     )
+    assert repository.update_pronunciation(
+        sentence_id=sentence_id,
+        audio_bytes=b"wav-data",
+        mime_type="audio/wav",
+        provider="stub",
+        model="stub-tts",
+    )
 
     existing = repository.find_by_normalized_sentence("jeg læser en bog")
     rows = repository.list_sentences()
 
     assert existing is not None
     assert existing.source_text == "Jeg læser en bog"
+    assert existing.has_pronunciation is True
     assert rows[0].english_translation == "i read a book"
+    assert rows[0].has_pronunciation is True
     assert existing.tokens[0].surface_form == "Jeg"

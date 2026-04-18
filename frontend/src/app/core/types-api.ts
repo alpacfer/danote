@@ -1,3 +1,5 @@
+import type { AddSentenceResponse, GenerateSentencePronunciationResponse, SentenceListResponse, SentenceSearchPreviewResponse, SentenceTokenCard, SentenceVerificationErrorItem, SentencebankSentence, VerifySentenceResponse } from "@/app/core/types-sentencebank"
+
 export type ConnectionStatus = "loading" | "connected" | "degraded" | "offline"
 export type ApiRuntimeStatus = "ok" | "degraded" | "inactive" | "missing_key" | "disabled" | "unknown"
 export type TokenClassification = "known" | "variation" | "typo_likely" | "uncertain" | "new"
@@ -383,51 +385,6 @@ export type GeneratePhraseTranslationResponse = {
   english_translation: string | null
 }
 
-export type SentenceSearchPreviewResponse = {
-  status: "ready" | "blocked" | "preview"
-  query_language: "da" | "en" | "unknown"
-  source_text: string | null
-  english_translation: string | null
-  is_valid: boolean
-  errors: SentenceVerificationErrorItem[]
-  message: string | null
-}
-
-export type SentenceTokenCard = {
-  token_index: number
-  surface_form: string
-  stored_lemma: string
-  lexeme_id: number
-  meaning_id: number | null
-  pos_tag: string | null
-  morphology: string | null
-  gloss: string | null
-  english_translation: string | null
-  gloss_translation: string | null
-}
-
-export type SentencebankSentence = {
-  id: number
-  source_text: string
-  english_translation: string | null
-  created_at: string
-  tokens?: SentenceTokenCard[]
-}
-
-export type SentenceListResponse = {
-  items: SentencebankSentence[]
-}
-
-export type AddSentenceResponse = {
-  id?: number
-  status: "inserted" | "exists"
-  source_text: string
-  english_translation: string | null
-  created_at?: string
-  tokens?: SentenceTokenCard[]
-  message: string
-}
-
 export type HealthApiStatusEntry = {
   status?: string
   active?: boolean
@@ -480,15 +437,4 @@ export type SearchFeedbackContext = {
   suggestionsShown: string[]
 }
 
-export interface SentenceVerificationErrorItem {
-  start: number
-  end: number
-  message: string
-}
-
-export interface VerifySentenceResponse {
-  is_valid: boolean
-  errors: SentenceVerificationErrorItem[]
-  corrected_text: string | null
-  language: "da" | "en" | "unknown"
-}
+export type { AddSentenceResponse, GenerateSentencePronunciationResponse, SentenceListResponse, SentenceSearchPreviewResponse, SentenceTokenCard, SentenceVerificationErrorItem, SentencebankSentence, VerifySentenceResponse }

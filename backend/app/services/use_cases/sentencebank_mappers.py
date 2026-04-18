@@ -4,6 +4,7 @@ from typing import Literal
 
 from app.api.schemas.v1.sentencebank import (
     AddSentenceResponse,
+    QueuedSentencePronunciationTask,
     SentenceSummary,
     SentenceTokenCard,
 )
@@ -31,6 +32,7 @@ def sentence_summary(row: SentenceRecord) -> SentenceSummary:
         source_text=row.source_text,
         english_translation=row.english_translation,
         created_at=row.created_at,
+        has_pronunciation=row.has_pronunciation,
         tokens=[sentence_token_card(token) for token in row.tokens],
     )
 
@@ -40,13 +42,16 @@ def sentence_response(
     *,
     status: Literal["inserted", "exists"],
     message: str,
+    pronunciation: QueuedSentencePronunciationTask | None = None,
 ) -> AddSentenceResponse:
     return AddSentenceResponse(
         id=row.id,
         source_text=row.source_text,
         english_translation=row.english_translation,
         created_at=row.created_at,
+        has_pronunciation=row.has_pronunciation,
         tokens=[sentence_token_card(token) for token in row.tokens],
         status=status,
         message=message,
+        pronunciation=pronunciation,
     )

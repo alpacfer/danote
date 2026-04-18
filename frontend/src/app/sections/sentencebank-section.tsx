@@ -9,9 +9,14 @@ export type SentencebankSectionProps = {
   sentences: SentencebankSentence[]
   selectedSentenceId: number | null
   pendingSentence: PendingSentence | null
+  pronunciationLoadingBySentenceId: Record<number, boolean>
+  regeneratingPronunciationBySentenceId: Record<number, boolean>
   onOpenSentence: (id: number) => void
   onOpenWordbankLemma: (lemma: string) => void
   onOpenWordbankMeaning: (lemma: string, meaningId: number) => void
+  onPlayPronunciation: (sentenceId: number) => void
+  onPlayPronunciationSlowly: (sentenceId: number) => void
+  onRegeneratePronunciation: (sentenceId: number) => void
 }
 
 export function SentencebankSection({
@@ -20,9 +25,14 @@ export function SentencebankSection({
   sentences,
   selectedSentenceId,
   pendingSentence,
+  pronunciationLoadingBySentenceId,
+  regeneratingPronunciationBySentenceId,
   onOpenSentence,
   onOpenWordbankLemma,
   onOpenWordbankMeaning,
+  onPlayPronunciation,
+  onPlayPronunciationSlowly,
+  onRegeneratePronunciation,
 }: SentencebankSectionProps) {
   if (pendingSentence !== null && selectedSentenceId === null) {
     const sentenceShell: SentencebankSentence = {
@@ -35,8 +45,13 @@ export function SentencebankSection({
       <SentencebankSentencePage
         sentence={sentenceShell}
         isLoadingTokens
+        pronunciationLoadingBySentenceId={pronunciationLoadingBySentenceId}
+        regeneratingPronunciationBySentenceId={regeneratingPronunciationBySentenceId}
         onOpenWordbankLemma={onOpenWordbankLemma}
         onOpenWordbankMeaning={onOpenWordbankMeaning}
+        onPlayPronunciation={onPlayPronunciation}
+        onPlayPronunciationSlowly={onPlayPronunciationSlowly}
+        onRegeneratePronunciation={onRegeneratePronunciation}
       />
     )
   }
@@ -46,8 +61,13 @@ export function SentencebankSection({
     return (
       <SentencebankSentencePage
         sentence={sentence}
+        pronunciationLoadingBySentenceId={pronunciationLoadingBySentenceId}
+        regeneratingPronunciationBySentenceId={regeneratingPronunciationBySentenceId}
         onOpenWordbankLemma={onOpenWordbankLemma}
         onOpenWordbankMeaning={onOpenWordbankMeaning}
+        onPlayPronunciation={onPlayPronunciation}
+        onPlayPronunciationSlowly={onPlayPronunciationSlowly}
+        onRegeneratePronunciation={onRegeneratePronunciation}
       />
     )
   }
