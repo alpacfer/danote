@@ -304,7 +304,7 @@ describe("App shell and search", () => {
     })
   })
 
-  it("shows direct COR results before did-you-mean when wordbank has correction but COR has exact match", async () => {
+  it("suppresses did-you-mean when COR has a direct match, even if wordbank has a correction", async () => {
     mockFetchImplementation({
       wordbankSearchHandler: async (_input) => {
         const url = typeof _input === "string" ? _input : _input instanceof URL ? _input.toString() : _input.url
@@ -356,10 +356,9 @@ describe("App shell and search", () => {
     const input = within(commandDialog).getByPlaceholderText(/search words and notes/i)
     fireEvent.change(input, { target: { value: "huse" } })
 
-    const dymItem = await within(commandDialog).findByText(/did you mean/i)
-    const corResult = await within(commandDialog).findByText(/huse/i)
+    const corResult = await within(commandDialog).findByText(/^huse$/i)
 
-    // COR result must appear before DYM banner in DOM
-    expect(corResult.compareDocumentPosition(dymItem) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(corResult).toBeInTheDocument()
+    expect(within(commandDialog).queryByText(/did you mean/i)).not.toBeInTheDocument()
   })
 })
