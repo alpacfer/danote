@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import lru_cache
+import json
 from typing import Literal
 
+from app.core.config import BASE_DIR
 from app.services.token_classifier import normalize_token
 
 _SELF_TRANSLATION_HELPER_PREFIXES = {
@@ -63,6 +66,51 @@ def comparable_search_translation_key(value: str | None) -> str:
     while tokens and tokens[0] in _SELF_TRANSLATION_HELPER_PREFIXES:
         tokens = tokens[1:]
     return " ".join(tokens)
+
+
+@lru_cache(maxsize=1)
+def _english_verb_lemmas() -> frozenset[str]:
+    path = BASE_DIR / "resources" / "dictionaries" / "english_wiki.jsonl"
+    if not path.exists():
+        return frozenset()
+
+    lemmas: set[str] = set()
+    with path.open(encoding="utf-8") as handle:
+        for line in handle:
+            try:
+                payload = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if payload.get("lang_code") != "en" or payload.get("pos") != "verb":
+                continue
+            lemma = normalize_token(str(payload.get("word") or ""))
+            if lemma:
+                lemmas.add(lemma)
+    return frozenset(lemmas)
+
+
+def should_allow_identical_glossless_verb_translation(
+    *,
+    translation: str | None,
+    lemma: str,
+    pos_tag: str | None,
+    gloss: str | None,
+    frame_text: str | None,
+) -> bool:
+    if (pos_tag or "").strip().upper() != "VERB":
+        return False
+    if normalize_token(gloss or ""):
+        return False
+
+    normalized_lemma = normalize_token(lemma)
+    if not normalized_lemma:
+        return False
+    if comparable_search_translation_key(translation) != normalized_lemma:
+        return False
+    if comparable_search_translation_key(frame_text) != normalized_lemma:
+        return False
+
+    return normalized_lemma in _english_verb_lemmas()
 
 
 def invalid_search_translation(

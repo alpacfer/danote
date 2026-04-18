@@ -300,6 +300,43 @@ def _bile_payload(
     )
 
 
+def _have_payload() -> WordVerificationInput:
+    return WordVerificationInput(
+        stored_lemma="have",
+        stored_surface_form=None,
+        meaning_id=2,
+        meaning_key="have",
+        meaning_gloss=None,
+        meaning_gloss_translation=None,
+        lexeme_source="search",
+        selected_translation=None,
+        selected_translation_scope=None,
+        surface_source=None,
+        canonical_lemma="have",
+        canonical_lemma_pos_tag="VERB",
+        canonical_lemma_morphology="VerbForm=Inf|Voice=Act",
+        selected_meaning_pos_tag="VERB",
+        selected_meaning_morphology="VerbForm=Inf|Voice=Act",
+        selected_surface_pos_tag=None,
+        selected_surface_morphology=None,
+        sibling_meaning_sections=(),
+        available_surface_forms=(
+            WordVerificationSurfaceForm(
+                form="har",
+                meaning_id=2,
+                meaning_key="have",
+                gloss=None,
+                gloss_translation=None,
+                english_translation=None,
+                pos_tag="VERB",
+                morphology="Tense=Pres|VerbForm=Fin|Voice=Act",
+                source="search",
+                gram_raw="vb.præs.akt",
+            ),
+        ),
+    )
+
+
 def test_gemini_verification_service_keeps_only_supported_actions(monkeypatch) -> None:
     service = GeminiWordVerificationService(api_key="test-key")
     monkeypatch.setattr(
@@ -614,6 +651,24 @@ def test_gemini_verification_service_flags_missing_meaning_translation_from_glos
     assert result.verdict == "flagged"
     assert [action.action_type for action in result.suggested_actions] == ["fix_translation"]
     assert result.suggested_actions[0].english_translation == "go by car"
+
+
+def test_gemini_verification_service_flags_missing_translation_without_gloss_hint_even_when_provider_says_ok(
+    monkeypatch,
+) -> None:
+    service = GeminiWordVerificationService(api_key="test-key")
+    monkeypatch.setattr(
+        service,
+        "_generate_text",
+        lambda prompt: '{"verdict":"correct","word_count":1,"suggested_actions":[]}',
+    )
+
+    result = service.verify_word_entry(_have_payload())
+
+    assert result.verdict == "flagged"
+    assert result.problem == "The English translation is missing."
+    assert result.change_to_implement == "Add an English translation for this entry."
+    assert result.suggested_actions == ()
 
 
 def test_gemini_verification_prompt_includes_canonical_lemma_mismatch_context() -> None:

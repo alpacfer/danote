@@ -117,6 +117,10 @@ function CommandInput({
             placeholder={placeholder}
             aria-label={ariaLabel as string | undefined}
             autoFocus={autoFocus}
+            autoCorrect="off"
+            autoComplete="off"
+            spellCheck={false}
+            autoCapitalize="none"
             className={cn(
               "placeholder:text-muted-foreground field-sizing-content w-full resize-none bg-transparent py-3 text-sm outline-hidden disabled:cursor-not-allowed disabled:opacity-50",
               concealValue ? "relative z-10 text-transparent caret-foreground" : "",
@@ -165,6 +169,10 @@ function CommandInput({
           maxLength={maxLength}
           placeholder={placeholder}
           autoFocus={autoFocus}
+          autoCorrect="off"
+          autoComplete="off"
+          spellCheck={false}
+          autoCapitalize="none"
           {...restProps}
         />
         {suffix ? (

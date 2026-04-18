@@ -67,10 +67,10 @@ export function SentencebankTokenButton({
               {showLemma ? (
                 <span className="text-muted-foreground text-sm break-words">from {lemmaDisplay}</span>
               ) : null}
-              {translationLine ? (
-                <span className="text-muted-foreground text-sm italic break-words">({translationLine})</span>
-              ) : null}
             </div>
+            {translationLine ? (
+              <div className="text-muted-foreground text-sm italic break-words">{translationLine}</div>
+            ) : null}
             {badges.length > 0 ? (
               <div className="flex flex-wrap gap-1.5 mt-2">
                 {badges.map((badge) => (

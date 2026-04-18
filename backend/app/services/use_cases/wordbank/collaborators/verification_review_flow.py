@@ -17,6 +17,7 @@ from app.services.use_cases.wordbank.verification_queue import (
     load_verification_record,
     process_queued_verification_if_current,
 )
+from app.services.use_cases.wordbank.verification_records import verification_record_to_schema
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +55,14 @@ def verify_added_word(
         stored_surface_form=normalized_surface,
         meaning_id=meaning_id,
     )
+    reloaded_record = load_verification_record(
+        db_path=collaborator._db_path,
+        stored_lemma=normalized_lemma,
+        stored_surface_form=normalized_surface,
+        meaning_id=meaning_id,
+    )
+    if reloaded_record is not None:
+        verification = verification_record_to_schema(reloaded_record)
     applied_categories = collaborator._classify_and_persist_categories(
         stored_lemma=normalized_lemma,
         meaning_id=meaning_id,

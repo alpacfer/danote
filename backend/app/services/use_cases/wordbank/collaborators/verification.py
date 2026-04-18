@@ -4,6 +4,7 @@ import json
 import logging
 from dataclasses import asdict
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from app.api.schemas.v1.wordbank import (
     ApplyVerificationChangesResponse,
@@ -11,6 +12,7 @@ from app.api.schemas.v1.wordbank import (
     QueueVerificationResponse,
     RevertVerificationChangeResponse,
     RethinkCategoriesResponse,
+    VerificationAction,
     VerificationChangeEntry,
     VerificationResult,
     VerifyWordResponse,
@@ -52,11 +54,16 @@ from app.services.use_cases.wordbank.verification_helper_logic import (
     rethink_categories_message,
     verification_action_to_schema,
 )
+from app.services.verification_review_policy import should_flag_missing_translation_review
+from app.services.verification_review_text import TRANSLATION_FIX_CHANGE, TRANSLATION_FIX_PROBLEM
 from app.services.verification import (
     WordVerificationInput,
     WordVerificationResult,
     WordVerificationService,
 )
+
+if TYPE_CHECKING:
+    from app.services.use_cases.wordbank.collaborators.translation import TranslationCollaborator
 
 logger = logging.getLogger(__name__)
 
@@ -72,12 +79,14 @@ class VerificationCollaborator:
         gemini_changes_log_path: Path | None,
         nlp: NLPCollaborator,
         cor: CorResolutionCollaborator,
+        translation: "TranslationCollaborator",
     ) -> None:
         self._verification_service = verification_service
         self._db_path = db_path
         self._gemini_changes_log_path = gemini_changes_log_path
         self._nlp = nlp
         self._cor = cor
+        self._translation = translation
 
     def verify_added_word(
         self,
@@ -409,6 +418,16 @@ class VerificationCollaborator:
             problem=getattr(verdict, "problem", None),
             change_to_implement=getattr(verdict, "change_to_implement", None),
         )
+        suggested_actions = self._supplement_missing_translation_actions(
+            payload=payload,
+            verification_status=verdict.verdict,
+            suggested_actions=suggested_actions,
+        )
+        problem = getattr(verdict, "problem", None)
+        change_to_implement = getattr(verdict, "change_to_implement", None)
+        if any(action.action_type == "fix_translation" for action in suggested_actions):
+            problem = TRANSLATION_FIX_PROBLEM
+            change_to_implement = TRANSLATION_FIX_CHANGE
         return VerificationResult(
             status=verdict.verdict,
             provider=provider_name,
@@ -419,8 +438,8 @@ class VerificationCollaborator:
             stored_surface_form=payload.stored_surface_form,
             requested_at=completed_at,
             completed_at=completed_at,
-            problem=getattr(verdict, "problem", None),
-            change_to_implement=getattr(verdict, "change_to_implement", None),
+            problem=problem,
+            change_to_implement=change_to_implement,
             suggested_actions=suggested_actions,
         )
 
@@ -478,6 +497,16 @@ class VerificationCollaborator:
             verification_action_to_schema(action)
             for action in getattr(verdict, "suggested_actions", ()) or ()
         ]
+        suggested_actions = self._supplement_missing_translation_actions(
+            payload=payload,
+            verification_status=verdict.verdict,
+            suggested_actions=suggested_actions,
+        )
+        problem = getattr(verdict, "problem", None)
+        change_to_implement = getattr(verdict, "change_to_implement", None)
+        if any(action.action_type == "fix_translation" for action in suggested_actions):
+            problem = TRANSLATION_FIX_PROBLEM
+            change_to_implement = TRANSLATION_FIX_CHANGE
         return VerificationResult(
             status=verdict.verdict,
             provider=provider_name,
@@ -488,10 +517,73 @@ class VerificationCollaborator:
             stored_surface_form=payload.stored_surface_form,
             requested_at=completed_at,
             completed_at=completed_at,
-            problem=getattr(verdict, "problem", None),
-            change_to_implement=getattr(verdict, "change_to_implement", None),
+            problem=problem,
+            change_to_implement=change_to_implement,
             suggested_actions=suggested_actions,
         )
+
+    def _supplement_missing_translation_actions(
+        self,
+        *,
+        payload: WordVerificationInput,
+        verification_status: str,
+        suggested_actions: list[VerificationAction],
+    ) -> list[VerificationAction]:
+        if verification_status != "flagged" or suggested_actions:
+            return suggested_actions
+        if not should_flag_missing_translation_review(
+            payload=payload,
+            suggested_actions=(),
+        ):
+            return suggested_actions
+        translation = self._resolve_missing_translation(payload)
+        if not translation:
+            return suggested_actions
+        return [
+            VerificationAction(
+                action_type="fix_translation",
+                english_translation=translation,
+                reason="Use the Gemini translation.",
+            )
+        ]
+
+    def _resolve_missing_translation(self, payload: WordVerificationInput) -> str | None:
+        surface_form = payload.stored_surface_form or self._preferred_surface_form_for_translation(payload)
+        contextual = self._translation.lookup_contextual_word_translation(
+            surface_form=surface_form or payload.stored_lemma,
+            lemma=payload.stored_lemma,
+            pos_tag=(
+                payload.selected_surface_pos_tag
+                or payload.selected_meaning_pos_tag
+                or payload.canonical_lemma_pos_tag
+            ),
+            morphology=(
+                payload.selected_surface_morphology
+                or payload.selected_meaning_morphology
+                or payload.canonical_lemma_morphology
+            ),
+            gloss=payload.meaning_gloss,
+            gloss_translation_hint=payload.meaning_gloss_translation,
+        )
+        translation = contextual.translation
+        if not translation:
+            return None
+        if (payload.selected_meaning_pos_tag or payload.canonical_lemma_pos_tag) == "VERB" and not translation.startswith("to "):
+            return f"to {translation}"
+        return translation
+
+    @staticmethod
+    def _preferred_surface_form_for_translation(payload: WordVerificationInput) -> str | None:
+        for form in payload.available_surface_forms:
+            if payload.meaning_id is not None and form.meaning_id != payload.meaning_id:
+                continue
+            if form.form != payload.stored_lemma:
+                return form.form
+        for form in payload.available_surface_forms:
+            if payload.meaning_id is not None and form.meaning_id != payload.meaning_id:
+                continue
+            return form.form
+        return None
 
     def _persist_batch_result(
         self,

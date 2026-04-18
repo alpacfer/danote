@@ -256,6 +256,18 @@ def should_force_translation_fix_from_gloss_hint(
     return not any(action.action_type == "fix_translation" for action in suggested_actions)
 
 
+def should_flag_missing_translation_review(
+    *,
+    payload: WordVerificationInput,
+    suggested_actions: tuple[WordVerificationAction, ...],
+) -> bool:
+    if payload.review_intent == "complete_variations" or is_surface_form_review(payload):
+        return False
+    if normalize_token(payload.selected_translation or ""):
+        return False
+    return not suggested_actions
+
+
 def should_ignore_morphology_supported_move_review(
     *,
     payload: WordVerificationInput,

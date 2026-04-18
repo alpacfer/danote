@@ -628,6 +628,142 @@ def test_verify_added_word_flags_missing_bile_translation_from_gloss_hint(tmp_pa
     assert verified.verification.suggested_actions[0].english_translation == "go by car"
 
 
+def test_verify_added_word_flags_missing_have_translation_without_gloss_hint(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    verification_service = GeminiWordVerificationService(api_key="test-key")
+    monkeypatch.setattr(
+        verification_service,
+        "_generate_text",
+        lambda prompt: '{"verdict":"correct","word_count":1,"suggested_actions":[]}',
+    )
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_local_lexicon_service=FakeCORLocalLexiconService(
+            by_lemma_idx={
+                30035: [
+                    _cor_local_entry(
+                        cor_id="COR.30035.200.01",
+                        lemma="have",
+                        gloss=None,
+                        form="have",
+                        lemma_idx=30035,
+                        pos_tag="VERB",
+                        morphology="VerbForm=Inf|Voice=Act",
+                        gram_raw="vb.inf.akt",
+                    ),
+                    _cor_local_entry(
+                        cor_id="COR.30035.203.01",
+                        lemma="have",
+                        gloss=None,
+                        form="har",
+                        lemma_idx=30035,
+                        pos_tag="VERB",
+                        morphology="Tense=Pres|VerbForm=Fin|Voice=Act",
+                        gram_raw="vb.præs.akt",
+                    ),
+                ],
+            },
+        ),
+        verification_service=verification_service,
+    )
+
+    added = use_case.add_word(
+        "har",
+        "have",
+        search_seed={
+            "lemma": "have",
+            "surface": "har",
+            "cor_id": "COR.30035.203.01",
+            "cor_lemma_idx": 30035,
+            "meaning_key": "have",
+            "gloss": None,
+            "english_translation": None,
+            "pos_tag": "VERB",
+            "morphology": "Tense=Pres|VerbForm=Fin|Voice=Act",
+        },
+    )
+
+    assert added.meaning is not None
+
+    verified = use_case.verify_added_word("have", None, meaning_id=added.meaning.id)
+
+    assert verified.verification.status == "flagged"
+    assert verified.verification.problem == "The English translation is missing."
+    assert verified.verification.change_to_implement == "Add an English translation for this entry."
+    assert verified.verification.suggested_actions == []
+
+
+def test_verify_added_word_auto_applies_gemini_translation_for_missing_have_translation(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    verification_service = GeminiWordVerificationService(api_key="test-key")
+    monkeypatch.setattr(
+        verification_service,
+        "_generate_text",
+        lambda prompt: '{"verdict":"correct","word_count":1,"suggested_actions":[]}',
+    )
+    gemini_translation = FakeGeminiWordTranslationService({("har", "have", None): "have"})
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_local_lexicon_service=FakeCORLocalLexiconService(
+            by_lemma_idx={
+                30035: [
+                    _cor_local_entry(
+                        cor_id="COR.30035.200.01",
+                        lemma="have",
+                        gloss=None,
+                        form="have",
+                        lemma_idx=30035,
+                        pos_tag="VERB",
+                        morphology="VerbForm=Inf|Voice=Act",
+                        gram_raw="vb.inf.akt",
+                    ),
+                    _cor_local_entry(
+                        cor_id="COR.30035.203.01",
+                        lemma="have",
+                        gloss=None,
+                        form="har",
+                        lemma_idx=30035,
+                        pos_tag="VERB",
+                        morphology="Tense=Pres|VerbForm=Fin|Voice=Act",
+                        gram_raw="vb.præs.akt",
+                    ),
+                ],
+            },
+        ),
+        gemini_word_translation_service=gemini_translation,
+        verification_service=verification_service,
+    )
+
+    added = use_case.add_word(
+        "har",
+        "have",
+        search_seed={
+            "lemma": "have",
+            "surface": "har",
+            "cor_id": "COR.30035.203.01",
+            "cor_lemma_idx": 30035,
+            "meaning_key": "have",
+            "gloss": None,
+            "english_translation": None,
+            "pos_tag": "VERB",
+            "morphology": "Tense=Pres|VerbForm=Fin|Voice=Act",
+        },
+    )
+
+    assert added.meaning is not None
+
+    verified = use_case.verify_added_word("have", None, meaning_id=added.meaning.id)
+    details = use_case.get_lemma_details("have")
+
+    assert verified.verification.status == "verified"
+    assert details.meaning_sections[0].english_translation == "to have"
+    assert gemini_translation.calls == [("har", "have", None)]
+
+
 def test_word_verification_payload_exposes_cor_canonical_lemma_when_saved_lemma_is_inflected(tmp_path: Path) -> None:
     verification_service = FakeVerificationService(
         verdict="verified",

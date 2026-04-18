@@ -334,6 +334,8 @@ Shared by header + section rows + variation rows.
   - analysis + wordbank refresh ticks increment; navigate to stored lemma/meaning
 - `search_seed` persistence: canonical lemma metadata from COR (`cor_lemma_idx`); selected surface keeps search-result variant tags; `english_translation` from COR lemma only; gloss translation separate
   - empty translations allowed; low-confidence glossless verb self-translations dropped
+  - queued Gemini verification now flags missing lemma/meaning translations for review, including glossless entries where save-time translation generation produced nothing
+  - when Gemini word translation can resolve a missing lemma/meaning translation during verification, verification now emits `fix_translation` and the existing Gemini auto-apply flow applies it immediately
   - word page computes gloss translations for search-saved meaning sections; raw gloss not promoted to `english_translation`; UI omits untranslated gloss
   - only selected surface stored; no full paradigm hydration
 

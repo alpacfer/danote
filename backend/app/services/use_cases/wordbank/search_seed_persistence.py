@@ -4,6 +4,9 @@ from dataclasses import dataclass
 
 from app.db.repositories.wordbank_models import LexemeMeaningRecord, SurfaceFormRecord
 from app.services.token_classifier import normalize_token
+from app.services.use_cases.wordbank.collaborators.translation_search_fallbacks import (
+    should_allow_identical_glossless_verb_translation,
+)
 from app.services.use_cases.wordbank.meaning_sections import (
     MeaningAssignment,
     ensure_wordbank_meaning_compatibility,
@@ -205,6 +208,14 @@ def _sanitize_search_seed_translation(
         normalized_lemma,
         f"to {normalized_lemma}",
     }:
+        if should_allow_identical_glossless_verb_translation(
+            translation=seed.english_translation,
+            lemma=seed.lemma,
+            pos_tag=pos_tag,
+            gloss=seed.gloss,
+            frame_text=f"at {seed.lemma}",
+        ):
+            return seed.english_translation
         return None
     return seed.english_translation
 

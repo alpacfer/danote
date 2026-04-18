@@ -12,6 +12,7 @@ from app.services.sentence_verification import (
 from app.services.use_cases.sentencebank import SentencebankUseCase
 from app.services.use_cases.wordbank import WordbankUseCase
 from app.services.verification import (
+    GeminiWordVerificationService,
     WordCategoryClassificationResult,
     WordVerificationResult,
 )
@@ -224,6 +225,126 @@ def test_sentencebank_homograph_token_uses_gemini_sentence_selection(tmp_path: P
     assert gemini_service.batch_calls[0][0].sentence_context == "Min mor kommer"
     assert inserted.tokens[0].meaning_id is not None
     assert inserted.tokens[0].gloss == "person"
+
+
+def test_sentencebank_save_keeps_glossless_have_translation_when_provider_returns_valid_english_verb(
+    tmp_path: Path,
+) -> None:
+    db_path = _db_path(tmp_path)
+    nlp_adapter = MappingNLPAdapter(
+        {
+            "Vi har": [
+                NLPToken(text="Vi", lemma="vi", pos="PRON", morphology="PronType=Prs", is_punctuation=False),
+                NLPToken(text="har", lemma="have", pos="VERB", morphology="Tense=Pres|VerbForm=Fin|Voice=Act", is_punctuation=False),
+            ],
+        }
+    )
+    have_infinitive = _cor_local_entry(
+        cor_id="COR.30035.200.01",
+        lemma="have",
+        gloss=None,
+        form="have",
+        lemma_idx=30035,
+        pos_tag="VERB",
+        morphology="VerbForm=Inf|Voice=Act",
+        gram_raw="vb.inf.akt",
+    )
+    have_present = _cor_local_entry(
+        cor_id="COR.30035.203.01",
+        lemma="have",
+        gloss=None,
+        form="har",
+        lemma_idx=30035,
+        pos_tag="VERB",
+        morphology="Tense=Pres|VerbForm=Fin|Voice=Act",
+        gram_raw="vb.præs.akt",
+    )
+    wordbank_use_case = WordbankUseCase(
+        db_path,
+        translation_service=FakeTranslationService({"at have": "to have"}),
+        cor_local_lexicon_service=FakeCORLocalLexiconService(
+            by_form={"har": [have_present]},
+            by_lemma_idx={30035: [have_infinitive, have_present]},
+        ),
+        nlp_adapter=nlp_adapter,
+    )
+    sentencebank_use_case = SentencebankUseCase(
+        db_path,
+        nlp_adapter=nlp_adapter,
+        wordbank_use_case=wordbank_use_case,
+    )
+
+    inserted = sentencebank_use_case.add_sentence("Vi har")
+    details = wordbank_use_case.get_lemma_details("have")
+
+    har_token = next(token for token in inserted.tokens if token.surface_form == "har")
+    assert har_token.english_translation == "to have"
+    assert details.meaning_sections[0].english_translation == "to have"
+
+
+def test_sentencebank_batch_verification_auto_applies_gemini_translation_for_missing_have_translation(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    db_path = _db_path(tmp_path)
+    nlp_adapter = MappingNLPAdapter(
+        {
+            "Vi har": [
+                NLPToken(text="Vi", lemma="vi", pos="PRON", morphology="PronType=Prs", is_punctuation=False),
+                NLPToken(text="har", lemma="have", pos="VERB", morphology="Tense=Pres|VerbForm=Fin|Voice=Act", is_punctuation=False),
+            ],
+        }
+    )
+    have_infinitive = _cor_local_entry(
+        cor_id="COR.30035.200.01",
+        lemma="have",
+        gloss=None,
+        form="have",
+        lemma_idx=30035,
+        pos_tag="VERB",
+        morphology="VerbForm=Inf|Voice=Act",
+        gram_raw="vb.inf.akt",
+    )
+    have_present = _cor_local_entry(
+        cor_id="COR.30035.203.01",
+        lemma="have",
+        gloss=None,
+        form="har",
+        lemma_idx=30035,
+        pos_tag="VERB",
+        morphology="Tense=Pres|VerbForm=Fin|Voice=Act",
+        gram_raw="vb.præs.akt",
+    )
+    verification_service = GeminiWordVerificationService(api_key="test-key")
+    monkeypatch.setattr(
+        verification_service,
+        "_generate_content",
+        lambda prompt, config=None: type("Response", (), {"text": '{"results":[{"word_id":0,"verdict":"correct","word_count":1,"problem":"","change_to_implement":"","suggested_actions":[]}]}'} )(),
+    )
+    gemini_translation = FakeGeminiWordTranslationService({("har", "have", None): "have"})
+    wordbank_use_case = WordbankUseCase(
+        db_path,
+        gemini_word_translation_service=gemini_translation,
+        cor_local_lexicon_service=FakeCORLocalLexiconService(
+            by_form={"har": [have_present]},
+            by_lemma_idx={30035: [have_infinitive, have_present]},
+        ),
+        verification_service=verification_service,
+        nlp_adapter=nlp_adapter,
+    )
+    sentencebank_use_case = SentencebankUseCase(
+        db_path,
+        nlp_adapter=nlp_adapter,
+        wordbank_use_case=wordbank_use_case,
+    )
+
+    inserted = sentencebank_use_case.add_sentence("Vi har")
+    details = wordbank_use_case.get_lemma_details("have")
+
+    har_token = next(token for token in inserted.tokens if token.surface_form == "har")
+    assert har_token.english_translation == "to have"
+    assert details.meaning_sections[0].english_translation == "to have"
+    assert ("har", "have", None) in gemini_translation.calls
 
 
 def test_sentencebank_homograph_token_without_confident_selection_skips_ambiguous_word_save(

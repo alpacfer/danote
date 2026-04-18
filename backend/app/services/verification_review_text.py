@@ -8,6 +8,8 @@ if TYPE_CHECKING:
 
 TRANSLATION_FIX_PROBLEM = "The English translation does not match the saved meaning."
 TRANSLATION_FIX_CHANGE = "Set the translation to the saved meaning."
+MISSING_TRANSLATION_PROBLEM = "The English translation is missing."
+MISSING_TRANSLATION_CHANGE = "Add an English translation for this entry."
 
 
 def normalize_translation_review_copy(

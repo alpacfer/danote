@@ -209,6 +209,49 @@ def test_wordbank_search_cor_form_uses_gemini_for_glossless_self_translated_bile
     assert gemini_translation.batch_calls == [[("bil", "bile", None)]]
 
 
+def test_wordbank_search_cor_form_keeps_glossless_have_when_provider_returns_valid_english_verb(
+    tmp_path: Path,
+) -> None:
+    local_cor = FakeCORLocalLexiconService(
+        by_form={
+            "har": [
+                CORLocalEntry(
+                    cor_id="COR.30035.203.01",
+                    lemma="have",
+                    gloss=None,
+                    gram_raw="vb.præs.akt",
+                    form="har",
+                    norm="N",
+                    lemma_idx=30035,
+                    gram_code=203,
+                    variation=1,
+                    pos_tag="VERB",
+                    morphology="Tense=Pres|VerbForm=Fin|Voice=Act",
+                    features={"Tense": "Pres", "VerbForm": "Fin", "Voice": "Act"},
+                    extra_tags=[],
+                ),
+            ]
+        }
+    )
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_local_lexicon_service=local_cor,
+        translation_service=FakeTranslationService(
+            {"at have": "to have"},
+            provider="deepl_translator",
+        ),
+    )
+
+    response = use_case.search_cor_form("har", limit=100)
+
+    variant = response.groups[0].variants[0]
+    assert variant.lemma_translation == "to have"
+    assert variant.saveable_translation == "to have"
+    assert variant.lemma_translation_provider == "deepl_translator"
+    assert variant.lemma_translation_status == "provider"
+    assert variant.lemma_translation_reason == "provider_ok"
+
+
 def test_wordbank_search_cor_form_hides_self_translated_bile_when_gemini_has_no_better_result(tmp_path: Path) -> None:
     local_cor = FakeCORLocalLexiconService(
         by_form={

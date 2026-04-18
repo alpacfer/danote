@@ -92,6 +92,7 @@ class WordbankUseCase:
             gemini_changes_log_path,
             nlp,
             cor,
+            translation,
         )
         self._runtime = WordbankRuntime(
             db_path=db_path,

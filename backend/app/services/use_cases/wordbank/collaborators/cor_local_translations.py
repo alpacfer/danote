@@ -14,9 +14,11 @@ from app.services.use_cases.wordbank.collaborators.translation_word_frames impor
 from app.services.use_cases.wordbank.collaborators.translation import TranslationCollaborator
 from app.services.use_cases.wordbank.collaborators.translation_search_fallbacks import (
     SearchTranslationDecision,
+    SearchTranslationCandidate,
     build_search_translation_decision,
     evaluate_search_translation_candidate,
     invalid_search_translation,
+    should_allow_identical_glossless_verb_translation,
 )
 
 logger = logging.getLogger(__name__)
@@ -163,6 +165,17 @@ def search_translation_decision_for_cor_local_entry(
         surface_form=entry.form,
         frame_text=frame.text,
     )
+    if provider_candidate.invalid is not None and should_allow_identical_glossless_verb_translation(
+        translation=provider_formatted,
+        lemma=entry.lemma,
+        pos_tag=entry.pos_tag,
+        gloss=entry.gloss,
+        frame_text=frame.text,
+    ):
+        provider_candidate = SearchTranslationCandidate(
+            translation=provider_formatted,
+            invalid=None,
+        )
     contextual_candidate = (
         evaluate_search_translation_candidate(
             translation=contextual_formatted,

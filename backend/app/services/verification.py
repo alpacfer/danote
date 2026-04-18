@@ -31,6 +31,7 @@ from app.services.verification_review_policy import (
     allowed_general_action_types,
     is_surface_form_review,
     should_backfill_translation_from_gloss_hint,
+    should_flag_missing_translation_review,
     should_force_translation_fix_from_gloss_hint,
     should_ignore_gloss_hint_translation_review,
     should_ignore_morphology_supported_move_review,
@@ -39,6 +40,8 @@ from app.services.verification_review_policy import (
     should_expose_translation_hint,
 )
 from app.services.verification_review_text import (
+    MISSING_TRANSLATION_CHANGE,
+    MISSING_TRANSLATION_PROBLEM,
     TRANSLATION_FIX_CHANGE,
     TRANSLATION_FIX_PROBLEM,
     normalize_translation_review_copy,
@@ -149,6 +152,17 @@ class GeminiWordVerificationService:
                 change_to_implement=change_to_implement,
                 suggested_actions=suggested_actions,
             ):
+                if should_flag_missing_translation_review(
+                    payload=payload,
+                    suggested_actions=suggested_actions,
+                ):
+                    return WordVerificationResult(
+                        verdict="flagged",
+                        message="Review needed",
+                        composed_word_count=word_count,
+                        problem=MISSING_TRANSLATION_PROBLEM,
+                        change_to_implement=MISSING_TRANSLATION_CHANGE,
+                    )
                 return WordVerificationResult(
                     verdict="verified",
                     message="OK",
@@ -173,6 +187,17 @@ class GeminiWordVerificationService:
                 problem=problem or TRANSLATION_FIX_PROBLEM,
                 change_to_implement=change_to_implement or TRANSLATION_FIX_CHANGE,
                 suggested_actions=suggested_actions,
+            )
+        if should_flag_missing_translation_review(
+            payload=payload,
+            suggested_actions=suggested_actions,
+        ):
+            return WordVerificationResult(
+                verdict="flagged",
+                message="Review needed",
+                composed_word_count=word_count,
+                problem=MISSING_TRANSLATION_PROBLEM,
+                change_to_implement=MISSING_TRANSLATION_CHANGE,
             )
         return WordVerificationResult(
             verdict="verified",
