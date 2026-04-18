@@ -286,4 +286,10 @@ def verify_word_entries_batch(
                 stored_surface_form=payload.stored_surface_form,
                 meaning_id=payload.meaning_id,
             )
+            collaborator._classify_and_persist_categories(
+                stored_lemma=payload.stored_lemma,
+                meaning_id=payload.meaning_id,
+                verification=result,
+                payload=payload,
+            )
     return results

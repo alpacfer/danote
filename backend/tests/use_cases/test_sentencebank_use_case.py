@@ -677,6 +677,9 @@ class FakeVerificationService:
     reviewer_role = "Fake Reviewer"
     batch_calls: list[tuple] = []
 
+    def __init__(self, *, categories: tuple[str, ...] = ()) -> None:
+        self._categories = categories
+
     def verify_word_entry(self, payload):
         return WordVerificationResult(
             verdict="verified", message="OK", composed_word_count=1,
@@ -690,7 +693,7 @@ class FakeVerificationService:
         ]
 
     def classify_word_categories(self, payload):
-        return WordCategoryClassificationResult(categories=())
+        return WordCategoryClassificationResult(categories=self._categories)
 
 
 def test_sentencebank_add_sentence_triggers_batch_verification(tmp_path: Path) -> None:
@@ -1099,6 +1102,37 @@ def test_sentencebank_batch_verification_persists_root_and_surface_targets_for_i
     assert surface_form is not None
     assert surface_form.verification is not None
     assert surface_form.verification.status == "verified"
+    assert details.categories == []
+
+
+def test_sentencebank_batch_verification_assigns_categories_to_new_words(tmp_path: Path) -> None:
+    db_path = _db_path(tmp_path)
+    nlp_adapter = MappingNLPAdapter(
+        {
+            "er": [
+                NLPToken(text="er", lemma="være", pos="AUX", morphology="Tense=Pres|VerbForm=Fin", is_punctuation=False),
+            ],
+        }
+    )
+    verification_service = FakeVerificationService(categories=("Actions", "Grammar"))
+    verification_service.batch_calls = []
+    wordbank_use_case = WordbankUseCase(
+        db_path,
+        nlp_adapter=nlp_adapter,
+        verification_service=verification_service,
+    )
+    sentencebank_use_case = SentencebankUseCase(
+        db_path,
+        nlp_adapter=nlp_adapter,
+        wordbank_use_case=wordbank_use_case,
+    )
+
+    sentencebank_use_case.add_sentence("er")
+
+    details = wordbank_use_case.get_lemma_details("være")
+    assert details.categories == ["Actions", "Grammar"]
+    surface_form = next((item for item in details.surface_forms if item.form == "er"), None)
+    assert surface_form is not None
 
 
 def test_sentencebank_batch_verification_persists_meaning_and_surface_targets_for_sectioned_verbs(
