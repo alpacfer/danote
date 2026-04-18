@@ -118,3 +118,63 @@ def test_parse_result_expands_partial_word_span_to_full_changed_word() -> None:
     result = _parse_result(raw, "jeg er glat")
 
     assert result.errors == [SentenceVerificationErrorSpan(start=7, end=11, message="typo")]
+
+
+def test_parse_result_rejects_autocomplete_for_partial_input() -> None:
+    raw = (
+        '{"is_valid": false, "errors": [{"start": 11, "end": 15, "message": "incomplete phrase"}], '
+        '"corrected_text": "jeg har en stor hund", "language": "da"}'
+    )
+    result = _parse_result(raw, "jeg har en stor")
+
+    assert result.is_valid is True
+    assert result.errors == []
+    assert result.corrected_text is None
+
+
+def test_parse_result_keeps_existing_typos_when_model_both_corrects_and_autocompletes() -> None:
+    raw = (
+        '{"is_valid": false, "errors": [{"start": 11, "end": 16, "message": "typo"}], '
+        '"corrected_text": "jeg har en stor hund", "language": "da"}'
+    )
+    result = _parse_result(raw, "jeg har en storr")
+
+    assert result.is_valid is False
+    assert result.errors == [SentenceVerificationErrorSpan(start=11, end=16, message="typo")]
+    assert result.corrected_text is None
+
+
+def test_parse_result_ignores_fragment_only_feedback_without_correction() -> None:
+    raw = (
+        '{"is_valid": false, "errors": [{"start": 0, "end": 15, "message": "Incomplete sentence fragment."}], '
+        '"corrected_text": null, "language": "da"}'
+    )
+    result = _parse_result(raw, "jeg har en stor")
+
+    assert result.is_valid is True
+    assert result.errors == []
+    assert result.corrected_text is None
+
+
+def test_parse_result_ignores_fragment_only_feedback_when_model_repeats_source_text() -> None:
+    raw = (
+        '{"is_valid": false, "errors": [{"start": 0, "end": 15, "message": "Ufuldstændig sætning."}], '
+        '"corrected_text": "jeg har en stor", "language": "da"}'
+    )
+    result = _parse_result(raw, "jeg har en stor")
+
+    assert result.is_valid is True
+    assert result.errors == []
+    assert result.corrected_text is None
+
+
+def test_parse_result_allows_word_split_correction_without_treating_it_as_autocomplete() -> None:
+    raw = (
+        '{"is_valid": false, "errors": [{"start": 0, "end": 5, "message": "spelling"}], '
+        '"corrected_text": "i dag", "language": "da"}'
+    )
+    result = _parse_result(raw, "idag")
+
+    assert result.is_valid is False
+    assert result.errors == [SentenceVerificationErrorSpan(start=0, end=4, message="spelling")]
+    assert result.corrected_text == "i dag"

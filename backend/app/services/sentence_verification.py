@@ -51,6 +51,8 @@ def _build_prompt(source_text: str) -> str:
         '- "language": "da" if Danish, "en" if English, "unknown" otherwise\n'
         "Keep the same capitalization style at the start of the sentence as the source text.\n"
         "Do not flag sentence-initial capitalization by itself as an error.\n"
+        "Only correct text that already appears in the source text.\n"
+        "Do not add new words, complete unfinished phrases, or autocomplete the sentence.\n"
         "Never add a trailing period to corrected_text unless the source text already ends with a period."
     )
 
@@ -161,6 +163,96 @@ def _changed_source_word_spans(source_text: str, corrected_text: str | None) -> 
     return changed_spans
 
 
+def _compact_word_text(text: str) -> str:
+    return "".join(span.text.casefold() for span in _word_spans(text))
+
+
+def _introduces_new_word_content(source_text: str, corrected_text: str | None) -> bool:
+    if not corrected_text:
+        return False
+
+    source_words = _word_spans(source_text)
+    corrected_words = _word_spans(corrected_text)
+    if len(corrected_words) <= len(source_words):
+        return False
+
+    return _compact_word_text(source_text) != _compact_word_text(corrected_text)
+
+
+def _is_autocomplete_only_response(source_text: str, corrected_text: str | None) -> bool:
+    if not corrected_text:
+        return False
+
+    source_words = _word_spans(source_text)
+    corrected_words = _word_spans(corrected_text)
+    if not source_words or len(corrected_words) <= len(source_words):
+        return False
+
+    source_texts = [span.text.casefold() for span in source_words]
+    corrected_prefix = [span.text.casefold() for span in corrected_words[: len(source_words)]]
+    return source_texts == corrected_prefix
+
+
+def _meaningful_text_bounds(source_text: str) -> tuple[int, int] | None:
+    start = next((idx for idx, char in enumerate(source_text) if not char.isspace()), None)
+    if start is None:
+        return None
+    end = next(
+        (idx for idx in range(len(source_text) - 1, -1, -1) if not source_text[idx].isspace()),
+        None,
+    )
+    if end is None:
+        return None
+    return start, end + 1
+
+
+def _covers_meaningful_input(error: SentenceVerificationErrorSpan, source_text: str) -> bool:
+    bounds = _meaningful_text_bounds(source_text)
+    if bounds is None:
+        return False
+    start, end = bounds
+    return error.start <= start and error.end >= end
+
+
+def _is_fragment_feedback_message(message: str) -> bool:
+    normalized = " ".join(message.strip().casefold().split())
+    if not normalized:
+        return False
+
+    fragment_markers = (
+        "incomplete",
+        "unfinished",
+        "fragment",
+        "not a complete sentence",
+        "not a full sentence",
+        "sentence fragment",
+        "ufuldstændig",
+        "ufuldendt",
+        "sætningsfragment",
+        "ikke en fuld sætning",
+        "ikke en komplet sætning",
+    )
+    return any(marker in normalized for marker in fragment_markers)
+
+
+def _should_ignore_fragment_only_feedback(
+    source_text: str,
+    corrected_text: str | None,
+    errors: list[SentenceVerificationErrorSpan],
+) -> bool:
+    if corrected_text and corrected_text.casefold() != source_text.casefold():
+        return False
+    if not errors:
+        return False
+    if source_text.rstrip().endswith((".", "!", "?")):
+        return False
+
+    return all(
+        _covers_meaningful_input(error, source_text) and _is_fragment_feedback_message(error.message)
+        for error in errors
+    )
+
+
 def _normalize_error_spans(
     errors: list[SentenceVerificationErrorSpan],
     source_text: str,
@@ -213,6 +305,17 @@ def _parse_result(raw: str | None, source_text: str) -> SentenceVerificationResu
         source_text,
         _preserve_leading_letter_case(source_text, raw_corrected_text),
     )
+    if _is_autocomplete_only_response(source_text, corrected_text):
+        return SentenceVerificationResult(
+            is_valid=True,
+            errors=[],
+            corrected_text=None,
+            language=language,
+        )
+    filtered_corrected_reference = raw_corrected_text
+    if _introduces_new_word_content(source_text, corrected_text):
+        corrected_text = None
+        filtered_corrected_reference = None
     raw_errors = data.get("errors") or []
     errors: list[SentenceVerificationErrorSpan] = []
     for e in raw_errors:
@@ -227,9 +330,16 @@ def _parse_result(raw: str | None, source_text: str) -> SentenceVerificationResu
             end=end,
             message=str(e.get("message", "")),
         ))
+    if _should_ignore_fragment_only_feedback(source_text, corrected_text, errors):
+        return SentenceVerificationResult(
+            is_valid=True,
+            errors=[],
+            corrected_text=None,
+            language=language,
+        )
     filtered_errors = [
         error for error in errors
-        if not _is_ignorable_case_only_error(error, source_text, raw_corrected_text)
+        if not _is_ignorable_case_only_error(error, source_text, filtered_corrected_reference)
     ]
     normalized_errors = _normalize_error_spans(filtered_errors, source_text, corrected_text)
     normalized_is_valid = is_valid if normalized_errors else True

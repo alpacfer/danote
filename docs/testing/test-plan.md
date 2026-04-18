@@ -60,7 +60,9 @@
 
 - Fixture sources: `test-data/fixtures/`.
 - Golden outputs: `test-data/fixtures/expected/analyze/*.json`.
+- Recorded Gemini sentence-verification replays: `test-data/fixtures/gemini/sentence_verification/*.json`.
 - Golden refresh tool: `scripts/generate_fixture_goldens.py`.
+- Gemini sentence-verification recorder: `scripts/record-sentence-verification-fixture.py`.
 - Lemma benchmark runner: `scripts/run-lemma-benchmark.py`.
 - Translation benchmark runner (word-only): `scripts/run-translation-benchmark.py`.
 - MVB lemma set sizes: tokens `60`, sentence-context `20`, classification impact `30`, robustness `10`.

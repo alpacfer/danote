@@ -29,6 +29,11 @@ This directory stores regression fixtures and lemma benchmark inputs for prototy
 
 - `translation/translation_words.da_en.v1.json`: Danish single-word -> acceptable English single-word translations.
 
+## Gemini Replay Fixtures
+
+- `gemini/sentence_verification/*.json`: recorded raw Gemini sentence-verification responses replayed by pytest.
+- `gemini/sentence_verification/README.md`: fixture schema plus recorder/replay commands.
+
 ## Benchmark Reports
 
 Benchmark runners append timestamped results to:
