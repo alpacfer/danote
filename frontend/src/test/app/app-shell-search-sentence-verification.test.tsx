@@ -157,7 +157,7 @@ describe("Sentence verification in search", () => {
     expect(within(option).queryByText("Auto-translated from English")).not.toBeInTheDocument()
   })
 
-  it("does not enter sentence mode for multi-word queries over 100 chars", async () => {
+  it("does not enter sentence mode for multi-word queries over 150 chars", async () => {
     mockFetchImplementation({
       lemmasResponse: { items: [] },
     })
@@ -168,7 +168,7 @@ describe("Sentence verification in search", () => {
     const dialog = await openSearch()
     typeInSearch(
       dialog,
-      "et meget langt eksempel på en sætning med mange ord her som fortsætter langt ud over den nye grænse for søgning",
+      "et meget langt eksempel på en sætning med mange ord her som fortsætter langt ud over den nye grænse for søgning og stadig fortsætter videre end det nu nu",
     )
 
     expect(within(dialog).queryByText(/^Sentence$/i)).not.toBeInTheDocument()
@@ -176,23 +176,7 @@ describe("Sentence verification in search", () => {
     expect(within(dialog).queryByTestId("sentence-verification-skeleton")).not.toBeInTheDocument()
   })
 
-  it("shows a characters remaining indicator for sentence-length searches", async () => {
-    mockFetchImplementation({
-      lemmasResponse: { items: [] },
-    })
-
-    renderApp()
-    await screen.findByLabelText("backend-connection-status")
-
-    const dialog = await openSearch()
-    typeInSearch(dialog, "jeg er glad")
-
-    const counter = await within(dialog).findByTestId("sentence-search-character-counter")
-    expect(counter).toHaveTextContent("11/100")
-    expect(counter).toHaveAttribute("title", "89 characters remaining")
-  })
-
-  it("underlines the typo in the input and shows only the correction plus corrected translation in the card", async () => {
+it("underlines the typo in the input and shows only the correction plus corrected translation in the card", async () => {
     const previewRequests: string[] = []
     mockFetchImplementation({
       lemmasResponse: { items: [] },

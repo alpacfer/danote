@@ -163,6 +163,7 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
           <CommandItem
             value="did-you-mean-suggestion"
             onSelect={() => actions.onSetSearchQuery(dymSuggestion)}
+            className="mx-2"
           >
             Did you mean &quot;{dymSuggestion}&quot;?
           </CommandItem>

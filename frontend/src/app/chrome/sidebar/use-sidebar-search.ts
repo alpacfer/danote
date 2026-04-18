@@ -13,6 +13,7 @@ import {
   isShortLetterWord,
   normalizeSearchWord,
   type CORSearchFormResponse,
+  type CORSearchGroup,
   type SavedNote,
   type SentenceSearchPreviewResponse,
   type WordbankSearchItem,
@@ -24,6 +25,12 @@ type UseSidebarSearchParams = {
   savedNotes: SavedNote[]
   wordbankCacheVersion: number
   searchTranslationConfigVersion: number
+}
+
+function hasExactCorFormMatch(groups: CORSearchGroup[], normalizedQuery: string): boolean {
+  return groups.some((group) =>
+    (group.variants ?? []).some((variant) => normalizeSearchWord(variant.form) === normalizedQuery),
+  )
 }
 
 function detectQueryLanguage(text: string): "da" | "en" | "unknown" {
@@ -175,7 +182,8 @@ export function useSidebarSearch({
     const cachedPayload = corFormSearchCacheRef.current.get(normalizedQuery)
     if (cachedPayload) {
       setCorFormSearchResult({ query: normalizedQuery, payload: cachedPayload })
-      setCorDidYouMean(cachedPayload.did_you_mean ?? null)
+      const cachedExact = hasExactCorFormMatch(cachedPayload.groups ?? [], normalizedQuery)
+      setCorDidYouMean(cachedExact ? null : (cachedPayload.did_you_mean ?? null))
       setIsCorTranslationsLoading(false)
       return
     }
@@ -194,7 +202,8 @@ export function useSidebarSearch({
           if (partialPayload) {
             setCorFormSearchResult({ query: normalizedQuery, payload: partialPayload })
             setIsCorTranslationsLoading(true)
-            setCorDidYouMean(partialPayload.did_you_mean ?? null)
+            const partialExact = hasExactCorFormMatch(partialPayload.groups ?? [], normalizedQuery)
+            setCorDidYouMean(partialExact ? null : (partialPayload.did_you_mean ?? null))
           }
 
           // Phase 2: fetch again with translations to fill in
@@ -206,7 +215,8 @@ export function useSidebarSearch({
           if (cancelled) return
           corFormSearchCacheRef.current.set(normalizedQuery, fullPayload)
           setCorFormSearchResult({ query: normalizedQuery, payload: fullPayload })
-          setCorDidYouMean(fullPayload.did_you_mean ?? null)
+          const fullExact = hasExactCorFormMatch(fullPayload.groups ?? [], normalizedQuery)
+          setCorDidYouMean(fullExact ? null : (fullPayload.did_you_mean ?? null))
         } catch (error) {
           if (!cancelled && error instanceof Error) {
             toast.error(error.message)

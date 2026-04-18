@@ -2,12 +2,10 @@ import { useMemo, type KeyboardEventHandler } from "react"
 
 import {
   SENTENCE_VERIFY_MAX_CHARS,
-  hasMultipleWords,
   type SentenceSearchPreviewResponse,
   type SentenceVerificationErrorItem,
 } from "@/app/core"
 import { CommandInput } from "@/components/ui/command"
-import { cn } from "@/lib/utils"
 
 type TextSegment = {
   text: string
@@ -114,7 +112,7 @@ type SidebarSearchInputProps = {
   value: string
   sentenceSearchPreview: SentenceSearchPreviewResponse | null
   onValueChange: (value: string) => void
-  onKeyDown?: KeyboardEventHandler<HTMLInputElement>
+  onKeyDown?: KeyboardEventHandler<HTMLElement>
 }
 
 export function SidebarSearchInput({
@@ -132,10 +130,6 @@ export function SidebarSearchInput({
     [previewErrors, value],
   )
   const segments = useMemo(() => buildSegments(value, rawErrors), [rawErrors, value])
-  const charactersRemaining = SENTENCE_VERIFY_MAX_CHARS - trimmedValue.length
-  const shouldShowCounter = Boolean(trimmedValue) && (hasMultipleWords(trimmedValue) || trimmedValue.length >= 35)
-  const usedCharacters = trimmedValue.length
-  const counterText = `${usedCharacters}/${SENTENCE_VERIFY_MAX_CHARS}`
   const overlay = rawErrors.length > 0 ? (
     <div data-testid="sentence-search-input-overlay">
       {segments.map((segment, index) => (
@@ -159,26 +153,12 @@ export function SidebarSearchInput({
       placeholder="Search words and notes..."
       value={value}
       onValueChange={onValueChange}
-      onKeyDown={onKeyDown}
+      onKeyDown={onKeyDown as KeyboardEventHandler<HTMLInputElement>}
       aria-label="command search"
       overlay={overlay}
       concealValue={Boolean(overlay)}
-      suffix={shouldShowCounter ? (
-        <span
-          className={cn(
-            "bg-muted text-muted-foreground inline-flex h-5 items-center rounded-sm px-1.5 text-[9px] font-medium tabular-nums",
-            charactersRemaining < 0 ? "bg-red-500/15 text-red-500" : "",
-          )}
-          data-testid="sentence-search-character-counter"
-          title={
-            charactersRemaining >= 0
-              ? `${charactersRemaining} characters remaining`
-              : `${Math.abs(charactersRemaining)} characters over`
-          }
-        >
-          {counterText}
-        </span>
-      ) : null}
+      multiline
+      maxLength={SENTENCE_VERIFY_MAX_CHARS}
     />
   )
 }

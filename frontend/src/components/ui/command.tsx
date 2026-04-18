@@ -65,7 +65,7 @@ function CommandDialog({
           value={commandValue}
           onValueChange={onCommandValueChange}
           shouldFilter={commandShouldFilter}
-          className="[&_[cmdk-group-heading]]:text-muted-foreground **:data-[slot=command-input-wrapper]:h-12 [&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group]]:px-2 [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-3 [&_[cmdk-item]]:py-3 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5"
+          className="[&_[cmdk-group-heading]]:text-muted-foreground **:data-[slot=command-input-wrapper]:h-12 [&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group]]:px-2 [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-3 [&_[cmdk-item]]:py-2 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5"
         >
           {children}
         </Command>
@@ -78,13 +78,63 @@ function CommandInput({
   overlay,
   suffix,
   concealValue = false,
+  multiline = false,
   className,
   ...props
 }: React.ComponentProps<typeof CommandPrimitive.Input> & {
   overlay?: React.ReactNode
   suffix?: React.ReactNode
   concealValue?: boolean
+  multiline?: boolean
 }) {
+  const { value, onValueChange, onKeyDown, maxLength, placeholder, autoFocus, ...restProps } = props
+  const ariaLabel = restProps['aria-label']
+
+  if (multiline) {
+    return (
+      <div
+        data-slot="command-input-wrapper"
+        className="!h-auto min-h-12 flex items-start gap-2 border-b border-border/30 px-3"
+      >
+        <SearchIcon className="mt-3.5 size-4 shrink-0 opacity-50" />
+        <div className="relative min-w-0 flex-1">
+          {overlay ? (
+            <div
+              aria-hidden="true"
+              data-slot="command-input-overlay"
+              className="text-foreground pointer-events-none absolute inset-0 overflow-hidden py-3 text-sm whitespace-pre-wrap"
+            >
+              {overlay}
+            </div>
+          ) : null}
+          <textarea
+            data-slot="command-input"
+            rows={1}
+            value={value as string ?? ""}
+            onChange={(e) => onValueChange?.(e.target.value)}
+            onKeyDown={onKeyDown as React.KeyboardEventHandler<HTMLTextAreaElement>}
+            maxLength={maxLength}
+            placeholder={placeholder}
+            aria-label={ariaLabel as string | undefined}
+            autoFocus={autoFocus}
+            className={cn(
+              "placeholder:text-muted-foreground field-sizing-content w-full resize-none bg-transparent py-3 text-sm outline-hidden disabled:cursor-not-allowed disabled:opacity-50",
+              concealValue ? "relative z-10 text-transparent caret-foreground" : "",
+              className
+            )}
+          />
+          <CommandPrimitive.Input
+            value={value}
+            onValueChange={onValueChange}
+            className="sr-only absolute"
+            tabIndex={-1}
+            aria-hidden="true"
+          />
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div
       data-slot="command-input-wrapper"
@@ -109,7 +159,13 @@ function CommandInput({
             concealValue ? "relative z-10 text-transparent caret-foreground" : "",
             className
           )}
-          {...props}
+          value={value}
+          onValueChange={onValueChange}
+          onKeyDown={onKeyDown}
+          maxLength={maxLength}
+          placeholder={placeholder}
+          autoFocus={autoFocus}
+          {...restProps}
         />
         {suffix ? (
           <div className="pointer-events-none absolute inset-y-0 right-0 flex min-w-10 items-center justify-end">
@@ -157,7 +213,7 @@ function CommandGroup({
     <CommandPrimitive.Group
       data-slot="command-group"
       className={cn(
-        "text-foreground [&_[cmdk-group-heading]]:text-muted-foreground overflow-hidden p-1 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium",
+        "text-foreground [&_[cmdk-group-heading]]:text-muted-foreground overflow-hidden px-1 pb-1 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:pt-1.5 [&_[cmdk-group-heading]]:pb-1 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium",
         className
       )}
       {...props}

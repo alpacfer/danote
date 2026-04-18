@@ -117,21 +117,11 @@ export function WordbankLemmaHeader({
       : []),
   ]
   const categories = lemmaDetails.categories ?? []
-  const isGeneratedNonCor = lemmaDetails.dictionary_status === "generated_non_cor"
-
   return (
     <div id="wordbank-lemma-header">
       {/* Category badges */}
-      {categories.length > 0 || isGeneratedNonCor ? (
+      {categories.length > 0 ? (
         <div data-testid="wordbank-lemma-category-badges" className="flex flex-wrap justify-end gap-1.5">
-          {isGeneratedNonCor ? (
-            <Badge
-              variant="outline"
-              className="text-xs border-amber-300 bg-amber-50 text-amber-800"
-            >
-              Not in COR
-            </Badge>
-          ) : null}
           {categories.map((category) => (
             <Badge
               key={`lemma-category-${category}`}
