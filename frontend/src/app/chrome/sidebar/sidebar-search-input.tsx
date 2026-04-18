@@ -166,8 +166,8 @@ export function SidebarSearchInput({
       suffix={shouldShowCounter ? (
         <span
           className={cn(
-            "text-muted-foreground inline-flex h-4 items-center justify-end text-[10px] leading-none font-medium tracking-tight tabular-nums",
-            charactersRemaining < 0 ? "text-red-500" : "",
+            "bg-muted text-muted-foreground inline-flex h-5 items-center rounded-sm px-1.5 text-[9px] font-medium tabular-nums",
+            charactersRemaining < 0 ? "bg-red-500/15 text-red-500" : "",
           )}
           data-testid="sentence-search-character-counter"
           title={
