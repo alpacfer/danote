@@ -16,6 +16,9 @@ from app.services.use_cases.wordbank.collaborators.cor_local_translations import
     lookup_translation_for_cor_local_entry,
 )
 from app.services.use_cases.wordbank.collaborators.translation import TranslationLookupResult
+from app.services.use_cases.wordbank.commands_add_word_response import (
+    build_add_word_response,
+)
 from app.services.use_cases.wordbank.commands_add_word_search_seed import add_word_from_search_seed
 from app.services.use_cases.wordbank.meaning_sections import (
     MeaningResolution,
@@ -25,7 +28,6 @@ from app.services.use_cases.wordbank.meaning_sections import (
     resolve_non_verb_meaning,
 )
 from app.services.use_cases.wordbank.pronunciation_queue import queue_pronunciation_generation
-from app.services.use_cases.wordbank.queries_details import get_lemma_details
 from app.services.use_cases.wordbank.related_words_queue import queue_related_words_resolution
 from app.services.use_cases.wordbank.runtime import WordbankRuntime
 from app.services.use_cases.wordbank.verification_targets import (
@@ -262,7 +264,7 @@ def _add_meaning_scoped_word(
         runtime,
         stored_lemma=inputs.stored_lemma,
     )
-    return _build_add_word_response(
+    return build_add_word_response(
         runtime=runtime,
         inputs=inputs,
         write_result=write_result,
@@ -357,7 +359,7 @@ def _add_unsectioned_word(
         runtime,
         stored_lemma=inputs.stored_lemma,
     )
-    return _build_add_word_response(
+    return build_add_word_response(
         runtime=runtime,
         inputs=inputs,
         write_result=write_result,
@@ -672,44 +674,3 @@ def _is_likely_english_gloss(gloss: str | None) -> bool:
         return False
     return _LIKELY_ENGLISH_GLOSS_RE.fullmatch(normalized_gloss) is not None
 
-
-def _build_add_word_response(
-    *,
-    runtime: WordbankRuntime,
-    inputs: _AddWordInputs,
-    write_result: _AddWordWriteResult,
-    meaning,
-    verification: VerificationResult | None,
-    queued_verification_targets,
-    queued_pronunciation_forms: list[str],
-    pronunciation,
-) -> AddWordResponse:
-    status: Literal["inserted", "exists"] = "inserted" if write_result.inserted_any else "exists"
-    message = (
-        f"Added '{inputs.stored_lemma}' to wordbank."
-        if write_result.inserted_any
-        else f"'{inputs.stored_lemma}' is already in the wordbank."
-    )
-    saved_snapshot = get_lemma_details(runtime, inputs.stored_lemma)
-    return AddWordResponse(
-        status=status,
-        stored_lemma=inputs.stored_lemma,
-        stored_surface_form=inputs.normalized_surface or None,
-        source="manual",
-        message=message,
-        meaning=(
-            MeaningContext(
-                id=meaning.id,
-                meaning_key=meaning.meaning_key,
-                gloss=meaning.gloss,
-                english_translation=meaning.english_translation,
-            )
-            if meaning is not None
-            else None
-        ),
-        verification=verification,
-        queued_verification_targets=queued_verification_targets,
-        queued_pronunciation_forms=queued_pronunciation_forms,
-        pronunciation=pronunciation,
-        saved_snapshot=saved_snapshot,
-    )

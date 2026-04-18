@@ -17,6 +17,9 @@ from app.api.schemas.v1.wordbank import (
 )
 from app.db.repositories.wordbank import WordbankRepository
 from app.services.token_classifier import normalize_token
+from app.services.use_cases.wordbank.collaborators import verification_apply_flow
+from app.services.use_cases.wordbank.collaborators import verification_history_flow
+from app.services.use_cases.wordbank.collaborators import verification_review_flow
 from app.services.use_cases.wordbank.collaborators.cor import CorResolutionCollaborator
 from app.services.use_cases.wordbank.collaborators.nlp import NLPCollaborator
 from app.services.use_cases.wordbank.verification_change_log import (
@@ -84,42 +87,12 @@ class VerificationCollaborator:
         meaning_id: int | None = None,
         review_intent: str = "general",
     ) -> VerifyWordResponse:
-        normalized_lemma = normalize_token(stored_lemma)
-        normalized_surface = normalize_token(stored_surface_form or "") or None
-        if not normalized_lemma:
-            raise ValueError("stored_lemma is required")
-
-        payload = self._build_verification_input(
-            stored_lemma=normalized_lemma,
-            stored_surface_form=normalized_surface,
+        return verification_review_flow.verify_added_word(
+            self,
+            stored_lemma,
+            stored_surface_form,
             meaning_id=meaning_id,
             review_intent=review_intent,
-        )
-        verification = self._verify_added_word(payload)
-        self._persist_verification_result(
-            stored_lemma=normalized_lemma,
-            meaning_id=meaning_id,
-            stored_surface_form=normalized_surface,
-            verification=verification,
-            review_intent=normalize_review_intent(review_intent),
-            latest_snapshot_hash=self._verification_payload_hash(payload),
-        )
-        self._auto_apply_eligible_actions(
-            stored_lemma=normalized_lemma,
-            stored_surface_form=normalized_surface,
-            meaning_id=meaning_id,
-        )
-        applied_categories = self._classify_and_persist_categories(
-            stored_lemma=normalized_lemma,
-            meaning_id=meaning_id,
-            verification=verification,
-            payload=payload,
-        )
-        return VerifyWordResponse(
-            stored_lemma=normalized_lemma,
-            stored_surface_form=normalized_surface,
-            verification=verification,
-            applied_categories=applied_categories,
         )
 
     def verify_added_word_if_current(
@@ -154,46 +127,15 @@ class VerificationCollaborator:
         expected_generation: int | None = None,
         review_intent: str = "general",
     ) -> str:
-        normalized_review_intent = normalize_review_intent(review_intent)
-        result = process_queued_verification_if_current(
-            stored_lemma=stored_lemma,
-            stored_surface_form=stored_surface_form,
+        return verification_review_flow.process_verification_if_current(
+            self,
+            stored_lemma,
+            stored_surface_form,
             meaning_id=meaning_id,
             expected_snapshot_hash=expected_snapshot_hash,
             expected_generation=expected_generation,
-            review_intent=normalized_review_intent,
-            build_input=self._build_verification_input,
-            payload_hash=self._verification_payload_hash,
-            load_record=lambda lemma, surface, current_meaning_id: load_verification_record(
-                db_path=self._db_path,
-                stored_lemma=lemma,
-                stored_surface_form=surface,
-                meaning_id=current_meaning_id,
-            ),
-            verify_payload=self._verify_added_word,
-            persist_result=lambda lemma, current_meaning_id, surface, verification, current_review_intent, snapshot_hash, request_generation: self._persist_verification_result(
-                stored_lemma=lemma,
-                meaning_id=current_meaning_id,
-                stored_surface_form=surface,
-                verification=verification,
-                review_intent=current_review_intent,
-                latest_snapshot_hash=snapshot_hash,
-                request_generation=request_generation,
-            ),
-            classify_and_persist_categories=lambda lemma, current_meaning_id, verification, payload: self._classify_and_persist_categories(
-                stored_lemma=lemma,
-                meaning_id=current_meaning_id,
-                verification=verification,
-                payload=payload,
-            ),
+            review_intent=review_intent,
         )
-        if result == "persisted":
-            self._auto_apply_eligible_actions(
-                stored_lemma=stored_lemma,
-                stored_surface_form=stored_surface_form,
-                meaning_id=meaning_id,
-            )
-        return result
 
     def queue_verification_request(
         self,
@@ -204,33 +146,13 @@ class VerificationCollaborator:
         review_intent: str = "general",
         persist: bool = True,
     ) -> QueueVerificationResponse:
-        normalized_lemma = normalize_token(stored_lemma)
-        normalized_surface = normalize_token(stored_surface_form or "") or None
-        if not normalized_lemma:
-            raise ValueError("stored_lemma is required")
-        normalized_review_intent = normalize_review_intent(review_intent)
-        verification = self.queued_verification_result(stored_surface_form=normalized_surface)
-        snapshot_hash = self.build_verification_snapshot_hash(
-            stored_lemma=normalized_lemma,
-            stored_surface_form=normalized_surface,
+        return verification_review_flow.queue_verification_request(
+            self,
+            stored_lemma,
+            stored_surface_form,
             meaning_id=meaning_id,
-            review_intent=normalized_review_intent,
-        )
-        if persist:
-            self.persist_queued_verification(
-                stored_lemma=normalized_lemma,
-                stored_surface_form=normalized_surface,
-                meaning_id=meaning_id,
-                verification=verification,
-                review_intent=normalized_review_intent,
-                latest_snapshot_hash=snapshot_hash,
-            )
-        return QueueVerificationResponse(
-            stored_lemma=normalized_lemma,
-            stored_surface_form=normalized_surface,
-            meaning_id=meaning_id,
-            review_intent=normalized_review_intent,
-            verification=verification,
+            review_intent=review_intent,
+            persist=persist,
         )
 
     def rethink_categories(
@@ -240,49 +162,11 @@ class VerificationCollaborator:
         *,
         meaning_id: int | None = None,
     ) -> RethinkCategoriesResponse:
-        normalized_lemma = normalize_token(stored_lemma)
-        normalized_surface = normalize_token(stored_surface_form or "") or None
-        if not normalized_lemma:
-            raise ValueError("stored_lemma is required")
-        payload = self._build_verification_input(
-            stored_lemma=normalized_lemma,
-            stored_surface_form=normalized_surface,
+        return verification_review_flow.rethink_categories(
+            self,
+            stored_lemma,
+            stored_surface_form,
             meaning_id=meaning_id,
-        )
-        if self._verification_service is None:
-            return RethinkCategoriesResponse(
-                status="skipped",
-                stored_lemma=normalized_lemma,
-                stored_surface_form=normalized_surface,
-                meaning_id=meaning_id,
-                applied_categories=[],
-                message="Categories disabled.",
-            )
-
-        try:
-            classification = self._verification_service.classify_word_categories(payload)
-        except Exception as exc:
-            return RethinkCategoriesResponse(
-                status="error",
-                stored_lemma=normalized_lemma,
-                stored_surface_form=normalized_surface,
-                meaning_id=meaning_id,
-                applied_categories=[],
-                message=f"Category update failed: {exc}",
-            )
-
-        applied_categories = self._persist_categories_for_scope(
-            stored_lemma=normalized_lemma,
-            meaning_id=meaning_id,
-            labels=list(getattr(classification, "categories", ()) or ()),
-        )
-        return RethinkCategoriesResponse(
-            status="updated",
-            stored_lemma=normalized_lemma,
-            stored_surface_form=normalized_surface,
-            meaning_id=meaning_id,
-            applied_categories=applied_categories,
-            message=rethink_categories_message(normalized_lemma, applied_categories),
         )
 
     def build_verification_snapshot_hash(
@@ -293,17 +177,13 @@ class VerificationCollaborator:
         meaning_id: int | None,
         review_intent: str = "general",
     ) -> str:
-        normalized_lemma = normalize_token(stored_lemma)
-        normalized_surface = normalize_token(stored_surface_form or "") or None
-        if not normalized_lemma:
-            raise ValueError("stored_lemma is required")
-        payload = self._build_verification_input(
-            stored_lemma=normalized_lemma,
-            stored_surface_form=normalized_surface,
+        return verification_review_flow.build_verification_snapshot_hash(
+            self,
+            stored_lemma=stored_lemma,
+            stored_surface_form=stored_surface_form,
             meaning_id=meaning_id,
             review_intent=review_intent,
         )
-        return self._verification_payload_hash(payload)
 
     def apply_verification_changes(
         self,
@@ -314,85 +194,13 @@ class VerificationCollaborator:
         action: dict[str, object],
         provider: str | None = None,
     ) -> ApplyVerificationChangesResponse:
-        normalized_lemma = normalize_token(stored_lemma)
-        normalized_surface = normalize_token(stored_surface_form or "") or None
-        if not normalized_lemma:
-            raise ValueError("stored_lemma is required")
-
-        provider_name, reviewer_name = self._verification_metadata(provider_override=provider)
-        self._assert_apply_action_allowed(
-            stored_lemma=normalized_lemma,
-            stored_surface_form=normalized_surface,
+        return verification_apply_flow.apply_verification_changes(
+            self,
+            stored_lemma=stored_lemma,
+            stored_surface_form=stored_surface_form,
             meaning_id=meaning_id,
             action=action,
-        )
-        # Capture surface forms before action for fix_variations revert support
-        action_type_str = str(action.get("action_type", ""))
-        pre_apply_surfaces: list[dict[str, object]] | None = None
-        if action_type_str == "fix_variations":
-            repository = WordbankRepository(self._db_path)
-            lexeme = repository.get_lexeme(normalized_lemma)
-            if lexeme is not None:
-                pre_apply_surfaces = query_surface_forms_snapshot(
-                    self._db_path,
-                    lexeme_id=lexeme.id,
-                    meaning_id=meaning_id,
-                )
-
-        result = apply_verification_action(
-            db_path=self._db_path,
-            cor=self._cor,
-            stored_lemma=normalized_lemma,
-            stored_surface_form=normalized_surface,
-            meaning_id=meaning_id,
-            action=action,
-            provider_name=provider_name,
-        )
-        for lemma, surface in result.invalidate_targets:
-            self._nlp.invalidate_pos_cache(lemma, surface)
-
-        if result.log_payload is not None and provider_name == "gemini":
-            self._append_gemini_change_log(
-                {
-                    "timestamp_utc": now_utc_iso(),
-                    "provider": provider_name,
-                    "stored_lemma": normalized_lemma,
-                    "stored_surface_form": normalized_surface,
-                    **result.log_payload,
-                }
-            )
-
-        self._write_change_log_db_entry(
-            stored_lemma=normalized_lemma,
-            stored_surface_form=normalized_surface,
-            meaning_id=meaning_id,
-            result=result,
-            pre_apply_surfaces=pre_apply_surfaces,
-            provider_name=provider_name,
-            applied_at=now_utc_iso(),
-        )
-
-        update_persisted_verification_after_apply(
-            db_path=self._db_path,
-            status=result.status,
-            stored_lemma=normalized_lemma,
-            stored_surface_form=normalized_surface,
-            meaning_id=meaning_id,
-            action=action,
-            applied_action_type=result.applied_action_type,
-            target_lemma=result.target_lemma,
-            target_meaning_id=result.target_meaning_id,
-            provider_name=provider_name,
-            reviewer_name=reviewer_name,
-        )
-
-        return ApplyVerificationChangesResponse(
-            status=result.status,
-            stored_lemma=normalized_lemma,
-            stored_surface_form=normalized_surface,
-            applied_action_type=result.applied_action_type,
-            target_lemma=result.target_lemma,
-            target_meaning_id=result.target_meaning_id,
+            provider=provider,
         )
 
     def _assert_apply_action_allowed(
@@ -403,22 +211,13 @@ class VerificationCollaborator:
         meaning_id: int | None,
         action: dict[str, object],
     ) -> None:
-        if stored_surface_form is not None and action.get("action_type") == "fix_translation":
-            raise ValueError("fix_translation cannot be applied for surface-form verification targets.")
-        repository = WordbankRepository(self._db_path)
-        lexeme = repository.get_lexeme(stored_lemma)
-        if lexeme is None:
-            return
-        record = repository.get_verification_record(
-            lexeme_id=lexeme.id,
-            meaning_id=meaning_id,
+        verification_apply_flow.assert_apply_action_allowed(
+            self,
+            stored_lemma=stored_lemma,
             stored_surface_form=stored_surface_form,
+            meaning_id=meaning_id,
+            action=action,
         )
-        if record is None or record.review_intent != "complete_variations":
-            return
-        if action.get("action_type") == "fix_variations":
-            return
-        raise ValueError("Only fix_variations can be applied for complete-variations reviews.")
 
     def queued_verification_result(
         self,
@@ -526,6 +325,9 @@ class VerificationCollaborator:
         )
         return provider_name, reviewer_name
 
+    def _now_utc_iso(self) -> str:
+        return now_utc_iso()
+
     def _build_verification_input(
         self,
         *,
@@ -627,41 +429,11 @@ class VerificationCollaborator:
         verification_inputs: list[WordVerificationInput],
         sentence_context: str | None = None,
     ) -> list[VerificationResult]:
-        """Verify multiple words in a single Gemini call. Returns per-word results."""
-        if self._verification_service is None:
-            return [self._skipped_verification_result(payload) for payload in verification_inputs]
-
-        provider_name, reviewer_name = self._verification_metadata()
-        try:
-            verdicts = self._verification_service.verify_word_entries_batch(
-                verification_inputs, sentence_context=sentence_context,
-            )
-        except Exception as exc:
-            logger.warning(
-                "wordbank_batch_verification_failed",
-                extra={"error": str(exc), "word_count": len(verification_inputs)},
-            )
-            return [self._error_verification_result(payload, exc, provider_name, reviewer_name)
-                    for payload in verification_inputs]
-
-        completed_at = now_utc_iso()
-        results: list[VerificationResult] = []
-        for payload, verdict in zip(verification_inputs, verdicts, strict=False):
-            result = self._build_batch_verification_result(
-                verdict, payload, provider_name, reviewer_name, completed_at,
-            )
-            self._persist_batch_result(payload, result)
-            results.append(result)
-
-        # Auto-apply eligible actions for all results
-        for payload, result in zip(verification_inputs, results, strict=False):
-            if result.status in ("verified", "flagged"):
-                self._auto_apply_eligible_actions(
-                    stored_lemma=payload.stored_lemma,
-                    stored_surface_form=payload.stored_surface_form,
-                    meaning_id=payload.meaning_id,
-                )
-        return results
+        return verification_review_flow.verify_word_entries_batch(
+            self,
+            verification_inputs,
+            sentence_context=sentence_context,
+        )
 
     def _skipped_verification_result(self, payload: WordVerificationInput) -> VerificationResult:
         return VerificationResult(
@@ -872,6 +644,20 @@ class VerificationCollaborator:
                     meaning_id=meaning_id,
                     action=action,
                 )
+                for sibling_record in repository.list_verification_records(lexeme.id):
+                    if sibling_record.status != "queued":
+                        continue
+                    if (
+                        sibling_record.meaning_id == meaning_id
+                        and sibling_record.stored_surface_form == stored_surface_form
+                    ):
+                        continue
+                    self.verify_added_word(
+                        stored_lemma=stored_lemma,
+                        stored_surface_form=sibling_record.stored_surface_form,
+                        meaning_id=sibling_record.meaning_id,
+                        review_intent=sibling_record.review_intent,
+                    )
             except Exception:
                 logger.exception(
                     "wordbank_auto_apply_failed",
@@ -879,61 +665,15 @@ class VerificationCollaborator:
                 )
 
     def get_verification_changes(self, stored_lemma: str) -> GetVerificationChangesResponse:
-        normalized_lemma = normalize_token(stored_lemma)
-        if not normalized_lemma:
-            raise ValueError("stored_lemma is required")
-        repository = WordbankRepository(self._db_path)
-        records = repository.get_change_log_entries_for_lemma(normalized_lemma)
-        items = [
-            VerificationChangeEntry(
-                id=r.id,
-                stored_lemma=r.stored_lemma,
-                stored_surface_form=r.stored_surface_form,
-                meaning_id=r.meaning_id,
-                action_type=r.action_type,
-                before_json=json.loads(r.before_json),
-                after_json=json.loads(r.after_json),
-                applied_at=r.applied_at,
-                reverted_at=r.reverted_at,
-                provider=r.provider,
-            )
-            for r in records
-        ]
-        return GetVerificationChangesResponse(items=items)
+        return verification_history_flow.get_verification_changes(self, stored_lemma)
 
     def revert_verification_change(
         self,
         change_id: int,
         stored_lemma: str,
     ) -> RevertVerificationChangeResponse:
-        normalized_lemma = normalize_token(stored_lemma)
-        if not normalized_lemma:
-            raise ValueError("stored_lemma is required")
-        repository = WordbankRepository(self._db_path)
-        entry = repository.get_change_log_entry(change_id)
-        if entry is None or entry.stored_lemma != normalized_lemma:
-            return RevertVerificationChangeResponse(status="not_found", change_id=change_id)
-        if entry.reverted_at is not None:
-            return RevertVerificationChangeResponse(status="already_reverted", change_id=change_id)
-
-        before = json.loads(entry.before_json)
-        if entry.action_type == "fix_translation":
-            revert_fix_translation(
-                db_path=self._db_path,
-                stored_lemma=normalized_lemma,
-                meaning_id=entry.meaning_id,
-                old_translation=before.get("english_translation"),
-            )
-        elif entry.action_type == "fix_variations":
-            revert_fix_variations(
-                db_path=self._db_path,
-                stored_lemma=normalized_lemma,
-                meaning_id=entry.meaning_id,
-                surface_forms_snapshot=before.get("surface_forms", []),
-            )
-        else:
-            return RevertVerificationChangeResponse(status="not_found", change_id=change_id)
-
-        self._nlp.invalidate_pos_cache(normalized_lemma, entry.stored_surface_form)
-        repository.set_change_log_reverted(change_id, now_utc_iso())
-        return RevertVerificationChangeResponse(status="reverted", change_id=change_id)
+        return verification_history_flow.revert_verification_change(
+            self,
+            change_id,
+            stored_lemma,
+        )

@@ -24,7 +24,7 @@ def test_add_sentence_inserts_and_returns_translation_from_provider(tmp_path, st
     assert response.status_code == 200
     assert response.json()["status"] == "inserted"
     assert response.json()["source_text"] == "Jeg elsker kaffe"
-    assert response.json()["english_translation"] == "i love coffee"
+    assert response.json()["english_translation"] == "I love coffee"
     assert response.json()["message"] == 'Added "Jeg elsker kaffe" to sentencebank.'
     assert response.json()["tokens"] == []
 

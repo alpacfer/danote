@@ -1,27 +1,36 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-import json
-import math
-import time
-from typing import Literal, Protocol
-
-from app.services.verification_paradigm_slots import (
-    build_completion_review_paradigm_slot_context,
-    build_paradigm_slot_context,
+from app.services.verification_gemini_context import category_context, verification_context
+from app.services.verification_gemini_parsing import (
+    parse_batch_response,
+    parse_categories,
+    parse_response,
+    parse_suggested_actions,
+)
+from app.services.verification_gemini_transport import (
+    ensure_client,
+    generate_content,
+    generate_text,
+)
+from app.services.verification_models import (
+    VerificationError,
+    WordCategoryClassificationResult,
+    WordVerificationAction,
+    WordVerificationInput,
+    WordVerificationMeaningSection,
+    WordVerificationResult,
+    WordVerificationService,
+    WordVerificationSurfaceForm,
 )
 from app.services.verification_prompt_templates import (
     build_word_category_prompt,
     build_word_verification_prompt,
 )
 from app.services.verification_review_policy import (
-    action_type_allowed,
     allowed_general_action_types,
     is_surface_form_review,
-    looks_like_danish_self_translation,
     should_backfill_translation_from_gloss_hint,
-    should_discard_gloss_hint_translation_action,
-    should_discard_move_to_lemma_action,
     should_force_translation_fix_from_gloss_hint,
     should_ignore_gloss_hint_translation_review,
     should_ignore_morphology_supported_move_review,
@@ -35,120 +44,6 @@ from app.services.verification_review_text import (
     normalize_translation_review_copy,
     should_suppress_gloss_only_feedback,
 )
-from app.services.verification_support import (
-    category_surface_forms,
-    is_valid_new_category,
-    optional_clean_str,
-    optional_clean_str_list,
-    verification_surface_forms,
-)
-
-
-class VerificationError(RuntimeError):
-    """Raised when verification cannot be completed by the provider."""
-
-
-@dataclass(frozen=True)
-class WordVerificationMeaningSection:
-    id: int
-    meaning_key: str
-    gloss: str | None
-    gloss_translation: str | None
-    english_translation: str | None
-    pos_tag: str | None
-    morphology: str | None
-    surface_forms: tuple[str, ...]
-
-
-@dataclass(frozen=True)
-class WordVerificationSurfaceForm:
-    form: str
-    meaning_id: int | None
-    meaning_key: str | None
-    gloss: str | None
-    gloss_translation: str | None
-    english_translation: str | None
-    pos_tag: str | None
-    morphology: str | None
-    source: str | None
-    gram_raw: str | None = None
-
-
-@dataclass(frozen=True)
-class WordVerificationInput:
-    stored_lemma: str
-    stored_surface_form: str | None
-    meaning_id: int | None
-    meaning_key: str | None
-    meaning_gloss: str | None
-    meaning_gloss_translation: str | None
-    lexeme_source: str
-    selected_translation: str | None
-    selected_translation_scope: Literal["lemma", "meaning_section"] | None
-    surface_source: str | None
-    canonical_lemma: str | None
-    canonical_lemma_pos_tag: str | None
-    canonical_lemma_morphology: str | None
-    selected_meaning_pos_tag: str | None
-    selected_meaning_morphology: str | None
-    selected_surface_pos_tag: str | None
-    selected_surface_morphology: str | None
-    current_categories: tuple[str, ...] = ()
-    available_categories: tuple[str, ...] = ()
-    sibling_meaning_sections: tuple[WordVerificationMeaningSection, ...] = ()
-    available_surface_forms: tuple[WordVerificationSurfaceForm, ...] = ()
-    review_intent: Literal["general", "complete_variations"] = "general"
-
-
-@dataclass(frozen=True)
-class WordVerificationAction:
-    action_type: Literal["fix_translation", "fix_variations", "move_to_meaning_section", "move_to_lemma"]
-    reason: str | None = None
-    english_translation: str | None = None
-    singular_indefinite_forms: tuple[str, ...] = ()
-    singular_indefinite_n_word_forms: tuple[str, ...] = ()
-    singular_indefinite_t_word_forms: tuple[str, ...] = ()
-    singular_definite_forms: tuple[str, ...] = ()
-    plural_indefinite_forms: tuple[str, ...] = ()
-    plural_definite_forms: tuple[str, ...] = ()
-    infinitive_forms: tuple[str, ...] = ()
-    present_forms: tuple[str, ...] = ()
-    past_forms: tuple[str, ...] = ()
-    imperative_forms: tuple[str, ...] = ()
-    past_participle_forms: tuple[str, ...] = ()
-    target_meaning_id: int | None = None
-    target_lemma: str | None = None
-    target_meaning_key: str | None = None
-    target_gloss: str | None = None
-    target_english_translation: str | None = None
-    target_pos_tag: str | None = None
-    target_morphology: str | None = None
-
-
-@dataclass(frozen=True)
-class WordVerificationResult:
-    verdict: Literal["verified", "flagged"]
-    message: str
-    composed_word_count: int | None = None
-    problem: str | None = None
-    change_to_implement: str | None = None
-    suggested_actions: tuple[WordVerificationAction, ...] = ()
-
-
-@dataclass(frozen=True)
-class WordCategoryClassificationResult:
-    categories: tuple[str, ...] = ()
-
-
-class WordVerificationService(Protocol):
-    provider: str
-    reviewer_role: str
-
-    def verify_word_entry(self, payload: WordVerificationInput) -> WordVerificationResult: ...
-    def classify_word_categories(self, payload: WordVerificationInput) -> WordCategoryClassificationResult: ...
-    def verify_word_entries_batch(
-        self, payloads: list[WordVerificationInput], sentence_context: str | None = None,
-    ) -> list[WordVerificationResult]: ...
 
 
 @dataclass
@@ -175,18 +70,7 @@ class GeminiWordVerificationService:
         self.model = normalized_model
 
     def _ensure_client(self) -> object:
-        if self._client is None:
-            try:
-                from google import genai  # type: ignore import-not-found
-                from google.genai import types as genai_types  # type: ignore import-not-found
-            except ImportError as exc:
-                raise VerificationError("google-genai package is required for Gemini verification.") from exc
-            timeout_ms = max(1, math.ceil(self.timeout_seconds * 1000))
-            self._client = genai.Client(
-                api_key=self.api_key,
-                http_options=genai_types.HttpOptions(timeout=timeout_ms),
-            )
-        return self._client
+        return ensure_client(self)
 
     def close(self) -> None:
         self._client = None
@@ -345,28 +229,7 @@ class GeminiWordVerificationService:
         raw: str,
         expected_count: int,
     ) -> list[dict[str, object] | None]:
-        cleaned = raw.strip()
-        if cleaned.startswith("```"):
-            cleaned = cleaned.removeprefix("```json").removeprefix("```").strip()
-            if cleaned.endswith("```"):
-                cleaned = cleaned[:-3].strip()
-        try:
-            parsed = json.loads(cleaned)
-        except ValueError:
-            return [None] * expected_count
-        if not isinstance(parsed, dict):
-            return [None] * expected_count
-        raw_results = parsed.get("results")
-        if not isinstance(raw_results, list):
-            return [None] * expected_count
-        by_id: dict[int, dict[str, object]] = {}
-        for item in raw_results:
-            if not isinstance(item, dict):
-                continue
-            word_id = item.get("word_id")
-            if isinstance(word_id, int):
-                by_id[word_id] = item
-        return [by_id.get(i) for i in range(expected_count)]
+        return parse_batch_response(raw, expected_count)
 
     def _batch_fallback(self, payload: WordVerificationInput) -> WordVerificationResult:
         return WordVerificationResult(
@@ -378,23 +241,7 @@ class GeminiWordVerificationService:
         )
 
     def _generate_content(self, prompt: str, *, config: object | None = None) -> object:
-        attempts = self.max_retries + 1
-        for attempt in range(attempts):
-            try:
-                client = self._ensure_client()
-                return client.models.generate_content(
-                    model=self.model,
-                    contents=prompt,
-                    config=config,
-                )
-            except Exception as exc:
-                if attempt < self.max_retries:
-                    delay = self.backoff_seconds * (2**attempt)
-                    if delay > 0:
-                        time.sleep(delay)
-                    continue
-                raise VerificationError(f"Gemini verification request failed: {exc}") from exc
-        return type("R", (), {"text": None})()
+        return generate_content(self, prompt, config=config)
 
     def _verification_prompt(self, payload: WordVerificationInput) -> str:
         entry = self._verification_context(payload)
@@ -410,328 +257,36 @@ class GeminiWordVerificationService:
         return build_word_category_prompt(entry=entry)
 
     def _verification_context(self, payload: WordVerificationInput) -> dict[str, object]:
-        paradigm_slot_surface_forms = build_paradigm_slot_context(payload)
-        return {
-            "current_entry": {
-                "review_intent": payload.review_intent,
-                "scope_type": "meaning_section" if payload.meaning_id is not None else "lemma_root",
-                "lemma": payload.stored_lemma,
-                "surface_form": payload.stored_surface_form,
-                "meaning_id": payload.meaning_id,
-                "meaning_key": payload.meaning_key,
-                "gloss": payload.meaning_gloss,
-                "meaning_gloss_translation": payload.meaning_gloss_translation,
-                "selected_translation": payload.selected_translation,
-                "selected_translation_scope": payload.selected_translation_scope,
-                "lexeme_source": payload.lexeme_source,
-                "surface_source": payload.surface_source,
-                "canonical_lemma": payload.canonical_lemma,
-                "canonical_lemma_pos_tag": payload.canonical_lemma_pos_tag,
-                "canonical_lemma_morphology": payload.canonical_lemma_morphology,
-                "selected_meaning_pos_tag": payload.selected_meaning_pos_tag,
-                "selected_meaning_morphology": payload.selected_meaning_morphology,
-                "selected_surface_pos_tag": payload.selected_surface_pos_tag,
-                "selected_surface_morphology": payload.selected_surface_morphology,
-                "selected_surface_gram_raw": self._selected_surface_gram_raw(payload),
-                "translation_hint": (
-                    payload.meaning_gloss_translation
-                    if should_expose_translation_hint(payload)
-                    else None
-                ),
-            },
-            "available_meaning_sections": [
-                {
-                    "id": section.id,
-                    "meaning_key": section.meaning_key,
-                    "gloss_translation": section.gloss_translation,
-                    "english_translation": section.english_translation,
-                    "pos_tag": section.pos_tag,
-                }
-                for section in payload.sibling_meaning_sections
-            ],
-            "relevant_surface_forms": [
-                {
-                    "form": form.form,
-                    "meaning_id": form.meaning_id,
-                    "meaning_key": form.meaning_key,
-                    "gloss": form.gloss,
-                    "gloss_translation": form.gloss_translation,
-                    "english_translation": form.english_translation,
-                    "pos_tag": form.pos_tag,
-                    "morphology": form.morphology,
-                    "gram_raw": form.gram_raw,
-                }
-                for form in verification_surface_forms(payload)
-            ],
-            "paradigm_slot_surface_forms": paradigm_slot_surface_forms,
-            "noun_slot_surface_forms": build_completion_review_paradigm_slot_context(payload)
-            if payload.review_intent == "complete_variations"
-            else {},
-        }
+        return verification_context(payload)
 
     def _category_context(self, payload: WordVerificationInput) -> dict[str, object]:
-        return {
-            "current_entry": {
-                "scope_type": "meaning_section" if payload.meaning_id is not None else "lemma_root",
-                "lemma": payload.stored_lemma,
-                "surface_form": payload.stored_surface_form,
-                "meaning_id": payload.meaning_id,
-                "meaning_key": payload.meaning_key,
-                "gloss": payload.meaning_gloss,
-                "gloss_translation": payload.meaning_gloss_translation,
-                "selected_translation": payload.selected_translation,
-                "selected_translation_scope": payload.selected_translation_scope,
-                "canonical_lemma": payload.canonical_lemma,
-                "selected_meaning_pos_tag": payload.selected_meaning_pos_tag,
-                "selected_surface_pos_tag": payload.selected_surface_pos_tag,
-                "current_categories": list(payload.current_categories),
-            },
-            "available_categories": list(payload.available_categories),
-            "available_meaning_sections": [
-                {
-                    "id": section.id,
-                    "meaning_key": section.meaning_key,
-                    "gloss_translation": section.gloss_translation,
-                    "english_translation": section.english_translation,
-                }
-                for section in payload.sibling_meaning_sections
-            ],
-            "relevant_surface_forms": [
-                {
-                    "form": form.form,
-                    "meaning_id": form.meaning_id,
-                    "meaning_key": form.meaning_key,
-                    "gloss_translation": form.gloss_translation,
-                    "english_translation": form.english_translation,
-                    "pos_tag": form.pos_tag,
-                    "morphology": form.morphology,
-                }
-                for form in category_surface_forms(payload)
-            ],
-        }
+        return category_context(payload)
 
     def _parse_response(self, raw: str) -> dict[str, object]:
-        cleaned = raw.strip()
-        if cleaned.startswith("```"):
-            cleaned = cleaned.removeprefix("```json").removeprefix("```").strip()
-            if cleaned.endswith("```"):
-                cleaned = cleaned[:-3].strip()
-
-        try:
-            parsed = json.loads(cleaned)
-        except ValueError:
-            normalized = cleaned.lower()
-            if "incorrect" in normalized or "error" in normalized or "mismatch" in normalized:
-                return {"verdict": "incorrect", "word_count": None}
-            return {"verdict": "correct", "word_count": None}
-
-        if not isinstance(parsed, dict):
-            return {"verdict": "incorrect", "word_count": None}
-
-        verdict_value = parsed.get("verdict")
-        word_count_value = parsed.get("word_count")
-        verdict = verdict_value.strip().lower() if isinstance(verdict_value, str) else "incorrect"
-        if verdict not in {"correct", "incorrect"}:
-            verdict = "incorrect"
-        word_count = word_count_value if isinstance(word_count_value, int) and word_count_value > 0 else None
-        out: dict[str, object] = {"verdict": verdict, "word_count": word_count}
-        if isinstance(parsed.get("problem"), str):
-            out["problem"] = parsed["problem"]
-        if isinstance(parsed.get("change_to_implement"), str):
-            out["change_to_implement"] = parsed["change_to_implement"]
-        if isinstance(parsed.get("existing_categories"), list):
-            out["existing_categories"] = parsed["existing_categories"]
-        if isinstance(parsed.get("new_categories"), list):
-            out["new_categories"] = parsed["new_categories"]
-        if parsed.get("new_category") is None or isinstance(parsed.get("new_category"), str):
-            out["new_category"] = parsed.get("new_category")
-        if isinstance(parsed.get("suggested_actions"), list):
-            out["suggested_actions"] = parsed["suggested_actions"]
-        return out
+        return parse_response(raw)
 
     def _parse_categories(
         self,
         parsed: dict[str, object],
         available_categories: tuple[str, ...],
     ) -> list[str]:
-        available_lookup = {
-            " ".join(label.strip().split()).casefold(): label
-            for label in available_categories
-        }
-        categories: list[str] = []
-        seen: set[str] = set()
-        raw_existing = parsed.get("existing_categories")
-        if isinstance(raw_existing, list):
-            for item in raw_existing:
-                if not isinstance(item, str):
-                    continue
-                normalized = " ".join(item.strip().split()).casefold()
-                if not normalized or normalized in seen:
-                    continue
-                matched = available_lookup.get(normalized)
-                if matched is None:
-                    continue
-                seen.add(normalized)
-                categories.append(matched)
-        raw_new_categories = parsed.get("new_categories")
-        if isinstance(raw_new_categories, list):
-            for item in raw_new_categories[:1]:
-                if not isinstance(item, str):
-                    continue
-                normalized_new = " ".join(item.strip().split())
-                normalized_key = normalized_new.casefold()
-                if (
-                    not is_valid_new_category(normalized_new)
-                    or normalized_key in seen
-                    or normalized_key in available_lookup
-                ):
-                    continue
-                seen.add(normalized_key)
-                categories.append(normalized_new)
-        elif isinstance(parsed.get("new_category"), str):
-            normalized_new = " ".join(str(parsed["new_category"]).strip().split())
-            normalized_key = normalized_new.casefold()
-            if (
-                is_valid_new_category(normalized_new)
-                and normalized_key not in seen
-                and normalized_key not in available_lookup
-            ):
-                seen.add(normalized_key)
-                categories.append(normalized_new)
-        return categories
+        return parse_categories(parsed, available_categories)
 
     def _parse_suggested_actions(
         self,
         raw: object,
         payload: WordVerificationInput,
     ) -> list[WordVerificationAction]:
-        if not isinstance(raw, list):
-            return []
-        actions: list[WordVerificationAction] = []
-        for item in raw:
-            action = self._normalize_action(item, payload)
-            if action is not None:
-                actions.append(action)
-        return actions
+        return parse_suggested_actions(raw, payload)
 
     def _normalize_action(
         self,
         raw: object,
         payload: WordVerificationInput,
     ) -> WordVerificationAction | None:
-        if not isinstance(raw, dict):
-            return None
-        action_type = raw.get("action_type")
-        if not isinstance(action_type, str):
-            return None
-        normalized_type = action_type.strip().lower()
-        if normalized_type not in {
-            "fix_translation",
-            "fix_variations",
-            "move_to_meaning_section",
-            "move_to_lemma",
-        }:
-            return None
-        if not action_type_allowed(payload=payload, action_type=normalized_type):
-            return None
+        from app.services.verification_gemini_parsing import normalize_action
 
-        reason = optional_clean_str(raw.get("reason"))
-        if normalized_type == "fix_variations":
-            if payload.review_intent != "complete_variations":
-                return None
-            singular_indefinite_forms = tuple(optional_clean_str_list(raw.get("singular_indefinite_forms")))
-            singular_indefinite_n_word_forms = tuple(optional_clean_str_list(raw.get("singular_indefinite_n_word_forms")))
-            singular_indefinite_t_word_forms = tuple(optional_clean_str_list(raw.get("singular_indefinite_t_word_forms")))
-            singular_definite_forms = tuple(optional_clean_str_list(raw.get("singular_definite_forms")))
-            plural_indefinite_forms = tuple(optional_clean_str_list(raw.get("plural_indefinite_forms")))
-            plural_definite_forms = tuple(optional_clean_str_list(raw.get("plural_definite_forms")))
-            infinitive_forms = tuple(optional_clean_str_list(raw.get("infinitive_forms")))
-            present_forms = tuple(optional_clean_str_list(raw.get("present_forms")))
-            past_forms = tuple(optional_clean_str_list(raw.get("past_forms")))
-            imperative_forms = tuple(optional_clean_str_list(raw.get("imperative_forms")))
-            past_participle_forms = tuple(optional_clean_str_list(raw.get("past_participle_forms")))
-            if not any(
-                (
-                    singular_indefinite_forms,
-                    singular_indefinite_n_word_forms,
-                    singular_indefinite_t_word_forms,
-                    singular_definite_forms,
-                    plural_indefinite_forms,
-                    plural_definite_forms,
-                    infinitive_forms,
-                    present_forms,
-                    past_forms,
-                    imperative_forms,
-                    past_participle_forms,
-                )
-            ):
-                return None
-            return WordVerificationAction(
-                action_type="fix_variations",
-                reason=reason,
-                singular_indefinite_forms=singular_indefinite_forms,
-                singular_indefinite_n_word_forms=singular_indefinite_n_word_forms,
-                singular_indefinite_t_word_forms=singular_indefinite_t_word_forms,
-                singular_definite_forms=singular_definite_forms,
-                plural_indefinite_forms=plural_indefinite_forms,
-                plural_definite_forms=plural_definite_forms,
-                infinitive_forms=infinitive_forms,
-                present_forms=present_forms,
-                past_forms=past_forms,
-                imperative_forms=imperative_forms,
-                past_participle_forms=past_participle_forms,
-            )
-        if payload.review_intent == "complete_variations":
-            return None
-        if normalized_type == "fix_translation":
-            english_translation = optional_clean_str(raw.get("english_translation"))
-            if not english_translation:
-                return None
-            if looks_like_danish_self_translation(
-                english_translation=english_translation,
-                payload=payload,
-            ):
-                return None
-            if should_discard_gloss_hint_translation_action(
-                english_translation=english_translation,
-                payload=payload,
-            ):
-                return None
-            return WordVerificationAction(
-                action_type="fix_translation",
-                reason=reason,
-                english_translation=english_translation,
-            )
-
-        if normalized_type == "move_to_meaning_section":
-            target_meaning_id = raw.get("target_meaning_id")
-            if not isinstance(target_meaning_id, int):
-                return None
-            return WordVerificationAction(
-                action_type="move_to_meaning_section",
-                reason=reason,
-                target_meaning_id=target_meaning_id,
-            )
-
-        target_lemma = optional_clean_str(raw.get("target_lemma"))
-        target_meaning_key = optional_clean_str(raw.get("target_meaning_key"))
-        if not target_lemma or not target_meaning_key:
-            return None
-        if should_discard_move_to_lemma_action(
-            payload=payload,
-            target_lemma=target_lemma,
-        ):
-            return None
-        return WordVerificationAction(
-            action_type="move_to_lemma",
-            reason=reason,
-            target_lemma=target_lemma,
-            target_meaning_key=target_meaning_key,
-            target_gloss=optional_clean_str(raw.get("target_gloss")),
-            target_english_translation=optional_clean_str(raw.get("target_english_translation")),
-            target_pos_tag=optional_clean_str(raw.get("target_pos_tag")),
-            target_morphology=optional_clean_str(raw.get("target_morphology")),
-        )
+        return normalize_action(raw, payload)
 
     def _infer_word_count(self, payload: WordVerificationInput) -> int:
         source_text = payload.stored_surface_form or payload.stored_lemma
@@ -739,15 +294,9 @@ class GeminiWordVerificationService:
         return max(1, len(parts))
 
     def _selected_surface_gram_raw(self, payload: WordVerificationInput) -> str | None:
-        if not payload.stored_surface_form:
-            return None
-        for form in payload.available_surface_forms:
-            if (
-                form.form == payload.stored_surface_form
-                and form.meaning_id == payload.meaning_id
-            ):
-                return form.gram_raw
-        return None
+        from app.services.verification_gemini_context import selected_surface_gram_raw
+
+        return selected_surface_gram_raw(payload)
 
     def _gloss_hint_translation_action(self, payload: WordVerificationInput) -> WordVerificationAction:
         return WordVerificationAction(
@@ -757,19 +306,4 @@ class GeminiWordVerificationService:
         )
 
     def _generate_text(self, prompt: str) -> str | None:
-        attempts = self.max_retries + 1
-        for attempt in range(attempts):
-            try:
-                client = self._ensure_client()
-                response = client.models.generate_content(model=self.model, contents=prompt)
-                text = getattr(response, "text", None)
-                cleaned = text.strip() if isinstance(text, str) else ""
-                return cleaned or None
-            except Exception as exc:
-                if attempt < self.max_retries:
-                    delay = self.backoff_seconds * (2**attempt)
-                    if delay > 0:
-                        time.sleep(delay)
-                    continue
-                raise VerificationError(f"Gemini verification request failed: {exc}") from exc
-        return None
+        return generate_text(self, prompt)

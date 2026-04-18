@@ -564,7 +564,7 @@ def test_sentencebank_preview_sentence_search_returns_danish_correction(tmp_path
     assert preview.status == "ready"
     assert preview.query_language == "da"
     assert preview.source_text == "jeg er glad"
-    assert preview.english_translation == "I am happy"
+    assert preview.english_translation == "i am happy"
     assert preview.is_valid is False
     assert preview.errors == [SentenceVerificationErrorItem(start=7, end=11, message="typo")]
 
@@ -713,7 +713,7 @@ def test_sentencebank_preview_sentence_fast_path_danish(tmp_path: Path) -> None:
     assert preview.status == "preview"
     assert preview.query_language == "da"
     assert preview.source_text == "jeg er glad"
-    assert preview.english_translation == "I am happy"
+    assert preview.english_translation == "i am happy"
     assert preview.is_valid is True
     assert preview.errors == []
 
