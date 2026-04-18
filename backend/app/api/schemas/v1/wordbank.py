@@ -13,6 +13,7 @@ class AddWordRequest(BaseModel):
         surface: str = Field(..., min_length=1)
         cor_id: str | None = None
         cor_lemma_idx: int | None = None
+        dictionary_status: Literal["cor", "generated_non_cor", "unknown"] | None = None
         meaning_key: str | None = None
         gloss: str | None = None
         english_translation: str | None = None
@@ -386,6 +387,7 @@ class CORLemmaParadigmResponse(BaseModel):
 
 
 class LemmaDetailsResponse(BaseModel):
+    dictionary_status: Literal["cor", "generated_non_cor", "unknown"] = "unknown"
     pos_tag: str | None = None
     morphology: str | None = None
 
@@ -413,6 +415,7 @@ class LemmaDetailsResponse(BaseModel):
     class MeaningSection(BaseModel):
         id: int
         meaning_key: str
+        dictionary_status: Literal["cor", "generated_non_cor", "unknown"] = "unknown"
         gloss: str | None = None
         english_translation: str | None = None
         additional_translations: list[str] = Field(default_factory=list)

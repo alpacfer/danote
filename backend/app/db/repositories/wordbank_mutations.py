@@ -37,6 +37,18 @@ class WordbankMutationRepository:
                 (english_translation, provider if english_translation else None, lexeme_id),
             )
 
+    def replace_lexeme_source(self, *, lexeme_id: int, source: str) -> None:
+        with timed_db_operation("wordbank.replace_lexeme_source"), get_connection(self._db_path) as conn:
+            conn.execute(
+                """
+                UPDATE lexemes
+                SET source = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (source, lexeme_id),
+            )
+
     def replace_lexeme_meaning_translation(
         self,
         *,
@@ -161,6 +173,7 @@ class WordbankMutationRepository:
         pos_tag: str | None,
         morphology: str | None,
         source: str = "manual",
+        dictionary_status: str = "unknown",
     ) -> tuple[int, bool]:
         with timed_db_operation("wordbank.insert_or_load_lexeme"), get_connection(self._db_path) as conn:
             cursor = conn.execute(
@@ -168,16 +181,18 @@ class WordbankMutationRepository:
                 INSERT OR IGNORE INTO lexemes (
                     lemma,
                     source,
+                    dictionary_status,
                     english_translation,
                     translation_provider,
                     pos_tag,
                     morphology
                 )
-                VALUES (?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     stored_lemma,
                     source,
+                    dictionary_status,
                     translation,
                     provider if translation else None,
                     pos_tag,
@@ -205,10 +220,15 @@ class WordbankMutationRepository:
                 """
                 UPDATE lexemes
                 SET pos_tag = COALESCE(pos_tag, ?),
-                    morphology = COALESCE(morphology, ?)
+                    morphology = COALESCE(morphology, ?),
+                    dictionary_status = CASE
+                        WHEN dictionary_status = 'cor' OR ? = 'cor' THEN 'cor'
+                        WHEN dictionary_status = 'generated_non_cor' OR ? = 'generated_non_cor' THEN 'generated_non_cor'
+                        ELSE 'unknown'
+                    END
                 WHERE id = ?
                 """,
-                (pos_tag, morphology, lexeme_id),
+                (pos_tag, morphology, dictionary_status, dictionary_status, lexeme_id),
             )
         return lexeme_id, cursor.rowcount == 1
 
@@ -338,6 +358,7 @@ class WordbankMutationRepository:
         lexeme_id: int,
         meaning_key: str,
         cor_lemma_idx: int | None,
+        dictionary_status: str = "unknown",
         gloss: str | None,
         english_translation: str | None,
         pos_tag: str | None,
@@ -352,6 +373,7 @@ class WordbankMutationRepository:
                         id,
                         meaning_key,
                         cor_lemma_idx,
+                        dictionary_status,
                         gloss,
                         english_translation,
                         pos_tag,
@@ -369,6 +391,7 @@ class WordbankMutationRepository:
                         id,
                         meaning_key,
                         cor_lemma_idx,
+                        dictionary_status,
                         gloss,
                         english_translation,
                         pos_tag,
@@ -388,17 +411,19 @@ class WordbankMutationRepository:
                         lexeme_id,
                         meaning_key,
                         cor_lemma_idx,
+                        dictionary_status,
                         gloss,
                         english_translation,
                         pos_tag,
                         morphology
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         lexeme_id,
                         meaning_key,
                         cor_lemma_idx,
+                        dictionary_status,
                         gloss,
                         english_translation,
                         pos_tag,
@@ -411,6 +436,7 @@ class WordbankMutationRepository:
                         id,
                         meaning_key,
                         cor_lemma_idx,
+                        dictionary_status,
                         gloss,
                         english_translation,
                         pos_tag,
@@ -428,6 +454,11 @@ class WordbankMutationRepository:
                     UPDATE lexeme_meanings
                     SET meaning_key = COALESCE(?, meaning_key),
                         cor_lemma_idx = COALESCE(cor_lemma_idx, ?),
+                        dictionary_status = CASE
+                            WHEN dictionary_status = 'cor' OR ? = 'cor' THEN 'cor'
+                            WHEN dictionary_status = 'generated_non_cor' OR ? = 'generated_non_cor' THEN 'generated_non_cor'
+                            ELSE 'unknown'
+                        END,
                         gloss = COALESCE(gloss, ?),
                         english_translation = COALESCE(english_translation, ?),
                         pos_tag = COALESCE(pos_tag, ?),
@@ -438,6 +469,8 @@ class WordbankMutationRepository:
                     (
                         meaning_key,
                         cor_lemma_idx,
+                        dictionary_status,
+                        dictionary_status,
                         gloss,
                         english_translation,
                         pos_tag,
@@ -451,6 +484,7 @@ class WordbankMutationRepository:
                         id,
                         meaning_key,
                         cor_lemma_idx,
+                        dictionary_status,
                         gloss,
                         english_translation,
                         pos_tag,

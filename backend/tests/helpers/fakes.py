@@ -158,6 +158,14 @@ class FakeGeminiWordTranslationService:
             tuple[str, str, str | None, str | None],
             tuple[str | None, list[str]],
         ] | None = None,
+        non_cor_generation_overrides: dict[
+            tuple[str, str, str | None],
+            dict[str, object] | None,
+        ] | None = None,
+        non_cor_variation_overrides: dict[
+            tuple[str, str | None, str | None],
+            list[dict[str, object]],
+        ] | None = None,
     ):
         self._mapping = mapping
         self.calls: list[tuple[str, str, str | None]] = []
@@ -165,6 +173,10 @@ class FakeGeminiWordTranslationService:
         self._batch_overrides = batch_overrides or {}
         self._alternative_overrides = alternative_overrides or {}
         self.alternative_calls: list[tuple[str, str, str | None, str | None]] = []
+        self._non_cor_generation_overrides = non_cor_generation_overrides or {}
+        self._non_cor_variation_overrides = non_cor_variation_overrides or {}
+        self.non_cor_generation_calls: list[tuple[str, str, str | None]] = []
+        self.non_cor_variation_calls: list[tuple[str, str | None, str | None]] = []
 
     def translate_word(self, payload) -> str | None:
         key = (payload.surface_form, payload.lemma, payload.gloss)
@@ -187,6 +199,48 @@ class FakeGeminiWordTranslationService:
             primary_translation=primary_translation,
             alternative_translations=list(alternative_translations),
         )
+
+    def generate_non_cor_word_entry(self, payload):
+        key = (payload.surface_form, payload.lemma_candidate, payload.sentence_context)
+        self.non_cor_generation_calls.append(key)
+        override = self._non_cor_generation_overrides.get(key)
+        if override is None:
+            return None
+        return type(
+            "NonCORWordGenerationResult",
+            (),
+            {
+                "lemma": override["lemma"],
+                "english_translation": override.get("english_translation"),
+                "meaning_key": override.get("meaning_key"),
+                "gloss": override.get("gloss"),
+                "pos_tag": override.get("pos_tag"),
+                "morphology": override.get("morphology"),
+                "surface_pos_tag": override.get("surface_pos_tag"),
+                "surface_morphology": override.get("surface_morphology"),
+            },
+        )()
+
+    def generate_non_cor_word_entries_batch(self, payloads):
+        return [self.generate_non_cor_word_entry(payload) for payload in payloads]
+
+    def complete_non_cor_meaning_variations(self, payload):
+        key = (payload.stored_lemma, payload.pos_tag, payload.gloss)
+        self.non_cor_variation_calls.append(key)
+        forms = self._non_cor_variation_overrides.get(key, [])
+        items = [
+            type(
+                "NonCORVariationCandidate",
+                (),
+                {
+                    "form": item["form"],
+                    "pos_tag": item.get("pos_tag"),
+                    "morphology": item.get("morphology"),
+                },
+            )()
+            for item in forms
+        ]
+        return type("NonCORVariationGenerationResult", (), {"forms": items})()
 
 
 class FakeGeminiRelatedWordsService:

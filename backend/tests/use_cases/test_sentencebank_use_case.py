@@ -18,6 +18,7 @@ from app.services.verification import (
 from tests.helpers.factories import _cor_local_entry, _db_path
 from tests.helpers.fakes import (
     FakeCORLocalLexiconService,
+    FakeGeminiWordTranslationService,
     FakeTranslationService,
 )
 
@@ -446,6 +447,108 @@ def test_sentencebank_save_skips_capitalized_name_after_punctuation(tmp_path: Pa
 
     assert [token.surface_form for token in inserted.tokens] == ["I", "elsker", "dig"]
     assert wordbank_use_case.runtime.repository.get_lexeme("cornelius") is None
+
+
+def test_sentencebank_save_generates_non_cor_word_entry_for_missing_danish_word(tmp_path: Path) -> None:
+    db_path = _db_path(tmp_path)
+    nlp_adapter = MappingNLPAdapter(
+        {
+            "Det er superstort": [
+                NLPToken(text="Det", lemma="det", pos="PRON", morphology="PronType=Prs", is_punctuation=False),
+                NLPToken(text="er", lemma="være", pos="AUX", morphology="Tense=Pres|VerbForm=Fin", is_punctuation=False),
+                NLPToken(
+                    text="superstort",
+                    lemma="superstort",
+                    pos="ADJ",
+                    morphology="Degree=Pos|Gender=Neut|Number=Sing|Definite=Ind",
+                    is_punctuation=False,
+                ),
+            ],
+        }
+    )
+    gemini_service = FakeGeminiWordTranslationService(
+        {},
+        non_cor_generation_overrides={
+            (
+                "superstort",
+                "superstort",
+                "Det er superstort",
+            ): {
+                "lemma": "superstor",
+                "english_translation": "super big",
+                "meaning_key": "very large",
+                "gloss": "very large",
+                "pos_tag": "ADJ",
+                "morphology": "Degree=Pos|Number=Sing|Definite=Ind",
+                "surface_pos_tag": "ADJ",
+                "surface_morphology": "Degree=Pos|Gender=Neut|Number=Sing|Definite=Ind",
+            },
+        },
+    )
+    wordbank_use_case = WordbankUseCase(
+        db_path,
+        gemini_word_translation_service=gemini_service,
+        nlp_adapter=nlp_adapter,
+    )
+    sentencebank_use_case = SentencebankUseCase(
+        db_path,
+        nlp_adapter=nlp_adapter,
+        wordbank_use_case=wordbank_use_case,
+    )
+
+    inserted = sentencebank_use_case.add_sentence("Det er superstort")
+
+    generated_token = next(token for token in inserted.tokens if token.surface_form == "superstort")
+    assert generated_token.stored_lemma == "superstor"
+    assert generated_token.meaning_id is not None
+    assert gemini_service.non_cor_generation_calls == [
+        ("superstort", "superstort", "Det er superstort")
+    ]
+
+    details = wordbank_use_case.get_lemma_details("superstor")
+    assert details.dictionary_status == "generated_non_cor"
+    assert details.meaning_sections[0].dictionary_status == "generated_non_cor"
+    assert [item.form for item in details.meaning_sections[0].surface_forms] == ["superstort"]
+
+
+def test_sentencebank_save_falls_back_to_unknown_root_entry_when_non_cor_generation_is_unavailable(
+    tmp_path: Path,
+) -> None:
+    db_path = _db_path(tmp_path)
+    nlp_adapter = MappingNLPAdapter(
+        {
+            "Det er superstort": [
+                NLPToken(text="Det", lemma="det", pos="PRON", morphology="PronType=Prs", is_punctuation=False),
+                NLPToken(text="er", lemma="være", pos="AUX", morphology="Tense=Pres|VerbForm=Fin", is_punctuation=False),
+                NLPToken(
+                    text="superstort",
+                    lemma="superstort",
+                    pos="ADJ",
+                    morphology="Degree=Pos|Gender=Neut|Number=Sing|Definite=Ind",
+                    is_punctuation=False,
+                ),
+            ],
+        }
+    )
+    wordbank_use_case = WordbankUseCase(
+        db_path,
+        nlp_adapter=nlp_adapter,
+    )
+    sentencebank_use_case = SentencebankUseCase(
+        db_path,
+        nlp_adapter=nlp_adapter,
+        wordbank_use_case=wordbank_use_case,
+    )
+
+    inserted = sentencebank_use_case.add_sentence("Det er superstort")
+
+    fallback_token = next(token for token in inserted.tokens if token.surface_form == "superstort")
+    assert fallback_token.stored_lemma == "superstort"
+    assert fallback_token.meaning_id is None
+
+    details = wordbank_use_case.get_lemma_details("superstort")
+    assert details.dictionary_status == "unknown"
+    assert details.meaning_sections == []
 
 
 class FakeVerificationService:

@@ -6,7 +6,7 @@ from typing import Literal
 
 from app.api.schemas.v1.wordbank import AddWordResponse, MeaningContext, VerificationResult
 from app.services.cor_local import CORLocalEntry
-from app.services.gemini_translation import ContextualWordTranslationInput
+from app.services.gemini_translation import ContextualWordTranslationInput, NonCORWordGenerationInput
 from app.services.token_classifier import normalize_token
 from app.services.use_cases.wordbank.add_word_normalization import (
     AddWordInputs,
@@ -27,6 +27,7 @@ from app.services.use_cases.wordbank.meaning_sections import (
     resolve_meaning_translation,
     resolve_non_verb_meaning,
 )
+from app.services.use_cases.wordbank.non_cor_generation import build_non_cor_search_seed
 from app.services.use_cases.wordbank.pronunciation_queue import queue_pronunciation_generation
 from app.services.use_cases.wordbank.related_words_queue import queue_related_words_resolution
 from app.services.use_cases.wordbank.runtime import WordbankRuntime
@@ -119,6 +120,7 @@ def add_word(
         provider=None,
         pos_tag=initial_metadata.pos_tag,
         morphology=initial_metadata.morphology,
+        dictionary_status="cor" if inputs.normalized_cor_id else "unknown",
     )
 
     meaning_resolution = resolve_non_verb_meaning(
@@ -130,9 +132,20 @@ def add_word(
         preferred_pos_tag=initial_metadata.pos_tag,
         preferred_morphology=initial_metadata.morphology,
     )
-    translations = _lookup_word_translations(runtime, inputs, meaning_resolution)
-
     if meaning_resolution is None:
+        generated = _generate_non_cor_word(runtime, inputs=inputs)
+        if generated is not None:
+            return add_word_from_search_seed(
+                runtime,
+                surface_token=inputs.normalized_surface,
+                lemma_candidate=generated.lemma,
+                search_seed=build_non_cor_search_seed(
+                    surface_form=inputs.normalized_surface,
+                    generated=generated,
+                ),
+                queue_verification=queue_verification,
+            )
+        translations = _lookup_word_translations(runtime, inputs, meaning_resolution)
         return _add_unsectioned_word(
             runtime,
             inputs=inputs,
@@ -141,6 +154,7 @@ def add_word(
             initial_metadata=initial_metadata,
             translations=translations,
         )
+    translations = _lookup_word_translations(runtime, inputs, meaning_resolution)
     return _add_meaning_scoped_word(
         runtime,
         inputs=inputs,
@@ -174,10 +188,20 @@ def _add_meaning_scoped_word(
             else meaning_resolution.meaning_key
         ),
         cor_lemma_idx=meaning_resolution.cor_lemma_idx,
+        dictionary_status="cor",
         gloss=meaning_resolution.gloss,
         english_translation=meaning_translation,
         pos_tag=meaning_resolution.pos_tag,
         morphology=meaning_resolution.morphology,
+    )
+    runtime.repository.insert_or_load_lexeme(
+        stored_lemma=inputs.stored_lemma,
+        translation=None,
+        provider=None,
+        pos_tag=meaning_resolution.pos_tag,
+        morphology=meaning_resolution.morphology,
+        source="manual",
+        dictionary_status="cor",
     )
     lemma_metadata = _build_meaning_scoped_metadata(
         runtime,
@@ -618,6 +642,21 @@ def _build_contextual_payload(
     )
 
 
+def _generate_non_cor_word(
+    runtime: WordbankRuntime,
+    *,
+    inputs: _AddWordInputs,
+):
+    payload = NonCORWordGenerationInput(
+        surface_form=inputs.normalized_surface,
+        lemma_candidate=inputs.stored_lemma,
+        pos_tag=inputs.selected_pos_tag,
+        morphology=inputs.selected_morphology,
+        sentence_context=None,
+    )
+    return runtime.translation.generate_non_cor_word_entries_batch([payload])[0]
+
+
 def _resolve_translation_with_fallback(
     runtime: WordbankRuntime,
     target: _ContextualTranslationTarget,
@@ -673,4 +712,3 @@ def _is_likely_english_gloss(gloss: str | None) -> bool:
     if not normalized_gloss:
         return False
     return _LIKELY_ENGLISH_GLOSS_RE.fullmatch(normalized_gloss) is not None
-

@@ -34,6 +34,7 @@ class LexemeRecord:
     id: int
     lemma: str
     source: str
+    dictionary_status: str
     english_translation: str | None
     pos_tag: str | None
     morphology: str | None
@@ -44,6 +45,7 @@ class LexemeMeaningRecord:
     id: int
     meaning_key: str
     cor_lemma_idx: int | None
+    dictionary_status: str
     gloss: str | None
     english_translation: str | None
     pos_tag: str | None
@@ -164,6 +166,7 @@ def lexeme_meaning_from_row(row) -> LexemeMeaningRecord:
         id=int(row["id"]),
         meaning_key=str(row["meaning_key"]),
         cor_lemma_idx=int(row["cor_lemma_idx"]) if row["cor_lemma_idx"] is not None else None,
+        dictionary_status=str(row["dictionary_status"]) if row["dictionary_status"] is not None else "unknown",
         gloss=row["gloss"],
         english_translation=row["english_translation"],
         pos_tag=row["pos_tag"],

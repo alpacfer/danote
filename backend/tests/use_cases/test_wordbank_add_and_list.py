@@ -11,6 +11,7 @@ from app.services.use_cases.wordbank import WordbankUseCase
 from tests.helpers.factories import _bog_homograph_cor_local, _cor_local_entry, _db_path
 from tests.helpers.fakes import (
     FakeCORLocalLexiconService,
+    FakeGeminiRelatedWordsService,
     FakeGeminiWordTranslationService,
     FakeTranslationService,
     FakeTTSService,
@@ -1778,3 +1779,132 @@ def test_round_trip_word_page_search_seed_meanings_include_gloss_translation(tmp
         "for reading",
         "fruit from a beech tree",
     ]
+
+
+def test_add_word_generates_non_cor_meaning_when_cor_is_missing(tmp_path: Path) -> None:
+    db_path = _db_path(tmp_path)
+    gemini_service = FakeGeminiWordTranslationService(
+        {},
+        non_cor_generation_overrides={
+            ("superstort", "superstort", None): {
+                "lemma": "superstor",
+                "english_translation": "super big",
+                "meaning_key": "very large",
+                "gloss": "very large",
+                "pos_tag": "ADJ",
+                "morphology": "Degree=Pos|Number=Sing|Definite=Ind",
+                "surface_pos_tag": "ADJ",
+                "surface_morphology": "Degree=Pos|Gender=Neut|Number=Sing|Definite=Ind",
+            },
+        },
+    )
+    use_case = WordbankUseCase(
+        db_path,
+        gemini_word_translation_service=gemini_service,
+    )
+
+    result = use_case.add_word("superstort", "superstort")
+
+    assert result.stored_lemma == "superstor"
+    assert result.meaning is not None
+    assert result.saved_snapshot is not None
+    assert result.saved_snapshot.dictionary_status == "generated_non_cor"
+    assert result.saved_snapshot.meaning_sections[0].dictionary_status == "generated_non_cor"
+    assert [item.form for item in result.saved_snapshot.meaning_sections[0].surface_forms] == ["superstort"]
+
+
+def test_complete_variations_uses_gemini_for_generated_non_cor_meanings(tmp_path: Path) -> None:
+    db_path = _db_path(tmp_path)
+    gemini_service = FakeGeminiWordTranslationService(
+        {},
+        non_cor_generation_overrides={
+            ("superstort", "superstort", None): {
+                "lemma": "superstor",
+                "english_translation": "super big",
+                "meaning_key": "very large",
+                "gloss": "very large",
+                "pos_tag": "ADJ",
+                "morphology": "Degree=Pos|Number=Sing|Definite=Ind",
+                "surface_pos_tag": "ADJ",
+                "surface_morphology": "Degree=Pos|Gender=Neut|Number=Sing|Definite=Ind",
+            },
+        },
+        non_cor_variation_overrides={
+            ("superstor", "ADJ", "very large"): [
+                {
+                    "form": "superstor",
+                    "pos_tag": "ADJ",
+                    "morphology": "Degree=Pos|Gender=Com|Number=Sing|Definite=Ind",
+                },
+                {
+                    "form": "superstort",
+                    "pos_tag": "ADJ",
+                    "morphology": "Degree=Pos|Gender=Neut|Number=Sing|Definite=Ind",
+                },
+                {
+                    "form": "superstore",
+                    "pos_tag": "ADJ",
+                    "morphology": "Degree=Pos|Number=Plur|Definite=Def",
+                },
+            ],
+        },
+    )
+    use_case = WordbankUseCase(
+        db_path,
+        gemini_word_translation_service=gemini_service,
+        verification_service=FakeVerificationService(),
+    )
+
+    added = use_case.add_word("superstort", "superstort")
+    assert added.meaning is not None
+    use_case.verify_added_word("superstor", None, meaning_id=added.meaning.id)
+    use_case.verify_added_word("superstor", "superstort", meaning_id=added.meaning.id)
+
+    completed = use_case.complete_meaning_variations("superstor", meaning_id=added.meaning.id)
+
+    assert completed.status == "updated"
+    assert completed.added_surface_forms == ["superstore"]
+    assert completed.queued_verification_targets == [
+        {"meaning_id": added.meaning.id, "stored_surface_form": None}
+    ]
+    details = use_case.get_lemma_details("superstor")
+    assert {item.form for item in details.meaning_sections[0].surface_forms} == {"superstort", "superstore"}
+
+
+def test_generated_non_cor_related_words_render_without_cor_variants(tmp_path: Path) -> None:
+    db_path = _db_path(tmp_path)
+    gemini_service = FakeGeminiWordTranslationService(
+        {},
+        non_cor_generation_overrides={
+            ("superstort", "superstort", None): {
+                "lemma": "superstor",
+                "english_translation": "super big",
+                "meaning_key": "very large",
+                "gloss": "very large",
+                "pos_tag": "ADJ",
+                "morphology": "Degree=Pos|Number=Sing|Definite=Ind",
+                "surface_pos_tag": "ADJ",
+                "surface_morphology": "Degree=Pos|Gender=Neut|Number=Sing|Definite=Ind",
+            },
+        },
+    )
+    use_case = WordbankUseCase(
+        db_path,
+        gemini_word_translation_service=gemini_service,
+        gemini_related_words_service=FakeGeminiRelatedWordsService(
+            {
+                "superstor": [
+                    ("super", "super", "ADV"),
+                    ("stor", "large", "ADJ"),
+                ],
+            },
+        ),
+    )
+
+    use_case.add_word("superstort", "superstort")
+    use_case.process_queued_related_words("superstor")
+    details = use_case.get_lemma_details("superstor")
+
+    assert details.related_words.status == "ready"
+    assert [item.lemma for item in details.related_words.items] == ["super", "stor"]
+    assert all(item.display_variant is None for item in details.related_words.items)

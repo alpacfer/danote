@@ -139,8 +139,6 @@ class RelatedWordsCollaborator:
 
     def _build_related_word_item(self, row) -> LemmaDetailsResponse.RelatedWord | None:
         variants = self._variants_for_related_word(row.related_lemma, row.pos_tag, row.english_translation)
-        if not variants:
-            return None
         if row.relation_type == _REVERSE_RELATED_WORDS_RELATION_TYPE:
             saved_translation_target = self._repository.find_saved_lemma_translation_target(row.related_lemma)
             if saved_translation_target is None:

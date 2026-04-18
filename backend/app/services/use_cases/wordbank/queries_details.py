@@ -61,6 +61,7 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
     if not meaning_rows:
         return LemmaDetailsResponse(
             lemma=lexeme.lemma,
+            dictionary_status=lexeme.dictionary_status,
             english_translation=lexeme.english_translation,
             additional_translations=root_additional_translations,
             pos_tag=lexeme.pos_tag,
@@ -145,6 +146,7 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
 
     return LemmaDetailsResponse(
         lemma=lexeme.lemma,
+        dictionary_status=lexeme.dictionary_status,
         english_translation=top_level_translation,
         additional_translations=root_additional_translations,
         pos_tag=top_level_pos_tag,
@@ -156,6 +158,7 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
             LemmaDetailsResponse.MeaningSection(
                 id=meaning.id,
                 meaning_key=meaning.meaning_key,
+                dictionary_status=meaning.dictionary_status,
                 gloss=meaning.gloss,
                 english_translation=meaning.english_translation,
                 additional_translations=_translation_values(
@@ -199,6 +202,7 @@ def _get_manual_lemma_details(
     if not meaning_rows:
         return LemmaDetailsResponse(
             lemma=lexeme.lemma,
+            dictionary_status=lexeme.dictionary_status,
             english_translation=lexeme.english_translation,
             additional_translations=root_additional_translations,
             pos_tag=lexeme.pos_tag,
@@ -269,6 +273,7 @@ def _get_manual_lemma_details(
     ))
     return LemmaDetailsResponse(
         lemma=lexeme.lemma,
+        dictionary_status=lexeme.dictionary_status,
         english_translation=top_level_translation,
         additional_translations=root_additional_translations,
         pos_tag=top_level_pos_tag,
@@ -280,6 +285,7 @@ def _get_manual_lemma_details(
             LemmaDetailsResponse.MeaningSection(
                 id=meaning.id,
                 meaning_key=meaning.meaning_key,
+                dictionary_status=meaning.dictionary_status,
                 gloss=meaning.gloss,
                 english_translation=meaning.english_translation,
                 additional_translations=_translation_values(

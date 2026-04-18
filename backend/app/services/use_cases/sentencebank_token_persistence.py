@@ -18,6 +18,9 @@ if TYPE_CHECKING:
     from app.services.use_cases.sentencebank_token_resolution import SentenceMeaningCandidate
     from app.services.use_cases.wordbank import WordbankUseCase
 
+from app.services.gemini_translation import NonCORWordGenerationResult
+from app.services.use_cases.wordbank.non_cor_generation import build_non_cor_search_seed
+
 
 def persist_candidate_to_wordbank(
     wordbank_use_case: "WordbankUseCase | None",
@@ -43,6 +46,28 @@ def persist_candidate_to_wordbank(
                 "pos_tag": candidate.pos_tag,
                 "morphology": candidate.morphology,
             },
+        )
+    except Exception:
+        return None
+
+
+def persist_generated_to_wordbank(
+    wordbank_use_case: "WordbankUseCase | None",
+    *,
+    normalized_surface: str,
+    generated: NonCORWordGenerationResult,
+) -> object | None:
+    if wordbank_use_case is None:
+        return None
+    try:
+        return wordbank_use_case.add_word(
+            normalized_surface,
+            generated.lemma,
+            queue_verification=False,
+            search_seed=build_non_cor_search_seed(
+                surface_form=normalized_surface,
+                generated=generated,
+            ),
         )
     except Exception:
         return None

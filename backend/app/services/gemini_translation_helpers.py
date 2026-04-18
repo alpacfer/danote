@@ -13,6 +13,11 @@ if TYPE_CHECKING:
         BatchContextualWordTranslationResponseItem,
         ContextualWordTranslationInput,
         MeaningSectionSelectionInput,
+        NonCORVariationCandidate,
+        NonCORVariationGenerationInput,
+        NonCORVariationGenerationResult,
+        NonCORWordGenerationInput,
+        NonCORWordGenerationResult,
     )
 
 
@@ -222,6 +227,66 @@ def build_alternative_translations_prompt(payload: AlternativeTranslationsInput)
     )
 
 
+def build_non_cor_word_generation_prompt(payload: NonCORWordGenerationInput) -> str:
+    return (
+        "You are creating one Danish dictionary-style entry for a real Danish word that is missing from the source dictionary.\n"
+        "Return JSON only with this exact shape: "
+        "{\"lemma\":\"...\",\"english_translation\":\"...\",\"meaning_key\":\"...\",\"gloss\":\"...\","
+        "\"pos_tag\":\"NOUN|VERB|ADJ|ADV|AUX|PRON|DET|ADP|CCONJ|SCONJ|PART|INTJ|NUM|X\","
+        "\"morphology\":\"...\",\"surface_pos_tag\":\"...\",\"surface_morphology\":\"...\"}\n"
+        "Rules:\n"
+        "- lemma must be the canonical lowercased Danish lemma.\n"
+        "- english_translation must be the best short English translation for the intended sense.\n"
+        "- meaning_key should be a stable lowercased key for this sense.\n"
+        "- gloss should be a short lowercased English gloss for the exact sense.\n"
+        "- pos_tag and morphology describe the lemma/meaning.\n"
+        "- surface_pos_tag and surface_morphology describe the observed surface form in context.\n"
+        "- Use sentence_context to disambiguate the intended meaning and form.\n"
+        "- Do not invent extra senses.\n"
+        "- Do not explain your reasoning.\n"
+        f"Context:\n{json.dumps(asdict(payload), ensure_ascii=False)}"
+    )
+
+
+def build_batch_non_cor_word_generation_prompt(items: list[dict[str, object]]) -> str:
+    return (
+        "You are creating Danish dictionary-style entries for real Danish words that are missing from the source dictionary.\n"
+        "Return JSON only with this exact shape: "
+        "{\"items\":[{\"id\":\"0\",\"lemma\":\"...\",\"english_translation\":\"...\",\"meaning_key\":\"...\","
+        "\"gloss\":\"...\",\"pos_tag\":\"ADJ\",\"morphology\":\"...\",\"surface_pos_tag\":\"ADJ\","
+        "\"surface_morphology\":\"...\"}]}\n"
+        "Rules:\n"
+        "- Return exactly one item for every input id.\n"
+        "- Copy each id exactly.\n"
+        "- lemma must be the canonical lowercased Danish lemma.\n"
+        "- english_translation must be the best short English translation for the intended sense.\n"
+        "- meaning_key should be a stable lowercased key for this sense.\n"
+        "- gloss should be a short lowercased English gloss for the exact sense.\n"
+        "- pos_tag and morphology describe the lemma/meaning.\n"
+        "- surface_pos_tag and surface_morphology describe the observed surface form in context.\n"
+        "- Use sentence_context to disambiguate the intended meaning and form.\n"
+        "- Do not explain your reasoning.\n"
+        f"Items:\n{json.dumps(items, ensure_ascii=False)}"
+    )
+
+
+def build_non_cor_variations_prompt(payload: NonCORVariationGenerationInput) -> str:
+    return (
+        "You are completing missing paradigm forms for one saved Danish meaning that is not present in the source dictionary.\n"
+        "Return JSON only with this exact shape: "
+        "{\"forms\":[{\"form\":\"...\",\"pos_tag\":\"ADJ\",\"morphology\":\"...\"}]}\n"
+        "Rules:\n"
+        "- Only return missing inflected forms for the same meaning.\n"
+        "- Do not repeat any form already present in existing_forms.\n"
+        "- Keep the same lemma, meaning, and part of speech.\n"
+        "- Each form must be lowercased Danish text.\n"
+        "- Include pos_tag and morphology for every returned form.\n"
+        "- If no additional forms are appropriate, return an empty forms array.\n"
+        "- Do not explain your reasoning.\n"
+        f"Context:\n{json.dumps(asdict(payload), ensure_ascii=False)}"
+    )
+
+
 def is_retryable_exception(
     exc: Exception,
     *,
@@ -375,3 +440,94 @@ def parse_alternative_translations_payload(payload: object) -> AlternativeTransl
         primary_translation=primary_translation,
         alternative_translations=alternative_translations[:3],
     )
+
+
+def parse_non_cor_word_entry_payload(payload: object) -> NonCORWordGenerationResult | None:
+    from app.services.gemini_translation import NonCORWordGenerationResult
+
+    if not isinstance(payload, dict):
+        return None
+    lemma = _normalize_danish_value(payload.get("lemma"))
+    if lemma is None:
+        return None
+    return NonCORWordGenerationResult(
+        lemma=lemma,
+        english_translation=normalize_translation_value(payload.get("english_translation")),
+        meaning_key=_normalize_danish_value(payload.get("meaning_key")) or lemma,
+        gloss=normalize_translation_value(payload.get("gloss")),
+        pos_tag=_normalize_upper_value(payload.get("pos_tag")),
+        morphology=_normalize_spaced_value(payload.get("morphology")),
+        surface_pos_tag=_normalize_upper_value(payload.get("surface_pos_tag")),
+        surface_morphology=_normalize_spaced_value(payload.get("surface_morphology")),
+    )
+
+
+def parse_non_cor_word_entries_batch_payload(
+    payload: object,
+    *,
+    expected_ids: list[str],
+) -> dict[str, NonCORWordGenerationResult | None] | None:
+    items: Any = payload.get("items") if isinstance(payload, dict) else None
+    if not isinstance(items, list):
+        return None
+    expected = set(expected_ids)
+    parsed: dict[str, NonCORWordGenerationResult | None] = {}
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        item_id = item.get("id")
+        if not isinstance(item_id, str) or item_id not in expected:
+            continue
+        parsed[item_id] = parse_non_cor_word_entry_payload(item)
+    return parsed
+
+
+def parse_non_cor_variations_payload(payload: object) -> NonCORVariationGenerationResult | None:
+    from app.services.gemini_translation import (
+        NonCORVariationCandidate,
+        NonCORVariationGenerationResult,
+    )
+
+    if not isinstance(payload, dict):
+        return None
+    raw_forms = payload.get("forms")
+    if not isinstance(raw_forms, list):
+        return None
+    forms: list[NonCORVariationCandidate] = []
+    seen: set[str] = set()
+    for item in raw_forms:
+        if not isinstance(item, dict):
+            continue
+        form = _normalize_danish_value(item.get("form"))
+        if form is None or form in seen:
+            continue
+        seen.add(form)
+        forms.append(
+            NonCORVariationCandidate(
+                form=form,
+                pos_tag=_normalize_upper_value(item.get("pos_tag")),
+                morphology=_normalize_spaced_value(item.get("morphology")),
+            )
+        )
+    return NonCORVariationGenerationResult(forms=forms)
+
+
+def _normalize_danish_value(value: object) -> str | None:
+    if not isinstance(value, str):
+        return None
+    cleaned = " ".join(value.strip().split()).lower()
+    return cleaned or None
+
+
+def _normalize_upper_value(value: object) -> str | None:
+    if not isinstance(value, str):
+        return None
+    cleaned = value.strip().upper()
+    return cleaned or None
+
+
+def _normalize_spaced_value(value: object) -> str | None:
+    if not isinstance(value, str):
+        return None
+    cleaned = " ".join(value.strip().split())
+    return cleaned or None

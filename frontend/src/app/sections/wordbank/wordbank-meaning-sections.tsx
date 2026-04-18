@@ -76,6 +76,7 @@ export function WordbankMeaningSections({
           morphology: section.morphology ?? null,
           gram_raw: section.gram_raw ?? null,
         })
+        const isGeneratedNonCor = section.dictionary_status === "generated_non_cor"
         const sectionTranslationBase = additionalTranslationsDisplay(
           section.english_translation ?? null,
           section.additional_translations ?? [],
@@ -162,6 +163,14 @@ export function WordbankMeaningSections({
                     {/* Line 2: POS + morphology badges */}
                     {sectionBadges.length > 0 ? (
                       <div className="mt-1.5 flex flex-wrap gap-1.5">
+                        {isGeneratedNonCor ? (
+                          <Badge
+                            variant="outline"
+                            className="text-xs border-amber-300 bg-amber-50 text-amber-800"
+                          >
+                            Not in COR
+                          </Badge>
+                        ) : null}
                         {sectionBadges.map((badge) => (
                           <Badge
                             key={`meaning-section-${section.id}-badge-${badge.label}`}
@@ -171,6 +180,15 @@ export function WordbankMeaningSections({
                             {badge.label}
                           </Badge>
                         ))}
+                      </div>
+                    ) : isGeneratedNonCor ? (
+                      <div className="mt-1.5 flex flex-wrap gap-1.5">
+                        <Badge
+                          variant="outline"
+                          className="text-xs border-amber-300 bg-amber-50 text-amber-800"
+                        >
+                          Not in COR
+                        </Badge>
                       </div>
                     ) : null}
                   </div>

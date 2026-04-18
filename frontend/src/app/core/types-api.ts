@@ -11,6 +11,7 @@ export type SearchSaveSeed = {
   surface: string
   cor_id?: string | null
   cor_lemma_idx?: number | null
+  dictionary_status?: "cor" | "generated_non_cor" | "unknown" | null
   meaning_key?: string | null
   gloss?: string | null
   english_translation?: string | null
@@ -270,6 +271,7 @@ export type CORSearchFormResponse = {
 }
 
 export type LemmaDetailsResponse = {
+  dictionary_status?: "cor" | "generated_non_cor" | "unknown"
   related_words?: {
     status: "queued" | "ready" | "empty" | "error"
     message?: string | null
@@ -307,6 +309,7 @@ export type LemmaDetailsResponse = {
   meaning_sections?: Array<{
     id: number
     meaning_key: string
+    dictionary_status?: "cor" | "generated_non_cor" | "unknown"
     gloss?: string | null
     english_translation?: string | null
     additional_translations?: string[]

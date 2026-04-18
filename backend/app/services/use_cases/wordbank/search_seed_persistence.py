@@ -17,6 +17,7 @@ class SearchSeedInputs:
     surface: str
     cor_id: str | None
     cor_lemma_idx: int | None
+    dictionary_status: str
     meaning_key: str | None
     gloss: str | None
     english_translation: str | None
@@ -64,6 +65,7 @@ def normalize_search_seed(search_seed: dict[str, object]) -> SearchSeedInputs:
         surface=surface,
         cor_id=_optional_spaced_string(search_seed, "cor_id"),
         cor_lemma_idx=_optional_int(search_seed, "cor_lemma_idx"),
+        dictionary_status=_dictionary_status(search_seed),
         meaning_key=_optional_normalized_string(search_seed, "meaning_key"),
         gloss=_optional_normalized_string(search_seed, "gloss"),
         english_translation=_optional_normalized_string(search_seed, "english_translation"),
@@ -88,7 +90,10 @@ def persist_search_seed_surface_form(
         pos_tag=metadata.lemma_pos_tag,
         morphology=metadata.lemma_morphology,
         source="search",
+        dictionary_status=seed.dictionary_status,
     )
+    if seed.dictionary_status == "generated_non_cor":
+        runtime.repository.replace_lexeme_source(lexeme_id=lexeme_id, source="search")
     _repair_lexeme_metadata_if_surface_derived(
         runtime,
         lexeme_id=lexeme_id,
@@ -167,6 +172,7 @@ def _resolve_meaning_assignment(
         lexeme_id=lexeme_id,
         meaning_key=meaning_key,
         cor_lemma_idx=seed.cor_lemma_idx,
+        dictionary_status=seed.dictionary_status,
         gloss=seed.gloss,
         english_translation=english_translation,
         pos_tag=metadata.lemma_pos_tag,
@@ -334,3 +340,15 @@ def _optional_int(payload: dict[str, object], key: str) -> int | None:
     if not isinstance(value, int):
         raise ValueError(f"search_seed.{key} is invalid")
     return value
+
+
+def _dictionary_status(payload: dict[str, object]) -> str:
+    value = payload.get("dictionary_status")
+    if value is None:
+        return "cor" if payload.get("cor_id") or payload.get("cor_lemma_idx") is not None else "unknown"
+    if not isinstance(value, str):
+        raise ValueError("search_seed.dictionary_status is invalid")
+    cleaned = value.strip().lower()
+    if cleaned in {"cor", "generated_non_cor", "unknown"}:
+        return cleaned
+    raise ValueError("search_seed.dictionary_status is invalid")

@@ -103,6 +103,7 @@ export function mockFetchImplementation(options?: {
     queued_pronunciation_forms?: string[]
     saved_snapshot?: {
       lemma: string
+      dictionary_status?: "cor" | "generated_non_cor" | "unknown"
       english_translation?: string | null
       additional_translations?: string[]
       pos_tag?: string | null
@@ -161,6 +162,7 @@ export function mockFetchImplementation(options?: {
       meaning_sections?: Array<{
         id: number
         meaning_key: string
+        dictionary_status?: "cor" | "generated_non_cor" | "unknown"
         gloss?: string | null
         english_translation?: string | null
         additional_translations?: string[]
@@ -334,6 +336,7 @@ export function mockFetchImplementation(options?: {
   lemmaDetailsHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
   lemmaDetailsResponse?: {
     lemma: string
+    dictionary_status?: "cor" | "generated_non_cor" | "unknown"
     english_translation?: string | null
     additional_translations?: string[]
     pos_tag?: string | null
@@ -392,6 +395,7 @@ export function mockFetchImplementation(options?: {
     meaning_sections?: Array<{
       id: number
       meaning_key: string
+      dictionary_status?: "cor" | "generated_non_cor" | "unknown"
       gloss?: string | null
       english_translation?: string | null
       additional_translations?: string[]

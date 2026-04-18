@@ -127,7 +127,7 @@ class WordbankReadRepository:
         ) as conn:
             row = conn.execute(
                 """
-                SELECT id, lemma, source, english_translation, pos_tag, morphology
+                SELECT id, lemma, source, dictionary_status, english_translation, pos_tag, morphology
                 FROM lexemes
                 WHERE lemma = ?
                 LIMIT 1
@@ -140,6 +140,7 @@ class WordbankReadRepository:
             id=int(row["id"]),
             lemma=str(row["lemma"]),
             source=str(row["source"]),
+            dictionary_status=str(row["dictionary_status"]) if row["dictionary_status"] is not None else "unknown",
             english_translation=row["english_translation"],
             pos_tag=row["pos_tag"],
             morphology=row["morphology"],
@@ -189,7 +190,7 @@ class WordbankReadRepository:
             self._db_path, read_only=True
         ) as conn:
             rows = conn.execute(
-                """SELECT id,meaning_key,cor_lemma_idx,gloss,english_translation,pos_tag,morphology
+                """SELECT id,meaning_key,cor_lemma_idx,dictionary_status,gloss,english_translation,pos_tag,morphology
                 FROM lexeme_meanings WHERE lexeme_id = ? ORDER BY id ASC""",
                 (lexeme_id,),
             ).fetchall()
@@ -200,7 +201,7 @@ class WordbankReadRepository:
             self._db_path, read_only=True
         ) as conn:
             row = conn.execute(
-                """SELECT id,meaning_key,cor_lemma_idx,gloss,english_translation,pos_tag,morphology
+                """SELECT id,meaning_key,cor_lemma_idx,dictionary_status,gloss,english_translation,pos_tag,morphology
                 FROM lexeme_meanings WHERE id = ? LIMIT 1""",
                 (meaning_id,),
             ).fetchone()

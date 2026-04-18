@@ -4,12 +4,14 @@ from dataclasses import dataclass
 
 from app.db.repositories.sentencebank import SentenceTokenWriteRecord
 from app.nlp.token_filter import is_wordlike_token
+from app.services.gemini_translation import NonCORWordGenerationInput, NonCORWordGenerationResult
 from app.services.cor_local import CORLocalEntry
 from app.services.token_classifier import normalize_token
 from app.services.use_cases.sentencebank_text import should_skip_sentence_wordbank_token
 from app.services.use_cases.sentencebank_token_persistence import (
     existing_saved_token,
     persist_candidate_to_wordbank,
+    persist_generated_to_wordbank,
     save_root_level_sentence_token,
     sentence_token_from_saved_word,
     verification_metadata_for_new_sentence_token,
@@ -53,6 +55,17 @@ class PendingSentenceTokenSelection:
     candidates: tuple[SentenceMeaningCandidate, ...]
 
 
+@dataclass(frozen=True, slots=True)
+class PendingGeneratedSentenceToken:
+    token_index: int
+    display_surface: str
+    normalized_surface: str
+    lemma_candidate: str
+    pos_tag: str | None
+    morphology: str | None
+    sentence_context: str
+
+
 def resolve_sentence_tokens(
     runtime: WordbankRuntime,
     *,
@@ -65,7 +78,11 @@ def resolve_sentence_tokens(
 
     pending_selection_results: dict[int, SentenceMeaningCandidate | None] = {}
     pending_selections: list[PendingSentenceTokenSelection] = []
-    planned_tokens: list[tuple[SentenceTokenWriteRecord, bool] | PendingSentenceTokenSelection] = []
+    pending_generation_results: dict[int, NonCORWordGenerationResult | None] = {}
+    pending_generations: list[PendingGeneratedSentenceToken] = []
+    planned_tokens: list[
+        tuple[SentenceTokenWriteRecord, bool] | PendingSentenceTokenSelection | PendingGeneratedSentenceToken
+    ] = []
     new_tokens: list[dict[str, object]] = []
     for nlp_token in nlp_adapter.tokenize(source_text):
         surface_form = nlp_token.text.strip()
@@ -102,12 +119,20 @@ def resolve_sentence_tokens(
             pending_selections.append(resolved_token)
             planned_tokens.append(resolved_token)
             continue
+        if isinstance(resolved_token, PendingGeneratedSentenceToken):
+            pending_generations.append(resolved_token)
+            planned_tokens.append(resolved_token)
+            continue
         planned_tokens.append(resolved_token)
 
     if pending_selections:
         selected_candidates = batch_select_sentence_candidates(runtime, pending_selections)
         for selection, selected_candidate in zip(pending_selections, selected_candidates, strict=False):
             pending_selection_results[selection.token_index] = selected_candidate
+    if pending_generations:
+        generated_candidates = batch_generate_non_cor_sentence_tokens(runtime, pending_generations)
+        for selection, generated_candidate in zip(pending_generations, generated_candidates, strict=False):
+            pending_generation_results[selection.token_index] = generated_candidate
 
     resolved: list[SentenceTokenWriteRecord] = []
     seen_verification_targets: set[tuple[str, str | None, int | None]] = set()
@@ -123,6 +148,14 @@ def resolve_sentence_tokens(
             if resolved_token is None:
                 continue
             token, is_new = resolved_token
+        elif isinstance(planned_token, PendingGeneratedSentenceToken):
+            generated_candidate = pending_generation_results.get(planned_token.token_index)
+            token, is_new = finalize_generated_sentence_token(
+                runtime,
+                wordbank_use_case=wordbank_use_case,
+                selection=planned_token,
+                generated_candidate=generated_candidate,
+            )
         else:
             token, is_new = planned_token
         resolved.append(token)
@@ -155,7 +188,7 @@ def resolve_sentence_token(
     pos_tag: str | None,
     morphology: str | None,
     sentence_context: str,
-) -> tuple[SentenceTokenWriteRecord, bool] | PendingSentenceTokenSelection | None:
+) -> tuple[SentenceTokenWriteRecord, bool] | PendingSentenceTokenSelection | PendingGeneratedSentenceToken | None:
     existing = existing_saved_token(
         runtime,
         display_surface=display_surface,
@@ -187,22 +220,14 @@ def resolve_sentence_token(
                 sentence_context=sentence_context,
                 candidates=candidate_resolution.candidates,
             )
-        return (
-            save_root_level_sentence_token(
-                runtime,
-                token_index=token_index,
-                display_surface=display_surface,
-                normalized_surface=normalized_surface,
-                lemma=lemma_candidate,
-                pos_tag=pos_tag,
-                morphology=morphology,
-                cor_id=None,
-                gloss=None,
-                english_translation=None,
-                gloss_translation=None,
-                queue_verification=False,
-            ),
-            True,
+        return PendingGeneratedSentenceToken(
+            token_index=token_index,
+            display_surface=display_surface,
+            normalized_surface=normalized_surface,
+            lemma_candidate=lemma_candidate,
+            pos_tag=pos_tag,
+            morphology=morphology,
+            sentence_context=sentence_context,
         )
 
     persisted_response = persist_candidate_to_wordbank(
@@ -316,6 +341,85 @@ def finalize_pending_sentence_token(
             gloss=selected_candidate.gloss,
             english_translation=selected_candidate.english_translation,
             gloss_translation=selected_candidate.gloss_translation,
+            queue_verification=False,
+        ),
+        True,
+    )
+
+
+def batch_generate_non_cor_sentence_tokens(
+    runtime: WordbankRuntime,
+    pending_generations: list[PendingGeneratedSentenceToken],
+) -> list[NonCORWordGenerationResult | None]:
+    return runtime.translation.generate_non_cor_word_entries_batch(
+        [
+            NonCORWordGenerationInput(
+                surface_form=selection.normalized_surface,
+                lemma_candidate=selection.lemma_candidate,
+                pos_tag=selection.pos_tag,
+                morphology=selection.morphology,
+                sentence_context=selection.sentence_context,
+            )
+            for selection in pending_generations
+        ]
+    )
+
+
+def finalize_generated_sentence_token(
+    runtime: WordbankRuntime,
+    *,
+    wordbank_use_case,
+    selection: PendingGeneratedSentenceToken,
+    generated_candidate: NonCORWordGenerationResult | None,
+) -> tuple[SentenceTokenWriteRecord, bool]:
+    if generated_candidate is not None:
+        persisted_response = persist_generated_to_wordbank(
+            wordbank_use_case,
+            normalized_surface=selection.normalized_surface,
+            generated=generated_candidate,
+        )
+        if persisted_response is not None:
+            persisted = sentence_token_from_saved_word(
+                runtime,
+                token_index=selection.token_index,
+                display_surface=selection.display_surface,
+                normalized_surface=selection.normalized_surface,
+                stored_lemma=generated_candidate.lemma,
+                meaning_id=(
+                    persisted_response.meaning.id if persisted_response.meaning is not None else None
+                ),
+            )
+            if persisted is not None:
+                return persisted, True
+        fallback_lemma = generated_candidate.lemma
+        fallback_pos = generated_candidate.surface_pos_tag or generated_candidate.pos_tag or selection.pos_tag
+        fallback_morphology = (
+            generated_candidate.surface_morphology
+            or generated_candidate.morphology
+            or selection.morphology
+        )
+        fallback_gloss = generated_candidate.gloss
+        fallback_translation = generated_candidate.english_translation
+    else:
+        fallback_lemma = selection.lemma_candidate
+        fallback_pos = selection.pos_tag
+        fallback_morphology = selection.morphology
+        fallback_gloss = None
+        fallback_translation = None
+
+    return (
+        save_root_level_sentence_token(
+            runtime,
+            token_index=selection.token_index,
+            display_surface=selection.display_surface,
+            normalized_surface=selection.normalized_surface,
+            lemma=fallback_lemma,
+            pos_tag=fallback_pos,
+            morphology=fallback_morphology,
+            cor_id=None,
+            gloss=fallback_gloss,
+            english_translation=fallback_translation,
+            gloss_translation=None,
             queue_verification=False,
         ),
         True,

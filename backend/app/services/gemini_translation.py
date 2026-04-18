@@ -77,6 +77,50 @@ class AlternativeTranslationsResult:
     alternative_translations: list[str] = field(default_factory=list)
 
 
+@dataclass(frozen=True, slots=True)
+class NonCORWordGenerationInput:
+    surface_form: str
+    lemma_candidate: str
+    pos_tag: str | None = None
+    morphology: str | None = None
+    sentence_context: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class NonCORWordGenerationResult:
+    lemma: str
+    english_translation: str | None = None
+    meaning_key: str | None = None
+    gloss: str | None = None
+    pos_tag: str | None = None
+    morphology: str | None = None
+    surface_pos_tag: str | None = None
+    surface_morphology: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class NonCORVariationCandidate:
+    form: str
+    pos_tag: str | None = None
+    morphology: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class NonCORVariationGenerationInput:
+    stored_lemma: str
+    english_translation: str | None = None
+    meaning_key: str | None = None
+    gloss: str | None = None
+    pos_tag: str | None = None
+    morphology: str | None = None
+    existing_forms: list[NonCORVariationCandidate] = field(default_factory=list)
+
+
+@dataclass(frozen=True, slots=True)
+class NonCORVariationGenerationResult:
+    forms: list[NonCORVariationCandidate] = field(default_factory=list)
+
+
 class GeminiWordTranslationService(Protocol):
     provider: str
 
@@ -91,6 +135,15 @@ class GeminiWordTranslationService(Protocol):
     def find_alternative_translations(
         self, payload: AlternativeTranslationsInput
     ) -> AlternativeTranslationsResult: ...
+    def generate_non_cor_word_entry(
+        self, payload: NonCORWordGenerationInput
+    ) -> NonCORWordGenerationResult | None: ...
+    def generate_non_cor_word_entries_batch(
+        self, payloads: list[NonCORWordGenerationInput]
+    ) -> list[NonCORWordGenerationResult | None]: ...
+    def complete_non_cor_meaning_variations(
+        self, payload: NonCORVariationGenerationInput
+    ) -> NonCORVariationGenerationResult: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -242,6 +295,54 @@ class GeminiFlashLiteWordTranslationService:
         )
         return self._parse_alternative_translations(response)
 
+    def generate_non_cor_word_entry(
+        self,
+        payload: NonCORWordGenerationInput,
+    ) -> NonCORWordGenerationResult | None:
+        response = self._generate_content(
+            self._non_cor_word_generation_prompt(payload),
+            config=self._non_cor_word_generation_response_config(),
+        )
+        return self._parse_non_cor_word_generation(response)
+
+    def generate_non_cor_word_entries_batch(
+        self,
+        payloads: list[NonCORWordGenerationInput],
+    ) -> list[NonCORWordGenerationResult | None]:
+        if not payloads:
+            return []
+        request_items = [
+            {
+                "id": str(index),
+                "surface_form": payload.surface_form,
+                "lemma_candidate": payload.lemma_candidate,
+                "pos_tag": payload.pos_tag,
+                "morphology": payload.morphology,
+                "sentence_context": payload.sentence_context,
+            }
+            for index, payload in enumerate(payloads)
+        ]
+        response = self._generate_content(
+            self._batch_non_cor_word_generation_prompt(request_items),
+            config=self._batch_non_cor_word_generation_response_config(item_count=len(request_items)),
+        )
+        parsed = self._parse_batch_non_cor_word_generation(
+            response,
+            expected_ids=[item["id"] for item in request_items],
+        )
+        by_id = {item_id: result for item_id, result in parsed.items()} if parsed else {}
+        return [by_id.get(item["id"]) for item in request_items]
+
+    def complete_non_cor_meaning_variations(
+        self,
+        payload: NonCORVariationGenerationInput,
+    ) -> NonCORVariationGenerationResult:
+        response = self._generate_content(
+            self._non_cor_variations_prompt(payload),
+            config=self._non_cor_variations_response_config(),
+        )
+        return self._parse_non_cor_variations(response)
+
     def _translation_prompt(self, payload: ContextualWordTranslationInput) -> str:
         return build_translation_prompt(payload)
 
@@ -259,6 +360,21 @@ class GeminiFlashLiteWordTranslationService:
 
     def _alternative_translations_prompt(self, payload: AlternativeTranslationsInput) -> str:
         return build_alternative_translations_prompt(payload)
+
+    def _non_cor_word_generation_prompt(self, payload: NonCORWordGenerationInput) -> str:
+        from app.services.gemini_translation_helpers import build_non_cor_word_generation_prompt
+
+        return build_non_cor_word_generation_prompt(payload)
+
+    def _batch_non_cor_word_generation_prompt(self, items: list[dict[str, object]]) -> str:
+        from app.services.gemini_translation_helpers import build_batch_non_cor_word_generation_prompt
+
+        return build_batch_non_cor_word_generation_prompt(items)
+
+    def _non_cor_variations_prompt(self, payload: NonCORVariationGenerationInput) -> str:
+        from app.services.gemini_translation_helpers import build_non_cor_variations_prompt
+
+        return build_non_cor_variations_prompt(payload)
 
     def _single_response_config(self) -> object:
         genai_types = self._genai_types()
@@ -378,6 +494,34 @@ class GeminiFlashLiteWordTranslationService:
             },
             temperature=0,
             max_output_tokens=128,
+            thinking_config=genai_types.ThinkingConfig(thinking_budget=0),
+        )
+
+    def _non_cor_word_generation_response_config(self) -> object:
+        genai_types = self._genai_types()
+        return genai_types.GenerateContentConfig(
+            response_mime_type="application/json",
+            temperature=0,
+            max_output_tokens=256,
+            thinking_config=genai_types.ThinkingConfig(thinking_budget=0),
+        )
+
+    def _batch_non_cor_word_generation_response_config(self, *, item_count: int) -> object:
+        del item_count
+        genai_types = self._genai_types()
+        return genai_types.GenerateContentConfig(
+            response_mime_type="application/json",
+            temperature=0,
+            max_output_tokens=1024,
+            thinking_config=genai_types.ThinkingConfig(thinking_budget=0),
+        )
+
+    def _non_cor_variations_response_config(self) -> object:
+        genai_types = self._genai_types()
+        return genai_types.GenerateContentConfig(
+            response_mime_type="application/json",
+            temperature=0,
+            max_output_tokens=512,
             thinking_config=genai_types.ThinkingConfig(thinking_budget=0),
         )
 
@@ -580,6 +724,74 @@ class GeminiFlashLiteWordTranslationService:
         if parsed is not None:
             return parsed
         return AlternativeTranslationsResult()
+
+    def _parse_non_cor_word_generation(self, response: object) -> NonCORWordGenerationResult | None:
+        from app.services.gemini_translation_helpers import parse_non_cor_word_entry_payload
+
+        parsed_payload = getattr(response, "parsed", None)
+        parsed = parse_non_cor_word_entry_payload(parsed_payload)
+        if parsed is not None:
+            return parsed
+        raw_text = getattr(response, "text", None)
+        if not isinstance(raw_text, str):
+            return None
+        cleaned = raw_text.strip()
+        if cleaned.startswith("```"):
+            cleaned = cleaned.removeprefix("```json").removeprefix("```").strip()
+            if cleaned.endswith("```"):
+                cleaned = cleaned[:-3].strip()
+        try:
+            payload = json.loads(cleaned)
+        except ValueError:
+            return None
+        return parse_non_cor_word_entry_payload(payload)
+
+    def _parse_batch_non_cor_word_generation(
+        self,
+        response: object,
+        *,
+        expected_ids: list[str],
+    ) -> dict[str, NonCORWordGenerationResult | None]:
+        from app.services.gemini_translation_helpers import parse_non_cor_word_entries_batch_payload
+
+        parsed_payload = getattr(response, "parsed", None)
+        parsed = parse_non_cor_word_entries_batch_payload(parsed_payload, expected_ids=expected_ids)
+        if parsed is not None:
+            return parsed
+        raw_text = getattr(response, "text", None)
+        if not isinstance(raw_text, str):
+            return {}
+        cleaned = raw_text.strip()
+        if cleaned.startswith("```"):
+            cleaned = cleaned.removeprefix("```json").removeprefix("```").strip()
+            if cleaned.endswith("```"):
+                cleaned = cleaned[:-3].strip()
+        try:
+            payload = json.loads(cleaned)
+        except ValueError:
+            return {}
+        return parse_non_cor_word_entries_batch_payload(payload, expected_ids=expected_ids) or {}
+
+    def _parse_non_cor_variations(self, response: object) -> NonCORVariationGenerationResult:
+        from app.services.gemini_translation_helpers import parse_non_cor_variations_payload
+
+        parsed_payload = getattr(response, "parsed", None)
+        parsed = parse_non_cor_variations_payload(parsed_payload)
+        if parsed is not None:
+            return parsed
+        raw_text = getattr(response, "text", None)
+        if not isinstance(raw_text, str):
+            return NonCORVariationGenerationResult()
+        cleaned = raw_text.strip()
+        if cleaned.startswith("```"):
+            cleaned = cleaned.removeprefix("```json").removeprefix("```").strip()
+            if cleaned.endswith("```"):
+                cleaned = cleaned[:-3].strip()
+        try:
+            payload = json.loads(cleaned)
+        except ValueError:
+            return NonCORVariationGenerationResult()
+        return parse_non_cor_variations_payload(payload) or NonCORVariationGenerationResult()
 
 
 def _normalize_translation_value(value: str | None) -> str | None:

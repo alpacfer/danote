@@ -21,6 +21,10 @@ from app.services.gemini_translation import (
     GeminiWordTranslationService,
     MeaningSectionCandidateInput,
     MeaningSectionSelectionInput,
+    NonCORVariationGenerationInput,
+    NonCORVariationGenerationResult,
+    NonCORWordGenerationInput,
+    NonCORWordGenerationResult,
 )
 from app.services.token_classifier import normalize_token
 from app.services.translation import TranslationService
@@ -197,6 +201,28 @@ class TranslationCollaborator:
 
     def lookup_word_translation(self, source_word: str, lemma: str | None = None) -> TranslationLookupResult:
         return translation_lookup_ops.lookup_word_translation(self, source_word, lemma)
+
+    def generate_non_cor_word_entries_batch(
+        self,
+        payloads: list[NonCORWordGenerationInput],
+    ) -> list[NonCORWordGenerationResult | None]:
+        if not payloads or self._gemini_word_translation_service is None:
+            return [None for _ in payloads]
+        try:
+            return self._gemini_word_translation_service.generate_non_cor_word_entries_batch(payloads)
+        except (GeminiTranslationError, httpx.HTTPError, TimeoutError, ValueError, TypeError):
+            return [None for _ in payloads]
+
+    def complete_non_cor_meaning_variations(
+        self,
+        payload: NonCORVariationGenerationInput,
+    ) -> NonCORVariationGenerationResult:
+        if self._gemini_word_translation_service is None:
+            return NonCORVariationGenerationResult()
+        try:
+            return self._gemini_word_translation_service.complete_non_cor_meaning_variations(payload)
+        except (GeminiTranslationError, httpx.HTTPError, TimeoutError, ValueError, TypeError):
+            return NonCORVariationGenerationResult()
 
     def lookup_contextual_word_translation(
         self,
