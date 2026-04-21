@@ -38,16 +38,25 @@ function matchingCorGroupsForEnglishSource(
   payload: CORSearchFormResponse,
   sourceGroup: ENPosGroup,
   englishQuery: string,
+  translationKey: string,
 ): CORSearchGroup[] {
   const allGroups = payload.groups ?? []
-  const matchingPosGroups = allGroups.filter(
+  const withFormMatch = allGroups
+    .map((group) => ({
+      ...group,
+      variants: (group.variants ?? []).filter(
+        (variant) => normalizeSearchWord(variant.form) === translationKey,
+      ),
+    }))
+    .filter((group) => group.variants.length > 0)
+  const matchingPosGroups = withFormMatch.filter(
     (group) => String(group.pos_tag ?? "").toUpperCase() === sourceGroup.pos_ud.toUpperCase(),
   )
-  const groupsToUse = matchingPosGroups.length > 0 ? matchingPosGroups : allGroups
+  const groupsToUse = matchingPosGroups.length > 0 ? matchingPosGroups : withFormMatch
 
   return groupsToUse.map((group) => ({
     ...group,
-    variants: (group.variants ?? []).map((variant) => ({
+    variants: group.variants.map((variant) => ({
       ...variant,
       lemma_translation: englishQuery,
       saveable_translation: englishQuery,
@@ -71,7 +80,8 @@ export function buildEnTranslatedCorResults(
   const orderedCorSearchGroups: CORSearchGroup[] = []
   const corSearchVariantsToRender: Array<{ group: CORSearchGroup; variant: CORSearchVariant }> = []
   const fallbackEnPosGroups: ENPosGroup[] = []
-  const seenVariantKeys = new Set<string>()
+  const seenVariantCorIds = new Set<string>()
+  const renderedTranslationKeys = new Set<string>()
 
   for (const sourceGroup of activeEnResolveResult.groups) {
     const translationKey = normalizeSearchWord(sourceGroup.danish_translation ?? "")
@@ -80,18 +90,19 @@ export function buildEnTranslatedCorResults(
     }
     const payload = payloads[translationKey]
     if (!payload) {
-      fallbackEnPosGroups.push(sourceGroup)
+      if (!renderedTranslationKeys.has(translationKey)) {
+        fallbackEnPosGroups.push(sourceGroup)
+      }
       continue
     }
-    const matchingGroups = matchingCorGroupsForEnglishSource(payload, sourceGroup, normalizedQuery)
+    const matchingGroups = matchingCorGroupsForEnglishSource(payload, sourceGroup, normalizedQuery, translationKey)
     let addedAny = false
     for (const group of matchingGroups) {
       const variants = (group.variants ?? []).filter((variant) => {
-        const uniqueKey = `${translationKey}:${sourceGroup.pos_ud}:${variant.cor_id}`
-        if (seenVariantKeys.has(uniqueKey)) {
+        if (seenVariantCorIds.has(variant.cor_id)) {
           return false
         }
-        seenVariantKeys.add(uniqueKey)
+        seenVariantCorIds.add(variant.cor_id)
         return true
       })
       if (variants.length === 0) {
@@ -104,7 +115,9 @@ export function buildEnTranslatedCorResults(
       }
       addedAny = true
     }
-    if (!addedAny) {
+    if (addedAny) {
+      renderedTranslationKeys.add(translationKey)
+    } else if (!renderedTranslationKeys.has(translationKey)) {
       fallbackEnPosGroups.push(sourceGroup)
     }
   }
