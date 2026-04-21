@@ -4,8 +4,17 @@ import json
 import math
 from dataclasses import dataclass, field
 import time
-from typing import Protocol
 
+from app.services.gemini_translation_configs import (
+    alternative_translations_response_config,
+    batch_meaning_section_selection_response_config,
+    batch_non_cor_word_generation_response_config,
+    batch_response_config,
+    meaning_section_selection_response_config,
+    non_cor_variations_response_config,
+    non_cor_word_generation_response_config,
+    single_response_config,
+)
 from app.services.gemini_translation_helpers import (
     build_alternative_translations_prompt,
     build_batch_meaning_section_selection_prompt,
@@ -20,130 +29,20 @@ from app.services.gemini_translation_helpers import (
     parse_meaning_section_payload,
     parse_translation,
 )
-
-class GeminiTranslationError(RuntimeError):
-    """Raised when Gemini word translation cannot be completed."""
-
-
-@dataclass(frozen=True, slots=True)
-class ContextualWordTranslationInput:
-    surface_form: str
-    lemma: str
-    pos_tag: str | None = None
-    morphology: str | None = None
-    gloss: str | None = None
-    lemma_translation_hint: str | None = None
-    gloss_translation_hint: str | None = None
-
-
-@dataclass(frozen=True, slots=True)
-class MeaningSectionCandidateInput:
-    id: int
-    lemma: str
-    meaning_key: str
-    cor_lemma_idx: int | None = None
-    gloss: str | None = None
-    english_translation: str | None = None
-    pos_tag: str | None = None
-    morphology: str | None = None
-
-
-@dataclass(frozen=True, slots=True)
-class MeaningSectionSelectionInput:
-    surface_form: str
-    lemma: str
-    pos_tag: str | None = None
-    morphology: str | None = None
-    gloss: str | None = None
-    english_translation: str | None = None
-    sentence_context: str | None = None
-    meaning_candidates: list[MeaningSectionCandidateInput] = field(default_factory=list)
-
-
-@dataclass(frozen=True, slots=True)
-class AlternativeTranslationsInput:
-    surface_form: str
-    lemma: str
-    pos_tag: str | None = None
-    morphology: str | None = None
-    gloss: str | None = None
-    current_translation: str | None = None
-    existing_additional_translations: list[str] = field(default_factory=list)
-
-
-@dataclass(frozen=True, slots=True)
-class AlternativeTranslationsResult:
-    primary_translation: str | None = None
-    alternative_translations: list[str] = field(default_factory=list)
-
-
-@dataclass(frozen=True, slots=True)
-class NonCORWordGenerationInput:
-    surface_form: str
-    lemma_candidate: str
-    pos_tag: str | None = None
-    morphology: str | None = None
-    sentence_context: str | None = None
-
-
-@dataclass(frozen=True, slots=True)
-class NonCORWordGenerationResult:
-    lemma: str
-    english_translation: str | None = None
-    meaning_key: str | None = None
-    gloss: str | None = None
-    pos_tag: str | None = None
-    morphology: str | None = None
-    surface_pos_tag: str | None = None
-    surface_morphology: str | None = None
-
-
-@dataclass(frozen=True, slots=True)
-class NonCORVariationCandidate:
-    form: str
-    pos_tag: str | None = None
-    morphology: str | None = None
-
-
-@dataclass(frozen=True, slots=True)
-class NonCORVariationGenerationInput:
-    stored_lemma: str
-    english_translation: str | None = None
-    meaning_key: str | None = None
-    gloss: str | None = None
-    pos_tag: str | None = None
-    morphology: str | None = None
-    existing_forms: list[NonCORVariationCandidate] = field(default_factory=list)
-
-
-@dataclass(frozen=True, slots=True)
-class NonCORVariationGenerationResult:
-    forms: list[NonCORVariationCandidate] = field(default_factory=list)
-
-
-class GeminiWordTranslationService(Protocol):
-    provider: str
-
-    def translate_word(self, payload: ContextualWordTranslationInput) -> str | None: ...
-    def translate_words_batch(
-        self, payloads: list[ContextualWordTranslationInput]
-    ) -> list[str | None]: ...
-    def select_meaning_section(self, payload: MeaningSectionSelectionInput) -> int | None: ...
-    def select_meaning_sections_batch(
-        self, payloads: list[MeaningSectionSelectionInput]
-    ) -> list[int | None]: ...
-    def find_alternative_translations(
-        self, payload: AlternativeTranslationsInput
-    ) -> AlternativeTranslationsResult: ...
-    def generate_non_cor_word_entry(
-        self, payload: NonCORWordGenerationInput
-    ) -> NonCORWordGenerationResult | None: ...
-    def generate_non_cor_word_entries_batch(
-        self, payloads: list[NonCORWordGenerationInput]
-    ) -> list[NonCORWordGenerationResult | None]: ...
-    def complete_non_cor_meaning_variations(
-        self, payload: NonCORVariationGenerationInput
-    ) -> NonCORVariationGenerationResult: ...
+from app.services.gemini_translation_models import (
+    AlternativeTranslationsInput,
+    AlternativeTranslationsResult,
+    ContextualWordTranslationInput,
+    GeminiTranslationError,
+    GeminiWordTranslationService,
+    MeaningSectionCandidateInput,
+    MeaningSectionSelectionInput,
+    NonCORVariationCandidate,
+    NonCORVariationGenerationInput,
+    NonCORVariationGenerationResult,
+    NonCORWordGenerationInput,
+    NonCORWordGenerationResult,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -377,153 +276,28 @@ class GeminiFlashLiteWordTranslationService:
         return build_non_cor_variations_prompt(payload)
 
     def _single_response_config(self) -> object:
-        genai_types = self._genai_types()
-        return genai_types.GenerateContentConfig(
-            response_mime_type="application/json",
-            response_schema={
-                "type": "OBJECT",
-                "properties": {
-                    "translation": {
-                        "type": "STRING",
-                        "nullable": True,
-                    },
-                },
-                "required": ["translation"],
-            },
-            temperature=0,
-            max_output_tokens=64,
-            thinking_config=genai_types.ThinkingConfig(thinking_budget=0),
-        )
+        return single_response_config(self._genai_types())
 
     def _batch_response_config(self, *, item_count: int) -> object:
-        genai_types = self._genai_types()
-        max_output_tokens = min(2048, max(128, item_count * 48))
-        return genai_types.GenerateContentConfig(
-            response_mime_type="application/json",
-            response_schema={
-                "type": "OBJECT",
-                "properties": {
-                    "items": {
-                        "type": "ARRAY",
-                        "items": {
-                            "type": "OBJECT",
-                            "properties": {
-                                "id": {"type": "STRING"},
-                                "translation": {
-                                    "type": "STRING",
-                                    "nullable": True,
-                                },
-                            },
-                            "required": ["id", "translation"],
-                        },
-                    }
-                },
-                "required": ["items"],
-            },
-            temperature=0,
-            max_output_tokens=max_output_tokens,
-            thinking_config=genai_types.ThinkingConfig(thinking_budget=0),
-        )
+        return batch_response_config(self._genai_types(), item_count=item_count)
 
     def _meaning_section_selection_response_config(self) -> object:
-        genai_types = self._genai_types()
-        return genai_types.GenerateContentConfig(
-            response_mime_type="application/json",
-            response_schema={
-                "type": "OBJECT",
-                "properties": {
-                    "meaning_section_id": {
-                        "type": "INTEGER",
-                        "nullable": True,
-                    },
-                },
-                "required": ["meaning_section_id"],
-            },
-            temperature=0,
-            max_output_tokens=64,
-            thinking_config=genai_types.ThinkingConfig(thinking_budget=0),
-        )
+        return meaning_section_selection_response_config(self._genai_types())
 
     def _batch_meaning_section_selection_response_config(self, *, item_count: int) -> object:
-        genai_types = self._genai_types()
-        max_output_tokens = min(2048, max(128, item_count * 32))
-        return genai_types.GenerateContentConfig(
-            response_mime_type="application/json",
-            response_schema={
-                "type": "OBJECT",
-                "properties": {
-                    "items": {
-                        "type": "ARRAY",
-                        "items": {
-                            "type": "OBJECT",
-                            "properties": {
-                                "id": {"type": "STRING"},
-                                "meaning_section_id": {
-                                    "type": "INTEGER",
-                                    "nullable": True,
-                                },
-                            },
-                            "required": ["id", "meaning_section_id"],
-                        },
-                    }
-                },
-                "required": ["items"],
-            },
-            temperature=0,
-            max_output_tokens=max_output_tokens,
-            thinking_config=genai_types.ThinkingConfig(thinking_budget=0),
-        )
+        return batch_meaning_section_selection_response_config(self._genai_types(), item_count=item_count)
 
     def _alternative_translations_response_config(self) -> object:
-        genai_types = self._genai_types()
-        return genai_types.GenerateContentConfig(
-            response_mime_type="application/json",
-            response_schema={
-                "type": "OBJECT",
-                "properties": {
-                    "primary_translation": {
-                        "type": "STRING",
-                        "nullable": True,
-                    },
-                    "alternative_translations": {
-                        "type": "ARRAY",
-                        "items": {"type": "STRING"},
-                    },
-                },
-                "required": ["primary_translation", "alternative_translations"],
-            },
-            temperature=0,
-            max_output_tokens=128,
-            thinking_config=genai_types.ThinkingConfig(thinking_budget=0),
-        )
+        return alternative_translations_response_config(self._genai_types())
 
     def _non_cor_word_generation_response_config(self) -> object:
-        genai_types = self._genai_types()
-        return genai_types.GenerateContentConfig(
-            response_mime_type="application/json",
-            temperature=0,
-            max_output_tokens=256,
-            thinking_config=genai_types.ThinkingConfig(thinking_budget=0),
-        )
+        return non_cor_word_generation_response_config(self._genai_types())
 
     def _batch_non_cor_word_generation_response_config(self, *, item_count: int) -> object:
-        del item_count
-        genai_types = self._genai_types()
-        return genai_types.GenerateContentConfig(
-            response_mime_type="application/json",
-            temperature=0,
-            max_output_tokens=1024,
-            thinking_config=genai_types.ThinkingConfig(thinking_budget=0),
-        )
+        return batch_non_cor_word_generation_response_config(self._genai_types(), item_count=item_count)
 
     def _non_cor_variations_response_config(self) -> object:
-        genai_types = self._genai_types()
-        return genai_types.GenerateContentConfig(
-            response_mime_type="application/json",
-            temperature=0,
-            max_output_tokens=512,
-            thinking_config=genai_types.ThinkingConfig(thinking_budget=0),
-        )
+        return non_cor_variations_response_config(self._genai_types())
 
     def _generate_text(self, prompt: str) -> str | None:
         response = self._generate_content(

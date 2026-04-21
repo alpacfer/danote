@@ -13,6 +13,8 @@ class BackendServices:
     nlp_adapter: Any = None
     cor_lexicon_service: Any = None
     cor_local_lexicon_service: Any = None
+    en_local_lexicon_service: Any = None
+    en_gemini_translation_service: Any = None
     translation_service: Any = None
     gemini_word_translation_service: Any = None
     gemini_related_words_service: Any = None
@@ -33,6 +35,8 @@ class BackendRuntimeState:
     nlp_error: str | None = None
     cor_lookup_error: str | None = None
     cor_local_lookup_error: str | None = None
+    en_local_lookup_error: str | None = None
+    en_gemini_translation_error: str | None = None
     translation_error: str | None = None
     gemini_word_translation_error: str | None = None
     related_words_error: str | None = None
@@ -83,6 +87,7 @@ def close_runtime_services(app: FastAPI) -> None:
         "translation_service",
         "gemini_word_translation_service",
         "gemini_related_words_service",
+        "en_gemini_translation_service",
         "word_verification_service",
         "sentence_verification_service",
         "tts_service",

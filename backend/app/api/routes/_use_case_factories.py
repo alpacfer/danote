@@ -17,6 +17,8 @@ def build_wordbank_use_case(request: Request) -> WordbankUseCase:
         nlp_adapter=services.nlp_adapter,
         cor_lexicon_service=services.cor_lexicon_service,
         cor_local_lexicon_service=services.cor_local_lexicon_service,
+        en_local_lexicon_service=services.en_local_lexicon_service,
+        en_gemini_translation_service=services.en_gemini_translation_service,
         verification_service=services.word_verification_service,
         tts_service=services.tts_service,
         gemini_changes_log_path=settings.gemini_changes_log_path,

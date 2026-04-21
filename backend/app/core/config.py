@@ -33,6 +33,7 @@ class Settings:
     cor_lookup_enabled: bool = False
     cor_lookup_timeout_seconds: float = 4.0
     cor_local_db_path: Path = BASE_DIR / "resources" / "dictionaries" / "cor.sqlite"
+    en_local_db_path: Path = BASE_DIR / "resources" / "dictionaries" / "english_wiki.sqlite"
     word_verification_enabled: bool = False
     word_verification_gemini_api_key: str | None = None
     word_verification_gemini_model: str = "gemini-3-flash-preview"
@@ -87,6 +88,13 @@ def load_settings(*, env_file: Path | None = None) -> Settings:
         cor_lookup_timeout_seconds=float(_required_env("DANOTE_COR_LOOKUP_TIMEOUT_SECONDS", env_values, "4.0")),
         cor_local_db_path=Path(
             _required_env("DANOTE_COR_LOCAL_DB_PATH", env_values, BASE_DIR / "resources" / "dictionaries" / "cor.sqlite")
+        ),
+        en_local_db_path=Path(
+            _required_env(
+                "DANOTE_EN_LOCAL_DB_PATH",
+                env_values,
+                BASE_DIR / "resources" / "dictionaries" / "english_wiki.sqlite",
+            )
         ),
         word_verification_enabled=_required_env("DANOTE_WORD_VERIFICATION_ENABLED", env_values, "1").lower()
         not in {"0", "false", "no"},

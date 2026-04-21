@@ -100,7 +100,7 @@ describe("App shell and search", () => {
     expect(await within(commandDialog).findByTestId("search-open-icon")).toBeInTheDocument()
     expect(within(commandDialog).queryByTestId("search-add-variation-label")).not.toBeInTheDocument()
 
-    fireEvent.click((await within(commandDialog).findAllByText(/^bogens$/i))[0] as HTMLElement)
+    fireEvent.click((await within(commandDialog).findAllByText(/^bogens$/i, { selector: "strong" }))[0] as HTMLElement)
     expect(await screen.findByRole("heading", { name: /^bog$/i })).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
@@ -189,9 +189,122 @@ describe("App shell and search", () => {
     fireEvent.change(searchInput, { target: { value: "bog" } })
 
     await waitFor(() => {
-      expect(within(commandDialog).queryByText(/^bog$/i)).not.toBeInTheDocument()
+      expect(within(commandDialog).queryByText(/^bog$/i, { selector: "strong" })).not.toBeInTheDocument()
       expect(within(commandDialog).queryByTestId("search-open-icon")).not.toBeInTheDocument()
       expect(within(commandDialog).queryByTestId("search-add-icon")).not.toBeInTheDocument()
+    })
+  })
+
+  it("renders English queries as Danish COR results using the translated word", async () => {
+    const fetchSpy = mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      resolveQueryResponse: {
+        query_surface: "notebook",
+        query_lemma: "notebook",
+        classification: "new",
+        matched_lemma: null,
+        matched_lemma_summary: null,
+        query_pos_tag: "NOUN",
+        query_morphology: null,
+        resolved_surface: "notesbog",
+        resolved_lemma: "notesbog",
+        da_to_en_translation: null,
+        en_to_da_translation: "notesbog",
+        en_to_da_lemma: "notesbog",
+        en_to_da_pos_tag: "NOUN",
+        en_to_da_morphology: null,
+        query_language: "en",
+        query_language_confidence: 0.95,
+        en_pos_groups: [
+          {
+            lemma: "notebook",
+            pos_ud: "NOUN",
+            pos_raw: "noun",
+            danish_translation: "notesbog",
+            senses: [
+              {
+                pos_ud: "NOUN",
+                sense_idx: 0,
+                gloss: "book for writing notes",
+                danish_translation: "notesbog",
+                examples: [],
+              },
+            ],
+          },
+        ],
+        word_actions: [
+          {
+            action_type: "add_as_new",
+            surface: "notesbog",
+            lemma: "notesbog",
+            translation_label: "notesbog",
+            direction: "en_to_da",
+            direction_label: "English -> Danish",
+            pos_tag: "NOUN",
+            morphology: null,
+            show_lemma: false,
+          },
+        ],
+      },
+      corSearchFormHandler: async (input) => {
+        const form = new URL(String(input), "http://localhost").searchParams.get("form") ?? ""
+        if (form === "notesbog") {
+          return responseOf({
+            form,
+            groups: [
+              {
+                lemma: "notesbog",
+                gloss: "notebook",
+                pos_tag: "NOUN",
+                variants: [
+                  {
+                    cor_id: "COR.NOTEBOOK.1",
+                    form: "notesbog",
+                    lemma: "notesbog",
+                    gloss: "notebook",
+                    lemma_translation: "notebook",
+                    saveable_translation: "notebook",
+                    gram_raw: "sb.fk.sg.ubest",
+                    norm: "N",
+                    lemma_idx: 1200,
+                    gram_code: 110,
+                    variation: 1,
+                    pos_tag: "NOUN",
+                    morphology: "Gender=Com|Number=Sing|Definite=Ind",
+                    features: { Gender: "Com", Number: "Sing", Definite: "Ind" },
+                    extra_tags: [],
+                  },
+                ],
+              },
+            ],
+          })
+        }
+        return responseOf({ form, groups: [] })
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    const commandDialog = await screen.findByRole("dialog")
+    const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
+    fireEvent.change(searchInput, { target: { value: "notebook" } })
+
+    expect(await within(commandDialog).findByText(/^translated from english$/i)).toBeInTheDocument()
+    await waitFor(() => {
+      const translatedRow = within(commandDialog).getByText(/^notesbog$/i, { selector: "strong" })
+      expect(translatedRow).toBeInTheDocument()
+      expect(translatedRow.closest("[cmdk-item]")).toHaveTextContent(/from\s+notesbog\s+\(notebook\)/i)
+    })
+
+    await waitFor(() => {
+      expect(
+        fetchSpy.mock.calls.some(([input]) => String(input).includes("/api/wordbank/search/cor-form?form=notesbog")),
+      ).toBe(true)
+      expect(
+        fetchSpy.mock.calls.some(([input]) => String(input).includes("/api/wordbank/search/cor-form?form=notebook")),
+      ).toBe(true)
     })
   })
 

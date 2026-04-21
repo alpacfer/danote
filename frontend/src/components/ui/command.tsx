@@ -112,7 +112,7 @@ function CommandInput({
             rows={1}
             value={value as string ?? ""}
             onChange={(e) => onValueChange?.(e.target.value)}
-            onKeyDown={onKeyDown as React.KeyboardEventHandler<HTMLTextAreaElement>}
+            onKeyDown={onKeyDown as unknown as React.KeyboardEventHandler<HTMLTextAreaElement>}
             maxLength={maxLength}
             placeholder={placeholder}
             aria-label={ariaLabel as string | undefined}

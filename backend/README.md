@@ -97,6 +97,18 @@ PYTHONPATH=. .venv/bin/python scripts/build_cor_sqlite.py \
 When a new COR TSV version arrives, rerun the build command and replace the
 shipped `cor.sqlite`.
 
+Build/update local English SQLite:
+
+```bash
+cd backend
+PYTHONPATH=. .venv/bin/python scripts/build_english_sqlite.py \
+  --input resources/dictionaries/english_wiki.jsonl \
+  --output resources/dictionaries/english_wiki.sqlite
+```
+
+The English lookup flow reads `english_wiki.sqlite` via `DANOTE_EN_LOCAL_DB_PATH`
+and uses `english_wiki.jsonl` as the rebuild source.
+
 ### NLP Model and Compatibility
 
 Default model (fixed):

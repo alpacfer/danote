@@ -254,6 +254,11 @@ Routes: `backend/app/api/routes/`. DTOs: `backend/app/api/schemas/v1/`. Some tok
   - Gemini contextual translation takes precedence over self-translated primary-provider labels, including same-text lemma echoes for valid cognates/loanwords.
   - Primary self-translates + Gemini has no better translation: add-option labels may fall back to translated COR gloss.
   - Primary self-translates + Gemini returns nothing + no translated gloss: label falls back to query surface.
+  - English-only local-dictionary hits return `classification: "new"`, `query_language: "en"`, `query_language_confidence: 0.95`, and populate `en_pos_groups`.
+  - `en_pos_groups[]` groups English results by `(lemma, pos_ud)` and preserves POS priority `NOUN`, `VERB`, `ADJ`, `ADV`, `PROPN`, then others.
+  - Each `en_pos_groups[]` item carries `lemma`, `pos_ud`, optional `pos_raw`, optional group-level `danish_translation`, and `senses[]`.
+  - Each `senses[]` item carries `pos_ud`, `sense_idx`, `gloss`, optional `danish_translation`, and `examples[]`.
+  - English dictionary groups are capped to the first five senses per POS group.
 
 ### POST `/api/wordbank/phrase-translation`
 - **Request model:** `GeneratePhraseTranslationRequest`.

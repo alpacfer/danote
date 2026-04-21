@@ -12,6 +12,7 @@ from app.db.repositories.wordbank_models import (
     surface_form_from_row,
     verification_record_from_row,
 )
+from app.db.repositories.wordbank_surface_form_queries import select_surface_form_row
 from app.db.sqlite import get_connection, timed_db_operation
 
 
@@ -244,7 +245,7 @@ class WordbankMutationRepository:
         source: str = "manual",
     ) -> tuple[SurfaceFormRecord, bool]:
         with timed_db_operation("wordbank.insert_or_update_surface_form"), get_connection(self._db_path) as conn:
-            row = _select_surface_form_row(conn, lexeme_id=lexeme_id, meaning_id=meaning_id, form=form)
+            row = select_surface_form_row(conn, lexeme_id=lexeme_id, meaning_id=meaning_id, form=form)
             inserted = False
             if row is None:
                 cursor = conn.execute(
@@ -751,55 +752,3 @@ class WordbankMutationRepository:
                     """,
                     (lexeme_id, meaning_id, stored_surface_form),
                 )
-
-
-def _select_surface_form_row(conn, *, lexeme_id: int, meaning_id: int | None, form: str):
-    if meaning_id is None:
-        return conn.execute(
-            """
-            SELECT
-                id,
-                lexeme_id,
-                form,
-                source,
-                pos_tag,
-                morphology,
-                (
-                    SELECT sfcv.cor_id
-                    FROM surface_form_cor_variants sfcv
-                    WHERE sfcv.surface_form_id = surface_forms.id
-                    ORDER BY sfcv.id ASC
-                    LIMIT 1
-                ) AS cor_id,
-                meaning_id,
-                CASE WHEN pronunciation_audio IS NOT NULL THEN 1 ELSE 0 END AS has_pronunciation
-            FROM surface_forms
-            WHERE lexeme_id = ? AND meaning_id IS NULL AND form = ?
-            LIMIT 1
-            """,
-            (lexeme_id, form),
-        ).fetchone()
-    return conn.execute(
-        """
-        SELECT
-            id,
-            lexeme_id,
-            form,
-            source,
-            pos_tag,
-            morphology,
-            (
-                SELECT sfcv.cor_id
-                FROM surface_form_cor_variants sfcv
-                WHERE sfcv.surface_form_id = surface_forms.id
-                ORDER BY sfcv.id ASC
-                LIMIT 1
-            ) AS cor_id,
-            meaning_id,
-            CASE WHEN pronunciation_audio IS NOT NULL THEN 1 ELSE 0 END AS has_pronunciation
-        FROM surface_forms
-        WHERE meaning_id = ? AND form = ?
-        LIMIT 1
-        """,
-        (meaning_id, form),
-    ).fetchone()

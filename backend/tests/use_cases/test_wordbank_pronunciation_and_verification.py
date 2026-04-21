@@ -2239,6 +2239,8 @@ def test_permanently_failed_verify_word_job_sets_verification_status_to_error(tm
         nlp_adapter = shared_nlp
         cor_lexicon_service = None
         cor_local_lexicon_service = FakeCORLocalLexiconService()
+        en_local_lexicon_service = None
+        en_gemini_translation_service = None
         word_verification_service = AlwaysFailingVerification()
         tts_service = FakeTTSService({})
 
@@ -2389,6 +2391,8 @@ def test_verify_word_background_job_auto_applies_fix_translation_for_homograph_m
         nlp_adapter = _shared_nlp
         cor_lexicon_service = None
         cor_local_lexicon_service = _cor_local
+        en_local_lexicon_service = None
+        en_gemini_translation_service = None
         word_verification_service = _verification_service
         tts_service = FakeTTSService({})
 
@@ -2536,6 +2540,8 @@ def test_verify_word_background_job_requeues_stale_sibling_targets_after_auto_ap
         nlp_adapter = _shared_nlp
         cor_lexicon_service = None
         cor_local_lexicon_service = _cor_local
+        en_local_lexicon_service = None
+        en_gemini_translation_service = None
         word_verification_service = _verification_service
         tts_service = FakeTTSService({})
 

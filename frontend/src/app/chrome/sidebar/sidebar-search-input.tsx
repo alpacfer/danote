@@ -121,13 +121,14 @@ export function SidebarSearchInput({
   onValueChange,
   onKeyDown,
 }: SidebarSearchInputProps) {
-  const trimmedValue = value.trim()
-  const previewErrors = sentenceSearchPreview?.query_language === "en"
-    ? []
-    : sentenceSearchPreview?.errors ?? []
   const rawErrors = useMemo(
-    () => mapVerificationErrorsToRawInput(value, previewErrors),
-    [previewErrors, value],
+    () => {
+      const previewErrors = sentenceSearchPreview?.query_language === "en"
+        ? []
+        : sentenceSearchPreview?.errors ?? []
+      return mapVerificationErrorsToRawInput(value, previewErrors)
+    },
+    [sentenceSearchPreview, value],
   )
   const segments = useMemo(() => buildSegments(value, rawErrors), [rawErrors, value])
   const overlay = rawErrors.length > 0 ? (

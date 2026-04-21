@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react"
-import { BookOpen, NotebookPen, Settings } from "lucide-react"
+import { useState } from "react"
 
 import { ThemeToggleButton } from "@/app/chrome/theme-toggle-button"
+import { SidebarNavigation } from "@/app/chrome/sidebar/sidebar-navigation"
+import { useSidebarPageItems } from "@/app/chrome/sidebar/sidebar-page-items"
 import { SidebarSearchInput } from "@/app/chrome/sidebar/sidebar-search-input"
 import {
   SidebarSearchResults,
@@ -9,13 +10,13 @@ import {
   type SidebarSearchResultsData,
   type SidebarSearchResultsState,
 } from "@/app/chrome/sidebar/sidebar-search-results"
+import { useSidebarCommandSelection } from "@/app/chrome/sidebar/use-sidebar-command-selection"
 import { useSidebarHotkeys } from "@/app/chrome/sidebar/use-sidebar-hotkeys"
+import { useSidebarLemmas } from "@/app/chrome/sidebar/use-sidebar-lemmas"
 import { useSidebarSearch } from "@/app/chrome/sidebar/use-sidebar-search"
 import { useSidebarSearchRanking } from "@/app/chrome/sidebar/use-sidebar-search-ranking"
 import { savedWordbankResultKey } from "@/app/chrome/sidebar/use-sidebar-search-ranking"
 import {
-  BACKEND_URL,
-  createApiClient,
   type AppSection,
   type CORSearchVariant,
   type SavedNote,
@@ -28,15 +29,8 @@ import { Button } from "@/components/ui/button"
 import { CommandDialog } from "@/components/ui/command"
 import {
   Sidebar,
-  SidebarContent,
   SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
 } from "@/components/ui/sidebar"
 
 export type AppSidebarProps = {
@@ -88,8 +82,6 @@ export function AppSidebar({
 }: AppSidebarProps) {
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [commandSelectionOverride, setCommandSelectionOverride] = useState("")
-  const [searchSidebarLemmas, setSearchSidebarLemmas] = useState<WordbankLemma[]>([])
-  const apiClient = useMemo(() => createApiClient({ backendUrl: BACKEND_URL }), [])
 
   const {
     searchQuery,
@@ -104,35 +96,15 @@ export function AppSidebar({
     corDidYouMean,
     activeCorFormSearchResult,
     isCorTranslationsLoading,
+    isEnResolveLoading,
+    activeEnTranslatedCorResults,
+    isEnTranslatedCorLoading,
   } = useSidebarSearch({
     savedNotes,
     wordbankCacheVersion,
     searchTranslationConfigVersion,
   })
-
-  useEffect(() => {
-    if (lemmas.length > 0 || !isSearchOpen || searchSidebarLemmas.length > 0) {
-      return
-    }
-
-    let cancelled = false
-    void (async () => {
-      try {
-        const payload = await apiClient.tryGetJson<{ items?: WordbankLemma[] }>("/api/wordbank/lemmas")
-        if (!cancelled) {
-          setSearchSidebarLemmas(payload?.items ?? [])
-        }
-      } catch {
-        if (!cancelled) {
-          setSearchSidebarLemmas([])
-        }
-      }
-    })()
-
-    return () => {
-      cancelled = true
-    }
-  }, [apiClient, isSearchOpen, lemmas.length, searchSidebarLemmas.length])
+  const searchLemmas = useSidebarLemmas(lemmas, isSearchOpen)
 
   useSidebarHotkeys({
     onToggleSearch: () => setIsSearchOpen((current) => !current),
@@ -154,92 +126,45 @@ export function AppSidebar({
     hasWordbankSectionResults,
     hasWordbankActions,
   } = useSidebarSearchRanking({
-    lemmas: lemmas.length > 0 ? lemmas : searchSidebarLemmas,
+    lemmas: searchLemmas,
     normalizedQuery,
     searchApiMatches,
     activeCorFormSearchResult,
   })
 
-  const matchingPageItems = useMemo(() => {
-    const pageItems = [
-      { key: "page-playground", label: "Playground", shortcut: "Alt+P", icon: NotebookPen, onSelect: onSelectPlayground },
-      { key: "page-notes", label: "Notes", shortcut: "Alt+N", icon: BookOpen, onSelect: onSelectNotes },
-      { key: "page-wordbank", label: "Wordbank", shortcut: "Alt+W", icon: BookOpen, onSelect: onSelectWordbank },
-      { key: "page-sentencebank", label: "Sentencebank", shortcut: "Alt+S", icon: BookOpen, onSelect: onSelectSentencebank },
-      { key: "page-developer", label: "Developer", shortcut: "Alt+D", icon: Settings, onSelect: onSelectDeveloper },
-    ]
-    if (!normalizedQuery) {
-      return pageItems
-    }
-    return pageItems.filter((item) => item.label.toLocaleLowerCase("da-DK").includes(normalizedQuery))
-  }, [normalizedQuery, onSelectDeveloper, onSelectNotes, onSelectPlayground, onSelectSentencebank, onSelectWordbank])
+  const matchingPageItems = useSidebarPageItems({
+    normalizedQuery,
+    onSelectPlayground,
+    onSelectNotes,
+    onSelectWordbank,
+    onSelectSentencebank,
+    onSelectDeveloper,
+  })
 
   const hasNoteResults = matchingNotes.length > 0
   const hasPageResults = matchingPageItems.length > 0
+  const hasTranslatedEnResults = activeEnTranslatedCorResults.corSearchVariantsToRender.length > 0
+  const hasFallbackEnResults = activeEnTranslatedCorResults.fallbackEnPosGroups.length > 0
+  const hasEnResults = hasTranslatedEnResults || hasFallbackEnResults
   const hasAnyResults = isSentenceMode
     ? Boolean(sentenceSearchPreview)
-    : (hasWordbankSectionResults || hasNoteResults || hasPageResults)
+    : (hasWordbankSectionResults || hasEnResults || hasNoteResults || hasPageResults || isEnResolveLoading || isEnTranslatedCorLoading)
 
-  const orderedCorVariantsToRender = useMemo(() => {
-    const variants: CORSearchVariant[] = []
-    for (const group of orderedCorSearchGroups) {
-      for (const item of corSearchVariantsToRender) {
-        if (item.group === group) {
-          variants.push(item.variant)
-        }
-      }
-    }
-    return variants
-  }, [corSearchVariantsToRender, orderedCorSearchGroups])
-
-  const orderedCommandItemValues = useMemo(() => {
-    const values: string[] = []
-    if (isSentenceMode && sentenceSearchPreview) {
-      return ["sentence-translation-result"]
-    }
-    // Direct wordbank (no wordbank correction)
-    if (!wordbankDidYouMean) {
-      for (const item of orderedWordbankResults) {
-        values.push(`wordbank-${savedWordbankResultKey(item)}`)
-      }
-    }
-    // Direct COR (no COR correction)
-    if (!corDidYouMean) {
-      for (const variant of orderedCorVariantsToRender) {
-        values.push(`cor-variant-${variant.cor_id}`)
-      }
-    }
-    // DYM banner item
-    if (wordbankDidYouMean || corDidYouMean) {
-      values.push("did-you-mean-suggestion")
-    }
-    // Corrected wordbank
-    if (wordbankDidYouMean) {
-      for (const item of orderedWordbankResults) {
-        values.push(`wordbank-${savedWordbankResultKey(item)}`)
-      }
-    }
-    // Corrected COR
-    if (corDidYouMean) {
-      for (const variant of orderedCorVariantsToRender) {
-        values.push(`cor-variant-${variant.cor_id}`)
-      }
-    }
-    for (const note of matchingNotes) {
-      values.push(`note-${note.id}`)
-    }
-    for (const page of matchingPageItems) {
-      values.push(page.key)
-    }
-    return values
-  }, [corDidYouMean, isSentenceMode, matchingNotes, matchingPageItems, orderedCorVariantsToRender, orderedWordbankResults, sentenceSearchPreview, wordbankDidYouMean])
-
-  const commandSelectionValue = useMemo(() => {
-    if (commandSelectionOverride && orderedCommandItemValues.includes(commandSelectionOverride)) {
-      return commandSelectionOverride
-    }
-    return orderedCommandItemValues[0] ?? ""
-  }, [commandSelectionOverride, orderedCommandItemValues])
+  const { commandSelectionValue } = useSidebarCommandSelection({
+    activeEnTranslatedCorResults,
+    commandSelectionOverride,
+    corDidYouMean,
+    corSearchVariantsToRender,
+    isSearchOpen,
+    isSentenceMode,
+    matchingNotes,
+    matchingPageItems,
+    orderedCorSearchGroups,
+    orderedWordbankResults,
+    sentenceSearchPreview,
+    setCommandSelectionOverride,
+    wordbankDidYouMean,
+  })
 
   const closeSearch = () => {
     setIsSearchOpen(false)
@@ -253,31 +178,6 @@ export function AppSidebar({
     closeSearch()
     void onAddSentenceToSentencebank(sourceText, englishTranslation)
   }
-
-  useEffect(() => {
-    if (!isSearchOpen) {
-      return
-    }
-
-    const nextValue = orderedCommandItemValues[0] ?? ""
-    if (!nextValue) {
-      if (commandSelectionOverride) {
-        setCommandSelectionOverride("")
-      }
-      return
-    }
-
-    if (isSentenceMode) {
-      if (commandSelectionOverride !== nextValue) {
-        setCommandSelectionOverride(nextValue)
-      }
-      return
-    }
-
-    if (!commandSelectionOverride || !orderedCommandItemValues.includes(commandSelectionOverride)) {
-      setCommandSelectionOverride(nextValue)
-    }
-  }, [commandSelectionOverride, isSearchOpen, isSentenceMode, orderedCommandItemValues])
 
   const searchResultState: SidebarSearchResultsState = {
     normalizedQuery,
@@ -301,11 +201,16 @@ export function AppSidebar({
     orderedCorSearchGroups,
     corSearchVariantsToRender,
     variationCandidateCorIdSet,
+    translatedEnCorSearchGroups: activeEnTranslatedCorResults.orderedCorSearchGroups,
+    translatedEnCorVariantsToRender: activeEnTranslatedCorResults.corSearchVariantsToRender,
     matchingNotes,
     matchingPageItems,
     isCorTranslationsLoading,
     wordbankItemValue: (item: WordbankSearchItem) => `wordbank-${savedWordbankResultKey(item)}`,
     corVariantItemValue: (variant: CORSearchVariant) => `cor-variant-${variant.cor_id}`,
+    translatedEnCorVariantItemValue: (variant: CORSearchVariant) => `en-cor-${variant.lemma.toLowerCase()}-${variant.cor_id}`,
+    enPosGroups: activeEnTranslatedCorResults.fallbackEnPosGroups,
+    isEnResolveLoading: isEnResolveLoading || isEnTranslatedCorLoading,
   }
 
   const searchResultActions: SidebarSearchResultsActions = {
@@ -380,56 +285,15 @@ export function AppSidebar({
           />
         </CommandDialog>
       </SidebarHeader>
-      <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton type="button" isActive={activeSection === "playground"} onClick={onSelectPlayground}>
-                  <NotebookPen />
-                  <span>Playground</span>
-                  <span aria-hidden="true" className="text-muted-foreground ml-auto text-[11px]">Alt+P</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton type="button" isActive={activeSection === "notes"} onClick={onSelectNotes}>
-                  <BookOpen />
-                  <span>Notes</span>
-                  <span aria-hidden="true" className="text-muted-foreground ml-auto text-[11px]">Alt+N</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton type="button" isActive={activeSection === "wordbank"} onClick={onSelectWordbank}>
-                  <BookOpen />
-                  <span>Wordbank</span>
-                  {unreadWordbankNotificationCount > 0 ? (
-                    <span className="bg-primary text-primary-foreground ml-auto inline-flex min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] leading-5">
-                      {unreadWordbankNotificationCount}
-                    </span>
-                  ) : (
-                    <span aria-hidden="true" className="text-muted-foreground ml-auto text-[11px]">Alt+W</span>
-                  )}
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton type="button" isActive={activeSection === "sentencebank"} onClick={onSelectSentencebank}>
-                  <BookOpen />
-                  <span>Sentencebank</span>
-                  <span aria-hidden="true" className="text-muted-foreground ml-auto text-[11px]">Alt+S</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton type="button" isActive={activeSection === "developer"} onClick={onSelectDeveloper}>
-                  <Settings />
-                  <span>Developer</span>
-                  <span aria-hidden="true" className="text-muted-foreground ml-auto text-[11px]">Alt+D</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-      </SidebarContent>
+      <SidebarNavigation
+        activeSection={activeSection}
+        unreadWordbankNotificationCount={unreadWordbankNotificationCount}
+        onSelectPlayground={onSelectPlayground}
+        onSelectNotes={onSelectNotes}
+        onSelectWordbank={onSelectWordbank}
+        onSelectSentencebank={onSelectSentencebank}
+        onSelectDeveloper={onSelectDeveloper}
+      />
       <SidebarFooter>
         <ThemeToggleButton />
       </SidebarFooter>

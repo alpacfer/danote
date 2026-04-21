@@ -1,4 +1,4 @@
-import { type LucideIcon } from "lucide-react"
+import { Eye, type LucideIcon } from "lucide-react"
 
 import {
   CommandEmpty,
@@ -8,10 +8,12 @@ import {
   CommandSeparator,
   CommandShortcut,
 } from "@/components/ui/command"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   previewText,
   type CORSearchGroup,
   type CORSearchVariant,
+  type ENPosGroup,
   type SavedNote,
   type SentenceSearchPreviewResponse,
   type SearchSaveSeed,
@@ -20,6 +22,7 @@ import {
 } from "@/app/core"
 
 import { SidebarCorResults } from "@/app/chrome/sidebar/sidebar-cor-results"
+import { SidebarEnResults } from "@/app/chrome/sidebar/sidebar-en-results"
 import { SidebarSentenceResult } from "@/app/chrome/sidebar/sidebar-sentence-result"
 import { SidebarWordbankResults } from "@/app/chrome/sidebar/sidebar-wordbank-results"
 
@@ -53,11 +56,16 @@ export type SidebarSearchResultsData = {
   orderedCorSearchGroups: CORSearchGroup[]
   corSearchVariantsToRender: Array<{ group: CORSearchGroup; variant: CORSearchVariant }>
   variationCandidateCorIdSet: Set<string>
+  translatedEnCorSearchGroups: CORSearchGroup[]
+  translatedEnCorVariantsToRender: Array<{ group: CORSearchGroup; variant: CORSearchVariant }>
   matchingNotes: SavedNote[]
   matchingPageItems: PageItem[]
   isCorTranslationsLoading: boolean
   wordbankItemValue: (item: WordbankSearchItem) => string
   corVariantItemValue: (variant: CORSearchVariant) => string
+  translatedEnCorVariantItemValue: (variant: CORSearchVariant) => string
+  enPosGroups: ENPosGroup[]
+  isEnResolveLoading: boolean
 }
 
 export type SidebarSearchResultsActions = {
@@ -107,16 +115,21 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
   const hasDirectWordbank = data.orderedWordbankResults.length > 0
     && (!state.wordbankDidYouMean || data.exactSavedVariationKeySet.size > 0)
   const hasDirectCor = !state.corDidYouMean && data.corSearchVariantsToRender.length > 0
+  const hasEnResults = data.translatedEnCorVariantsToRender.length > 0 || data.enPosGroups.length > 0
+  const isEnLoading = data.isEnResolveLoading
+  const showEnSkeletons = isEnLoading && !hasEnResults
 
-  // Suppress DYM entirely when COR has a direct match — the word is valid.
-  const dymSuggestion = hasDirectCor ? null : (state.wordbankDidYouMean ?? state.corDidYouMean)
+  // Suppress DYM when COR has a direct match, EN has results, or EN is loading — the query is valid in some language.
+  const dymSuggestion = (hasDirectCor || hasEnResults || isEnLoading) ? null : (state.wordbankDidYouMean ?? state.corDidYouMean)
   const hasDirectResults = hasDirectWordbank || hasDirectCor
 
   const hasCorrectedWordbank = Boolean(state.wordbankDidYouMean)
     && data.orderedWordbankResults.length > 0
     && !hasDirectWordbank
     && !hasDirectCor
-  const hasCorrectedCor = Boolean(state.corDidYouMean) && data.corSearchVariantsToRender.length > 0
+    && !hasEnResults
+    && !isEnLoading
+  const hasCorrectedCor = Boolean(state.corDidYouMean) && data.corSearchVariantsToRender.length > 0 && !hasEnResults && !isEnLoading
   const hasCorrectedResults = hasCorrectedWordbank || hasCorrectedCor
 
   const hasWordbankSection = hasDirectResults || hasCorrectedResults
@@ -206,7 +219,61 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
         </CommandGroup>
       ) : null}
 
-      {(hasWordbankSection || state.hasWordbankActions) && state.hasNoteResults ? <CommandSeparator /> : null}
+      {data.translatedEnCorVariantsToRender.length > 0 ? (
+        <>
+          {hasWordbankSection ? <CommandSeparator /> : null}
+          <CommandGroup heading="Translated From English">
+            <SidebarCorResults
+              orderedCorSearchGroups={data.translatedEnCorSearchGroups}
+              corSearchVariantsToRender={data.translatedEnCorVariantsToRender}
+              variationCandidateCorIdSet={new Set<string>()}
+              normalizedQuery={state.normalizedQuery}
+              corVariantItemValue={data.translatedEnCorVariantItemValue}
+              isTranslationsLoading={data.isEnResolveLoading}
+              onAddWordFromSearch={actions.onAddWordFromSearch}
+              onCloseSearch={actions.onCloseSearch}
+            />
+          </CommandGroup>
+        </>
+      ) : null}
+
+      {data.enPosGroups.length > 0 ? (
+        <>
+          {(hasWordbankSection || data.translatedEnCorVariantsToRender.length > 0) ? <CommandSeparator /> : null}
+          <CommandGroup heading="Translated From English">
+            <SidebarEnResults
+              enPosGroups={data.enPosGroups}
+              originalQuery={state.normalizedQuery}
+              isLoading={isEnLoading}
+              onCloseSearch={actions.onCloseSearch}
+            />
+          </CommandGroup>
+        </>
+      ) : null}
+
+      {showEnSkeletons ? (
+        <>
+          {hasWordbankSection ? <CommandSeparator /> : null}
+          <CommandGroup heading="Translated From English">
+            {[0, 1].map((i) => (
+              <CommandItem
+                key={`en-skeleton-${i}`}
+                value={`en-skeleton-${i}`}
+                disabled
+                className="flex items-start justify-between gap-3"
+              >
+                <div className="flex min-w-0 flex-col items-start gap-1">
+                  <Skeleton className="h-3.5 w-24" />
+                  <Skeleton className="h-3 w-36" />
+                </div>
+                <Eye className="text-muted-foreground size-4 shrink-0 opacity-0" aria-hidden />
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        </>
+      ) : null}
+
+      {(hasWordbankSection || hasEnResults || showEnSkeletons || state.hasWordbankActions) && state.hasNoteResults ? <CommandSeparator /> : null}
       {state.hasNoteResults ? (
         <CommandGroup heading="Notes">
           {data.matchingNotes.map((note) => (
@@ -227,7 +294,7 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
           ))}
         </CommandGroup>
       ) : null}
-      {(hasWordbankSection || state.hasWordbankActions || state.hasNoteResults) && state.hasPageResults ? <CommandSeparator /> : null}
+      {(hasWordbankSection || hasEnResults || showEnSkeletons || state.hasWordbankActions || state.hasNoteResults) && state.hasPageResults ? <CommandSeparator /> : null}
       {state.hasPageResults ? (
         <CommandGroup heading="Pages">
           {data.matchingPageItems.map((item) => {

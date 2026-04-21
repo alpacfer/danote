@@ -80,6 +80,22 @@ class WordActionSuggestion(BaseModel):
     show_lemma: bool = False
 
 
+class ENSenseOut(BaseModel):
+    pos_ud: str
+    sense_idx: int
+    gloss: str
+    danish_translation: str | None = None
+    examples: list[str] = Field(default_factory=list)
+
+
+class ENPosGroup(BaseModel):
+    lemma: str
+    pos_ud: str
+    pos_raw: str | None = None
+    danish_translation: str | None = None
+    senses: list[ENSenseOut] = Field(default_factory=list)
+
+
 class ResolveQueryResponse(BaseModel):
     class MatchedLemmaSummary(BaseModel):
         lemma: str
@@ -103,6 +119,7 @@ class ResolveQueryResponse(BaseModel):
     query_language: Literal["en", "da", "ambiguous"] | None
     query_language_confidence: float | None
     word_actions: list[WordActionSuggestion] = Field(default_factory=list)
+    en_pos_groups: list[ENPosGroup] = Field(default_factory=list)
 
 
 class GeneratePhraseTranslationRequest(BaseModel):

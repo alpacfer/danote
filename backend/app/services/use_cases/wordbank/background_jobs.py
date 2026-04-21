@@ -163,6 +163,8 @@ class WordbankBackgroundJobRunner:
             nlp_adapter=self._services.nlp_adapter,
             cor_lexicon_service=self._services.cor_lexicon_service,
             cor_local_lexicon_service=self._services.cor_local_lexicon_service,
+            en_local_lexicon_service=self._services.en_local_lexicon_service,
+            en_gemini_translation_service=self._services.en_gemini_translation_service,
             verification_service=self._services.word_verification_service,
             tts_service=self._services.tts_service,
             gemini_changes_log_path=self._gemini_changes_log_path,

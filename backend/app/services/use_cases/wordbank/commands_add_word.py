@@ -1,25 +1,26 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-import re
-from typing import Literal
-
 from app.api.schemas.v1.wordbank import AddWordResponse, MeaningContext, VerificationResult
 from app.services.cor_local import CORLocalEntry
-from app.services.gemini_translation import ContextualWordTranslationInput, NonCORWordGenerationInput
-from app.services.token_classifier import normalize_token
+from app.services.gemini_translation import NonCORWordGenerationInput
 from app.services.use_cases.wordbank.add_word_normalization import (
-    AddWordInputs,
     normalize_add_word_inputs,
 )
-from app.services.use_cases.wordbank.collaborators.cor_local_translations import (
-    lookup_translation_for_cor_local_entry,
-)
 from app.services.use_cases.wordbank.collaborators.translation import TranslationLookupResult
+from app.services.use_cases.wordbank.commands_add_word_models import (
+    AddWordCommandInputs,
+    AddWordWriteResult,
+    WordMetadata,
+)
 from app.services.use_cases.wordbank.commands_add_word_response import (
     build_add_word_response,
 )
 from app.services.use_cases.wordbank.commands_add_word_search_seed import add_word_from_search_seed
+from app.services.use_cases.wordbank.commands_add_word_translations import (
+    NO_TRANSLATION,
+    TranslationSelection,
+    lookup_word_translations,
+)
 from app.services.use_cases.wordbank.meaning_sections import (
     MeaningResolution,
     build_meaning_assignment,
@@ -35,61 +36,6 @@ from app.services.use_cases.wordbank.verification_targets import (
     discover_word_page_verification_targets,
     queue_verification_targets,
 )
-
-
-@dataclass(frozen=True, slots=True)
-class _AddWordInputs:
-    normalized_surface: str
-    stored_lemma: str
-    normalized_cor_id: str | None
-    selected_pos_tag: str | None
-    selected_morphology: str | None
-
-
-@dataclass(frozen=True, slots=True)
-class _WordMetadata:
-    translation: str | None
-    provider: str | None
-    pos_tag: str | None
-    morphology: str | None
-
-
-@dataclass(frozen=True, slots=True)
-class _ContextualTranslationTarget:
-    id: Literal["lemma"]
-    surface_form: str
-    lemma: str
-    preferred_pos_tag: str | None
-    preferred_morphology: str | None
-    cor_entry: CORLocalEntry | None
-
-
-@dataclass(frozen=True, slots=True)
-class _TranslationSelection:
-    lemma: TranslationLookupResult
-
-
-@dataclass(frozen=True, slots=True)
-class _AddWordWriteResult:
-    inserted_lexeme: bool
-    inserted_meaning: bool
-    inserted_surface_form: bool
-    inserted_lemma_surface_form: bool
-    inserted_cor_variant: bool
-
-    @property
-    def inserted_any(self) -> bool:
-        return (
-            self.inserted_lexeme
-            or self.inserted_meaning
-            or self.inserted_surface_form
-            or self.inserted_lemma_surface_form
-            or self.inserted_cor_variant
-        )
-
-
-_NO_TRANSLATION = TranslationLookupResult(translation=None, provider=None)
-_LIKELY_ENGLISH_GLOSS_RE = re.compile(r"^[A-Za-z][A-Za-z ',-]*$")
 
 
 def add_word(
@@ -145,7 +91,7 @@ def add_word(
                 ),
                 queue_verification=queue_verification,
             )
-        translations = _lookup_word_translations(runtime, inputs, meaning_resolution)
+        translations = lookup_word_translations(runtime, inputs, meaning_resolution)
         return _add_unsectioned_word(
             runtime,
             inputs=inputs,
@@ -154,7 +100,7 @@ def add_word(
             initial_metadata=initial_metadata,
             translations=translations,
         )
-    translations = _lookup_word_translations(runtime, inputs, meaning_resolution)
+    translations = lookup_word_translations(runtime, inputs, meaning_resolution)
     return _add_meaning_scoped_word(
         runtime,
         inputs=inputs,
@@ -168,11 +114,11 @@ def add_word(
 def _add_meaning_scoped_word(
     runtime: WordbankRuntime,
     *,
-    inputs: _AddWordInputs,
+    inputs: AddWordCommandInputs,
     lexeme_id: int,
     inserted_lexeme: bool,
     meaning_resolution: MeaningResolution,
-    translations: _TranslationSelection,
+    translations: TranslationSelection,
 ) -> AddWordResponse:
     meaning_translation = resolve_meaning_translation(
         runtime,
@@ -221,7 +167,7 @@ def _add_meaning_scoped_word(
         preferred_morphology=meaning_resolution.surface_cor_entry.morphology
         if meaning_resolution.surface_cor_entry is not None
         else meaning_resolution.morphology,
-        translation_result=_NO_TRANSLATION,
+        translation_result=NO_TRANSLATION,
         cor_entry=meaning_resolution.surface_cor_entry or meaning_resolution.lemma_cor_entry,
     )
 
@@ -258,7 +204,7 @@ def _add_meaning_scoped_word(
     )
 
     runtime.nlp.invalidate_pos_cache(inputs.stored_lemma, inputs.normalized_surface or None)
-    write_result = _AddWordWriteResult(
+    write_result = AddWordWriteResult(
         inserted_lexeme=inserted_lexeme,
         inserted_meaning=inserted_meaning,
         inserted_surface_form=inserted_surface_form,
@@ -306,11 +252,11 @@ def _add_meaning_scoped_word(
 def _add_unsectioned_word(
     runtime: WordbankRuntime,
     *,
-    inputs: _AddWordInputs,
+    inputs: AddWordCommandInputs,
     lexeme_id: int,
     inserted_lexeme: bool,
-    initial_metadata: _WordMetadata,
-    translations: _TranslationSelection,
+    initial_metadata: WordMetadata,
+    translations: TranslationSelection,
 ) -> AddWordResponse:
     lemma_metadata = _build_root_metadata(runtime, inputs, translations.lemma, initial_metadata)
     surface_metadata = _build_surface_metadata(runtime, inputs)
@@ -354,7 +300,7 @@ def _add_unsectioned_word(
         normalized_cor_id=inputs.normalized_cor_id,
     )
     runtime.nlp.invalidate_pos_cache(inputs.stored_lemma, inputs.normalized_surface or None)
-    write_result = _AddWordWriteResult(
+    write_result = AddWordWriteResult(
         inserted_lexeme=inserted_lexeme,
         inserted_meaning=False,
         inserted_surface_form=inserted_surface_form,
@@ -405,7 +351,7 @@ def _normalize_add_word_inputs(
     cor_id: str | None,
     pos_tag: str | None,
     morphology: str | None,
-) -> _AddWordInputs:
+) -> AddWordCommandInputs:
     normalized = normalize_add_word_inputs(
         surface_token,
         lemma_candidate,
@@ -413,7 +359,7 @@ def _normalize_add_word_inputs(
         runtime.nlp.normalize_optional_pos_tag(pos_tag),
         runtime.nlp.normalize_optional_morphology(morphology),
     )
-    return _AddWordInputs(
+    return AddWordCommandInputs(
         normalized_surface=normalized.normalized_surface,
         stored_lemma=normalized.stored_lemma,
         normalized_cor_id=normalized.normalized_cor_id,
@@ -422,7 +368,7 @@ def _normalize_add_word_inputs(
     )
 
 
-def _extract_root_metadata(runtime: WordbankRuntime, inputs: _AddWordInputs) -> _WordMetadata:
+def _extract_root_metadata(runtime: WordbankRuntime, inputs: AddWordCommandInputs) -> WordMetadata:
     pos_tag, morphology = runtime.nlp.extract_pos_and_morphology(
         inputs.stored_lemma,
         preferred_pos_tag=inputs.selected_pos_tag,
@@ -431,7 +377,7 @@ def _extract_root_metadata(runtime: WordbankRuntime, inputs: _AddWordInputs) -> 
         pos_tag = inputs.selected_pos_tag
     if morphology is None:
         morphology = inputs.selected_morphology
-    return _WordMetadata(
+    return WordMetadata(
         translation=None,
         provider=None,
         pos_tag=pos_tag,
@@ -441,10 +387,10 @@ def _extract_root_metadata(runtime: WordbankRuntime, inputs: _AddWordInputs) -> 
 
 def _build_root_metadata(
     runtime: WordbankRuntime,
-    inputs: _AddWordInputs,
+    inputs: AddWordCommandInputs,
     translation_result: TranslationLookupResult,
-    initial_metadata: _WordMetadata,
-) -> _WordMetadata:
+    initial_metadata: WordMetadata,
+) -> WordMetadata:
     pos_tag = initial_metadata.pos_tag
     morphology = initial_metadata.morphology
     if pos_tag is None or morphology is None:
@@ -452,7 +398,7 @@ def _build_root_metadata(
             inputs.stored_lemma,
             preferred_pos_tag=inputs.selected_pos_tag,
         )
-    return _WordMetadata(
+    return WordMetadata(
         translation=translation_result.translation,
         provider=translation_result.provider,
         pos_tag=pos_tag or inputs.selected_pos_tag,
@@ -462,11 +408,11 @@ def _build_root_metadata(
 
 def _build_surface_metadata(
     runtime: WordbankRuntime,
-    inputs: _AddWordInputs,
-) -> _WordMetadata:
+    inputs: AddWordCommandInputs,
+) -> WordMetadata:
     actual_surface = inputs.normalized_surface or inputs.stored_lemma
     if inputs.selected_pos_tag is not None or inputs.selected_morphology is not None:
-        return _WordMetadata(
+        return WordMetadata(
             translation=None,
             provider=None,
             pos_tag=inputs.selected_pos_tag,
@@ -476,7 +422,7 @@ def _build_surface_metadata(
         actual_surface,
         preferred_pos_tag=inputs.selected_pos_tag,
     )
-    return _WordMetadata(
+    return WordMetadata(
         translation=None,
         provider=None,
         pos_tag=pos_tag,
@@ -492,7 +438,7 @@ def _build_meaning_scoped_metadata(
     preferred_morphology: str | None,
     translation_result: TranslationLookupResult,
     cor_entry: CORLocalEntry | None,
-) -> _WordMetadata:
+) -> WordMetadata:
     pos_tag = preferred_pos_tag or (cor_entry.pos_tag if cor_entry is not None else None)
     morphology = preferred_morphology or (cor_entry.morphology if cor_entry is not None else None)
     if pos_tag is None or morphology is None:
@@ -502,7 +448,7 @@ def _build_meaning_scoped_metadata(
         )
         pos_tag = pos_tag or extracted_pos_tag
         morphology = morphology or extracted_morphology
-    return _WordMetadata(
+    return WordMetadata(
         translation=translation_result.translation,
         provider=translation_result.provider,
         pos_tag=pos_tag,
@@ -524,128 +470,10 @@ def _sync_surface_form_cor_variant(
     )
 
 
-def _lookup_word_translations(
-    runtime: WordbankRuntime,
-    inputs: _AddWordInputs,
-    meaning_resolution: MeaningResolution | None,
-) -> _TranslationSelection:
-    lemma_cor_entry = None
-    prefer_cor_lemma_translation = False
-    preferred_pos_tag = inputs.selected_pos_tag
-    preferred_morphology = inputs.selected_morphology
-    if meaning_resolution is not None:
-        lemma_cor_entry = meaning_resolution.lemma_cor_entry or meaning_resolution.surface_cor_entry
-        prefer_cor_lemma_translation = meaning_resolution.lemma_cor_entry is not None or (
-            meaning_resolution.surface_cor_entry is not None
-            and normalize_token(meaning_resolution.surface_cor_entry.form) == inputs.stored_lemma
-        )
-        preferred_pos_tag = meaning_resolution.pos_tag
-        preferred_morphology = meaning_resolution.morphology
-    elif inputs.normalized_cor_id:
-        surface_cor_entry = runtime.cor.cor_local_entry_for_cor_id(cor_id=inputs.normalized_cor_id)
-        if surface_cor_entry is not None and normalize_token(surface_cor_entry.lemma) == inputs.stored_lemma:
-            lemma_cor_entry = runtime.cor.best_cor_local_lemma_entry(
-                lemma_idx=surface_cor_entry.lemma_idx,
-                lemma=inputs.stored_lemma,
-                preferred_pos_tag=surface_cor_entry.pos_tag or inputs.selected_pos_tag,
-            )
-            prefer_cor_lemma_translation = lemma_cor_entry is not None
-            preferred_pos_tag = surface_cor_entry.pos_tag or inputs.selected_pos_tag
-            preferred_morphology = surface_cor_entry.morphology or inputs.selected_morphology
-
-    targets: list[_ContextualTranslationTarget] = [
-        _ContextualTranslationTarget(
-            id="lemma",
-            surface_form=inputs.stored_lemma,
-            lemma=inputs.stored_lemma,
-            preferred_pos_tag=preferred_pos_tag,
-            preferred_morphology=preferred_morphology,
-            cor_entry=lemma_cor_entry,
-        )
-    ]
-    contextual_results = _batch_lookup_contextual_translations(runtime, targets)
-    resolved: dict[str, TranslationLookupResult] = {}
-    for target in targets:
-        if target.id == "lemma" and prefer_cor_lemma_translation and lemma_cor_entry is not None:
-            resolved[target.id] = _resolve_cor_lemma_translation(
-                runtime,
-                cor_entry=lemma_cor_entry,
-            )
-            continue
-        contextual = contextual_results.get(target.id, _NO_TRANSLATION)
-        resolved[target.id] = _resolve_translation_with_fallback(runtime, target, contextual)
-
-    return _TranslationSelection(
-        lemma=resolved.get("lemma", _NO_TRANSLATION),
-    )
-
-
-def _batch_lookup_contextual_translations(
-    runtime: WordbankRuntime,
-    targets: list[_ContextualTranslationTarget],
-) -> dict[str, TranslationLookupResult]:
-    if not targets:
-        return {}
-
-    payloads_by_key: dict[
-        tuple[str, str, str | None, str | None, str | None, str | None, str | None],
-        ContextualWordTranslationInput,
-    ] = {}
-    target_key_by_id: dict[str, tuple[str, str, str | None, str | None, str | None, str | None, str | None]] = {}
-    for target in targets:
-        payload = _build_contextual_payload(runtime, target)
-        cache_key = runtime.translation.contextual_translation_cache_key(payload)
-        target_key_by_id[target.id] = cache_key
-        if cache_key not in payloads_by_key:
-            payloads_by_key[cache_key] = payload
-
-    payloads = list(payloads_by_key.values())
-    contextual_results = runtime.translation.batch_lookup_contextual_word_translations(payloads)
-    result_by_key: dict[
-        tuple[str, str, str | None, str | None, str | None, str | None, str | None],
-        TranslationLookupResult,
-    ] = {}
-    for key, result in zip(payloads_by_key.keys(), contextual_results, strict=False):
-        result_by_key[key] = result
-
-    return {
-        target_id: result_by_key.get(cache_key, _NO_TRANSLATION)
-        for target_id, cache_key in target_key_by_id.items()
-    }
-
-
-def _build_contextual_payload(
-    runtime: WordbankRuntime,
-    target: _ContextualTranslationTarget,
-) -> ContextualWordTranslationInput:
-    cor_entry = target.cor_entry
-    if cor_entry is None:
-        cor_entry = runtime.cor.best_cor_local_entry_for_form(
-            form=target.surface_form,
-            lemma=target.lemma,
-            preferred_pos_tag=target.preferred_pos_tag,
-        )
-    if cor_entry is None:
-        return ContextualWordTranslationInput(
-            surface_form=target.surface_form,
-            lemma=target.lemma,
-            pos_tag=target.preferred_pos_tag,
-            morphology=target.preferred_morphology,
-            gloss=None,
-        )
-    return ContextualWordTranslationInput(
-        surface_form=target.surface_form,
-        lemma=target.lemma,
-        pos_tag=target.preferred_pos_tag or cor_entry.pos_tag,
-        morphology=target.preferred_morphology or cor_entry.morphology,
-        gloss=normalize_token(cor_entry.gloss or "") or None,
-    )
-
-
 def _generate_non_cor_word(
     runtime: WordbankRuntime,
     *,
-    inputs: _AddWordInputs,
+    inputs: AddWordCommandInputs,
 ):
     payload = NonCORWordGenerationInput(
         surface_form=inputs.normalized_surface,
@@ -656,59 +484,3 @@ def _generate_non_cor_word(
     )
     return runtime.translation.generate_non_cor_word_entries_batch([payload])[0]
 
-
-def _resolve_translation_with_fallback(
-    runtime: WordbankRuntime,
-    target: _ContextualTranslationTarget,
-    contextual: TranslationLookupResult,
-) -> TranslationLookupResult:
-    if contextual.translation:
-        return contextual
-
-    translated = runtime.translation.lookup_translation(target.surface_form)
-    if (
-        translated
-        and " " not in target.surface_form
-        and runtime.translation.normalize_comparable(translated)
-        == runtime.translation.normalize_comparable(target.surface_form)
-    ):
-        return _NO_TRANSLATION
-    return TranslationLookupResult(
-        translation=translated,
-        provider=runtime.translation.provider_name() if translated else None,
-    )
-
-
-def _resolve_cor_lemma_translation(
-    runtime: WordbankRuntime,
-    *,
-    cor_entry: CORLocalEntry,
-) -> TranslationLookupResult:
-    frame = runtime.translation.build_word_translation_frame(
-        lemma=cor_entry.lemma,
-        pos_tag=cor_entry.pos_tag,
-        gram_or_function=cor_entry.gram_raw,
-        morphology=cor_entry.morphology,
-    )
-    framed_translation = runtime.translation.lookup_framed_word_translation(frame).translation
-    if framed_translation and _is_likely_english_gloss(cor_entry.gloss):
-        return TranslationLookupResult(
-            translation=framed_translation,
-            provider=runtime.translation.provider_name(),
-        )
-
-    translated = lookup_translation_for_cor_local_entry(
-        runtime.translation,
-        cor_entry,
-    )
-    return TranslationLookupResult(
-        translation=translated,
-        provider=runtime.translation.provider_name() if translated else None,
-    )
-
-
-def _is_likely_english_gloss(gloss: str | None) -> bool:
-    normalized_gloss = normalize_token(gloss or "")
-    if not normalized_gloss:
-        return False
-    return _LIKELY_ENGLISH_GLOSS_RE.fullmatch(normalized_gloss) is not None

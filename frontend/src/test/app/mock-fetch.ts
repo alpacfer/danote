@@ -494,6 +494,19 @@ export function mockFetchImplementation(options?: {
     en_to_da_morphology: string | null
     query_language: "en" | "da" | "ambiguous" | null
     query_language_confidence: number | null
+    en_pos_groups?: Array<{
+      lemma: string
+      pos_ud: string
+      pos_raw?: string | null
+      danish_translation?: string | null
+      senses: Array<{
+        pos_ud: string
+        sense_idx: number
+        gloss: string
+        danish_translation?: string | null
+        examples: string[]
+      }>
+    }>
     word_actions: Array<{
       action_type: "open_wordbank" | "add_as_new" | "add_variation"
       surface: string
@@ -858,6 +871,7 @@ export function mockFetchImplementation(options?: {
     en_to_da_morphology: null,
     query_language: null,
     query_language_confidence: null,
+    en_pos_groups: [],
     word_actions: [
       {
         action_type: "add_as_new",

@@ -8,6 +8,7 @@ from app.core.app_state import set_runtime_field, set_service_field
 from app.core.config import Settings
 from app.services.cor import CORLexiconService
 from app.services.cor_local import CORLocalLexiconService
+from app.services.en_local import ENLocalLexiconService
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +20,15 @@ def initialize_cor_local(app: FastAPI, settings: Settings) -> None:
         CORLocalLexiconService(db_path=settings.cor_local_db_path),
     )
     set_runtime_field(app, "cor_local_lookup_error", None)
+
+
+def initialize_en_local(app: FastAPI, settings: Settings) -> None:
+    set_service_field(
+        app,
+        "en_local_lexicon_service",
+        ENLocalLexiconService(db_path=settings.en_local_db_path),
+    )
+    set_runtime_field(app, "en_local_lookup_error", None)
 
 
 def initialize_cor(app: FastAPI, settings: Settings) -> None:

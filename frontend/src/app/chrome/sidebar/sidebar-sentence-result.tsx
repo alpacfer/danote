@@ -33,11 +33,9 @@ export function SidebarSentenceResult({
         value="sentence-translation-result"
         disabled={isSaveDisabled}
         onSelect={() => {
-          if (isSaveDisabled) return
-          void onSaveSentence(
-            sentenceSearchPreview.source_text,
-            sentenceSearchPreview.english_translation,
-          )
+          const preview = sentenceSearchPreview
+          if (isSaveDisabled || preview === null || preview.source_text === null) return
+          void onSaveSentence(preview.source_text, preview.english_translation)
         }}
         className="flex items-center gap-6 pr-6!"
       >

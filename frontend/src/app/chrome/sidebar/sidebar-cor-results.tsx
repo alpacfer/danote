@@ -65,6 +65,7 @@ export function SidebarCorResults({
           {corSearchVariantsToRender
             .filter((item) => item.group === group)
             .map(({ variant }) => {
+              const itemValue = corVariantItemValue(variant)
               const isVariationAdd = variationCandidateCorIdSet.has(variant.cor_id)
               const detailLine = glossDisplayForVariant(variant)
               const lemmaDisplay = lemmaDisplayForVariant(variant)
@@ -77,8 +78,8 @@ export function SidebarCorResults({
                 : null
               return (
                 <CommandItem
-                  key={`cor-variant-${variant.cor_id}`}
-                  value={corVariantItemValue(variant)}
+                  key={itemValue}
+                  value={itemValue}
                   disabled={isSaveBlocked}
                   onSelect={() => {
                     if (saveBlockedReason) {

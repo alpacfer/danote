@@ -26,6 +26,8 @@ from app.db.repositories import WordbankRepository
 from app.nlp.adapter import NLPAdapter
 from app.services.cor import CORLexiconService
 from app.services.cor_local import CORLocalLexiconService
+from app.services.en_gemini_translation import ENGeminiTranslationService
+from app.services.en_local import ENLocalLexiconService
 from app.services.gemini_translation import GeminiWordTranslationService
 from app.services.related_words import GeminiRelatedWordsService
 from app.services.translation import TranslationService
@@ -59,6 +61,8 @@ class WordbankUseCase:
         nlp_adapter: NLPAdapter | None = None,
         cor_lexicon_service: CORLexiconService | None = None,
         cor_local_lexicon_service: CORLocalLexiconService | None = None,
+        en_local_lexicon_service: ENLocalLexiconService | None = None,
+        en_gemini_translation_service: ENGeminiTranslationService | None = None,
         verification_service: WordVerificationService | None = None,
         tts_service: TTSService | None = None,
         gemini_changes_log_path: Path | None = None,
@@ -78,6 +82,9 @@ class WordbankUseCase:
             db_path,
             translation,
             nlp,
+            en_local_lexicon_service=en_local_lexicon_service,
+            en_gemini_translation_service=en_gemini_translation_service,
+            translation_service=translation_service,
         )
         related_words = RelatedWordsCollaborator(
             gemini_related_words_service,

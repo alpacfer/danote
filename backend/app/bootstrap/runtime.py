@@ -6,8 +6,9 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from app.bootstrap.runtime_cor import initialize_cor, initialize_cor_local
+from app.bootstrap.runtime_cor import initialize_cor, initialize_cor_local, initialize_en_local
 from app.bootstrap.runtime_db import initialize_database
+from app.bootstrap.runtime_en_gemini_translation import initialize_en_gemini_translation
 from app.bootstrap.runtime_gemini_word_translation import initialize_gemini_word_translation
 from app.bootstrap.runtime_nlp import initialize_nlp
 from app.bootstrap.runtime_related_words import initialize_related_words
@@ -64,9 +65,11 @@ def build_startup_steps(
     return (
         StartupStep("nlp", lambda app, settings: initialize_nlp(app, settings, nlp_adapter_factory)),
         StartupStep("cor_local", initialize_cor_local),
+        StartupStep("en_local", initialize_en_local),
         StartupStep("cor", initialize_cor),
         StartupStep("translation", initialize_translation),
         StartupStep("gemini_word_translation", initialize_gemini_word_translation),
+        StartupStep("en_gemini_translation", initialize_en_gemini_translation),
         StartupStep("related_words", initialize_related_words),
         StartupStep("word_verification", initialize_word_verification),
         StartupStep("sentence_verification", initialize_sentence_verification),

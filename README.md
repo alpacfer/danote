@@ -165,12 +165,23 @@ Database init and seed:
 
 - Backend startup auto-creates/migrates SQLite schema.
 - Source-controlled DB asset: `backend/resources/dictionaries/cor.sqlite` (canonical dictionary source).
+- Source-controlled English source data: `backend/resources/dictionaries/english_wiki.jsonl`.
+- Built English dictionary asset: `backend/resources/dictionaries/english_wiki.sqlite` (used for English sidebar lookup/translation fallback).
 - Runtime-generated SQLite artifacts (`*.sqlite-shm`, `*.sqlite-wal`, `*.sqlite3-shm`, `*.sqlite3-wal`) are local-only and ignored by Git.
 - Run idempotent seed loader:
 
 ```bash
 cd backend
 ./.venv/bin/python scripts/seed_db.py
+```
+
+Build/update the local English dictionary SQLite:
+
+```bash
+cd backend
+PYTHONPATH=. .venv/bin/python scripts/build_english_sqlite.py \
+  --input resources/dictionaries/english_wiki.jsonl \
+  --output resources/dictionaries/english_wiki.sqlite
 ```
 
 NLP compatibility check:

@@ -9,6 +9,9 @@ from app.api.schemas.v1.wordbank import (
 )
 from app.services.cor import COREntry, CORLexiconService
 from app.services.cor_local import CORLocalEntry, CORLocalLexiconService
+from app.services.en_gemini_translation import ENGeminiTranslationService
+from app.services.en_local import ENLocalLexiconService
+from app.services.translation import TranslationService
 from app.services.use_cases.wordbank.collaborators.cor_local import (
     best_cor_local_entry_for_form,
     best_cor_local_lemma_entry,
@@ -36,12 +39,19 @@ class CorResolutionCollaborator:
         db_path: Path,
         translation: TranslationCollaborator,
         nlp: NLPCollaborator,
+        *,
+        en_local_lexicon_service: ENLocalLexiconService | None = None,
+        en_gemini_translation_service: ENGeminiTranslationService | None = None,
+        translation_service: TranslationService | None = None,
     ) -> None:
         self._cor_lexicon_service = cor_lexicon_service
         self._cor_local_lexicon_service = cor_local_lexicon_service
         self._db_path = db_path
         self._translation = translation
         self._nlp = nlp
+        self._en_local_lexicon_service = en_local_lexicon_service
+        self._en_gemini_translation_service = en_gemini_translation_service
+        self._translation_service = translation_service
 
     # ------------------------------------------------------------------
     # Public API — query resolution
@@ -62,6 +72,9 @@ class CorResolutionCollaborator:
             query_text=query_text,
             include_translations=include_translations,
             include_language_detection=include_language_detection,
+            en_local_lexicon_service=self._en_local_lexicon_service,
+            en_gemini_translation_service=self._en_gemini_translation_service,
+            translation_service=self._translation_service,
         )
 
     # ------------------------------------------------------------------

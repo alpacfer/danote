@@ -6,13 +6,16 @@ from typing import Literal
 from app.api.schemas.v1.wordbank import ResolveQueryResponse
 from app.db.migrations import get_connection
 from app.nlp.token_filter import is_short_letter_word
+from app.services.en_local import ENLocalLexiconService
 from app.services.token_classifier import LemmaAwareClassifier, normalize_token
 from app.services.text_preprocessing import strip_inline_comments
+from app.services.translation import TranslationService
 from app.services.use_cases.wordbank.collaborators.cor_actions import (
     build_cor_add_options,
     find_saved_lemma,
     replace_danish_add_actions,
 )
+from app.services.use_cases.wordbank.collaborators.en_resolution import resolve_en_query
 from app.services.use_cases.wordbank.collaborators.nlp import NLPCollaborator
 from app.services.use_cases.wordbank.collaborators.translation import TranslationCollaborator
 from app.services.use_cases.wordbank.shared import build_word_action_suggestions
@@ -27,11 +30,30 @@ def resolve_query(
     query_text: str,
     include_translations: bool = True,
     include_language_detection: bool = True,
+    en_local_lexicon_service: ENLocalLexiconService | None = None,
+    en_gemini_translation_service=None,
+    translation_service: TranslationService | None = None,
 ) -> ResolveQueryResponse:
     query_without_comments = strip_inline_comments(query_text)
     normalized_query = normalize_token(query_without_comments)
     if not normalized_query:
         raise ValueError("query_text is required")
+
+    en_query_response: ResolveQueryResponse | None = None
+    has_en_local_match = (
+        en_local_lexicon_service is not None
+        and en_local_lexicon_service.has_form(normalized_query)
+    )
+    if has_en_local_match and en_local_lexicon_service is not None:
+        en_query_response = resolve_en_query(
+            normalized_query=normalized_query,
+            en_local_lexicon_service=en_local_lexicon_service,
+            en_gemini_translation_service=en_gemini_translation_service,
+            translation_service=translation_service,
+            include_translations=include_translations,
+        )
+        if not cor_entries_lookup(normalized_query):
+            return en_query_response
 
     if is_short_letter_word(normalized_query):
         return ResolveQueryResponse(
@@ -52,6 +74,7 @@ def resolve_query(
             query_language=None,
             query_language_confidence=None,
             word_actions=[],
+            en_pos_groups=en_query_response.en_pos_groups if en_query_response is not None else [],
         )
 
     classifier = LemmaAwareClassifier(
@@ -198,6 +221,7 @@ def resolve_query(
         query_language=query_language,
         query_language_confidence=query_language_confidence,
         word_actions=word_actions,
+        en_pos_groups=en_query_response.en_pos_groups if en_query_response is not None else [],
     )
 
 

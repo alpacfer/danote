@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import json
 import logging
-from dataclasses import asdict
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -12,7 +10,6 @@ from app.api.schemas.v1.wordbank import (
     QueueVerificationResponse,
     RevertVerificationChangeResponse,
     RethinkCategoriesResponse,
-    VerificationAction,
     VerificationChangeEntry,
     VerificationResult,
     VerifyWordResponse,
@@ -22,10 +19,18 @@ from app.services.token_classifier import normalize_token
 from app.services.use_cases.wordbank.collaborators import verification_apply_flow
 from app.services.use_cases.wordbank.collaborators import verification_history_flow
 from app.services.use_cases.wordbank.collaborators import verification_review_flow
+from app.services.use_cases.wordbank.collaborators.verification_change_log_support import (
+    append_gemini_change_log,
+    verification_payload_hash,
+    write_change_log_db_entry,
+)
+from app.services.use_cases.wordbank.collaborators.verification_missing_translation import (
+    supplement_missing_translation_actions,
+    translation_fix_copy_for_actions,
+)
 from app.services.use_cases.wordbank.collaborators.cor import CorResolutionCollaborator
 from app.services.use_cases.wordbank.collaborators.nlp import NLPCollaborator
 from app.services.use_cases.wordbank.verification_change_log import (
-    build_change_log_before_json,
     query_surface_forms_snapshot,
     revert_fix_translation,
     revert_fix_variations,
@@ -54,8 +59,6 @@ from app.services.use_cases.wordbank.verification_helper_logic import (
     rethink_categories_message,
     verification_action_to_schema,
 )
-from app.services.verification_review_policy import should_flag_missing_translation_review
-from app.services.verification_review_text import TRANSLATION_FIX_CHANGE, TRANSLATION_FIX_PROBLEM
 from app.services.verification import (
     WordVerificationInput,
     WordVerificationResult,
@@ -264,18 +267,11 @@ class VerificationCollaborator:
         )
 
     def _append_gemini_change_log(self, payload: dict[str, object]) -> None:
-        if self._gemini_changes_log_path is None:
-            return
-        try:
-            self._gemini_changes_log_path.parent.mkdir(parents=True, exist_ok=True)
-            with self._gemini_changes_log_path.open("a", encoding="utf-8") as handle:
-                handle.write(json.dumps(payload, ensure_ascii=True, sort_keys=True))
-                handle.write("\n")
-        except Exception:
-            logger.exception(
-                "wordbank_gemini_change_log_write_failed",
-                extra={"gemini_changes_log_path": str(self._gemini_changes_log_path)},
-            )
+        append_gemini_change_log(
+            gemini_changes_log_path=self._gemini_changes_log_path,
+            payload=payload,
+            logger=logger,
+        )
 
     def _write_change_log_db_entry(
         self,
@@ -288,32 +284,17 @@ class VerificationCollaborator:
         provider_name: str,
         applied_at: str,
     ) -> None:
-        if result.log_payload is None or result.status != "applied":
-            return
-        action_type = str(result.log_payload.get("action_type", ""))
-        if action_type not in {"fix_translation", "fix_variations"}:
-            return
-        before_json = build_change_log_before_json(
-            action_type=action_type,
+        write_change_log_db_entry(
+            db_path=self._db_path,
+            stored_lemma=stored_lemma,
+            stored_surface_form=stored_surface_form,
             meaning_id=meaning_id,
-            before_snapshot=dict(result.log_payload.get("before") or {}),
+            result=result,
             pre_apply_surfaces=pre_apply_surfaces,
+            provider_name=provider_name,
+            applied_at=applied_at,
+            logger=logger,
         )
-        after_json = dict(result.log_payload.get("after") or {})
-        repository = WordbankRepository(self._db_path)
-        try:
-            repository.insert_change_log_entry(
-                stored_lemma=stored_lemma,
-                stored_surface_form=stored_surface_form,
-                meaning_id=meaning_id,
-                action_type=action_type,
-                before_json=before_json,
-                after_json=after_json,
-                applied_at=applied_at,
-                provider=provider_name,
-            )
-        except Exception:
-            logger.exception("wordbank_change_log_db_write_failed", extra={"stored_lemma": stored_lemma})
 
     def _verification_metadata(
         self,
@@ -418,16 +399,19 @@ class VerificationCollaborator:
             problem=getattr(verdict, "problem", None),
             change_to_implement=getattr(verdict, "change_to_implement", None),
         )
-        suggested_actions = self._supplement_missing_translation_actions(
+        suggested_actions = supplement_missing_translation_actions(
+            self._translation,
             payload=payload,
             verification_status=verdict.verdict,
             suggested_actions=suggested_actions,
         )
         problem = getattr(verdict, "problem", None)
         change_to_implement = getattr(verdict, "change_to_implement", None)
-        if any(action.action_type == "fix_translation" for action in suggested_actions):
-            problem = TRANSLATION_FIX_PROBLEM
-            change_to_implement = TRANSLATION_FIX_CHANGE
+        problem, change_to_implement = translation_fix_copy_for_actions(
+            suggested_actions,
+            problem,
+            change_to_implement,
+        )
         return VerificationResult(
             status=verdict.verdict,
             provider=provider_name,
@@ -497,16 +481,19 @@ class VerificationCollaborator:
             verification_action_to_schema(action)
             for action in getattr(verdict, "suggested_actions", ()) or ()
         ]
-        suggested_actions = self._supplement_missing_translation_actions(
+        suggested_actions = supplement_missing_translation_actions(
+            self._translation,
             payload=payload,
             verification_status=verdict.verdict,
             suggested_actions=suggested_actions,
         )
         problem = getattr(verdict, "problem", None)
         change_to_implement = getattr(verdict, "change_to_implement", None)
-        if any(action.action_type == "fix_translation" for action in suggested_actions):
-            problem = TRANSLATION_FIX_PROBLEM
-            change_to_implement = TRANSLATION_FIX_CHANGE
+        problem, change_to_implement = translation_fix_copy_for_actions(
+            suggested_actions,
+            problem,
+            change_to_implement,
+        )
         return VerificationResult(
             status=verdict.verdict,
             provider=provider_name,
@@ -521,69 +508,6 @@ class VerificationCollaborator:
             change_to_implement=change_to_implement,
             suggested_actions=suggested_actions,
         )
-
-    def _supplement_missing_translation_actions(
-        self,
-        *,
-        payload: WordVerificationInput,
-        verification_status: str,
-        suggested_actions: list[VerificationAction],
-    ) -> list[VerificationAction]:
-        if verification_status != "flagged" or suggested_actions:
-            return suggested_actions
-        if not should_flag_missing_translation_review(
-            payload=payload,
-            suggested_actions=(),
-        ):
-            return suggested_actions
-        translation = self._resolve_missing_translation(payload)
-        if not translation:
-            return suggested_actions
-        return [
-            VerificationAction(
-                action_type="fix_translation",
-                english_translation=translation,
-                reason="Use the Gemini translation.",
-            )
-        ]
-
-    def _resolve_missing_translation(self, payload: WordVerificationInput) -> str | None:
-        surface_form = payload.stored_surface_form or self._preferred_surface_form_for_translation(payload)
-        contextual = self._translation.lookup_contextual_word_translation(
-            surface_form=surface_form or payload.stored_lemma,
-            lemma=payload.stored_lemma,
-            pos_tag=(
-                payload.selected_surface_pos_tag
-                or payload.selected_meaning_pos_tag
-                or payload.canonical_lemma_pos_tag
-            ),
-            morphology=(
-                payload.selected_surface_morphology
-                or payload.selected_meaning_morphology
-                or payload.canonical_lemma_morphology
-            ),
-            gloss=payload.meaning_gloss,
-            gloss_translation_hint=payload.meaning_gloss_translation,
-        )
-        translation = contextual.translation
-        if not translation:
-            return None
-        if (payload.selected_meaning_pos_tag or payload.canonical_lemma_pos_tag) == "VERB" and not translation.startswith("to "):
-            return f"to {translation}"
-        return translation
-
-    @staticmethod
-    def _preferred_surface_form_for_translation(payload: WordVerificationInput) -> str | None:
-        for form in payload.available_surface_forms:
-            if payload.meaning_id is not None and form.meaning_id != payload.meaning_id:
-                continue
-            if form.form != payload.stored_lemma:
-                return form.form
-        for form in payload.available_surface_forms:
-            if payload.meaning_id is not None and form.meaning_id != payload.meaning_id:
-                continue
-            return form.form
-        return None
 
     def _persist_batch_result(
         self,
@@ -700,11 +624,7 @@ class VerificationCollaborator:
         )
 
     def _verification_payload_hash(self, payload: WordVerificationInput) -> str:
-        serialized = {
-            key: value
-            for key, value in asdict(payload).items()
-        }
-        return json.dumps(serialized, ensure_ascii=True, sort_keys=True)
+        return verification_payload_hash(payload)
 
     def _auto_apply_eligible_actions(
         self,
