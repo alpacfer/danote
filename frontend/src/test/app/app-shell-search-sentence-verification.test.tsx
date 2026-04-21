@@ -96,7 +96,8 @@ describe("Sentence verification in search", () => {
     })
     expect(within(dialog).queryByTestId("sentence-search-translation-skeleton")).not.toBeInTheDocument()
 
-    resolveFullPreview?.()
+    expect(resolveFullPreview).not.toBeNull()
+    ;(resolveFullPreview as unknown as () => void)()
 
     await waitFor(() => {
       expect(within(dialog).queryByTestId("sentence-search-translation-skeleton")).not.toBeInTheDocument()
@@ -395,7 +396,8 @@ it("underlines the typo in the input and shows only the correction plus correcte
     expect(screen.queryByTestId("sentence-page-translation-skeleton")).not.toBeInTheDocument()
 
     await act(async () => {
-      resolveAddSentence?.()
+      expect(resolveAddSentence).not.toBeNull()
+      ;(resolveAddSentence as unknown as () => void)()
     })
   })
 
@@ -555,30 +557,35 @@ it("underlines the typo in the input and shows only the correction plus correcte
     expect(addSentenceStarted).toHaveBeenCalledTimes(1)
     hasSavedSentence = true
 
-    resolveAddSentence?.(responseOf({
-      status: "inserted",
-      id: 90,
-      source_text: "jeg er glad",
-      english_translation: "I am happy",
-      created_at: "2026-04-12T10:00:00.000Z",
-      tokens: [
-        {
-          token_index: 0,
-          surface_form: "jeg",
-          stored_lemma: "jeg",
-          lexeme_id: 1,
-          meaning_id: null,
-          pos_tag: "PRON",
-          morphology: "PronType=Prs",
-          gloss: null,
-          english_translation: "i",
-          gloss_translation: null,
-        },
-      ],
-      message: 'Added "jeg er glad" to sentencebank.',
-    }))
+    await act(async () => {
+      expect(resolveAddSentence).not.toBeNull()
+      ;(resolveAddSentence as unknown as (response: Response) => void)(responseOf({
+        status: "inserted",
+        id: 90,
+        source_text: "jeg er glad",
+        english_translation: "I am happy",
+        created_at: "2026-04-12T10:00:00.000Z",
+        tokens: [
+          {
+            token_index: 0,
+            surface_form: "jeg",
+            stored_lemma: "jeg",
+            lexeme_id: 1,
+            meaning_id: null,
+            pos_tag: "PRON",
+            morphology: "PronType=Prs",
+            gloss: null,
+            english_translation: "i",
+            gloss_translation: null,
+          },
+        ],
+        message: 'Added "jeg er glad" to sentencebank.',
+      }))
+    })
 
-    expect(await screen.findByText(/^jeg er glad$/i)).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByText(/^jeg er glad$/i)).toBeInTheDocument()
+    }, { timeout: 5_000 })
   })
 
   it("shows translated-from-English icon, no raw-input underline, and saves the Danish preview", async () => {

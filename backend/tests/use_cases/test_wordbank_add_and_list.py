@@ -1864,8 +1864,8 @@ def test_complete_variations_uses_gemini_for_generated_non_cor_meanings(tmp_path
 
     assert completed.status == "updated"
     assert completed.added_surface_forms == ["superstore"]
-    assert completed.queued_verification_targets == [
-        {"meaning_id": added.meaning.id, "stored_surface_form": None}
+    assert [(target.meaning_id, target.stored_surface_form) for target in completed.queued_verification_targets] == [
+        (added.meaning.id, None)
     ]
     details = use_case.get_lemma_details("superstor")
     assert {item.form for item in details.meaning_sections[0].surface_forms} == {"superstort", "superstore"}

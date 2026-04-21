@@ -358,7 +358,8 @@ describe("App shell and search", () => {
       expect(selectedSkeletonsAfterArrow.length).toBeGreaterThan(0)
     })
 
-    resolveFullPayload?.(responseOf({
+    expect(resolveFullPayload).not.toBeNull()
+    ;(resolveFullPayload as unknown as (value: Response) => void)(responseOf({
       form: "lærer",
       groups: [
         {

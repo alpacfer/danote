@@ -324,7 +324,7 @@ describe("App system state", () => {
     expect(await within(commandDialog).findByText(/translation required before saving\./i)).toBeInTheDocument()
     expect(within(commandDialog).queryByText(/\(to drive\)/i)).not.toBeInTheDocument()
 
-    fireEvent.click(within(commandDialog).getByRole("button", { name: /close/i }))
+    fireEvent.keyDown(commandDialog, { key: "Escape" })
     await waitFor(() => {
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
     })

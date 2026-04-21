@@ -111,7 +111,7 @@ describe("App shell and search", () => {
             cor_lemma_idx: 124,
             variation_count: 2,
             english_translation: "swamp",
-            match_surface: "bog",
+            match_surface: "moser",
             query_cor_ids: [],
             pos_tag: "NOUN",
             morphology: "Gender=Com|Number=Sing",
@@ -152,12 +152,15 @@ describe("App shell and search", () => {
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
     const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
-    fireEvent.change(searchInput, { target: { value: "bog" } })
+    fireEvent.change(searchInput, { target: { value: "moser" } })
 
-    const swampOption = (await within(commandDialog).findAllByRole("option")).find((option) =>
-      option.textContent?.toLocaleLowerCase("da-DK").includes("swamp"),
-    )
-    expect(swampOption).toBeTruthy()
+    let swampOption: HTMLElement | undefined
+    await waitFor(() => {
+      swampOption = within(commandDialog)
+        .getAllByRole("option")
+        .find((option) => option.textContent?.toLocaleLowerCase("da-DK").includes("swamp"))
+      expect(swampOption).toBeTruthy()
+    })
     fireEvent.click(swampOption as HTMLElement)
 
     expect(await screen.findByRole("heading", { name: /^bog$/i })).toBeInTheDocument()
@@ -374,7 +377,8 @@ describe("App shell and search", () => {
       expect(topItem).not.toBeNull()
       expect(topItem?.getAttribute("data-value")?.startsWith("wordbank-sigtbarhed")).toBe(true)
     })
-    expect(topItem).toHaveAttribute("data-value")
-    expect(within(topItem).queryByTestId("search-open-icon")).toBeInTheDocument()
+    const selectedTopItem = topItem as unknown as HTMLElement
+    expect(selectedTopItem).toHaveAttribute("data-value")
+    expect(within(selectedTopItem).queryByTestId("search-open-icon")).toBeInTheDocument()
   })
 })

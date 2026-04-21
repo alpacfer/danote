@@ -72,17 +72,21 @@ class RelatedWordsCollaborator:
                 pos_tag=item.pos_tag,
             )
             candidates = self._cor_candidates(item.lemma, item.pos_tag)
-            if not candidates:
+            if not candidates and lexeme.dictionary_status != "generated_non_cor":
                 continue
             self._persist_additional_translation_for_saved_target(
                 lemma=item.lemma,
                 english_translation=normalized_translation,
             )
-            preferred_cor_id = self._pick_preferred_cor_id(
-                lemma=item.lemma,
-                english_translation=normalized_translation,
-                pos_tag=item.pos_tag,
-                cor_candidates=candidates,
+            preferred_cor_id = (
+                self._pick_preferred_cor_id(
+                    lemma=item.lemma,
+                    english_translation=normalized_translation,
+                    pos_tag=item.pos_tag,
+                    cor_candidates=candidates,
+                )
+                if candidates
+                else None
             )
             persisted_rows.append(
                 RelatedWordWriteRecord(
@@ -98,6 +102,9 @@ class RelatedWordsCollaborator:
             owner_lexeme_id=lexeme.id,
             items=persisted_rows,
         )
+        job = self._jobs.get_by_dedupe_key(related_words_dedupe_key(normalized_lemma))
+        if job is not None and job.status in {"pending", "running"}:
+            self._jobs.mark_completed(job.id)
 
     def build_related_words_section(
         self,

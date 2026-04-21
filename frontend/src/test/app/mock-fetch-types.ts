@@ -126,20 +126,3 @@ export function buildWordActionsFromResolvePayload(payload: ResolveQueryPayload)
 
   return actions
 }
-
-export function responseOf(payload: unknown): Response {
-  return {
-    ok: true,
-    status: 200,
-    json: async () => payload,
-  } as Response
-}
-
-export function getNotesEditor(): HTMLElement {
-  return screen.getByRole("textbox", { name: /lesson notes/i })
-}
-
-export function setNotesEditorText(value: string) {
-  const input = screen.getByTestId("lesson-notes-test-input")
-  fireEvent.change(input, { target: { value } })
-}

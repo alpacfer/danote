@@ -8,6 +8,17 @@ import {
   teacherVerifiedWordPageContractFixture,
 } from "@/test/app/wordbank-contract-fixtures"
 
+async function findCommandOptionByValue(commandDialog: HTMLElement, value: string) {
+  let option: HTMLElement | undefined
+  await waitFor(() => {
+    option = within(commandDialog)
+      .getAllByRole("option")
+      .find((item) => item.getAttribute("data-value") === value)
+    expect(option).toBeTruthy()
+  })
+  return option as HTMLElement
+}
+
 describe("App shell and search", () => {
   it("request-shape: command search uses local COR endpoint, renders grouped variants, and adds selected variant", async () => {
     const fetchSpy = mockFetchImplementation({
@@ -352,7 +363,7 @@ describe("App shell and search", () => {
     const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
     fireEvent.change(searchInput, { target: { value: "lærere" } })
 
-    fireEvent.click(await within(commandDialog).findByText(/^lærere$/i))
+    fireEvent.click(await findCommandOptionByValue(commandDialog, "cor-variant-COR.49032.112.01"))
 
     await waitFor(() => {
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
@@ -653,7 +664,7 @@ describe("App shell and search", () => {
     const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
     fireEvent.change(searchInput, { target: { value: "lærere" } })
 
-    fireEvent.click(await within(commandDialog).findByText(/^lærere$/i))
+    fireEvent.click(await findCommandOptionByValue(commandDialog, "cor-variant-COR.49032.112.01"))
 
     expect(await screen.findByRole("heading", { name: /^lærer$/i })).toBeInTheDocument()
     expect(screen.getByText(/^lærere$/i)).toBeInTheDocument()
@@ -709,7 +720,7 @@ describe("App shell and search", () => {
     const commandDialog = await screen.findByRole("dialog")
     const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
     fireEvent.change(searchInput, { target: { value: "lærere" } })
-    fireEvent.click(await within(commandDialog).findByText(/^lærere$/i))
+    fireEvent.click(await findCommandOptionByValue(commandDialog, "cor-variant-COR.49032.112.01"))
 
     expect(await screen.findByRole("heading", { name: /^lærer$/i })).toBeInTheDocument()
 
@@ -722,9 +733,9 @@ describe("App shell and search", () => {
   it("request-shape: auto-updates the open word page when queued verification finishes from a stale saved snapshot", async () => {
     let lemmaDetailsRequestCount = 0
     const staleSavedSnapshot = cloneContractFixture(teacherSectionedWordPageContractFixture)
-    staleSavedSnapshot.meaning_sections[0].english_translation = "placeholder translation"
+    staleSavedSnapshot.meaning_sections![0].english_translation = "placeholder translation"
     const verifiedWordPage = cloneContractFixture(teacherVerifiedWordPageContractFixture)
-    verifiedWordPage.meaning_sections[0].english_translation = "classroom mentor"
+    verifiedWordPage.meaning_sections![0].english_translation = "classroom mentor"
 
     mockFetchImplementation({
       lemmasResponse: { items: [] },
@@ -777,7 +788,7 @@ describe("App shell and search", () => {
     const commandDialog = await screen.findByRole("dialog")
     const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
     fireEvent.change(searchInput, { target: { value: "lærere" } })
-    fireEvent.click(await within(commandDialog).findByText(/^lærere$/i))
+    fireEvent.click(await findCommandOptionByValue(commandDialog, "cor-variant-COR.49032.112.01"))
 
     expect(await screen.findByRole("heading", { name: /^lærer$/i })).toBeInTheDocument()
 
@@ -790,11 +801,11 @@ describe("App shell and search", () => {
   it("request-shape: keeps polling through Gemini auto-apply settling and updates the open word page without navigation", async () => {
     let lemmaDetailsRequestCount = 0
     const staleSavedSnapshot = cloneContractFixture(teacherSectionedWordPageContractFixture)
-    staleSavedSnapshot.meaning_sections[0].english_translation = "placeholder translation"
+    staleSavedSnapshot.meaning_sections![0].english_translation = "placeholder translation"
 
     const flaggedBeforeAutoApply = cloneContractFixture(teacherSectionedWordPageContractFixture)
-    flaggedBeforeAutoApply.meaning_sections[0].english_translation = "placeholder translation"
-    flaggedBeforeAutoApply.meaning_sections[0].verification = {
+    flaggedBeforeAutoApply.meaning_sections![0].english_translation = "placeholder translation"
+    flaggedBeforeAutoApply.meaning_sections![0].verification = {
       status: "flagged",
       provider: "gemini",
       reviewer_role: "Professional Danish Language Expert",
@@ -815,7 +826,7 @@ describe("App shell and search", () => {
     }
 
     const verifiedWordPage = cloneContractFixture(teacherVerifiedWordPageContractFixture)
-    verifiedWordPage.meaning_sections[0].english_translation = "classroom mentor"
+    verifiedWordPage.meaning_sections![0].english_translation = "classroom mentor"
 
     mockFetchImplementation({
       lemmasResponse: { items: [] },
@@ -871,7 +882,7 @@ describe("App shell and search", () => {
     const commandDialog = await screen.findByRole("dialog")
     const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
     fireEvent.change(searchInput, { target: { value: "lærere" } })
-    fireEvent.click(await within(commandDialog).findByText(/^lærere$/i))
+    fireEvent.click(await findCommandOptionByValue(commandDialog, "cor-variant-COR.49032.112.01"))
 
     expect(await screen.findByRole("heading", { name: /^lærer$/i })).toBeInTheDocument()
     expect(screen.getByText(/^placeholder translation$/i)).toBeInTheDocument()

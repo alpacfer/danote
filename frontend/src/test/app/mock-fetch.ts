@@ -1424,7 +1424,8 @@ function assertWordbankContractDetails(name: string, payload: unknown) {
   if (!Array.isArray(candidate.meaning_sections ?? [])) {
     throw new Error(`mockFetchImplementation expected ${name}.meaning_sections to be an array when provided.`)
   }
-  for (const [index, section] of (candidate.meaning_sections ?? []).entries()) {
+  const meaningSections = (candidate.meaning_sections ?? []) as unknown[]
+  for (const [index, section] of meaningSections.entries()) {
     if (!section || typeof section !== "object") {
       throw new Error(`mockFetchImplementation expected ${name}.meaning_sections[${index}] to be an object.`)
     }

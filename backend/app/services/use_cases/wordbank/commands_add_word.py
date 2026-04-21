@@ -78,7 +78,7 @@ def add_word(
         preferred_pos_tag=initial_metadata.pos_tag,
         preferred_morphology=initial_metadata.morphology,
     )
-    if meaning_resolution is None:
+    if meaning_resolution is not None and _should_try_non_cor_generation(meaning_resolution):
         generated = _generate_non_cor_word(runtime, inputs=inputs)
         if generated is not None:
             return add_word_from_search_seed(
@@ -91,6 +91,7 @@ def add_word(
                 ),
                 queue_verification=queue_verification,
             )
+    if meaning_resolution is None:
         translations = lookup_word_translations(runtime, inputs, meaning_resolution)
         return _add_unsectioned_word(
             runtime,
@@ -108,6 +109,18 @@ def add_word(
         inserted_lexeme=inserted_lexeme,
         meaning_resolution=meaning_resolution,
         translations=translations,
+    )
+
+
+def _should_try_non_cor_generation(meaning_resolution: MeaningResolution) -> bool:
+    resolved_pos_tag = (meaning_resolution.pos_tag or "").upper()
+    if resolved_pos_tag and resolved_pos_tag not in {"ADJ", "NOUN", "PROPN"}:
+        return False
+    return (
+        meaning_resolution.selected is None
+        and meaning_resolution.surface_cor_entry is None
+        and meaning_resolution.lemma_cor_entry is None
+        and meaning_resolution.cor_lemma_idx is None
     )
 
 
@@ -483,4 +496,3 @@ def _generate_non_cor_word(
         sentence_context=None,
     )
     return runtime.translation.generate_non_cor_word_entries_batch([payload])[0]
-

@@ -152,7 +152,6 @@ def resolve_non_verb_meaning(
         gloss
         or (selected.meaning_key if selected is not None else stored_lemma)
     ) or stored_lemma
-
     return MeaningResolution(
         selected=selected,
         surface_cor_entry=surface_cor_entry,

@@ -13,7 +13,7 @@ def supplement_missing_translation_actions(
     verification_status: str,
     suggested_actions: list[VerificationAction],
 ) -> list[VerificationAction]:
-    if verification_status != "flagged" or suggested_actions:
+    if verification_status not in {"verified", "flagged"} or suggested_actions:
         return suggested_actions
     if not should_flag_missing_translation_review(payload=payload, suggested_actions=()):
         return suggested_actions

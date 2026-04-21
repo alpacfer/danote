@@ -1,4 +1,5 @@
 import { act, fireEvent, getNotesEditor, mockFetchImplementation, renderApp, responseOf, screen, setNotesEditorText, vi, waitFor, within } from "@/test/app-test-helpers"
+import type { LemmaDetailsResponse } from "@/app/core"
 import {
   bogVariationGlossWordPageContractFixture,
   cloneContractFixture,
@@ -752,9 +753,11 @@ describe("App wordbank", () => {
   })
 
   it("request-shape: noun meaning cards can complete variations and refresh to show only non-lemma variations", async () => {
-    let lemmaDetails = {
+    let lemmaDetails: LemmaDetailsResponse = {
       lemma: "bog",
       english_translation: null,
+      pos_tag: null,
+      morphology: null,
       is_sectioned: true,
       meaning_sections: [
         {
@@ -762,9 +765,10 @@ describe("App wordbank", () => {
           meaning_key: "book",
           gloss: "book",
           english_translation: "book",
-          verification: {
-            status: "verified",
-            provider: "gemini",
+	          verification: {
+	            status: "verified",
+	            composed_word_count: null,
+	            provider: "gemini",
             reviewer_role: "Professional Danish Language Expert",
             message: "Verified.",
             requested_at: "2026-03-15T10:00:00Z",
@@ -775,9 +779,10 @@ describe("App wordbank", () => {
           surface_forms: [
             {
               form: "bøger",
-              verification: {
-                status: "verified",
-                provider: "gemini",
+	              verification: {
+	                status: "verified",
+	                composed_word_count: null,
+	                provider: "gemini",
                 reviewer_role: "Professional Danish Language Expert",
                 message: "Verified.",
                 requested_at: "2026-03-15T10:00:00Z",
@@ -809,7 +814,7 @@ describe("App wordbank", () => {
           ...lemmaDetails,
           meaning_sections: [
             {
-              ...lemmaDetails.meaning_sections[0],
+	              ...lemmaDetails.meaning_sections![0],
               surface_forms: [
                 {
                   form: "bogen",
@@ -885,9 +890,11 @@ describe("App wordbank", () => {
   })
 
   it("request-shape: adjective meaning cards can complete variations and render the agreement table with shared plural cells", async () => {
-    let lemmaDetails = {
+    let lemmaDetails: LemmaDetailsResponse = {
       lemma: "stor",
       english_translation: null,
+      pos_tag: null,
+      morphology: null,
       is_sectioned: true,
       meaning_sections: [
         {
@@ -895,9 +902,10 @@ describe("App wordbank", () => {
           meaning_key: "large",
           gloss: "large",
           english_translation: "large",
-          verification: {
-            status: "verified",
-            provider: "gemini",
+	          verification: {
+	            status: "verified",
+	            composed_word_count: null,
+	            provider: "gemini",
             reviewer_role: "Professional Danish Language Expert",
             message: "Verified.",
             requested_at: "2026-03-15T10:00:00Z",
@@ -909,9 +917,10 @@ describe("App wordbank", () => {
           surface_forms: [
             {
               form: "stort",
-              verification: {
-                status: "verified",
-                provider: "gemini",
+	              verification: {
+	                status: "verified",
+	                composed_word_count: null,
+	                provider: "gemini",
                 reviewer_role: "Professional Danish Language Expert",
                 message: "Verified.",
                 requested_at: "2026-03-15T10:00:00Z",
@@ -951,7 +960,7 @@ describe("App wordbank", () => {
           ...lemmaDetails,
           meaning_sections: [
             {
-              ...lemmaDetails.meaning_sections[0],
+	              ...lemmaDetails.meaning_sections![0],
               surface_forms: [
                 {
                   form: "store",
@@ -1012,12 +1021,18 @@ describe("App wordbank", () => {
   })
 
   it("request-shape: verb meaning cards can complete variations and render the shared verb table", async () => {
-    let lemmaDetails = {
+    let lemmaDetails: {
+      lemmasResponse: { items: Array<{ lemma: string; variation_count: number }> }
+      lemmaDetailsResponse: LemmaDetailsResponse
+    } = {
       lemmasResponse: {
         items: [{ lemma: "lære", variation_count: 1 }],
       },
       lemmaDetailsResponse: {
         lemma: "lære",
+        english_translation: "learn",
+        pos_tag: "VERB",
+        morphology: "VerbForm=Inf|Voice=Act",
         is_sectioned: true,
         meaning_sections: [
           {
@@ -1028,9 +1043,10 @@ describe("App wordbank", () => {
             pos_tag: "VERB",
             morphology: "VerbForm=Inf|Voice=Act",
             gram_raw: "vb.inf.akt",
-            verification: {
-              status: "verified",
-              provider: "gemini",
+	            verification: {
+	              status: "verified",
+	              composed_word_count: null,
+	              provider: "gemini",
               reviewer_role: "Professional Danish Language Expert",
               message: "Verified.",
               requested_at: "2026-03-15T10:00:00Z",
@@ -1039,9 +1055,10 @@ describe("App wordbank", () => {
             surface_forms: [
               {
                 form: "lærer",
-                verification: {
-                  status: "verified",
-                  provider: "gemini",
+	                verification: {
+	                  status: "verified",
+	                  composed_word_count: null,
+	                  provider: "gemini",
                   reviewer_role: "Professional Danish Language Expert",
                   message: "Verified.",
                   requested_at: "2026-03-15T10:00:00Z",
@@ -1074,7 +1091,7 @@ describe("App wordbank", () => {
             ...lemmaDetails.lemmaDetailsResponse,
             meaning_sections: [
               {
-                ...lemmaDetails.lemmaDetailsResponse.meaning_sections[0],
+	                ...lemmaDetails.lemmaDetailsResponse.meaning_sections![0],
                 surface_forms: [
                   {
                     form: "lærer",
@@ -1436,9 +1453,11 @@ describe("App wordbank", () => {
   it("keeps one current-state notification per target for complete-variations reviews even after leaving the lemma page", async () => {
     vi.useRealTimers()
     let completionSettled = false
-    let lemmaDetails = {
+    let lemmaDetails: LemmaDetailsResponse = {
       lemma: "bog",
       english_translation: null,
+      pos_tag: null,
+      morphology: null,
       is_sectioned: true,
       meaning_sections: [
         {
@@ -1446,9 +1465,10 @@ describe("App wordbank", () => {
           meaning_key: "book",
           gloss: "book",
           english_translation: "book",
-          verification: {
-            status: "verified" as const,
-            provider: "gemini",
+	          verification: {
+	            status: "verified" as const,
+	            composed_word_count: null,
+	            provider: "gemini",
             reviewer_role: "Professional Danish Language Expert",
             message: "Verified.",
             requested_at: "2026-03-15T10:00:00Z",
@@ -1459,9 +1479,10 @@ describe("App wordbank", () => {
           surface_forms: [
             {
               form: "bøger",
-              verification: {
-                status: "verified" as const,
-                provider: "gemini",
+	              verification: {
+	                status: "verified" as const,
+	                composed_word_count: null,
+	                provider: "gemini",
                 reviewer_role: "Professional Danish Language Expert",
                 message: "Verified.",
                 requested_at: "2026-03-15T10:00:00Z",
@@ -1487,9 +1508,10 @@ describe("App wordbank", () => {
               ...lemmaDetails,
               meaning_sections: [
                 {
-                  ...lemmaDetails.meaning_sections[0],
+                  ...lemmaDetails.meaning_sections![0],
                   verification: {
                     status: "error" as const,
+                    composed_word_count: null,
                     provider: "gemini",
                     reviewer_role: "Professional Danish Language Expert",
                     review_intent: "complete_variations",
@@ -1510,9 +1532,10 @@ describe("App wordbank", () => {
           ...lemmaDetails,
           meaning_sections: [
             {
-              ...lemmaDetails.meaning_sections[0],
+              ...lemmaDetails.meaning_sections![0],
               verification: {
                 status: "queued" as const,
+                composed_word_count: null,
                 provider: "gemini",
                 reviewer_role: "Professional Danish Language Expert",
                 review_intent: "complete_variations",

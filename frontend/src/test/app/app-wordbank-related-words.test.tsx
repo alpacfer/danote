@@ -34,7 +34,7 @@ function buildVariant(args: {
 
 function buildOwnerDetails(args: {
   lemma?: string
-  englishTranslation?: string
+  englishTranslation?: string | null
   meaningKey?: string
   status: "queued" | "ready" | "empty" | "error"
   message?: string | null
@@ -137,7 +137,8 @@ describe("App wordbank related words", () => {
     expect(screen.queryByRole("heading", { name: /^related$/i })).not.toBeInTheDocument()
     expect(screen.queryByText(/finding related compound words/i)).not.toBeInTheDocument()
 
-    releaseReadyResponse?.()
+    expect(releaseReadyResponse).not.toBeNull()
+    ;(releaseReadyResponse as unknown as () => void)()
 
     await waitFor(() => {
       expect(detailRequests).toBeGreaterThanOrEqual(2)

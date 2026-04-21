@@ -1,5 +1,16 @@
 import { fireEvent, mockFetchImplementation, renderApp, responseOf, screen, toast, vi, waitFor, within } from "@/test/app-test-helpers"
 
+async function findCommandOptionByValue(commandDialog: HTMLElement, value: string) {
+  let option: HTMLElement | undefined
+  await waitFor(() => {
+    option = within(commandDialog)
+      .getAllByRole("option")
+      .find((item) => item.getAttribute("data-value") === value)
+    expect(option).toBeTruthy()
+  })
+  return option as HTMLElement
+}
+
 describe("App shell and search", () => {
   it("keeps untranslated COR results visible and shows toast when Azure translations fail", async () => {
     mockFetchImplementation({
@@ -55,11 +66,11 @@ describe("App shell and search", () => {
     const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
     fireEvent.change(searchInput, { target: { value: "lærer" } })
 
-    await within(commandDialog).findByText(/^lærer$/i)
+    await findCommandOptionByValue(commandDialog, "cor-variant-COR.49032.210.01")
     await waitFor(() => {
       expect(vi.mocked(toast.error)).toHaveBeenCalledWith("Azure translation is unavailable.")
     })
-    expect(within(commandDialog).getByText(/^lærer$/i)).toBeInTheDocument()
+    expect(await findCommandOptionByValue(commandDialog, "cor-variant-COR.49032.210.01")).toBeInTheDocument()
     expect(within(commandDialog).queryByText(/^learn$/i)).not.toBeInTheDocument()
   })
 
@@ -107,7 +118,7 @@ describe("App shell and search", () => {
     const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
     fireEvent.change(searchInput, { target: { value: "lærer" } })
 
-    fireEvent.click(await within(commandDialog).findByText(/^lærer$/i))
+    fireEvent.click(await findCommandOptionByValue(commandDialog, "cor-variant-COR.49032.210.01"))
 
     await waitFor(() => {
       expect(vi.mocked(toast.error)).toHaveBeenCalledWith(
@@ -162,7 +173,7 @@ describe("App shell and search", () => {
     const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
     fireEvent.change(searchInput, { target: { value: "lærer" } })
 
-    fireEvent.click(await within(commandDialog).findByText(/^lærer$/i))
+    fireEvent.click(await findCommandOptionByValue(commandDialog, "cor-variant-COR.49032.210.01"))
 
     await waitFor(() => {
       expect(vi.mocked(toast.error)).toHaveBeenCalledWith("The word 'lærer' is already saved as a variation.")

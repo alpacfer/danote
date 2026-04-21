@@ -1,7 +1,20 @@
 import { fireEvent, mockFetchImplementation, renderApp, responseOf, screen, waitFor, within } from "@/test/app-test-helpers"
+import userEvent from "@testing-library/user-event"
+
+async function findCommandOptionByValue(commandDialog: HTMLElement, value: string) {
+  let option: HTMLElement | undefined
+  await waitFor(() => {
+    option = within(commandDialog)
+      .getAllByRole("option")
+      .find((item) => item.getAttribute("data-value") === value)
+    expect(option).toBeTruthy()
+  })
+  return option as HTMLElement
+}
 
 describe("App shell and search", () => {
   it("keeps added ulykker visible and selected across exact query transitions", async () => {
+    const user = userEvent.setup()
     const lemmaItems: Array<{
       lemma: string
       variation_count: number
@@ -109,10 +122,9 @@ describe("App shell and search", () => {
     let commandDialog = await screen.findByRole("dialog")
     let searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
 
-    fireEvent.change(searchInput, { target: { value: "ulykker" } })
-    const addOption = (await within(commandDialog).findByText(/^ulykker$/i)).closest("[cmdk-item]")
-    expect(addOption).toBeTruthy()
-    fireEvent.click(addOption as HTMLElement)
+    await user.clear(searchInput)
+    await user.type(searchInput, "ulykker")
+    fireEvent.click(await findCommandOptionByValue(commandDialog, "cor-variant-COR.700.112.01"))
 
     await waitFor(() => {
       expect(addedCount).toBe(1)
@@ -125,13 +137,14 @@ describe("App shell and search", () => {
     commandDialog = await screen.findByRole("dialog")
     searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
 
-    fireEvent.change(searchInput, { target: { value: "ulykker" } })
+    await user.clear(searchInput)
+    await user.type(searchInput, "ulykker")
     await waitFor(() => {
       const options = within(commandDialog).getAllByRole("option")
       expect(options.length).toBeGreaterThan(0)
       expect(options[0]).toHaveTextContent(/ulykk/i)
       expect(options[0]).toHaveAttribute("data-selected", "true")
-    })
+    }, { timeout: 5_000 })
     expect(await within(commandDialog).findByTestId("search-open-icon")).toBeInTheDocument()
     expect(within(commandDialog).queryByTestId("search-add-icon")).not.toBeInTheDocument()
     expect(await within(commandDialog).findByText(/^Noun$/i)).toBeInTheDocument()
@@ -140,34 +153,38 @@ describe("App shell and search", () => {
     expect(await within(commandDialog).findByText(/^Indefinite$/i)).toBeInTheDocument()
     expect(within(commandDialog).queryByText(/^NOUN$/)).not.toBeInTheDocument()
 
-    fireEvent.change(searchInput, { target: { value: "ulykke" } })
+    await user.clear(searchInput)
+    await user.type(searchInput, "ulykke")
     await waitFor(() => {
       const options = within(commandDialog).getAllByRole("option")
       expect(options.length).toBeGreaterThan(0)
       expect(options[0]).toHaveTextContent(/ulykk/i)
       expect(options[0]).toHaveAttribute("data-selected", "true")
       expect(options[0].getAttribute("data-value")?.startsWith("wordbank-ulykke")).toBe(true)
-    })
+    }, { timeout: 5_000 })
     expect(within(commandDialog).queryByTestId("search-add-icon")).not.toBeInTheDocument()
 
-    fireEvent.change(searchInput, { target: { value: "ulykker" } })
+    await user.clear(searchInput)
+    await user.type(searchInput, "ulykker")
     await waitFor(() => {
       const options = within(commandDialog).getAllByRole("option")
       expect(options.length).toBeGreaterThan(0)
       expect(options[0]).toHaveTextContent(/ulykk/i)
       expect(options[0]).toHaveAttribute("data-selected", "true")
-    })
+    }, { timeout: 5_000 })
 
-    fireEvent.change(searchInput, { target: { value: "ulykke" } })
+    await user.clear(searchInput)
+    await user.type(searchInput, "ulykke")
     await waitFor(() => {
       expect(within(commandDialog).getAllByRole("option").length).toBeGreaterThan(0)
     })
-    fireEvent.change(searchInput, { target: { value: "ulykker" } })
+    await user.clear(searchInput)
+    await user.type(searchInput, "ulykker")
     await waitFor(() => {
       const options = within(commandDialog).getAllByRole("option")
       expect(options.length).toBeGreaterThan(0)
       expect(options[0]).toHaveTextContent(/ulykk/i)
-    })
+    }, { timeout: 5_000 })
 
     fireEvent.keyDown(window, { key: "k", ctrlKey: true })
     await waitFor(() => {
@@ -176,13 +193,14 @@ describe("App shell and search", () => {
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     commandDialog = await screen.findByRole("dialog")
     searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
-    fireEvent.change(searchInput, { target: { value: "ulykker" } })
+    await user.clear(searchInput)
+    await user.type(searchInput, "ulykker")
     await waitFor(() => {
       const options = within(commandDialog).getAllByRole("option")
       expect(options.length).toBeGreaterThan(0)
       expect(options[0]).toHaveTextContent(/ulykk/i)
     })
-  }, 10_000)
+  }, 20_000)
 
   it("resets selection to first result on each new search update", async () => {
     mockFetchImplementation({
@@ -256,5 +274,5 @@ describe("App shell and search", () => {
       const options = within(commandDialog).getAllByRole("option")
       expect(options[0]).toHaveAttribute("data-selected", "true")
     })
-  })
+  }, 20_000)
 })

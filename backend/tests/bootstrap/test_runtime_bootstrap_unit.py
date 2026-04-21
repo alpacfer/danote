@@ -33,9 +33,11 @@ def test_build_startup_steps_registers_expected_sequence(stub_nlp_adapter_factor
     assert [step.name for step in steps] == [
         "nlp",
         "cor_local",
+        "en_local",
         "cor",
         "translation",
         "gemini_word_translation",
+        "en_gemini_translation",
         "related_words",
         "word_verification",
         "sentence_verification",

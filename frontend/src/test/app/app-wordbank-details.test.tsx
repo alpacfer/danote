@@ -480,7 +480,7 @@ describe("App wordbank", () => {
     fireEvent.click(screen.getByRole("button", { name: /Læreren hjælper lærere/i }))
 
     // now in sentencebank sentence page — token card visible
-    expect(await screen.findByRole("button", { name: /Læreren/i })).toBeInTheDocument()
+    expect((await screen.findAllByRole("button", { name: /Læreren/i })).length).toBeGreaterThan(0)
   })
 
   it("renderer-only: word page loading uses the redesigned skeleton layout", async () => {

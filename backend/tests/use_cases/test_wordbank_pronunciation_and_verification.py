@@ -564,7 +564,7 @@ def test_word_verification_payload_preserves_imperative_metadata_for_bile_homogr
     assert bil.gram_raw == "vb.imp"
 
 
-def test_verify_added_word_flags_missing_bile_translation_from_gloss_hint(tmp_path: Path, monkeypatch) -> None:
+def test_verify_added_word_auto_applies_missing_bile_translation_from_gloss_hint(tmp_path: Path, monkeypatch) -> None:
     verification_service = GeminiWordVerificationService(api_key="test-key")
     monkeypatch.setattr(
         verification_service,
@@ -622,10 +622,10 @@ def test_verify_added_word_flags_missing_bile_translation_from_gloss_hint(tmp_pa
     assert added.meaning is not None
 
     verified = use_case.verify_added_word("bile", None, meaning_id=added.meaning.id)
+    details = use_case.get_lemma_details("bile")
 
-    assert verified.verification.status == "flagged"
-    assert [action.action_type for action in verified.verification.suggested_actions] == ["fix_translation"]
-    assert verified.verification.suggested_actions[0].english_translation == "go by car"
+    assert verified.verification.status == "verified"
+    assert details.meaning_sections[0].english_translation == "go by car"
 
 
 def test_verify_added_word_flags_missing_have_translation_without_gloss_hint(
@@ -2422,7 +2422,7 @@ def test_verify_word_background_job_auto_applies_fix_translation_for_homograph_m
     ]
 
 
-def test_verify_word_background_job_requeues_stale_sibling_targets_after_auto_apply(tmp_path: Path) -> None:
+def test_verify_word_background_job_verifies_queued_sibling_targets_after_auto_apply(tmp_path: Path) -> None:
     import time
 
     from app.services.use_cases.wordbank.background_jobs import WordbankBackgroundJobRunner
@@ -2576,4 +2576,7 @@ def test_verify_word_background_job_requeues_stale_sibling_targets_after_auto_ap
     entries = repository.get_change_log_entries_for_lemma("mor")
     assert len(entries) == 2
     assert {entry.meaning_id for entry in entries} == {1, 2}
-    assert len(verification_service.calls) >= 3
+    assert verification_service.calls == [
+        (1, "person", "mother"),
+        (2, "jordlag", "mother"),
+    ]

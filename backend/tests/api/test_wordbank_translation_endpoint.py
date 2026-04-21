@@ -273,7 +273,7 @@ def test_generate_phrase_translation_returns_cached_value_without_second_provide
 
         def translate_da_to_en(self, text: str) -> str | None:
             self.calls += 1
-            return "i like it" if text == "jeg kan godt lide det" else None
+            return "i like it" if text == "Jeg kan godt lide det" else None
 
     stub_service = StubTranslationService()
     with TestClient(app) as client:

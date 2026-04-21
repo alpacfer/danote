@@ -4,7 +4,7 @@ export function cloneContractFixture<T>(fixture: T): T {
   return structuredClone(fixture)
 }
 
-export const bogVariationGlossWordPageContractFixture = {
+export const bogVariationGlossWordPageContractFixture: LemmaDetailsResponse = {
   lemma: "bog",
   english_translation: "book",
   pos_tag: "NOUN",
@@ -23,9 +23,9 @@ export const bogVariationGlossWordPageContractFixture = {
       has_pronunciation: true,
     },
   ],
-} satisfies LemmaDetailsResponse
+}
 
-export const bogHomographWordPageContractFixture = {
+export const bogHomographWordPageContractFixture: LemmaDetailsResponse = {
   lemma: "bog",
   english_translation: null,
   pos_tag: null,
@@ -56,9 +56,9 @@ export const bogHomographWordPageContractFixture = {
     },
   ],
   surface_forms: [],
-} satisfies LemmaDetailsResponse
+}
 
-export const morHomographWordPageContractFixture = {
+export const morHomographWordPageContractFixture: LemmaDetailsResponse = {
   lemma: "mor",
   english_translation: null,
   pos_tag: null,
@@ -89,9 +89,9 @@ export const morHomographWordPageContractFixture = {
     },
   ],
   surface_forms: [],
-} satisfies LemmaDetailsResponse
+}
 
-export const teacherSectionedWordPageContractFixture = {
+export const teacherSectionedWordPageContractFixture: LemmaDetailsResponse = {
   lemma: "lærer",
   english_translation: "teacher",
   pos_tag: "NOUN",
@@ -118,13 +118,13 @@ export const teacherSectionedWordPageContractFixture = {
     },
   ],
   surface_forms: [],
-} satisfies LemmaDetailsResponse
+}
 
-export const teacherQueuedWordPageContractFixture = {
+export const teacherQueuedWordPageContractFixture: LemmaDetailsResponse = {
   ...teacherSectionedWordPageContractFixture,
   meaning_sections: [
     {
-      ...teacherSectionedWordPageContractFixture.meaning_sections[0],
+      ...teacherSectionedWordPageContractFixture.meaning_sections![0],
       verification: {
         status: "queued",
         provider: "gemini",
@@ -137,13 +137,13 @@ export const teacherQueuedWordPageContractFixture = {
       },
     },
   ],
-} satisfies LemmaDetailsResponse
+}
 
-export const teacherVerifiedWordPageContractFixture = {
+export const teacherVerifiedWordPageContractFixture: LemmaDetailsResponse = {
   ...teacherSectionedWordPageContractFixture,
   meaning_sections: [
     {
-      ...teacherSectionedWordPageContractFixture.meaning_sections[0],
+      ...teacherSectionedWordPageContractFixture.meaning_sections![0],
       verification: {
         status: "verified",
         provider: "gemini",
@@ -157,9 +157,9 @@ export const teacherVerifiedWordPageContractFixture = {
       },
     },
   ],
-} satisfies LemmaDetailsResponse
+}
 
-export const teacherQueuedSearchAddResponseContractFixture = {
+export const teacherQueuedSearchAddResponseContractFixture: AddWordResponse = {
   status: "inserted",
   stored_lemma: "lærer",
   stored_surface_form: "lærere",
@@ -173,4 +173,4 @@ export const teacherQueuedSearchAddResponseContractFixture = {
     english_translation: "teacher",
   },
   saved_snapshot: teacherQueuedWordPageContractFixture,
-} satisfies AddWordResponse
+}

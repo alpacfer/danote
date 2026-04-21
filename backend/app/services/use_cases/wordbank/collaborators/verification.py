@@ -412,8 +412,11 @@ class VerificationCollaborator:
             problem,
             change_to_implement,
         )
+        verification_status = verdict.verdict
+        if verification_status == "verified" and suggested_actions:
+            verification_status = "flagged"
         return VerificationResult(
-            status=verdict.verdict,
+            status=verification_status,
             provider=provider_name,
             reviewer_role=reviewer_name,
             review_intent=payload.review_intent,
@@ -494,8 +497,11 @@ class VerificationCollaborator:
             problem,
             change_to_implement,
         )
+        verification_status = verdict.verdict
+        if verification_status == "verified" and suggested_actions:
+            verification_status = "flagged"
         return VerificationResult(
-            status=verdict.verdict,
+            status=verification_status,
             provider=provider_name,
             reviewer_role=reviewer_name,
             review_intent=payload.review_intent,

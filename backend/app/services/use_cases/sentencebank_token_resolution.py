@@ -220,6 +220,24 @@ def resolve_sentence_token(
                 sentence_context=sentence_context,
                 candidates=candidate_resolution.candidates,
             )
+        if not should_generate_non_cor_sentence_token(pos_tag):
+            return (
+                save_root_level_sentence_token(
+                    runtime,
+                    token_index=token_index,
+                    display_surface=display_surface,
+                    normalized_surface=normalized_surface,
+                    lemma=lemma_candidate,
+                    pos_tag=pos_tag,
+                    morphology=morphology,
+                    cor_id=None,
+                    gloss=None,
+                    english_translation=None,
+                    gloss_translation=None,
+                    queue_verification=False,
+                ),
+                True,
+            )
         return PendingGeneratedSentenceToken(
             token_index=token_index,
             display_surface=display_surface,
@@ -363,6 +381,10 @@ def batch_generate_non_cor_sentence_tokens(
             for selection in pending_generations
         ]
     )
+
+
+def should_generate_non_cor_sentence_token(pos_tag: str | None) -> bool:
+    return (pos_tag or "").upper() in {"ADJ", "NOUN", "PROPN"}
 
 
 def finalize_generated_sentence_token(

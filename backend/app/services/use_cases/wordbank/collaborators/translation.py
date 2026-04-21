@@ -208,8 +208,11 @@ class TranslationCollaborator:
     ) -> list[NonCORWordGenerationResult | None]:
         if not payloads or self._gemini_word_translation_service is None:
             return [None for _ in payloads]
+        generate_batch = getattr(self._gemini_word_translation_service, "generate_non_cor_word_entries_batch", None)
+        if not callable(generate_batch):
+            return [None for _ in payloads]
         try:
-            return self._gemini_word_translation_service.generate_non_cor_word_entries_batch(payloads)
+            return generate_batch(payloads)
         except (GeminiTranslationError, httpx.HTTPError, TimeoutError, ValueError, TypeError):
             return [None for _ in payloads]
 
@@ -219,8 +222,15 @@ class TranslationCollaborator:
     ) -> NonCORVariationGenerationResult:
         if self._gemini_word_translation_service is None:
             return NonCORVariationGenerationResult()
+        complete_variations = getattr(
+            self._gemini_word_translation_service,
+            "complete_non_cor_meaning_variations",
+            None,
+        )
+        if not callable(complete_variations):
+            return NonCORVariationGenerationResult()
         try:
-            return self._gemini_word_translation_service.complete_non_cor_meaning_variations(payload)
+            return complete_variations(payload)
         except (GeminiTranslationError, httpx.HTTPError, TimeoutError, ValueError, TypeError):
             return NonCORVariationGenerationResult()
 
