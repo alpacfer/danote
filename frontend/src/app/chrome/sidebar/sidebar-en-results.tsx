@@ -2,17 +2,15 @@ import { Eye } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { CommandItem } from "@/components/ui/command"
-import { Skeleton } from "@/components/ui/skeleton"
 import { posBadgeClass, type ENPosGroup } from "@/app/core"
 
 type SidebarEnResultsProps = {
   enPosGroups: ENPosGroup[]
   originalQuery: string
-  isLoading?: boolean
   onCloseSearch: () => void
 }
 
-export function SidebarEnResults({ enPosGroups, originalQuery, isLoading = false, onCloseSearch }: SidebarEnResultsProps) {
+export function SidebarEnResults({ enPosGroups, originalQuery, onCloseSearch }: SidebarEnResultsProps) {
   return (
     <>
       {enPosGroups.map((group) => {
@@ -38,14 +36,12 @@ export function SidebarEnResults({ enPosGroups, originalQuery, isLoading = false
                   {" "}from <em>{displayWord}</em> ({originalQuery})
                 </span>
               </span>
-              {isLoading ? (
-                <Skeleton className="h-3 w-36" />
-              ) : topSense ? (
+              {topSense ? (
                 <span className="text-muted-foreground text-xs leading-4 line-clamp-2">
                   {topSense.gloss}
                 </span>
               ) : null}
-              {!isLoading && group.senses.length > 1 ? (
+              {group.senses.length > 1 ? (
                 <span className="text-muted-foreground text-[11px] leading-4">
                   +{group.senses.length - 1} more sense{group.senses.length > 2 ? "s" : ""}
                 </span>

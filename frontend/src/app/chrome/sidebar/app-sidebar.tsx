@@ -210,7 +210,8 @@ export function AppSidebar({
     corVariantItemValue: (variant: CORSearchVariant) => `cor-variant-${variant.cor_id}`,
     translatedEnCorVariantItemValue: (variant: CORSearchVariant) => `en-cor-${variant.lemma.toLowerCase()}-${variant.cor_id}`,
     enPosGroups: activeEnTranslatedCorResults.fallbackEnPosGroups,
-    isEnResolveLoading: isEnResolveLoading || isEnTranslatedCorLoading,
+    isEnResolveLoading: isEnResolveLoading,
+    isEnTranslatedCorLoading: isEnTranslatedCorLoading,
   }
 
   const searchResultActions: SidebarSearchResultsActions = {

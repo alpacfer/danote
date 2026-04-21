@@ -66,6 +66,7 @@ export type SidebarSearchResultsData = {
   translatedEnCorVariantItemValue: (variant: CORSearchVariant) => string
   enPosGroups: ENPosGroup[]
   isEnResolveLoading: boolean
+  isEnTranslatedCorLoading: boolean
 }
 
 export type SidebarSearchResultsActions = {
@@ -117,10 +118,16 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
   const hasDirectCor = !state.corDidYouMean && data.corSearchVariantsToRender.length > 0
   const hasEnResults = data.translatedEnCorVariantsToRender.length > 0 || data.enPosGroups.length > 0
   const isEnLoading = data.isEnResolveLoading
+  const isEnTranslating = data.isEnTranslatedCorLoading
+  const isAnyEnLoading = isEnLoading || isEnTranslating
+  // Phase 1: resolve in flight, no groups yet — show 2 default skeletons
   const showEnSkeletons = isEnLoading && !hasEnResults
+  // Phase 2: COR translating, groups known — show N skeleton items matching entry count
+  const showEnGroupSkeletons = isEnTranslating && data.enPosGroups.length > 0
+  const showEnFallbackResults = data.enPosGroups.length > 0 && !isEnTranslating
 
   // Suppress DYM when COR has a direct match, EN has results, or EN is loading — the query is valid in some language.
-  const dymSuggestion = (hasDirectCor || hasEnResults || isEnLoading) ? null : (state.wordbankDidYouMean ?? state.corDidYouMean)
+  const dymSuggestion = (hasDirectCor || hasEnResults || isAnyEnLoading) ? null : (state.wordbankDidYouMean ?? state.corDidYouMean)
   const hasDirectResults = hasDirectWordbank || hasDirectCor
 
   const hasCorrectedWordbank = Boolean(state.wordbankDidYouMean)
@@ -128,8 +135,8 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
     && !hasDirectWordbank
     && !hasDirectCor
     && !hasEnResults
-    && !isEnLoading
-  const hasCorrectedCor = Boolean(state.corDidYouMean) && data.corSearchVariantsToRender.length > 0 && !hasEnResults && !isEnLoading
+    && !isAnyEnLoading
+  const hasCorrectedCor = Boolean(state.corDidYouMean) && data.corSearchVariantsToRender.length > 0 && !hasEnResults && !isAnyEnLoading
   const hasCorrectedResults = hasCorrectedWordbank || hasCorrectedCor
 
   const hasWordbankSection = hasDirectResults || hasCorrectedResults
@@ -237,16 +244,35 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
         </>
       ) : null}
 
-      {data.enPosGroups.length > 0 ? (
+      {(showEnGroupSkeletons || showEnFallbackResults) ? (
         <>
           {(hasWordbankSection || data.translatedEnCorVariantsToRender.length > 0) ? <CommandSeparator /> : null}
           <CommandGroup heading="Translated From English">
-            <SidebarEnResults
-              enPosGroups={data.enPosGroups}
-              originalQuery={state.normalizedQuery}
-              isLoading={isEnLoading}
-              onCloseSearch={actions.onCloseSearch}
-            />
+            {showEnGroupSkeletons ? (
+              data.enPosGroups.map((_, i) => (
+                <CommandItem
+                  key={`en-skeleton-${i}`}
+                  disabled
+                  aria-hidden="true"
+                  className="flex items-start justify-between gap-3"
+                >
+                  <div className="flex min-w-0 flex-col items-start gap-0.5">
+                    <Skeleton className="h-3.5 w-24" />
+                    <Skeleton className="h-3 w-36" />
+                    <div className="mt-1 flex flex-wrap gap-1.5">
+                      <Skeleton className="h-5 w-10 rounded-full" />
+                    </div>
+                  </div>
+                  <Eye className="text-muted-foreground size-4 shrink-0 opacity-0" aria-hidden />
+                </CommandItem>
+              ))
+            ) : (
+              <SidebarEnResults
+                enPosGroups={data.enPosGroups}
+                originalQuery={state.normalizedQuery}
+                onCloseSearch={actions.onCloseSearch}
+              />
+            )}
           </CommandGroup>
         </>
       ) : null}
@@ -258,13 +284,16 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
             {[0, 1].map((i) => (
               <CommandItem
                 key={`en-skeleton-${i}`}
-                value={`en-skeleton-${i}`}
                 disabled
+                aria-hidden="true"
                 className="flex items-start justify-between gap-3"
               >
-                <div className="flex min-w-0 flex-col items-start gap-1">
+                <div className="flex min-w-0 flex-col items-start gap-0.5">
                   <Skeleton className="h-3.5 w-24" />
                   <Skeleton className="h-3 w-36" />
+                  <div className="mt-1 flex flex-wrap gap-1.5">
+                    <Skeleton className="h-5 w-10 rounded-full" />
+                  </div>
                 </div>
                 <Eye className="text-muted-foreground size-4 shrink-0 opacity-0" aria-hidden />
               </CommandItem>
