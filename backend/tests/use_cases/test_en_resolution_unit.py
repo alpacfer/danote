@@ -247,7 +247,7 @@ def test_resolve_en_query_batches_disambiguation_descriptions_for_distinct_trans
     ]
 
 
-def test_resolve_en_query_skips_disambiguation_when_translations_are_not_distinct() -> None:
+def test_resolve_en_query_disambiguates_groups_sharing_a_translation() -> None:
     lexicon = _StubENLocalLexiconService(
         matches=[
             ENLocalFormMatch(form="books", lemma="book", pos_ud="NOUN", tags=["plural"]),
@@ -274,7 +274,32 @@ def test_resolve_en_query_skips_disambiguation_when_translations_are_not_distinc
         include_translations=True,
     )
 
-    assert [group.meaning_description for group in response.en_pos_groups] == [None, None]
+    assert [group.meaning_description for group in response.en_pos_groups] == [
+        "printed work",
+        "make reservation",
+    ]
+    assert len(gemini.description_calls) == 1
+
+
+def test_resolve_en_query_skips_disambiguation_when_only_one_group_has_translation() -> None:
+    lexicon = _StubENLocalLexiconService(
+        matches=[ENLocalFormMatch(form="dog", lemma="dog", pos_ud="NOUN", tags=[])],
+        senses_by_key={("dog", "NOUN"): [_sense(lemma="dog", pos_ud="NOUN", sense_idx=0, gloss="animal")]},
+    )
+    gemini = _StubENGeminiTranslationService(
+        {("dog", "NOUN", "animal"): "hund"},
+        descriptions={"0": "the animal"},
+    )
+
+    response = resolve_en_query(
+        normalized_query="dog",
+        en_local_lexicon_service=lexicon,
+        en_gemini_translation_service=gemini,
+        translation_service=None,
+        include_translations=True,
+    )
+
+    assert [group.meaning_description for group in response.en_pos_groups] == [None]
     assert gemini.description_calls == []
 
 

@@ -203,12 +203,7 @@ def _attach_disambiguation_descriptions(
     if en_gemini_translation_service is None:
         return
     translated_groups = [group for group in groups if group.danish_translation]
-    distinct_translations = set()
-    for group in translated_groups:
-        normalized_translation = _normalize_translation_candidate(group.danish_translation)
-        if normalized_translation:
-            distinct_translations.add(normalized_translation.lower())
-    if len(distinct_translations) < 2:
+    if len(translated_groups) < 2:
         return
     describer = getattr(en_gemini_translation_service, "describe_translation_choices", None)
     if not callable(describer):
