@@ -69,7 +69,7 @@ export function WordbankMeaningSections({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="grid grid-cols-2 gap-3">
       {meaningSections.map((section) => {
         const sectionBadges = badgesForSavedForm({
           pos_tag: section.pos_tag ?? null,

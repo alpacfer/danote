@@ -169,7 +169,7 @@ export function WordbankWordPage({
               />
             </>
           ) : (
-            <Card data-testid="wordbank-lemma-scope-card" className="py-5">
+            <Card data-testid="wordbank-lemma-scope-card" className="w-1/2 py-5">
               <CardContent className="space-y-3">
                 {lemmaHeader}
                 <WordbankVariationGrid
