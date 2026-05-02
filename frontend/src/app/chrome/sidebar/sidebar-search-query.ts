@@ -39,9 +39,9 @@ function matchingCorGroupsForEnglishSource(
     (group) => String(group.pos_tag ?? "").toUpperCase() === sourceGroup.pos_ud.toUpperCase(),
   )
   const groupsToUse = matchingPosGroups.length > 0 ? matchingPosGroups : withFormMatch
-  const bestByForm = selectBestCorVariantByForm(groupsToUse, englishQuery)
+  const ranked = selectRankedCorVariantsByForm(groupsToUse, englishQuery)
 
-  return bestByForm.map(({ group, variant }) => ({
+  return ranked.map(({ group, variant }) => ({
     ...group,
     variants: [
       {
@@ -54,29 +54,48 @@ function matchingCorGroupsForEnglishSource(
   }))
 }
 
-function selectBestCorVariantByForm(
+function selectRankedCorVariantsByForm(
   groups: CORSearchGroup[],
   englishQuery: string,
 ): Array<{ group: CORSearchGroup; variant: CORSearchVariant }> {
-  const byForm = new Map<string, { group: CORSearchGroup; variant: CORSearchVariant; score: number }>()
+  type Candidate = {
+    group: CORSearchGroup
+    variant: CORSearchVariant
+    score: number
+    insertionOrder: number
+  }
+  const bestByLemmaIdx = new Map<string, Candidate>()
+  let insertionCounter = 0
   for (const group of groups) {
     for (const variant of group.variants ?? []) {
       const formKey = normalizeSearchWord(variant.form)
       if (!formKey) {
         continue
       }
-      const candidate = { group, variant, score: scoreEnglishCorVariant(variant, englishQuery) }
-      const current = byForm.get(formKey)
+      const lemmaIdxKey = String(variant.lemma_idx ?? variant.cor_id ?? "")
+      const dedupeKey = `${formKey}::${lemmaIdxKey}`
+      const candidate: Candidate = {
+        group,
+        variant,
+        score: scoreEnglishCorVariant(variant, englishQuery),
+        insertionOrder: insertionCounter++,
+      }
+      const current = bestByLemmaIdx.get(dedupeKey)
       if (!current || candidate.score > current.score) {
-        byForm.set(formKey, candidate)
+        bestByLemmaIdx.set(dedupeKey, candidate)
       }
     }
   }
-  return [...byForm.values()].map(({ group, variant }) => ({ group, variant }))
+  return [...bestByLemmaIdx.values()]
+    .sort((a, b) => (b.score - a.score) || (a.insertionOrder - b.insertionOrder))
+    .map(({ group, variant }) => ({ group, variant }))
 }
 
 function scoreEnglishCorVariant(variant: CORSearchVariant, englishQuery: string): number {
   const queryKey = normalizeSearchWord(englishQuery)
+  if (!queryKey) {
+    return 0
+  }
   const saveableKey = normalizeSearchWord(variant.saveable_translation ?? "")
   const lemmaTranslationKey = normalizeSearchWord(variant.lemma_translation ?? "")
   if (saveableKey && saveableKey === queryKey) {
@@ -85,7 +104,18 @@ function scoreEnglishCorVariant(variant: CORSearchVariant, englishQuery: string)
   if (lemmaTranslationKey && lemmaTranslationKey === queryKey) {
     return 20
   }
+  const glossTranslation = (variant.gloss_translation ?? "").toLowerCase()
+  if (glossTranslation) {
+    const queryWordPattern = new RegExp(`\\b${escapeRegExp(queryKey)}\\b`)
+    if (queryWordPattern.test(glossTranslation)) {
+      return 10
+    }
+  }
   return 0
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
 }
 
 export function buildEnTranslatedCorResults(
