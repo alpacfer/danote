@@ -44,6 +44,16 @@ def test_en_local_service_returns_empty_results_when_db_is_missing(tmp_path: Pat
     assert service.lookup_lemma_senses("book") == []
 
 
+def test_en_local_service_returns_empty_results_when_db_has_no_tables(tmp_path: Path) -> None:
+    db_path = tmp_path / "empty.sqlite"
+    db_path.touch()
+    service = ENLocalLexiconService(db_path=db_path)
+
+    assert service.has_form("book") is False
+    assert service.lookup_form("book") == []
+    assert service.lookup_lemma_senses("book") == []
+
+
 def test_lookup_form_prefers_best_inflected_match_per_pos_and_skips_pos_without_senses(tmp_path: Path) -> None:
     db_path = tmp_path / "english.sqlite"
     _create_en_local_db(db_path)

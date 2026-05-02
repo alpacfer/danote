@@ -107,3 +107,31 @@ def test_load_settings_reads_api_keys_from_env_local(monkeypatch, tmp_path: Path
     assert settings.tts_azure_api_key == "speech-key"
     assert settings.tts_azure_region == "westeurope"
     assert settings.gemini_api_key == "gemini-key"
+
+
+def test_load_settings_resolves_relative_paths_from_repo_root(monkeypatch, tmp_path: Path) -> None:
+    env_file = tmp_path / ".env.local"
+    env_file.write_text(
+        "\n".join(
+            [
+                "DANOTE_DB_PATH=backend/data/custom.sqlite3",
+                "DANOTE_COR_LOCAL_DB_PATH=backend/resources/dictionaries/cor.sqlite",
+                "DANOTE_EN_LOCAL_DB_PATH=backend/resources/dictionaries/english_wiki.sqlite",
+                "DANOTE_GEMINI_CHANGES_LOG_PATH=backend/data/gemini-applied-changes.jsonl",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.delenv("DANOTE_DB_PATH", raising=False)
+    monkeypatch.delenv("DANOTE_COR_LOCAL_DB_PATH", raising=False)
+    monkeypatch.delenv("DANOTE_EN_LOCAL_DB_PATH", raising=False)
+    monkeypatch.delenv("DANOTE_GEMINI_CHANGES_LOG_PATH", raising=False)
+    monkeypatch.chdir(Path(__file__).resolve().parents[2])
+
+    settings = load_settings(env_file=env_file)
+
+    repo_dir = Path(__file__).resolve().parents[3]
+    assert settings.db_path == repo_dir / "backend/data/custom.sqlite3"
+    assert settings.cor_local_db_path == repo_dir / "backend/resources/dictionaries/cor.sqlite"
+    assert settings.en_local_db_path == repo_dir / "backend/resources/dictionaries/english_wiki.sqlite"
+    assert settings.gemini_changes_log_path == repo_dir / "backend/data/gemini-applied-changes.jsonl"

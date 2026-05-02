@@ -16,6 +16,7 @@ Notes:
 - `.env.local` optional; absent = process env + defaults only.
 - Boolean flags: `0`, `false`, `no` (case-insensitive) = disabled; any other non-empty = enabled.
 - `DANOTE_CORS_ORIGINS` comma-separated; empty/whitespace falls back to default local origins.
+- Filesystem path values may be absolute or relative; relative paths resolve from the repo root.
 
 ## App/core
 
@@ -31,7 +32,7 @@ Notes:
 
 | Variable | Default | Accepted values | Interactions / fallbacks |
 | --- | --- | --- | --- |
-| `DANOTE_DB_PATH` | `backend/data/danote.sqlite3` | Any filesystem path | Consumed as `Path(...)`; parent dir must be writable at runtime. |
+| `DANOTE_DB_PATH` | `backend/data/danote.sqlite3` | Any filesystem path | Relative paths resolve from repo root; parent dir must be writable at runtime. |
 
 ## NLP
 
@@ -77,7 +78,7 @@ Notes:
 | --- | --- | --- | --- |
 | `DANOTE_COR_LOOKUP_ENABLED` | `1` | Boolean-like (`1/0`, `true/false`, `yes/no`) | Disables COR lookup when falsey. |
 | `DANOTE_COR_LOOKUP_TIMEOUT_SECONDS` | `4.0` | Float string parseable by Python `float()` | Invalid float raises at startup. |
-| `DANOTE_COR_LOCAL_DB_PATH` | `backend/resources/dictionaries/cor.sqlite` | Any filesystem path | Must point to built COR SQLite file. |
+| `DANOTE_COR_LOCAL_DB_PATH` | `backend/resources/dictionaries/cor.sqlite` | Any filesystem path | Relative paths resolve from repo root; must point to built COR SQLite file. |
 
 ## Word verification + Gemini aliases
 
@@ -89,4 +90,4 @@ Notes:
 | `DANOTE_WORD_VERIFICATION_GEMINI_MODEL` | `gemini-3.1-flash-lite-preview` (via alias fallback) | Gemini model name string | Resolution: `DANOTE_WORD_VERIFICATION_GEMINI_MODEL` → `DANOTE_GEMINI_MODEL` → built-in default. |
 | `DANOTE_GEMINI_API_KEY` | fallback chain | Gemini API key string | Resolution: `DANOTE_GEMINI_API_KEY` → `DANOTE_WORD_VERIFICATION_GEMINI_API_KEY` → unset. Alias for shared Gemini credentials. |
 | `DANOTE_GEMINI_MODEL` | `gemini-3.1-flash-lite-preview` (via alias fallback) | Gemini model name string | Resolution: `DANOTE_GEMINI_MODEL` → `DANOTE_WORD_VERIFICATION_GEMINI_MODEL` → built-in default. Alias for shared Gemini model config. |
-| `DANOTE_GEMINI_CHANGES_LOG_PATH` | `backend/data/gemini-applied-changes.jsonl` | Any filesystem path | Audit log location for Gemini "apply changes" actions. |
+| `DANOTE_GEMINI_CHANGES_LOG_PATH` | `backend/data/gemini-applied-changes.jsonl` | Any filesystem path | Relative paths resolve from repo root; audit log location for Gemini "apply changes" actions. |

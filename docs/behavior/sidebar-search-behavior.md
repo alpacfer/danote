@@ -20,7 +20,8 @@ Exact behavior of sidebar command search ("Search words...").
 
 1. **Saved wordbank** (backend search endpoint)
 2. **COR form analyses** (backend COR endpoint, two-phase fetch)
-3. **Static pages** (Notes/Wordbank/Sentencebank/Developer)
+3. **English local dictionary** (single-token EN form endpoint, then translated COR lookup)
+4. **Static pages** (Wordbank/Sentencebank/Developer)
 5. **Sentence mode** (multi-word sentence preview with Danish-first save)
 
 ## Sentence mode
@@ -28,7 +29,7 @@ Exact behavior of sidebar command search ("Search words...").
 - Trigger: normalized query contains 2 or more whitespace-delimited words.
 - Preview endpoint: `POST /api/sentencebank/search-preview`.
 - Result set: exactly one row under `Sentence`.
-- While sentence mode is active, sidebar suppresses saved-word, COR, notes, and page groups.
+- While sentence mode is active, sidebar suppresses saved-word, COR, and page groups.
 - Sidebar uses adaptive debounce before sentence preview: 200 ms for heuristic Danish queries, 350 ms for heuristic English/unknown queries.
 - After that debounce, sidebar fires two sentence-preview requests in parallel for the same normalized query:
   - `fast: true` for immediate preview feedback
@@ -70,6 +71,17 @@ Endpoints:
 - Full payload cached by normalized query.
 - Translation fetch failure → toast error, partial results remain.
 - Translation label normalization: content-word results drop frame scaffolding but may keep short multi-word phrases; function words keep minimal lexicalized context.
+
+## English form API behavior
+
+Endpoint: `GET /api/wordbank/search/en-form?form=<q>&include_translations=true`
+
+- Skipped when: sentence mode, empty query, length `< 2`, whitespace present, or `isShortLetterWord(...)`.
+- Debounced by `SEARCH_RESOLVE_DEBOUNCE_MS`.
+- Uses the local English dictionary only; it does not run COR lookup, Danish classification, or `/resolve-query`.
+- Full payload cached by normalized query, including empty `groups`.
+- For groups with a Danish translation, sidebar looks up the translated Danish form in COR and prefers any matching COR-backed rows.
+- Groups without a matching COR row stay as generated non-COR fallback rows.
 
 ## Cache invalidation
 
@@ -126,6 +138,13 @@ Sorted by best variant score per group:
 - COR add rows disabled until `saveable_translation` available. Shows `Translation required before saving.` if final payload lacks it.
 - Right icon: `variation + Plus` (meaning matches saved entry), `Plus` otherwise.
 
+### English fallback rows
+
+- Primary title = Danish translation when available; otherwise English lemma.
+- Secondary hint = `from <English lemma>` with original query in parentheses when the query is an inflected form.
+- Rows without a Danish translation are disabled and show `Translation required before saving.`
+- Right icon: `Plus` when saveable, muted `Plus` when disabled.
+
 ## Selection actions
 
 ### Selecting saved word row
@@ -154,15 +173,22 @@ Sorted by best variant score per group:
 - `queued_pronunciation_forms` in response → word page polls until pronunciation playable or timeout.
 - Backend enforces translation gate: save blocked while translation loading, sidebar submits only when `saveable_translation` present.
 
-### Selecting note or page row
+### Selecting English fallback row
 
-- Note → `onOpenSavedNote(note.id)` + close.
+- Saveable fallback rows call `onAddWordFromSearch(...)` with a generated non-COR `search_seed`.
+- `search_seed.lemma` and `surface` use the normalized Danish translation.
+- `search_seed.dictionary_status = "generated_non_cor"`.
+- `search_seed.english_translation` uses the original English query; `meaning_key` uses the English lemma and `gloss` uses the top English sense when present.
+- Close only on add success.
+
+### Selecting page row
+
 - Page → navigation handler + close.
 
 ## Empty state and sections
 
-- "No results found." only when: query non-empty AND no wordbank/note/page results.
-- Section order: (1) Wordbank, (2) Notes, (3) Pages. Separators between present sections.
+- "No results found." only when: query non-empty AND no wordbank/page results.
+- Section order: (1) Wordbank, (2) Translated From English, (3) Pages. Separators between present sections.
 
 ## Test coverage map
 

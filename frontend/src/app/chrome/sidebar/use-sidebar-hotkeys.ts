@@ -2,7 +2,6 @@ import { useEffect } from "react"
 
 type UseSidebarHotkeysParams = {
   onToggleSearch: () => void
-  onSelectNotes: () => void
   onSelectWordbank: () => void
   onSelectSentencebank: () => void
   onSelectDeveloper: () => void
@@ -10,7 +9,6 @@ type UseSidebarHotkeysParams = {
 
 export function useSidebarHotkeys({
   onToggleSearch,
-  onSelectNotes,
   onSelectWordbank,
   onSelectSentencebank,
   onSelectDeveloper,
@@ -33,11 +31,6 @@ export function useSidebarHotkeys({
         return
       }
 
-      if (key === "n") {
-        event.preventDefault()
-        onSelectNotes()
-        return
-      }
       if (key === "w") {
         event.preventDefault()
         onSelectWordbank()
@@ -58,5 +51,5 @@ export function useSidebarHotkeys({
     return () => {
       window.removeEventListener("keydown", handleKeyDown)
     }
-  }, [onSelectDeveloper, onSelectNotes, onSelectSentencebank, onSelectWordbank, onToggleSearch])
+  }, [onSelectDeveloper, onSelectSentencebank, onSelectWordbank, onToggleSearch])
 }

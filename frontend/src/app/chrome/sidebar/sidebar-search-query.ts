@@ -4,7 +4,6 @@ import {
   type CORSearchGroup,
   type CORSearchVariant,
   type ENPosGroup,
-  type SavedNote,
 } from "@/app/core"
 
 import type { EnResolveResult, EnTranslatedCorResults } from "@/app/chrome/sidebar/sidebar-search-types"
@@ -19,19 +18,6 @@ export function detectQueryLanguage(text: string): "da" | "en" | "unknown" {
   if (/[æøåÆØÅ]/u.test(text)) return "da"
   if ([...text].every((char) => char.charCodeAt(0) <= 0x7f)) return "en"
   return "unknown"
-}
-
-export function matchingNotesForQuery(savedNotes: SavedNote[], normalizedQuery: string): SavedNote[] {
-  if (!normalizedQuery) {
-    return []
-  }
-  return savedNotes
-    .filter((note) => {
-      const name = note.name.trim().toLocaleLowerCase("da-DK")
-      const text = note.text.trim().toLocaleLowerCase("da-DK")
-      return name.includes(normalizedQuery) || text.includes(normalizedQuery)
-    })
-    .slice(0, 8)
 }
 
 function matchingCorGroupsForEnglishSource(

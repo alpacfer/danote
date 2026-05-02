@@ -293,6 +293,17 @@ Routes: `backend/app/api/routes/`. DTOs: `backend/app/api/schemas/v1/`. Some tok
   - Gemini returns nothing: backend may keep `lemma_translation = null` with gloss-derived `saveable_translation`; no gloss fallback means both stay `null`.
   - `did_you_mean`: non-null when `form` had no COR entries and a Levenshtein-close COR lemma was found; `groups` then contains results for the corrected lemma.
 
+### GET `/api/wordbank/search/en-form`
+- **Request model:** none (`form`, `include_translations` query params).
+- **Response model:** `ENSearchFormResponse`.
+- **Notable status/error behavior:** `422` validation failures. `503` DB unavailable/locked. `503` runtime errors.
+- **Field invariants:**
+  - Uses only the local English dictionary plus optional EN→DA translation providers for group/sense translations.
+  - Missing local dictionary or unmatched `form` returns `groups: []`.
+  - `groups[]` uses the same `ENPosGroup` shape as `ResolveQueryResponse.en_pos_groups`.
+  - Groups are keyed by `(lemma, pos_ud)`, preserve POS priority `NOUN`, `VERB`, `ADJ`, `ADV`, `PROPN`, then others, and cap senses to five per POS group.
+  - `danish_translation` may be `null`; clients must treat those rows as not directly saveable.
+
 ### GET `/api/wordbank/search/cor-lemma/{lemma_idx}`
 - **Request model:** none (`lemma_idx` path param, optional `limit` query param).
 - **Response model:** `CORLemmaParadigmResponse`.

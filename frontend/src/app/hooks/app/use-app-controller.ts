@@ -7,14 +7,13 @@ import { useAppFoundation } from "@/app/hooks/app/controller/use-app-foundation"
 import { useDeveloperComposition } from "@/app/hooks/app/controller/use-developer-composition"
 import { useWordbankComposition } from "@/app/hooks/app/controller/use-wordbank-composition"
 import { buildDeveloperSectionProps } from "@/app/sections/developer-section-props"
-import { buildNotesSectionProps } from "@/app/sections/notes-section-props"
 import { buildSentencebankSectionProps } from "@/app/sections/sentencebank-section-props"
 import { buildWordbankSectionProps } from "@/app/sections/wordbank-section-props"
 
 export function useAppController() {
   const [apiProbeStatuses, setApiProbeStatuses] = useState<Record<string, DeveloperServiceProbeResponse | null>>({})
   const foundation = useAppFoundation()
-  const { navigation, health, analysis, discoveredTokenMetadataState, notesPersistence, lexiconData, notifications } = foundation
+  const { navigation, health, analysis, discoveredTokenMetadataState, lexiconData, notifications } = foundation
   const { unreadWordbankLemmaCounts, unreadWordbankNotificationCount } = notifications
 
   const wordbank = useWordbankComposition({
@@ -37,9 +36,6 @@ export function useAppController() {
   const apiStatusItems = useApiStatusItems(health.healthPayload, health.status, apiProbeStatuses)
 
   const sectionProps = {
-    notesSectionProps: buildNotesSectionProps({
-      savedNotes: notesPersistence.savedNotes,
-    }),
     wordbankSectionProps: buildWordbankSectionProps({
       selectedLemma: navigation.selectedLemma,
       selectedMeaningId: navigation.selectedMeaningId,
@@ -151,7 +147,6 @@ export function useAppController() {
     unreadWordbankNotificationCount,
     unreadWordbankLemmaCounts,
     markAllNotificationsAsRead: notifications.markAllNotificationsAsRead,
-    selectNotes: navigation.selectNotes,
     selectWordbank: navigation.selectWordbank,
     selectSentencebank: navigation.selectSentencebank,
     selectDeveloper: navigation.selectDeveloper,

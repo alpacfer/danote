@@ -12,7 +12,6 @@ function App() {
     wordbankRefreshTick,
     searchTranslationConfigVersion,
     unreadWordbankNotificationCount,
-    selectNotes,
     selectWordbank,
     selectSentencebank,
     selectDeveloper,
@@ -32,7 +31,6 @@ function App() {
         wordbankCacheVersion={wordbankRefreshTick}
         searchTranslationConfigVersion={searchTranslationConfigVersion}
         unreadWordbankNotificationCount={unreadWordbankNotificationCount}
-        onSelectNotes={selectNotes}
         onSelectWordbank={selectWordbank}
         onSelectSentencebank={selectSentencebank}
         onSelectDeveloper={selectDeveloper}
@@ -57,7 +55,6 @@ function App() {
             </div>
             <SectionContent
               activeSection={activeSection}
-              notesProps={sectionProps.notesSectionProps}
               wordbankProps={sectionProps.wordbankSectionProps}
               sentencebankProps={sectionProps.sentencebankSectionProps}
               developerProps={sectionProps.developerSectionProps}

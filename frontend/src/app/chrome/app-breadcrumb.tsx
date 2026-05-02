@@ -32,18 +32,6 @@ export function AppBreadcrumb({
     )
   }
 
-  if (activeSection === "notes") {
-    return (
-      <Breadcrumb>
-        <BreadcrumbList className="text-2xl leading-[1.1] font-semibold tracking-tight">
-          <BreadcrumbItem>
-            <BreadcrumbPage>Notes</BreadcrumbPage>
-          </BreadcrumbItem>
-        </BreadcrumbList>
-      </Breadcrumb>
-    )
-  }
-
   if (activeSection === "sentencebank") {
     return (
       <Breadcrumb>

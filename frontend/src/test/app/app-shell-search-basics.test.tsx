@@ -13,14 +13,14 @@ describe("App shell and search", () => {
     expect(screen.getAllByText(/^Wordbank$/).length).toBeGreaterThan(0)
   })
 
-  it("renders sidebar navigation without Playground", async () => {
+  it("renders sidebar navigation without Playground or Notes", async () => {
     mockFetchImplementation()
 
     renderApp()
     await screen.findByLabelText("backend-connection-status")
 
     expect(screen.queryByRole("button", { name: /playground/i })).not.toBeInTheDocument()
-    expect(screen.getByRole("button", { name: /^notes$/i })).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /^notes$/i })).not.toBeInTheDocument()
     expect(screen.getByRole("button", { name: /wordbank/i })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /sentencebank/i })).toBeInTheDocument()
   })
@@ -176,24 +176,9 @@ describe("App shell and search", () => {
   it("renders English queries as Danish COR results using the translated word", async () => {
     const fetchSpy = mockFetchImplementation({
       lemmasResponse: { items: [] },
-      resolveQueryResponse: {
-        query_surface: "notebook",
-        query_lemma: "notebook",
-        classification: "new",
-        matched_lemma: null,
-        matched_lemma_summary: null,
-        query_pos_tag: "NOUN",
-        query_morphology: null,
-        resolved_surface: "notesbog",
-        resolved_lemma: "notesbog",
-        da_to_en_translation: null,
-        en_to_da_translation: "notesbog",
-        en_to_da_lemma: "notesbog",
-        en_to_da_pos_tag: "NOUN",
-        en_to_da_morphology: null,
-        query_language: "en",
-        query_language_confidence: 0.95,
-        en_pos_groups: [
+      enSearchFormResponse: {
+        form: "notebook",
+        groups: [
           {
             lemma: "notebook",
             pos_ud: "NOUN",
@@ -208,19 +193,6 @@ describe("App shell and search", () => {
                 examples: [],
               },
             ],
-          },
-        ],
-        word_actions: [
-          {
-            action_type: "add_as_new",
-            surface: "notesbog",
-            lemma: "notesbog",
-            translation_label: "notesbog",
-            direction: "en_to_da",
-            direction_label: "English -> Danish",
-            pos_tag: "NOUN",
-            morphology: null,
-            show_lemma: false,
           },
         ],
       },
@@ -273,7 +245,8 @@ describe("App shell and search", () => {
     await waitFor(() => {
       const translatedRow = within(commandDialog).getByText(/^notesbog$/i, { selector: "strong" })
       expect(translatedRow).toBeInTheDocument()
-      expect(translatedRow.closest("[cmdk-item]")).toHaveTextContent(/from\s+notesbog\s+\(notebook\)/i)
+      expect(translatedRow.closest("[cmdk-item]")).toHaveTextContent(/from\s+notebook/i)
+      expect(translatedRow.closest("[cmdk-item]")).not.toHaveTextContent(/from\s+notesbog\s+\(notebook\)/i)
     })
 
     await waitFor(() => {
@@ -282,6 +255,201 @@ describe("App shell and search", () => {
       ).toBe(true)
       expect(
         fetchSpy.mock.calls.some(([input]) => String(input).includes("/api/wordbank/search/cor-form?form=notebook")),
+      ).toBe(true)
+      expect(
+        fetchSpy.mock.calls.some(([input]) => String(input).includes("/api/wordbank/search/en-form?form=notebook")),
+      ).toBe(true)
+      expect(
+        fetchSpy.mock.calls.some(([input]) => String(input).includes("/api/wordbank/resolve-query")),
+      ).toBe(false)
+    })
+  })
+
+  it("renders English fallback rows as saveable generated non-COR words", async () => {
+    let addWordBody: Record<string, unknown> | null = null
+    mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      enSearchFormResponse: {
+        form: "notebook",
+        groups: [
+          {
+            lemma: "notebook",
+            pos_ud: "NOUN",
+            pos_raw: "noun",
+            danish_translation: "notesbog",
+            senses: [
+              {
+                pos_ud: "NOUN",
+                sense_idx: 0,
+                gloss: "book for writing notes",
+                danish_translation: "notesbog",
+                examples: [],
+              },
+            ],
+          },
+        ],
+      },
+      corSearchFormHandler: async (input) => {
+        const form = new URL(String(input), "http://localhost").searchParams.get("form") ?? ""
+        if (form === "notebook") {
+          return responseOf({
+            form,
+            groups: [
+              {
+                lemma: "notebook",
+                gloss: null,
+                pos_tag: "NOUN",
+                variants: [
+                  {
+                    cor_id: "COR.NOTEBOOK.SELF",
+                    form: "notebook",
+                    lemma: "notebook",
+                    gloss: null,
+                    lemma_translation: "notebook",
+                    saveable_translation: "notebook",
+                    gram_raw: "sb.fk.sg.ubest",
+                    norm: "N",
+                    lemma_idx: 1200,
+                    gram_code: 110,
+                    variation: 1,
+                    pos_tag: "NOUN",
+                    morphology: "Gender=Com|Number=Sing|Definite=Ind",
+                    features: { Gender: "Com", Number: "Sing", Definite: "Ind" },
+                    extra_tags: [],
+                  },
+                ],
+              },
+            ],
+          })
+        }
+        return responseOf({ form, groups: [] })
+      },
+      addWordResponse: {
+        status: "inserted",
+        stored_lemma: "notesbog",
+        stored_surface_form: "notesbog",
+        source: "manual",
+        message: "Added 'notesbog' to wordbank.",
+        meaning: {
+          id: 1,
+          meaning_key: "notebook",
+          gloss: "book for writing notes",
+          english_translation: "notebook",
+        },
+        verification: null,
+        queued_verification_targets: [],
+        queued_pronunciation_forms: [],
+        pronunciation: null,
+        saved_snapshot: null,
+      },
+      addWordHandler: async (_input, init) => {
+        addWordBody = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>
+        return responseOf({
+          status: "inserted",
+          stored_lemma: "notesbog",
+          stored_surface_form: "notesbog",
+          source: "manual",
+          message: "Added 'notesbog' to wordbank.",
+          meaning: {
+            id: 1,
+            meaning_key: "notebook",
+            gloss: "book for writing notes",
+            english_translation: "notebook",
+          },
+          verification: null,
+          queued_verification_targets: [],
+          queued_pronunciation_forms: [],
+          pronunciation: null,
+          saved_snapshot: null,
+        })
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    const commandDialog = await screen.findByRole("dialog")
+    const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
+    fireEvent.change(searchInput, { target: { value: "notebook" } })
+
+    const translatedRow = await within(commandDialog).findByText(/^notesbog$/i, { selector: "strong" })
+    expect(translatedRow.closest("[cmdk-item]")).toHaveTextContent(/from\s+notebook/i)
+    expect(translatedRow.closest("[cmdk-item]")).not.toHaveTextContent(/from\s+notesbog\s+\(notebook\)/i)
+    expect(within(commandDialog).queryByText(/^notebook$/i, { selector: "strong" })).not.toBeInTheDocument()
+
+    fireEvent.click(translatedRow)
+
+    await waitFor(() => {
+      expect(addWordBody).toMatchObject({
+        surface_token: "notesbog",
+        lemma_candidate: "notesbog",
+        search_seed: {
+          lemma: "notesbog",
+          surface: "notesbog",
+          dictionary_status: "generated_non_cor",
+          meaning_key: "notebook",
+          gloss: "book for writing notes",
+          english_translation: "notebook",
+          pos_tag: null,
+          morphology: null,
+        },
+      })
+    })
+  })
+
+  it("does not treat ASCII Danish words as English results when the EN lexicon misses", async () => {
+    const fetchSpy = mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      enSearchFormResponse: { form: "notebook", groups: [] },
+      corSearchFormResponse: {
+        form: "kat",
+        groups: [
+          {
+            lemma: "kat",
+            gloss: "animal",
+            pos_tag: "NOUN",
+            variants: [
+              {
+                cor_id: "COR.KAT.1",
+                form: "kat",
+                lemma: "kat",
+                gloss: "animal",
+                lemma_translation: "cat",
+                saveable_translation: "cat",
+                gram_raw: "sb.fk.sg.ubest",
+                norm: "N",
+                lemma_idx: 1300,
+                gram_code: 110,
+                variation: 1,
+                pos_tag: "NOUN",
+                morphology: "Gender=Com|Number=Sing|Definite=Ind",
+                features: { Gender: "Com", Number: "Sing", Definite: "Ind" },
+                extra_tags: [],
+              },
+            ],
+          },
+        ],
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    const commandDialog = await screen.findByRole("dialog")
+    const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
+    fireEvent.change(searchInput, { target: { value: "kat" } })
+
+    expect(await within(commandDialog).findByText(/^kat$/i, { selector: "strong" })).toBeInTheDocument()
+    expect(within(commandDialog).queryByText(/^translated from english$/i)).not.toBeInTheDocument()
+
+    await waitFor(() => {
+      expect(
+        fetchSpy.mock.calls.some(([input]) => String(input).includes("/api/wordbank/search/en-form?form=kat")),
+      ).toBe(true)
+      expect(
+        fetchSpy.mock.calls.some(([input]) => String(input).includes("/api/wordbank/search/cor-form?form=kat")),
       ).toBe(true)
     })
   })

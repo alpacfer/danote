@@ -5,7 +5,7 @@ import {
   isShortLetterWord,
   normalizeSearchWord,
   type CORSearchFormResponse,
-  type ResolveQueryResponse,
+  type ENSearchFormResponse,
 } from "@/app/core"
 import { buildEnTranslatedCorResults } from "@/app/chrome/sidebar/sidebar-search-query"
 import type { EnResolveResult, SidebarApiClient } from "@/app/chrome/sidebar/sidebar-search-types"
@@ -71,17 +71,16 @@ export function useSidebarEnSearch({
     const timeoutId = window.setTimeout(() => {
       void (async () => {
         try {
-          const full = await apiClient
-            .postJson<ResolveQueryResponse>(
-              "/api/wordbank/resolve-query",
-              { query_text: normalizedQuery, include_translations: true, include_language_detection: true },
-              "Could not resolve query.",
+          const payload = await apiClient
+            .getJson<ENSearchFormResponse>(
+              `/api/wordbank/search/en-form?form=${encodeURIComponent(normalizedQuery)}`,
+              "English search is unavailable.",
             )
             .catch(() => null)
-          if (cancelled || !full) return
+          if (cancelled || !payload) return
           const nextResult: EnResolveResult = {
             query: normalizedQuery,
-            groups: full.en_pos_groups ?? [],
+            groups: payload.groups ?? [],
           }
           enResolveCacheRef.current.set(normalizedQuery, nextResult)
           setEnResolveResult(nextResult)

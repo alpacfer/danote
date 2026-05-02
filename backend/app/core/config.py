@@ -49,7 +49,7 @@ class Settings:
 
 def load_settings(*, env_file: Path | None = None) -> Settings:
     env_values = _load_env_file(env_file or (REPO_DIR / ".env.local"))
-    db_path = Path(_required_env("DANOTE_DB_PATH", env_values, DATA_DIR / "danote.sqlite3"))
+    db_path = _path_env("DANOTE_DB_PATH", env_values, DATA_DIR / "danote.sqlite3")
     raw_cors_origins = _required_env("DANOTE_CORS_ORIGINS", env_values, "")
     parsed_cors_origins = tuple(
         origin.strip()
@@ -86,15 +86,15 @@ def load_settings(*, env_file: Path | None = None) -> Settings:
         ),
         cor_lookup_enabled=_required_env("DANOTE_COR_LOOKUP_ENABLED", env_values, "1").lower() not in {"0", "false", "no"},
         cor_lookup_timeout_seconds=float(_required_env("DANOTE_COR_LOOKUP_TIMEOUT_SECONDS", env_values, "4.0")),
-        cor_local_db_path=Path(
-            _required_env("DANOTE_COR_LOCAL_DB_PATH", env_values, BASE_DIR / "resources" / "dictionaries" / "cor.sqlite")
+        cor_local_db_path=_path_env(
+            "DANOTE_COR_LOCAL_DB_PATH",
+            env_values,
+            BASE_DIR / "resources" / "dictionaries" / "cor.sqlite",
         ),
-        en_local_db_path=Path(
-            _required_env(
-                "DANOTE_EN_LOCAL_DB_PATH",
-                env_values,
-                BASE_DIR / "resources" / "dictionaries" / "english_wiki.sqlite",
-            )
+        en_local_db_path=_path_env(
+            "DANOTE_EN_LOCAL_DB_PATH",
+            env_values,
+            BASE_DIR / "resources" / "dictionaries" / "english_wiki.sqlite",
         ),
         word_verification_enabled=_required_env("DANOTE_WORD_VERIFICATION_ENABLED", env_values, "1").lower()
         not in {"0", "false", "no"},
@@ -117,8 +117,10 @@ def load_settings(*, env_file: Path | None = None) -> Settings:
         tts_azure_region=_optional_env("DANOTE_TTS_AZURE_REGION", env_values),
         tts_azure_endpoint=_optional_env("DANOTE_TTS_AZURE_ENDPOINT", env_values),
         tts_azure_voice_name=_required_env("DANOTE_TTS_AZURE_VOICE_NAME", env_values, "da-DK-ChristelNeural"),
-        gemini_changes_log_path=Path(
-            _required_env("DANOTE_GEMINI_CHANGES_LOG_PATH", env_values, DATA_DIR / "gemini-applied-changes.jsonl")
+        gemini_changes_log_path=_path_env(
+            "DANOTE_GEMINI_CHANGES_LOG_PATH",
+            env_values,
+            DATA_DIR / "gemini-applied-changes.jsonl",
         ),
     )
 
@@ -153,6 +155,13 @@ def _required_env(name: str, env_values: dict[str, str], default: str | Path) ->
     if name in env_values:
         return env_values[name]
     return str(default)
+
+
+def _path_env(name: str, env_values: dict[str, str], default: str | Path) -> Path:
+    path = Path(_required_env(name, env_values, default))
+    if path.is_absolute():
+        return path
+    return REPO_DIR / path
 
 
 def _optional_env(name: str, env_values: dict[str, str]) -> str | None:

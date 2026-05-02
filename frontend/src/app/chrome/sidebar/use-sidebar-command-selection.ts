@@ -4,7 +4,6 @@ import { savedWordbankResultKey } from "@/app/chrome/sidebar/use-sidebar-search-
 import type {
   CORSearchGroup,
   CORSearchVariant,
-  SavedNote,
   SentenceSearchPreviewResponse,
   WordbankSearchItem,
 } from "@/app/core"
@@ -33,7 +32,6 @@ export function useSidebarCommandSelection({
   corSearchVariantsToRender,
   isSearchOpen,
   isSentenceMode,
-  matchingNotes,
   matchingPageItems,
   orderedCorSearchGroups,
   orderedWordbankResults,
@@ -47,7 +45,6 @@ export function useSidebarCommandSelection({
   corSearchVariantsToRender: Array<{ group: CORSearchGroup; variant: CORSearchVariant }>
   isSearchOpen: boolean
   isSentenceMode: boolean
-  matchingNotes: SavedNote[]
   matchingPageItems: SidebarPageItem[]
   orderedCorSearchGroups: CORSearchGroup[]
   orderedWordbankResults: WordbankSearchItem[]
@@ -61,6 +58,8 @@ export function useSidebarCommandSelection({
 
   const orderedCommandItemValues = useMemo(() => {
     const values: string[] = []
+    const hasEnCommandResults = activeEnTranslatedCorResults.corSearchVariantsToRender.length > 0
+      || activeEnTranslatedCorResults.fallbackEnPosGroups.length > 0
     if (isSentenceMode && sentenceSearchPreview) {
       return ["sentence-translation-result"]
     }
@@ -69,7 +68,7 @@ export function useSidebarCommandSelection({
         values.push(`wordbank-${savedWordbankResultKey(item)}`)
       }
     }
-    if (!corDidYouMean) {
+    if (!corDidYouMean && !hasEnCommandResults) {
       for (const variant of orderedCorVariantsToRender) {
         values.push(`cor-variant-${variant.cor_id}`)
       }
@@ -92,11 +91,8 @@ export function useSidebarCommandSelection({
     }
     for (const group of activeEnTranslatedCorResults.fallbackEnPosGroups) {
       if (group.danish_translation) {
-        values.push(`en-${group.danish_translation.toLowerCase()}-${group.pos_ud}`)
+        values.push(`en-${group.danish_translation.toLowerCase()}-${group.lemma.toLowerCase()}-${group.pos_ud}`)
       }
-    }
-    for (const note of matchingNotes) {
-      values.push(`note-${note.id}`)
     }
     for (const page of matchingPageItems) {
       values.push(page.key)
@@ -106,7 +102,6 @@ export function useSidebarCommandSelection({
     activeEnTranslatedCorResults,
     corDidYouMean,
     isSentenceMode,
-    matchingNotes,
     matchingPageItems,
     orderedCorVariantsToRender,
     orderedWordbankResults,

@@ -5,6 +5,7 @@ from pathlib import Path
 from app.api.schemas.v1.wordbank import (
     CORLemmaParadigmResponse,
     CORSearchFormResponse,
+    ENSearchFormResponse,
     ResolveQueryResponse,
 )
 from app.services.cor import COREntry, CORLexiconService
@@ -15,8 +16,8 @@ from app.services.translation import TranslationService
 from app.services.use_cases.wordbank.collaborators.cor_local import (
     best_cor_local_entry_for_form,
     best_cor_local_lemma_entry,
-    cor_local_entries_for_lemma_idx,
     cor_local_entries_for_form,
+    cor_local_entries_for_lemma_idx,
     cor_local_entries_for_surface_form,
     cor_local_entry_for_cor_id,
     lookup_translation_for_cor_gloss,
@@ -24,6 +25,7 @@ from app.services.use_cases.wordbank.collaborators.cor_local import (
     search_cor_lemma_paradigm,
 )
 from app.services.use_cases.wordbank.collaborators.cor_resolution import resolve_query
+from app.services.use_cases.wordbank.collaborators.en_resolution import search_en_form
 from app.services.use_cases.wordbank.collaborators.nlp import NLPCollaborator
 from app.services.use_cases.wordbank.collaborators.translation import TranslationCollaborator
 from app.services.use_cases.wordbank.shared import _cor_entry_priority
@@ -98,6 +100,15 @@ class CorResolutionCollaborator:
             self._translation,
             lemma_idx,
             limit=limit,
+        )
+
+    def search_en_form(self, form: str, *, include_translations: bool = True) -> ENSearchFormResponse:
+        return search_en_form(
+            form=form,
+            en_local_lexicon_service=self._en_local_lexicon_service,
+            en_gemini_translation_service=self._en_gemini_translation_service,
+            translation_service=self._translation_service,
+            include_translations=include_translations,
         )
 
     # ------------------------------------------------------------------

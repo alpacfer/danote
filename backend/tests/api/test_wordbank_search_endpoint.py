@@ -3,9 +3,10 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 
 from app.core.app_state import set_service_field
-from app.services.cor_local import CORLocalEntry
 from app.db.migrations import apply_migrations
 from app.main import create_app
+from app.services.cor_local import CORLocalEntry
+from app.services.en_local import ENLocalEntry, ENLocalFormMatch
 from tests.api.support import build_api_test_app
 from tests.api.wordbank_test_support import (
     build_test_settings,
@@ -18,6 +19,40 @@ from tests.helpers.fakes import (
     FakeGeminiWordTranslationService,
     FakeTranslationService,
 )
+
+
+class StubENLocalLexiconService:
+    def __init__(
+        self,
+        *,
+        matches: list[ENLocalFormMatch],
+        senses_by_key: dict[tuple[str, str], list[ENLocalEntry]],
+    ) -> None:
+        self._matches = matches
+        self._senses_by_key = senses_by_key
+
+    def lookup_form(self, value: str) -> list[ENLocalFormMatch]:
+        normalized = " ".join(value.strip().lower().split())
+        return [match for match in self._matches if match.form.lower() == normalized]
+
+    def has_form(self, value: str) -> bool:
+        return bool(self.lookup_form(value))
+
+    def lookup_lemma_senses(self, lemma: str, pos_ud: str | None = None) -> list[ENLocalEntry]:
+        return list(self._senses_by_key.get((lemma, pos_ud or ""), []))
+
+
+def _en_sense(*, lemma: str, pos_ud: str, sense_idx: int, gloss: str) -> ENLocalEntry:
+    return ENLocalEntry(
+        en_id=f"EN.{lemma}.{pos_ud}.{sense_idx:02d}",
+        lemma=lemma,
+        pos_raw=pos_ud.lower(),
+        pos_ud=pos_ud,
+        sense_idx=sense_idx,
+        gloss=gloss,
+        examples=[],
+        ipa=None,
+    )
 
 
 def test_search_lemmas_returns_variation_matches(tmp_path, stub_nlp_adapter_factory) -> None:
@@ -181,6 +216,79 @@ def test_search_lemmas_returns_gloss_translation_without_promoting_it_to_english
             "morphology": "Gender=Com|Number=Sing|Definite=Ind",
         }
     ]
+
+
+def test_search_en_form_returns_empty_when_local_dictionary_misses(tmp_path, stub_nlp_adapter_factory) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    app = build_api_test_app(db_path, nlp_adapter_factory=stub_nlp_adapter_factory)
+
+    with TestClient(app) as client:
+        set_service_field(
+            client.app,
+            "en_local_lexicon_service",
+            StubENLocalLexiconService(matches=[], senses_by_key={}),
+        )
+        response = client.get("/api/wordbank/search/en-form", params={"form": "notebook"})
+
+    assert response.status_code == 200
+    assert response.json() == {"form": "notebook", "groups": []}
+
+
+def test_search_en_form_returns_grouped_translated_senses(tmp_path, stub_nlp_adapter_factory) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    app = build_api_test_app(db_path, nlp_adapter_factory=stub_nlp_adapter_factory)
+    en_lexicon = StubENLocalLexiconService(
+        matches=[
+            ENLocalFormMatch(form="books", lemma="book", pos_ud="NOUN", tags=["plural"]),
+            ENLocalFormMatch(form="books", lemma="book", pos_ud="VERB", tags=["third-person singular"]),
+        ],
+        senses_by_key={
+            ("book", "NOUN"): [_en_sense(lemma="book", pos_ud="NOUN", sense_idx=0, gloss="printed work")],
+            ("book", "VERB"): [_en_sense(lemma="book", pos_ud="VERB", sense_idx=0, gloss="reserve")],
+        },
+    )
+
+    with TestClient(app) as client:
+        set_service_field(client.app, "en_local_lexicon_service", en_lexicon)
+        set_service_field(client.app, "translation_service", FakeTranslationService({"book": "bog"}))
+        response = client.get("/api/wordbank/search/en-form", params={"form": "books"})
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "form": "books",
+        "groups": [
+            {
+                "lemma": "book",
+                "pos_ud": "NOUN",
+                "pos_raw": "noun",
+                "danish_translation": "bog",
+                "senses": [
+                    {
+                        "pos_ud": "NOUN",
+                        "sense_idx": 0,
+                        "gloss": "printed work",
+                        "danish_translation": "bog",
+                        "examples": [],
+                    },
+                ],
+            },
+            {
+                "lemma": "book",
+                "pos_ud": "VERB",
+                "pos_raw": "verb",
+                "danish_translation": "bog",
+                "senses": [
+                    {
+                        "pos_ud": "VERB",
+                        "sense_idx": 0,
+                        "gloss": "reserve",
+                        "danish_translation": "bog",
+                        "examples": [],
+                    },
+                ],
+            },
+        ],
+    }
 
 
 def test_search_cor_form_returns_grouped_variants(tmp_path, stub_nlp_adapter_factory) -> None:

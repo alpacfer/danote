@@ -10,11 +10,10 @@ import {
 } from "@/components/ui/command"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
-  previewText,
+  normalizeSearchWord,
   type CORSearchGroup,
   type CORSearchVariant,
   type ENPosGroup,
-  type SavedNote,
   type SentenceSearchPreviewResponse,
   type SearchSaveSeed,
   type SearchFeedbackContext,
@@ -40,7 +39,6 @@ export type SidebarSearchResultsState = {
   hasAnyResults: boolean
   hasWordbankSectionResults: boolean
   hasWordbankActions: boolean
-  hasNoteResults: boolean
   hasPageResults: boolean
   wordbankDidYouMean: string | null
   corDidYouMean: string | null
@@ -58,7 +56,6 @@ export type SidebarSearchResultsData = {
   variationCandidateCorIdSet: Set<string>
   translatedEnCorSearchGroups: CORSearchGroup[]
   translatedEnCorVariantsToRender: Array<{ group: CORSearchGroup; variant: CORSearchVariant }>
-  matchingNotes: SavedNote[]
   matchingPageItems: PageItem[]
   isCorTranslationsLoading: boolean
   wordbankItemValue: (item: WordbankSearchItem) => string
@@ -72,7 +69,6 @@ export type SidebarSearchResultsData = {
 export type SidebarSearchResultsActions = {
   onAddSentenceFromSearch: (sourceText: string, englishTranslation: string | null) => Promise<void>
   onSetSearchQuery: (query: string) => void
-  onOpenSavedNote: (noteId: string) => void
   onOpenWordbankLemma: (lemma: string) => void
   onOpenWordbankMeaning: (lemma: string, meaningId: number) => void
   onAddWordFromSearch: (
@@ -95,6 +91,11 @@ type SidebarSearchResultsProps = {
   actions: SidebarSearchResultsActions
 }
 
+function isSelfTranslatedCorVariant(variant: CORSearchVariant, normalizedQuery: string) {
+  const translation = normalizeSearchWord(variant.saveable_translation ?? variant.lemma_translation ?? "")
+  return Boolean(translation) && translation === normalizedQuery
+}
+
 export function SidebarSearchResults({ state, data, actions }: SidebarSearchResultsProps) {
   if (state.isSentenceMode && (data.sentenceSearchPreview || data.isSentenceSearchPreviewLoading)) {
     return (
@@ -115,8 +116,14 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
   // the normalized query).
   const hasDirectWordbank = data.orderedWordbankResults.length > 0
     && (!state.wordbankDidYouMean || data.exactSavedVariationKeySet.size > 0)
-  const hasDirectCor = !state.corDidYouMean && data.corSearchVariantsToRender.length > 0
   const hasEnResults = data.translatedEnCorVariantsToRender.length > 0 || data.enPosGroups.length > 0
+  const directCorSearchVariantsToRender = hasEnResults
+    ? data.corSearchVariantsToRender.filter(({ variant }) => !isSelfTranslatedCorVariant(variant, state.normalizedQuery))
+    : data.corSearchVariantsToRender
+  const directCorSearchGroups = data.orderedCorSearchGroups.filter((group) =>
+    directCorSearchVariantsToRender.some((item) => item.group === group),
+  )
+  const hasDirectCor = !state.corDidYouMean && !hasEnResults && directCorSearchVariantsToRender.length > 0
   const isEnLoading = data.isEnResolveLoading
   const isEnTranslating = data.isEnTranslatedCorLoading
   const isAnyEnLoading = isEnLoading || isEnTranslating
@@ -165,8 +172,8 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
           ) : null}
           {hasDirectCor ? (
             <SidebarCorResults
-              orderedCorSearchGroups={data.orderedCorSearchGroups}
-              corSearchVariantsToRender={data.corSearchVariantsToRender}
+              orderedCorSearchGroups={directCorSearchGroups}
+              corSearchVariantsToRender={directCorSearchVariantsToRender}
               variationCandidateCorIdSet={data.variationCandidateCorIdSet}
               normalizedQuery={state.normalizedQuery}
               corVariantItemValue={data.corVariantItemValue}
@@ -235,6 +242,7 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
               corSearchVariantsToRender={data.translatedEnCorVariantsToRender}
               variationCandidateCorIdSet={new Set<string>()}
               normalizedQuery={state.normalizedQuery}
+              sourceLabel={state.normalizedQuery}
               corVariantItemValue={data.translatedEnCorVariantItemValue}
               isTranslationsLoading={data.isEnResolveLoading}
               onAddWordFromSearch={actions.onAddWordFromSearch}
@@ -270,6 +278,7 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
               <SidebarEnResults
                 enPosGroups={data.enPosGroups}
                 originalQuery={state.normalizedQuery}
+                onAddWordFromSearch={actions.onAddWordFromSearch}
                 onCloseSearch={actions.onCloseSearch}
               />
             )}
@@ -302,28 +311,7 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
         </>
       ) : null}
 
-      {(hasWordbankSection || hasEnResults || showEnSkeletons || state.hasWordbankActions) && state.hasNoteResults ? <CommandSeparator /> : null}
-      {state.hasNoteResults ? (
-        <CommandGroup heading="Notes">
-          {data.matchingNotes.map((note) => (
-            <CommandItem
-              key={`search-note-${note.id}`}
-              value={`note-${note.id}`}
-              onSelect={() => {
-                actions.onOpenSavedNote(note.id)
-                actions.onCloseSearch()
-              }}
-              className="flex-col items-start gap-0.5"
-            >
-              <span className="font-medium">{note.name}</span>
-              <span className="text-muted-foreground line-clamp-2 text-xs">
-                {previewText(note.text, 80)}
-              </span>
-            </CommandItem>
-          ))}
-        </CommandGroup>
-      ) : null}
-      {(hasWordbankSection || hasEnResults || showEnSkeletons || state.hasWordbankActions || state.hasNoteResults) && state.hasPageResults ? <CommandSeparator /> : null}
+      {(hasWordbankSection || hasEnResults || showEnSkeletons || state.hasWordbankActions) && state.hasPageResults ? <CommandSeparator /> : null}
       {state.hasPageResults ? (
         <CommandGroup heading="Pages">
           {data.matchingPageItems.map((item) => {

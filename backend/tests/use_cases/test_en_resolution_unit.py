@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from app.services.cor import COREntry
 from app.services.en_local import ENLocalEntry, ENLocalFormMatch
+from app.services.use_cases.wordbank import WordbankUseCase
 from app.services.use_cases.wordbank.collaborators.cor_resolution import resolve_query
 from app.services.use_cases.wordbank.collaborators.en_resolution import resolve_en_query
 from tests.helpers.factories import _db_path
@@ -218,6 +219,40 @@ def test_resolve_en_query_discards_self_translated_echoes() -> None:
     assert response.en_to_da_translation is None
     assert response.en_pos_groups[0].danish_translation is None
     assert response.en_pos_groups[0].senses[0].danish_translation is None
+
+
+def test_wordbank_search_en_form_returns_empty_without_local_lexicon(tmp_path) -> None:
+    use_case = WordbankUseCase(_db_path(tmp_path))
+
+    response = use_case.search_en_form("notebook")
+
+    assert response.form == "notebook"
+    assert response.groups == []
+
+
+def test_wordbank_search_en_form_returns_translated_groups(tmp_path) -> None:
+    lexicon = _StubENLocalLexiconService(
+        matches=[ENLocalFormMatch(form="books", lemma="book", pos_ud="NOUN", tags=["plural"])],
+        senses_by_key={
+            ("book", "NOUN"): [
+                _sense(lemma="book", pos_ud="NOUN", sense_idx=0, gloss="printed work"),
+            ],
+        },
+    )
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        en_local_lexicon_service=lexicon,
+        translation_service=FakeTranslationService({"book": "bog"}),
+    )
+
+    response = use_case.search_en_form("  BOOKS  ")
+
+    assert response.form == "BOOKS"
+    assert [(group.lemma, group.pos_ud, group.danish_translation) for group in response.groups] == [
+        ("book", "NOUN", "bog"),
+    ]
+    assert response.groups[0].senses[0].danish_translation == "bog"
+    assert lexicon.lookup_form_calls == ["BOOKS"]
 
 
 def test_resolve_query_keeps_danish_flow_and_attaches_english_groups_when_both_exist(tmp_path) -> None:

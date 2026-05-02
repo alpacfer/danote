@@ -20,7 +20,6 @@ type SidebarNavigationProps = SidebarNavigationActions & {
 export function SidebarNavigation({
   activeSection,
   unreadWordbankNotificationCount,
-  onSelectNotes,
   onSelectWordbank,
   onSelectSentencebank,
   onSelectDeveloper,
@@ -31,13 +30,6 @@ export function SidebarNavigation({
         <SidebarGroupLabel>Navigation</SidebarGroupLabel>
         <SidebarGroupContent>
           <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton type="button" isActive={activeSection === "notes"} onClick={onSelectNotes}>
-                <BookOpen />
-                <span>Notes</span>
-                <span aria-hidden="true" className="text-muted-foreground ml-auto text-[11px]">Alt+N</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton type="button" isActive={activeSection === "wordbank"} onClick={onSelectWordbank}>
                 <BookOpen />

@@ -137,7 +137,12 @@ class ENLocalLexiconService:
         if not self.db_path.exists():
             return []
         with self._connect_read_only() as conn:
-            return conn.execute(sql, params).fetchall()
+            try:
+                return conn.execute(sql, params).fetchall()
+            except sqlite3.OperationalError as exc:
+                if "no such table" in str(exc).lower():
+                    return []
+                raise
 
     def _connect_read_only(self) -> sqlite3.Connection:
         conn = sqlite3.connect(f"file:{self.db_path}?mode=ro", uri=True)

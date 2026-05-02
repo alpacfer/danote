@@ -3,23 +3,24 @@ from __future__ import annotations
 from pathlib import Path
 
 from app.api.schemas.v1.wordbank import (
+    CompleteVariationsResponse,
     CORLemmaParadigmResponse,
     CORSearchFormResponse,
-    CompleteVariationsResponse,
     DetectWordLanguageResponse,
+    ENSearchFormResponse,
     FindAlternativeTranslationsResponse,
-    GetVerificationChangesResponse,
     GeneratePhraseTranslationResponse,
     GeneratePronunciationResponse,
     GenerateReverseTranslationResponse,
     GenerateTranslationResponse,
+    GetVerificationChangesResponse,
     LemmaDetailsResponse,
     LemmaListResponse,
     QueueVerificationResponse,
-    RevertVerificationChangeResponse,
     ResetDatabaseResponse,
-    RethinkCategoriesResponse,
     ResolveQueryResponse,
+    RethinkCategoriesResponse,
+    RevertVerificationChangeResponse,
     WordbankSearchResponse,
 )
 from app.db.repositories import WordbankRepository
@@ -32,22 +33,25 @@ from app.services.gemini_translation import GeminiWordTranslationService
 from app.services.related_words import GeminiRelatedWordsService
 from app.services.translation import TranslationService
 from app.services.tts import PronunciationAudio, TTSService
-from app.services.use_cases.wordbank.commands_add_word import add_word
-from app.services.use_cases.wordbank.commands_complete_variations import complete_meaning_variations
-from app.services.use_cases.wordbank.commands_database import reset_database
-from app.services.use_cases.wordbank.commands_find_alternative_translations import (
-    find_alternative_translations,
-)
 from app.services.use_cases.wordbank.collaborators.cor import CorResolutionCollaborator
 from app.services.use_cases.wordbank.collaborators.nlp import NLPCollaborator
 from app.services.use_cases.wordbank.collaborators.pronunciation import PronunciationCollaborator
 from app.services.use_cases.wordbank.collaborators.related_words import RelatedWordsCollaborator
 from app.services.use_cases.wordbank.collaborators.translation import TranslationCollaborator
 from app.services.use_cases.wordbank.collaborators.verification import VerificationCollaborator
+from app.services.use_cases.wordbank.commands_add_word import add_word
+from app.services.use_cases.wordbank.commands_complete_variations import complete_meaning_variations
+from app.services.use_cases.wordbank.commands_database import reset_database
+from app.services.use_cases.wordbank.commands_find_alternative_translations import (
+    find_alternative_translations,
+)
 from app.services.use_cases.wordbank.queries_details import get_lemma_details
 from app.services.use_cases.wordbank.queries_lemmas import list_lemmas, search_lemmas
 from app.services.use_cases.wordbank.runtime import WordbankRuntime
-from app.services.use_cases.wordbank.verification_targets import VerificationTarget, queue_verification_targets
+from app.services.use_cases.wordbank.verification_targets import (
+    VerificationTarget,
+    queue_verification_targets,
+)
 from app.services.verification import WordVerificationService
 
 
@@ -355,6 +359,9 @@ class WordbankUseCase:
         self, lemma_idx: int, *, limit: int = 1000
     ) -> CORLemmaParadigmResponse:
         return self._runtime.cor.search_cor_lemma_paradigm(lemma_idx, limit=limit)
+
+    def search_en_form(self, form: str, *, include_translations: bool = True) -> ENSearchFormResponse:
+        return self._runtime.cor.search_en_form(form, include_translations=include_translations)
 
     def resolve_query(self, query_text: str, *, include_translations: bool = True, include_language_detection: bool = True) -> ResolveQueryResponse:
         return self._runtime.cor.resolve_query(

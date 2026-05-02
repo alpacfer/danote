@@ -96,6 +96,11 @@ class ENPosGroup(BaseModel):
     senses: list[ENSenseOut] = Field(default_factory=list)
 
 
+class ENSearchFormResponse(BaseModel):
+    form: str
+    groups: list[ENPosGroup] = Field(default_factory=list)
+
+
 class ResolveQueryResponse(BaseModel):
     class MatchedLemmaSummary(BaseModel):
         lemma: str
@@ -442,7 +447,7 @@ class LemmaDetailsResponse(BaseModel):
         gram_raw: str | None = None
         categories: list[str] = Field(default_factory=list)
         verification: VerificationResult | None = None
-        surface_forms: list["LemmaDetailsResponse.SurfaceFormDetails"] = Field(default_factory=list)
+        surface_forms: list[LemmaDetailsResponse.SurfaceFormDetails] = Field(default_factory=list)
 
         @model_serializer(mode="wrap")
         def _serialize_without_empty_fields(self, handler):
@@ -469,7 +474,7 @@ class LemmaDetailsResponse(BaseModel):
         lemma: str
         english_translation: str | None = None
         pos_tag: str | None = None
-        saved_match: "LemmaDetailsResponse.RelatedWordSavedMatch"
+        saved_match: LemmaDetailsResponse.RelatedWordSavedMatch
         display_variant: CORSearchVariant | None = None
         candidate_variants: list[CORSearchVariant] = Field(default_factory=list)
 
@@ -481,7 +486,7 @@ class LemmaDetailsResponse(BaseModel):
     class RelatedWordsSection(BaseModel):
         status: Literal["queued", "ready", "empty", "error"]
         message: str | None = None
-        items: list["LemmaDetailsResponse.RelatedWord"] = Field(default_factory=list)
+        items: list[LemmaDetailsResponse.RelatedWord] = Field(default_factory=list)
 
         @model_serializer(mode="wrap")
         def _serialize_without_empty_fields(self, handler):

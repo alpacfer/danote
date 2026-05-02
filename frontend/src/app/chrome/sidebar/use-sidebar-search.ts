@@ -9,7 +9,6 @@ import {
   isShortLetterWord,
   normalizeSearchWord,
 } from "@/app/core"
-import { detectQueryLanguage } from "@/app/chrome/sidebar/sidebar-search-query"
 import type { UseSidebarSearchParams } from "@/app/chrome/sidebar/sidebar-search-types"
 import { useSidebarCorSearch } from "@/app/chrome/sidebar/use-sidebar-cor-search"
 import { useSidebarEnSearch } from "@/app/chrome/sidebar/use-sidebar-en-search"
@@ -35,7 +34,6 @@ export function useSidebarSearch({
     && normalizedQuery.length >= 2
     && !/\s/u.test(normalizedQuery)
     && !isShortLetterWord(normalizedQuery)
-    && detectQueryLanguage(normalizedQuery) === "en"
 
   const { searchApiMatches, wordbankDidYouMean } = useSidebarWordbankSearch({
     apiClient,

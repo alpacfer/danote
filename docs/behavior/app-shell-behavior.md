@@ -17,7 +17,6 @@ Stays orchestration layer: state/side-effects in hooks, not component body.
 ### Section layout switch (`frontend/src/app/layout/section-content.tsx`)
 
 `SectionContent`: canonical section multiplexer. Input: `activeSection` + typed props. Exactly one section rendered:
-- `"notes"` -> `NotesSection`
 - `"wordbank"` -> `WordbankSection`
 - `"sentencebank"` -> `SentencebankSection`
 - fallback -> `DeveloperSection`
@@ -29,17 +28,16 @@ Pure render switch; no app-shell side effects.
 #### Sidebar (`frontend/src/app/chrome/sidebar/app-sidebar.tsx`)
 
 - Search-first header (no standalone app title)
-- Section nav buttons: Notes, Wordbank, Sentencebank, Developer
+- Section nav buttons: Wordbank, Sentencebank, Developer
 - Wordbank unread badge in nav
 - Command search dialog state + query state
 - Search aggregation/ranking: `useSidebarSearch` + `useSidebarSearchRanking`
 - Search result actions: `onOpenWordbankLemma`, `onOpenWordbankMeaning`, `onAddWordFromSearch`
-- Keyboard shortcuts: `useSidebarHotkeys` (`Alt+N/W/S/D`, search toggle)
+- Keyboard shortcuts: `useSidebarHotkeys` (`Alt+W/S/D`, search toggle)
 
 #### Breadcrumb (`frontend/src/app/chrome/app-breadcrumb.tsx`)
 
 Page trail labels:
-- Notes: `Notes`
 - Sentencebank: `Sentencebank`
 - Developer: `Developer`
 - Wordbank root: `Wordbank`; lemma detail: clickable `Wordbank` + `selectedLemma` tail
@@ -56,7 +54,6 @@ Centralized in `useSectionNavigation()`.
 
 ### Navigation handlers and selection reset rules
 
-- `selectNotes()`: `activeSection = "notes"`, clears `selectedLemma` + `selectedMeaningId`
 - `selectWordbank()`: `activeSection = "wordbank"`, clears `selectedLemma` + `selectedMeaningId` (root)
 - `selectSentencebank()`: `activeSection = "sentencebank"`, clears `selectedLemma` + `selectedMeaningId`
 - `selectDeveloper()`: `activeSection = "developer"`, clears `selectedLemma` + `selectedMeaningId`
@@ -66,7 +63,7 @@ Centralized in `useSectionNavigation()`.
 
 ### Note selection state
 
-Tracked via `useNotesPersistence()` (`activeNoteId` -> `activeSavedNote`) for saved-note metadata and autosave state. Opening saved notes into Playground is retired, and saved notes are not routed from the sidebar command palette.
+Notes section navigation is retired. Saved-note persistence code remains dormant for existing local data, but no app-shell route, sidebar item, keyboard shortcut, or command-palette page opens `NotesSection`.
 
 ## 3. Sidebar + breadcrumb interplay
 
@@ -85,7 +82,7 @@ Via shadcn sidebar primitives:
 - Nav buttons call section-select handlers from `useAppController`
 - Search results route to:
   - wordbank lemma/meaning → `openWordbankLemma` / `openWordbankMeaning`
-- Breadcrumb renders from same controller state (`activeSection`, `selectedLemma`, `activeSavedNote`) → nav + breadcrumb synchronized by construction
+- Breadcrumb renders from same controller state (`activeSection`, `selectedLemma`) → nav + breadcrumb synchronized by construction
 - Lemma detail: clicking breadcrumb `Wordbank` → `openWordbankRoot()`, resets lemma/meaning
 
 ## 4. Notification center semantics

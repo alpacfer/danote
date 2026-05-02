@@ -1,4 +1,4 @@
-import type { LemmaDetailsResponse } from "@/app/core/types-wordbank-details-api"
+import type { ENPosGroup, LemmaDetailsResponse } from "@/app/core/types-wordbank-details-api"
 
 export type SearchSaveSeed = {
   lemma: string
@@ -229,4 +229,9 @@ export type CORSearchFormResponse = {
   form: string
   groups: CORSearchGroup[]
   did_you_mean?: string | null
+}
+
+export type ENSearchFormResponse = {
+  form: string
+  groups: ENPosGroup[]
 }

@@ -38,7 +38,6 @@ export type AppSidebarProps = {
   wordbankCacheVersion: number
   searchTranslationConfigVersion: number
   unreadWordbankNotificationCount: number
-  onSelectNotes: () => void
   onSelectWordbank: () => void
   onSelectSentencebank: () => void
   onSelectDeveloper: () => void
@@ -64,7 +63,6 @@ export function AppSidebar({
   wordbankCacheVersion,
   searchTranslationConfigVersion,
   unreadWordbankNotificationCount,
-  onSelectNotes,
   onSelectWordbank,
   onSelectSentencebank,
   onSelectDeveloper,
@@ -99,7 +97,6 @@ export function AppSidebar({
 
   useSidebarHotkeys({
     onToggleSearch: () => setIsSearchOpen((current) => !current),
-    onSelectNotes,
     onSelectWordbank,
     onSelectSentencebank,
     onSelectDeveloper,
@@ -124,20 +121,18 @@ export function AppSidebar({
 
   const matchingPageItems = useSidebarPageItems({
     normalizedQuery,
-    onSelectNotes,
     onSelectWordbank,
     onSelectSentencebank,
     onSelectDeveloper,
   })
 
-  const hasNoteResults = false
   const hasPageResults = matchingPageItems.length > 0
   const hasTranslatedEnResults = activeEnTranslatedCorResults.corSearchVariantsToRender.length > 0
   const hasFallbackEnResults = activeEnTranslatedCorResults.fallbackEnPosGroups.length > 0
   const hasEnResults = hasTranslatedEnResults || hasFallbackEnResults
   const hasAnyResults = isSentenceMode
     ? Boolean(sentenceSearchPreview)
-    : (hasWordbankSectionResults || hasEnResults || hasNoteResults || hasPageResults || isEnResolveLoading || isEnTranslatedCorLoading)
+    : (hasWordbankSectionResults || hasEnResults || hasPageResults || isEnResolveLoading || isEnTranslatedCorLoading)
 
   const { commandSelectionValue } = useSidebarCommandSelection({
     activeEnTranslatedCorResults,
@@ -146,7 +141,6 @@ export function AppSidebar({
     corSearchVariantsToRender,
     isSearchOpen,
     isSentenceMode,
-    matchingNotes: [],
     matchingPageItems,
     orderedCorSearchGroups,
     orderedWordbankResults,
@@ -174,7 +168,6 @@ export function AppSidebar({
     hasAnyResults,
     hasWordbankSectionResults,
     hasWordbankActions,
-    hasNoteResults,
     hasPageResults,
     wordbankDidYouMean,
     corDidYouMean,
@@ -192,7 +185,6 @@ export function AppSidebar({
     variationCandidateCorIdSet,
     translatedEnCorSearchGroups: activeEnTranslatedCorResults.orderedCorSearchGroups,
     translatedEnCorVariantsToRender: activeEnTranslatedCorResults.corSearchVariantsToRender,
-    matchingNotes: [],
     matchingPageItems,
     isCorTranslationsLoading,
     wordbankItemValue: (item: WordbankSearchItem) => `wordbank-${savedWordbankResultKey(item)}`,
@@ -208,7 +200,6 @@ export function AppSidebar({
       saveSentenceFromSearch(sourceText, sentenceSearchPreview?.english_translation ?? null)
     },
     onSetSearchQuery: (query: string) => { setSearchQuery(query) },
-    onOpenSavedNote: () => {},
     onOpenWordbankLemma,
     onOpenWordbankMeaning,
     onAddWordFromSearch,
@@ -278,7 +269,6 @@ export function AppSidebar({
       <SidebarNavigation
         activeSection={activeSection}
         unreadWordbankNotificationCount={unreadWordbankNotificationCount}
-        onSelectNotes={onSelectNotes}
         onSelectWordbank={onSelectWordbank}
         onSelectSentencebank={onSelectSentencebank}
         onSelectDeveloper={onSelectDeveloper}

@@ -1,7 +1,7 @@
-import { fireEvent, mockFetchImplementation, renderApp, screen, seedSavedNotes } from "@/test/app-test-helpers"
+import { mockFetchImplementation, renderApp, screen, seedSavedNotes } from "@/test/app-test-helpers"
 
 describe("App notes", () => {
-  it("shows saved notes without opening them into Playground", async () => {
+  it("does not expose the retired Notes section", async () => {
     seedSavedNotes([
       {
         id: "note-1",
@@ -18,11 +18,9 @@ describe("App notes", () => {
     renderApp()
     await screen.findByLabelText("backend-connection-status")
 
-    fireEvent.click(screen.getByRole("button", { name: /^notes$/i }))
-
-    expect(await screen.findByText("My saved note")).toBeInTheDocument()
-    expect(screen.getByText("katten")).toBeInTheDocument()
-    expect(screen.queryByRole("button", { name: /my saved note/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /^notes$/i })).not.toBeInTheDocument()
+    expect(screen.queryByText("My saved note")).not.toBeInTheDocument()
+    expect(screen.queryByText("katten")).not.toBeInTheDocument()
     expect(screen.queryByRole("textbox", { name: /lesson notes/i })).not.toBeInTheDocument()
   })
 })

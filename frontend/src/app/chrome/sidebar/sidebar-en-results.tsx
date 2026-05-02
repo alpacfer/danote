@@ -1,31 +1,84 @@
-import { Eye } from "lucide-react"
+import { Plus } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { CommandItem } from "@/components/ui/command"
-import { posBadgeClass, type ENPosGroup } from "@/app/core"
+import {
+  normalizeSearchWord,
+  posBadgeClass,
+  type ENPosGroup,
+  type SearchFeedbackContext,
+  type SearchSaveSeed,
+} from "@/app/core"
 
 type SidebarEnResultsProps = {
   enPosGroups: ENPosGroup[]
   originalQuery: string
+  onAddWordFromSearch: (
+    surfaceToken: string,
+    lemmaCandidate: string | null,
+    feedbackContext?: SearchFeedbackContext,
+    metadata?: {
+      posTag?: string | null
+      morphology?: string | null
+      corId?: string | null
+    },
+    searchSeed?: SearchSaveSeed | null,
+  ) => Promise<string | null>
   onCloseSearch: () => void
 }
 
-export function SidebarEnResults({ enPosGroups, originalQuery, onCloseSearch }: SidebarEnResultsProps) {
+export function SidebarEnResults({
+  enPosGroups,
+  originalQuery,
+  onAddWordFromSearch,
+  onCloseSearch,
+}: SidebarEnResultsProps) {
   return (
     <>
       {enPosGroups.map((group) => {
-        const displayWord = group.danish_translation ?? ""
-        if (!displayWord) {
-          return null
-        }
-        const key = `${displayWord.toLowerCase()}-${group.pos_ud}`
+        const displayWord = group.danish_translation?.trim() || group.lemma
+        const normalizedDanish = normalizeSearchWord(group.danish_translation ?? "")
+        const isSaveBlocked = !normalizedDanish
+        const key = `${displayWord.toLowerCase()}-${group.lemma.toLowerCase()}-${group.pos_ud}`
         const topSense = group.senses[0]
         return (
           <CommandItem
             key={`search-en-${key}`}
             value={`en-${key}`}
+            disabled={isSaveBlocked}
             onSelect={() => {
-              onCloseSearch()
+              if (isSaveBlocked) {
+                return
+              }
+              void (async () => {
+                const addedLemma = await onAddWordFromSearch(
+                  normalizedDanish,
+                  normalizedDanish,
+                  {
+                    rawToken: originalQuery,
+                    predictedStatus: "new",
+                    suggestionsShown: [`${group.lemma}:${group.pos_ud}`],
+                  },
+                  {
+                    posTag: null,
+                    morphology: null,
+                    corId: null,
+                  },
+                  {
+                    lemma: normalizedDanish,
+                    surface: normalizedDanish,
+                    dictionary_status: "generated_non_cor",
+                    meaning_key: group.lemma,
+                    gloss: topSense?.gloss ?? null,
+                    english_translation: originalQuery || group.lemma,
+                    pos_tag: null,
+                    morphology: null,
+                  },
+                )
+                if (addedLemma) {
+                  onCloseSearch()
+                }
+              })()
             }}
             className="flex items-start justify-between gap-3"
           >
@@ -33,7 +86,8 @@ export function SidebarEnResults({ enPosGroups, originalQuery, onCloseSearch }: 
               <span>
                 <strong className="font-semibold">{displayWord}</strong>
                 <span className="text-muted-foreground text-xs">
-                  {" "}from <em>{displayWord}</em> ({originalQuery})
+                  {" "}from <em>{group.lemma}</em>
+                  {group.lemma.toLowerCase() !== originalQuery.toLowerCase() ? ` (${originalQuery})` : null}
                 </span>
               </span>
               {topSense ? (
@@ -46,6 +100,9 @@ export function SidebarEnResults({ enPosGroups, originalQuery, onCloseSearch }: 
                   +{group.senses.length - 1} more sense{group.senses.length > 2 ? "s" : ""}
                 </span>
               ) : null}
+              {isSaveBlocked ? (
+                <span className="text-muted-foreground text-xs leading-4">Translation required before saving.</span>
+              ) : null}
               <div className="mt-1 flex flex-wrap gap-1.5">
                 <Badge
                   variant="default"
@@ -55,7 +112,7 @@ export function SidebarEnResults({ enPosGroups, originalQuery, onCloseSearch }: 
                 </Badge>
               </div>
             </div>
-            <Eye className="text-muted-foreground size-4 shrink-0" />
+            <Plus className={isSaveBlocked ? "text-muted-foreground/40 size-4 shrink-0" : "text-muted-foreground size-4 shrink-0"} />
           </CommandItem>
         )
       })}

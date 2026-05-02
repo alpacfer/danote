@@ -27,6 +27,7 @@ type SidebarCorResultsProps = {
   corSearchVariantsToRender: GroupedVariant[]
   variationCandidateCorIdSet: Set<string>
   normalizedQuery: string
+  sourceLabel?: string
   corVariantItemValue: (variant: CORSearchVariant) => string
   isTranslationsLoading: boolean
   onAddWordFromSearch: (
@@ -50,6 +51,7 @@ export function SidebarCorResults({
   corSearchVariantsToRender,
   variationCandidateCorIdSet,
   normalizedQuery,
+  sourceLabel,
   corVariantItemValue,
   isTranslationsLoading,
   onAddWordFromSearch,
@@ -71,6 +73,7 @@ export function SidebarCorResults({
               const lemmaDisplay = lemmaDisplayForVariant(variant)
               const lemmaTranslation = lemmaTranslationForVariant(variant)
               const saveableTranslation = saveableTranslationForVariant(variant)
+              const sourceDisplay = sourceLabel?.trim() || lemmaDisplay
               const hasGloss = Boolean(variant.gloss?.trim())
               const isSaveBlocked = isTranslationsLoading || !saveableTranslation
               const saveBlockedReason = !isTranslationsLoading && !saveableTranslation
@@ -122,10 +125,10 @@ export function SidebarCorResults({
                   <div className="flex min-w-0 flex-col items-start gap-0.5">
                     <span>
                       <strong className="font-semibold">{variant.form}</strong>
-                      {lemmaDisplay ? (
+                      {sourceDisplay ? (
                         <span className="text-muted-foreground text-xs">
-                          {" "}from <em>{lemmaDisplay}</em>
-                          {lemmaTranslation ? (
+                          {" "}from <em>{sourceDisplay}</em>
+                          {!sourceLabel && lemmaTranslation ? (
                             ` (${lemmaTranslation})`
                           ) : isTranslationsLoading ? (
                             <Skeleton

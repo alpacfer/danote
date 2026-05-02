@@ -521,6 +521,23 @@ export function mockFetchImplementation(options?: {
     }>
   }
   resolveQueryHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+  enSearchFormResponse?: {
+    form: string
+    groups: Array<{
+      lemma: string
+      pos_ud: string
+      pos_raw?: string | null
+      danish_translation?: string | null
+      senses: Array<{
+        pos_ud: string
+        sense_idx: number
+        gloss: string
+        danish_translation?: string | null
+        examples: string[]
+      }>
+    }>
+  }
+  enSearchFormHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
   enrichTokenResponse?: {
     query_surface: string
     query_lemma: string | null
@@ -886,6 +903,10 @@ export function mockFetchImplementation(options?: {
       },
     ],
   }
+  const enSearchFormResponse = options?.enSearchFormResponse ?? {
+    form: "notebook",
+    groups: [],
+  }
   if (options?.resolveQueryResponse && !options.resolveQueryResponse.word_actions) {
     throw new Error(
       "mockFetchImplementation requires explicit resolveQueryResponse.word_actions to avoid drifting from backend behavior.",
@@ -1149,6 +1170,21 @@ export function mockFetchImplementation(options?: {
       }
       if (form === corSearchFormResponse.form.toLocaleLowerCase("da-DK")) {
         return responseOf(corSearchFormResponse)
+      }
+      return responseOf({ form, groups: [] })
+    }
+
+    if (url.includes("/api/wordbank/search/en-form?")) {
+      if (options?.enSearchFormHandler) {
+        return options.enSearchFormHandler(input, init)
+      }
+      const parsed = new URL(url, "http://localhost")
+      const form = (parsed.searchParams.get("form") ?? "").trim().toLocaleLowerCase("da-DK")
+      if (!form) {
+        return responseOf({ form: "", groups: [] })
+      }
+      if (form === enSearchFormResponse.form.toLocaleLowerCase("da-DK")) {
+        return responseOf(enSearchFormResponse)
       }
       return responseOf({ form, groups: [] })
     }

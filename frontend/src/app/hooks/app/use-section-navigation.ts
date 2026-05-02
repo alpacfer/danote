@@ -24,12 +24,6 @@ export function useSectionNavigation() {
     setSelectedLemma,
     setSelectedMeaningId,
     setSelectedSentenceId,
-    selectNotes: () => {
-      setActiveSection("notes")
-      setSelectedLemma(null)
-      setSelectedMeaningId(null)
-      setSelectedSentenceId(null)
-    },
     selectWordbank: () => {
       setActiveSection("wordbank")
       setSelectedLemma(null)

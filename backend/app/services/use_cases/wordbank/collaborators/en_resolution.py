@@ -4,6 +4,7 @@ from collections import OrderedDict
 
 from app.api.schemas.v1.wordbank import (
     ENPosGroup,
+    ENSearchFormResponse,
     ENSenseOut,
     ResolveQueryResponse,
 )
@@ -12,7 +13,6 @@ from app.services.translation import TranslationService
 from app.services.use_cases.wordbank.collaborators.en_local_translations import (
     translate_en_lemma_contextual,
 )
-
 
 _POS_ORDER = {"NOUN": 0, "VERB": 1, "ADJ": 2, "ADV": 3, "PROPN": 4}
 _MAX_SENSES_PER_POS = 5
@@ -33,18 +33,82 @@ def resolve_en_query(
     translation_service: TranslationService | None,
     include_translations: bool,
 ) -> ResolveQueryResponse:
+    groups = build_en_pos_groups(
+        normalized_query=normalized_query,
+        en_local_lexicon_service=en_local_lexicon_service,
+        en_gemini_translation_service=en_gemini_translation_service,
+        translation_service=translation_service,
+        include_translations=include_translations,
+    )
+
+    primary_group = next((group for group in groups if group.danish_translation), None)
+    primary_translation = primary_group.danish_translation if primary_group is not None else None
+    primary_lemma = primary_group.lemma if primary_group is not None else None
+    primary_pos = primary_group.pos_ud if primary_group is not None else None
+    resolved_lemma = primary_lemma or (groups[0].lemma if groups else None)
+    resolved_surface = normalized_query
+
+    return ResolveQueryResponse(
+        query_surface=normalized_query,
+        query_lemma=resolved_lemma,
+        classification="new",
+        matched_lemma=None,
+        matched_lemma_summary=None,
+        query_pos_tag=primary_pos,
+        query_morphology=None,
+        resolved_surface=primary_translation or resolved_surface,
+        resolved_lemma=primary_translation or resolved_lemma,
+        da_to_en_translation=None,
+        en_to_da_translation=primary_translation,
+        en_to_da_lemma=primary_translation,
+        en_to_da_pos_tag=primary_pos,
+        en_to_da_morphology=None,
+        query_language="en",
+        query_language_confidence=0.95,
+        word_actions=[],
+        en_pos_groups=groups,
+    )
+
+
+def search_en_form(
+    *,
+    form: str,
+    en_local_lexicon_service: ENLocalLexiconService | None,
+    en_gemini_translation_service,
+    translation_service: TranslationService | None,
+    include_translations: bool,
+) -> ENSearchFormResponse:
+    normalized_form = _normalize_translation_candidate(form) or ""
+    if en_local_lexicon_service is None or not normalized_form:
+        return ENSearchFormResponse(form=normalized_form, groups=[])
+    return ENSearchFormResponse(
+        form=normalized_form,
+        groups=build_en_pos_groups(
+            normalized_query=normalized_form,
+            en_local_lexicon_service=en_local_lexicon_service,
+            en_gemini_translation_service=en_gemini_translation_service,
+            translation_service=translation_service,
+            include_translations=include_translations,
+        ),
+    )
+
+
+def build_en_pos_groups(
+    *,
+    normalized_query: str,
+    en_local_lexicon_service: ENLocalLexiconService,
+    en_gemini_translation_service,
+    translation_service: TranslationService | None,
+    include_translations: bool,
+) -> list[ENPosGroup]:
     matches = en_local_lexicon_service.lookup_form(normalized_query)
-    groups_by_key: "OrderedDict[tuple[str, str], ENPosGroup]" = OrderedDict()
+    groups_by_key: OrderedDict[tuple[str, str], ENPosGroup] = OrderedDict()
     translation_cache: dict[tuple[str, str, str], str | None] = {}
 
     sorted_matches = sorted(
         matches,
         key=lambda m: (_POS_ORDER.get(m.pos_ud, 99), m.lemma.lower()),
     )
-
-    primary_translation: str | None = None
-    primary_lemma: str | None = None
-    primary_pos: str | None = None
 
     for match in sorted_matches:
         key = (match.lemma.lower(), match.pos_ud)
@@ -89,32 +153,5 @@ def resolve_en_query(
             senses=sense_outs,
         )
         groups_by_key[key] = group
-        if primary_translation is None and group_translation:
-            primary_translation = group_translation
-            primary_lemma = match.lemma
-            primary_pos = match.pos_ud
 
-    groups = list(groups_by_key.values())
-    resolved_lemma = primary_lemma or (groups[0].lemma if groups else None)
-    resolved_surface = normalized_query
-
-    return ResolveQueryResponse(
-        query_surface=normalized_query,
-        query_lemma=resolved_lemma,
-        classification="new",
-        matched_lemma=None,
-        matched_lemma_summary=None,
-        query_pos_tag=primary_pos,
-        query_morphology=None,
-        resolved_surface=primary_translation or resolved_surface,
-        resolved_lemma=primary_translation or resolved_lemma,
-        da_to_en_translation=None,
-        en_to_da_translation=primary_translation,
-        en_to_da_lemma=primary_translation,
-        en_to_da_pos_tag=primary_pos,
-        en_to_da_morphology=None,
-        query_language="en",
-        query_language_confidence=0.95,
-        word_actions=[],
-        en_pos_groups=groups,
-    )
+    return list(groups_by_key.values())
