@@ -12,6 +12,18 @@ async function findCommandOptionByValue(commandDialog: HTMLElement, value: strin
   return option as HTMLElement
 }
 
+async function setSearchValue(user: ReturnType<typeof userEvent.setup>, input: HTMLElement, value: string) {
+  await user.click(input)
+  fireEvent.change(input, { target: { value } })
+  await waitFor(() => {
+    expect(input).toHaveValue(value)
+  })
+}
+
+async function waitForSearchCloseCleanup() {
+  await new Promise((resolve) => window.setTimeout(resolve, 250))
+}
+
 describe("App shell and search", () => {
   it("keeps added ulykker visible and selected across exact query transitions", async () => {
     const user = userEvent.setup()
@@ -120,10 +132,9 @@ describe("App shell and search", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     let commandDialog = await screen.findByRole("dialog")
-    let searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
+    let searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
 
-    await user.clear(searchInput)
-    await user.type(searchInput, "ulykker")
+    await setSearchValue(user, searchInput, "ulykker")
     fireEvent.click(await findCommandOptionByValue(commandDialog, "cor-variant-COR.700.112.01"))
 
     await waitFor(() => {
@@ -132,13 +143,13 @@ describe("App shell and search", () => {
     await waitFor(() => {
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
     })
+    await waitForSearchCloseCleanup()
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     commandDialog = await screen.findByRole("dialog")
-    searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
+    searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
 
-    await user.clear(searchInput)
-    await user.type(searchInput, "ulykker")
+    await setSearchValue(user, searchInput, "ulykker")
     await waitFor(() => {
       const options = within(commandDialog).getAllByRole("option")
       expect(options.length).toBeGreaterThan(0)
@@ -153,8 +164,7 @@ describe("App shell and search", () => {
     expect(await within(commandDialog).findByText(/^Indefinite$/i)).toBeInTheDocument()
     expect(within(commandDialog).queryByText(/^NOUN$/)).not.toBeInTheDocument()
 
-    await user.clear(searchInput)
-    await user.type(searchInput, "ulykke")
+    await setSearchValue(user, searchInput, "ulykke")
     await waitFor(() => {
       const options = within(commandDialog).getAllByRole("option")
       expect(options.length).toBeGreaterThan(0)
@@ -164,8 +174,7 @@ describe("App shell and search", () => {
     }, { timeout: 5_000 })
     expect(within(commandDialog).queryByTestId("search-add-icon")).not.toBeInTheDocument()
 
-    await user.clear(searchInput)
-    await user.type(searchInput, "ulykker")
+    await setSearchValue(user, searchInput, "ulykker")
     await waitFor(() => {
       const options = within(commandDialog).getAllByRole("option")
       expect(options.length).toBeGreaterThan(0)
@@ -173,13 +182,11 @@ describe("App shell and search", () => {
       expect(options[0]).toHaveAttribute("data-selected", "true")
     }, { timeout: 5_000 })
 
-    await user.clear(searchInput)
-    await user.type(searchInput, "ulykke")
+    await setSearchValue(user, searchInput, "ulykke")
     await waitFor(() => {
       expect(within(commandDialog).getAllByRole("option").length).toBeGreaterThan(0)
     })
-    await user.clear(searchInput)
-    await user.type(searchInput, "ulykker")
+    await setSearchValue(user, searchInput, "ulykker")
     await waitFor(() => {
       const options = within(commandDialog).getAllByRole("option")
       expect(options.length).toBeGreaterThan(0)
@@ -190,11 +197,11 @@ describe("App shell and search", () => {
     await waitFor(() => {
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
     })
+    await waitForSearchCloseCleanup()
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     commandDialog = await screen.findByRole("dialog")
-    searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
-    await user.clear(searchInput)
-    await user.type(searchInput, "ulykker")
+    searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
+    await setSearchValue(user, searchInput, "ulykker")
     await waitFor(() => {
       const options = within(commandDialog).getAllByRole("option")
       expect(options.length).toBeGreaterThan(0)
@@ -253,7 +260,7 @@ describe("App shell and search", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
-    const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
+    const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
     fireEvent.change(searchInput, { target: { value: "sild" } })
 
     await waitFor(() => {

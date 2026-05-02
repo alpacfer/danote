@@ -10,11 +10,10 @@
 2. **Medium layer (PR default)**
    - Backend integration/reliability subset:
      - `tests/system/test_reliability.py`
-     - `tests/system/test_analysis_endpoint_real_nlp.py`
+     - Real-NLP analyze coverage is retired while DaCy is disabled.
 
 3. **Slow layer (manual/scheduled)**
-   - Backend regression fixture tests:
-     - `tests/system/test_regression_fixtures.py`
+   - DaCy-backed regression fixture tests are retired while NLP is disabled.
 
 ## Local command mapping
 
@@ -28,11 +27,6 @@ Medium checks:
 
 ```bash
 bash ./scripts/pytest-backend.sh -q tests/system/test_reliability.py
-bash ./scripts/pytest-backend.sh -q tests/system/test_analysis_endpoint_real_nlp.py
 ```
 
-Slow checks:
-
-```bash
-bash ./scripts/pytest-backend.sh -q tests/system/test_regression_fixtures.py
-```
+Slow DaCy fixture checks are currently retired.

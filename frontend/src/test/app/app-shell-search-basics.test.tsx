@@ -1,32 +1,31 @@
-import { fireEvent, getNotesEditor, mockFetchImplementation, renderApp, responseOf, screen, seedSavedNotes, waitFor, within } from "@/test/app-test-helpers"
+import { fireEvent, mockFetchImplementation, renderApp, responseOf, screen, waitFor, within } from "@/test/app-test-helpers"
 import { bogVariationGlossWordPageContractFixture, cloneContractFixture } from "@/test/app/wordbank-contract-fixtures"
 
 describe("App shell and search", () => {
-  it("renders header, lesson notes card, and backend status badge", async () => {
+  it("renders wordbank as the default section with backend status", async () => {
     mockFetchImplementation()
 
     renderApp()
 
     expect(screen.queryByText(/^danote$/i)).not.toBeInTheDocument()
-    expect(screen.getAllByText(/lesson notes/i).length).toBeGreaterThan(0)
-    expect(getNotesEditor()).toBeInTheDocument()
     const statusBadge = await screen.findByLabelText("backend-connection-status")
     expect(statusBadge).toHaveTextContent(/connected/i)
+    expect(screen.getAllByText(/^Wordbank$/).length).toBeGreaterThan(0)
   })
 
-  it("renders sidebar navigation with playground, notes, wordbank, and sentencebank", async () => {
+  it("renders sidebar navigation without Playground", async () => {
     mockFetchImplementation()
 
     renderApp()
     await screen.findByLabelText("backend-connection-status")
 
-    expect(screen.getByRole("button", { name: /playground/i })).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /playground/i })).not.toBeInTheDocument()
     expect(screen.getByRole("button", { name: /^notes$/i })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /wordbank/i })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /sentencebank/i })).toBeInTheDocument()
   })
 
-  it("command dialog search opens and supports wordbank + notes results", async () => {
+  it("command dialog search opens and supports wordbank results", async () => {
     mockFetchImplementation({
       lemmasResponse: {
         items: [
@@ -76,25 +75,12 @@ describe("App shell and search", () => {
       },
       lemmaDetailsResponse: cloneContractFixture(bogVariationGlossWordPageContractFixture),
     })
-    seedSavedNotes([
-        {
-          id: "note-1",
-          name: "Bogen note",
-          text: "Jeg laeser en bog i dag",
-          tokens: [],
-          discoveredTokenMetadata: {},
-          generatedTranslationMap: {},
-          savedAt: "2026-02-28T12:00:00.000Z",
-        },
-      ],
-    )
-
     renderApp()
     await screen.findByLabelText("backend-connection-status")
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
-    const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
+    const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
     fireEvent.change(searchInput, { target: { value: "bogens" } })
 
     expect(await within(commandDialog).findByTestId("search-open-icon")).toBeInTheDocument()
@@ -103,15 +89,7 @@ describe("App shell and search", () => {
     fireEvent.click((await within(commandDialog).findAllByText(/^bogens$/i, { selector: "strong" }))[0] as HTMLElement)
     expect(await screen.findByRole("heading", { name: /^bog$/i })).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole("button", { name: /search/i }))
-    const reopenedDialog = await screen.findByRole("dialog")
-    const reopenedSearchInput = within(reopenedDialog).getByPlaceholderText(/search words and notes/i)
-    fireEvent.change(reopenedSearchInput, { target: { value: "bogen" } })
-    const savedNoteResult = await within(reopenedDialog).findByText(/bogen note/i)
-    fireEvent.click(savedNoteResult)
-
-    expect(await screen.findByRole("button", { name: /create new note/i })).toBeInTheDocument()
-    expect(getNotesEditor()).toHaveTextContent(/jeg laeser en bog i dag/i)
+    expect(screen.queryByRole("textbox", { name: /lesson notes/i })).not.toBeInTheDocument()
   }, 10_000)
 
   it("command search shows saved lemma as top action with eye icon", async () => {
@@ -138,7 +116,7 @@ describe("App shell and search", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
-    const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
+    const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
     fireEvent.change(searchInput, { target: { value: "bog" } })
 
     expect(await within(commandDialog).findByText(/^bog$/i, { selector: "strong" })).toBeInTheDocument()
@@ -159,7 +137,7 @@ describe("App shell and search", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
-    const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i) as HTMLInputElement
+    const searchInput = within(commandDialog).getByPlaceholderText(/search words/i) as HTMLInputElement
 
     fireEvent.change(searchInput, { target: { value: "jeg " } })
 
@@ -185,7 +163,7 @@ describe("App shell and search", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
-    const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
+    const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
     fireEvent.change(searchInput, { target: { value: "bog" } })
 
     await waitFor(() => {
@@ -288,7 +266,7 @@ describe("App shell and search", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
-    const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
+    const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
     fireEvent.change(searchInput, { target: { value: "notebook" } })
 
     expect(await within(commandDialog).findByText(/^translated from english$/i)).toBeInTheDocument()
@@ -329,7 +307,7 @@ describe("App shell and search", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
-    const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
+    const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
     fireEvent.change(searchInput, { target: { value: "s" } })
 
     await waitFor(() => {
@@ -369,7 +347,7 @@ describe("App shell and search", () => {
     fireEvent.click(searchButton)
 
     const commandDialog = await screen.findByRole("dialog")
-    const input = within(commandDialog).getByPlaceholderText(/search words and notes/i)
+    const input = within(commandDialog).getByPlaceholderText(/search words/i)
     fireEvent.change(input, { target: { value: "huse" } })
 
     await waitFor(() => {
@@ -406,7 +384,7 @@ describe("App shell and search", () => {
     fireEvent.click(searchButton)
 
     const commandDialog = await screen.findByRole("dialog")
-    const input = within(commandDialog).getByPlaceholderText(/search words and notes/i)
+    const input = within(commandDialog).getByPlaceholderText(/search words/i)
     fireEvent.change(input, { target: { value: "huse" } })
 
     const suggestion = await screen.findByText(/did you mean/i)
@@ -466,7 +444,7 @@ describe("App shell and search", () => {
     const searchButton = await screen.findByRole("button", { name: /search/i })
     fireEvent.click(searchButton)
     const commandDialog = await screen.findByRole("dialog")
-    const input = within(commandDialog).getByPlaceholderText(/search words and notes/i)
+    const input = within(commandDialog).getByPlaceholderText(/search words/i)
     fireEvent.change(input, { target: { value: "huse" } })
 
     const corResult = await within(commandDialog).findByText(/^huse$/i)

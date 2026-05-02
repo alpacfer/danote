@@ -14,7 +14,7 @@ def test_health_route_returns_expected_shape(stub_nlp_adapter_factory) -> None:
     assert payload["status"] == "ok"
     assert payload["service"] == "backend"
     assert payload["components"]["database"] == "ok"
-    assert payload["components"]["nlp"] == "ok"
+    assert payload["components"]["nlp"] == "disabled"
     assert payload["components"]["translation"] in {"degraded", "ok", "disabled"}
     assert payload["components"]["tts"] in {"degraded", "ok", "disabled"}
     assert payload["apis"]["backend"]["status"] == "ok"
@@ -30,7 +30,7 @@ def test_health_route_reports_missing_key_and_disabled_provider_statuses(stub_nl
         host="127.0.0.1",
         port=8001,
         db_path=tmp_path / "danote.sqlite3",
-        nlp_model="da_dacy_small_trf-0.2.0",
+        nlp_model="retired-dacy-disabled",
         translation_enabled=True,
         translation_provider="deepl",
         tts_enabled=False,
@@ -54,7 +54,7 @@ def test_cors_allows_configured_origin(tmp_path, stub_nlp_adapter_factory) -> No
         host="127.0.0.1",
         port=8001,
         db_path=tmp_path / "danote.sqlite3",
-        nlp_model="da_dacy_small_trf-0.2.0",
+        nlp_model="retired-dacy-disabled",
         cors_origins=("http://127.0.0.1:5173",),
     )
     app = create_app(settings=settings, nlp_adapter_factory=stub_nlp_adapter_factory)

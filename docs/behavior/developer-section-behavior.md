@@ -35,12 +35,12 @@ Rows with probe results in `apiProbeStatuses` prefer probe output over health pa
 
 ## 3) NLP model selection
 
-Rendered from `NLP_MODEL_OPTIONS` via `buildDeveloperSectionProps(...)`. Selecting updates frontend local state (`selectedNlpModel` in `useDeveloperSettings`) only — no API write. Helper text notes backend default `da_dacy_small_trf-0.2.0` unless `DANOTE_NLP_MODEL` set before startup.
+Removed from the Developer UI. The previous DaCy model picker is retired with the DaCy/spaCy/Lemmy stack.
 
 ## 3.5) Tab visibility
 
 The Developer section uses Shadcn/Radix tabs with standard `Tabs` / `TabsList` / `TabsTrigger` / `TabsContent` composition. Only the active panel is mounted and rendered:
-- `Status`: backend connection, API status list, NLP model preference
+- `Status`: backend connection, API status list
 - `API Keys`: runtime provider credentials and apply action
 - `Probes`: translation, speech, and Gemini test actions/results
 - `Database`: destructive reset action

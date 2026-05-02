@@ -23,7 +23,7 @@ Canonical docs are grouped by purpose under `docs/`. Short, dated design notes t
 
 - [App shell behavior](./behavior/app-shell-behavior.md)
 - [Notes section behavior](./behavior/notes-section-behavior.md)
-- [Playground section behavior](./behavior/playground-section-behavior.md)
+- [Playground section behavior](./behavior/playground-section-behavior.md) (retired/inaccessible)
 - [Sidebar search behavior](./behavior/sidebar-search-behavior.md)
 - [Wordbank section behavior](./behavior/wordbank-section-behavior.md)
 - [Sentencebank section behavior](./behavior/sentencebank-section-behavior.md)
@@ -58,7 +58,7 @@ Use this table to find the current source of truth quickly when behavior changes
 | --- | --- | --- | --- | --- |
 | [App shell behavior](./behavior/app-shell-behavior.md) | Frontend engineers, maintainers | `frontend/src/App.tsx`, `frontend/src/app/layout/section-content.tsx`, `frontend/src/app/chrome/*` | Queued verification is spinner-only and does not add unread counts (2026-03-22) | Frontend |
 | [Notes section behavior](./behavior/notes-section-behavior.md) | Frontend engineers, QA | `frontend/src/app/sections/notes-section.tsx`, `frontend/src/app/hooks/use-notes-persistence.ts`, `frontend/src/components/notes-editor.tsx` | Checkpoint 18 baseline and docs smoke alignment (2026-03-06) | Frontend |
-| [Playground section behavior](./behavior/playground-section-behavior.md) | Frontend engineers, QA | `frontend/src/app/sections/playground-section.tsx`, `frontend/src/app/hooks/playground/*` | Checkpoint 18 baseline and docs smoke alignment (2026-03-06) | Frontend |
+| [Playground section behavior](./behavior/playground-section-behavior.md) | Frontend engineers, QA | Retired/inaccessible UI reference | DaCy retirement and Playground hide update (2026-05-01) | Frontend |
 | [Sidebar search behavior](./behavior/sidebar-search-behavior.md) | Frontend engineers, product QA | `frontend/src/app/chrome/sidebar/*`, `frontend/src/app/hooks/sidebar/*` | Search-save blank-translation persistence replaces backend `409` gating for finalized empty translations (2026-03-22) | Frontend |
 | [Wordbank section behavior](./behavior/wordbank-section-behavior.md) | Frontend engineers, backend integrators | `frontend/src/app/sections/wordbank/*`, `backend/app/api/routes/wordbank.py` | Queued verification no longer creates unread Wordbank markers; only review or error states do (2026-03-22) | Shared |
 | [Sentencebank section behavior](./behavior/sentencebank-section-behavior.md) | Frontend engineers, backend integrators | `frontend/src/app/sections/sentencebank/*`, `backend/app/api/routes/sentencebank.py` | Checkpoint 18 baseline and docs smoke alignment (2026-03-06) | Shared |

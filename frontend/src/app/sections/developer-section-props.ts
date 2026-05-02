@@ -1,13 +1,12 @@
 import { type ComponentProps } from "react"
 
-import { NLP_MODEL_OPTIONS, type ConnectionStatus } from "@/app/core"
+import { type ConnectionStatus } from "@/app/core"
 import { DeveloperSection } from "@/app/sections/developer"
 
 export type DeveloperSectionAdapterArgs = {
   status: ConnectionStatus
   backendUrl: ComponentProps<typeof DeveloperSection>["backendUrl"]
   apiStatusItems: ComponentProps<typeof DeveloperSection>["apiStatusItems"]
-  selectedNlpModel: ComponentProps<typeof DeveloperSection>["selectedNlpModel"]
   translationProvider: ComponentProps<typeof DeveloperSection>["translationProvider"]
   developerTranslationAzureApiKey: ComponentProps<typeof DeveloperSection>["developerTranslationAzureApiKey"]
   developerTranslationAzureRegion: ComponentProps<typeof DeveloperSection>["developerTranslationAzureRegion"]
@@ -26,7 +25,6 @@ export type DeveloperSectionAdapterArgs = {
   isTestingGemini: ComponentProps<typeof DeveloperSection>["isTestingGemini"]
   geminiProbeResult: ComponentProps<typeof DeveloperSection>["geminiProbeResult"]
   isResettingDatabase: ComponentProps<typeof DeveloperSection>["isResettingDatabase"]
-  setSelectedNlpModel: (model: ComponentProps<typeof DeveloperSection>["selectedNlpModel"]) => void
   setTranslationProvider: (provider: ComponentProps<typeof DeveloperSection>["translationProvider"]) => void
   setDeveloperTranslationAzureApiKey: (value: string) => void
   setDeveloperTranslationAzureRegion: (value: string) => void
@@ -62,8 +60,6 @@ export function buildDeveloperSectionProps(
     status: args.status,
     backendUrl: args.backendUrl,
     apiStatusItems: args.apiStatusItems,
-    selectedNlpModel: args.selectedNlpModel,
-    nlpModelOptions: NLP_MODEL_OPTIONS,
     translationProvider: args.translationProvider,
     translationProviderOptions: ["deepl", "azure"] as const,
     developerTranslationAzureApiKey: args.developerTranslationAzureApiKey,
@@ -83,7 +79,6 @@ export function buildDeveloperSectionProps(
     isTestingGemini: args.isTestingGemini,
     geminiProbeResult: args.geminiProbeResult,
     isResettingDatabase: args.isResettingDatabase,
-    onSelectedNlpModelChange: args.setSelectedNlpModel,
     onTranslationProviderChange: args.setTranslationProvider,
     onDeveloperTranslationAzureApiKeyChange: args.setDeveloperTranslationAzureApiKey,
     onDeveloperTranslationAzureRegionChange: args.setDeveloperTranslationAzureRegion,

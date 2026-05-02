@@ -4,11 +4,9 @@ import {
   createApiClient,
   type DeveloperServiceProbeResponse,
   type GeminiProbeResponse,
-  NLP_MODEL_OPTIONS,
   type ConnectionStatus,
   type DeveloperApiKeysUpdateResponse,
   type HealthPayload,
-  type NlpModelOption,
   type ResetDatabaseResponse,
 } from "@/app/core"
 
@@ -53,7 +51,6 @@ export function useDeveloperSettings({
   onNotifyError,
 }: UseDeveloperSettingsParams) {
   const [isResettingDatabase, setIsResettingDatabase] = useState(false)
-  const [selectedNlpModel, setSelectedNlpModel] = useState<NlpModelOption>(NLP_MODEL_OPTIONS[0])
   const [translationProvider, setTranslationProvider] = useState<TranslationProviderOption>("deepl")
   const [developerTranslationAzureApiKey, setDeveloperTranslationAzureApiKey] = useState("")
   const [developerTranslationAzureRegion, setDeveloperTranslationAzureRegion] = useState("")
@@ -279,8 +276,6 @@ export function useDeveloperSettings({
 
   return {
     isResettingDatabase,
-    selectedNlpModel,
-    setSelectedNlpModel,
     translationProvider,
     setTranslationProvider,
     developerTranslationAzureApiKey,

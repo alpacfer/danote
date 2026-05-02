@@ -73,38 +73,15 @@ PY
   )
 }
 
-analyze_and_assert() {
-  local text="$1"
-  local check_code="$2"
-  local payload
-  payload="$(python3 - "$text" <<'PY'
-import json
-import sys
-print(json.dumps({"text": sys.argv[1]}, ensure_ascii=False))
-PY
-)"
+assert_kat_saved() {
   local response
-  response="$(curl -fsS -X POST "$BACKEND_URL/api/analyze" -H 'Content-Type: application/json' -d "$payload")"
-  python3 - "$response" "$check_code" <<'PY'
+  response="$(curl -fsS "$BACKEND_URL/api/wordbank/lemmas/kat")"
+  python3 - "$response" <<'PY'
 import json
 import sys
 
 payload = json.loads(sys.argv[1])
-code = sys.argv[2]
-tokens = payload.get("tokens", [])
-
-if code == "canonical":
-    by_norm = {}
-    for token in tokens:
-        by_norm.setdefault(token["normalized_token"], []).append(token)
-    assert "kan" in by_norm and by_norm["kan"][0]["classification"] == "known"
-    assert "bogen" in by_norm and by_norm["bogen"][0]["classification"] == "variation"
-elif code == "kat_known":
-    assert len(tokens) == 1
-    assert tokens[0]["normalized_token"] == "kat"
-    assert tokens[0]["classification"] == "known"
-else:
-    raise AssertionError(f"Unknown check code: {code}")
+assert payload["lemma"] == "kat"
 PY
 }
 
@@ -133,9 +110,6 @@ main() {
   wait_for_backend
   log "health check reachable"
 
-  analyze_and_assert "Jeg kan godt lide bogen" "canonical"
-  log "canonical analyze regression passed"
-
   add_kat
   log "add-word flow passed"
 
@@ -144,7 +118,7 @@ main() {
 
   start_backend
   wait_for_backend
-  analyze_and_assert "kat" "kat_known"
+  assert_kat_saved
   log "restart persistence check passed"
 
   stop_backend

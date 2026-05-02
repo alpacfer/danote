@@ -47,26 +47,19 @@ Tracks baseline dev env and dependency locking for reproducibility.
 - Seed loader: `backend/scripts/seed_db.py` (idempotent)
 - Seed lexemes: `bog`, `kan`, `lide`
 - Lookup service (checkpoint 8): lemma-aware classifier (`known` / `variation` / `new`)
-- Analysis endpoint (checkpoint 9): `POST /api/analyze` stable token list schema (see `../contracts/api-contract.md`)
+- Analysis endpoint (checkpoint 9): `POST /api/analyze` stable token list schema, currently unavailable by default while NLP is retired (see `../contracts/api-contract.md`)
 - NLP adapter: `app/nlp/adapter.py`
-- Danish NLP impl: `DaCyLemmyNLPAdapter` in `app/nlp/danish.py`
-- Danish NLP model (fixed): `da_dacy_small_trf-0.2.0`
+- Retired Danish NLP stack: DaCy/spaCy/Lemmy with `da_dacy_small_trf-0.2.0`
 - Key libraries:
   - `fastapi 0.116.1`
   - `uvicorn[standard] 0.35.0`
-  - `spacy 3.7.5`
-  - `dacy 2.7.8`
-  - `lemmy 2.1.0`
   - `pytest 8.4.2` (test)
   - `httpx 0.28.1` (test client transport)
 - NLP stack:
-  - `spaCy` (core runtime)
-  - `DaCy` (Danish pipeline)
-  - `Lemmy` (lemmatization)
+  - No active default NLP implementation.
+  - `DANOTE_NLP_ENABLED` defaults to `0`.
+  - DaCy/spaCy/Lemmy are retained only as historical context and are not default dependencies.
   - `sqlite3` (stdlib SQLite driver)
-- spaCy commands:
-  - `python -m spacy download <pipeline_name>`
-  - `python -m spacy validate`
 
 ## Dependency Locking Policy
 

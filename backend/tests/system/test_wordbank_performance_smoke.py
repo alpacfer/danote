@@ -15,7 +15,7 @@ def _test_settings(db_path) -> Settings:
         host="127.0.0.1",
         port=8001,
         db_path=db_path,
-        nlp_model="da_dacy_small_trf-0.2.0",
+        nlp_model="retired-dacy-disabled",
         translation_enabled=False,
     )
 

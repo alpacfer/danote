@@ -3,7 +3,6 @@ import { type MutableRefObject, type Dispatch, type SetStateAction, useState } f
 import {
   createSavedNoteId,
   type AnalyzedToken,
-  type AppSection,
   type DiscoveredTokenMemory,
   type SaveDialogMode,
   type SavedNote,
@@ -27,7 +26,6 @@ type UseNoteWorkspaceParams = {
   setGeneratedTranslationMap: (value: Record<string, string | null>) => void
   setAnalysisError: (value: string | null) => void
   clearPlaygroundTransientState: () => void
-  setActiveSection: (value: AppSection) => void
   pushNotification: (message: string) => void
 }
 
@@ -48,7 +46,6 @@ export function useNoteWorkspace({
   setGeneratedTranslationMap,
   setAnalysisError,
   clearPlaygroundTransientState,
-  setActiveSection,
   pushNotification,
 }: UseNoteWorkspaceParams) {
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false)
@@ -201,26 +198,6 @@ export function useNoteWorkspace({
     pushNotification(`Created new note: ${name}`)
   }
 
-  function openSavedNoteInPlayground(note: SavedNote) {
-    setNoteText(note.text)
-    setTokens(note.tokens)
-    setDiscoveredTokenMetadata(note.discoveredTokenMetadata)
-    setGeneratedTranslationMap(note.generatedTranslationMap)
-    setAnalysisError(null)
-    clearPlaygroundTransientState()
-    setActiveNoteId(note.id)
-    setAutosaveStatus("saved")
-    setActiveSection("playground")
-  }
-
-  function openSavedNoteById(noteId: string) {
-    const note = savedNotes.find((candidate) => candidate.id === noteId)
-    if (!note) {
-      return
-    }
-    openSavedNoteInPlayground(note)
-  }
-
   function handleSaveDialogOpenChange(open: boolean) {
     setIsSaveDialogOpen(open)
     if (!open) {
@@ -268,8 +245,6 @@ export function useNoteWorkspace({
     handleNoteNameDraftChange,
     handleSaveDialogSubmit,
     resolveDuplicateNameConflict,
-    openSavedNoteInPlayground,
-    openSavedNoteById,
     saveActiveNoteSilently,
   }
 }

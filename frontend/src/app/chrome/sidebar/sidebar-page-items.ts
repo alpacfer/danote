@@ -1,4 +1,4 @@
-import { BookOpen, NotebookPen, Settings, type LucideIcon } from "lucide-react"
+import { BookOpen, Settings, type LucideIcon } from "lucide-react"
 import { useMemo } from "react"
 
 export type SidebarPageItem = {
@@ -10,7 +10,6 @@ export type SidebarPageItem = {
 }
 
 export type SidebarNavigationActions = {
-  onSelectPlayground: () => void
   onSelectNotes: () => void
   onSelectWordbank: () => void
   onSelectSentencebank: () => void
@@ -19,7 +18,6 @@ export type SidebarNavigationActions = {
 
 export function useSidebarPageItems({
   normalizedQuery,
-  onSelectPlayground,
   onSelectNotes,
   onSelectWordbank,
   onSelectSentencebank,
@@ -27,7 +25,6 @@ export function useSidebarPageItems({
 }: SidebarNavigationActions & { normalizedQuery: string }) {
   return useMemo(() => {
     const pageItems: SidebarPageItem[] = [
-      { key: "page-playground", label: "Playground", shortcut: "Alt+P", icon: NotebookPen, onSelect: onSelectPlayground },
       { key: "page-notes", label: "Notes", shortcut: "Alt+N", icon: BookOpen, onSelect: onSelectNotes },
       { key: "page-wordbank", label: "Wordbank", shortcut: "Alt+W", icon: BookOpen, onSelect: onSelectWordbank },
       { key: "page-sentencebank", label: "Sentencebank", shortcut: "Alt+S", icon: BookOpen, onSelect: onSelectSentencebank },
@@ -37,5 +34,5 @@ export function useSidebarPageItems({
       return pageItems
     }
     return pageItems.filter((item) => item.label.toLocaleLowerCase("da-DK").includes(normalizedQuery))
-  }, [normalizedQuery, onSelectDeveloper, onSelectNotes, onSelectPlayground, onSelectSentencebank, onSelectWordbank])
+  }, [normalizedQuery, onSelectDeveloper, onSelectNotes, onSelectSentencebank, onSelectWordbank])
 }

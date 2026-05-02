@@ -1,4 +1,4 @@
-import { act, fireEvent, mockFetchImplementation, renderApp, responseOf, screen, setNotesEditorText, toast, vi, waitFor, within } from "@/test/app-test-helpers"
+import { act, fireEvent, mockFetchImplementation, renderApp, responseOf, screen, toast, vi, waitFor, within } from "@/test/app-test-helpers"
 import userEvent from "@testing-library/user-event"
 
 describe("App system state", () => {
@@ -18,7 +18,7 @@ describe("App system state", () => {
     expect(await screen.findByText(/degraded/i)).toBeInTheDocument()
   })
 
-  it("shows NLP model picker in developer options", async () => {
+  it("shows developer status without NLP model controls", async () => {
     mockFetchImplementation({
       healthResponse: {
         status: "ok",
@@ -41,11 +41,8 @@ describe("App system state", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /developer/i }))
 
-    const modelPicker = screen.getByRole("combobox", { name: /nlp model picker/i })
-    expect(modelPicker).toBeInTheDocument()
-    expect(modelPicker).toHaveTextContent("da_dacy_small_trf-0.2.0")
-
-    expect(screen.getByText(/backend default remains/i)).toBeInTheDocument()
+    expect(screen.queryByRole("combobox", { name: /nlp model picker/i })).not.toBeInTheDocument()
+    expect(screen.queryByText(/backend default remains/i)).not.toBeInTheDocument()
     expect(screen.getByLabelText("api-status-list")).toBeInTheDocument()
     expect(screen.getByText("Backend API")).toBeInTheDocument()
     expect(screen.getByText("Azure Translator API")).toBeInTheDocument()
@@ -194,26 +191,26 @@ describe("App system state", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /developer/i }))
 
-    expect(screen.getByRole("combobox", { name: /nlp model picker/i })).toBeInTheDocument()
+    expect(screen.getByLabelText("api-status-list")).toBeInTheDocument()
     expect(screen.queryByRole("button", { name: /apply runtime api keys/i })).not.toBeInTheDocument()
     expect(screen.queryByRole("button", { name: /test gemini/i })).not.toBeInTheDocument()
     expect(screen.queryByRole("button", { name: /delete db \+ clear cache/i })).not.toBeInTheDocument()
 
     await user.click(screen.getByRole("tab", { name: /api keys/i }))
     expect(await screen.findByRole("button", { name: /apply runtime api keys/i })).toBeInTheDocument()
-    expect(screen.queryByRole("combobox", { name: /nlp model picker/i })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText("api-status-list")).not.toBeInTheDocument()
     expect(screen.queryByRole("button", { name: /test gemini/i })).not.toBeInTheDocument()
     expect(screen.queryByRole("button", { name: /delete db \+ clear cache/i })).not.toBeInTheDocument()
 
     await user.click(screen.getByRole("tab", { name: /probes/i }))
     expect(await screen.findByRole("button", { name: /test gemini/i })).toBeInTheDocument()
-    expect(screen.queryByRole("combobox", { name: /nlp model picker/i })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText("api-status-list")).not.toBeInTheDocument()
     expect(screen.queryByRole("button", { name: /apply runtime api keys/i })).not.toBeInTheDocument()
     expect(screen.queryByRole("button", { name: /delete db \+ clear cache/i })).not.toBeInTheDocument()
 
     await user.click(screen.getByRole("tab", { name: /database/i }))
     expect(await screen.findByRole("button", { name: /delete db \+ clear cache/i })).toBeInTheDocument()
-    expect(screen.queryByRole("combobox", { name: /nlp model picker/i })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText("api-status-list")).not.toBeInTheDocument()
     expect(screen.queryByRole("button", { name: /apply runtime api keys/i })).not.toBeInTheDocument()
     expect(screen.queryByRole("button", { name: /test gemini/i })).not.toBeInTheDocument()
   })
@@ -318,8 +315,8 @@ describe("App system state", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     let commandDialog = await screen.findByRole("dialog")
-    let searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
-    fireEvent.change(searchInput, { target: { value: "bil" } })
+    let searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
+    await user.type(searchInput, "bil")
 
     expect(await within(commandDialog).findByText(/translation required before saving\./i)).toBeInTheDocument()
     expect(within(commandDialog).queryByText(/\(to drive\)/i)).not.toBeInTheDocument()
@@ -340,9 +337,9 @@ describe("App system state", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     commandDialog = await screen.findByRole("dialog")
-    searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
-    fireEvent.change(searchInput, { target: { value: "bi" } })
-    fireEvent.change(searchInput, { target: { value: "bil" } })
+    searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
+    await user.clear(searchInput)
+    await user.type(searchInput, "bil")
 
     expect(await within(commandDialog).findByText(/\(to drive\)/i)).toBeInTheDocument()
     expect(within(commandDialog).queryByText(/translation required before saving\./i)).not.toBeInTheDocument()
@@ -354,36 +351,4 @@ describe("App system state", () => {
     expect(bilFetchCalls).toHaveLength(4)
   })
 
-  it("renders analysis error state", async () => {
-    vi.useFakeTimers()
-    let fail = false
-
-    mockFetchImplementation({
-      analyzeHandler: async () => {
-        if (fail) {
-          throw new Error("backend unavailable")
-        }
-        return new Promise<Response>(() => {})
-      },
-    })
-
-    renderApp()
-    screen.getByLabelText("backend-connection-status")
-
-    setNotesEditorText("test ")
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(500)
-    })
-    expect(screen.queryByRole("alert")).not.toBeInTheDocument()
-
-    fail = true
-    setNotesEditorText("test2 ")
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(600)
-      await Promise.resolve()
-      await Promise.resolve()
-    })
-
-    expect(screen.getByRole("alert")).toHaveTextContent(/backend unavailable/i)
-  })
 })

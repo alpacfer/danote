@@ -1,4 +1,4 @@
-import { act, fireEvent, getNotesEditor, mockFetchImplementation, renderApp, responseOf, screen, setNotesEditorText, vi, waitFor, within } from "@/test/app-test-helpers"
+import { act, fireEvent, mockFetchImplementation, renderApp, responseOf, screen, vi, waitFor, within } from "@/test/app-test-helpers"
 import type { LemmaDetailsResponse } from "@/app/core"
 import {
   bogVariationGlossWordPageContractFixture,
@@ -56,7 +56,7 @@ describe("App wordbank", () => {
     expect(screen.queryByText(/no saved variations for this lemma/i)).not.toBeInTheDocument()
   })
 
-  it("renderer-only: defers loading the full wordbank list until the wordbank section opens", async () => {
+  it("renderer-only: loads the full wordbank list on the default wordbank section", async () => {
     const fetchSpy = mockFetchImplementation({
       lemmasResponse: {
         items: [{ lemma: "bog", variation_count: 1 }],
@@ -65,12 +65,6 @@ describe("App wordbank", () => {
 
     renderApp()
     await screen.findByLabelText("backend-connection-status")
-
-    expect(
-      fetchSpy.mock.calls.filter(([input]) => String(input).endsWith("/api/wordbank/lemmas")),
-    ).toHaveLength(0)
-
-    fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
 
     await screen.findByRole("button", { name: /bog/i })
     expect(
@@ -1251,205 +1245,6 @@ describe("App wordbank", () => {
     })
   }, 15_000)
 
-  it("request-shape: shows verification error info on the word page and in notifications", async () => {
-    vi.useRealTimers()
-
-    const fetchSpy = mockFetchImplementation({
-      analyzeTokens: [
-        {
-          surface_token: "kat",
-          normalized_token: "kat",
-          lemma_candidate: "kat",
-          classification: "new",
-          match_source: "none",
-          matched_lemma: null,
-          matched_surface_form: null,
-        },
-      ],
-      lemmasResponse: {
-        items: [{ lemma: "kat", variation_count: 1 }],
-      },
-      lemmaDetailsResponse: {
-        lemma: "kat",
-        english_translation: "cat",
-        verification: {
-          status: "error",
-          provider: "gemini",
-          reviewer_role: "Professional Danish Language Expert",
-          message: "Verification failed",
-          composed_word_count: null,
-          stored_surface_form: "kat",
-          requested_at: "2026-03-13T12:00:00.000Z",
-          completed_at: "2026-03-13T12:00:02.000Z",
-          problem: "Stored POS and translation are inconsistent for this entry.",
-          change_to_implement: "Update POS to NOUN and translation to 'cat'.",
-          suggested_actions: [
-            {
-              action_type: "fix_translation",
-              english_translation: "cat",
-              reason: "The translation should be cat.",
-            },
-          ],
-        },
-        surface_forms: [{ form: "kat", has_pronunciation: true }],
-      },
-    })
-
-    renderApp()
-    await screen.findByLabelText("backend-connection-status")
-
-    setNotesEditorText("kat ")
-    await waitFor(() => {
-      const mark = getNotesEditor().querySelector("mark[data-status='new']")
-      expect(mark).toBeInTheDocument()
-    }, { timeout: 3_000 })
-
-    const mark = getNotesEditor().querySelector("mark[data-status='new']")
-    fireEvent.click(mark as HTMLElement, { clientX: 160, clientY: 140 })
-    fireEvent.click(await screen.findByRole("button", { name: /add to wordbank/i }))
-
-    const notificationsButton = await screen.findByRole(
-      "button",
-      { name: /show notifications \(1 unread\)/i },
-      { timeout: 5_000 },
-    )
-    fireEvent.click(notificationsButton)
-    const notificationList = await screen.findByLabelText("notification-list")
-    expect(notificationList).toHaveTextContent("Review needed for 'kat'.")
-    expect(screen.getByRole("button", { name: /wordbank/i })).toHaveTextContent("1")
-
-    fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
-    fireEvent.click(await screen.findByRole("button", { name: /kat/i }))
-    expect(screen.getAllByRole("button", { name: /wordbank/i })[0]).toHaveTextContent("1")
-    const infoButton = await screen.findByRole("button", { name: /show verification review details/i })
-    expect(infoButton).toBeEnabled()
-    fireEvent.click(infoButton)
-
-    expect(await screen.findByText("Verification")).toBeInTheDocument()
-    expect(screen.getByText(/one or more targets need review/i)).toBeInTheDocument()
-    expect(screen.getByTestId("wordbank-verification-section-needs-review")).toBeInTheDocument()
-    expect(screen.getAllByText(/stored pos and translation are inconsistent/i).length).toBeGreaterThan(0)
-    expect(screen.getAllByText(/update pos to noun and translation to 'cat'/i).length).toBeGreaterThan(0)
-    expect(screen.queryByRole("button", { name: /apply change/i })).not.toBeInTheDocument()
-    expect(screen.getByRole("button", { name: /fix translation/i })).toBeInTheDocument()
-    expect(screen.getByText(/set translation to 'cat'/i)).toBeInTheDocument()
-    expect(screen.getAllByRole("button", { name: /wordbank/i })[0]).not.toHaveTextContent("1")
-
-    const applyButton = screen.getByRole("button", { name: /fix translation/i })
-    expect(applyButton).toBeEnabled()
-    fireEvent.click(applyButton)
-
-    await waitFor(() => {
-      expect(fetchSpy).toHaveBeenCalledWith(
-        expect.stringContaining("/api/wordbank/lexemes/apply-verification-changes"),
-        expect.objectContaining({
-          method: "POST",
-          body: JSON.stringify({
-            stored_lemma: "kat",
-            stored_surface_form: null,
-            meaning_id: null,
-            action: {
-              action_type: "fix_translation",
-              english_translation: "cat",
-              reason: "The translation should be cat.",
-            },
-            provider: "gemini",
-          }),
-        }),
-      )
-    })
-  }, 15_000)
-
-  it("starts Gemini verification after save, shows the spinner, and keeps unchanged verified results silent", async () => {
-    let verificationComplete = false
-
-    mockFetchImplementation({
-      analyzeTokens: [
-        {
-          surface_token: "kat",
-          normalized_token: "kat",
-          lemma_candidate: "kat",
-          classification: "new",
-          match_source: "none",
-          matched_lemma: null,
-          matched_surface_form: null,
-        },
-      ],
-      lemmasResponse: {
-        items: [{ lemma: "kat", variation_count: 1 }],
-      },
-      lemmaDetailsHandler: () => Promise.resolve(responseOf({
-        lemma: "kat",
-        english_translation: "cat",
-        verification: verificationComplete
-          ? {
-              status: "verified" as const,
-              provider: "gemini",
-              reviewer_role: "Professional Danish Language Expert",
-              message: "Verification passed.",
-              composed_word_count: null,
-              stored_surface_form: "kat",
-              requested_at: "2026-03-13T12:00:00.000Z",
-              completed_at: "2026-03-13T12:00:03.000Z",
-              suggested_actions: [],
-            }
-          : {
-              status: "queued" as const,
-              provider: "gemini",
-              reviewer_role: "Professional Danish Language Expert",
-              message: "Verification queued.",
-              composed_word_count: null,
-              stored_surface_form: "kat",
-              requested_at: "2026-03-13T12:00:00.000Z",
-              suggested_actions: [],
-            },
-        is_sectioned: false,
-        pos_tag: "NOUN",
-        morphology: "Number=Sing",
-        surface_forms: [{ form: "kat", has_pronunciation: true }],
-      })),
-    })
-
-    renderApp()
-    await screen.findByLabelText("backend-connection-status")
-
-    setNotesEditorText("kat ")
-    await waitFor(() => {
-      const mark = getNotesEditor().querySelector("mark[data-status='new']")
-      expect(mark).toBeInTheDocument()
-    }, { timeout: 3_000 })
-
-    const mark = getNotesEditor().querySelector("mark[data-status='new']")
-    fireEvent.click(mark as HTMLElement, { clientX: 160, clientY: 140 })
-    fireEvent.click(await screen.findByRole("button", { name: /add to wordbank/i }))
-
-    await screen.findByRole("button", { name: /word verification is running/i })
-    expect(screen.queryByRole("button", { name: /show notifications/i })).not.toBeInTheDocument()
-    expect(screen.getByRole("button", { name: /wordbank/i })).not.toHaveTextContent("1")
-
-    verificationComplete = true
-
-    await waitFor(() => {
-      expect(
-        screen.queryByRole("button", { name: /word verification is running/i }),
-      ).not.toBeInTheDocument()
-      expect(screen.queryByRole("button", { name: /show notifications/i })).not.toBeInTheDocument()
-      expect(screen.getByRole("button", { name: /no unread notifications/i })).toBeDisabled()
-    }, { timeout: 4_000 })
-
-    fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
-    fireEvent.click(await screen.findByRole("button", { name: /kat/i }))
-    const verificationButton = await screen.findByRole("button", { name: /show verification details/i })
-    fireEvent.click(verificationButton)
-
-    expect(await screen.findByText("Verification")).toBeInTheDocument()
-    expect(screen.getByText(/gemini verified every visible target on this word page/i)).toBeInTheDocument()
-    expect(screen.getByText(/^checked$/i)).toBeInTheDocument()
-    expect(screen.getByText(/all visible targets look correct/i)).toBeInTheDocument()
-    expect(screen.getByText(/last checked/i)).toBeInTheDocument()
-    expect(screen.queryByText(/verification passed\./i)).not.toBeInTheDocument()
-  }, 15_000)
-
   it("keeps one current-state notification per target for complete-variations reviews even after leaving the lemma page", async () => {
     vi.useRealTimers()
     let completionSettled = false
@@ -1568,21 +1363,15 @@ describe("App wordbank", () => {
     fireEvent.contextMenu(meaningCard)
     fireEvent.click(await screen.findByRole("menuitem", { name: /complete variations/i }))
 
-    fireEvent.click(screen.getByRole("button", { name: /playground/i }))
-    await screen.findByRole("button", { name: /word verification is running/i })
+    fireEvent.click(screen.getByRole("button", { name: /notes/i }))
     expect(screen.queryByRole("button", { name: /show notifications/i })).not.toBeInTheDocument()
     expect(screen.getByRole("button", { name: /wordbank/i })).not.toHaveTextContent("1")
 
     completionSettled = true
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /show notifications \(1 unread\)/i })).toBeEnabled()
+      expect(screen.getByRole("button", { name: /wordbank/i })).toHaveTextContent("1")
     }, { timeout: 5_000 })
-
-    fireEvent.click(screen.getByRole("button", { name: /show notifications \(1 unread\)/i }))
-    const notificationList = await screen.findByLabelText("notification-list")
-    expect(notificationList).toHaveTextContent("Review needed for 'book'.")
-    expect(notificationList.querySelectorAll("li")).toHaveLength(1)
   }, 15_000)
 
   it("renderer-only: adjective completion review summarizes n-word and t-word slots", async () => {

@@ -26,10 +26,9 @@ logger = logging.getLogger(__name__)
 
 
 def default_nlp_adapter_factory(settings: Settings) -> NLPAdapter:
-    # Import lazily so missing NLP dependencies degrade health instead of crashing import.
-    from app.nlp.danish import load_danish_nlp_adapter
-
-    return load_danish_nlp_adapter(settings)
+    raise RuntimeError(
+        "No NLP adapter is configured. The previous DaCy NLP stack is retired."
+    )
 
 
 def startup_lifespan(

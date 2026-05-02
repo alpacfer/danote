@@ -1,21 +1,18 @@
 import { type Dispatch, type SetStateAction, useMemo, useState } from "react"
 
 import {
-  addLoadingKey,
   createApiClient,
   hasMultipleWords,
   normalizePhraseKey,
   normalizeSearchWord,
   type AddSentenceResponse,
   type AddWordResponse,
-  type AnalyzedToken,
   type AppSection,
   type LemmaDetailsResponse,
   type SearchSaveSeed,
   type SearchFeedbackContext,
   type SentencebankSentence,
   type TokenFeedbackPayload,
-  type WordActionSuggestion,
 } from "@/app/core"
 import { toast } from "sonner"
 
@@ -95,7 +92,6 @@ export function useWordbankWorkflows({
   markWordVerificationNotificationsAsRead,
   clearWordVerificationNotification,
 }: UseWordbankWorkflowsParams) {
-  const [addingTokens, setAddingTokens] = useState<Record<string, boolean>>({})
   const [isSavingSentence, setIsSavingSentence] = useState(false)
   const apiClient = useMemo(
     () => createApiClient({ backendUrl, extractErrorMessage }),
@@ -245,45 +241,6 @@ export function useWordbankWorkflows({
     )
   }
 
-  async function addTokenToWordbank(token: AnalyzedToken, action?: WordActionSuggestion) {
-    const requestSurface = action?.surface ?? (token.normalized_token || token.surface_token)
-    const requestLemma = action?.lemma ?? token.lemma_candidate
-    const loadingKey = addLoadingKey(token)
-
-    setAddingTokens((current) => ({ ...current, [loadingKey]: true }))
-
-    try {
-      const payload = await addWordToWordbank(requestSurface, requestLemma, {
-        posTag: action?.pos_tag,
-        morphology: action?.morphology,
-        corId: action?.cor_id ?? null,
-      })
-      toast.success(payload.message)
-      trackQueuedVerifications(payload.stored_lemma, payload)
-      trackQueuedPronunciationForms(payload.stored_lemma, payload.queued_pronunciation_forms ?? [])
-      void postTokenFeedback({
-        raw_token: token.surface_token,
-        predicted_status: token.classification,
-        suggestions_shown: (token.suggestions ?? []).map((item) => item.value),
-        user_action: "add_as_new",
-        chosen_value: payload.stored_lemma,
-        source: "playground",
-      })
-      setAnalysisRefreshTick((current) => current + 1)
-      setWordbankRefreshTick((current) => current + 1)
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Could not add word to wordbank. Try again."
-      toast.error(message)
-      void error
-    } finally {
-      setAddingTokens((current) => {
-        const next = { ...current }
-        delete next[loadingKey]
-        return next
-      })
-    }
-  }
-
   async function addWordFromSearch(
     surfaceToken: string,
     lemmaCandidate: string | null,
@@ -392,7 +349,6 @@ export function useWordbankWorkflows({
   }
 
   return {
-    addingTokens,
     isSavingSentence,
     pronunciationLoadingByForm,
     regeneratingPronunciationByForm,
@@ -410,7 +366,6 @@ export function useWordbankWorkflows({
     isLoadingVerificationChanges: isLoadingChanges,
     isRevertingVerificationChange: isRevertingChange,
     markVisibleVerificationNotificationsAsRead,
-    addTokenToWordbank,
     addWordFromSearch,
     saveRelatedWordFromSearchSeed,
     addSentenceToSentencebank,

@@ -9,7 +9,7 @@ import {
   isShortLetterWord,
   normalizeSearchWord,
 } from "@/app/core"
-import { detectQueryLanguage, matchingNotesForQuery } from "@/app/chrome/sidebar/sidebar-search-query"
+import { detectQueryLanguage } from "@/app/chrome/sidebar/sidebar-search-query"
 import type { UseSidebarSearchParams } from "@/app/chrome/sidebar/sidebar-search-types"
 import { useSidebarCorSearch } from "@/app/chrome/sidebar/use-sidebar-cor-search"
 import { useSidebarEnSearch } from "@/app/chrome/sidebar/use-sidebar-en-search"
@@ -18,7 +18,6 @@ import { useSidebarWordbankSearch } from "@/app/chrome/sidebar/use-sidebar-wordb
 import { extractErrorMessage } from "@/app/hooks/app/controller/runtime-utils"
 
 export function useSidebarSearch({
-  savedNotes,
   wordbankCacheVersion,
   searchTranslationConfigVersion,
 }: UseSidebarSearchParams) {
@@ -37,10 +36,6 @@ export function useSidebarSearch({
     && !/\s/u.test(normalizedQuery)
     && !isShortLetterWord(normalizedQuery)
     && detectQueryLanguage(normalizedQuery) === "en"
-
-  const matchingNotes = useMemo(() => {
-    return matchingNotesForQuery(savedNotes, normalizedQuery)
-  }, [normalizedQuery, savedNotes])
 
   const { searchApiMatches, wordbankDidYouMean } = useSidebarWordbankSearch({
     apiClient,
@@ -91,7 +86,6 @@ export function useSidebarSearch({
     isSentenceMode,
     sentenceSearchPreview,
     isSentenceSearchPreviewLoading,
-    matchingNotes,
     searchApiMatches,
     wordbankDidYouMean,
     corDidYouMean,

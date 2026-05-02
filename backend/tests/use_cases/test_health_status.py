@@ -14,7 +14,7 @@ def _settings(**overrides: object) -> Settings:
         host="127.0.0.1",
         port=8001,
         db_path=Path("/tmp/danote-health.sqlite3"),
-        nlp_model="da_dacy_small_trf-0.2.0",
+        nlp_model="retired-dacy-disabled",
         translation_enabled=True,
         translation_provider="deepl",
         tts_enabled=True,

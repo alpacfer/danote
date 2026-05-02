@@ -18,7 +18,7 @@ class Settings:
     port: int
     db_path: Path
     nlp_model: str
-    nlp_enabled: bool = True
+    nlp_enabled: bool = False
     cors_origins: tuple[str, ...] = DEFAULT_CORS_ORIGINS
     translation_enabled: bool = True
     translation_provider: str = "deepl"
@@ -62,8 +62,8 @@ def load_settings(*, env_file: Path | None = None) -> Settings:
         host=_required_env("DANOTE_HOST", env_values, "127.0.0.1"),
         port=int(_required_env("DANOTE_PORT", env_values, "8000")),
         db_path=db_path,
-        nlp_model=_required_env("DANOTE_NLP_MODEL", env_values, "da_dacy_small_trf-0.2.0"),
-        nlp_enabled=_required_env("DANOTE_NLP_ENABLED", env_values, "1").lower() not in {"0", "false", "no"},
+        nlp_model=_required_env("DANOTE_NLP_MODEL", env_values, "retired-dacy-disabled"),
+        nlp_enabled=_required_env("DANOTE_NLP_ENABLED", env_values, "0").lower() not in {"0", "false", "no"},
         cors_origins=parsed_cors_origins or DEFAULT_CORS_ORIGINS,
         translation_enabled=_required_env("DANOTE_TRANSLATION_ENABLED", env_values, "1").lower()
         not in {"0", "false", "no"},

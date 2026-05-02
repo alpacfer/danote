@@ -56,16 +56,14 @@ Starter seed includes lexemes used by tests and prototype examples:
 - `kan`
 - `lide`
 
-## NLP (Checkpoint 7)
+## NLP (retired)
 
 - Abstraction: `app/nlp/adapter.py` (`NLPAdapter` protocol)
-- Danish implementation: `app/nlp/danish.py` (`DaCyLemmyNLPAdapter`)
-- Components:
-  - DaCy model pipeline for tokenization/POS/morphology access
-  - Lemmy for POS-aware Danish lemmatization
+- Previous stack: DaCy/spaCy/Lemmy with `da_dacy_small_trf-0.2.0`
 - Startup behavior:
-  - NLP pipeline is loaded during app startup
-  - startup logs include loaded NLP adapter + model + package versions
+  - `DANOTE_NLP_ENABLED` defaults to `0`
+  - no DaCy model is installed, validated, or loaded by default
+  - `/api/analyze` is unavailable unless a future NLP adapter is added and enabled
 
 ### COR Lexicon Search
 
@@ -109,41 +107,6 @@ PYTHONPATH=. .venv/bin/python scripts/build_english_sqlite.py \
 The English lookup flow reads `english_wiki.sqlite` via `DANOTE_EN_LOCAL_DB_PATH`
 and uses `english_wiki.jsonl` as the rebuild source.
 
-### NLP Model and Compatibility
-
-Default model (fixed):
-
-- `da_dacy_small_trf-0.2.0`
-
-Compatibility check command:
-
-```bash
-cd backend
-./.venv/bin/python -m spacy validate
-```
-
-Runtime note:
-
-- On backend startup, the adapter validates loaded model metadata against runtime spaCy and logs
-  `nlp_model_spacy_version_mismatch` when incompatible (includes model name + version spec + runtime version).
-- If incompatibility is reported, align runtime/model versions before relying on benchmark-quality lemma behavior.
-
-
-### POS Benchmark
-
-Run a benchmark for POS tagging speed **and** tagging accuracy against a small gold dataset:
-
-```bash
-cd backend
-./.venv/bin/python scripts/benchmark_pos.py --iterations 50 --warmup 3
-```
-
-The script evaluates `resources/benchmarks/pos_gold_dataset.json` and prints JSON with:
-
-- accuracy (`correct`, `total`, `accuracy_pct`, per-word mismatches)
-- timing (`mean/median/min/max` per iteration, `tokens_per_second`)
-- POS coverage and class distributions
-
 ## Environment Setup
 
 ```bash
@@ -154,7 +117,7 @@ pip install --upgrade pip
 pip install -r requirements.lock.txt
 ```
 
-Search-only setup (for command-search flow investigation, no DaCy model):
+Search-only setup (the default backend install has no DaCy model):
 
 ```bash
 cd backend
@@ -162,7 +125,6 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install --upgrade pip
 pip install -r requirements.search.txt
-# skip NLP startup entirely for search-only investigations
 export DANOTE_NLP_ENABLED=0
 ```
 
@@ -172,12 +134,6 @@ If your Linux image is missing `python3-venv` / `python3-pip`, use `uv` (no sudo
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ~/.local/bin/uv venv --clear .venv
 ~/.local/bin/uv pip install --python .venv/bin/python -r requirements.lock.txt
-```
-
-From repo root, you can run a one-command setup for the pinned DaCy model:
-
-```bash
-./scripts/setup-dacy-model.sh
 ```
 
 ## Run
@@ -208,7 +164,7 @@ For the complete variable catalog (defaults, accepted values, and fallback/alias
 
 - `GET /api/` -> scaffold status
 - `GET /api/health` -> readiness payload (`ok` or `degraded`)
-- `POST /api/analyze` -> note token classification response
+- `POST /api/analyze` -> disabled unless a future NLP adapter is configured
 - `POST /api/wordbank/lexemes` -> manual add-to-wordbank
 
 ## Domain Service (Checkpoint 8)
@@ -228,11 +184,7 @@ For the complete variable catalog (defaults, accepted values, and fallback/alias
 bash ./scripts/pytest-backend.sh
 ```
 
-Fixture regression subset:
-
-```bash
-bash ./scripts/pytest-backend.sh -q tests/system/test_regression_fixtures.py
-```
+Fixture regression subset is retired while DaCy NLP is disabled.
 
 Fast backend suite:
 

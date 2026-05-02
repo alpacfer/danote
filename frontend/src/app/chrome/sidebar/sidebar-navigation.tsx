@@ -1,4 +1,4 @@
-import { BookOpen, NotebookPen, Settings } from "lucide-react"
+import { BookOpen, Settings } from "lucide-react"
 
 import type { AppSection } from "@/app/core"
 import {
@@ -20,7 +20,6 @@ type SidebarNavigationProps = SidebarNavigationActions & {
 export function SidebarNavigation({
   activeSection,
   unreadWordbankNotificationCount,
-  onSelectPlayground,
   onSelectNotes,
   onSelectWordbank,
   onSelectSentencebank,
@@ -32,13 +31,6 @@ export function SidebarNavigation({
         <SidebarGroupLabel>Navigation</SidebarGroupLabel>
         <SidebarGroupContent>
           <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton type="button" isActive={activeSection === "playground"} onClick={onSelectPlayground}>
-                <NotebookPen />
-                <span>Playground</span>
-                <span aria-hidden="true" className="text-muted-foreground ml-auto text-[11px]">Alt+P</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton type="button" isActive={activeSection === "notes"} onClick={onSelectNotes}>
                 <BookOpen />

@@ -1,5 +1,5 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { type DeveloperServiceProbeResponse, type GeminiProbeResponse, type ApiStatusItem, type ConnectionStatus, type NlpModelOption } from "@/app/core"
+import { type DeveloperServiceProbeResponse, type GeminiProbeResponse, type ApiStatusItem, type ConnectionStatus } from "@/app/core"
 import { ApiKeysTab } from "./api-keys-tab"
 import { DatabaseTab } from "./database-tab"
 import { ProbesTab } from "./probes-tab"
@@ -10,8 +10,6 @@ export type DeveloperSectionProps = {
   status: ConnectionStatus
   backendUrl: string
   apiStatusItems: ApiStatusItem[]
-  selectedNlpModel: NlpModelOption
-  nlpModelOptions: readonly NlpModelOption[]
   translationProvider: "deepl" | "azure"
   translationProviderOptions: readonly ("deepl" | "azure")[]
   developerTranslationAzureApiKey: string
@@ -31,7 +29,6 @@ export type DeveloperSectionProps = {
   isTestingGemini: boolean
   geminiProbeResult: GeminiProbeResponse | null
   isResettingDatabase: boolean
-  onSelectedNlpModelChange: (value: NlpModelOption) => void
   onTranslationProviderChange: (value: "deepl" | "azure") => void
   onDeveloperTranslationAzureApiKeyChange: (value: string) => void
   onDeveloperTranslationAzureRegionChange: (value: string) => void
@@ -65,9 +62,6 @@ export function DeveloperSection(props: DeveloperSectionProps) {
             status={props.status}
             backendUrl={props.backendUrl}
             apiStatusItems={props.apiStatusItems}
-            selectedNlpModel={props.selectedNlpModel}
-            nlpModelOptions={props.nlpModelOptions}
-            onSelectedNlpModelChange={props.onSelectedNlpModelChange}
           />
         </TabsContent>
         <TabsContent value="api-keys">

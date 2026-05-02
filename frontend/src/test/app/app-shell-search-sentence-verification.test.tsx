@@ -6,7 +6,7 @@ function openSearch() {
 }
 
 function typeInSearch(dialog: HTMLElement, text: string) {
-  const input = within(dialog).getByPlaceholderText(/search words and notes/i)
+  const input = within(dialog).getByPlaceholderText(/search words/i)
   fireEvent.change(input, { target: { value: text } })
 }
 
@@ -466,7 +466,7 @@ it("underlines the typo in the input and shows only the correction plus correcte
     await screen.findByLabelText("backend-connection-status")
 
     const dialog = await openSearch()
-    const input = within(dialog).getByPlaceholderText(/search words and notes/i)
+    const input = within(dialog).getByPlaceholderText(/search words/i)
     fireEvent.change(input, { target: { value: "jeg er glad" } })
 
     await waitFor(() => {
@@ -540,7 +540,7 @@ it("underlines the typo in the input and shows only the correction plus correcte
     await screen.findByLabelText("backend-connection-status")
 
     const dialog = await openSearch()
-    const input = within(dialog).getByPlaceholderText(/search words and notes/i)
+    const input = within(dialog).getByPlaceholderText(/search words/i)
     fireEvent.change(input, { target: { value: "jeg er glad" } })
 
     await waitFor(() => {

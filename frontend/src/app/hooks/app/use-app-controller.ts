@@ -2,16 +2,12 @@ import { useState } from "react"
 
 import { type DeveloperServiceProbeResponse } from "@/app/core"
 import { useApiStatusItems, useGroupedWordbankLemmas } from "@/app/hooks/app/use-app-derived-data"
-import { useNoteAutosave } from "@/app/hooks/use-note-autosave"
 import { useSyncDiscoveredTokenMemory } from "@/app/hooks/use-sync-discovered-token-memory"
-import { buildPlaygroundProps } from "@/app/hooks/app/controller/build-playground-props"
 import { useAppFoundation } from "@/app/hooks/app/controller/use-app-foundation"
 import { useDeveloperComposition } from "@/app/hooks/app/controller/use-developer-composition"
-import { usePlaygroundComposition } from "@/app/hooks/app/controller/use-playground-composition"
 import { useWordbankComposition } from "@/app/hooks/app/controller/use-wordbank-composition"
 import { buildDeveloperSectionProps } from "@/app/sections/developer-section-props"
 import { buildNotesSectionProps } from "@/app/sections/notes-section-props"
-import { buildPlaygroundSectionProps } from "@/app/sections/playground-section-props"
 import { buildSentencebankSectionProps } from "@/app/sections/sentencebank-section-props"
 import { buildWordbankSectionProps } from "@/app/sections/wordbank-section-props"
 
@@ -21,31 +17,15 @@ export function useAppController() {
   const { navigation, health, analysis, discoveredTokenMetadataState, notesPersistence, lexiconData, notifications } = foundation
   const { unreadWordbankLemmaCounts, unreadWordbankNotificationCount } = notifications
 
-  const { popovers, workspace } = usePlaygroundComposition({ foundation })
-
   const wordbank = useWordbankComposition({
     foundation,
-    onSentenceSaved: () => {
-      popovers.handlePhrasePopoverOpenChange(false)
-    },
+    onSentenceSaved: () => {},
   })
 
   const developerSettings = useDeveloperComposition({
     foundation,
     clearVerificationErrors: wordbank.clearVerificationErrors,
     setApiProbeStatuses,
-  })
-
-  useNoteAutosave({
-    activeSavedNoteId: notesPersistence.activeSavedNoteId,
-    activeSavedNoteName: notesPersistence.activeSavedNoteName,
-    noteText: foundation.noteText,
-    tokens: analysis.tokens,
-    discoveredTokenMetadata: discoveredTokenMetadataState.discoveredTokenMetadata,
-    generatedTranslationMap: popovers.generatedTranslationMap,
-    noteAutosaveTimeoutRef: notesPersistence.noteAutosaveTimeoutRef,
-    setAutosaveStatus: notesPersistence.setAutosaveStatus,
-    setSavedNotes: notesPersistence.setSavedNotes,
   })
 
   useSyncDiscoveredTokenMemory({
@@ -57,57 +37,8 @@ export function useAppController() {
   const apiStatusItems = useApiStatusItems(health.healthPayload, health.status, apiProbeStatuses)
 
   const sectionProps = {
-    autosaveStatusLabel: notesPersistence.autosaveStatus === "saving"
-      ? "Autosaving..."
-      : notesPersistence.autosaveStatus === "saved"
-        ? "Autosaved"
-        : "Autosave off",
-    playgroundSectionProps: buildPlaygroundSectionProps({
-      playgroundProps: buildPlaygroundProps({
-        isSaveDialogOpen: workspace.isSaveDialogOpen,
-        saveDialogMode: workspace.saveDialogMode,
-        noteNameDraft: workspace.noteNameDraft,
-        duplicateNameConflictNoteId: workspace.duplicateNameConflictNoteId,
-        handleSaveDialogOpenChange: workspace.handleSaveDialogOpenChange,
-        handleNoteNameDraftChange: workspace.handleNoteNameDraftChange,
-        handleSaveDialogSubmit: workspace.handleSaveDialogSubmit,
-        resolveDuplicateNameConflict: workspace.resolveDuplicateNameConflict,
-        phrasePopover: popovers.phrasePopover,
-        handlePhrasePopoverOpenChange: popovers.handlePhrasePopoverOpenChange,
-        isGeneratingPhraseTranslation: popovers.isGeneratingPhraseTranslation,
-        phraseTranslation: popovers.phraseTranslation,
-        generatePhraseTranslationError: popovers.generatePhraseTranslationError,
-        isSavingSentence: wordbank.isSavingSentence,
-        isSelectedPhraseSaved: popovers.isSelectedPhraseSaved,
-        addSentenceToSentencebank: wordbank.addSentenceToSentencebank,
-        highlightPopover: popovers.highlightPopover,
-        handleHighlightPopoverOpenChange: popovers.handleHighlightPopoverOpenChange,
-        popoverDisplayToken: popovers.popoverDisplayToken,
-        showPopoverLemma: popovers.showPopoverLemma,
-        popoverLemmaText: popovers.popoverLemmaText,
-        popoverMetadataBadges: popovers.popoverMetadataBadges,
-        showTranslationSkeleton: popovers.showTranslationSkeleton,
-        popoverIsNoun: popovers.popoverIsNoun,
-        popoverIsVerbLike: popovers.popoverIsVerbLike,
-        generateTranslationError: popovers.generateTranslationError,
-        popoverTranslation: popovers.popoverTranslation,
-        popoverPrimaryAction: popovers.popoverPrimaryAction,
-        addingTokens: wordbank.addingTokens,
-        closeHighlightPopover: popovers.closeHighlightPopover,
-        openWordbankLemma: navigation.openWordbankLemma,
-        addTokenToWordbank: wordbank.addTokenToWordbank,
-        noteText: foundation.noteText,
-        noteHighlights: analysis.noteHighlights,
-        analysisError: analysis.analysisError,
-        setNoteText: foundation.setNoteText,
-        clearPlaygroundTransientState: popovers.clearTransientState,
-        openHighlightPopover: popovers.openHighlightPopover,
-        handleEditorSelection: popovers.handleEditorSelection,
-      }),
-    }),
     notesSectionProps: buildNotesSectionProps({
       savedNotes: notesPersistence.savedNotes,
-      openSavedNoteInPlayground: workspace.openSavedNoteInPlayground,
     }),
     wordbankSectionProps: buildWordbankSectionProps({
       selectedLemma: navigation.selectedLemma,
@@ -167,7 +98,6 @@ export function useAppController() {
       status: health.status,
       backendUrl: foundation.backendUrl,
       apiStatusItems,
-      selectedNlpModel: developerSettings.selectedNlpModel,
       translationProvider: developerSettings.translationProvider,
       developerTranslationAzureApiKey: developerSettings.developerTranslationAzureApiKey,
       developerTranslationAzureRegion: developerSettings.developerTranslationAzureRegion,
@@ -186,7 +116,6 @@ export function useAppController() {
       isTestingGemini: developerSettings.isTestingGemini,
       geminiProbeResult: developerSettings.geminiProbeResult,
       isResettingDatabase: developerSettings.isResettingDatabase,
-      setSelectedNlpModel: developerSettings.setSelectedNlpModel,
       setTranslationProvider: developerSettings.setTranslationProvider,
       setDeveloperTranslationAzureApiKey: developerSettings.setDeveloperTranslationAzureApiKey,
       setDeveloperTranslationAzureRegion: developerSettings.setDeveloperTranslationAzureRegion,
@@ -211,10 +140,8 @@ export function useAppController() {
     selectedMeaningId: navigation.selectedMeaningId,
     status: health.status,
     lemmas: lexiconData.lemmas,
-    savedNotes: notesPersistence.savedNotes,
     wordbankRefreshTick: foundation.wordbankRefreshTick,
     searchTranslationConfigVersion: foundation.searchTranslationConfigVersion,
-    activeSavedNote: notesPersistence.activeSavedNote,
     isVerifyingWords: wordbank.isVerifyingWords,
     notifications: notifications.notifications,
     isNotificationsOpen: notifications.isNotificationsOpen,
@@ -224,7 +151,6 @@ export function useAppController() {
     unreadWordbankNotificationCount,
     unreadWordbankLemmaCounts,
     markAllNotificationsAsRead: notifications.markAllNotificationsAsRead,
-    selectPlayground: navigation.selectPlayground,
     selectNotes: navigation.selectNotes,
     selectWordbank: navigation.selectWordbank,
     selectSentencebank: navigation.selectSentencebank,
@@ -233,10 +159,8 @@ export function useAppController() {
     openWordbankMeaning: navigation.openWordbankMeaning,
     openWordbankRoot: navigation.openWordbankRoot,
     openSentence: navigation.openSentence,
-    openSavedNoteById: workspace.openSavedNoteById,
     addSentenceToSentencebank: wordbank.addSentenceToSentencebank,
     addWordFromSearch: wordbank.addWordFromSearch,
-    openSaveDialog: workspace.openSaveDialog,
     sectionProps,
   }
 }

@@ -19,7 +19,6 @@ import { savedWordbankResultKey } from "@/app/chrome/sidebar/use-sidebar-search-
 import {
   type AppSection,
   type CORSearchVariant,
-  type SavedNote,
   type SearchSaveSeed,
   type SearchFeedbackContext,
   type WordbankLemma,
@@ -38,16 +37,13 @@ export type AppSidebarProps = {
   lemmas: WordbankLemma[]
   wordbankCacheVersion: number
   searchTranslationConfigVersion: number
-  savedNotes: SavedNote[]
   unreadWordbankNotificationCount: number
-  onSelectPlayground: () => void
   onSelectNotes: () => void
   onSelectWordbank: () => void
   onSelectSentencebank: () => void
   onSelectDeveloper: () => void
   onOpenWordbankLemma: (lemma: string) => void
   onOpenWordbankMeaning: (lemma: string, meaningId: number) => void
-  onOpenSavedNote: (noteId: string) => void
   onAddSentenceToSentencebank: (sourceText: string, englishTranslation?: string | null) => Promise<void>
   onAddWordFromSearch: (
     surfaceToken: string,
@@ -67,16 +63,13 @@ export function AppSidebar({
   lemmas,
   wordbankCacheVersion,
   searchTranslationConfigVersion,
-  savedNotes,
   unreadWordbankNotificationCount,
-  onSelectPlayground,
   onSelectNotes,
   onSelectWordbank,
   onSelectSentencebank,
   onSelectDeveloper,
   onOpenWordbankLemma,
   onOpenWordbankMeaning,
-  onOpenSavedNote,
   onAddSentenceToSentencebank,
   onAddWordFromSearch,
 }: AppSidebarProps) {
@@ -90,7 +83,6 @@ export function AppSidebar({
     isSentenceMode,
     sentenceSearchPreview,
     isSentenceSearchPreviewLoading,
-    matchingNotes,
     searchApiMatches,
     wordbankDidYouMean,
     corDidYouMean,
@@ -100,7 +92,6 @@ export function AppSidebar({
     activeEnTranslatedCorResults,
     isEnTranslatedCorLoading,
   } = useSidebarSearch({
-    savedNotes,
     wordbankCacheVersion,
     searchTranslationConfigVersion,
   })
@@ -108,7 +99,6 @@ export function AppSidebar({
 
   useSidebarHotkeys({
     onToggleSearch: () => setIsSearchOpen((current) => !current),
-    onSelectPlayground,
     onSelectNotes,
     onSelectWordbank,
     onSelectSentencebank,
@@ -134,14 +124,13 @@ export function AppSidebar({
 
   const matchingPageItems = useSidebarPageItems({
     normalizedQuery,
-    onSelectPlayground,
     onSelectNotes,
     onSelectWordbank,
     onSelectSentencebank,
     onSelectDeveloper,
   })
 
-  const hasNoteResults = matchingNotes.length > 0
+  const hasNoteResults = false
   const hasPageResults = matchingPageItems.length > 0
   const hasTranslatedEnResults = activeEnTranslatedCorResults.corSearchVariantsToRender.length > 0
   const hasFallbackEnResults = activeEnTranslatedCorResults.fallbackEnPosGroups.length > 0
@@ -157,7 +146,7 @@ export function AppSidebar({
     corSearchVariantsToRender,
     isSearchOpen,
     isSentenceMode,
-    matchingNotes,
+    matchingNotes: [],
     matchingPageItems,
     orderedCorSearchGroups,
     orderedWordbankResults,
@@ -203,7 +192,7 @@ export function AppSidebar({
     variationCandidateCorIdSet,
     translatedEnCorSearchGroups: activeEnTranslatedCorResults.orderedCorSearchGroups,
     translatedEnCorVariantsToRender: activeEnTranslatedCorResults.corSearchVariantsToRender,
-    matchingNotes,
+    matchingNotes: [],
     matchingPageItems,
     isCorTranslationsLoading,
     wordbankItemValue: (item: WordbankSearchItem) => `wordbank-${savedWordbankResultKey(item)}`,
@@ -219,7 +208,7 @@ export function AppSidebar({
       saveSentenceFromSearch(sourceText, sentenceSearchPreview?.english_translation ?? null)
     },
     onSetSearchQuery: (query: string) => { setSearchQuery(query) },
-    onOpenSavedNote,
+    onOpenSavedNote: () => {},
     onOpenWordbankLemma,
     onOpenWordbankMeaning,
     onAddWordFromSearch,
@@ -249,8 +238,8 @@ export function AppSidebar({
           onCommandValueChange={setCommandSelectionOverride}
           showCloseButton={false}
           className="rounded-xl"
-          title="Search wordbank and notes"
-          description="Search saved words, local COR analyses, and notes."
+          title="Search wordbank"
+          description="Search saved words and local COR analyses."
         >
           <SidebarSearchInput
             value={searchQuery}
@@ -289,7 +278,6 @@ export function AppSidebar({
       <SidebarNavigation
         activeSection={activeSection}
         unreadWordbankNotificationCount={unreadWordbankNotificationCount}
-        onSelectPlayground={onSelectPlayground}
         onSelectNotes={onSelectNotes}
         onSelectWordbank={onSelectWordbank}
         onSelectSentencebank={onSelectSentencebank}

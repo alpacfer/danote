@@ -1,6 +1,4 @@
 export * from "./developer"
 export * from "./notes-section"
-export * from "./playground-header-actions"
-export * from "./playground-section"
 export * from "./sentencebank-section"
 export * from "./wordbank-section"

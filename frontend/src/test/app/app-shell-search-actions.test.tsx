@@ -19,6 +19,10 @@ async function findCommandOptionByValue(commandDialog: HTMLElement, value: strin
   return option as HTMLElement
 }
 
+async function waitForSearchCloseCleanup() {
+  await new Promise((resolve) => window.setTimeout(resolve, 250))
+}
+
 describe("App shell and search", () => {
   it("request-shape: command search uses local COR endpoint, renders grouped variants, and adds selected variant", async () => {
     const fetchSpy = mockFetchImplementation({
@@ -104,7 +108,7 @@ describe("App shell and search", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
-    const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
+    const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
     fireEvent.change(searchInput, { target: { value: "lærer" } })
 
     expect((await within(commandDialog).findAllByText(/teacher/i)).length).toBeGreaterThan(0)
@@ -260,7 +264,7 @@ describe("App shell and search", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
-    const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i) as HTMLInputElement
+    const searchInput = within(commandDialog).getByPlaceholderText(/search words/i) as HTMLInputElement
     fireEvent.change(searchInput, { target: { value: "jeg elsker dansk" } })
 
     expect(searchInput.value).toBe("jeg elsker dansk")
@@ -360,7 +364,7 @@ describe("App shell and search", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
-    const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
+    const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
     fireEvent.change(searchInput, { target: { value: "lærere" } })
 
     fireEvent.click(await findCommandOptionByValue(commandDialog, "cor-variant-COR.49032.112.01"))
@@ -516,7 +520,7 @@ describe("App shell and search", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
-    const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
+    const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
     fireEvent.change(searchInput, { target: { value: "mor" } })
 
     const glossLine = await within(commandDialog).findByText(/^soil layer$/i)
@@ -545,9 +549,10 @@ describe("App shell and search", () => {
     expect(screen.getByText(/^mother \(soil layer\)$/i)).toBeInTheDocument()
     expect(screen.queryByText(/^mother, jordlag$/i)).not.toBeInTheDocument()
 
+    await waitForSearchCloseCleanup()
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const reopenedDialog = await screen.findByRole("dialog")
-    const reopenedInput = within(reopenedDialog).getByPlaceholderText(/search words and notes/i)
+    const reopenedInput = within(reopenedDialog).getByPlaceholderText(/search words/i)
     fireEvent.change(reopenedInput, { target: { value: "mor" } })
 
     expect(await within(reopenedDialog).findByText(/^mother \(soil layer\)$/i)).toBeInTheDocument()
@@ -596,7 +601,7 @@ describe("App shell and search", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
-    const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
+    const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
 
     fireEvent.change(searchInput, { target: { value: "h" } })
     fireEvent.change(searchInput, { target: { value: "ho" } })
@@ -661,7 +666,7 @@ describe("App shell and search", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
-    const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
+    const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
     fireEvent.change(searchInput, { target: { value: "lærere" } })
 
     fireEvent.click(await findCommandOptionByValue(commandDialog, "cor-variant-COR.49032.112.01"))
@@ -718,7 +723,7 @@ describe("App shell and search", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
-    const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
+    const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
     fireEvent.change(searchInput, { target: { value: "lærere" } })
     fireEvent.click(await findCommandOptionByValue(commandDialog, "cor-variant-COR.49032.112.01"))
 
@@ -786,7 +791,7 @@ describe("App shell and search", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
-    const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
+    const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
     fireEvent.change(searchInput, { target: { value: "lærere" } })
     fireEvent.click(await findCommandOptionByValue(commandDialog, "cor-variant-COR.49032.112.01"))
 
@@ -880,7 +885,7 @@ describe("App shell and search", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
-    const searchInput = within(commandDialog).getByPlaceholderText(/search words and notes/i)
+    const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
     fireEvent.change(searchInput, { target: { value: "lærere" } })
     fireEvent.click(await findCommandOptionByValue(commandDialog, "cor-variant-COR.49032.112.01"))
 

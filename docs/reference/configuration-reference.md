@@ -37,8 +37,8 @@ Notes:
 
 | Variable | Default | Accepted values | Interactions / fallbacks |
 | --- | --- | --- | --- |
-| `DANOTE_NLP_MODEL` | `da_dacy_small_trf-0.2.0` | Installed spaCy/DaCy model name | Used when NLP adapter enabled. |
-| `DANOTE_NLP_ENABLED` | `1` | Boolean-like (`1/0`, `true/false`, `yes/no`) | Disabled when `0`, `false`, or `no` (case-insensitive). |
+| `DANOTE_NLP_MODEL` | `retired-dacy-disabled` | Future adapter/model identifier | The previous DaCy/spaCy/Lemmy stack is retired and not installed or loaded. |
+| `DANOTE_NLP_ENABLED` | `0` | Boolean-like (`1/0`, `true/false`, `yes/no`) | `/api/analyze` remains unavailable unless a future NLP adapter is added and enabled. |
 
 ## Typo pipeline
 

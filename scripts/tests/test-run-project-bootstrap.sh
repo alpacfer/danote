@@ -18,9 +18,6 @@ case "${2:-}" in
   *'find_spec("uvicorn")'*)
     [[ "${STUB_HAS_UVICORN:-0}" == "1" ]]
     ;;
-  *"import dacy; dacy.load("*)
-    [[ "${STUB_HAS_MODEL:-0}" == "1" ]]
-    ;;
   *)
     exit 0
     ;;
@@ -59,20 +56,12 @@ bootstrap::create_uv_venv() {
   make_stub_python "$3/bin/python"
 }
 bootstrap::install_locked_backend_deps() { :; }
-bootstrap::model_installed() { return 0; }
 export STUB_PYTHON_VERSION="3.9"
 export STUB_HAS_UVICORN="1"
 ensure_backend_env
 [[ "$recreate_calls" -eq 1 ]]
 
-# Case 4: missing NLP model should trigger the model installer.
-install_model_requests=0
-bootstrap::model_installed() { return 1; }
-bootstrap::ensure_model_installed() { install_model_requests=$((install_model_requests + 1)); }
-ensure_backend_model
-[[ "$install_model_requests" -eq 1 ]]
-
-# Case 5: unsupported OS should fail with a clear message.
+# Case 4: unsupported OS should fail with a clear message.
 unsupported_log="$tmpdir/unsupported.log"
 if DANOTE_BOOTSTRAP_OS_OVERRIDE="FreeBSD" bash -c "source '$RUN_PROJECT'; assert_supported_platform" >"$unsupported_log" 2>&1; then
   echo "expected unsupported platform check to fail"
@@ -80,7 +69,7 @@ if DANOTE_BOOTSTRAP_OS_OVERRIDE="FreeBSD" bash -c "source '$RUN_PROJECT'; assert
 fi
 grep -q "Supported platforms are macOS and Linux" "$unsupported_log"
 
-# Case 6: missing node/npm should print install guidance.
+# Case 5: missing node/npm should print install guidance.
 missing_node_log="$tmpdir/missing-node.log"
 minimal_path="/usr/bin:/bin"
 if PATH="$minimal_path" /bin/bash -c "source '$RUN_PROJECT'; PLATFORM_OS='Darwin'; NODE_MIN_VERSION='20.19.0'; assert_frontend_runtime" >"$missing_node_log" 2>&1; then

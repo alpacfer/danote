@@ -5,10 +5,10 @@ Purpose: app-shell composition across domains. This folder coordinates major wor
 Main entrypoints:
 - `use-app-foundation.ts`: shared app-level state and cross-cutting hooks.
 - `use-app-controller.ts`: top-level facade consumed by `App.tsx`.
-- `use-*-composition.ts`: app-shell composition for playground, wordbank, and developer workflows.
+- `use-*-composition.ts`: app-shell composition for active wordbank and developer workflows.
 
 Where to add new behavior:
-- Put feature-specific behavior in the domain hooks under `app/hooks/playground/*`, `app/hooks/wordbank/*`, or other feature folders first.
+- Put feature-specific behavior in the domain hooks under `app/hooks/wordbank/*` or other active feature folders first.
 - Only keep cross-feature composition and shell wiring here.
 - Put UI prop mapping close to sections under `app/sections/*-section-props.ts`.
 

@@ -6,9 +6,7 @@ import tempfile
 import time
 from pathlib import Path
 
-from app.core.config import Settings
 from app.db.migrations import apply_migrations, get_connection
-from app.nlp.danish import load_danish_nlp_adapter
 from app.services.token_classifier import LemmaAwareClassifier, normalize_token
 from app.services.typo.typo_engine import TypoEngine
 from benchmark_reporting import append_benchmark_report
@@ -99,28 +97,8 @@ def main(
     with tempfile.TemporaryDirectory(prefix="danote-typo-benchmark-") as tmp_dir:
         db_path = Path(tmp_dir) / "benchmark.sqlite3"
         apply_migrations(db_path)
-        settings = Settings(
-            environment="test",
-            app_name="danote-typo-benchmark",
-            host="127.0.0.1",
-            port=8001,
-            db_path=db_path,
-            nlp_model="da_dacy_small_trf-0.2.0",
-        )
-        adapter_warning: str | None = None
-        try:
-            adapter = load_danish_nlp_adapter(settings)
-        except Exception as exc:  # pragma: no cover - environment fallback
-            if not allow_degraded_nlp:
-                print("Danote Typo Benchmark (v1 scaffold)")
-                print(
-                    "Failed to load Danish NLP adapter. "
-                    "Enable model download/network access or run with --allow-degraded-nlp."
-                )
-                print(f"Error: {exc}")
-                return 2
-            adapter = _IdentityNLPAdapter()
-            adapter_warning = f"NLP adapter unavailable; using identity fallback: {exc}"
+        adapter = _IdentityNLPAdapter()
+        adapter_warning = "DaCy NLP is retired; using identity fallback."
         dictionary_paths = _resolve_dictionary_paths(dictionary_mode)
         typo_engine = TypoEngine(db_path=db_path, dictionary_paths=dictionary_paths)
         classifier = LemmaAwareClassifier(db_path, nlp_adapter=adapter, typo_engine=typo_engine)

@@ -27,7 +27,7 @@ def require_nlp_ready(request: Request) -> None:
     if not runtime.nlp_ready or get_services(request).nlp_adapter is None:
         raise HTTPException(
             status_code=503,
-            detail="NLP unavailable. Check backend logs and NLP model installation.",
+            detail="NLP unavailable. The previous DaCy NLP stack is retired and no adapter is configured.",
         )
 
 

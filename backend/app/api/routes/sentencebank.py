@@ -7,7 +7,6 @@ from fastapi import APIRouter, Query, Request, Response
 from app.api.routes._runtime import (
     get_services,
     get_settings,
-    require_nlp_ready,
     run_db_operation,
 )
 from app.api.routes._use_case_factories import build_wordbank_use_case
@@ -43,7 +42,6 @@ def _sentencebank_use_case(request: Request) -> SentencebankUseCase:
 
 @router.post("/sentencebank/sentences", response_model=AddSentenceResponse)
 def add_sentence(payload: AddSentenceRequest, request: Request) -> AddSentenceResponse:
-    require_nlp_ready(request)
     return run_db_operation(
         request,
         lambda: _sentencebank_use_case(request).add_sentence(payload.source_text),

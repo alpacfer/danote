@@ -1,12 +1,14 @@
 # Playground section behavior
 
-Runtime behavior for playground UI: editor, token/phrase popovers, save dialog.
+Retired behavior reference for the previous playground UI: editor, token/phrase popovers, save dialog.
+
+Playground is currently inaccessible from the frontend. It is not in sidebar navigation, command search, hotkeys, or `SectionContent`, and it should not be used while the DaCy NLP stack is retired.
 
 ## 1) Entry points and ownership
 
 ### Main composition path
 
-- `useAppController` = top-level assembly: `useAppFoundation` + `usePlaygroundComposition` + `useWordbankComposition` → `buildPlaygroundProps` → section props. (`frontend/src/app/hooks/app/use-app-controller.ts`, `frontend/src/app/hooks/app/controller/use-playground-composition.ts`, `frontend/src/app/hooks/app/controller/build-playground-props.ts`)
+- Active app-shell composition no longer assembles Playground props or hooks.
 - `PlaygroundSection` = thin, renders three UI subcomponents + `NotesEditor`.
 
 ### UI ownership
@@ -19,12 +21,9 @@ Runtime behavior for playground UI: editor, token/phrase popovers, save dialog.
 - `frontend/src/app/sections/playground/playground-save-dialog.tsx` — save/create dialog + submit/cancel.
 - `frontend/src/components/notes-editor.tsx` — Tiptap lifecycle, text sync, highlight clicks, delayed selection-settle.
 
-### Hooks in `frontend/src/app/hooks/app/*`
+### Retired hooks
 
-- `controller/use-app-foundation.ts`: `noteText`, analysis hook, lexicon/notes/navigation/notifications bootstrapping.
-- `controller/use-playground-composition.ts`: binds `usePlaygroundPopovers` + `useNoteWorkspace`.
-- `controller/build-playground-props.ts`: adapts hooks → `PlaygroundSectionProps` (wrapper handlers for open wordbank, add token, add sentence, editor change/selection).
-- `use-app-controller.ts`: final prop wiring.
+The previous Playground controller composition and prop adapter files have been removed from the active app-shell path.
 
 ## 2) Analysis lifecycle
 
@@ -72,12 +71,12 @@ Result: typo_likely/PROPN/NUM tokens never open popovers or trigger token transl
 ### Primary action behavior
 
 - `open_wordbank`: eye icon, disabled when lemma missing → closes popover → navigates to Wordbank lemma.
-- `add_as_new`/`add_variation`: plus icon, disabled while `addingTokens[addLoadingKey(token)]` → starts async `addTokenToWordbank(...)`, closes popover immediately.
+- `add_as_new`/`add_variation`: retired with the inaccessible Playground UI.
 
 ### Optimistic vs post-response
 
 - Add-to-wordbank is **not optimistic** for classification.
-- On API success: success toast, verification/pronunciation background jobs, feedback posted, refresh ticks (`analysis` + `wordbank`).
+- On API success: success toast, verification/pronunciation background jobs, feedback posted, refresh ticks (`analysis` + `wordbank`). This is historical behavior only.
 - On error: error toast, loading key cleared in `finally`.
 
 ### Toast/error semantics
@@ -152,13 +151,9 @@ Result: typo_likely/PROPN/NUM tokens never open popovers or trigger token transl
 - Analysis error → alert paragraph under editor.
 - Token/phrase translation failure → inline destructive text in popover.
 
-## 9) Test coverage map (`frontend/src/test/app/app-playground-*.test.tsx`)
+## 9) Test coverage map
 
-- `app-playground-editor.test.tsx` — editor input, spellcheck attrs, analyze debounce, trailing-token finalization, stale response protection, highlight classes, line-start tokens, hash comment marks.
-- `app-playground-popovers-guards.test.tsx` — `typo_likely`/`PROPN`/`NUM` guards, adjective/AUX metadata, translation endpoint expectations.
-- `app-playground-popovers-nouns.test.tsx` — noun popover content, lemma subtitle, enrich-cache reuse, known-token "open in wordbank", translation skeleton, duplicate subtitle suppression.
-- `app-playground-popovers-verbs.test.tsx` — verb metadata labels (incl. participle mapping), translation reuse on context/POS degradation, popover metadata updates.
-- `app-playground-actions.test.tsx` — focus retention, popover dismissal on typing, add-to-wordbank success (backend call + re-analysis + toast), error toast path.
+The active `app-playground-*.test.tsx` suite has been retired with the inaccessible UI. Current coverage asserts the shell no longer exposes Playground navigation and saved notes do not open into Playground.
 
 ## Documentation parity
 

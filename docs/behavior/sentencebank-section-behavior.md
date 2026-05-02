@@ -6,16 +6,9 @@
 
 `SentencebankSection` in `frontend/src/app/sections/sentencebank-section.tsx`. Props: `sentencebankError`, `isSentencebankLoading`, `sentences`, `onOpenWordbankLemma`, `onOpenWordbankMeaning`.
 
-### Sentence add flow from Playground
+### Retired Playground add flow
 
-`addSentenceToSentencebank` in `frontend/src/app/hooks/use-wordbank-workflows.ts`:
-1. Normalize selected text: collapse whitespace to single spaces, trim
-2. Enforce `hasMultipleWords` before allowing save
-3. Build `normalizePhraseKey`, block duplicates against existing entries
-4. `POST /api/sentencebank/sentences` with `{ source_text: normalizedSelection }`
-5. Success → toast, increment `sentencebankRefreshTick` and `wordbankRefreshTick`, invoke `onSentenceSaved`
-6. Failure → toast error, clear saving flag in `finally`
-7. Backend also queues sentence-level pronunciation generation when TTS is configured; the hydrated sentence payload returns `has_pronunciation=false` initially plus `pronunciation.status = "queued"`
+The previous selected-text save path from Playground is retired while Playground is inaccessible.
 
 ### Sentence add flow from Sidebar Search
 
@@ -33,12 +26,12 @@
 Render priority in `SentencebankSection`:
 1. **Error** — `sentencebankError` exists → `<p role="alert">` with destructive text
 2. **Skeleton** — `isSentencebankLoading && sentences.length === 0` → two skeleton cards (only when no prior data)
-3. **Empty** — `sentences.length === 0` → `No saved sentences yet. Select a sentence in Playground to add one.`
+3. **Empty** — `sentences.length === 0` → `No saved sentences yet.`
 4. **List** — sentence cards in scroll area
 
-## 3) Add constraints from Playground
+## 3) Add constraints
 
-`addSentenceToSentencebank` guards:
+Sentence saves guard:
 - **Whitespace normalization**: `selectedText.replace(/\s+/gu, " ").trim()`
 - **Multi-word requirement**: empty/single-word selections ignored (`hasMultipleWords`)
 - **Duplicate detection**: compare via `normalizePhraseKey` against existing `sentence.source_text`; match → no request
@@ -79,4 +72,4 @@ Each token card renders:
 - `frontend/src/test/app/app-shell-search-basics.test.tsx` — Sentencebank nav entry in shell/sidebar
 - `frontend/src/test/app/app-shell-search-actions.test.tsx` — sentence-mode save refreshes sentencebank + wordbank
 
-Note: `frontend/src/test/app/app-playground-actions.test.tsx` covers popover action mechanics for adding words. No dedicated end-to-end test exercises full `Add to sentencebank` path (normalization, duplicate suppression, tick refetch) in one file.
+No active Playground test coverage remains because the section is retired/inaccessible.

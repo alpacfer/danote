@@ -40,14 +40,15 @@ def _insert_cor_entries(conn: sqlite3.Connection, rows: tuple[tuple[object, ...]
     )
 
 
-def build_test_settings(db_path, *, cor_local_db_path=None) -> Settings:
+def build_test_settings(db_path, *, cor_local_db_path=None, nlp_enabled: bool = False) -> Settings:
     return Settings(
         environment="test",
         app_name="danote-backend-test",
         host="127.0.0.1",
         port=8001,
         db_path=db_path,
-        nlp_model="da_dacy_small_trf-0.2.0",
+        nlp_model="retired-dacy-disabled",
+        nlp_enabled=nlp_enabled,
         translation_enabled=False,
         cor_local_db_path=cor_local_db_path or (db_path.parent / "cor.sqlite"),
     )

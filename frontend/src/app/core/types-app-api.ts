@@ -1,7 +1,7 @@
 export type ConnectionStatus = "loading" | "connected" | "degraded" | "offline"
 export type ApiRuntimeStatus = "ok" | "degraded" | "inactive" | "missing_key" | "disabled" | "unknown"
 export type TokenClassification = "known" | "variation" | "typo_likely" | "uncertain" | "new"
-export type AppSection = "playground" | "notes" | "wordbank" | "sentencebank" | "developer"
+export type AppSection = "notes" | "wordbank" | "sentencebank" | "developer"
 export type TokenAction = "add_as_new"
 
 export type WordActionSuggestion = {
@@ -43,7 +43,7 @@ export type TokenFeedbackPayload = {
   suggestions_shown: string[]
   user_action: TokenAction
   chosen_value?: string
-  source?: "playground" | "search"
+  source?: "search"
 }
 
 export type SearchFeedbackContext = {

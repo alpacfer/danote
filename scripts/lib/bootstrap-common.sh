@@ -1,9 +1,6 @@
 #!/usr/bin/env bash
 
 BOOTSTRAP_PYTHON_VERSION_DEFAULT="3.11"
-BOOTSTRAP_DACY_MODEL_NAME_DEFAULT="da_dacy_small_trf-0.2.0"
-BOOTSTRAP_DACY_MODEL_URL_DEFAULT="https://huggingface.co/chcaa/da_dacy_small_trf/resolve/0eadea074d5f637e76357c46bbd56451471d0154/da_dacy_small_trf-any-py3-none-any.whl"
-BOOTSTRAP_DACY_MODEL_FILE_DEFAULT="da_dacy_small_trf-0.2.0-py3-none-any.whl"
 BOOTSTRAP_UV_INSTALL_URL_DEFAULT="https://astral.sh/uv/install.sh"
 
 bootstrap::prefix() {
@@ -166,42 +163,4 @@ Install them with your platform package manager and rerun this script.
 EOF
       ;;
   esac
-}
-
-bootstrap::model_installed() {
-  local python_bin="$1"
-  local model_name="$2"
-  "$python_bin" -c "import dacy; dacy.load('$model_name')" >/dev/null 2>&1
-}
-
-bootstrap::download_model_wheel() {
-  local target_dir="$1"
-  local model_url="$2"
-  local model_file="$3"
-  local tmp_wheel="$target_dir/.tmp-$model_file"
-  local final_wheel="$target_dir/$model_file"
-
-  bootstrap::require_cmd curl
-  curl -L -o "$tmp_wheel" "$model_url" >&2
-  mv "$tmp_wheel" "$final_wheel"
-  printf '%s\n' "$final_wheel"
-}
-
-bootstrap::ensure_model_installed() {
-  local uv_bin="$1"
-  local python_bin="$2"
-  local target_dir="$3"
-  local model_name="$4"
-  local model_url="$5"
-  local model_file="$6"
-
-  if bootstrap::model_installed "$python_bin" "$model_name"; then
-    return 0
-  fi
-
-  bootstrap::log "installing NLP model $model_name"
-  local wheel_path
-  wheel_path="$(bootstrap::download_model_wheel "$target_dir" "$model_url" "$model_file")"
-  "$uv_bin" pip install --python "$python_bin" --no-deps "$wheel_path" >&2
-  bootstrap::model_installed "$python_bin" "$model_name" || bootstrap::die "failed to validate NLP model $model_name"
 }

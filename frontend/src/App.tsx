@@ -1,7 +1,6 @@
 import { AppBreadcrumb, AppSidebar } from "@/app/chrome"
 import { useAppController } from "@/app/hooks/app/use-app-controller"
 import { SectionContent } from "@/app/layout/section-content"
-import { PlaygroundHeaderActions } from "@/app/sections"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 
 function App() {
@@ -10,18 +9,9 @@ function App() {
     selectedLemma,
     status,
     lemmas,
-    savedNotes,
     wordbankRefreshTick,
     searchTranslationConfigVersion,
-    activeSavedNote,
-    isVerifyingWords,
-    notifications,
-    isNotificationsOpen,
-    setIsNotificationsOpen,
-    hasUnreadNotifications,
-    unreadNotifications,
     unreadWordbankNotificationCount,
-    selectPlayground,
     selectNotes,
     selectWordbank,
     selectSentencebank,
@@ -29,10 +19,8 @@ function App() {
     openWordbankLemma,
     openWordbankMeaning,
     openWordbankRoot,
-    openSavedNoteById,
     addSentenceToSentencebank,
     addWordFromSearch,
-    openSaveDialog,
     sectionProps,
   } = useAppController()
 
@@ -43,16 +31,13 @@ function App() {
         lemmas={lemmas}
         wordbankCacheVersion={wordbankRefreshTick}
         searchTranslationConfigVersion={searchTranslationConfigVersion}
-        savedNotes={savedNotes}
         unreadWordbankNotificationCount={unreadWordbankNotificationCount}
-        onSelectPlayground={selectPlayground}
         onSelectNotes={selectNotes}
         onSelectWordbank={selectWordbank}
         onSelectSentencebank={selectSentencebank}
         onSelectDeveloper={selectDeveloper}
         onOpenWordbankLemma={openWordbankLemma}
         onOpenWordbankMeaning={openWordbankMeaning}
-        onOpenSavedNote={openSavedNoteById}
         onAddSentenceToSentencebank={addSentenceToSentencebank}
         onAddWordFromSearch={addWordFromSearch}
       />
@@ -67,28 +52,11 @@ function App() {
               <AppBreadcrumb
                 activeSection={activeSection}
                 selectedLemma={selectedLemma}
-                activeNoteName={activeSavedNote?.name ?? null}
                 onSelectWordbank={openWordbankRoot}
               />
-              {activeSection === "playground" ? (
-                <PlaygroundHeaderActions
-                  autosaveStatusLabel={sectionProps.autosaveStatusLabel}
-                  hasActiveSavedNote={Boolean(activeSavedNote)}
-                  isNotificationsOpen={isNotificationsOpen}
-                  isVerifyingWords={isVerifyingWords}
-                  hasUnreadNotifications={hasUnreadNotifications}
-                  unreadCount={unreadNotifications.length}
-                  notifications={notifications}
-                  onOpenSaveDialog={openSaveDialog}
-                  onNotificationsOpenChange={(open) => {
-                    setIsNotificationsOpen(open)
-                  }}
-                />
-              ) : null}
             </div>
             <SectionContent
               activeSection={activeSection}
-              playgroundProps={sectionProps.playgroundSectionProps}
               notesProps={sectionProps.notesSectionProps}
               wordbankProps={sectionProps.wordbankSectionProps}
               sentencebankProps={sectionProps.sentencebankSectionProps}

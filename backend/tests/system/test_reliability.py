@@ -9,14 +9,15 @@ from app.main import create_app
 from app.nlp.adapter import NLPToken
 
 
-def _settings(db_path) -> Settings:
+def _settings(db_path, *, nlp_enabled: bool = False) -> Settings:
     return Settings(
         environment="test",
         app_name="danote-backend-test",
         host="127.0.0.1",
         port=8001,
         db_path=db_path,
-        nlp_model="da_dacy_small_trf-0.2.0",
+        nlp_model="retired-dacy-disabled",
+        nlp_enabled=nlp_enabled,
         translation_enabled=False,
     )
 
@@ -69,12 +70,12 @@ def test_word_persists_across_backend_restart(tmp_path) -> None:
     app_second = create_app(settings=settings, nlp_adapter_factory=_simple_adapter_factory)
     with TestClient(app_second) as client:
         analyze_response = client.post("/api/analyze", json={"text": "kat"})
+        details_response = client.get("/api/wordbank/lemmas/kat")
 
-    assert analyze_response.status_code == 200
-    tokens = analyze_response.json()["tokens"]
-    assert len(tokens) == 1
-    assert tokens[0]["normalized_token"] == "kat"
-    assert tokens[0]["classification"] == "known"
+    assert analyze_response.status_code == 503
+    assert "NLP unavailable" in analyze_response.json()["detail"]
+    assert details_response.status_code == 200
+    assert details_response.json()["lemma"] == "kat"
 
 
 def test_invalid_db_path_marks_backend_degraded_and_returns_user_facing_message(tmp_path) -> None:
@@ -95,17 +96,17 @@ def test_invalid_db_path_marks_backend_degraded_and_returns_user_facing_message(
     health = health_response.json()
     assert health["status"] == "degraded"
     assert health["components"]["database"] == "degraded"
-    assert health["components"]["nlp"] == "ok"
+    assert health["components"]["nlp"] == "disabled"
 
     assert analyze_response.status_code == 503
-    assert "Database unavailable" in analyze_response.json()["detail"]
+    assert "NLP unavailable" in analyze_response.json()["detail"]
     assert add_response.status_code == 503
     assert "Database unavailable" in add_response.json()["detail"]
 
 
 def test_nlp_init_failure_marks_backend_degraded_and_analysis_unavailable(tmp_path) -> None:
     db_path = tmp_path / "danote.sqlite3"
-    settings = _settings(db_path)
+    settings = _settings(db_path, nlp_enabled=True)
 
     def failing_nlp_factory(_settings: Settings):
         raise RuntimeError("nlp init failed")

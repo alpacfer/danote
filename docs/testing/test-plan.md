@@ -13,8 +13,8 @@
 ### System backend groups
 
 - `tests/system/test_reliability.py`: restart persistence and degraded-mode failure handling.
-- `tests/system/test_analysis_endpoint_real_nlp.py`: real-model `/api/analyze` smoke coverage kept out of the fast API tier.
-- `tests/system/test_regression_fixtures.py`: fixture-to-golden regression checks.
+- Real-model `/api/analyze` smoke coverage is retired while DaCy NLP is disabled.
+- Fixture-to-golden analyze regression checks are retired while DaCy NLP is disabled.
 - `tests/system/test_wordbank_performance_smoke.py`: opt-in performance smoke coverage.
 
 ### Contract
@@ -30,11 +30,10 @@
 
 ### Behavior (`frontend/src/test/app/*.test.tsx`)
 
-- Debounce, stale-response protection, finalized-token gating.
+- Shell/search/wordbank/sentencebank/developer behavior. Playground editor debounce and finalized-token coverage is retired with the inaccessible Playground UI.
 
 ### Integration (`frontend/src/test/app/*.test.tsx`)
 
-- Analyze API mocked flows.
 - Add-word API mocked flows (success/error + refresh).
 - Backend degraded/offline badge handling.
 
@@ -50,7 +49,6 @@
 
 - Scripted backend flow: `scripts/e2e-regression.sh`
   - startup + health
-  - canonical analyze
   - add word
   - backend restart
   - persistence re-check
@@ -59,9 +57,8 @@
 ## Fixture Baseline
 
 - Fixture sources: `test-data/fixtures/`.
-- Golden outputs: `test-data/fixtures/expected/analyze/*.json`.
+- Golden analyze outputs are retired while DaCy NLP is disabled.
 - Recorded Gemini sentence-verification replays: `test-data/fixtures/gemini/sentence_verification/*.json`.
-- Golden refresh tool: `scripts/generate_fixture_goldens.py`.
 - Gemini sentence-verification recorder: `scripts/record-sentence-verification-fixture.py`.
 - Lemma benchmark runner: `scripts/run-lemma-benchmark.py`.
 - Translation benchmark runner (word-only): `scripts/run-translation-benchmark.py`.
@@ -77,6 +74,6 @@ PYTHONPATH=backend backend/.venv/bin/python scripts/run-translation-benchmark.py
 
 1. Run backend suite.
 2. Run frontend suite.
-3. Run fixture regression test.
+3. Run reliability and wordbank/sentencebank regression checks.
 4. Run `scripts/e2e-regression.sh`.
 5. Execute manual demo checklist.

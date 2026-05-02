@@ -1,19 +1,10 @@
 import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
-import { Label } from "@/components/ui/label"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import {
   apiStatusBadgeClass,
   humanizeApiStatus,
   type ApiStatusItem,
   type ConnectionStatus,
-  type NlpModelOption,
 } from "@/app/core"
 
 type StatusTabProps = {
@@ -21,9 +12,6 @@ type StatusTabProps = {
   status: ConnectionStatus
   backendUrl: string
   apiStatusItems: ApiStatusItem[]
-  selectedNlpModel: NlpModelOption
-  nlpModelOptions: readonly NlpModelOption[]
-  onSelectedNlpModelChange: (value: NlpModelOption) => void
 }
 
 export function StatusTab({
@@ -31,9 +19,6 @@ export function StatusTab({
   status,
   backendUrl,
   apiStatusItems,
-  selectedNlpModel,
-  nlpModelOptions,
-  onSelectedNlpModelChange,
 }: StatusTabProps) {
   return (
     <div className="space-y-6">
@@ -61,26 +46,6 @@ export function StatusTab({
             </Card>
           ))}
         </div>
-      </div>
-
-      <div className="space-y-2">
-        <Label className="text-sm font-medium">NLP model</Label>
-        <Select value={selectedNlpModel} onValueChange={(value) => onSelectedNlpModelChange(value as NlpModelOption)}>
-          <SelectTrigger aria-label="NLP model picker" className="w-full max-w-sm">
-            <SelectValue placeholder="Select model" />
-          </SelectTrigger>
-          <SelectContent>
-            {nlpModelOptions.map((model) => (
-              <SelectItem key={model} value={model}>
-                {model}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <p className="text-muted-foreground text-xs">
-          Preferred model for local benchmarking. Backend default remains <code>da_dacy_small_trf-0.2.0</code> unless{" "}
-          <code>DANOTE_NLP_MODEL</code> is set before startup.
-        </p>
       </div>
     </div>
   )

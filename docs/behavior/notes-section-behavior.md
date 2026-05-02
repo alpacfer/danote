@@ -11,10 +11,7 @@
 - Section adapter/rendering:
   - `frontend/src/app/sections/notes-section-props.ts`
   - `frontend/src/app/sections/notes-section.tsx`
-- Sidebar search/filter + open actions:
-  - `frontend/src/app/chrome/sidebar/use-sidebar-search.ts`
-  - `frontend/src/app/chrome/sidebar/sidebar-search-results.tsx`
-  - `frontend/src/app/chrome/sidebar/app-sidebar.tsx`
+- Sidebar page entry: `frontend/src/app/chrome/sidebar/app-sidebar.tsx`
 
 ## Open notes view workflow
 
@@ -29,22 +26,15 @@ Entry paths:
 
 ### Notes section list
 
-`NotesSection` renders one card per `savedNotes` (most-recent-first). Each card shows: name, formatted save timestamp, shortened preview text. Empty state: `No saved notes yet. Save one from Playground.`
+`NotesSection` renders one display-only card per `savedNotes` (most-recent-first). Each card shows: name, formatted save timestamp, shortened preview text. Empty state: `No saved notes available.`
 
-### Sidebar filtering (cross-section)
+### Sidebar filtering
 
-`useSidebarSearch` normalizes query, filters `savedNotes` by name or text match. Matches appear under `Notes` command group. Selecting → `onOpenSavedNote(note.id)` + close search. Available regardless of active section.
+Saved notes are no longer exposed in the sidebar command search while Playground-dependent note opening is retired.
 
-## Open note into Playground
+## Open note
 
-Opening a saved note (cards or sidebar) → workspace open handlers:
-1. Hydrate editor from saved note (`text`, `tokens`, metadata, translation map)
-2. Clear transient Playground state + analysis error
-3. Set `activeNoteId`
-4. Set autosave `saved`
-5. Force `activeSection = "playground"`
-
-Result: selecting a note always navigates to Playground; Notes is a launch/list surface.
+Opening saved notes into Playground is retired. Notes cards are display-only and do not navigate.
 
 ## Save-as / new note behavior
 
@@ -75,7 +65,7 @@ Result: selecting a note always navigates to Playground; Notes is a launch/list 
 ### Active section
 
 - `selectNotes()` → `activeSection = "notes"`, clear Wordbank context
-- `openSavedNoteInPlayground()` → `activeSection = "playground"`
+- Saved-note opening is retired; Notes cards do not change `activeSection`.
 - App body renders section from `activeSection` only
 
 ### Active note
@@ -86,7 +76,7 @@ Result: selecting a note always navigates to Playground; Notes is a launch/list 
 
 ### Breadcrumb/title
 
-`AppBreadcrumb`: Notes section → title `Notes`. Playground → active note name if present, else `Playground`. Opening note from Notes/sidebar changes breadcrumb from `Notes` to note name (or `Playground` fallback).
+`AppBreadcrumb`: Notes section → title `Notes`.
 
 ## Behavioral test coverage
 

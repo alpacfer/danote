@@ -320,10 +320,9 @@ Shared by header + section rows + variation rows.
 - Function words: keep short lexicalized context when removing would lose meaning
 - Phrase translation not in this path
 
-## Add from playground token
+## Retired Playground token add
 
-- `POST /api/wordbank/lexemes`
-- Success: toast; backend queues full-page verification; returns `queued_pronunciation_forms`; word page polls until forms have audio or timeout; token feedback (`source: "playground"`); analysis + wordbank refresh ticks increment
+The previous token-popover add path from Playground is retired while Playground is inaccessible. Active add flows come from sidebar search and direct wordbank workflows.
 
 ## Add from sidebar search
 

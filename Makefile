@@ -6,8 +6,8 @@ BACKEND_PY := $(BACKEND_DIR)/.venv/bin/python
 BACKEND_PYTEST := PYTHONPATH=. $(BACKEND_DIR)/.venv/bin/pytest
 BACKEND_TEST_UNIT_DIRS := tests/use_cases tests/services tests/bootstrap tests/db
 BACKEND_TEST_API_DIR := tests/api
-BACKEND_TEST_MEDIUM_DIR := tests/system/test_reliability.py tests/system/test_analysis_endpoint_real_nlp.py
-BACKEND_TEST_SLOW_DIR := tests/system/test_regression_fixtures.py
+BACKEND_TEST_MEDIUM_DIR := tests/system/test_reliability.py
+BACKEND_TEST_SLOW_DIR :=
 BACKEND_TEST_PERF_DIR := tests/system/test_wordbank_performance_smoke.py
 export PATH := $(HOME)/.local/bin:$(PATH)
 
@@ -33,14 +33,14 @@ help:
 	@echo "  dev                 Start backend + frontend via scripts/run-project.sh"
 
 setup-backend:
-	cd $(BACKEND_DIR) && python3 -m venv .venv
-	$(BACKEND_PY) -m pip install --upgrade pip
-	$(BACKEND_PY) -m pip install -r $(BACKEND_DIR)/requirements.lock.txt
+	uv python install 3.11
+	cd $(BACKEND_DIR) && uv venv --python 3.11 .venv
+	uv pip install --python $(BACKEND_PY) -r $(BACKEND_DIR)/requirements.lock.txt
 
 setup-backend-search:
-	cd $(BACKEND_DIR) && python3 -m venv .venv
-	$(BACKEND_PY) -m pip install --upgrade pip
-	$(BACKEND_PY) -m pip install -r $(BACKEND_DIR)/requirements.search.txt
+	uv python install 3.11
+	cd $(BACKEND_DIR) && uv venv --python 3.11 .venv
+	uv pip install --python $(BACKEND_PY) -r $(BACKEND_DIR)/requirements.search.txt
 
 setup-frontend:
 	cd $(FRONTEND_DIR) && npm ci
@@ -75,7 +75,7 @@ test-backend-medium:
 	cd $(BACKEND_DIR) && PYTHONPATH=. .venv/bin/pytest -q $(BACKEND_TEST_MEDIUM_DIR)
 
 test-backend-slow:
-	cd $(BACKEND_DIR) && PYTHONPATH=. .venv/bin/pytest -q $(BACKEND_TEST_SLOW_DIR)
+	@echo "Backend slow regression fixtures are retired while DaCy NLP is disabled."
 
 test-backend-perf:
 	cd $(BACKEND_DIR) && PYTHONPATH=. .venv/bin/pytest -q $(BACKEND_TEST_PERF_DIR)

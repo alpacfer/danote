@@ -5,14 +5,12 @@ import {
   type CORSearchGroup,
   type CORSearchVariant,
   type ENPosGroup,
-  type SavedNote,
   createApiClient,
 } from "@/app/core"
 
 export type SidebarApiClient = ReturnType<typeof createApiClient>
 
 export type UseSidebarSearchParams = {
-  savedNotes: SavedNote[]
   wordbankCacheVersion: number
   searchTranslationConfigVersion: number
 }

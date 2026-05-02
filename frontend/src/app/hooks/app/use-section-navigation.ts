@@ -8,7 +8,7 @@ export type PendingSentence = {
 }
 
 export function useSectionNavigation() {
-  const [activeSection, setActiveSection] = useState<AppSection>("playground")
+  const [activeSection, setActiveSection] = useState<AppSection>("wordbank")
   const [selectedLemma, setSelectedLemma] = useState<string | null>(null)
   const [selectedMeaningId, setSelectedMeaningId] = useState<number | null>(null)
   const [selectedSentenceId, setSelectedSentenceId] = useState<number | null>(null)
@@ -24,11 +24,6 @@ export function useSectionNavigation() {
     setSelectedLemma,
     setSelectedMeaningId,
     setSelectedSentenceId,
-    selectPlayground: () => {
-      setActiveSection("playground")
-      setSelectedMeaningId(null)
-      setSelectedSentenceId(null)
-    },
     selectNotes: () => {
       setActiveSection("notes")
       setSelectedLemma(null)

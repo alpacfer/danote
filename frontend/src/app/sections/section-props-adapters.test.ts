@@ -1,34 +1,19 @@
 import { describe, expect, it, vi } from "vitest"
 
-import { NLP_MODEL_OPTIONS } from "@/app/core"
 import { buildDeveloperSectionProps } from "@/app/sections/developer-section-props"
 import { buildNotesSectionProps } from "@/app/sections/notes-section-props"
-import { buildPlaygroundSectionProps } from "@/app/sections/playground-section-props"
 import { buildSentencebankSectionProps } from "@/app/sections/sentencebank-section-props"
 import { buildWordbankSectionProps } from "@/app/sections/wordbank-section-props"
 
 describe("section prop adapters", () => {
-  it("preserves playground props by reference", () => {
-    const playgroundProps = { noteText: "hej" }
-
-    const result = buildPlaygroundSectionProps({
-      playgroundProps: playgroundProps as never,
-    })
-
-    expect(result).toBe(playgroundProps)
-  })
-
   it("maps notes props to the section contract", () => {
     const savedNotes = [{ id: "1", name: "note", text: "hej", savedAt: "now", tokens: [], discoveredTokenMetadata: {}, generatedTranslationMap: {} }]
-    const onOpenSavedNote = vi.fn()
 
     const result = buildNotesSectionProps({
       savedNotes: savedNotes as never,
-      openSavedNoteInPlayground: onOpenSavedNote as never,
     })
 
     expect(result.savedNotes).toBe(savedNotes)
-    expect(result.onOpenSavedNote).toBe(onOpenSavedNote)
   })
 
   it("maps sentencebank props without alteration", () => {
@@ -177,7 +162,6 @@ describe("section prop adapters", () => {
       status: "connected",
       backendUrl: "http://127.0.0.1:8000",
       apiStatusItems: [],
-      selectedNlpModel: NLP_MODEL_OPTIONS[0],
       translationProvider: "deepl",
       developerTranslationAzureApiKey: "",
       developerTranslationAzureRegion: "",
@@ -196,7 +180,6 @@ describe("section prop adapters", () => {
       isTestingGemini: false,
       geminiProbeResult: null,
       isResettingDatabase: false,
-      setSelectedNlpModel: vi.fn(),
       setTranslationProvider: vi.fn(),
       setDeveloperTranslationAzureApiKey: vi.fn(),
       setDeveloperTranslationAzureRegion: vi.fn(),

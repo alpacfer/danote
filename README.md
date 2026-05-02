@@ -70,8 +70,9 @@ cd <repo-root>
 This starts backend and frontend together, checks backend health, and stops both on `Ctrl+C`.
 It also auto-loads root-level `.env` and `.env.local` files when present.
 On macOS and Linux, the script now self-heals the backend bootstrap path: it installs `uv`
-user-locally when missing, provisions Python `3.11`, recreates stale backend virtualenvs, installs
-`backend/requirements.lock.txt`, and auto-installs the pinned DaCy model when NLP is enabled.
+user-locally when missing, provisions Python `3.11`, recreates stale backend virtualenvs, and installs
+`backend/requirements.lock.txt`. The previous DaCy/spaCy/Lemmy stack and
+`da_dacy_small_trf-0.2.0` model are retired for now and are not installed or loaded by default.
 `node` and `npm` are still required locally; when they are missing or too old, the script prints
 platform-specific install commands and exits before partial startup.
 
@@ -105,15 +106,11 @@ Related-word verb translations are normalized to English infinitive form (`to <v
 When related-word enrichment points at an already-saved target and Gemini returns a different valid translation, that translation is persisted as an additional translation on the saved target word page instead of being discarded or waiting for a manual add.
 Word verification may use COR glosses and translated glosses as internal sense clues for homographs, but Gemini review output is limited to lemma/meaning translation feedback and must not propose or describe gloss changes.
 
-One-command setup for the pinned DaCy model `da_dacy_small_trf-0.2.0`:
+NLP status:
 
-```bash
-cd <repo-root>
-./scripts/setup-dacy-model.sh
-```
-
-This script installs system build prerequisites, recreates `backend/.venv`, installs
-`backend/requirements.lock.txt`, installs the model wheel, and validates the model load.
+- `DANOTE_NLP_ENABLED` defaults to `0`.
+- `/api/analyze` is unavailable unless a future NLP adapter is added and enabled.
+- Playground is retired/inaccessible in the frontend while the NLP stack is disabled.
 
 Local workflow:
 
@@ -184,13 +181,6 @@ PYTHONPATH=. .venv/bin/python scripts/build_english_sqlite.py \
   --output resources/dictionaries/english_wiki.sqlite
 ```
 
-NLP compatibility check:
-
-```bash
-cd backend
-./.venv/bin/python -m spacy validate
-```
-
 Queue repair for existing wordbank pronunciation gaps:
 
 ```bash
@@ -204,20 +194,7 @@ PYTHONPATH=backend backend/.venv/bin/python scripts/queue-missing-pronunciations
 Fixture pack:
 
 - Notes and seed fixtures: `test-data/fixtures/`
-- Golden analyze outputs: `test-data/fixtures/expected/analyze/`
-
-Refresh golden outputs:
-
-```bash
-cd <repo-root>
-PYTHONPATH=backend backend/.venv/bin/python scripts/generate_fixture_goldens.py
-```
-
-Run fixture regression tests:
-
-```bash
-bash ./scripts/pytest-backend.sh -q tests/system/test_regression_fixtures.py
-```
+- Golden analyze fixture generation and regression tests are retired while DaCy NLP is disabled.
 
 Run scripted e2e reliability flow:
 

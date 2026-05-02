@@ -12,28 +12,14 @@ import { type AppSection } from "@/app/core"
 export type AppBreadcrumbProps = {
   activeSection: AppSection
   selectedLemma: string | null
-  activeNoteName: string | null
   onSelectWordbank: () => void
 }
 
 export function AppBreadcrumb({
   activeSection,
   selectedLemma,
-  activeNoteName,
   onSelectWordbank,
 }: AppBreadcrumbProps) {
-  if (activeSection === "playground") {
-    return (
-      <Breadcrumb>
-        <BreadcrumbList className="text-2xl leading-[1.1] font-semibold tracking-tight">
-          <BreadcrumbItem>
-            <BreadcrumbPage>{activeNoteName?.trim() || "Playground"}</BreadcrumbPage>
-          </BreadcrumbItem>
-        </BreadcrumbList>
-      </Breadcrumb>
-    )
-  }
-
   if (activeSection === "developer") {
     return (
       <Breadcrumb>

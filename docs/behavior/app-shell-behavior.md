@@ -10,7 +10,6 @@ App-shell composition contract: section ownership, navigation state, sidebar/bre
 - Cross-section state/actions via `useAppController()`
 - `SidebarProvider` + `SidebarInset` wrapper
 - Chrome: `AppSidebar`, mobile `SidebarTrigger`, `AppBreadcrumb`
-- Gates `PlaygroundHeaderActions` to `activeSection === "playground"` only
 - Delegates section body to `SectionContent` with typed prop bundles
 
 Stays orchestration layer: state/side-effects in hooks, not component body.
@@ -18,7 +17,6 @@ Stays orchestration layer: state/side-effects in hooks, not component body.
 ### Section layout switch (`frontend/src/app/layout/section-content.tsx`)
 
 `SectionContent`: canonical section multiplexer. Input: `activeSection` + typed props. Exactly one section rendered:
-- `"playground"` -> `PlaygroundSection`
 - `"notes"` -> `NotesSection`
 - `"wordbank"` -> `WordbankSection`
 - `"sentencebank"` -> `SentencebankSection`
@@ -31,28 +29,20 @@ Pure render switch; no app-shell side effects.
 #### Sidebar (`frontend/src/app/chrome/sidebar/app-sidebar.tsx`)
 
 - Search-first header (no standalone app title)
-- Section nav buttons: Playground, Notes, Wordbank, Sentencebank, Developer
+- Section nav buttons: Notes, Wordbank, Sentencebank, Developer
 - Wordbank unread badge in nav
 - Command search dialog state + query state
 - Search aggregation/ranking: `useSidebarSearch` + `useSidebarSearchRanking`
-- Search result actions: `onOpenSavedNote`, `onOpenWordbankLemma`, `onOpenWordbankMeaning`, `onAddWordFromSearch`
-- Keyboard shortcuts: `useSidebarHotkeys` (`Alt+P/N/W/S/D`, search toggle)
+- Search result actions: `onOpenWordbankLemma`, `onOpenWordbankMeaning`, `onAddWordFromSearch`
+- Keyboard shortcuts: `useSidebarHotkeys` (`Alt+N/W/S/D`, search toggle)
 
 #### Breadcrumb (`frontend/src/app/chrome/app-breadcrumb.tsx`)
 
 Page trail labels:
-- Playground: active note name (fallback `Playground`)
 - Notes: `Notes`
 - Sentencebank: `Sentencebank`
 - Developer: `Developer`
 - Wordbank root: `Wordbank`; lemma detail: clickable `Wordbank` + `selectedLemma` tail
-
-#### Header actions
-
-`PlaygroundHeaderActions` (`frontend/src/app/sections/playground-header-actions.tsx`): shell header chrome in playground mode.
-- Save/create-new-note button behavior + labeling
-- Notification bell visual state, unread count, popover
-- Verification-progress spinner state
 
 ## 2. Section switching contract
 
@@ -66,7 +56,6 @@ Centralized in `useSectionNavigation()`.
 
 ### Navigation handlers and selection reset rules
 
-- `selectPlayground()`: `activeSection = "playground"`, clears `selectedMeaningId`, preserves `selectedLemma`
 - `selectNotes()`: `activeSection = "notes"`, clears `selectedLemma` + `selectedMeaningId`
 - `selectWordbank()`: `activeSection = "wordbank"`, clears `selectedLemma` + `selectedMeaningId` (root)
 - `selectSentencebank()`: `activeSection = "sentencebank"`, clears `selectedLemma` + `selectedMeaningId`
@@ -77,10 +66,7 @@ Centralized in `useSectionNavigation()`.
 
 ### Note selection state
 
-Tracked via `useNotesPersistence()` (`activeNoteId` -> `activeSavedNote`):
-- Opening saved note (from list or search) → `openSavedNoteById` -> `openSavedNoteInPlayground`
-- Restores content/tokens/metadata, sets `activeNoteId`, marks autosave saved, navigates to `activeSection = "playground"`
-- Breadcrumb title reflects `activeSavedNote?.name`
+Tracked via `useNotesPersistence()` (`activeNoteId` -> `activeSavedNote`) for saved-note metadata and autosave state. Opening saved notes into Playground is retired, and saved notes are not routed from the sidebar command palette.
 
 ## 3. Sidebar + breadcrumb interplay
 
@@ -98,14 +84,13 @@ Via shadcn sidebar primitives:
 
 - Nav buttons call section-select handlers from `useAppController`
 - Search results route to:
-  - note → `openSavedNoteById` → playground + active note loaded
   - wordbank lemma/meaning → `openWordbankLemma` / `openWordbankMeaning`
 - Breadcrumb renders from same controller state (`activeSection`, `selectedLemma`, `activeSavedNote`) → nav + breadcrumb synchronized by construction
 - Lemma detail: clicking breadcrumb `Wordbank` → `openWordbankRoot()`, resets lemma/meaning
 
 ## 4. Notification center semantics
 
-State: `useNotificationCenter()`; surface: `PlaygroundHeaderActions`.
+State: `useNotificationCenter()`; surface: sidebar/header notification controls.
 
 ### Unread indicators
 
@@ -145,8 +130,8 @@ State: `useNotificationCenter()`; surface: `PlaygroundHeaderActions`.
 
 ### Cross-section update flows
 
-- Adding word (playground token or search) → increments analysis + wordbank refresh ticks
-- Saving sentence to sentencebank → increments sentencebank refresh tick → refreshes lists + closes phrase popover via `onSentenceSaved`
+- Adding word from search → increments analysis + wordbank refresh ticks
+- Saving sentence to sentencebank → increments sentencebank refresh tick → refreshes lists
 - Pronunciation regeneration + verification workflows → may bump wordbank refresh tick
 - `useLexiconData()` receives `activeSection`, `selectedLemma`, both refresh ticks → background fetch responds to navigation + mutation side effects
 

@@ -44,7 +44,7 @@ export function SentencebankListView({
   }
 
   if (sentences.length === 0) {
-    return <p className="text-muted-foreground text-sm">No saved sentences yet. Select a sentence in Playground to add one.</p>
+    return <p className="text-muted-foreground text-sm">No saved sentences yet.</p>
   }
 
   return (

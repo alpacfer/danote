@@ -23,7 +23,7 @@ Routes: `backend/app/api/routes/`. DTOs: `backend/app/api/schemas/v1/`. Some tok
 ### POST `/api/analyze`
 - **Request model:** `AnalyzeRequest`.
 - **Response model:** `AnalyzeResponse`.
-- **Notable status/error behavior:** `503` NLP unavailable. `503` DB unavailable/locked. `400` validation/value errors.
+- **Notable status/error behavior:** `503` NLP unavailable by default while the DaCy stack is retired. `503` DB unavailable/locked. `400` validation/value errors.
 
 ### POST `/api/analyze/enrich-token`
 - **Request model:** `EnrichTokenRequest`.

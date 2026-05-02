@@ -11,8 +11,6 @@ BOOTSTRAP_LOG_PREFIX="run-project"
 
 PYTHON_VERSION="${RUN_PROJECT_PYTHON_VERSION:-$BOOTSTRAP_PYTHON_VERSION_DEFAULT}"
 NODE_MIN_VERSION="${RUN_PROJECT_NODE_MIN_VERSION:-20.19.0}"
-MODEL_URL="${RUN_PROJECT_MODEL_URL:-$BOOTSTRAP_DACY_MODEL_URL_DEFAULT}"
-MODEL_FILE="${RUN_PROJECT_MODEL_FILE:-$BOOTSTRAP_DACY_MODEL_FILE_DEFAULT}"
 BACKEND_PID=""
 FRONTEND_PID=""
 BACKEND_LOG_FILE=""
@@ -144,27 +142,6 @@ recreate_backend_env() {
   bootstrap::log "backend virtual environment is now managed with uv Python $PYTHON_VERSION"
 }
 
-ensure_backend_model() {
-  local python_bin
-  python_bin="$(backend_python_bin)"
-
-  if is_disabled_value "${DANOTE_NLP_ENABLED:-1}"; then
-    bootstrap::log "skipping NLP model bootstrap because DANOTE_NLP_ENABLED=${DANOTE_NLP_ENABLED:-1}"
-    return
-  fi
-
-  local model_name="${DANOTE_NLP_MODEL:-$BOOTSTRAP_DACY_MODEL_NAME_DEFAULT}"
-  if bootstrap::model_installed "$python_bin" "$model_name"; then
-    bootstrap::log "NLP model ready: $model_name"
-    return
-  fi
-
-  local uv_bin
-  uv_bin="$(bootstrap::ensure_uv)"
-  bootstrap::ensure_model_installed "$uv_bin" "$python_bin" "$ROOT_DIR" "$model_name" "$MODEL_URL" "$MODEL_FILE"
-  bootstrap::log "NLP model ready: $model_name"
-}
-
 ensure_backend_env() {
   local reason
   reason="$(backend_env_reason)"
@@ -174,7 +151,7 @@ ensure_backend_env() {
     bootstrap::log "backend virtual environment is ready"
   fi
 
-  ensure_backend_model
+  bootstrap::log "NLP model bootstrap is disabled; the previous DaCy stack is retired"
 }
 
 ensure_frontend_env() {

@@ -27,7 +27,7 @@ def build_api_test_app(
         apply_migrations(db_path)
 
     app = create_app(
-        build_test_settings(db_path, cor_local_db_path=cor_local_db_path),
+        build_test_settings(db_path, cor_local_db_path=cor_local_db_path, nlp_enabled=True),
         nlp_adapter_factory=nlp_adapter_factory,
     )
     for field_name, value in (service_overrides or {}).items():
@@ -53,4 +53,3 @@ def api_test_client(
     )
     with TestClient(app) as client:
         yield client
-

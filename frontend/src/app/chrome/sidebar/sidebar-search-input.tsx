@@ -151,7 +151,7 @@ export function SidebarSearchInput({
 
   return (
     <CommandInput
-      placeholder="Search words and notes..."
+      placeholder="Search words..."
       value={value}
       onValueChange={onValueChange}
       onKeyDown={onKeyDown as KeyboardEventHandler<HTMLInputElement>}
