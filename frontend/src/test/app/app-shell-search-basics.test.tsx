@@ -245,8 +245,8 @@ describe("App shell and search", () => {
     await waitFor(() => {
       const translatedRow = within(commandDialog).getByText(/^notesbog$/i, { selector: "strong" })
       expect(translatedRow).toBeInTheDocument()
-      expect(translatedRow.closest("[cmdk-item]")).toHaveTextContent(/from\s+notebook/i)
-      expect(translatedRow.closest("[cmdk-item]")).not.toHaveTextContent(/from\s+notesbog\s+\(notebook\)/i)
+      expect(translatedRow.closest("[cmdk-item]")).not.toHaveTextContent(/from\s+notebook/i)
+      expect(translatedRow.closest("[cmdk-item]")).not.toHaveTextContent(/from\s+notesbog/i)
     })
 
     await waitFor(() => {
@@ -374,8 +374,8 @@ describe("App shell and search", () => {
     fireEvent.change(searchInput, { target: { value: "notebook" } })
 
     const translatedRow = await within(commandDialog).findByText(/^notesbog$/i, { selector: "strong" })
-    expect(translatedRow.closest("[cmdk-item]")).toHaveTextContent(/from\s+notebook/i)
-    expect(translatedRow.closest("[cmdk-item]")).not.toHaveTextContent(/from\s+notesbog\s+\(notebook\)/i)
+    expect(translatedRow.closest("[cmdk-item]")).not.toHaveTextContent(/from\s+notebook/i)
+    expect(translatedRow.closest("[cmdk-item]")).not.toHaveTextContent(/from\s+notesbog/i)
     expect(within(commandDialog).queryByText(/^notebook$/i, { selector: "strong" })).not.toBeInTheDocument()
 
     fireEvent.click(translatedRow)

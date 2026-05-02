@@ -70,8 +70,8 @@ describe("App shell and search", () => {
     const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
     fireEvent.change(searchInput, { target: { value: "bogen" } })
 
-    const savedVariationRow = (await within(commandDialog).findByText(/\(book\)/i)).closest("[cmdk-item]")
-    const beechmastRow = (await within(commandDialog).findByText(/\(beechmast\)/i)).closest("[cmdk-item]")
+    const savedVariationRow = (await within(commandDialog).findByText(/^book$/i)).closest("[cmdk-item]")
+    const beechmastRow = (await within(commandDialog).findByText(/^beechmast$/i)).closest("[cmdk-item]")
 
     expect(savedVariationRow).toBeTruthy()
     expect(beechmastRow).toBeTruthy()
@@ -380,5 +380,310 @@ describe("App shell and search", () => {
     const selectedTopItem = topItem as unknown as HTMLElement
     expect(selectedTopItem).toHaveAttribute("data-value")
     expect(within(selectedTopItem).queryByTestId("search-open-icon")).toBeInTheDocument()
+  })
+
+  it("renders mixed English translated COR and fallback results under one heading", async () => {
+    mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      searchWordbankResponse: { items: [] },
+      enSearchFormResponse: {
+        form: "candle",
+        groups: [
+          {
+            lemma: "candle",
+            pos_ud: "NOUN",
+            pos_raw: "noun",
+            danish_translation: "lys",
+            meaning_description: "wax light",
+            senses: [
+              {
+                pos_ud: "NOUN",
+                sense_idx: 0,
+                gloss: "A piece of wax with a wick inside that you burn to get light.",
+                danish_translation: "lys",
+                examples: [],
+              },
+            ],
+          },
+          {
+            lemma: "candle",
+            pos_ud: "VERB",
+            pos_raw: "verb",
+            danish_translation: "genlyse",
+            meaning_description: "inspect eggs",
+            senses: [
+              {
+                pos_ud: "VERB",
+                sense_idx: 0,
+                gloss: "To watch the growth of something growing inside an egg, using a bright light source.",
+                danish_translation: "genlyse",
+                examples: [],
+              },
+            ],
+          },
+        ],
+      },
+      corSearchFormHandler: async (input) => {
+        const url = new URL(String(input), "http://localhost")
+        const form = url.searchParams.get("form")
+        if (form === "lys") {
+          return new Response(JSON.stringify({
+            form: "lys",
+            groups: [
+              {
+                lemma: "lys",
+                gloss: null,
+                pos_tag: "NOUN",
+                variants: [
+                  {
+                    cor_id: "COR.LYS.120.01",
+                    form: "lys",
+                    lemma: "lys",
+                    gloss: null,
+                    lemma_translation: "candle",
+                    saveable_translation: "candle",
+                    gram_raw: "sb.itk.sg.ubest",
+                    norm: "N",
+                    lemma_idx: 120,
+                    gram_code: 120,
+                    variation: 1,
+                    pos_tag: "NOUN",
+                    morphology: "Gender=Neut|Number=Sing|Definite=Ind",
+                    features: { Gender: "Neut", Number: "Sing", Definite: "Ind" },
+                    extra_tags: [],
+                  },
+                ],
+              },
+            ],
+          }), { status: 200, headers: { "Content-Type": "application/json" } })
+        }
+        return new Response(JSON.stringify({ form: form ?? "", groups: [] }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        })
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    const commandDialog = await screen.findByRole("dialog")
+    const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
+    fireEvent.change(searchInput, { target: { value: "candle" } })
+
+    expect(await within(commandDialog).findByText(/^lys$/i, { selector: "strong" })).toBeInTheDocument()
+    expect(await within(commandDialog).findByText(/^genlyse$/i, { selector: "strong" })).toBeInTheDocument()
+    await waitFor(() => {
+      expect(within(commandDialog).getAllByText(/^Translated From English$/i)).toHaveLength(1)
+    })
+    expect(within(commandDialog).queryByText(/To watch the growth/i)).not.toBeInTheDocument()
+    expect(within(commandDialog).queryByText(/\+1 more sense/i)).not.toBeInTheDocument()
+    expect(await within(commandDialog).findByText(/^wax light$/i)).toBeInTheDocument()
+    expect(await within(commandDialog).findByText(/^inspect eggs$/i)).toBeInTheDocument()
+    expect(await within(commandDialog).findByText(/^Verb$/i)).toBeInTheDocument()
+  })
+
+  it("keeps direct Danish COR results visible when the same query is also an English word", async () => {
+    mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      searchWordbankResponse: { items: [] },
+      corSearchFormResponse: {
+        form: "bog",
+        groups: [
+          {
+            lemma: "bog",
+            gloss: "til læsning",
+            pos_tag: "NOUN",
+            variants: [
+              {
+                cor_id: "COR.BOG.BOOK",
+                form: "bog",
+                lemma: "bog",
+                gloss: "til læsning",
+                gloss_translation: "for reading",
+                lemma_translation: "book",
+                saveable_translation: "book",
+                gram_raw: "sb.fk.sg.ubest",
+                norm: "N",
+                lemma_idx: 123,
+                gram_code: 110,
+                variation: 1,
+                pos_tag: "NOUN",
+                morphology: "Gender=Com|Number=Sing|Definite=Ind",
+                features: { Gender: "Com", Number: "Sing", Definite: "Ind" },
+                extra_tags: [],
+              },
+            ],
+          },
+        ],
+      },
+      enSearchFormResponse: {
+        form: "bog",
+        groups: [
+          {
+            lemma: "bog",
+            pos_ud: "NOUN",
+            pos_raw: "noun",
+            danish_translation: "mose",
+            meaning_description: "wet marshy land area",
+            senses: [
+              {
+                pos_ud: "NOUN",
+                sense_idx: 0,
+                gloss: "A bog is large wet area with many plants.",
+                danish_translation: "mose",
+                examples: [],
+              },
+            ],
+          },
+        ],
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    const commandDialog = await screen.findByRole("dialog")
+    const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
+    fireEvent.change(searchInput, { target: { value: "bog" } })
+
+    expect(await within(commandDialog).findByText(/^bog$/i, { selector: "strong" })).toBeInTheDocument()
+    expect(await within(commandDialog).findByText(/^book$/i)).toBeInTheDocument()
+    expect(await within(commandDialog).findByText(/^mose$/i, { selector: "strong" })).toBeInTheDocument()
+    expect(await within(commandDialog).findByText(/^Translated From English$/i)).toBeInTheDocument()
+  })
+
+  it("renders English surface-form translations through matching Danish COR forms", async () => {
+    mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      searchWordbankResponse: { items: [] },
+      enSearchFormResponse: {
+        form: "dogs",
+        groups: [
+          {
+            lemma: "dog",
+            form: "dogs",
+            pos_ud: "NOUN",
+            pos_raw: "noun",
+            danish_translation: "hunde",
+            meaning_description: "plural animals",
+            senses: [
+              {
+                pos_ud: "NOUN",
+                sense_idx: 0,
+                gloss: "Plural of dog.",
+                danish_translation: "hunde",
+                examples: [],
+              },
+            ],
+          },
+        ],
+      },
+      corSearchFormHandler: async (input) => {
+        const url = new URL(String(input), "http://localhost")
+        const form = url.searchParams.get("form")
+        if (form === "hunde") {
+          return new Response(JSON.stringify({
+            form: "hunde",
+            groups: [
+              {
+                lemma: "hund",
+                gloss: null,
+                pos_tag: "NOUN",
+                variants: [
+                  {
+                    cor_id: "COR.HUND.PL",
+                    form: "hunde",
+                    lemma: "hund",
+                    gloss: null,
+                    lemma_translation: "dogs",
+                    saveable_translation: "dogs",
+                    gram_raw: "sb.fk.pl.ubest",
+                    norm: "N",
+                    lemma_idx: 200,
+                    gram_code: 120,
+                    variation: 1,
+                    pos_tag: "NOUN",
+                    morphology: "Gender=Com|Number=Plur|Definite=Ind",
+                    features: { Gender: "Com", Number: "Plur", Definite: "Ind" },
+                    extra_tags: [],
+                  },
+                ],
+              },
+            ],
+          }), { status: 200, headers: { "Content-Type": "application/json" } })
+        }
+        return new Response(JSON.stringify({ form: form ?? "", groups: [] }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        })
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    const commandDialog = await screen.findByRole("dialog")
+    const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
+    fireEvent.change(searchInput, { target: { value: "dogs" } })
+
+    const row = (await within(commandDialog).findByText(/^hunde$/i, { selector: "strong" })).closest("[cmdk-item]")
+
+    expect(row).toBeTruthy()
+    expect(row).toHaveTextContent(/from hund/i)
+    expect(row).not.toHaveTextContent(/from dogs/i)
+  })
+
+  it("does not flash direct COR rows while English lookup is still resolving", async () => {
+    mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      searchWordbankResponse: { items: [] },
+      corSearchFormResponse: {
+        form: "shit",
+        groups: [
+          {
+            lemma: "shit",
+            gloss: null,
+            pos_tag: "INTJ",
+            variants: [
+              {
+                cor_id: "COR.SHIT.INTJ",
+                form: "shit",
+                lemma: "shit",
+                gloss: null,
+                lemma_translation: "shit",
+                saveable_translation: "shit",
+                gram_raw: "udråbsord",
+                norm: "N",
+                lemma_idx: 111,
+                gram_code: 1,
+                variation: 1,
+                pos_tag: "INTJ",
+                morphology: null,
+                features: {},
+                extra_tags: [],
+              },
+            ],
+          },
+        ],
+      },
+      enSearchFormHandler: async () => new Promise<Response>(() => {}),
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    const commandDialog = await screen.findByRole("dialog")
+    const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
+    fireEvent.change(searchInput, { target: { value: "shit" } })
+
+    expect(await within(commandDialog).findAllByTestId("search-en-skeleton")).toHaveLength(2)
+    await waitFor(() => {
+      expect(within(commandDialog).queryByText(/^shit$/i, { selector: "strong" })).not.toBeInTheDocument()
+    })
   })
 })

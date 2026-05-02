@@ -117,15 +117,20 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
   const hasDirectWordbank = data.orderedWordbankResults.length > 0
     && (!state.wordbankDidYouMean || data.exactSavedVariationKeySet.size > 0)
   const hasEnResults = data.translatedEnCorVariantsToRender.length > 0 || data.enPosGroups.length > 0
-  const directCorSearchVariantsToRender = hasEnResults
+  const isAnyEnLoading = data.isEnResolveLoading || data.isEnTranslatedCorLoading
+  const shouldResolveEnglishAmbiguity = hasEnResults || isAnyEnLoading
+  const directCorSearchVariantsToRender = shouldResolveEnglishAmbiguity
     ? data.corSearchVariantsToRender.filter(({ variant }) => !isSelfTranslatedCorVariant(variant, state.normalizedQuery))
     : data.corSearchVariantsToRender
   const directCorSearchGroups = data.orderedCorSearchGroups.filter((group) =>
     directCorSearchVariantsToRender.some((item) => item.group === group),
   )
-  const hasDirectCor = !state.corDidYouMean && !hasEnResults && directCorSearchVariantsToRender.length > 0
-  const isAnyEnLoading = data.isEnResolveLoading || data.isEnTranslatedCorLoading
+  const hasDirectCor = !state.corDidYouMean
+    && directCorSearchVariantsToRender.length > 0
+    && (!shouldResolveEnglishAmbiguity || !data.isCorTranslationsLoading)
   const showEnFallbackResults = data.enPosGroups.length > 0 && !isAnyEnLoading
+  const hasTranslatedEnCorResults = data.translatedEnCorVariantsToRender.length > 0
+  const hasTranslatedEnSection = hasTranslatedEnCorResults || isAnyEnLoading || showEnFallbackResults
 
   // Suppress DYM when COR has a direct match, EN has results, or EN is loading — the query is valid in some language.
   const dymSuggestion = (hasDirectCor || hasEnResults || isAnyEnLoading) ? null : (state.wordbankDidYouMean ?? state.corDidYouMean)
@@ -227,35 +232,31 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
         </CommandGroup>
       ) : null}
 
-      {data.translatedEnCorVariantsToRender.length > 0 ? (
+      {hasTranslatedEnSection ? (
         <>
           {hasWordbankSection ? <CommandSeparator /> : null}
           <CommandGroup heading="Translated From English" className="animate-in fade-in-0 duration-150">
-            <SidebarCorResults
-              orderedCorSearchGroups={data.translatedEnCorSearchGroups}
-              corSearchVariantsToRender={data.translatedEnCorVariantsToRender}
-              variationCandidateCorIdSet={new Set<string>()}
-              normalizedQuery={state.normalizedQuery}
-              sourceLabel={state.normalizedQuery}
-              corVariantItemValue={data.translatedEnCorVariantItemValue}
-              isTranslationsLoading={data.isEnResolveLoading}
-              onAddWordFromSearch={actions.onAddWordFromSearch}
-              onCloseSearch={actions.onCloseSearch}
-            />
-          </CommandGroup>
-        </>
-      ) : null}
-
-      {(isAnyEnLoading || showEnFallbackResults) ? (
-        <>
-          {(hasWordbankSection || data.translatedEnCorVariantsToRender.length > 0) ? <CommandSeparator /> : null}
-          <CommandGroup heading="Translated From English" className="animate-in fade-in-0 duration-150">
+            {hasTranslatedEnCorResults ? (
+              <SidebarCorResults
+                orderedCorSearchGroups={data.translatedEnCorSearchGroups}
+                corSearchVariantsToRender={data.translatedEnCorVariantsToRender}
+                variationCandidateCorIdSet={new Set<string>()}
+                normalizedQuery={state.normalizedQuery}
+                showSourceWhenSameLemma={false}
+                showTranslationLine={false}
+                corVariantItemValue={data.translatedEnCorVariantItemValue}
+                isTranslationsLoading={data.isEnResolveLoading}
+                onAddWordFromSearch={actions.onAddWordFromSearch}
+                onCloseSearch={actions.onCloseSearch}
+              />
+            ) : null}
             {isAnyEnLoading ? (
               [0, 1].map((i) => (
                 <CommandItem
                   key={`en-skeleton-${i}`}
                   disabled
                   aria-hidden="true"
+                  data-testid="search-en-skeleton"
                   className="flex items-start justify-between gap-3"
                 >
                   <div className="flex min-w-0 flex-col items-start gap-0.5">

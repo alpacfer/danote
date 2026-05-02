@@ -39,15 +39,53 @@ function matchingCorGroupsForEnglishSource(
     (group) => String(group.pos_tag ?? "").toUpperCase() === sourceGroup.pos_ud.toUpperCase(),
   )
   const groupsToUse = matchingPosGroups.length > 0 ? matchingPosGroups : withFormMatch
+  const bestByForm = selectBestCorVariantByForm(groupsToUse, englishQuery)
 
-  return groupsToUse.map((group) => ({
+  return bestByForm.map(({ group, variant }) => ({
     ...group,
-    variants: group.variants.map((variant) => ({
-      ...variant,
-      lemma_translation: englishQuery,
-      saveable_translation: englishQuery,
-    })),
+    variants: [
+      {
+        ...variant,
+        english_source_description: sourceGroup.meaning_description,
+        lemma_translation: englishQuery,
+        saveable_translation: englishQuery,
+      },
+    ],
   }))
+}
+
+function selectBestCorVariantByForm(
+  groups: CORSearchGroup[],
+  englishQuery: string,
+): Array<{ group: CORSearchGroup; variant: CORSearchVariant }> {
+  const byForm = new Map<string, { group: CORSearchGroup; variant: CORSearchVariant; score: number }>()
+  for (const group of groups) {
+    for (const variant of group.variants ?? []) {
+      const formKey = normalizeSearchWord(variant.form)
+      if (!formKey) {
+        continue
+      }
+      const candidate = { group, variant, score: scoreEnglishCorVariant(variant, englishQuery) }
+      const current = byForm.get(formKey)
+      if (!current || candidate.score > current.score) {
+        byForm.set(formKey, candidate)
+      }
+    }
+  }
+  return [...byForm.values()].map(({ group, variant }) => ({ group, variant }))
+}
+
+function scoreEnglishCorVariant(variant: CORSearchVariant, englishQuery: string): number {
+  const queryKey = normalizeSearchWord(englishQuery)
+  const saveableKey = normalizeSearchWord(variant.saveable_translation ?? "")
+  const lemmaTranslationKey = normalizeSearchWord(variant.lemma_translation ?? "")
+  if (saveableKey && saveableKey === queryKey) {
+    return 30
+  }
+  if (lemmaTranslationKey && lemmaTranslationKey === queryKey) {
+    return 20
+  }
+  return 0
 }
 
 export function buildEnTranslatedCorResults(

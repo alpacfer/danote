@@ -35,9 +35,15 @@ class _StubENLocalLexiconService:
 
 
 class _StubENGeminiTranslationService:
-    def __init__(self, mapping: dict[tuple[str, str | None, str | None], str | None]) -> None:
+    def __init__(
+        self,
+        mapping: dict[tuple[str, str | None, str | None], str | None],
+        descriptions: dict[str, str] | None = None,
+    ) -> None:
         self._mapping = mapping
+        self._descriptions = descriptions or {}
         self.calls: list[tuple[str, str | None, str | None]] = []
+        self.description_calls: list[tuple[str, list[dict[str, object]]]] = []
 
     def translate_english_lemma(
         self, *, lemma: str, pos_ud: str | None, gloss: str | None
@@ -45,6 +51,10 @@ class _StubENGeminiTranslationService:
         key = (lemma, pos_ud, gloss)
         self.calls.append(key)
         return self._mapping.get(key)
+
+    def describe_translation_choices(self, *, query: str, choices: list[dict[str, object]]) -> dict[str, str]:
+        self.description_calls.append((query, choices))
+        return dict(self._descriptions)
 
 
 class _StubTranslationCollaborator:
@@ -190,7 +200,82 @@ def test_resolve_en_query_reuses_translation_cache_and_falls_back_to_provider() 
         ("book", "NOUN", "printed work"),
         ("book", "VERB", "reserve in advance"),
     ]
-    assert translation_service.calls == ["book"]
+    assert translation_service.calls == ["books", "book"]
+
+
+def test_resolve_en_query_batches_disambiguation_descriptions_for_distinct_translations() -> None:
+    lexicon = _StubENLocalLexiconService(
+        matches=[
+            ENLocalFormMatch(form="candle", lemma="candle", pos_ud="NOUN", tags=[]),
+            ENLocalFormMatch(form="candle", lemma="candle", pos_ud="VERB", tags=[]),
+        ],
+        senses_by_key={
+            ("candle", "NOUN"): [
+                _sense(lemma="candle", pos_ud="NOUN", sense_idx=0, gloss="wax with a wick")
+            ],
+            ("candle", "VERB"): [
+                _sense(lemma="candle", pos_ud="VERB", sense_idx=0, gloss="inspect an egg with light")
+            ],
+        },
+    )
+    gemini = _StubENGeminiTranslationService(
+        {
+            ("candle", "NOUN", "wax with a wick"): "lys",
+            ("candle", "VERB", "inspect an egg with light"): "genlyse",
+        },
+        descriptions={"0": "wax light", "1": "inspect eggs"},
+    )
+
+    response = resolve_en_query(
+        normalized_query="candle",
+        en_local_lexicon_service=lexicon,
+        en_gemini_translation_service=gemini,
+        translation_service=None,
+        include_translations=True,
+    )
+
+    assert [(group.danish_translation, group.meaning_description) for group in response.en_pos_groups] == [
+        ("lys", "wax light"),
+        ("genlyse", "inspect eggs"),
+    ]
+    assert len(gemini.description_calls) == 1
+    query, choices = gemini.description_calls[0]
+    assert query == "candle"
+    assert [(choice["id"], choice["danish_translation"]) for choice in choices] == [
+        ("0", "lys"),
+        ("1", "genlyse"),
+    ]
+
+
+def test_resolve_en_query_skips_disambiguation_when_translations_are_not_distinct() -> None:
+    lexicon = _StubENLocalLexiconService(
+        matches=[
+            ENLocalFormMatch(form="books", lemma="book", pos_ud="NOUN", tags=["plural"]),
+            ENLocalFormMatch(form="books", lemma="book", pos_ud="VERB", tags=["third-person singular"]),
+        ],
+        senses_by_key={
+            ("book", "NOUN"): [_sense(lemma="book", pos_ud="NOUN", sense_idx=0, gloss="printed work")],
+            ("book", "VERB"): [_sense(lemma="book", pos_ud="VERB", sense_idx=0, gloss="reserve")],
+        },
+    )
+    gemini = _StubENGeminiTranslationService(
+        {
+            ("book", "NOUN", "printed work"): "bog",
+            ("book", "VERB", "reserve"): "bog",
+        },
+        descriptions={"0": "printed work", "1": "make reservation"},
+    )
+
+    response = resolve_en_query(
+        normalized_query="books",
+        en_local_lexicon_service=lexicon,
+        en_gemini_translation_service=gemini,
+        translation_service=None,
+        include_translations=True,
+    )
+
+    assert [group.meaning_description for group in response.en_pos_groups] == [None, None]
+    assert gemini.description_calls == []
 
 
 def test_resolve_en_query_discards_self_translated_echoes() -> None:
@@ -248,11 +333,34 @@ def test_wordbank_search_en_form_returns_translated_groups(tmp_path) -> None:
     response = use_case.search_en_form("  BOOKS  ")
 
     assert response.form == "BOOKS"
-    assert [(group.lemma, group.pos_ud, group.danish_translation) for group in response.groups] == [
-        ("book", "NOUN", "bog"),
+    assert [(group.lemma, group.form, group.pos_ud, group.danish_translation) for group in response.groups] == [
+        ("book", "books", "NOUN", "bog"),
     ]
     assert response.groups[0].senses[0].danish_translation == "bog"
     assert lexicon.lookup_form_calls == ["BOOKS"]
+
+
+def test_wordbank_search_en_form_prefers_surface_form_translation(tmp_path) -> None:
+    lexicon = _StubENLocalLexiconService(
+        matches=[ENLocalFormMatch(form="dogs", lemma="dog", pos_ud="NOUN", tags=["plural"])],
+        senses_by_key={
+            ("dog", "NOUN"): [
+                _sense(lemma="dog", pos_ud="NOUN", sense_idx=0, gloss="animal"),
+            ],
+        },
+    )
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        en_local_lexicon_service=lexicon,
+        translation_service=FakeTranslationService({"dogs": "hunde", "dog": "hund"}),
+    )
+
+    response = use_case.search_en_form("dogs")
+
+    assert response.groups[0].lemma == "dog"
+    assert response.groups[0].form == "dogs"
+    assert response.groups[0].danish_translation == "hunde"
+    assert response.groups[0].senses[0].danish_translation == "hunde"
 
 
 def test_resolve_query_keeps_danish_flow_and_attaches_english_groups_when_both_exist(tmp_path) -> None:

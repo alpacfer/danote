@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge"
 import { CommandItem } from "@/components/ui/command"
 import {
   normalizeSearchWord,
+  primaryPosLabel,
   posBadgeClass,
   type ENPosGroup,
   type SearchFeedbackContext,
@@ -85,30 +86,19 @@ export function SidebarEnResults({
             <div className="flex min-w-0 flex-col items-start gap-0.5">
               <span>
                 <strong className="font-semibold">{displayWord}</strong>
-                <span className="text-muted-foreground text-xs">
-                  {" "}from <em>{group.lemma}</em>
-                  {group.lemma.toLowerCase() !== originalQuery.toLowerCase() ? ` (${originalQuery})` : null}
-                </span>
               </span>
-              {topSense ? (
-                <span className="text-muted-foreground text-xs leading-4 line-clamp-2">
-                  {topSense.gloss}
-                </span>
-              ) : null}
-              {group.senses.length > 1 ? (
-                <span className="text-muted-foreground text-[11px] leading-4">
-                  +{group.senses.length - 1} more sense{group.senses.length > 2 ? "s" : ""}
-                </span>
-              ) : null}
               {isSaveBlocked ? (
                 <span className="text-muted-foreground text-xs leading-4">Translation required before saving.</span>
+              ) : null}
+              {group.meaning_description ? (
+                <span className="text-muted-foreground text-xs leading-4">{group.meaning_description}</span>
               ) : null}
               <div className="mt-1 flex flex-wrap gap-1.5">
                 <Badge
                   variant="default"
                   className={`text-xs border ${posBadgeClass(group.pos_ud)}`}
                 >
-                  {group.pos_ud}
+                  {primaryPosLabel(group.pos_ud) ?? group.pos_ud}
                 </Badge>
               </div>
             </div>

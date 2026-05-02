@@ -259,9 +259,11 @@ def test_search_en_form_returns_grouped_translated_senses(tmp_path, stub_nlp_ada
         "groups": [
             {
                 "lemma": "book",
+                "form": "books",
                 "pos_ud": "NOUN",
                 "pos_raw": "noun",
                 "danish_translation": "bog",
+                "meaning_description": None,
                 "senses": [
                     {
                         "pos_ud": "NOUN",
@@ -274,9 +276,11 @@ def test_search_en_form_returns_grouped_translated_senses(tmp_path, stub_nlp_ada
             },
             {
                 "lemma": "book",
+                "form": "books",
                 "pos_ud": "VERB",
                 "pos_raw": "verb",
                 "danish_translation": "bog",
+                "meaning_description": None,
                 "senses": [
                     {
                         "pos_ud": "VERB",

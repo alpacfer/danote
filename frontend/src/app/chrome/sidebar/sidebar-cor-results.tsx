@@ -28,6 +28,8 @@ type SidebarCorResultsProps = {
   variationCandidateCorIdSet: Set<string>
   normalizedQuery: string
   sourceLabel?: string
+  showSourceWhenSameLemma?: boolean
+  showTranslationLine?: boolean
   corVariantItemValue: (variant: CORSearchVariant) => string
   isTranslationsLoading: boolean
   onAddWordFromSearch: (
@@ -52,6 +54,8 @@ export function SidebarCorResults({
   variationCandidateCorIdSet,
   normalizedQuery,
   sourceLabel,
+  showSourceWhenSameLemma = true,
+  showTranslationLine = true,
   corVariantItemValue,
   isTranslationsLoading,
   onAddWordFromSearch,
@@ -69,11 +73,13 @@ export function SidebarCorResults({
             .map(({ variant }) => {
               const itemValue = corVariantItemValue(variant)
               const isVariationAdd = variationCandidateCorIdSet.has(variant.cor_id)
-              const detailLine = glossDisplayForVariant(variant)
+              const detailLine = variant.english_source_description?.trim() || glossDisplayForVariant(variant)
               const lemmaDisplay = lemmaDisplayForVariant(variant)
               const lemmaTranslation = lemmaTranslationForVariant(variant)
               const saveableTranslation = saveableTranslationForVariant(variant)
               const sourceDisplay = sourceLabel?.trim() || lemmaDisplay
+              const shouldShowSource = Boolean(sourceDisplay)
+                && (showSourceWhenSameLemma || sourceDisplay !== variant.form)
               const hasGloss = Boolean(variant.gloss?.trim())
               const isSaveBlocked = isTranslationsLoading || !saveableTranslation
               const saveBlockedReason = !isTranslationsLoading && !saveableTranslation
@@ -125,12 +131,10 @@ export function SidebarCorResults({
                   <div className="flex min-w-0 flex-col items-start gap-0.5">
                     <span>
                       <strong className="font-semibold">{variant.form}</strong>
-                      {sourceDisplay ? (
+                      {shouldShowSource ? (
                         <span className="text-muted-foreground text-xs">
                           {" "}from <em>{sourceDisplay}</em>
-                          {!sourceLabel && lemmaTranslation ? (
-                            ` (${lemmaTranslation})`
-                          ) : isTranslationsLoading ? (
+                          {isTranslationsLoading ? (
                             <Skeleton
                               data-testid="search-translation-skeleton"
                               className={`ml-1 inline-block h-3 w-14 align-middle ${searchTranslationSkeletonClassName}`}
@@ -139,6 +143,9 @@ export function SidebarCorResults({
                         </span>
                       ) : null}
                     </span>
+                    {showTranslationLine && lemmaTranslation ? (
+                      <span className="text-muted-foreground text-xs leading-4">{lemmaTranslation}</span>
+                    ) : null}
                     {isTranslationsLoading && hasGloss ? (
                       <span className="text-muted-foreground text-xs leading-4">
                         <Skeleton

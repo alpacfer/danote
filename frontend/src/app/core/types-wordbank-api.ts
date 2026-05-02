@@ -202,6 +202,7 @@ export type CORSearchVariant = {
   lemma: string
   gloss?: string | null
   gloss_translation?: string | null
+  english_source_description?: string | null
   lemma_translation?: string | null
   saveable_translation?: string | null
   lemma_translation_provider?: string | null

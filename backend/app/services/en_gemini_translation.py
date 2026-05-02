@@ -5,7 +5,6 @@ import math
 import time
 from dataclasses import dataclass, field
 
-
 _UD_POS_LABELS = {
     "NOUN": "noun",
     "VERB": "verb",
@@ -63,6 +62,33 @@ class ENGeminiTranslationService:
         response = self._generate_content(prompt)
         return self._parse(response)
 
+    def describe_translation_choices(self, *, query: str, choices: list[dict[str, object]]) -> dict[str, str]:
+        if not choices:
+            return {}
+        prompt = self._build_disambiguation_prompt(query=query, choices=choices)
+        response = self._generate_content(
+            prompt,
+            response_schema={
+                "type": "OBJECT",
+                "properties": {
+                    "items": {
+                        "type": "ARRAY",
+                        "items": {
+                            "type": "OBJECT",
+                            "properties": {
+                                "id": {"type": "STRING"},
+                                "description": {"type": "STRING", "nullable": True},
+                            },
+                            "required": ["id", "description"],
+                        },
+                    },
+                },
+                "required": ["items"],
+            },
+            max_output_tokens=max(128, min(1024, len(choices) * 48)),
+        )
+        return self._parse_descriptions(response, valid_ids={str(choice.get("id")) for choice in choices})
+
     def _build_prompt(self, *, lemma: str, pos_ud: str | None, gloss: str | None) -> str:
         pos_label = _UD_POS_LABELS.get((pos_ud or "").upper(), "word")
         gloss_clean = (gloss or "").strip()
@@ -76,7 +102,29 @@ class ENGeminiTranslationService:
             "If no good translation exists, use null."
         )
 
-    def _generate_content(self, prompt: str) -> object:
+    def _build_disambiguation_prompt(self, *, query: str, choices: list[dict[str, object]]) -> str:
+        return (
+            "Write short English UI labels that disambiguate Danish translations of one English search word.\n"
+            "Return JSON only with this exact shape: "
+            "{\"items\":[{\"id\":\"0\",\"description\":\"...\"}]}\n"
+            "Rules:\n"
+            "- Return exactly one item for every input id and copy ids exactly.\n"
+            "- description must be 2 to 5 plain English words.\n"
+            "- Describe the meaning, not grammar, not the Danish word, and not the English query itself.\n"
+            "- Use the supplied glosses/examples only as sense clues.\n"
+            "- No full sentences, punctuation, quotes, or explanations.\n"
+            "- Prefer learner-friendly labels such as 'wax light', 'inspect eggs', or 'bad quality stuff'.\n"
+            f"English query: {query}\n"
+            f"Choices:\n{json.dumps(choices, ensure_ascii=False)}"
+        )
+
+    def _generate_content(
+        self,
+        prompt: str,
+        *,
+        response_schema: dict[str, object] | None = None,
+        max_output_tokens: int = 64,
+    ) -> object:
         attempts = self.max_retries + 1
         last_exc: Exception | None = None
         for attempt in range(attempts):
@@ -88,7 +136,7 @@ class ENGeminiTranslationService:
                     contents=prompt,
                     config=genai_types.GenerateContentConfig(
                         response_mime_type="application/json",
-                        response_schema={
+                        response_schema=response_schema or {
                             "type": "OBJECT",
                             "properties": {
                                 "translation": {"type": "STRING", "nullable": True},
@@ -96,7 +144,7 @@ class ENGeminiTranslationService:
                             "required": ["translation"],
                         },
                         temperature=0,
-                        max_output_tokens=64,
+                        max_output_tokens=max_output_tokens,
                         thinking_config=genai_types.ThinkingConfig(thinking_budget=0),
                     ),
                 )
@@ -134,6 +182,26 @@ class ENGeminiTranslationService:
             return None
         return _extract_translation(payload)
 
+    def _parse_descriptions(self, response: object, *, valid_ids: set[str]) -> dict[str, str]:
+        parsed = getattr(response, "parsed", None)
+        extracted = _extract_descriptions(parsed, valid_ids=valid_ids)
+        if extracted:
+            return extracted
+
+        raw = getattr(response, "text", None)
+        if not isinstance(raw, str):
+            return {}
+        cleaned = raw.strip()
+        if cleaned.startswith("```"):
+            cleaned = cleaned.removeprefix("```json").removeprefix("```").strip()
+            if cleaned.endswith("```"):
+                cleaned = cleaned[:-3].strip()
+        try:
+            payload = json.loads(cleaned)
+        except ValueError:
+            return {}
+        return _extract_descriptions(payload, valid_ids=valid_ids)
+
     def _ensure_client(self) -> object:
         if self._client is None:
             try:
@@ -170,3 +238,25 @@ def _extract_translation(payload: object) -> str | None:
         return None
     cleaned = value.strip()
     return cleaned or None
+
+
+def _extract_descriptions(payload: object, *, valid_ids: set[str]) -> dict[str, str]:
+    if not isinstance(payload, dict):
+        return {}
+    items = payload.get("items")
+    if not isinstance(items, list):
+        return {}
+    descriptions: dict[str, str] = {}
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        item_id = item.get("id")
+        if not isinstance(item_id, str) or item_id not in valid_ids:
+            continue
+        description = item.get("description")
+        if not isinstance(description, str):
+            continue
+        cleaned = " ".join(description.strip().split()).strip(".,;:!?\"'")
+        if cleaned:
+            descriptions[item_id] = cleaned
+    return descriptions

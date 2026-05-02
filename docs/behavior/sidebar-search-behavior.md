@@ -80,8 +80,10 @@ Endpoint: `GET /api/wordbank/search/en-form?form=<q>&include_translations=true`
 - Debounced by `SEARCH_RESOLVE_DEBOUNCE_MS`.
 - Uses the local English dictionary only; it does not run COR lookup, Danish classification, or `/resolve-query`.
 - Full payload cached by normalized query, including empty `groups`.
+- English inflected/surface forms are translated before falling back to lemma translation, so a query like `dogs` can resolve to Danish `hunde` and then to the COR lemma `hund`.
 - For groups with a Danish translation, sidebar looks up the translated Danish form in COR and prefers any matching COR-backed rows.
 - Groups without a matching COR row stay as generated non-COR fallback rows.
+- When one English query has two or more distinct Danish translations, the backend asks Gemini once for short per-choice disambiguation labels and the sidebar shows those compact labels on both COR-backed and fallback rows.
 
 ## Cache invalidation
 
@@ -117,6 +119,7 @@ Sorted by best variant score per group:
 - COR variants with `cor_id` in saved `query_cor_ids` → hidden.
 - COR variants already linked as add-variation targets for saved result → hidden from standalone COR list.
 - Prefix-only saved matches → hidden (sidebar keeps exact lemma/surface only).
+- ASCII queries may resolve as both Danish and English. Direct COR rows stay visible when the Danish result has a non-self English translation (for example `bog` → `book`), and self-translated COR rows wait behind English resolution to avoid flashing loanword/no-op Danish rows.
 
 ## Row presentation
 
@@ -132,7 +135,9 @@ Sorted by best variant score per group:
 
 ### COR rows
 
-- Primary title = `variant.form`. May show "from \<lemma\>" with translation in parentheses.
+- Primary title = `variant.form`. May show `from <lemma>` when lemma context is useful.
+- Direct Danish-search translations render as their own secondary line, not inline parentheses.
+- COR-backed English translation rows hide English source text; they show only the Danish form, except inflected Danish forms still show `from <Danish lemma>` (for example `hunde from hund`).
 - Sense-level gloss translation = separate disambiguation text, not fallback English.
 - During loading: skeleton placeholders for translation-dependent text.
 - COR add rows disabled until `saveable_translation` available. Shows `Translation required before saving.` if final payload lacks it.
@@ -141,7 +146,8 @@ Sorted by best variant score per group:
 ### English fallback rows
 
 - Primary title = Danish translation when available; otherwise English lemma.
-- Secondary hint = `from <English lemma>` with original query in parentheses when the query is an inflected form.
+- English source hints are hidden; fallback rows keep the Danish title and optional disambiguation only.
+- Optional disambiguation label appears only when the backend returns one for a multi-translation English query.
 - Rows without a Danish translation are disabled and show `Translation required before saving.`
 - Right icon: `Plus` when saveable, muted `Plus` when disabled.
 

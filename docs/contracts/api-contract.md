@@ -301,8 +301,10 @@ Routes: `backend/app/api/routes/`. DTOs: `backend/app/api/schemas/v1/`. Some tok
   - Uses only the local English dictionary plus optional EN→DA translation providers for group/sense translations.
   - Missing local dictionary or unmatched `form` returns `groups: []`.
   - `groups[]` uses the same `ENPosGroup` shape as `ResolveQueryResponse.en_pos_groups`.
+  - `groups[].form` is the matched English dictionary form for the query, which may be an inflected surface form distinct from `groups[].lemma` (for example `dogs` with lemma `dog`).
   - Groups are keyed by `(lemma, pos_ud)`, preserve POS priority `NOUN`, `VERB`, `ADJ`, `ADV`, `PROPN`, then others, and cap senses to five per POS group.
-  - `danish_translation` may be `null`; clients must treat those rows as not directly saveable.
+  - `danish_translation` prefers the matched English surface form translation before lemma translation, and may be `null`; clients must treat null rows as not directly saveable.
+  - `meaning_description` is nullable. When a query has two or more distinct Danish translations and Gemini is available, it contains a short English disambiguation label for that translated meaning.
 
 ### GET `/api/wordbank/search/cor-lemma/{lemma_idx}`
 - **Request model:** none (`lemma_idx` path param, optional `limit` query param).

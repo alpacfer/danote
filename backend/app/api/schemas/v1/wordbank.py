@@ -90,9 +90,11 @@ class ENSenseOut(BaseModel):
 
 class ENPosGroup(BaseModel):
     lemma: str
+    form: str | None = None
     pos_ud: str
     pos_raw: str | None = None
     danish_translation: str | None = None
+    meaning_description: str | None = None
     senses: list[ENSenseOut] = Field(default_factory=list)
 
 

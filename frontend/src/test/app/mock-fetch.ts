@@ -499,6 +499,7 @@ export function mockFetchImplementation(options?: {
       pos_ud: string
       pos_raw?: string | null
       danish_translation?: string | null
+      meaning_description?: string | null
       senses: Array<{
         pos_ud: string
         sense_idx: number
@@ -525,9 +526,11 @@ export function mockFetchImplementation(options?: {
     form: string
     groups: Array<{
       lemma: string
+      form?: string | null
       pos_ud: string
       pos_raw?: string | null
       danish_translation?: string | null
+      meaning_description?: string | null
       senses: Array<{
         pos_ud: string
         sense_idx: number

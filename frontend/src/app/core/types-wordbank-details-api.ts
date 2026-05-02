@@ -113,8 +113,10 @@ export type ENSenseOut = {
 
 export type ENPosGroup = {
   lemma: string
+  form?: string | null
   pos_ud: string
   pos_raw: string | null
   danish_translation: string | null
+  meaning_description?: string | null
   senses: ENSenseOut[]
 }
