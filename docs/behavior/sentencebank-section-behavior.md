@@ -61,6 +61,8 @@ Each token card renders:
 - hover/focus state underlines the matching token inside the sentence line on the sentence page
 - click action opening the linked word page (`meaning_id` when present, lemma page otherwise)
 
+While full NLP is retired, sentence saves still use a lightweight word tokenizer so the sentence page keeps one card per saved word. Existing saved words are linked when possible; otherwise the fallback creates root-level wordbank entries without POS/morphology metadata.
+
 ## 5) Refresh / invalidation
 
 `useLexiconData` handles fetching. Sentence loader effect depends on `[apiClient, sentencebankRefreshTick]`. Tick change → set loading true, clear error, fetch `/api/sentencebank/sentences`, store `payload.items ?? []` on success / empty list + error on failure, set loading false. `addSentenceToSentencebank` increments tick after successful save → triggers re-fetch.

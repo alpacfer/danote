@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 from app.db.repositories.sentencebank import SentenceTokenWriteRecord
+from app.nlp.adapter import NLPToken
 from app.nlp.token_filter import is_wordlike_token
-from app.services.gemini_translation import NonCORWordGenerationInput, NonCORWordGenerationResult
 from app.services.cor_local import CORLocalEntry
+from app.services.gemini_translation import NonCORWordGenerationInput, NonCORWordGenerationResult
 from app.services.token_classifier import normalize_token
 from app.services.use_cases.sentencebank_text import should_skip_sentence_wordbank_token
 from app.services.use_cases.sentencebank_token_persistence import (
@@ -67,15 +69,20 @@ class PendingGeneratedSentenceToken:
 
 
 def resolve_sentence_tokens(
-    runtime: WordbankRuntime,
+    runtime: WordbankRuntime | None,
     *,
     source_text: str,
     nlp_adapter,
     wordbank_use_case,
 ) -> tuple[list[SentenceTokenWriteRecord], list[dict[str, object]]]:
-    if nlp_adapter is None or wordbank_use_case is None:
+    if runtime is None or wordbank_use_case is None:
         return [], []
 
+    sentence_tokens = (
+        nlp_adapter.tokenize(source_text)
+        if nlp_adapter is not None
+        else fallback_sentence_tokens(source_text)
+    )
     pending_selection_results: dict[int, SentenceMeaningCandidate | None] = {}
     pending_selections: list[PendingSentenceTokenSelection] = []
     pending_generation_results: dict[int, NonCORWordGenerationResult | None] = {}
@@ -84,7 +91,7 @@ def resolve_sentence_tokens(
         tuple[SentenceTokenWriteRecord, bool] | PendingSentenceTokenSelection | PendingGeneratedSentenceToken
     ] = []
     new_tokens: list[dict[str, object]] = []
-    for nlp_token in nlp_adapter.tokenize(source_text):
+    for nlp_token in sentence_tokens:
         surface_form = nlp_token.text.strip()
         if not surface_form or nlp_token.is_punctuation:
             continue
@@ -175,6 +182,13 @@ def resolve_sentence_tokens(
                 seen_verification_targets.add(key)
                 new_tokens.append(metadata)
     return resolved, new_tokens
+
+
+def fallback_sentence_tokens(source_text: str) -> list[NLPToken]:
+    return [
+        NLPToken(text=match.group(0), lemma=match.group(0), pos=None, morphology=None, is_punctuation=False)
+        for match in re.finditer(r"[\wÆØÅæøå]+(?:['’.-][\wÆØÅæøå]+)*", source_text)
+    ]
 
 
 def resolve_sentence_token(

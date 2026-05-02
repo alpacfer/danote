@@ -142,6 +142,22 @@ def test_sentencebank_save_persists_every_word_token_in_order_including_short_an
     assert [token.surface_form for token in duplicate.tokens] == ["Du", "og", "du"]
 
 
+def test_sentencebank_save_persists_word_tokens_when_nlp_is_unavailable(tmp_path: Path) -> None:
+    db_path = _db_path(tmp_path)
+    wordbank_use_case = WordbankUseCase(db_path)
+    sentencebank_use_case = SentencebankUseCase(
+        db_path,
+        nlp_adapter=None,
+        wordbank_use_case=wordbank_use_case,
+    )
+
+    inserted = sentencebank_use_case.add_sentence("Jeg elsker dansk.")
+
+    assert [token.surface_form for token in inserted.tokens] == ["Jeg", "elsker", "dansk"]
+    assert [token.stored_lemma for token in inserted.tokens] == ["jeg", "elsker", "dansk"]
+    assert [token.token_index for token in inserted.tokens] == [0, 1, 2]
+
+
 def test_sentencebank_save_links_existing_saved_words_without_duplication(tmp_path: Path) -> None:
     db_path = _db_path(tmp_path)
     nlp_adapter = MappingNLPAdapter(
