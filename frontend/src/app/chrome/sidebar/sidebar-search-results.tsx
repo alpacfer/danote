@@ -124,14 +124,8 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
     directCorSearchVariantsToRender.some((item) => item.group === group),
   )
   const hasDirectCor = !state.corDidYouMean && !hasEnResults && directCorSearchVariantsToRender.length > 0
-  const isEnLoading = data.isEnResolveLoading
-  const isEnTranslating = data.isEnTranslatedCorLoading
-  const isAnyEnLoading = isEnLoading || isEnTranslating
-  // Phase 1: resolve in flight, no groups yet — show 2 default skeletons
-  const showEnSkeletons = isEnLoading && !hasEnResults
-  // Phase 2: COR translating, groups known — show N skeleton items matching entry count
-  const showEnGroupSkeletons = isEnTranslating && data.enPosGroups.length > 0
-  const showEnFallbackResults = data.enPosGroups.length > 0 && !isEnTranslating
+  const isAnyEnLoading = data.isEnResolveLoading || data.isEnTranslatedCorLoading
+  const showEnFallbackResults = data.enPosGroups.length > 0 && !isAnyEnLoading
 
   // Suppress DYM when COR has a direct match, EN has results, or EN is loading — the query is valid in some language.
   const dymSuggestion = (hasDirectCor || hasEnResults || isAnyEnLoading) ? null : (state.wordbankDidYouMean ?? state.corDidYouMean)
@@ -236,7 +230,7 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
       {data.translatedEnCorVariantsToRender.length > 0 ? (
         <>
           {hasWordbankSection ? <CommandSeparator /> : null}
-          <CommandGroup heading="Translated From English">
+          <CommandGroup heading="Translated From English" className="animate-in fade-in-0 duration-150">
             <SidebarCorResults
               orderedCorSearchGroups={data.translatedEnCorSearchGroups}
               corSearchVariantsToRender={data.translatedEnCorVariantsToRender}
@@ -252,12 +246,12 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
         </>
       ) : null}
 
-      {(showEnGroupSkeletons || showEnFallbackResults) ? (
+      {(isAnyEnLoading || showEnFallbackResults) ? (
         <>
           {(hasWordbankSection || data.translatedEnCorVariantsToRender.length > 0) ? <CommandSeparator /> : null}
-          <CommandGroup heading="Translated From English">
-            {showEnGroupSkeletons ? (
-              data.enPosGroups.map((_, i) => (
+          <CommandGroup heading="Translated From English" className="animate-in fade-in-0 duration-150">
+            {isAnyEnLoading ? (
+              [0, 1].map((i) => (
                 <CommandItem
                   key={`en-skeleton-${i}`}
                   disabled
@@ -286,32 +280,7 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
         </>
       ) : null}
 
-      {showEnSkeletons ? (
-        <>
-          {hasWordbankSection ? <CommandSeparator /> : null}
-          <CommandGroup heading="Translated From English">
-            {[0, 1].map((i) => (
-              <CommandItem
-                key={`en-skeleton-${i}`}
-                disabled
-                aria-hidden="true"
-                className="flex items-start justify-between gap-3"
-              >
-                <div className="flex min-w-0 flex-col items-start gap-0.5">
-                  <Skeleton className="h-3.5 w-24" />
-                  <Skeleton className="h-3 w-36" />
-                  <div className="mt-1 flex flex-wrap gap-1.5">
-                    <Skeleton className="h-5 w-10 rounded-full" />
-                  </div>
-                </div>
-                <Eye className="text-muted-foreground size-4 shrink-0 opacity-0" aria-hidden />
-              </CommandItem>
-            ))}
-          </CommandGroup>
-        </>
-      ) : null}
-
-      {(hasWordbankSection || hasEnResults || showEnSkeletons || state.hasWordbankActions) && state.hasPageResults ? <CommandSeparator /> : null}
+      {(hasWordbankSection || hasEnResults || isAnyEnLoading || state.hasWordbankActions) && state.hasPageResults ? <CommandSeparator /> : null}
       {state.hasPageResults ? (
         <CommandGroup heading="Pages">
           {data.matchingPageItems.map((item) => {
