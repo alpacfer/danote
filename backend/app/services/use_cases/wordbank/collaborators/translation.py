@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from collections.abc import Callable
 import logging
+from collections.abc import Callable
 from pathlib import Path
 
 import httpx
@@ -12,31 +12,34 @@ from app.api.schemas.v1.wordbank import (
     GenerateReverseTranslationResponse,
     GenerateTranslationResponse,
 )
-from app.db.migrations import get_connection
 from app.services.cor_local import CORLocalLexiconService
 from app.services.gemini_translation import (
-    AlternativeTranslationsInput,
     ContextualWordTranslationInput,
+    ExampleSentenceGenerationInput,
+    ExampleSentenceGenerationResult,
     GeminiTranslationError,
     GeminiWordTranslationService,
-    MeaningSectionCandidateInput,
-    MeaningSectionSelectionInput,
     NonCORVariationGenerationInput,
     NonCORVariationGenerationResult,
     NonCORWordGenerationInput,
     NonCORWordGenerationResult,
 )
 from app.services.token_classifier import normalize_token
-from app.services.translation import TranslationService
-from app.services.use_cases.wordbank.collaborators import translation_lookup_ops
-from app.services.use_cases.wordbank.collaborators import translation_meaning_selection
-from app.services.use_cases.wordbank.collaborators import translation_models
-from app.services.use_cases.wordbank.collaborators import translation_sentence_ops
-from app.services.use_cases.wordbank.collaborators.translation_contextual import (
-    build_contextual_input,
+from app.services.translation import TranslationError, TranslationService
+from app.services.use_cases.wordbank.collaborators import (
+    translation_lookup_ops,
+    translation_meaning_selection,
+    translation_sentence_ops,
 )
-from app.services.use_cases.wordbank.collaborators.translation_language_detection import (
-    detect_word_language as detect_word_language_with_fallbacks,
+from app.services.use_cases.wordbank.collaborators.translation_failures import (
+    ProviderCallResult,
+    ProviderFailureReason,
+)
+from app.services.use_cases.wordbank.collaborators.translation_helpers import (
+    normalize_translation_value,
+    not_configured_result,
+    provider_failure_result,
+    provider_name,
 )
 from app.services.use_cases.wordbank.collaborators.translation_models import (
     AlternativeTranslationsLookupResult,
@@ -44,37 +47,15 @@ from app.services.use_cases.wordbank.collaborators.translation_models import (
 )
 from app.services.use_cases.wordbank.collaborators.translation_provider_fallback import (
     contextual_provider_name as resolve_contextual_provider_name,
+)
+from app.services.use_cases.wordbank.collaborators.translation_provider_fallback import (
     provider_name as resolve_provider_name,
-)
-from app.services.use_cases.wordbank.collaborators.translation_sentence_text import (
-    align_sentence_translation_capitalization,
-    normalize_sentence_text,
-    normalize_sentence_translation_value,
-)
-from app.services.translation import TranslationError, TranslationService
-from app.services.use_cases.wordbank.collaborators.translation_failures import (
-    ProviderCallResult,
-    ProviderFailureReason,
-)
-from app.services.use_cases.wordbank.collaborators.translation_helpers import (
-    best_cor_local_entry,
-    best_cor_local_entry_with_gloss,
-    contextual_provider_name,
-    is_likely_english_word,
-    log_provider_failure,
-    normalize_comparable,
-    normalize_translation_value,
-    not_configured_result,
-    provider_failure_result,
-    provider_name,
 )
 from app.services.use_cases.wordbank.collaborators.translation_word_frames import (
     WordTranslationFrame,
     build_word_translation_frame,
     cleanup_framed_word_translation,
-    cor_local_word_translation_frame,
 )
-
 
 logger = logging.getLogger(__name__)
 class TranslationCollaborator:
@@ -215,6 +196,20 @@ class TranslationCollaborator:
             return generate_batch(payloads)
         except (GeminiTranslationError, httpx.HTTPError, TimeoutError, ValueError, TypeError):
             return [None for _ in payloads]
+
+    def generate_example_sentence(
+        self,
+        payload: ExampleSentenceGenerationInput,
+    ) -> ExampleSentenceGenerationResult | None:
+        if self._gemini_word_translation_service is None:
+            return None
+        generate = getattr(self._gemini_word_translation_service, "generate_example_sentence", None)
+        if not callable(generate):
+            return None
+        try:
+            return generate(payload)
+        except (GeminiTranslationError, httpx.HTTPError, TimeoutError, ValueError, TypeError):
+            return None
 
     def complete_non_cor_meaning_variations(
         self,

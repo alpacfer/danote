@@ -21,6 +21,22 @@ The previous selected-text save path from Playground is retired while Playground
 6. Search save uses `preview.source_text` only, so English-origin queries save the backend-finalized Danish sentence rather than the original English input
 7. Save still calls the same `addSentenceToSentencebank` workflow and therefore keeps existing refresh and pending-page behavior
 
+### Generated example add flow from Wordbank
+
+Meaning cards expose a right-click `Generate example` action. The action calls
+`POST /api/sentencebank/example-preview` with the saved lemma and selected
+meaning id. The backend uses Gemini with the saved meaning context and returns a
+short Danish example plus English translation.
+
+The generated example opens in a dialog over the current section:
+- `Save` persists the sentence with `token_persistence_mode = "link_existing_only"`, the generated English translation, and the originating word target.
+- `Regenerate` requests a fresh preview for the same saved meaning and replaces the current preview without saving.
+- `Discard`/close clears the preview without saving.
+- The dialog shows only the Danish example and English translation; pronunciation controls and token cards are not shown or generated until after save.
+- The generated Danish example starts lowercase and does not end with a period.
+- The originating word is linked as already saved after save; other tokens stay as `save_status = "unsaved"` cards so the user can add them manually from the persisted sentence page.
+- Clicking plus on an unsaved card calls `POST /api/sentencebank/sentences/{sentence_id}/tokens/{token_index}/save`, which resolves only that token through the same backend sentence-token resolver used by normal sentence saves. This preserves the generated-example rule that other words are not auto-saved while still resolving verbs and inflected forms from COR surface data when NLP metadata is thin or unavailable.
+
 ## 2) Loading and error states
 
 Render priority in `SentencebankSection`:
@@ -61,6 +77,7 @@ Each token card renders:
 - POS/morphology badges
 - hover/focus state underlines the matching token inside the sentence line on the sentence page
 - click action opening the linked word page (`meaning_id` when present, lemma page otherwise)
+- unsaved generated-example tokens render with the plus icon and click into the existing add-word flow for that surface
 
 While full NLP is retired, sentence saves still use a lightweight word tokenizer so the sentence page keeps one card per saved word. Existing saved words are linked when possible; otherwise the fallback creates root-level wordbank entries without POS/morphology metadata.
 
@@ -72,6 +89,8 @@ While full NLP is retired, sentence saves still use a lightweight word tokenizer
 
 - `frontend/src/test/app/app-sentencebank.test.tsx` — saved sentence items shown when fetched
 - `frontend/src/test/app/app-sentencebank.test.tsx` — token cards render and open linked word pages
+- `frontend/src/test/app/app-sentencebank.test.tsx` — unsaved generated-example token cards trigger add-word
+- `frontend/src/test/app/app-wordbank-actions.test.tsx` — meaning-card example preview generate/regenerate/save flow
 - `frontend/src/test/app/app-shell-search-basics.test.tsx` — Sentencebank nav entry in shell/sidebar
 - `frontend/src/test/app/app-shell-search-actions.test.tsx` — sentence-mode save refreshes sentencebank + wordbank
 

@@ -16,6 +16,7 @@ from app.services.use_cases.sentencebank_token_persistence import (
     persist_generated_to_wordbank,
     save_root_level_sentence_token,
     sentence_token_from_saved_word,
+    unsaved_sentence_token,
     verification_metadata_for_new_sentence_token,
 )
 from app.services.use_cases.wordbank.collaborators.cor_local_translations import (
@@ -184,6 +185,144 @@ def resolve_sentence_tokens(
     return resolved, new_tokens
 
 
+def resolve_sentence_tokens_link_existing_only(
+    runtime: WordbankRuntime | None,
+    *,
+    source_text: str,
+    nlp_adapter,
+    stored_lemma: str,
+    meaning_id: int,
+) -> list[SentenceTokenWriteRecord]:
+    if runtime is None:
+        return []
+    normalized_target_lemma = normalize_token(stored_lemma)
+    target_lexeme = runtime.repository.get_lexeme(normalized_target_lemma)
+    target_meaning = runtime.repository.get_lexeme_meaning(meaning_id)
+    target_meaning_ids = {
+        meaning.id for meaning in runtime.repository.list_lexeme_meanings(target_lexeme.id)
+    } if target_lexeme is not None else set()
+    if target_lexeme is None or target_meaning is None or target_meaning.id not in target_meaning_ids:
+        raise ValueError("target word meaning was not found")
+
+    target_forms = {
+        normalized_target_lemma,
+        *(
+            normalize_token(form.form)
+            for form in runtime.repository.list_surface_forms(target_lexeme.id)
+            if form.meaning_id in {None, meaning_id}
+        ),
+    }
+    target_forms.discard("")
+    sentence_tokens = (
+        nlp_adapter.tokenize(source_text)
+        if nlp_adapter is not None
+        else fallback_sentence_tokens(source_text)
+    )
+    resolved: list[SentenceTokenWriteRecord] = []
+    linked_target = False
+    for nlp_token in sentence_tokens:
+        surface_form = nlp_token.text.strip()
+        if not surface_form or nlp_token.is_punctuation or not is_wordlike_token(surface_form):
+            continue
+        normalized_surface = normalize_token(surface_form)
+        if not normalized_surface:
+            continue
+        token_index = len(resolved)
+        if not linked_target and normalized_surface in target_forms:
+            saved = sentence_token_from_saved_word(
+                runtime,
+                token_index=token_index,
+                display_surface=surface_form,
+                normalized_surface=normalized_surface,
+                stored_lemma=normalized_target_lemma,
+                meaning_id=meaning_id,
+            )
+            if saved is not None:
+                resolved.append(saved)
+                linked_target = True
+                continue
+        lemma_candidate = normalize_token((nlp_token.lemma or "").strip()) or normalized_surface
+        resolved.append(
+            unsaved_sentence_token(
+                token_index=token_index,
+                display_surface=surface_form,
+                normalized_surface=normalized_surface,
+                lemma_candidate=lemma_candidate,
+                pos_tag=nlp_token.pos,
+                morphology=nlp_token.morphology,
+            )
+        )
+    if not linked_target:
+        raise ValueError("generated example must include the target word")
+    return resolved
+
+
+def resolve_unsaved_sentence_token(
+    runtime: WordbankRuntime | None,
+    *,
+    source_text: str,
+    token,
+    wordbank_use_case,
+) -> tuple[SentenceTokenWriteRecord, list[dict[str, object]]]:
+    if runtime is None or wordbank_use_case is None:
+        raise RuntimeError("wordbank runtime is unavailable")
+    normalized_surface = normalize_token(str(getattr(token, "normalized_surface", "") or ""))
+    if not normalized_surface:
+        normalized_surface = normalize_token(str(getattr(token, "surface_form", "") or ""))
+    lemma_candidate = normalize_token(str(getattr(token, "lemma_candidate", "") or "")) or normalized_surface
+    if not normalized_surface or not lemma_candidate:
+        raise ValueError("sentence token is invalid")
+
+    resolved_token = resolve_sentence_token(
+        runtime,
+        wordbank_use_case=wordbank_use_case,
+        token_index=int(token.token_index),
+        display_surface=str(token.surface_form),
+        normalized_surface=normalized_surface,
+        lemma_candidate=lemma_candidate,
+        pos_tag=getattr(token, "pos_tag", None),
+        morphology=getattr(token, "morphology", None),
+        sentence_context=source_text,
+        prefer_existing=False,
+    )
+    finalized = finalize_single_sentence_token(
+        runtime,
+        wordbank_use_case=wordbank_use_case,
+        resolved_token=resolved_token,
+    )
+    if finalized is None:
+        raise RuntimeError("Could not save sentence token.")
+    saved_token, is_new = finalized
+    return saved_token, verification_metadata_for_new_sentence_token(saved_token) if is_new else []
+
+
+def finalize_single_sentence_token(
+    runtime: WordbankRuntime,
+    *,
+    wordbank_use_case,
+    resolved_token: tuple[SentenceTokenWriteRecord, bool] | PendingSentenceTokenSelection | PendingGeneratedSentenceToken | None,
+) -> tuple[SentenceTokenWriteRecord, bool] | None:
+    if resolved_token is None:
+        return None
+    if isinstance(resolved_token, PendingSentenceTokenSelection):
+        selected = batch_select_sentence_candidates(runtime, [resolved_token])[0]
+        return finalize_pending_sentence_token(
+            runtime,
+            wordbank_use_case=wordbank_use_case,
+            selection=resolved_token,
+            selected_candidate=selected,
+        )
+    if isinstance(resolved_token, PendingGeneratedSentenceToken):
+        generated = batch_generate_non_cor_sentence_tokens(runtime, [resolved_token])[0]
+        return finalize_generated_sentence_token(
+            runtime,
+            wordbank_use_case=wordbank_use_case,
+            selection=resolved_token,
+            generated_candidate=generated,
+        )
+    return resolved_token
+
+
 def fallback_sentence_tokens(source_text: str) -> list[NLPToken]:
     return [
         NLPToken(text=match.group(0), lemma=match.group(0), pos=None, morphology=None, is_punctuation=False)
@@ -202,16 +341,18 @@ def resolve_sentence_token(
     pos_tag: str | None,
     morphology: str | None,
     sentence_context: str,
+    prefer_existing: bool = True,
 ) -> tuple[SentenceTokenWriteRecord, bool] | PendingSentenceTokenSelection | PendingGeneratedSentenceToken | None:
-    existing = existing_saved_token(
-        runtime,
-        display_surface=display_surface,
-        normalized_surface=normalized_surface,
-        lemma_candidate=lemma_candidate,
-        token_index=token_index,
-    )
-    if existing is not None:
-        return existing, False
+    if prefer_existing:
+        existing = existing_saved_token(
+            runtime,
+            display_surface=display_surface,
+            normalized_surface=normalized_surface,
+            lemma_candidate=lemma_candidate,
+            token_index=token_index,
+        )
+        if existing is not None:
+            return existing, False
 
     candidate_resolution = select_sentence_candidate(
         runtime,

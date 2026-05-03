@@ -59,6 +59,8 @@ export function useAppController() {
       rethinkCategories: wordbank.rethinkCategories,
       isCompletingMeaningVariations: wordbank.isCompletingMeaningVariations,
       completeMeaningVariations: wordbank.completeMeaningVariations,
+      generatingExampleByMeaningId: wordbank.generatingExampleByMeaningId,
+      generateExampleForMeaning: wordbank.generateExampleForMeaning,
       verificationOverview: wordbank.verificationOverview,
       verificationChanges: wordbank.verificationChanges,
       isLoadingVerificationChanges: wordbank.isLoadingVerificationChanges,
@@ -89,6 +91,7 @@ export function useAppController() {
       playPronunciation: wordbank.playSentencePronunciation,
       playPronunciationSlowly: wordbank.playSentencePronunciationSlowly,
       regeneratePronunciation: wordbank.regenerateSentencePronunciation,
+      saveSentenceTokenToWordbank: wordbank.saveSentenceTokenToWordbank,
     }),
     developerSectionProps: buildDeveloperSectionProps({
       status: health.status,
@@ -157,5 +160,13 @@ export function useAppController() {
     addSentenceToSentencebank: wordbank.addSentenceToSentencebank,
     addWordFromSearch: wordbank.addWordFromSearch,
     sectionProps,
+    generatedExamplePreview: wordbank.generatedExamplePreview,
+    isGeneratingExample: wordbank.generatedExamplePreview
+      ? Boolean(wordbank.generatingExampleByMeaningId[wordbank.generatedExamplePreview.target.meaning_id])
+      : false,
+    isSavingGeneratedExample: wordbank.isSavingSentence,
+    saveGeneratedExample: wordbank.saveGeneratedExample,
+    regenerateExample: wordbank.regenerateExample,
+    discardGeneratedExample: wordbank.discardGeneratedExample,
   }
 }

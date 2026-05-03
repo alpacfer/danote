@@ -58,13 +58,26 @@ Routes: `backend/app/api/routes/`. DTOs: `backend/app/api/schemas/v1/`.
 - **Request model:** `AddSentenceRequest`.
 - **Response model:** `AddSentenceResponse`.
 - **Notable status/error behavior:** `503` DB unavailable/locked. `400` value errors. body `status`: `inserted` or `exists`.
-- **Field invariants:** response now includes hydrated sentence details (`id`, `created_at`, `tokens[]`, `has_pronunciation`). `tokens[]` carries `token_index`, `surface_form`, `stored_lemma`, `lexeme_id`, nullable `meaning_id`, POS/morphology, optional gloss, and translation fields. Insert responses may also include `pronunciation` with `status: queued|skipped` plus `sentence_id` when background sentence audio generation is considered.
+- **Request details:** `english_translation` may be provided by trusted generated-example previews and is persisted without retranslation. `token_persistence_mode` defaults to `auto_save_all`; `link_existing_only` requires `target: {stored_lemma, meaning_id}` and is reserved for generated examples.
+- **Field invariants:** response now includes hydrated sentence details (`id`, `created_at`, `tokens[]`, `has_pronunciation`). `tokens[]` carries `token_index`, `surface_form`, `save_status`, nullable `lemma_candidate`, nullable `stored_lemma`, nullable `lexeme_id`, nullable `meaning_id`, POS/morphology, optional gloss, and translation fields. Insert responses may also include `pronunciation` with `status: queued|skipped` plus `sentence_id` when background sentence audio generation is considered. In `link_existing_only` mode, only the requested saved target word is linked; other wordlike tokens are returned and persisted as `save_status = "unsaved"` cards with NLP lemma/POS/morphology metadata for later manual saving.
+
+### POST `/api/sentencebank/example-preview`
+- **Request model:** `GenerateExamplePreviewRequest` (`stored_lemma`, `meaning_id`).
+- **Response model:** `GenerateExamplePreviewResponse` (`source_text`, `english_translation`).
+- **Notable status/error behavior:** `404` target meaning not found. `503` DB unavailable/locked or Gemini example generation unavailable. `400` invalid inputs.
+- **Field invariants:** Gemini receives the saved lemma, selected meaning id/key, gloss, translated gloss, English translation, additional translations, POS/morphology, COR lemma index, and saved surface forms. The response is a short Danish sentence plus natural English translation, with the Danish example normalized to start lowercase and omit a trailing period. The preview is not persisted until the client saves it.
 
 ### GET `/api/sentencebank/sentences`
 - **Request model:** none.
 - **Response model:** `SentenceListResponse`.
 - **Notable status/error behavior:** `503` DB unavailable/locked.
 - **Field invariants:** each item includes nested `tokens[]` using the same sentence-token card contract as `POST`, plus `has_pronunciation` derived from persisted sentence audio.
+
+### POST `/api/sentencebank/sentences/{sentence_id}/tokens/{token_index}/save`
+- **Request model:** path params only.
+- **Response model:** `SaveSentenceTokenResponse` (`SentenceSummary` fields, `saved_token`, `message`).
+- **Notable status/error behavior:** `404` sentence or token not found. `503` DB unavailable/locked or token save runtime unavailable.
+- **Field invariants:** reserved for `save_status = "unsaved"` sentence token cards. The backend resolves only the requested token through the same sentence-token COR/Gemini resolver used by normal `auto_save_all` sentence saves, replaces that token with a saved token, and leaves other unsaved generated-example tokens untouched.
 
 ### POST `/api/sentencebank/sentences/pronunciation`
 - **Request model:** `GenerateSentencePronunciationRequest` (`sentence_id`, `force: bool = False`).

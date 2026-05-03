@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from app.services.gemini_translation import AlternativeTranslationsResult
 from app.nlp.adapter import NLPToken
 from app.services.cor import COREntry
 from app.services.cor_local import CORLocalEntry
+from app.services.gemini_translation import AlternativeTranslationsResult
 from app.services.tts import PronunciationAudio
 from app.services.verification import WordVerificationAction
 
@@ -166,6 +166,10 @@ class FakeGeminiWordTranslationService:
             tuple[str, str | None, str | None],
             list[dict[str, object]],
         ] | None = None,
+        example_overrides: dict[
+            tuple[str, int],
+            tuple[str, str],
+        ] | None = None,
     ):
         self._mapping = mapping
         self.calls: list[tuple[str, str, str | None]] = []
@@ -175,8 +179,10 @@ class FakeGeminiWordTranslationService:
         self.alternative_calls: list[tuple[str, str, str | None, str | None]] = []
         self._non_cor_generation_overrides = non_cor_generation_overrides or {}
         self._non_cor_variation_overrides = non_cor_variation_overrides or {}
+        self._example_overrides = example_overrides or {}
         self.non_cor_generation_calls: list[tuple[str, str, str | None]] = []
         self.non_cor_variation_calls: list[tuple[str, str | None, str | None]] = []
+        self.example_calls = []
 
     def translate_word(self, payload) -> str | None:
         key = (payload.surface_form, payload.lemma, payload.gloss)
@@ -199,6 +205,21 @@ class FakeGeminiWordTranslationService:
             primary_translation=primary_translation,
             alternative_translations=list(alternative_translations),
         )
+
+    def generate_example_sentence(self, payload):
+        self.example_calls.append(payload)
+        override = self._example_overrides.get((payload.stored_lemma, payload.meaning_id))
+        if override is None:
+            return None
+        source_text, english_translation = override
+        return type(
+            "ExampleSentenceGenerationResult",
+            (),
+            {
+                "source_text": source_text,
+                "english_translation": english_translation,
+            },
+        )()
 
     def generate_non_cor_word_entry(self, payload):
         key = (payload.surface_form, payload.lemma_candidate, payload.sentence_context)

@@ -24,6 +24,7 @@ describe("section prop adapters", () => {
     const playPronunciation = vi.fn(async () => undefined)
     const playPronunciationSlowly = vi.fn(async () => undefined)
     const regeneratePronunciation = vi.fn(async () => undefined)
+    const saveSentenceTokenToWordbank = vi.fn(async () => undefined)
 
     const result = buildSentencebankSectionProps({
       sentencebankError: null,
@@ -39,6 +40,7 @@ describe("section prop adapters", () => {
       playPronunciation,
       playPronunciationSlowly,
       regeneratePronunciation,
+      saveSentenceTokenToWordbank,
     })
 
     expect(result.sentencebankError).toBeNull()
@@ -71,6 +73,7 @@ describe("section prop adapters", () => {
     const findAlternativeTranslations = vi.fn(async () => undefined)
     const rethinkCategories = vi.fn(async () => undefined)
     const completeMeaningVariations = vi.fn(async () => undefined)
+    const generateExampleForMeaning = vi.fn(async () => undefined)
     const apply = vi.fn(async () => undefined)
     const retry = vi.fn(async () => undefined)
     const rerun = vi.fn(async () => undefined)
@@ -103,6 +106,8 @@ describe("section prop adapters", () => {
       rethinkCategories,
       isCompletingMeaningVariations: false,
       completeMeaningVariations,
+      generatingExampleByMeaningId: {},
+      generateExampleForMeaning,
       verificationOverview: {
         targets: [],
         queuedCount: 0,

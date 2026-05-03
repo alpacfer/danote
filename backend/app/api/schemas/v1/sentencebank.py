@@ -7,13 +7,23 @@ from pydantic import BaseModel, Field
 
 class AddSentenceRequest(BaseModel):
     source_text: str = Field(..., min_length=1)
+    english_translation: str | None = None
+    token_persistence_mode: Literal["auto_save_all", "link_existing_only"] = "auto_save_all"
+    target: SentenceTargetRequest | None = None
+
+
+class SentenceTargetRequest(BaseModel):
+    stored_lemma: str = Field(..., min_length=1)
+    meaning_id: int = Field(..., ge=1)
 
 
 class SentenceTokenCard(BaseModel):
     token_index: int
     surface_form: str
-    stored_lemma: str
-    lexeme_id: int
+    save_status: Literal["saved", "unsaved"] = "saved"
+    lemma_candidate: str | None = None
+    stored_lemma: str | None = None
+    lexeme_id: int | None = None
     meaning_id: int | None = None
     pos_tag: str | None = None
     morphology: str | None = None
@@ -44,6 +54,21 @@ class AddSentenceResponse(SentenceSummary):
 
 class SentenceListResponse(BaseModel):
     items: list[SentenceSummary]
+
+
+class SaveSentenceTokenResponse(SentenceSummary):
+    saved_token: SentenceTokenCard
+    message: str
+
+
+class GenerateExamplePreviewRequest(BaseModel):
+    stored_lemma: str = Field(..., min_length=1)
+    meaning_id: int = Field(..., ge=1)
+
+
+class GenerateExamplePreviewResponse(BaseModel):
+    source_text: str
+    english_translation: str
 
 
 class SentenceVerificationErrorItem(BaseModel):

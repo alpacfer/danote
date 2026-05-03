@@ -29,6 +29,8 @@ export type WordbankSectionProps = {
   onRethinkCategories: (meaningId: number | null) => void
   isCompletingMeaningVariations: boolean
   onCompleteMeaningVariations: (meaningId: number | null) => void
+  generatingExampleByMeaningId: Record<number, boolean>
+  onGenerateExample: (meaningId: number) => void
   verificationOverview: VerificationOverview
   verificationChanges: VerificationChangeEntry[]
   isLoadingVerificationChanges: boolean

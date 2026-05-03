@@ -1,4 +1,4 @@
-import { fireEvent, mockFetchImplementation, renderApp, screen, waitFor } from "@/test/app-test-helpers"
+import { fireEvent, mockFetchImplementation, renderApp, responseOf, screen, waitFor } from "@/test/app-test-helpers"
 
 describe("App sentencebank", () => {
   it("shows saved sentences in sentencebank list (no token cards)", async () => {
@@ -150,6 +150,109 @@ describe("App sentencebank", () => {
 
     expect(await screen.findByRole("heading", { name: /^elske$/i })).toBeInTheDocument()
     expect(screen.getByText(/^love$/i)).toBeInTheDocument()
+  })
+
+  it("clicking an unsaved sentence token saves it through the sentence-token flow", async () => {
+    const fetchSpy = mockFetchImplementation({
+      lemmaDetailsResponse: {
+        lemma: "læse",
+        english_translation: null,
+        is_sectioned: true,
+        pos_tag: "VERB",
+        morphology: "VerbForm=Inf",
+        surface_forms: [],
+        meaning_sections: [
+          {
+            id: 30,
+            meaning_key: "read",
+            gloss: "read",
+            english_translation: "read",
+            pos_tag: "VERB",
+            morphology: "VerbForm=Inf",
+            surface_forms: [{ form: "læser", has_pronunciation: false }],
+          },
+        ],
+      },
+      sentencebankResponse: {
+        items: [
+          {
+            id: 1,
+            source_text: "Jeg læser en bog",
+            english_translation: "i am reading a book",
+            created_at: "2026-05-03T12:00:00.000Z",
+            tokens: [
+              {
+                token_index: 0,
+                surface_form: "læser",
+                save_status: "unsaved",
+                lemma_candidate: "læse",
+                stored_lemma: null,
+                lexeme_id: null,
+                meaning_id: null,
+                pos_tag: "VERB",
+                morphology: "Mood=Ind|Tense=Pres",
+                english_translation: null,
+                gloss_translation: null,
+              },
+            ],
+          },
+        ],
+      },
+      saveSentenceTokenHandler: async (input, init) => {
+        expect(String(input)).toContain("/api/sentencebank/sentences/1/tokens/0/save")
+        expect(init?.method).toBe("POST")
+        return responseOf({
+          id: 1,
+          source_text: "Jeg læser en bog",
+          english_translation: "i am reading a book",
+          created_at: "2026-05-03T12:00:00.000Z",
+          tokens: [
+            {
+              token_index: 0,
+              surface_form: "læser",
+              save_status: "saved",
+              lemma_candidate: "læse",
+              stored_lemma: "læse",
+              lexeme_id: 12,
+              meaning_id: 30,
+              pos_tag: "VERB",
+              morphology: "Mood=Ind|Tense=Pres",
+              gloss: "read",
+              english_translation: "read",
+              gloss_translation: null,
+            },
+          ],
+          saved_token: {
+            token_index: 0,
+            surface_form: "læser",
+            save_status: "saved",
+            lemma_candidate: "læse",
+            stored_lemma: "læse",
+            lexeme_id: 12,
+            meaning_id: 30,
+            pos_tag: "VERB",
+            morphology: "Mood=Ind|Tense=Pres",
+            gloss: "read",
+            english_translation: "read",
+            gloss_translation: null,
+          },
+          message: "Added læser to wordbank.",
+        })
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+    fireEvent.click(screen.getByRole("button", { name: /sentencebank/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /jeg læser en bog/i }))
+    fireEvent.click((await screen.findByText(/^læser$/i)).closest("button") as HTMLButtonElement)
+
+    await waitFor(() => {
+      expect(fetchSpy.mock.calls.some(([input, init]) => (
+        String(input).endsWith("/api/sentencebank/sentences/1/tokens/0/save") && init?.method === "POST"
+      ))).toBe(true)
+    })
+    expect(await screen.findByRole("heading", { name: /^læse$/i })).toBeInTheDocument()
   })
 
   it("hovering a token card underlines that word in the sentence text", async () => {

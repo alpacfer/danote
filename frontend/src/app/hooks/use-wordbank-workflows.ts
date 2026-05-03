@@ -8,10 +8,13 @@ import {
   type AddSentenceResponse,
   type AddWordResponse,
   type AppSection,
+  type GenerateExamplePreviewResponse,
   type LemmaDetailsResponse,
   type SearchSaveSeed,
   type SearchFeedbackContext,
   type SentencebankSentence,
+  type SentenceTokenCard,
+  type SaveSentenceTokenResponse,
   type TokenFeedbackPayload,
 } from "@/app/core"
 import { toast } from "sonner"
@@ -93,6 +96,12 @@ export function useWordbankWorkflows({
   clearWordVerificationNotification,
 }: UseWordbankWorkflowsParams) {
   const [isSavingSentence, setIsSavingSentence] = useState(false)
+  const [generatedExamplePreview, setGeneratedExamplePreview] = useState<{
+    source_text: string
+    english_translation: string
+    target: { stored_lemma: string; meaning_id: number }
+  } | null>(null)
+  const [generatingExampleByMeaningId, setGeneratingExampleByMeaningId] = useState<Record<number, boolean>>({})
   const apiClient = useMemo(
     () => createApiClient({ backendUrl, extractErrorMessage }),
     [backendUrl, extractErrorMessage],
@@ -284,7 +293,15 @@ export function useWordbankWorkflows({
     }
   }
 
-  async function addSentenceToSentencebank(selectedText: string, englishTranslation: string | null = null) {
+  async function addSentenceToSentencebank(
+    selectedText: string,
+    englishTranslation: string | null = null,
+    options?: {
+      tokenPersistenceMode?: "auto_save_all" | "link_existing_only"
+      target?: { stored_lemma: string; meaning_id: number }
+      skipPendingView?: boolean
+    },
+  ) {
     const normalizedSelection = selectedText.replace(/\s+/gu, " ").trim()
     if (!normalizedSelection || !hasMultipleWords(normalizedSelection)) {
       return
@@ -295,7 +312,9 @@ export function useWordbankWorkflows({
       return
     }
 
-    openPendingSentence(normalizedSelection, englishTranslation)
+    if (!options?.skipPendingView) {
+      openPendingSentence(normalizedSelection, englishTranslation)
+    }
     onSentenceSaved?.()
     setIsSavingSentence(true)
     try {
@@ -303,6 +322,9 @@ export function useWordbankWorkflows({
         "/api/sentencebank/sentences",
         {
           source_text: normalizedSelection,
+          ...(englishTranslation ? { english_translation: englishTranslation } : {}),
+          ...(options?.tokenPersistenceMode ? { token_persistence_mode: options.tokenPersistenceMode } : {}),
+          ...(options?.target ? { target: options.target } : {}),
         },
         "Could not save sentence.",
       )
@@ -313,6 +335,7 @@ export function useWordbankWorkflows({
         setWordbankRefreshTick((current) => current + 1)
       }
       if (payload.id != null) {
+        setGeneratedExamplePreview(null)
         openSentence(payload.id)
       }
     } catch (error) {
@@ -322,6 +345,59 @@ export function useWordbankWorkflows({
     } finally {
       setIsSavingSentence(false)
     }
+  }
+
+  async function generateExampleForMeaning(storedLemma: string, meaningId: number) {
+    setGeneratingExampleByMeaningId((current) => ({ ...current, [meaningId]: true }))
+    try {
+      const payload = await apiClient.postJson<GenerateExamplePreviewResponse>(
+        "/api/sentencebank/example-preview",
+        {
+          stored_lemma: storedLemma,
+          meaning_id: meaningId,
+        },
+        "Could not generate example.",
+      )
+      setGeneratedExamplePreview({
+        source_text: payload.source_text,
+        english_translation: payload.english_translation,
+        target: { stored_lemma: storedLemma, meaning_id: meaningId },
+      })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not generate example. Try again."
+      toast.error(message)
+    } finally {
+      setGeneratingExampleByMeaningId((current) => ({ ...current, [meaningId]: false }))
+    }
+  }
+
+  async function saveGeneratedExample() {
+    if (!generatedExamplePreview) {
+      return
+    }
+    await addSentenceToSentencebank(
+      generatedExamplePreview.source_text,
+      generatedExamplePreview.english_translation,
+      {
+        tokenPersistenceMode: "link_existing_only",
+        target: generatedExamplePreview.target,
+        skipPendingView: true,
+      },
+    )
+  }
+
+  function discardGeneratedExample() {
+    setGeneratedExamplePreview(null)
+  }
+
+  async function regenerateExample() {
+    if (!generatedExamplePreview) {
+      return
+    }
+    await generateExampleForMeaning(
+      generatedExamplePreview.target.stored_lemma,
+      generatedExamplePreview.target.meaning_id,
+    )
   }
 
   async function saveRelatedWordFromSearchSeed(
@@ -348,8 +424,42 @@ export function useWordbankWorkflows({
     }
   }
 
+  async function saveSentenceTokenToWordbank(sentenceId: number, token: SentenceTokenCard): Promise<void> {
+    try {
+      const payload = await apiClient.postJson<SaveSentenceTokenResponse>(
+        `/api/sentencebank/sentences/${sentenceId}/tokens/${token.token_index}/save`,
+        {},
+        "Could not save sentence word.",
+      )
+      toast.success(payload.message)
+      const nextSentence: SentencebankSentence = {
+        id: payload.id,
+        source_text: payload.source_text,
+        english_translation: payload.english_translation,
+        created_at: payload.created_at,
+        has_pronunciation: payload.has_pronunciation ?? false,
+        tokens: payload.tokens ?? [],
+      }
+      setSentences((current) => current.map((sentence) => (
+        sentence.id === payload.id ? nextSentence : sentence
+      )))
+      setWordbankRefreshTick((current) => current + 1)
+      const saved = payload.saved_token
+      if (saved.stored_lemma) {
+        setActiveSection("wordbank")
+        setSelectedLemma(saved.stored_lemma)
+        setSelectedMeaningId(saved.meaning_id ?? null)
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not save sentence word. Try again."
+      toast.error(message)
+    }
+  }
+
   return {
     isSavingSentence,
+    generatedExamplePreview,
+    generatingExampleByMeaningId,
     pronunciationLoadingByForm,
     regeneratingPronunciationByForm,
     pronunciationLoadingBySentenceId,
@@ -368,7 +478,12 @@ export function useWordbankWorkflows({
     markVisibleVerificationNotificationsAsRead,
     addWordFromSearch,
     saveRelatedWordFromSearchSeed,
+    saveSentenceTokenToWordbank,
     addSentenceToSentencebank,
+    generateExampleForMeaning,
+    saveGeneratedExample,
+    discardGeneratedExample,
+    regenerateExample,
     playPronunciation,
     regeneratePronunciation,
     playSentencePronunciation,

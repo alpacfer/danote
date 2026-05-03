@@ -606,8 +606,10 @@ export function mockFetchImplementation(options?: {
       tokens?: Array<{
         token_index: number
         surface_form: string
-        stored_lemma: string
-        lexeme_id: number
+        save_status?: "saved" | "unsaved"
+        lemma_candidate?: string | null
+        stored_lemma: string | null
+        lexeme_id: number | null
         meaning_id?: number | null
         pos_tag?: string | null
         morphology?: string | null
@@ -629,8 +631,10 @@ export function mockFetchImplementation(options?: {
     tokens?: Array<{
       token_index: number
       surface_form: string
-      stored_lemma: string
-      lexeme_id: number
+      save_status?: "saved" | "unsaved"
+      lemma_candidate?: string | null
+      stored_lemma: string | null
+      lexeme_id: number | null
       meaning_id?: number | null
       pos_tag?: string | null
       morphology?: string | null
@@ -645,6 +649,48 @@ export function mockFetchImplementation(options?: {
     } | null
   }
   addSentenceHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+  saveSentenceTokenResponse?: {
+    id: number
+    source_text: string
+    english_translation: string | null
+    created_at: string
+    has_pronunciation?: boolean
+    tokens: Array<{
+      token_index: number
+      surface_form: string
+      save_status?: "saved" | "unsaved"
+      lemma_candidate?: string | null
+      stored_lemma: string | null
+      lexeme_id: number | null
+      meaning_id?: number | null
+      pos_tag?: string | null
+      morphology?: string | null
+      gloss?: string | null
+      english_translation?: string | null
+      gloss_translation?: string | null
+    }>
+    saved_token: {
+      token_index: number
+      surface_form: string
+      save_status?: "saved" | "unsaved"
+      lemma_candidate?: string | null
+      stored_lemma: string | null
+      lexeme_id: number | null
+      meaning_id?: number | null
+      pos_tag?: string | null
+      morphology?: string | null
+      gloss?: string | null
+      english_translation?: string | null
+      gloss_translation?: string | null
+    }
+    message: string
+  }
+  saveSentenceTokenHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+  examplePreviewResponse?: {
+    source_text: string
+    english_translation: string
+  }
+  examplePreviewHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
   sentencePronunciationHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
   sentencePronunciationAudioHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
   verifySentenceResponse?: {
@@ -942,6 +988,33 @@ export function mockFetchImplementation(options?: {
       status: "queued" as const,
       sentence_id: 1,
     },
+  }
+  const saveSentenceTokenResponse = options?.saveSentenceTokenResponse ?? {
+    id: addSentenceResponse.id ?? 1,
+    source_text: addSentenceResponse.source_text,
+    english_translation: addSentenceResponse.english_translation,
+    created_at: addSentenceResponse.created_at ?? "2026-03-15T12:00:00.000Z",
+    has_pronunciation: addSentenceResponse.has_pronunciation ?? false,
+    tokens: addSentenceResponse.tokens ?? [],
+    saved_token: (addSentenceResponse.tokens ?? [])[0] ?? {
+      token_index: 0,
+      surface_form: "læser",
+      save_status: "saved" as const,
+      lemma_candidate: "læse",
+      stored_lemma: "læse",
+      lexeme_id: 1,
+      meaning_id: null,
+      pos_tag: "VERB",
+      morphology: "Mood=Ind|Tense=Pres",
+      gloss: null,
+      english_translation: "read",
+      gloss_translation: null,
+    },
+    message: "Added word.",
+  }
+  const examplePreviewResponse = options?.examplePreviewResponse ?? {
+    source_text: "jeg læser en bog",
+    english_translation: "I am reading a book.",
   }
   const verifySentenceResponse = options?.verifySentenceResponse ?? {
     is_valid: true,
@@ -1393,6 +1466,13 @@ export function mockFetchImplementation(options?: {
       return responseOf(verifySentenceResponse)
     }
 
+    if (url.endsWith("/api/sentencebank/example-preview")) {
+      if (options?.examplePreviewHandler) {
+        return options.examplePreviewHandler(input, init)
+      }
+      return responseOf(examplePreviewResponse)
+    }
+
     if (url.endsWith("/api/sentencebank/sentences") && init?.method === "POST") {
       if (options?.addSentenceHandler) {
         return options.addSentenceHandler(input, init)
@@ -1401,6 +1481,13 @@ export function mockFetchImplementation(options?: {
         throw new Error("add sentence request failed")
       }
       return responseOf(addSentenceResponse)
+    }
+
+    if (/\/api\/sentencebank\/sentences\/\d+\/tokens\/\d+\/save$/.test(url) && init?.method === "POST") {
+      if (options?.saveSentenceTokenHandler) {
+        return options.saveSentenceTokenHandler(input, init)
+      }
+      return responseOf(saveSentenceTokenResponse)
     }
 
     if (url.endsWith("/api/sentencebank/sentences/pronunciation")) {

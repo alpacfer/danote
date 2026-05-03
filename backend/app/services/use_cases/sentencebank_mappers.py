@@ -15,6 +15,8 @@ def sentence_token_card(token) -> SentenceTokenCard:
     return SentenceTokenCard(
         token_index=token.token_index,
         surface_form=token.surface_form,
+        save_status=getattr(token, "save_status", "saved") or "saved",
+        lemma_candidate=getattr(token, "lemma_candidate", None),
         stored_lemma=token.stored_lemma,
         lexeme_id=token.lexeme_id,
         meaning_id=token.meaning_id,

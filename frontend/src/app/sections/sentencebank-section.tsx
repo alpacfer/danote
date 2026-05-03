@@ -1,4 +1,4 @@
-import { type SentencebankSentence } from "@/app/core"
+import { type SentencebankSentence, type SentenceTokenCard } from "@/app/core"
 import { type PendingSentence } from "@/app/hooks/app/use-section-navigation"
 import { SentencebankListView } from "@/app/sections/sentencebank/sentencebank-list-view"
 import { SentencebankSentencePage } from "@/app/sections/sentencebank/sentencebank-sentence-page"
@@ -17,6 +17,7 @@ export type SentencebankSectionProps = {
   onPlayPronunciation: (sentenceId: number) => void
   onPlayPronunciationSlowly: (sentenceId: number) => void
   onRegeneratePronunciation: (sentenceId: number) => void
+  onAddUnsavedToken: (sentenceId: number, token: SentenceTokenCard) => void
 }
 
 export function SentencebankSection({
@@ -33,6 +34,7 @@ export function SentencebankSection({
   onPlayPronunciation,
   onPlayPronunciationSlowly,
   onRegeneratePronunciation,
+  onAddUnsavedToken,
 }: SentencebankSectionProps) {
   if (pendingSentence !== null && selectedSentenceId === null) {
     const sentenceShell: SentencebankSentence = {
@@ -49,6 +51,7 @@ export function SentencebankSection({
         regeneratingPronunciationBySentenceId={regeneratingPronunciationBySentenceId}
         onOpenWordbankLemma={onOpenWordbankLemma}
         onOpenWordbankMeaning={onOpenWordbankMeaning}
+        onAddUnsavedToken={onAddUnsavedToken}
         onPlayPronunciation={onPlayPronunciation}
         onPlayPronunciationSlowly={onPlayPronunciationSlowly}
         onRegeneratePronunciation={onRegeneratePronunciation}
@@ -65,6 +68,7 @@ export function SentencebankSection({
         regeneratingPronunciationBySentenceId={regeneratingPronunciationBySentenceId}
         onOpenWordbankLemma={onOpenWordbankLemma}
         onOpenWordbankMeaning={onOpenWordbankMeaning}
+        onAddUnsavedToken={onAddUnsavedToken}
         onPlayPronunciation={onPlayPronunciation}
         onPlayPronunciationSlowly={onPlayPronunciationSlowly}
         onRegeneratePronunciation={onRegeneratePronunciation}

@@ -100,6 +100,23 @@ def alternative_translations_response_config(genai_types) -> object:
     )
 
 
+def example_sentence_response_config(genai_types) -> object:
+    return genai_types.GenerateContentConfig(
+        response_mime_type="application/json",
+        response_schema={
+            "type": "OBJECT",
+            "properties": {
+                "source_text": {"type": "STRING"},
+                "english_translation": {"type": "STRING"},
+            },
+            "required": ["source_text", "english_translation"],
+        },
+        temperature=0.7,
+        max_output_tokens=160,
+        thinking_config=genai_types.ThinkingConfig(thinking_budget=0),
+    )
+
+
 def non_cor_word_generation_response_config(genai_types) -> object:
     return genai_types.GenerateContentConfig(
         response_mime_type="application/json",

@@ -11,8 +11,9 @@ class SentenceTokenRecord:
     token_index: int
     surface_form: str
     normalized_surface: str
-    stored_lemma: str
-    lexeme_id: int
+    lemma_candidate: str | None
+    stored_lemma: str | None
+    lexeme_id: int | None
     meaning_id: int | None
     cor_id: str | None
     pos_tag: str | None
@@ -20,6 +21,7 @@ class SentenceTokenRecord:
     gloss: str | None
     english_translation: str | None
     gloss_translation: str | None
+    save_status: str = "saved"
 
 
 @dataclass(frozen=True, slots=True)
@@ -27,8 +29,9 @@ class SentenceTokenWriteRecord:
     token_index: int
     surface_form: str
     normalized_surface: str
-    stored_lemma: str
-    lexeme_id: int
+    lemma_candidate: str | None
+    stored_lemma: str | None
+    lexeme_id: int | None
     meaning_id: int | None
     cor_id: str | None
     pos_tag: str | None
@@ -36,6 +39,7 @@ class SentenceTokenWriteRecord:
     gloss: str | None
     english_translation: str | None
     gloss_translation: str | None
+    save_status: str = "saved"
 
 
 @dataclass(frozen=True, slots=True)
@@ -153,6 +157,7 @@ class SentencebankRepository:
                     token_index,
                     surface_form,
                     normalized_surface,
+                    lemma_candidate,
                     stored_lemma,
                     lexeme_id,
                     meaning_id,
@@ -161,9 +166,10 @@ class SentencebankRepository:
                     morphology,
                     gloss,
                     english_translation,
-                    gloss_translation
+                    gloss_translation,
+                    save_status
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 [
                     (
@@ -171,6 +177,7 @@ class SentencebankRepository:
                         token.token_index,
                         token.surface_form,
                         token.normalized_surface,
+                        token.lemma_candidate,
                         token.stored_lemma,
                         token.lexeme_id,
                         token.meaning_id,
@@ -180,9 +187,65 @@ class SentencebankRepository:
                         token.gloss,
                         token.english_translation,
                         token.gloss_translation,
+                        token.save_status,
                     )
                     for token in tokens
                 ],
+            )
+
+    def replace_sentence_token(
+        self,
+        *,
+        sentence_id: int,
+        token: SentenceTokenWriteRecord,
+    ) -> None:
+        with timed_db_operation("sentencebank.replace_sentence_token"), get_connection(self._db_path) as conn:
+            conn.execute(
+                """
+                DELETE FROM sentence_bank_tokens
+                WHERE sentence_id = ?
+                  AND token_index = ?
+                """,
+                (sentence_id, token.token_index),
+            )
+            conn.execute(
+                """
+                INSERT INTO sentence_bank_tokens (
+                    sentence_id,
+                    token_index,
+                    surface_form,
+                    normalized_surface,
+                    lemma_candidate,
+                    stored_lemma,
+                    lexeme_id,
+                    meaning_id,
+                    cor_id,
+                    pos_tag,
+                    morphology,
+                    gloss,
+                    english_translation,
+                    gloss_translation,
+                    save_status
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    sentence_id,
+                    token.token_index,
+                    token.surface_form,
+                    token.normalized_surface,
+                    token.lemma_candidate,
+                    token.stored_lemma,
+                    token.lexeme_id,
+                    token.meaning_id,
+                    token.cor_id,
+                    token.pos_tag,
+                    token.morphology,
+                    token.gloss,
+                    token.english_translation,
+                    token.gloss_translation,
+                    token.save_status,
+                ),
             )
 
     def list_sentences(self) -> list[SentenceRecord]:
@@ -282,6 +345,7 @@ class SentencebankRepository:
                 token_index,
                 surface_form,
                 normalized_surface,
+                lemma_candidate,
                 stored_lemma,
                 lexeme_id,
                 meaning_id,
@@ -290,7 +354,8 @@ class SentencebankRepository:
                 morphology,
                 gloss,
                 english_translation,
-                gloss_translation
+                gloss_translation,
+                save_status
             FROM sentence_bank_tokens
             WHERE sentence_id IN ({placeholders})
             ORDER BY sentence_id ASC, token_index ASC, id ASC
@@ -305,8 +370,9 @@ class SentencebankRepository:
                     token_index=int(row["token_index"]),
                     surface_form=str(row["surface_form"]),
                     normalized_surface=str(row["normalized_surface"]),
-                    stored_lemma=str(row["stored_lemma"]),
-                    lexeme_id=int(row["lexeme_id"]),
+                    lemma_candidate=str(row["lemma_candidate"]) if row["lemma_candidate"] is not None else None,
+                    stored_lemma=str(row["stored_lemma"]) if row["stored_lemma"] is not None else None,
+                    lexeme_id=int(row["lexeme_id"]) if row["lexeme_id"] is not None else None,
                     meaning_id=int(row["meaning_id"]) if row["meaning_id"] is not None else None,
                     cor_id=row["cor_id"],
                     pos_tag=row["pos_tag"],
@@ -314,6 +380,7 @@ class SentencebankRepository:
                     gloss=row["gloss"],
                     english_translation=row["english_translation"],
                     gloss_translation=row["gloss_translation"],
+                    save_status=str(row["save_status"] or "saved"),
                 )
             )
         return grouped

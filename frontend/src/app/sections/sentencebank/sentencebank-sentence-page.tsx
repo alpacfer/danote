@@ -1,6 +1,6 @@
 import { useState } from "react"
 
-import { formatSentenceTranslation, type SentencebankSentence } from "@/app/core"
+import { formatSentenceTranslation, type SentencebankSentence, type SentenceTokenCard } from "@/app/core"
 import { SentenceHighlightedText } from "@/app/components/sentence-highlighted-text"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -17,6 +17,7 @@ type SentencebankSentencePageProps = {
   regeneratingPronunciationBySentenceId: Record<string, boolean>
   onOpenWordbankLemma: (lemma: string) => void
   onOpenWordbankMeaning: (lemma: string, meaningId: number) => void
+  onAddUnsavedToken: (sentenceId: number, token: SentenceTokenCard) => void
   onPlayPronunciation: (sentenceId: number) => void
   onPlayPronunciationSlowly: (sentenceId: number) => void
   onRegeneratePronunciation: (sentenceId: number) => void
@@ -65,6 +66,7 @@ export function SentencebankSentencePage({
   regeneratingPronunciationBySentenceId,
   onOpenWordbankLemma,
   onOpenWordbankMeaning,
+  onAddUnsavedToken,
   onPlayPronunciation,
   onPlayPronunciationSlowly,
   onRegeneratePronunciation,
@@ -138,6 +140,7 @@ export function SentencebankSentencePage({
                 token={token}
                 onOpenWordbankLemma={onOpenWordbankLemma}
                 onOpenWordbankMeaning={onOpenWordbankMeaning}
+                onAddUnsavedToken={(unsavedToken) => onAddUnsavedToken(sentence.id, unsavedToken)}
                 onHighlightTokenIndex={setHighlightedTokenIndex}
               />
             ))}

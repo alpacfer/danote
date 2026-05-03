@@ -2,14 +2,15 @@ from __future__ import annotations
 
 import json
 import math
-from dataclasses import dataclass, field
 import time
+from dataclasses import dataclass, field
 
 from app.services.gemini_translation_configs import (
     alternative_translations_response_config,
     batch_meaning_section_selection_response_config,
     batch_non_cor_word_generation_response_config,
     batch_response_config,
+    example_sentence_response_config,
     meaning_section_selection_response_config,
     non_cor_variations_response_config,
     non_cor_word_generation_response_config,
@@ -19,13 +20,15 @@ from app.services.gemini_translation_helpers import (
     build_alternative_translations_prompt,
     build_batch_meaning_section_selection_prompt,
     build_batch_translation_prompt,
+    build_example_sentence_prompt,
     build_meaning_section_selection_prompt,
-    parse_batch_meaning_section_payload,
     build_translation_prompt,
     is_retryable_exception,
     normalize_translation_value,
     parse_alternative_translations_payload,
+    parse_batch_meaning_section_payload,
     parse_batch_payload,
+    parse_example_sentence_payload,
     parse_meaning_section_payload,
     parse_translation,
 )
@@ -33,6 +36,8 @@ from app.services.gemini_translation_models import (
     AlternativeTranslationsInput,
     AlternativeTranslationsResult,
     ContextualWordTranslationInput,
+    ExampleSentenceGenerationInput,
+    ExampleSentenceGenerationResult,
     GeminiTranslationError,
     GeminiWordTranslationService,
     MeaningSectionCandidateInput,
@@ -43,6 +48,27 @@ from app.services.gemini_translation_models import (
     NonCORWordGenerationInput,
     NonCORWordGenerationResult,
 )
+
+__all__ = [
+    "AlternativeTranslationsInput",
+    "AlternativeTranslationsResult",
+    "BatchContextualWordTranslationRequestItem",
+    "BatchContextualWordTranslationResponse",
+    "BatchContextualWordTranslationResponseItem",
+    "ContextualWordTranslationInput",
+    "ExampleSentenceGenerationInput",
+    "ExampleSentenceGenerationResult",
+    "GeminiFlashLiteWordTranslationService",
+    "GeminiTranslationError",
+    "GeminiWordTranslationService",
+    "MeaningSectionCandidateInput",
+    "MeaningSectionSelectionInput",
+    "NonCORVariationCandidate",
+    "NonCORVariationGenerationInput",
+    "NonCORVariationGenerationResult",
+    "NonCORWordGenerationInput",
+    "NonCORWordGenerationResult",
+]
 
 
 @dataclass(frozen=True, slots=True)
@@ -194,6 +220,16 @@ class GeminiFlashLiteWordTranslationService:
         )
         return self._parse_alternative_translations(response)
 
+    def generate_example_sentence(
+        self,
+        payload: ExampleSentenceGenerationInput,
+    ) -> ExampleSentenceGenerationResult | None:
+        response = self._generate_content(
+            self._example_sentence_prompt(payload),
+            config=self._example_sentence_response_config(),
+        )
+        return self._parse_example_sentence(response)
+
     def generate_non_cor_word_entry(
         self,
         payload: NonCORWordGenerationInput,
@@ -260,13 +296,18 @@ class GeminiFlashLiteWordTranslationService:
     def _alternative_translations_prompt(self, payload: AlternativeTranslationsInput) -> str:
         return build_alternative_translations_prompt(payload)
 
+    def _example_sentence_prompt(self, payload: ExampleSentenceGenerationInput) -> str:
+        return build_example_sentence_prompt(payload)
+
     def _non_cor_word_generation_prompt(self, payload: NonCORWordGenerationInput) -> str:
         from app.services.gemini_translation_helpers import build_non_cor_word_generation_prompt
 
         return build_non_cor_word_generation_prompt(payload)
 
     def _batch_non_cor_word_generation_prompt(self, items: list[dict[str, object]]) -> str:
-        from app.services.gemini_translation_helpers import build_batch_non_cor_word_generation_prompt
+        from app.services.gemini_translation_helpers import (
+            build_batch_non_cor_word_generation_prompt,
+        )
 
         return build_batch_non_cor_word_generation_prompt(items)
 
@@ -289,6 +330,9 @@ class GeminiFlashLiteWordTranslationService:
 
     def _alternative_translations_response_config(self) -> object:
         return alternative_translations_response_config(self._genai_types())
+
+    def _example_sentence_response_config(self) -> object:
+        return example_sentence_response_config(self._genai_types())
 
     def _non_cor_word_generation_response_config(self) -> object:
         return non_cor_word_generation_response_config(self._genai_types())
@@ -498,6 +542,25 @@ class GeminiFlashLiteWordTranslationService:
         if parsed is not None:
             return parsed
         return AlternativeTranslationsResult()
+
+    def _parse_example_sentence(self, response: object) -> ExampleSentenceGenerationResult | None:
+        parsed_payload = getattr(response, "parsed", None)
+        parsed = parse_example_sentence_payload(parsed_payload)
+        if parsed is not None:
+            return parsed
+        raw_text = getattr(response, "text", None)
+        if not isinstance(raw_text, str):
+            return None
+        cleaned = raw_text.strip()
+        if cleaned.startswith("```"):
+            cleaned = cleaned.removeprefix("```json").removeprefix("```").strip()
+            if cleaned.endswith("```"):
+                cleaned = cleaned[:-3].strip()
+        try:
+            payload = json.loads(cleaned)
+        except ValueError:
+            return None
+        return parse_example_sentence_payload(payload)
 
     def _parse_non_cor_word_generation(self, response: object) -> NonCORWordGenerationResult | None:
         from app.services.gemini_translation_helpers import parse_non_cor_word_entry_payload

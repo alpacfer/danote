@@ -28,6 +28,8 @@ type WordbankWordPageProps = Pick<
   | "onRethinkCategories"
   | "isCompletingMeaningVariations"
   | "onCompleteMeaningVariations"
+  | "generatingExampleByMeaningId"
+  | "onGenerateExample"
   | "verificationOverview"
   | "verificationChanges"
   | "isLoadingVerificationChanges"
@@ -62,6 +64,8 @@ export function WordbankWordPage({
   onRethinkCategories,
   isCompletingMeaningVariations,
   onCompleteMeaningVariations,
+  generatingExampleByMeaningId,
+  onGenerateExample,
   verificationOverview,
   verificationChanges,
   isLoadingVerificationChanges,
@@ -164,6 +168,8 @@ export function WordbankWordPage({
                 onRethinkCategories={onRethinkCategories}
                 isCompletingMeaningVariations={isCompletingMeaningVariations}
                 onCompleteMeaningVariations={onCompleteMeaningVariations}
+                generatingExampleByMeaningId={generatingExampleByMeaningId}
+                onGenerateExample={onGenerateExample}
                 rerunningMeaningVerificationById={rerunningMeaningVerificationById}
                 onRerunMeaningVerification={onRerunMeaningVerification}
               />

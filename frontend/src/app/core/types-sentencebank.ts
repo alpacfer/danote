@@ -24,8 +24,10 @@ export type SentenceSearchPreviewResponse = {
 export type SentenceTokenCard = {
   token_index: number
   surface_form: string
-  stored_lemma: string
-  lexeme_id: number
+  save_status?: "saved" | "unsaved"
+  lemma_candidate?: string | null
+  stored_lemma: string | null
+  lexeme_id: number | null
   meaning_id: number | null
   pos_tag: string | null
   morphology: string | null
@@ -60,6 +62,16 @@ export type AddSentenceResponse = {
     status: "queued" | "skipped"
     sentence_id: number
   } | null
+}
+
+export type SaveSentenceTokenResponse = SentencebankSentence & {
+  saved_token: SentenceTokenCard
+  message: string
+}
+
+export type GenerateExamplePreviewResponse = {
+  source_text: string
+  english_translation: string
 }
 
 export type GenerateSentencePronunciationResponse = {

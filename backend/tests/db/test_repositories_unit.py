@@ -359,6 +359,7 @@ def test_sentencebank_repository_round_trips_sentences(tmp_path) -> None:
                 token_index=0,
                 surface_form="Jeg",
                 normalized_surface="jeg",
+                lemma_candidate="jeg",
                 stored_lemma="jeg",
                 lexeme_id=lexeme_id,
                 meaning_id=None,

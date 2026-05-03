@@ -7,7 +7,7 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu"
-import { Languages, Loader2, RefreshCw, Sparkles, TableProperties } from "lucide-react"
+import { Languages, Loader2, MessageSquareQuote, RefreshCw, Sparkles, TableProperties } from "lucide-react"
 
 type WordbankScopeContextMenuProps = {
   children: ReactElement
@@ -17,6 +17,8 @@ type WordbankScopeContextMenuProps = {
   onFindAlternativeTranslations: () => void
   isRethinkingCategories: boolean
   onRethinkCategories: () => void
+  isGeneratingExample?: boolean
+  onGenerateExample?: () => void
   canCompleteVariations?: boolean
   completeVariationsLabel?: string
   isCompletingVariations?: boolean
@@ -31,6 +33,8 @@ export function WordbankScopeContextMenu({
   onFindAlternativeTranslations,
   isRethinkingCategories,
   onRethinkCategories,
+  isGeneratingExample = false,
+  onGenerateExample,
   canCompleteVariations = false,
   completeVariationsLabel = "Complete variations",
   isCompletingVariations = false,
@@ -61,6 +65,15 @@ export function WordbankScopeContextMenu({
           {isRethinkingCategories ? <Loader2 className="animate-spin" /> : <Sparkles />}
           {isRethinkingCategories ? "Rethinking categories..." : "Rethink categories"}
         </ContextMenuItem>
+        {onGenerateExample ? (
+          <ContextMenuItem
+            disabled={isGeneratingExample}
+            onSelect={onGenerateExample}
+          >
+            {isGeneratingExample ? <Loader2 className="animate-spin" /> : <MessageSquareQuote />}
+            {isGeneratingExample ? "Generating example..." : "Generate example"}
+          </ContextMenuItem>
+        ) : null}
         {onCompleteVariations ? (
           <>
             <ContextMenuSeparator />

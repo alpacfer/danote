@@ -25,6 +25,8 @@ export type WordbankSectionAdapterArgs = {
   rethinkCategories: (meaningId: number | null) => Promise<void>
   isCompletingMeaningVariations: boolean
   completeMeaningVariations: (meaningId: number | null) => Promise<void>
+  generatingExampleByMeaningId: Record<number, boolean>
+  generateExampleForMeaning: (storedLemma: string, meaningId: number) => Promise<void>
   verificationOverview: ComponentProps<typeof WordbankSection>["verificationOverview"]
   verificationChanges: ComponentProps<typeof WordbankSection>["verificationChanges"]
   isLoadingVerificationChanges: boolean
@@ -86,6 +88,12 @@ export function buildWordbankSectionProps(
     isCompletingMeaningVariations: args.isCompletingMeaningVariations,
     onCompleteMeaningVariations: (meaningId: number | null) => {
       void args.completeMeaningVariations(meaningId)
+    },
+    generatingExampleByMeaningId: args.generatingExampleByMeaningId,
+    onGenerateExample: (meaningId: number) => {
+      if (args.selectedLemma) {
+        void args.generateExampleForMeaning(args.selectedLemma, meaningId)
+      }
     },
     verificationOverview: args.verificationOverview,
     verificationChanges: args.verificationChanges,

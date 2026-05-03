@@ -1283,3 +1283,243 @@ def test_sentencebank_add_sentence_falls_back_on_batch_failure(tmp_path: Path) -
         ).fetchone()[0]
     assert queued_verify_jobs >= 1
     assert queued_verification_records >= 1
+
+
+def test_sentencebank_example_preview_uses_saved_meaning_context(tmp_path: Path) -> None:
+    db_path = _db_path(tmp_path)
+    gemini_service = FakeGeminiWordTranslationService({})
+    wordbank_use_case = WordbankUseCase(
+        db_path,
+        gemini_word_translation_service=gemini_service,
+    )
+    added = wordbank_use_case.add_word(
+        "bog",
+        "bog",
+        search_seed={
+            "lemma": "bog",
+            "surface": "bog",
+            "cor_id": "COR.BOG.BOOK.LEM",
+            "cor_lemma_idx": 123,
+            "meaning_key": "book",
+            "gloss": "book for reading",
+            "english_translation": "book",
+            "pos_tag": "NOUN",
+            "morphology": "Gender=Com|Number=Sing|Definite=Ind",
+        },
+    )
+    assert added.meaning is not None
+    gemini_service._example_overrides = {
+        ("bog", added.meaning.id): ("Jeg læser en bog.", "I am reading a book.")
+    }
+    sentencebank_use_case = SentencebankUseCase(
+        db_path,
+        wordbank_use_case=wordbank_use_case,
+    )
+
+    preview = sentencebank_use_case.generate_example_preview("bog", added.meaning.id)
+
+    assert preview.source_text == "jeg læser en bog"
+    assert preview.english_translation == "I am reading a book."
+    payload = gemini_service.example_calls[0]
+    assert payload.stored_lemma == "bog"
+    assert payload.meaning_id == added.meaning.id
+    assert payload.gloss == "book for reading"
+    assert payload.english_translation == "book"
+    assert payload.pos_tag == "NOUN"
+    assert payload.morphology == "Gender=Com|Number=Sing|Definite=Ind"
+    assert payload.cor_lemma_idx == 123
+
+
+def test_generated_example_save_links_only_target_and_preserves_translation(tmp_path: Path) -> None:
+    db_path = _db_path(tmp_path)
+    nlp_adapter = MappingNLPAdapter(
+        {
+            "Jeg læser en bog": [
+                NLPToken(text="Jeg", lemma="jeg", pos="PRON", morphology=None, is_punctuation=False),
+                NLPToken(text="læser", lemma="læse", pos="VERB", morphology=None, is_punctuation=False),
+                NLPToken(text="en", lemma="en", pos="DET", morphology=None, is_punctuation=False),
+                NLPToken(text="bog", lemma="bog", pos="NOUN", morphology=None, is_punctuation=False),
+            ],
+        }
+    )
+    translation_service = FakeTranslationService({"Jeg læser en bog": "provider should not be used"})
+    wordbank_use_case = WordbankUseCase(
+        db_path,
+        translation_service=translation_service,
+        nlp_adapter=nlp_adapter,
+    )
+    added = wordbank_use_case.add_word(
+        "bog",
+        "bog",
+        search_seed={
+            "lemma": "bog",
+            "surface": "bog",
+            "cor_id": "COR.BOG.BOOK.LEM",
+            "cor_lemma_idx": 123,
+            "meaning_key": "book",
+            "gloss": "book",
+            "english_translation": "book",
+            "pos_tag": "NOUN",
+            "morphology": "Gender=Com|Number=Sing|Definite=Ind",
+        },
+    )
+    assert added.meaning is not None
+    sentencebank_use_case = SentencebankUseCase(
+        db_path,
+        translation_service=translation_service,
+        nlp_adapter=nlp_adapter,
+        wordbank_use_case=wordbank_use_case,
+    )
+
+    inserted = sentencebank_use_case.add_sentence(
+        "Jeg læser en bog",
+        english_translation="I am reading a book.",
+        token_persistence_mode="link_existing_only",
+        target=type("Target", (), {"stored_lemma": "bog", "meaning_id": added.meaning.id})(),
+    )
+
+    assert inserted.english_translation == "I am reading a book."
+    assert translation_service.calls == []
+    assert [token.surface_form for token in inserted.tokens] == ["Jeg", "læser", "en", "bog"]
+    assert [token.save_status for token in inserted.tokens] == ["unsaved", "unsaved", "unsaved", "saved"]
+    assert inserted.tokens[1].lemma_candidate == "læse"
+    assert inserted.tokens[1].pos_tag == "VERB"
+    assert inserted.tokens[-1].stored_lemma == "bog"
+    assert inserted.tokens[-1].meaning_id == added.meaning.id
+    assert [item.lemma for item in wordbank_use_case.list_lemmas().items] == ["bog"]
+
+
+def test_generated_example_unsaved_token_save_uses_normal_sentence_resolution_for_verbs(
+    tmp_path: Path,
+) -> None:
+    db_path = _db_path(tmp_path)
+    bjerg_entry = _cor_local_entry(
+        cor_id="COR.BJERG.01",
+        lemma="bjerg",
+        gloss="mountain",
+        form="bjerg",
+        lemma_idx=61001,
+        pos_tag="NOUN",
+        morphology="Gender=Neut|Number=Sing|Definite=Ind",
+        gram_raw="sb.et",
+    )
+    besteg_surface = _cor_local_entry(
+        cor_id="COR.BESTIGE.PAST.01",
+        lemma="bestige",
+        gloss="climb",
+        form="besteg",
+        lemma_idx=61002,
+        pos_tag="VERB",
+        morphology="Tense=Past|VerbForm=Fin|Voice=Act",
+        gram_raw="vb.præt.akt",
+    )
+    bestige_lemma = _cor_local_entry(
+        cor_id="COR.BESTIGE.INF.01",
+        lemma="bestige",
+        gloss="climb",
+        form="bestige",
+        lemma_idx=61002,
+        pos_tag="VERB",
+        morphology="VerbForm=Inf|Voice=Act",
+        gram_raw="vb.inf.akt",
+    )
+    wordbank_use_case = WordbankUseCase(
+        db_path,
+        translation_service=FakeTranslationService({"at bestige": "to climb"}),
+        cor_local_lexicon_service=FakeCORLocalLexiconService(
+            by_form={"bjerg": [bjerg_entry], "besteg": [besteg_surface]},
+            by_lemma_idx={61002: [bestige_lemma, besteg_surface]},
+        ),
+    )
+    added = wordbank_use_case.add_word(
+        "bjerg",
+        "bjerg",
+        search_seed={
+            "lemma": "bjerg",
+            "surface": "bjerg",
+            "cor_id": "COR.BJERG.01",
+            "cor_lemma_idx": 61001,
+            "meaning_key": "mountain",
+            "gloss": "mountain",
+            "english_translation": "mountain",
+            "pos_tag": "NOUN",
+            "morphology": "Gender=Neut|Number=Sing|Definite=Ind",
+        },
+    )
+    assert added.meaning is not None
+    sentencebank_use_case = SentencebankUseCase(
+        db_path,
+        wordbank_use_case=wordbank_use_case,
+    )
+    inserted = sentencebank_use_case.add_sentence(
+        "vi besteg et højt bjerg",
+        english_translation="we climbed a high mountain",
+        token_persistence_mode="link_existing_only",
+        target=type("Target", (), {"stored_lemma": "bjerg", "meaning_id": added.meaning.id})(),
+    )
+    besteg_token = next(token for token in inserted.tokens if token.surface_form == "besteg")
+    wrong_lexeme_id, _inserted = wordbank_use_case.runtime.repository.insert_or_load_lexeme(
+        stored_lemma="besteg",
+        translation="climber",
+        provider="test",
+        pos_tag="VERB",
+        morphology="Tense=Past|VerbForm=Fin|Voice=Act",
+        source="manual",
+    )
+    wordbank_use_case.runtime.repository.insert_or_update_surface_form(
+        lexeme_id=wrong_lexeme_id,
+        meaning_id=None,
+        form="besteg",
+        pos_tag="VERB",
+        morphology="Tense=Past|VerbForm=Fin|Voice=Act",
+    )
+
+    updated = sentencebank_use_case.save_sentence_token(inserted.id, besteg_token.token_index)
+
+    assert updated.saved_token.surface_form == "besteg"
+    assert updated.saved_token.stored_lemma == "bestige"
+    assert updated.saved_token.meaning_id is not None
+    details = wordbank_use_case.get_lemma_details("bestige")
+    assert details.is_sectioned is True
+    assert details.meaning_sections[0].surface_forms[0].form == "besteg"
+
+
+def test_generated_example_duplicate_is_idempotent(tmp_path: Path) -> None:
+    db_path = _db_path(tmp_path)
+    wordbank_use_case = WordbankUseCase(db_path)
+    added = wordbank_use_case.add_word(
+        "bog",
+        "bog",
+        search_seed={
+            "lemma": "bog",
+            "surface": "bog",
+            "meaning_key": "book",
+            "gloss": "book",
+            "english_translation": "book",
+            "pos_tag": "NOUN",
+            "morphology": None,
+        },
+    )
+    assert added.meaning is not None
+    sentencebank_use_case = SentencebankUseCase(
+        db_path,
+        wordbank_use_case=wordbank_use_case,
+    )
+    target = type("Target", (), {"stored_lemma": "bog", "meaning_id": added.meaning.id})()
+
+    first = sentencebank_use_case.add_sentence(
+        "Her er en bog",
+        english_translation="Here is a book.",
+        token_persistence_mode="link_existing_only",
+        target=target,
+    )
+    second = sentencebank_use_case.add_sentence(
+        "  her   er en bog ",
+        english_translation="Here is a book.",
+        token_persistence_mode="link_existing_only",
+        target=target,
+    )
+
+    assert first.status == "inserted"
+    assert second.status == "exists"
+    assert second.id == first.id

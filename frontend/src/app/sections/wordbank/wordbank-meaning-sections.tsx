@@ -40,6 +40,8 @@ type WordbankMeaningSectionsProps = {
   onRethinkCategories: (meaningId: number | null) => void
   isCompletingMeaningVariations: boolean
   onCompleteMeaningVariations: (meaningId: number | null) => void
+  generatingExampleByMeaningId: Record<number, boolean>
+  onGenerateExample: (meaningId: number) => void
   rerunningMeaningVerificationById: Record<number, boolean>
   onRerunMeaningVerification: (meaningId: number) => void
 }
@@ -59,6 +61,8 @@ export function WordbankMeaningSections({
   onRethinkCategories,
   isCompletingMeaningVariations,
   onCompleteMeaningVariations,
+  generatingExampleByMeaningId,
+  onGenerateExample,
   rerunningMeaningVerificationById,
   onRerunMeaningVerification,
 }: WordbankMeaningSectionsProps) {
@@ -138,6 +142,8 @@ export function WordbankMeaningSections({
             onFindAlternativeTranslations={() => onFindAlternativeTranslations(section.id)}
             isRethinkingCategories={isRethinkingCategories}
             onRethinkCategories={() => onRethinkCategories(section.id)}
+            isGeneratingExample={Boolean(generatingExampleByMeaningId[section.id])}
+            onGenerateExample={() => onGenerateExample(section.id)}
             canCompleteVariations={canCompleteParadigm && !completionGate.isLocked}
             completeVariationsLabel={completionGate.label}
             isCompletingVariations={isCompletingMeaningVariations}

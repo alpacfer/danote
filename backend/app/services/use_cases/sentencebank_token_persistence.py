@@ -23,10 +23,10 @@ from app.services.use_cases.wordbank.non_cor_generation import build_non_cor_sea
 
 
 def persist_candidate_to_wordbank(
-    wordbank_use_case: "WordbankUseCase | None",
+    wordbank_use_case: WordbankUseCase | None,
     *,
     normalized_surface: str,
-    candidate: "SentenceMeaningCandidate",
+    candidate: SentenceMeaningCandidate,
 ) -> object | None:
     if wordbank_use_case is None:
         return None
@@ -52,7 +52,7 @@ def persist_candidate_to_wordbank(
 
 
 def persist_generated_to_wordbank(
-    wordbank_use_case: "WordbankUseCase | None",
+    wordbank_use_case: WordbankUseCase | None,
     *,
     normalized_surface: str,
     generated: NonCORWordGenerationResult,
@@ -132,6 +132,7 @@ def sentence_token_from_saved_word(
         token_index=token_index,
         surface_form=display_surface,
         normalized_surface=normalized_surface,
+        lemma_candidate=stored_lemma,
         stored_lemma=stored_lemma,
         lexeme_id=lexeme.id,
         meaning_id=meaning.id if meaning is not None else None,
@@ -190,6 +191,7 @@ def save_root_level_sentence_token(
         morphology=morphology,
         source="search",
     )
+
     surface_form, _inserted_surface_form = runtime.repository.insert_or_update_surface_form(
         lexeme_id=lexeme_id,
         meaning_id=None,
@@ -221,6 +223,7 @@ def save_root_level_sentence_token(
         token_index=token_index,
         surface_form=display_surface,
         normalized_surface=normalized_surface,
+        lemma_candidate=lemma,
         stored_lemma=lemma,
         lexeme_id=lexeme_id,
         meaning_id=None,
@@ -230,6 +233,33 @@ def save_root_level_sentence_token(
         gloss=gloss,
         english_translation=english_translation,
         gloss_translation=gloss_translation,
+    )
+
+
+def unsaved_sentence_token(
+    *,
+    token_index: int,
+    display_surface: str,
+    normalized_surface: str,
+    lemma_candidate: str,
+    pos_tag: str | None,
+    morphology: str | None,
+) -> SentenceTokenWriteRecord:
+    return SentenceTokenWriteRecord(
+        token_index=token_index,
+        surface_form=display_surface,
+        normalized_surface=normalized_surface,
+        lemma_candidate=lemma_candidate,
+        stored_lemma=None,
+        lexeme_id=None,
+        meaning_id=None,
+        cor_id=None,
+        pos_tag=pos_tag,
+        morphology=morphology,
+        gloss=None,
+        english_translation=None,
+        gloss_translation=None,
+        save_status="unsaved",
     )
 
 

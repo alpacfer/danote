@@ -217,6 +217,93 @@ describe("App wordbank", () => {
     })
   })
 
+  it("request-shape: meaning context menu generates, regenerates, and saves an example preview", async () => {
+    let previewCount = 0
+    const fetchSpy = mockFetchImplementation({
+      lemmasResponse: {
+        items: [{ lemma: "lærer", variation_count: 1 }],
+      },
+      lemmaDetailsResponse: {
+        lemma: "lærer",
+        english_translation: null,
+        is_sectioned: true,
+        pos_tag: null,
+        morphology: null,
+        surface_forms: [],
+        meaning_sections: [
+          {
+            id: 7,
+            meaning_key: "teacher",
+            gloss: "teacher",
+            english_translation: "teacher",
+            pos_tag: "NOUN",
+            morphology: "Gender=Com|Number=Sing",
+            surface_forms: [{ form: "lærer", has_pronunciation: true }],
+          },
+        ],
+      },
+      examplePreviewHandler: async (_input, init) => {
+        expect(String(init?.body ?? "")).toBe(JSON.stringify({
+          stored_lemma: "lærer",
+          meaning_id: 7,
+        }))
+        previewCount += 1
+        return responseOf({
+          source_text: previewCount === 1 ? "min lærer er venlig" : "en lærer hjælper eleverne",
+          english_translation: previewCount === 1 ? "My teacher is kind." : "A teacher helps the students.",
+        })
+      },
+      addSentenceHandler: async (_input, init) => {
+        expect(String(init?.body ?? "")).toBe(JSON.stringify({
+          source_text: "en lærer hjælper eleverne",
+          english_translation: "A teacher helps the students.",
+          token_persistence_mode: "link_existing_only",
+          target: { stored_lemma: "lærer", meaning_id: 7 },
+        }))
+        return responseOf({
+          status: "inserted",
+          id: 55,
+          source_text: "en lærer hjælper eleverne",
+          english_translation: "A teacher helps the students.",
+          created_at: "2026-05-03T12:00:00.000Z",
+          has_pronunciation: false,
+          tokens: [
+            { token_index: 0, surface_form: "en", save_status: "unsaved", stored_lemma: null, lexeme_id: null, meaning_id: null, pos_tag: null, morphology: null, gloss: null, english_translation: null, gloss_translation: null },
+            { token_index: 1, surface_form: "lærer", save_status: "saved", stored_lemma: "lærer", lexeme_id: 11, meaning_id: 7, pos_tag: "NOUN", morphology: "Gender=Com|Number=Sing", gloss: "teacher", english_translation: "teacher", gloss_translation: null },
+          ],
+          message: "Added example.",
+          pronunciation: null,
+        })
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+    fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /lærer/i }))
+
+    fireEvent.contextMenu(await screen.findByTestId("wordbank-meaning-card-7"))
+    fireEvent.click(await screen.findByRole("menuitem", { name: /generate example/i }))
+
+    const dialog = await screen.findByRole("dialog", { name: /generated example/i })
+    expect(await screen.findByText(/min lærer er venlig/i)).toBeInTheDocument()
+    expect(screen.getByText(/my teacher is kind/i)).toBeInTheDocument()
+    expect(within(dialog).queryByRole("button", { name: /listen/i })).not.toBeInTheDocument()
+    expect(within(dialog).queryByTestId("sentence-page-pending-token-card")).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole("button", { name: /^regenerate$/i }))
+    expect(await screen.findByText(/en lærer hjælper eleverne/i)).toBeInTheDocument()
+    expect(screen.getByText(/a teacher helps the students/i)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole("button", { name: /^save$/i }))
+
+    await waitFor(() => {
+      expect(fetchSpy.mock.calls.some(([input, init]) => (
+        String(input).endsWith("/api/sentencebank/sentences") && init?.method === "POST"
+      ))).toBe(true)
+    })
+  })
+
   it("renderer-only: shows verification progress in the unified popover while Gemini is still processing", async () => {
     mockFetchImplementation({
       lemmasResponse: {
@@ -1363,7 +1450,7 @@ describe("App wordbank", () => {
     fireEvent.contextMenu(meaningCard)
     fireEvent.click(await screen.findByRole("menuitem", { name: /complete variations/i }))
 
-    fireEvent.click(screen.getByRole("button", { name: /notes/i }))
+    fireEvent.click(screen.getByRole("button", { name: /sentencebank/i }))
     expect(screen.queryByRole("button", { name: /show notifications/i })).not.toBeInTheDocument()
     expect(screen.getByRole("button", { name: /wordbank/i })).not.toHaveTextContent("1")
 

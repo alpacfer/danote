@@ -15,6 +15,7 @@ type SentencebankTokenButtonProps = {
   token: SentenceTokenCard
   onOpenWordbankLemma: (lemma: string) => void
   onOpenWordbankMeaning: (lemma: string, meaningId: number) => void
+  onAddUnsavedToken: (token: SentenceTokenCard) => void
   onHighlightTokenIndex?: (tokenIndex: number | null) => void
 }
 
@@ -22,11 +23,12 @@ export function SentencebankTokenButton({
   token,
   onOpenWordbankLemma,
   onOpenWordbankMeaning,
+  onAddUnsavedToken,
   onHighlightTokenIndex,
 }: SentencebankTokenButtonProps) {
   const lemmaDisplay = lemmaDisplayForSavedForm({
     form: token.surface_form,
-    lemma: token.stored_lemma,
+    lemma: token.stored_lemma ?? token.surface_form,
     pos_tag: token.pos_tag,
   })
   const showLemma =
@@ -40,7 +42,7 @@ export function SentencebankTokenButton({
     pos_tag: token.pos_tag,
     morphology: token.morphology,
   })
-  const isSaved = typeof token.meaning_id === "number"
+  const isSaved = token.save_status !== "unsaved" && typeof token.stored_lemma === "string" && token.stored_lemma.length > 0
 
   return (
     <Card className="overflow-hidden py-0 gap-0">
@@ -54,6 +56,10 @@ export function SentencebankTokenButton({
           onFocus={() => onHighlightTokenIndex?.(token.token_index)}
           onBlur={() => onHighlightTokenIndex?.(null)}
           onClick={() => {
+            if (!isSaved || !token.stored_lemma) {
+              onAddUnsavedToken(token)
+              return
+            }
             if (typeof token.meaning_id === "number") {
               onOpenWordbankMeaning(token.stored_lemma, token.meaning_id)
               return

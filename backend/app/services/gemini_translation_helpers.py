@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from dataclasses import asdict
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from app.services.gemini_translation import (
@@ -12,6 +13,7 @@ if TYPE_CHECKING:
         BatchContextualWordTranslationResponse,
         BatchContextualWordTranslationResponseItem,
         ContextualWordTranslationInput,
+        ExampleSentenceGenerationInput,
         MeaningSectionSelectionInput,
         NonCORVariationCandidate,
         NonCORVariationGenerationInput,
@@ -223,6 +225,39 @@ def build_alternative_translations_prompt(payload: AlternativeTranslationsInput)
         "- For verbs, prefer English infinitive form.\n"
         "- If there are no common alternatives, return an empty alternative_translations array.\n"
         "- Do not explain your reasoning.\n"
+        f"Context:\n{json.dumps(context, ensure_ascii=False)}"
+    )
+
+
+def build_example_sentence_prompt(payload: ExampleSentenceGenerationInput) -> str:
+    context = {
+        "stored_lemma_da": payload.stored_lemma,
+        "lemma_frame_da": _danish_lemma_frame(payload.stored_lemma, payload.pos_tag),
+        "meaning_id": payload.meaning_id,
+        "meaning_key": payload.meaning_key,
+        "gloss_da": payload.gloss,
+        "gloss_translation_en": payload.gloss_translation,
+        "english_translation_en": payload.english_translation,
+        "additional_translations_en": payload.additional_translations,
+        "pos_tag": payload.pos_tag,
+        "morphology": payload.morphology,
+        "cor_lemma_idx": payload.cor_lemma_idx,
+        "saved_surface_forms_da": payload.surface_forms,
+    }
+    return (
+        "You write one short Danish example sentence for a language-learning word card.\n"
+        "Return JSON only with this exact shape: "
+        "{\"source_text\":\"...\",\"english_translation\":\"...\"}\n"
+        "Rules:\n"
+        "- source_text must be one natural, short Danish sentence.\n"
+        "- source_text must start with a lowercase letter.\n"
+        "- source_text must not end with a period.\n"
+        "- The sentence must explicitly include stored_lemma_da or one saved_surface_forms_da form.\n"
+        "- The sentence must exemplify this exact saved meaning, not another homograph or related sense.\n"
+        "- Use gloss, gloss_translation, english_translation, POS, morphology, and COR identity as hard sense context.\n"
+        "- Keep the sentence simple enough for a learner; avoid names, obscure idioms, and long clauses.\n"
+        "- english_translation must be a natural English translation of source_text.\n"
+        "- Do not add explanations, alternatives, markdown, or quotes.\n"
         f"Context:\n{json.dumps(context, ensure_ascii=False)}"
     )
 
@@ -439,6 +474,33 @@ def parse_alternative_translations_payload(payload: object) -> AlternativeTransl
     return AlternativeTranslationsResult(
         primary_translation=primary_translation,
         alternative_translations=alternative_translations[:3],
+    )
+
+
+def _normalize_example_source_text(value: object) -> str:
+    source_text = normalize_translation_value(value)
+    if source_text is None:
+        return ""
+    source_text = source_text.rstrip(".").strip()
+    for index, char in enumerate(source_text):
+        if char.isalpha():
+            return f"{source_text[:index]}{char.lower()}{source_text[index + 1:]}"
+    return source_text
+
+
+def parse_example_sentence_payload(payload: object) -> object | None:
+    from app.services.gemini_translation import ExampleSentenceGenerationResult
+    from app.services.use_cases.sentencebank_text import normalize_sentence_text
+
+    if not isinstance(payload, dict):
+        return None
+    source_text = normalize_sentence_text(_normalize_example_source_text(payload.get("source_text")))
+    english_translation = normalize_sentence_text(str(payload.get("english_translation") or ""))
+    if not source_text or not english_translation:
+        return None
+    return ExampleSentenceGenerationResult(
+        source_text=source_text,
+        english_translation=english_translation,
     )
 
 

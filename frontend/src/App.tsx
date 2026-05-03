@@ -1,6 +1,7 @@
 import { AppBreadcrumb, AppSidebar } from "@/app/chrome"
 import { useAppController } from "@/app/hooks/app/use-app-controller"
 import { SectionContent } from "@/app/layout/section-content"
+import { GeneratedExampleDialog } from "@/app/sections/sentencebank/generated-example-dialog"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 
 function App() {
@@ -21,6 +22,12 @@ function App() {
     addSentenceToSentencebank,
     addWordFromSearch,
     sectionProps,
+    generatedExamplePreview,
+    isGeneratingExample,
+    isSavingGeneratedExample,
+    saveGeneratedExample,
+    regenerateExample,
+    discardGeneratedExample,
   } = useAppController()
 
   return (
@@ -58,6 +65,18 @@ function App() {
               wordbankProps={sectionProps.wordbankSectionProps}
               sentencebankProps={sectionProps.sentencebankSectionProps}
               developerProps={sectionProps.developerSectionProps}
+            />
+            <GeneratedExampleDialog
+              preview={generatedExamplePreview}
+              isSaving={isSavingGeneratedExample}
+              isRegenerating={isGeneratingExample}
+              onSave={() => {
+                void saveGeneratedExample()
+              }}
+              onRegenerate={() => {
+                void regenerateExample()
+              }}
+              onDiscard={discardGeneratedExample}
             />
           </div>
         </main>

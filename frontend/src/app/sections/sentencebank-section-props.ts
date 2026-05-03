@@ -16,6 +16,7 @@ export type SentencebankSectionAdapterArgs = {
   playPronunciation: (sentenceId: number) => Promise<void>
   playPronunciationSlowly: (sentenceId: number) => Promise<void>
   regeneratePronunciation: (sentenceId: number) => Promise<void>
+  saveSentenceTokenToWordbank: ComponentProps<typeof SentencebankSection>["onAddUnsavedToken"]
 }
 
 export function buildSentencebankSectionProps({
@@ -32,6 +33,7 @@ export function buildSentencebankSectionProps({
   playPronunciation,
   playPronunciationSlowly,
   regeneratePronunciation,
+  saveSentenceTokenToWordbank,
 }: SentencebankSectionAdapterArgs): ComponentProps<typeof SentencebankSection> {
   return {
     sentencebankError,
@@ -52,6 +54,9 @@ export function buildSentencebankSectionProps({
     },
     onRegeneratePronunciation: (sentenceId: number) => {
       void regeneratePronunciation(sentenceId)
+    },
+    onAddUnsavedToken: (sentenceId, token) => {
+      void saveSentenceTokenToWordbank(sentenceId, token)
     },
   }
 }
