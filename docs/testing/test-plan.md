@@ -19,8 +19,8 @@
 
 ### Contract
 
-- `tests/api/test_analysis_endpoint.py::test_response_matches_contract_schema_exactly`
-- Health and failure contract checks in `tests/api/test_health.py` and `tests/system/test_reliability.py`.
+- Analyze, wordbank, sentencebank, developer, and health HTTP contract checks in `tests/api/`.
+- Health and degraded-mode failure checks in `tests/api/test_health.py` and `tests/system/test_reliability.py`.
 
 ## Frontend
 

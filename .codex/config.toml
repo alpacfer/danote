@@ -1,0 +1,40 @@
+#:schema https://developers.openai.com/codex/config-schema.json
+
+# Project-scoped Codex configuration for danote.
+# This layer loads only when the project is trusted in the user's Codex config.
+
+model_reasoning_effort = "medium"
+plan_mode_reasoning_effort = "high"
+
+# Keep Codex pointed at the tool-agnostic source of truth without duplicating it
+# into Codex-specific files.
+developer_instructions = """
+For this repository, read and follow AGENT.md as the canonical project guidance.
+AGENTS.md and CLAUDE.md are compatibility symlinks to AGENT.md.
+Do not duplicate agent behavior into tool-specific files; update AGENT.md instead.
+"""
+
+# AGENT.md is used if AGENTS.md is absent in a future cleanup or subdirectory.
+project_doc_fallback_filenames = ["AGENT.md"]
+project_doc_max_bytes = 65536
+
+# Conservative interactive defaults: allow ordinary workspace edits and ask
+# before escalations.
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+
+[sandbox_workspace_write]
+network_access = false
+writable_roots = []
+exclude_tmpdir_env_var = false
+exclude_slash_tmp = false
+
+[shell_environment_policy]
+inherit = "all"
+exclude = [
+  "*KEY*",
+  "*SECRET*",
+  "*TOKEN*",
+  "*PASSWORD*",
+  "DANOTE_*API_KEY",
+]

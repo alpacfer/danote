@@ -55,10 +55,11 @@ cd <repo-root>
 make agent-verify
 ```
 
-Agent-specific guidance:
+Agent guidance:
 
-- `AGENTS.md`
-- `CLAUDE.md`
+- `AGENT.md` is the source of truth.
+- `AGENTS.md` and `CLAUDE.md` are compatibility symlinks.
+- `.codex/config.toml` points Codex at `AGENT.md` and keeps project-scoped sandbox/approval defaults.
 
 One-command startup (recommended):
 

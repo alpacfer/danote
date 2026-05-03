@@ -3,8 +3,8 @@
 ## 1) Entry points
 
 UI components:
-- `frontend/src/app/sections/developer-section.tsx`
-- `frontend/src/app/sections/developer-probe-result.tsx`
+- `frontend/src/app/sections/developer/developer-section.tsx`
+- `frontend/src/app/sections/developer/probe-result.tsx`
 
 Controller/composition:
 - `frontend/src/app/hooks/app/use-app-controller.ts` — wires `developerSettings` into `buildDeveloperSectionProps(...)`, provides `apiProbeStatuses`

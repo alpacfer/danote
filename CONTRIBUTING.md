@@ -56,6 +56,6 @@ make docs-smoke
 
 ## AI agent workflow
 
-- Read `AGENTS.md` first for deterministic command order and boundaries.
-- Use `docs/agent-playbook.md` for architecture-oriented edit strategy.
+- Read `AGENT.md` first for deterministic command order and boundaries.
+- Use `docs/README.md` to find architecture, behavior, contract, and testing docs.
 - Run `make agent-verify` before finalizing significant backend changes.

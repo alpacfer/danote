@@ -1,6 +1,6 @@
 # Docs Index
 
-Canonical docs are grouped by purpose under `docs/`. Short, dated design notes that explain one-off feature decisions live under [`docs/superpowers/`](./superpowers/README.md).
+Canonical docs are grouped by purpose under `docs/`. Durable references stay here; completed one-off implementation plans should be removed instead of archived indefinitely.
 
 ## Folder layout
 
@@ -10,7 +10,6 @@ Canonical docs are grouped by purpose under `docs/`. Short, dated design notes t
 - [`testing/`](./testing/test-plan.md): test strategy, CI coverage, and release checklists
 - [`reference/`](./reference/configuration-reference.md): configuration, environment versions, and operational guidance
 - [`research/`](./research/typo-detection-strategy-research-2026-02-26.md): background research worth keeping
-- [`superpowers/`](./superpowers/README.md): compact feature-specific design notes
 
 ## API and contracts
 
@@ -42,13 +41,10 @@ Canonical docs are grouped by purpose under `docs/`. Short, dated design notes t
 
 - [Test plan](./testing/test-plan.md)
 - [Test pyramid and CI](./testing/test-pyramid-and-ci.md)
-- [Typo v1 build checklist](./testing/typo-v1-build-checklist.md)
 
-## Research and design notes
+## Research
 
 - [Typo detection strategy research](./research/typo-detection-strategy-research-2026-02-26.md)
-- [Token efficiency](./reference/token-efficiency.md)
-- [Superpowers feature specs](./superpowers/README.md)
 
 ## Freshness index
 
@@ -62,7 +58,7 @@ Use this table to find the current source of truth quickly when behavior changes
 | [Sidebar search behavior](./behavior/sidebar-search-behavior.md) | Frontend engineers, product QA | `frontend/src/app/chrome/sidebar/*`, `frontend/src/app/hooks/sidebar/*` | Search-save blank-translation persistence replaces backend `409` gating for finalized empty translations (2026-03-22) | Frontend |
 | [Wordbank section behavior](./behavior/wordbank-section-behavior.md) | Frontend engineers, backend integrators | `frontend/src/app/sections/wordbank/*`, `backend/app/api/routes/wordbank.py` | Queued verification no longer creates unread Wordbank markers; only review or error states do (2026-03-22) | Shared |
 | [Sentencebank section behavior](./behavior/sentencebank-section-behavior.md) | Frontend engineers, backend integrators | `frontend/src/app/sections/sentencebank/*`, `backend/app/api/routes/sentencebank.py` | Checkpoint 18 baseline and docs smoke alignment (2026-03-06) | Shared |
-| [Developer section behavior](./behavior/developer-section-behavior.md) | Frontend engineers, platform maintainers | `frontend/src/app/sections/developer-section.tsx`, `frontend/src/app/hooks/app/use-developer-settings.ts`, `backend/app/api/routes/developer.py` | Checkpoint 18 baseline and docs smoke alignment (2026-03-06) | Shared |
+| [Developer section behavior](./behavior/developer-section-behavior.md) | Frontend engineers, platform maintainers | `frontend/src/app/sections/developer/*`, `frontend/src/app/hooks/app/use-developer-settings.ts`, `backend/app/api/routes/developer.py` | Checkpoint 18 baseline and docs smoke alignment (2026-03-06) | Shared |
 
 Update the checkpoint column when behavior or owning modules change.
 

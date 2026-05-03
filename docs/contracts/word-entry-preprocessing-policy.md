@@ -17,4 +17,4 @@ Note analysis stripped inline comments; search/resolve paths used raw query text
 
 - Shared helper: `backend/app/services/text_preprocessing.py`
 - Analyze path use: `backend/app/services/use_cases/analyze.py`
-- Resolve path use: `backend/app/services/use_cases/wordbank.py`
+- Resolve path use: `backend/app/services/use_cases/wordbank/core.py` and `backend/app/services/use_cases/wordbank/collaborators/cor_resolution.py`

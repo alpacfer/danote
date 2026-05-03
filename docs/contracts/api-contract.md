@@ -4,7 +4,7 @@ All HTTP routes in `backend/app/api/routes/*.py`.
 
 ## Contract source
 
-Routes: `backend/app/api/routes/`. DTOs: `backend/app/api/schemas/v1/`. Some token endpoints use inline models in `backend/app/api/routes/tokens.py`.
+Routes: `backend/app/api/routes/`. DTOs: `backend/app/api/schemas/v1/`.
 
 ## Root
 
@@ -29,18 +29,6 @@ Routes: `backend/app/api/routes/`. DTOs: `backend/app/api/schemas/v1/`. Some tok
 - **Request model:** `EnrichTokenRequest`.
 - **Response model:** `ResolveQueryResponse`.
 - **Notable status/error behavior:** `503` DB unavailable/locked. `400` value errors from query resolution.
-
-## Tokens
-
-### POST `/api/tokens/feedback`
-- **Request model:** inline `TokenFeedbackRequest` (`backend/app/api/routes/tokens.py`).
-- **Response model:** inline `TokenFeedbackResponse`.
-- **Notable status/error behavior:** `503` typo engine unavailable. `503` typo DB ops fail (`sqlite3.OperationalError`).
-
-### POST `/api/tokens/ignore`
-- **Request model:** inline `TokenIgnoreRequest` (`backend/app/api/routes/tokens.py`).
-- **Response model:** inline `TokenIgnoreResponse`.
-- **Notable status/error behavior:** `503` typo engine unavailable. `503` typo DB ops fail (`sqlite3.OperationalError`).
 
 ## Developer
 
