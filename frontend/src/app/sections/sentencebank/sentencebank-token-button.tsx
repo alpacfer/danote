@@ -45,7 +45,7 @@ export function SentencebankTokenButton({
   const isSaved = token.save_status !== "unsaved" && typeof token.stored_lemma === "string" && token.stored_lemma.length > 0
 
   return (
-    <Card className="overflow-hidden py-0 gap-0">
+    <Card className="overflow-hidden py-0 gap-0 min-w-44">
       <CardContent className="p-0">
         <Button
           type="button"

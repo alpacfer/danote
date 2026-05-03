@@ -33,7 +33,7 @@ function pendingTokenSurfaces(text: string): string[] {
 
 function PendingSentenceTokenCard({ surface }: { surface: string }) {
   return (
-    <Card className="overflow-hidden py-0 gap-0" data-testid="sentence-page-pending-token-card">
+    <Card className="overflow-hidden py-0 gap-0 min-w-44" data-testid="sentence-page-pending-token-card">
       <CardContent className="p-0">
         <Button
           type="button"
@@ -127,13 +127,13 @@ export function SentencebankSentencePage({
           )}
         </div>
         {isLoadingTokens ? (
-          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="flex flex-wrap gap-2 items-start">
             {(pendingSurfaces.length > 0 ? pendingSurfaces : [sentence.source_text]).map((surface, i) => (
               <PendingSentenceTokenCard key={`pending-sentence-token-${i}-${surface}`} surface={surface} />
             ))}
           </div>
         ) : (sentence.tokens?.length ?? 0) > 0 ? (
-          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="flex flex-wrap gap-2 items-start">
             {(sentence.tokens ?? []).map((token) => (
               <SentencebankTokenButton
                 key={`sentence-${sentence.id}-token-${token.token_index}-${token.surface_form}`}
