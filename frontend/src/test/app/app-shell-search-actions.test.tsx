@@ -1,4 +1,4 @@
-import { fireEvent, mockFetchImplementation, renderApp, responseOf, screen, waitFor, within } from "@/test/app-test-helpers"
+import { act, fireEvent, mockFetchImplementation, renderApp, responseOf, screen, waitFor, within } from "@/test/app-test-helpers"
 import {
   cloneContractFixture,
   morHomographWordPageContractFixture,
@@ -309,6 +309,57 @@ describe("App shell and search", () => {
     expect(
       fetchSpy.mock.calls.some(([input]) => String(input).endsWith("/api/wordbank/phrase-translation")),
     ).toBe(false)
+  })
+
+  it("shows pending sentence word cards while save token details are still loading", async () => {
+    let resolveAddSentence: ((response: Response) => void) | undefined
+    mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      sentencebankResponse: { items: [] },
+      sentenceSearchPreviewResponse: {
+        status: "ready",
+        query_language: "da",
+        source_text: "jeg elsker dansk",
+        english_translation: "i love danish",
+        is_valid: true,
+        errors: [],
+        message: null,
+      },
+      addSentenceHandler: async () => new Promise<Response>((resolve) => {
+        resolveAddSentence = resolve
+      }),
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    const commandDialog = await screen.findByRole("dialog")
+    const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
+    fireEvent.change(searchInput, { target: { value: "jeg elsker dansk" } })
+
+    await waitFor(() => {
+      expect(within(commandDialog).getByRole("option")).not.toHaveAttribute("aria-disabled", "true")
+    })
+    fireEvent.click(within(commandDialog).getByRole("option"))
+
+    expect(await screen.findByText(/^jeg elsker dansk$/i)).toBeInTheDocument()
+    const pendingCards = await screen.findAllByTestId("sentence-page-pending-token-card")
+    expect(pendingCards).toHaveLength(3)
+    expect(pendingCards.map((card) => card.textContent)).toEqual(["jeg", "elsker", "dansk"])
+    expect(screen.getByText(/^i love danish$/i)).toBeInTheDocument()
+
+    await act(async () => {
+      resolveAddSentence?.(responseOf({
+        status: "inserted",
+        id: 99,
+        source_text: "jeg elsker dansk",
+        english_translation: "i love danish",
+        created_at: "2026-04-11T10:00:00.000Z",
+        tokens: [],
+        message: 'Added "jeg elsker dansk" to sentencebank.',
+      }))
+    })
   })
 
   it("renderer-only: opening a newly added sectioned word keeps translation on the lemma and badges on the surface row only", async () => {

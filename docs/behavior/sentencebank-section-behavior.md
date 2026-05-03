@@ -52,6 +52,7 @@ Sentence detail page header:
 - `Say slowly` reuses the same saved sentence audio but plays it back at a reduced browser playback rate for a slower pronunciation pass
 - `Regenerate audio` posts `/api/sentencebank/sentences/pronunciation` with `{ sentence_id, force: true }`
 - icon dimming reflects `has_pronunciation`; playback still attempts the fetch so newly generated audio works after refresh
+- pending saves open the sentence detail page immediately with surface-form word cards derived from the finalized Danish sentence, while still showing loading placeholders for unknown token metadata
 
 Each token card renders:
 - surface form

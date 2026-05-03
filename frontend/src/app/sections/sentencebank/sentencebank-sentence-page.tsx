@@ -6,7 +6,9 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import { SentencebankTokenButton } from "@/app/sections/sentencebank/sentencebank-token-button"
 import { WordbankPronunciationWord } from "@/app/sections/wordbank/wordbank-pronunciation-word"
-import { Clock3, RotateCcw } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+import { Clock3, Plus, RotateCcw } from "lucide-react"
 
 type SentencebankSentencePageProps = {
   sentence: SentencebankSentence | null
@@ -20,8 +22,40 @@ type SentencebankSentencePageProps = {
   onRegeneratePronunciation: (sentenceId: number) => void
 }
 
-function wordCount(text: string): number {
-  return text.trim().split(/\s+/).filter(Boolean).length
+function pendingTokenSurfaces(text: string): string[] {
+  const matches = text.match(/[\p{L}\p{N}_]+(?:['’.-][\p{L}\p{N}_]+)*/gu)
+  if (matches && matches.length > 0) {
+    return matches
+  }
+  return text.trim().split(/\s+/).filter(Boolean)
+}
+
+function PendingSentenceTokenCard({ surface }: { surface: string }) {
+  return (
+    <Card className="overflow-hidden py-0 gap-0" data-testid="sentence-page-pending-token-card">
+      <CardContent className="p-0">
+        <Button
+          type="button"
+          variant="ghost"
+          disabled
+          className="h-auto min-h-16 w-full items-center justify-between rounded-none px-4 py-4 text-left opacity-100"
+        >
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
+              <span className="font-semibold break-words">{surface}</span>
+              <Skeleton className="h-3 w-16" />
+            </div>
+            <Skeleton className="mt-2 h-3 w-24" />
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              <Skeleton className="h-5 w-14 rounded-full" />
+              <Skeleton className="h-5 w-20 rounded-full" />
+            </div>
+          </div>
+          <Plus className="text-muted-foreground ml-3 size-4 shrink-0 self-center opacity-50" />
+        </Button>
+      </CardContent>
+    </Card>
+  )
 }
 
 export function SentencebankSentencePage({
@@ -41,7 +75,7 @@ export function SentencebankSentencePage({
     return <p className="text-muted-foreground text-sm">Sentence not found.</p>
   }
 
-  const skeletonCount = Math.max(wordCount(sentence.source_text), 1)
+  const pendingSurfaces = pendingTokenSurfaces(sentence.source_text)
   const translation = formatSentenceTranslation(sentence.english_translation) ?? ""
   const sentenceId = sentence.id
   const isPlaying = Boolean(pronunciationLoadingBySentenceId[sentenceId])
@@ -92,8 +126,8 @@ export function SentencebankSentencePage({
         </div>
         {isLoadingTokens ? (
           <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-            {Array.from({ length: skeletonCount }).map((_, i) => (
-              <Skeleton key={i} className="h-16 rounded-md" />
+            {(pendingSurfaces.length > 0 ? pendingSurfaces : [sentence.source_text]).map((surface, i) => (
+              <PendingSentenceTokenCard key={`pending-sentence-token-${i}-${surface}`} surface={surface} />
             ))}
           </div>
         ) : (sentence.tokens?.length ?? 0) > 0 ? (
