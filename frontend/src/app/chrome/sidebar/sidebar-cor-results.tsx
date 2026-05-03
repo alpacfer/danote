@@ -9,6 +9,7 @@ import {
   glossDisplayForVariant,
   lemmaDisplayForVariant,
   lemmaTranslationForVariant,
+  lemmaTranslationWithGlossComma,
   saveableTranslationForVariant,
   posBadgeClass,
   type SearchSaveSeed,
@@ -73,9 +74,12 @@ export function SidebarCorResults({
             .map(({ variant }) => {
               const itemValue = corVariantItemValue(variant)
               const isVariationAdd = variationCandidateCorIdSet.has(variant.cor_id)
-              const detailLine = variant.english_source_description?.trim() || glossDisplayForVariant(variant)
+              const glossLine = glossDisplayForVariant(variant)
+              const sourceDescriptionLine = variant.english_source_description?.trim() || null
               const lemmaDisplay = lemmaDisplayForVariant(variant)
               const lemmaTranslation = lemmaTranslationForVariant(variant)
+              const detailLine = sourceDescriptionLine || (!lemmaTranslation ? glossLine : null)
+              const translationLine = lemmaTranslationWithGlossComma(lemmaTranslation, glossLine)
               const saveableTranslation = saveableTranslationForVariant(variant)
               const sourceDisplay = sourceLabel?.trim() || lemmaDisplay
               const shouldShowSource = Boolean(sourceDisplay)
@@ -134,23 +138,17 @@ export function SidebarCorResults({
                       {shouldShowSource ? (
                         <span className="text-muted-foreground text-xs">
                           {" "}from <em>{sourceDisplay}</em>
-                          {isTranslationsLoading ? (
-                            <Skeleton
-                              data-testid="search-translation-skeleton"
-                              className={`ml-1 inline-block h-3 w-14 align-middle ${searchTranslationSkeletonClassName}`}
-                            />
-                          ) : null}
                         </span>
                       ) : null}
                     </span>
-                    {showTranslationLine && lemmaTranslation ? (
-                      <span className="text-muted-foreground text-xs leading-4">{lemmaTranslation}</span>
+                    {showTranslationLine && translationLine ? (
+                      <span className="text-muted-foreground text-xs leading-4">{translationLine}</span>
                     ) : null}
                     {isTranslationsLoading && hasGloss ? (
                       <span className="text-muted-foreground text-xs leading-4">
                         <Skeleton
                           data-testid="search-translation-skeleton"
-                          className={`inline-block h-3 w-24 align-middle ${searchTranslationSkeletonClassName}`}
+                          className={`inline-block h-4 w-28 align-middle ${searchTranslationSkeletonClassName}`}
                         />
                       </span>
                     ) : detailLine ? (

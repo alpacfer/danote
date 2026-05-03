@@ -32,6 +32,7 @@ export function useSidebarEnSearch({
     payloads: Record<string, CORSearchFormResponse>
   } | null>(null)
   const [isEnTranslatedCorLoading, setIsEnTranslatedCorLoading] = useState(false)
+  const [enTranslatedCorSkeletonCount, setEnTranslatedCorSkeletonCount] = useState(0)
 
   useEffect(() => {
     enResolveCacheRef.current.clear()
@@ -41,6 +42,7 @@ export function useSidebarEnSearch({
       setEnTranslatedCorPayloads(null)
       setIsEnResolveLoading(false)
       setIsEnTranslatedCorLoading(false)
+      setEnTranslatedCorSkeletonCount(0)
     }, 0)
     return () => window.clearTimeout(clearId)
   }, [resetVersion])
@@ -106,6 +108,7 @@ export function useSidebarEnSearch({
     if (!activeEnResolveResult || activeEnResolveResult.groups.length === 0) {
       setEnTranslatedCorPayloads(null)
       setIsEnTranslatedCorLoading(false)
+      setEnTranslatedCorSkeletonCount(0)
       return
     }
 
@@ -119,6 +122,7 @@ export function useSidebarEnSearch({
     if (translationKeys.length === 0) {
       setEnTranslatedCorPayloads({ query: normalizedQuery, payloads: {} })
       setIsEnTranslatedCorLoading(false)
+      setEnTranslatedCorSkeletonCount(0)
       return
     }
 
@@ -135,30 +139,57 @@ export function useSidebarEnSearch({
     if (missing.length === 0) {
       setEnTranslatedCorPayloads({ query: normalizedQuery, payloads: cachedPayloads })
       setIsEnTranslatedCorLoading(false)
+      setEnTranslatedCorSkeletonCount(0)
       return
     }
 
     let cancelled = false
     setIsEnTranslatedCorLoading(true)
-    void Promise.all(
-      missing.map(async (translationKey) => {
-        const payload = await apiClient
-          .getJson<CORSearchFormResponse>(
-            `/api/wordbank/search/cor-form?form=${encodeURIComponent(translationKey)}&limit=100`,
-            "Search translation is unavailable.",
-          )
-          .catch(() => null)
-        if (!payload) {
-          return null
+    setEnTranslatedCorSkeletonCount(0)
+    void (async () => {
+      const partialResults = await Promise.all(
+        missing.map(async (translationKey) => {
+          const payload = await apiClient
+            .getJson<CORSearchFormResponse>(
+              `/api/wordbank/search/cor-form?form=${encodeURIComponent(translationKey)}&limit=100&include_translations=false`,
+              "Search translation is unavailable.",
+            )
+            .catch(() => null)
+          return payload ? { translationKey, payload } : null
+        }),
+      )
+      if (cancelled) {
+        return
+      }
+      if (partialResults.every(Boolean)) {
+        const partialPayloads = { ...cachedPayloads }
+        for (const item of partialResults) {
+          if (item) {
+            partialPayloads[item.translationKey] = item.payload
+          }
         }
-        return { translationKey, payload }
-      }),
-    ).then((results) => {
+        const pendingResults = buildEnTranslatedCorResults(activeEnResolveResult, partialPayloads, normalizedQuery)
+        setEnTranslatedCorSkeletonCount(
+          pendingResults.corSearchVariantsToRender.length + pendingResults.fallbackEnPosGroups.length,
+        )
+      }
+
+      const fullResults = await Promise.all(
+        missing.map(async (translationKey) => {
+          const payload = await apiClient
+            .getJson<CORSearchFormResponse>(
+              `/api/wordbank/search/cor-form?form=${encodeURIComponent(translationKey)}&limit=100`,
+              "Search translation is unavailable.",
+            )
+            .catch(() => null)
+          return payload ? { translationKey, payload } : null
+        }),
+      )
       if (cancelled) {
         return
       }
       const mergedPayloads = { ...cachedPayloads }
-      for (const item of results) {
+      for (const item of fullResults) {
         if (!item) {
           continue
         }
@@ -167,11 +198,13 @@ export function useSidebarEnSearch({
       }
       setEnTranslatedCorPayloads({ query: normalizedQuery, payloads: mergedPayloads })
       setIsEnTranslatedCorLoading(false)
-    })
+      setEnTranslatedCorSkeletonCount(0)
+    })()
 
     return () => {
       cancelled = true
       setIsEnTranslatedCorLoading(false)
+      setEnTranslatedCorSkeletonCount(0)
     }
   }, [activeEnResolveResult, apiClient, normalizedQuery])
 
@@ -187,5 +220,6 @@ export function useSidebarEnSearch({
     isEnResolveLoading,
     activeEnTranslatedCorResults,
     isEnTranslatedCorLoading,
+    enTranslatedCorSkeletonCount,
   }
 }

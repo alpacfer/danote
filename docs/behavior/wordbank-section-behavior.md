@@ -39,7 +39,7 @@ Switch: `selectedLemma` absent => `WordbankListView`, present => `WordbankWordPa
 - Any visible target still `queued` → poll every 1.5s until all reach final state
 - `related_words.status === "queued"` → poll every 1.5s until `ready`/`empty`/`error` (silent, no placeholder)
 - Leaving wordbank/clearing selection → reset details state
-- Loading skeleton delayed 180ms (avoids flicker)
+- Loading skeleton delayed 180ms (avoids flicker) and uses the same scroll/card/grid shells, line heights, and badge heights as the final single-word result layout to avoid visible jumps when details arrive.
 - Poll refresh failures → keep last rendered details, update error banner only
 
 ## List mode behavior (WordbankListView)

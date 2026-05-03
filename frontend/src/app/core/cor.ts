@@ -213,6 +213,28 @@ export function lemmaTranslationWithGloss(
   return `${normalizedLemmaTranslation} (${normalizedGlossTranslation})`
 }
 
+export function lemmaTranslationWithGlossComma(
+  lemmaTranslation: string | null | undefined,
+  glossTranslation: string | null | undefined,
+): string | null {
+  const normalizedLemmaTranslation = normalizedGlossPart(lemmaTranslation)
+  const normalizedGlossTranslation = normalizedGlossPart(glossTranslation)
+  if (!normalizedLemmaTranslation) {
+    return null
+  }
+  if (!normalizedGlossTranslation) {
+    return normalizedLemmaTranslation
+  }
+  const translationParts = normalizedLemmaTranslation
+    .split(",")
+    .map((part) => normalizedGlossPart(part))
+    .filter((part): part is string => Boolean(part))
+  if (translationParts.some((part) => part.localeCompare(normalizedGlossTranslation, "en", { sensitivity: "base" }) === 0)) {
+    return normalizedLemmaTranslation
+  }
+  return `${normalizedLemmaTranslation}, ${normalizedGlossTranslation}`
+}
+
 export function additionalTranslationsDisplay(
   primaryTranslation: string | null | undefined,
   additionalTranslations: string[] | null | undefined,

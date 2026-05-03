@@ -103,7 +103,7 @@ export function WordbankWordPage({
   }, [activeLemmaDetails, isSectioned, selectedMeaningId])
 
   if (isLemmaDetailsLoading && showLemmaDetailsLoadingSkeleton && !activeLemmaDetails) {
-    return <WordbankDetailsLoadingSkeleton />
+    return <WordbankDetailsLoadingSkeleton layout={selectedMeaningId ? "sectioned" : "root"} />
   }
 
   if (!activeLemmaDetails) {

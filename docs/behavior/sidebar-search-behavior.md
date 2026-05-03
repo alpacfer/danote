@@ -84,6 +84,7 @@ Endpoint: `GET /api/wordbank/search/en-form?form=<q>&include_translations=true`
 - For groups with a Danish translation, sidebar looks up the translated Danish form in COR and prefers any matching COR-backed rows.
 - Groups without a matching COR row stay as generated non-COR fallback rows.
 - When one English query has two or more distinct Danish translations, the backend asks Gemini once for short per-choice disambiguation labels and the sidebar shows those compact labels on both COR-backed and fallback rows.
+- While English/COR translation lookup is loading, the `Translated From English` section waits for untranslated COR candidate lookup to determine the exact pending row count, then renders that many placeholders until the translated payload arrives.
 
 ## Cache invalidation
 
@@ -136,9 +137,9 @@ Sorted by best variant score per group:
 ### COR rows
 
 - Primary title = `variant.form`. May show `from <lemma>` when lemma context is useful.
-- Direct Danish-search translations render as their own secondary line, not inline parentheses.
+- Direct Danish-search translations render as their own secondary line. When a translated gloss is available, it is appended on the same line after a comma, e.g. `mother, person`.
 - COR-backed English translation rows hide English source text; they show only the Danish form, except inflected Danish forms still show `from <Danish lemma>` (for example `hunde from hund`).
-- Sense-level gloss translation = separate disambiguation text, not fallback English.
+- Sense-level gloss translation disambiguates the translation line, not fallback English.
 - During loading: skeleton placeholders for translation-dependent text.
 - COR add rows disabled until `saveable_translation` available. Shows `Translation required before saving.` if final payload lacks it.
 - Right icon: `variation + Plus` (meaning matches saved entry), `Plus` otherwise.

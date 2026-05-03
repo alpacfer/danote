@@ -4,6 +4,7 @@ import { WordbankPronunciationWord } from "@/app/sections/wordbank/wordbank-pron
 import { WordbankVerificationPopover } from "@/app/sections/wordbank/wordbank-verification-popover"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import { AudioLines, Languages, Loader2, Sparkles } from "lucide-react"
 
@@ -190,48 +191,104 @@ export function WordbankLemmaHeader({
   )
 }
 
-export function WordbankDetailsLoadingSkeleton() {
+type WordbankDetailsLoadingSkeletonProps = {
+  layout?: "root" | "sectioned"
+}
+
+export function WordbankDetailsLoadingSkeleton({ layout = "root" }: WordbankDetailsLoadingSkeletonProps) {
+  const header = <WordbankHeaderLoadingSkeleton showCategoryRow={layout === "root"} />
+
   return (
-    <div data-testid="wordbank-details-loading-skeleton" className="space-y-4">
-      <div className="space-y-3">
-        <div className="flex justify-end gap-1.5">
+    <div data-testid="wordbank-details-loading-skeleton" className="flex min-h-0 flex-1 flex-col gap-4">
+      <ScrollArea className="min-h-0 flex-1">
+        <div className="space-y-3 pr-1">
+          {layout === "sectioned" ? (
+            <>
+              {header}
+              <div className="grid grid-cols-2 gap-3">
+                {[0, 1].map((item) => (
+                  <WordbankMeaningCardLoadingSkeleton key={`wordbank-details-loading-card-${item}`} />
+                ))}
+              </div>
+            </>
+          ) : (
+            <Card data-testid="wordbank-details-loading-card" className="w-1/2 py-5 border-border/70">
+              <CardContent className="space-y-3">
+                {header}
+                <WordbankParadigmLoadingSkeleton />
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </ScrollArea>
+    </div>
+  )
+}
+
+function WordbankHeaderLoadingSkeleton({ showCategoryRow }: { showCategoryRow: boolean }) {
+  return (
+    <div>
+      {showCategoryRow ? (
+        <div className="flex flex-wrap justify-end gap-1.5">
           <Skeleton className="h-5 w-20 rounded-full" />
           <Skeleton className="h-5 w-24 rounded-full" />
         </div>
-        <div className="flex items-start justify-between gap-3">
-          <Skeleton className="h-9 w-36" />
-          <Skeleton className="h-9 w-12 rounded-md" />
-        </div>
-        <div className="flex flex-wrap gap-1.5">
-          <Skeleton className="h-5 w-14 rounded-full" />
-          <Skeleton className="h-5 w-20 rounded-full" />
-          <Skeleton className="h-5 w-16 rounded-full" />
-        </div>
-        <Skeleton className="h-5 w-40" />
-        <Skeleton className="h-px w-full" />
+      ) : null}
+      <div className="mt-2 flex items-start justify-between gap-3">
+        <Skeleton className="h-9 w-36" />
+        <Skeleton className="h-9 w-9 rounded-md" />
       </div>
-      {[0, 1, 2].map((item) => (
-        <Card
-          key={`wordbank-details-loading-card-${item}`}
-          data-testid="wordbank-details-loading-card"
-          className="py-5 border-border/70"
-        >
-          <CardContent className="space-y-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <Skeleton className="h-5 w-6 rounded-full" />
-              <Skeleton className="h-6 w-28" />
+      {showCategoryRow ? (
+        <>
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            <Skeleton className="h-5 w-14 rounded-full" />
+            <Skeleton className="h-5 w-20 rounded-full" />
+            <Skeleton className="h-5 w-16 rounded-full" />
+          </div>
+          <Skeleton className="mt-2 h-6 w-40" />
+        </>
+      ) : null}
+    </div>
+  )
+}
+
+function WordbankMeaningCardLoadingSkeleton() {
+  return (
+    <Card data-testid="wordbank-details-loading-card" className="py-5 border-border/70">
+      <CardContent className="space-y-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+              <Skeleton className="h-7 w-24" />
+              <Skeleton className="h-5 w-32" />
+            </div>
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
               <Skeleton className="h-5 w-16 rounded-full" />
               <Skeleton className="h-5 w-20 rounded-full" />
             </div>
-            <Skeleton className="h-4 w-44" />
-            <div className="space-y-2">
-              <Skeleton className="h-4 w-32" />
-              <Skeleton className="h-4 w-40" />
-              <Skeleton className="h-4 w-36" />
-            </div>
-          </CardContent>
-        </Card>
-      ))}
+          </div>
+          <div className="flex flex-wrap justify-end gap-1.5 sm:max-w-[45%]">
+            <Skeleton className="h-5 w-20 rounded-full" />
+            <Skeleton className="h-5 w-24 rounded-full" />
+          </div>
+        </div>
+        <WordbankParadigmLoadingSkeleton />
+      </CardContent>
+    </Card>
+  )
+}
+
+function WordbankParadigmLoadingSkeleton() {
+  return (
+    <div className="space-y-3">
+      <div className="space-y-2">
+        {[0, 1, 2].map((row) => (
+          <div key={`wordbank-details-loading-row-${row}`} className="grid grid-cols-[6rem_minmax(0,1fr)] items-center gap-4 py-2">
+            <Skeleton className="h-5 w-20" />
+            <Skeleton className="h-5 w-28" />
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

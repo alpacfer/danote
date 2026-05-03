@@ -89,6 +89,7 @@ export function AppSidebar({
     isEnResolveLoading,
     activeEnTranslatedCorResults,
     isEnTranslatedCorLoading,
+    enTranslatedCorSkeletonCount,
   } = useSidebarSearch({
     wordbankCacheVersion,
     searchTranslationConfigVersion,
@@ -193,6 +194,7 @@ export function AppSidebar({
     enPosGroups: activeEnTranslatedCorResults.fallbackEnPosGroups,
     isEnResolveLoading: isEnResolveLoading,
     isEnTranslatedCorLoading: isEnTranslatedCorLoading,
+    enTranslatedCorSkeletonCount,
   }
 
   const searchResultActions: SidebarSearchResultsActions = {

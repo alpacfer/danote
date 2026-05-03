@@ -40,7 +40,7 @@ describe("App shell and search", () => {
     })
   })
 
-  it("shows saved-word rows as translation plus gloss translation without raw gloss fallback", async () => {
+  it("shows saved-word rows as parenthesized translation plus gloss translation without raw gloss fallback", async () => {
     mockFetchImplementation({
       lemmasResponse: { items: [] },
       searchWordbankResponse: {
@@ -78,6 +78,55 @@ describe("App shell and search", () => {
 
     expect(await within(commandDialog).findByText(/^mother \(soil layer\)$/i)).toBeInTheDocument()
     expect(within(commandDialog).queryByText(/^mother, jordlag$/i)).not.toBeInTheDocument()
+  })
+
+  it("shows Danish COR rows as translation plus gloss translation on one line", async () => {
+    mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      searchWordbankResponse: { items: [] },
+      corSearchFormResponse: {
+        form: "mor",
+        groups: [
+          {
+            lemma: "mor",
+            gloss: "person",
+            pos_tag: "NOUN",
+            variants: [
+              {
+                cor_id: "COR.MOR.PERSON.01",
+                form: "mor",
+                lemma: "mor",
+                gloss: "person",
+                gloss_translation: "person",
+                lemma_translation: "mother",
+                saveable_translation: "mother",
+                gram_raw: "sb.fk.sg.ubest",
+                norm: "N",
+                lemma_idx: 51047,
+                gram_code: 110,
+                variation: 1,
+                pos_tag: "NOUN",
+                morphology: "Gender=Com|Number=Sing|Definite=Ind",
+                features: { Gender: "Com", Number: "Sing", Definite: "Ind" },
+                extra_tags: [],
+              },
+            ],
+          },
+        ],
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    const commandDialog = await screen.findByRole("dialog")
+    const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
+    fireEvent.change(searchInput, { target: { value: "mor" } })
+
+    expect(await within(commandDialog).findByText(/^mother, person$/i)).toBeInTheDocument()
+    expect(within(commandDialog).queryByText(/^mother$/i)).not.toBeInTheDocument()
+    expect(within(commandDialog).queryByText(/^person$/i)).not.toBeInTheDocument()
   })
 
   it("omits raw gloss from saved-word translation lines when gloss translation is missing", async () => {

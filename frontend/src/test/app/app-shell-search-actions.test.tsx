@@ -122,7 +122,7 @@ describe("App shell and search", () => {
     expect((await within(commandDialog).findAllByText(/^Active$/i)).length).toBeGreaterThan(0)
     const verbLemma = await within(commandDialog).findByText(/^at lære$/i, { selector: "em" })
     expect(verbLemma).toBeInTheDocument()
-    expect(await within(commandDialog).findByText(/\(to learn\)/i)).toBeInTheDocument()
+    expect(await within(commandDialog).findByText(/^to learn$/i)).toBeInTheDocument()
     expect(screen.queryByText(/lære \(verb\)/i)).not.toBeInTheDocument()
     expect((await within(commandDialog).findAllByTestId("search-add-icon")).length).toBeGreaterThan(0)
     expect(screen.queryByText(/english -> danish/i)).not.toBeInTheDocument()
@@ -523,8 +523,8 @@ describe("App shell and search", () => {
     const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
     fireEvent.change(searchInput, { target: { value: "mor" } })
 
-    const glossLine = await within(commandDialog).findByText(/^soil layer$/i)
-    const corRow = glossLine.closest("[cmdk-item]")
+    const translationLine = await within(commandDialog).findByText(/^mother, soil layer$/i)
+    const corRow = translationLine.closest("[cmdk-item]")
     expect(corRow).toBeTruthy()
     fireEvent.click(corRow as HTMLElement)
 

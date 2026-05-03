@@ -483,7 +483,7 @@ describe("App wordbank", () => {
     expect((await screen.findAllByRole("button", { name: /Læreren/i })).length).toBeGreaterThan(0)
   })
 
-  it("renderer-only: word page loading uses the redesigned skeleton layout", async () => {
+  it("renderer-only: word page loading uses the final root word-card skeleton layout", async () => {
     mockFetchImplementation({
       lemmasResponse: {
         items: [{ lemma: "bog", variation_count: 1 }],
@@ -502,7 +502,55 @@ describe("App wordbank", () => {
       },
       { timeout: 1000 },
     )
-    expect(screen.getAllByTestId("wordbank-details-loading-card")).toHaveLength(3)
+    const loadingCards = screen.getAllByTestId("wordbank-details-loading-card")
+    expect(loadingCards).toHaveLength(1)
+    expect(loadingCards[0]).toHaveClass("w-1/2")
+  })
+
+  it("renderer-only: word page loading uses the final sectioned skeleton layout for direct meaning opens", async () => {
+    mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      searchWordbankResponse: {
+        items: [
+          {
+            lemma: "mor",
+            display_lemma: "mor",
+            meaning_id: 2,
+            meaning_key: "person",
+            gloss: "person",
+            gloss_translation: "person",
+            variation_count: 1,
+            english_translation: "mother",
+            match_surface: null,
+            query_cor_ids: [],
+            pos_tag: "NOUN",
+            morphology: "Gender=Com|Number=Sing|Definite=Ind",
+          },
+        ],
+      },
+      corSearchFormResponse: {
+        form: "mor",
+        groups: [],
+      },
+      lemmaDetailsHandler: async () => new Promise<Response>(() => {}),
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    const commandDialog = await screen.findByRole("dialog")
+    fireEvent.change(within(commandDialog).getByPlaceholderText(/search words/i), { target: { value: "mor" } })
+    fireEvent.click(await within(commandDialog).findByText(/^mor$/i, { selector: "strong" }))
+
+    await waitFor(
+      () => {
+        expect(screen.getByTestId("wordbank-details-loading-skeleton")).toBeInTheDocument()
+      },
+      { timeout: 1000 },
+    )
+    const loadingCards = screen.getAllByTestId("wordbank-details-loading-card")
+    expect(loadingCards).toHaveLength(2)
+    expect(loadingCards[0]).not.toHaveClass("w-1/2")
   })
 
   it("contract-backed: word page renders translation with gloss translation when the backend supplies both", async () => {

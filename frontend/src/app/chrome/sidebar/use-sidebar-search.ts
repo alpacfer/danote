@@ -62,6 +62,7 @@ export function useSidebarSearch({
     isEnResolveLoading,
     activeEnTranslatedCorResults,
     isEnTranslatedCorLoading,
+    enTranslatedCorSkeletonCount,
   } = useSidebarEnSearch({
     apiClient,
     isEnglishSingleWordQuery,
@@ -94,5 +95,6 @@ export function useSidebarSearch({
     isEnResolveLoading,
     activeEnTranslatedCorResults,
     isEnTranslatedCorLoading,
+    enTranslatedCorSkeletonCount,
   }
 }

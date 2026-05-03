@@ -1,4 +1,4 @@
-import { fireEvent, mockFetchImplementation, renderApp, screen, waitFor, within } from "@/test/app-test-helpers"
+import { fireEvent, mockFetchImplementation, renderApp, responseOf, screen, waitFor, within } from "@/test/app-test-helpers"
 
 describe("App shell and search", () => {
   it("shows variation only for the saved homograph meaning linked to the query form", async () => {
@@ -550,7 +550,7 @@ describe("App shell and search", () => {
     fireEvent.change(searchInput, { target: { value: "bog" } })
 
     expect(await within(commandDialog).findByText(/^bog$/i, { selector: "strong" })).toBeInTheDocument()
-    expect(await within(commandDialog).findByText(/^book$/i)).toBeInTheDocument()
+    expect(await within(commandDialog).findByText(/^book, for reading$/i)).toBeInTheDocument()
     expect(await within(commandDialog).findByText(/^mose$/i, { selector: "strong" })).toBeInTheDocument()
     expect(await within(commandDialog).findByText(/^Translated From English$/i)).toBeInTheDocument()
   })
@@ -637,7 +637,72 @@ describe("App shell and search", () => {
     expect(row).not.toHaveTextContent(/from dogs/i)
   })
 
-  it("does not flash direct COR rows while English lookup is still resolving", async () => {
+  it("shows exact-count translated English skeletons after COR candidates resolve", async () => {
+    mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      searchWordbankResponse: { items: [] },
+      enSearchFormResponse: {
+        form: "run",
+        groups: [
+          { lemma: "run", pos_ud: "VERB", pos_raw: "verb", danish_translation: "løbe", senses: [] },
+          { lemma: "run", pos_ud: "NOUN", pos_raw: "noun", danish_translation: "løb", senses: [] },
+          { lemma: "run", pos_ud: "NOUN", pos_raw: "noun", danish_translation: "række", senses: [] },
+        ],
+      },
+      corSearchFormHandler: async (input) => {
+        const url = new URL(String(input), "http://localhost")
+        const form = url.searchParams.get("form") ?? ""
+        const includeTranslations = url.searchParams.get("include_translations") !== "false"
+        if (form === "run") {
+          return responseOf({ form, groups: [] })
+        }
+        if (includeTranslations) {
+          return new Promise<Response>(() => {})
+        }
+        return responseOf({
+          form,
+          groups: [
+            {
+              lemma: form,
+              gloss: form,
+              pos_tag: form === "løbe" ? "VERB" : "NOUN",
+              variants: [
+                {
+                  cor_id: `COR.${form}`,
+                  form,
+                  lemma: form,
+                  gloss: form,
+                  lemma_translation: null,
+                  saveable_translation: null,
+                  gram_raw: form === "løbe" ? "vb.inf.akt" : "sb.fk.sg.ubest",
+                  norm: "N",
+                  lemma_idx: form.length,
+                  gram_code: 110,
+                  variation: 1,
+                  pos_tag: form === "løbe" ? "VERB" : "NOUN",
+                  morphology: null,
+                  features: {},
+                  extra_tags: [],
+                },
+              ],
+            },
+          ],
+        })
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    const commandDialog = await screen.findByRole("dialog")
+    fireEvent.change(within(commandDialog).getByPlaceholderText(/search words/i), { target: { value: "run" } })
+
+    expect(await within(commandDialog).findAllByTestId("search-en-skeleton")).toHaveLength(3)
+    expect(within(commandDialog).queryByText(/^løbe$/i, { selector: "strong" })).not.toBeInTheDocument()
+  })
+
+  it("does not guess translated English skeletons while English lookup is still resolving", async () => {
     mockFetchImplementation({
       lemmasResponse: { items: [] },
       searchWordbankResponse: { items: [] },
@@ -681,8 +746,8 @@ describe("App shell and search", () => {
     const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
     fireEvent.change(searchInput, { target: { value: "shit" } })
 
-    expect(await within(commandDialog).findAllByTestId("search-en-skeleton")).toHaveLength(2)
     await waitFor(() => {
+      expect(within(commandDialog).queryAllByTestId("search-en-skeleton")).toHaveLength(0)
       expect(within(commandDialog).queryByText(/^shit$/i, { selector: "strong" })).not.toBeInTheDocument()
     })
   })

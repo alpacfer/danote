@@ -64,6 +64,7 @@ export type SidebarSearchResultsData = {
   enPosGroups: ENPosGroup[]
   isEnResolveLoading: boolean
   isEnTranslatedCorLoading: boolean
+  enTranslatedCorSkeletonCount: number
 }
 
 export type SidebarSearchResultsActions = {
@@ -130,7 +131,8 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
     && (!shouldResolveEnglishAmbiguity || !data.isCorTranslationsLoading)
   const showEnFallbackResults = data.enPosGroups.length > 0 && !isAnyEnLoading
   const hasTranslatedEnCorResults = data.translatedEnCorVariantsToRender.length > 0
-  const hasTranslatedEnSection = hasTranslatedEnCorResults || isAnyEnLoading || showEnFallbackResults
+  const showEnSkeletonResults = data.isEnTranslatedCorLoading && data.enTranslatedCorSkeletonCount > 0
+  const hasTranslatedEnSection = hasTranslatedEnCorResults || showEnSkeletonResults || showEnFallbackResults
 
   // Suppress DYM when COR has a direct match, EN has results, or EN is loading — the query is valid in some language.
   const dymSuggestion = (hasDirectCor || hasEnResults || isAnyEnLoading) ? null : (state.wordbankDidYouMean ?? state.corDidYouMean)
@@ -250,8 +252,8 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
                 onCloseSearch={actions.onCloseSearch}
               />
             ) : null}
-            {isAnyEnLoading ? (
-              [0, 1].map((i) => (
+            {showEnSkeletonResults ? (
+              Array.from({ length: data.enTranslatedCorSkeletonCount }, (_, i) => (
                 <CommandItem
                   key={`en-skeleton-${i}`}
                   disabled
