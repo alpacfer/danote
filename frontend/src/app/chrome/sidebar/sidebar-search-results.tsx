@@ -98,13 +98,13 @@ function isSelfTranslatedCorVariant(variant: CORSearchVariant, normalizedQuery: 
 }
 
 export function SidebarSearchResults({ state, data, actions }: SidebarSearchResultsProps) {
-  if (state.isSentenceMode && (data.sentenceSearchPreview || data.isSentenceSearchPreviewLoading)) {
+  if (state.isSentenceMode) {
     return (
       <CommandList>
         <SidebarSentenceResult
           key={data.isSentenceSearchPreviewLoading ? "sentence-result-loading" : "sentence-result-ready"}
           sentenceSearchPreview={data.sentenceSearchPreview}
-          isSentenceSearchPreviewLoading={data.isSentenceSearchPreviewLoading}
+          isSentenceSearchPreviewLoading={data.isSentenceSearchPreviewLoading || !data.sentenceSearchPreview}
           onSaveSentence={actions.onAddSentenceFromSearch}
         />
       </CommandList>

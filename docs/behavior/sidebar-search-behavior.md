@@ -30,6 +30,7 @@ Exact behavior of sidebar command search ("Search words...").
 - Preview endpoint: `POST /api/sentencebank/search-preview`.
 - Result set: exactly one row under `Sentence`.
 - While sentence mode is active, sidebar suppresses saved-word, COR, and page groups.
+- Sentence mode owns the result area immediately and shows the sentence loading row during debounce/request gaps; generic `No results found.` is never shown for an in-progress sentence query.
 - Sidebar uses adaptive debounce before sentence preview: 200 ms for heuristic Danish queries, 350 ms for heuristic English/unknown queries.
 - After that debounce, sidebar fires two sentence-preview requests in parallel for the same normalized query:
   - `fast: true` for immediate preview feedback
@@ -38,7 +39,7 @@ Exact behavior of sidebar command search ("Search words...").
 - Preview requests receive whitespace-normalized sentence text with the user's capitalization preserved.
 - Danish and unknown-language queries stay in Danish-first flow: the fast result skips verification and the full result verifies the typed sentence, uses corrected Danish text when available, then returns the English translation for that finalized Danish sentence.
 - Explicit English queries switch flow: the fast result uses heuristic language detection plus translation only, and the full result translates the corrected or normalized English sentence to Danish without a second Danish verification pass.
-- English-origin previews render an inline language indicator instead of a separate badge/helper row.
+- English-origin previews render without a visible translation indicator or helper row.
 - Input underline overlay only appears for non-English previews with verification errors. English-origin queries do not underline the raw English input.
 - Sentence translation display is sentence-cased; the UI no longer lowercases translation text.
 - Sentence verification corrections preserve initial capitalization and must not append a trailing period unless the source already has one.

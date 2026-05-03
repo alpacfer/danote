@@ -1,4 +1,4 @@
-import { Languages, Loader2, Plus } from "lucide-react"
+import { Loader2, Plus } from "lucide-react"
 
 import { formatSentenceTranslation, type SentenceSearchPreviewResponse } from "@/app/core"
 import { CommandGroup, CommandItem } from "@/components/ui/command"
@@ -22,7 +22,6 @@ export function SidebarSentenceResult({
     || isBlocked
   const displayText = sentenceSearchPreview?.source_text?.trim() ?? null
   const displayTranslation = formatSentenceTranslation(sentenceSearchPreview?.english_translation)
-  const isEnglishQuery = sentenceSearchPreview?.query_language === "en"
   const secondaryText = sentenceSearchPreview?.message
     ? sentenceSearchPreview.message
     : (displayTranslation ?? null)
@@ -43,7 +42,6 @@ export function SidebarSentenceResult({
           {displayText ? (
             <span className="flex items-center gap-1">
               <p className="line-clamp-2 text-sm font-semibold break-words">{displayText}</p>
-              {isEnglishQuery ? <Languages size={8} className="shrink-0 text-muted-foreground/60" aria-label="Translated from English" /> : null}
             </span>
           ) : isSentenceSearchPreviewLoading ? (
             <Skeleton

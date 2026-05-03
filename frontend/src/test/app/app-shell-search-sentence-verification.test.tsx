@@ -15,6 +15,25 @@ function getSentenceOption(dialog: HTMLElement) {
 }
 
 describe("Sentence verification in search", () => {
+  it("keeps the sentence loading row visible during debounce instead of flashing no results", async () => {
+    mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      sentenceSearchPreviewHandler: async () => new Promise<Response>(() => {}),
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    const dialog = await openSearch()
+    typeInSearch(dialog, "jeg er glad")
+
+    expect(within(dialog).queryByText(/^No results found\.$/i)).not.toBeInTheDocument()
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 50))
+    })
+    expect(within(dialog).queryByText(/^No results found\.$/i)).not.toBeInTheDocument()
+  })
+
   it("shows verification loading UI while verifying a sentence", async () => {
     const resolvers: Array<() => void> = []
     mockFetchImplementation({
@@ -588,7 +607,7 @@ it("underlines the typo in the input and shows only the correction plus correcte
     }, { timeout: 5_000 })
   })
 
-  it("shows translated-from-English icon, no raw-input underline, and saves the Danish preview", async () => {
+  it("shows no translated-from-English indicator or raw-input underline and saves the Danish preview", async () => {
     const fetchSpy = mockFetchImplementation({
       lemmasResponse: { items: [] },
       sentenceSearchPreviewResponse: {
@@ -616,7 +635,8 @@ it("underlines the typo in the input and shows only the correction plus correcte
     const dialog = await openSearch()
     typeInSearch(dialog, "I am happy")
 
-    expect(await within(dialog).findByLabelText("Translated from English")).toBeInTheDocument()
+    expect(await within(dialog).findByText(/^jeg er glad$/i)).toBeInTheDocument()
+    expect(within(dialog).queryByLabelText("Translated from English")).not.toBeInTheDocument()
     expect(within(dialog).queryByText("EN→DA")).not.toBeInTheDocument()
     expect(within(dialog).queryByText("Auto-translated from English")).not.toBeInTheDocument()
     expect(within(dialog).queryByTestId("sentence-search-input-overlay")).not.toBeInTheDocument()
