@@ -6,17 +6,19 @@ import {
   isShortLetterWord,
   type CORSearchFormResponse,
 } from "@/app/core"
+import { getHvQuestionEntry } from "@/app/sections/wordbank/hv-questions/hv-question-data"
+import { getPronounCategory } from "@/app/sections/wordbank/pronouns/pronouns-data"
 import { hasExactCorFormMatch } from "@/app/chrome/sidebar/sidebar-search-query"
 import type { CorFormSearchResult, SidebarApiClient } from "@/app/chrome/sidebar/sidebar-search-types"
 
 export function useSidebarCorSearch({
   apiClient,
-  isSentenceMode,
+  shouldSkipLookup,
   normalizedQuery,
   resetVersion,
 }: {
   apiClient: SidebarApiClient
-  isSentenceMode: boolean
+  shouldSkipLookup: boolean
   normalizedQuery: string
   resetVersion: string
 }) {
@@ -36,9 +38,17 @@ export function useSidebarCorSearch({
   }, [resetVersion])
 
   useEffect(() => {
-    if (isSentenceMode || !normalizedQuery || /\s/u.test(normalizedQuery) || isShortLetterWord(normalizedQuery)) {
+    if (
+      shouldSkipLookup
+      || !normalizedQuery
+      || /\s/u.test(normalizedQuery)
+      || isShortLetterWord(normalizedQuery)
+      || getHvQuestionEntry(normalizedQuery)
+      || getPronounCategory(normalizedQuery)
+    ) {
       setIsCorTranslationsLoading(false)
       setCorDidYouMean(null)
+      setCorFormSearchResult(null)
       return
     }
 
@@ -96,7 +106,7 @@ export function useSidebarCorSearch({
       controller.abort()
       setIsCorTranslationsLoading(false)
     }
-  }, [apiClient, isSentenceMode, normalizedQuery, resetVersion])
+  }, [apiClient, normalizedQuery, resetVersion, shouldSkipLookup])
 
   return { corDidYouMean, corFormSearchResult, isCorTranslationsLoading }
 }

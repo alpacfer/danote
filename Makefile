@@ -1,4 +1,4 @@
-.PHONY: help setup-backend setup-backend-search setup-frontend setup lint lint-backend maintainability-check test pytest-backend test-backend-fast test-backend-unit test-backend-api test-backend-medium test-backend-slow test-backend-perf test-frontend docs-smoke agent-verify dev
+.PHONY: help setup-backend setup-backend-search setup-frontend setup lint lint-backend maintainability-check test pytest-backend test-backend-fast test-backend-unit test-backend-api test-backend-medium test-backend-slow test-backend-perf test-frontend docs-smoke agent-verify dev seed-numbers-audio
 
 BACKEND_DIR := backend
 FRONTEND_DIR := frontend
@@ -31,6 +31,7 @@ help:
 	@echo "  docs-smoke          Run command smoke checks used by documentation"
 	@echo "  agent-verify        Run full agent self-verification pipeline"
 	@echo "  dev                 Start backend + frontend via scripts/run-project.sh"
+	@echo "  seed-numbers-audio  Pregenerate number audio. Usage: make seed-numbers-audio KEY=<api-key> [REGION=<region>]"
 
 setup-backend:
 	uv python install 3.11
@@ -93,3 +94,6 @@ dev:
 
 agent-verify:
 	./scripts/agent-self-verify.sh
+
+seed-numbers-audio:
+	$(BACKEND_PY) $(BACKEND_DIR)/scripts/seed_numbers_audio.py --api-key $(KEY) $(if $(REGION),--region $(REGION),) $(ARGS)

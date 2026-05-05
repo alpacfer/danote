@@ -152,6 +152,92 @@ describe("App sentencebank", () => {
     expect(screen.getByText(/^love$/i)).toBeInTheDocument()
   })
 
+  it("clicking a pronoun token opens the shared pronouns page", async () => {
+    const fetchSpy = mockFetchImplementation({
+      lemmasResponse: {
+        items: [{ lemma: "du", variation_count: 1 }],
+      },
+      sentencebankResponse: {
+        items: [
+          {
+            id: 1,
+            source_text: "Du elsker dansk",
+            english_translation: "you love danish",
+            created_at: "2026-05-03T12:00:00.000Z",
+            tokens: [
+              {
+                token_index: 0,
+                surface_form: "Du",
+                stored_lemma: "du",
+                lexeme_id: 11,
+                meaning_id: null,
+                pos_tag: "PRON",
+                morphology: "PronType=Prs|Case=Nom|Person=2|Number=Sing",
+                english_translation: "you",
+                gloss_translation: null,
+              },
+            ],
+          },
+        ],
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /sentencebank/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /du elsker dansk/i }))
+    fireEvent.click((await screen.findByText(/^du$/i)).closest("button") as HTMLButtonElement)
+
+    expect(await screen.findByRole("heading", { name: /personal pronouns/i })).toBeInTheDocument()
+    expect(screen.getByRole("heading", { name: /possessive pronouns/i })).toBeInTheDocument()
+    expect(screen.getAllByText(/^du$/i).length).toBeGreaterThan(0)
+    expect(fetchSpy.mock.calls.some(([input]) => String(input).includes("__pronouns_personal_possessive"))).toBe(false)
+  })
+
+  it("clicking an hv token opens the shared question words page with related sentences", async () => {
+    const fetchSpy = mockFetchImplementation({
+      lemmasResponse: {
+        items: [{ lemma: "hvor", variation_count: 1 }],
+      },
+      sentencebankResponse: {
+        items: [
+          {
+            id: 2,
+            source_text: "Hvor bor du?",
+            english_translation: "where do you live?",
+            created_at: "2026-05-03T12:00:00.000Z",
+            tokens: [
+              {
+                token_index: 0,
+                surface_form: "Hvor",
+                stored_lemma: "hvor",
+                lexeme_id: 12,
+                meaning_id: null,
+                pos_tag: "ADV",
+                morphology: "PronType=Int",
+                english_translation: "where",
+                gloss_translation: null,
+              },
+            ],
+          },
+        ],
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /sentencebank/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /hvor bor du/i }))
+    fireEvent.click((await screen.findByText(/^hvor$/i)).closest("button") as HTMLButtonElement)
+
+    expect(await screen.findByRole("heading", { name: /place, time, manner and reason/i })).toBeInTheDocument()
+    expect(screen.getAllByText(/^hvor$/i).length).toBeGreaterThan(0)
+    expect(screen.getByText(/where do you live/i)).toBeInTheDocument()
+    expect(fetchSpy.mock.calls.some(([input]) => String(input).includes("__hv_questions"))).toBe(false)
+  })
+
   it("clicking an unsaved sentence token saves it through the sentence-token flow", async () => {
     const fetchSpy = mockFetchImplementation({
       lemmaDetailsResponse: {

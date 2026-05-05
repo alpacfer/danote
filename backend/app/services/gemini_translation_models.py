@@ -73,6 +73,8 @@ class ExampleSentenceGenerationInput:
     morphology: str | None = None
     cor_lemma_idx: int | None = None
     surface_forms: list[str] = field(default_factory=list)
+    tense_label: str | None = None
+    existing_examples: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True, slots=True)

@@ -29,6 +29,7 @@ export type DeveloperSectionProps = {
   isTestingGemini: boolean
   geminiProbeResult: GeminiProbeResponse | null
   isResettingDatabase: boolean
+  isSeedingNumbersAudio: boolean
   onTranslationProviderChange: (value: "deepl" | "azure") => void
   onDeveloperTranslationAzureApiKeyChange: (value: string) => void
   onDeveloperTranslationAzureRegionChange: (value: string) => void
@@ -44,6 +45,7 @@ export type DeveloperSectionProps = {
   onRunSpeechProbe: () => void
   onRunGeminiProbe: () => void
   onResetDatabase: () => void
+  onSeedNumbersAudio: () => void
 }
 
 export function DeveloperSection(props: DeveloperSectionProps) {
@@ -108,7 +110,9 @@ export function DeveloperSection(props: DeveloperSectionProps) {
         <TabsContent value="database">
           <DatabaseTab
             isResettingDatabase={props.isResettingDatabase}
+            isSeedingNumbersAudio={props.isSeedingNumbersAudio}
             onResetDatabase={props.onResetDatabase}
+            onSeedNumbersAudio={props.onSeedNumbersAudio}
           />
         </TabsContent>
       </div>

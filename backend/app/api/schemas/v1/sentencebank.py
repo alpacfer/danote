@@ -64,6 +64,11 @@ class SaveSentenceTokenResponse(SentenceSummary):
 class GenerateExamplePreviewRequest(BaseModel):
     stored_lemma: str = Field(..., min_length=1)
     meaning_id: int = Field(..., ge=1)
+    tense_label: str | None = None
+
+
+class GenerateStaticExamplePreviewRequest(BaseModel):
+    stored_lemma: str = Field(..., min_length=1)
 
 
 class GenerateExamplePreviewResponse(BaseModel):

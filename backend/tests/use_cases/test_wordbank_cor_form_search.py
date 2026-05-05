@@ -2,16 +2,41 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
 from app.services.cor_local import CORLocalEntry
 from app.services.use_cases.wordbank import WordbankUseCase
 from tests.helpers.factories import _db_path
 from tests.helpers.fakes import (
     FakeCORLocalLexiconService,
-    FakeGeminiWordTranslationService,
     FakeTranslationService,
 )
+
+
+def test_wordbank_search_cor_form_uses_static_pronoun_without_cor_or_translation(tmp_path: Path) -> None:
+    translation_service = FakeTranslationService({"du": "provider should not be used"})
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        translation_service=translation_service,
+        cor_local_lexicon_service=None,
+    )
+
+    response = use_case.search_cor_form("du")
+
+    assert translation_service.calls == []
+    assert response.groups[0].lemma == "du"
+    assert response.groups[0].variants[0].lemma_translation == "you"
+    assert response.groups[0].variants[0].saveable_translation == "you"
+    assert response.groups[0].variants[0].pos_tag == "PRON"
+
+
+def test_wordbank_search_en_form_uses_static_pronoun_without_en_lexicon(tmp_path: Path) -> None:
+    use_case = WordbankUseCase(_db_path(tmp_path))
+
+    response = use_case.search_en_form("you")
+
+    assert response.groups[0].danish_translation == "du"
+    assert response.groups[0].pos_ud == "PRON"
+    assert response.groups[0].senses[0].danish_translation == "du"
+
 
 def test_wordbank_search_cor_form_groups_variants_by_lemma_gloss_pos(tmp_path: Path) -> None:
     local_cor = FakeCORLocalLexiconService(

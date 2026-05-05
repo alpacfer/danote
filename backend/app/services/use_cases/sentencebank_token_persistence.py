@@ -4,6 +4,8 @@ from typing import TYPE_CHECKING
 
 from app.db.repositories.sentencebank import SentenceTokenWriteRecord
 from app.services.token_classifier import normalize_token
+from app.services.use_cases.static_hv_words import static_hv_word_for_token
+from app.services.use_cases.static_pronouns import static_pronoun_for_token
 from app.services.use_cases.wordbank.gloss_translations import meaning_gloss_translation
 from app.services.use_cases.wordbank.pronunciation_queue import queue_pronunciation_generation
 from app.services.use_cases.wordbank.related_words_queue import queue_related_words_resolution
@@ -103,6 +105,102 @@ def existing_saved_token(
                 meaning_id=saved_lemma.meaning_id,
             )
     return None
+
+
+def save_static_pronoun_sentence_token(
+    runtime: WordbankRuntime,
+    *,
+    token_index: int,
+    display_surface: str,
+    normalized_surface: str,
+) -> tuple[SentenceTokenWriteRecord, bool] | None:
+    pronoun = static_pronoun_for_token(normalized_surface)
+    if pronoun is None:
+        return None
+    lexeme_id, _inserted_lexeme = runtime.repository.insert_or_load_lexeme(
+        stored_lemma=pronoun.lemma,
+        translation=pronoun.english_translation,
+        provider="static_pronoun",
+        pos_tag=pronoun.pos_tag,
+        morphology=pronoun.morphology,
+        source="static",
+    )
+    _surface_form, _inserted_surface_form = runtime.repository.insert_or_update_surface_form(
+        lexeme_id=lexeme_id,
+        meaning_id=None,
+        form=pronoun.lemma,
+        pos_tag=pronoun.pos_tag,
+        morphology=pronoun.morphology,
+        source="static",
+    )
+    runtime.nlp.add_user_lexeme(pronoun.lemma)
+    runtime.nlp.invalidate_pos_cache(pronoun.lemma, normalized_surface)
+    return (
+        SentenceTokenWriteRecord(
+            token_index=token_index,
+            surface_form=display_surface,
+            normalized_surface=normalized_surface,
+            lemma_candidate=pronoun.lemma,
+            stored_lemma=pronoun.lemma,
+            lexeme_id=lexeme_id,
+            meaning_id=None,
+            cor_id=None,
+            pos_tag=pronoun.pos_tag,
+            morphology=pronoun.morphology,
+            gloss=None,
+            english_translation=pronoun.english_translation,
+            gloss_translation=None,
+        ),
+        False,
+    )
+
+
+def save_static_hv_word_sentence_token(
+    runtime: WordbankRuntime,
+    *,
+    token_index: int,
+    display_surface: str,
+    normalized_surface: str,
+) -> tuple[SentenceTokenWriteRecord, bool] | None:
+    hv_word = static_hv_word_for_token(normalized_surface)
+    if hv_word is None:
+        return None
+    lexeme_id, _inserted_lexeme = runtime.repository.insert_or_load_lexeme(
+        stored_lemma=hv_word.lemma,
+        translation=hv_word.english_translation,
+        provider="static_hv_word",
+        pos_tag=hv_word.pos_tag,
+        morphology=hv_word.morphology,
+        source="static",
+    )
+    _surface_form, _inserted_surface_form = runtime.repository.insert_or_update_surface_form(
+        lexeme_id=lexeme_id,
+        meaning_id=None,
+        form=hv_word.lemma,
+        pos_tag=hv_word.pos_tag,
+        morphology=hv_word.morphology,
+        source="static",
+    )
+    runtime.nlp.add_user_lexeme(hv_word.lemma)
+    runtime.nlp.invalidate_pos_cache(hv_word.lemma, normalized_surface)
+    return (
+        SentenceTokenWriteRecord(
+            token_index=token_index,
+            surface_form=display_surface,
+            normalized_surface=normalized_surface,
+            lemma_candidate=hv_word.lemma,
+            stored_lemma=hv_word.lemma,
+            lexeme_id=lexeme_id,
+            meaning_id=None,
+            cor_id=None,
+            pos_tag=hv_word.pos_tag,
+            morphology=hv_word.morphology,
+            gloss=None,
+            english_translation=hv_word.english_translation,
+            gloss_translation=None,
+        ),
+        False,
+    )
 
 
 def sentence_token_from_saved_word(

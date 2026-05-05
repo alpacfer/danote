@@ -74,6 +74,7 @@ describe("section prop adapters", () => {
     const rethinkCategories = vi.fn(async () => undefined)
     const completeMeaningVariations = vi.fn(async () => undefined)
     const generateExampleForMeaning = vi.fn(async () => undefined)
+    const generateStaticExampleForLemma = vi.fn(async () => undefined)
     const apply = vi.fn(async () => undefined)
     const retry = vi.fn(async () => undefined)
     const rerun = vi.fn(async () => undefined)
@@ -108,6 +109,9 @@ describe("section prop adapters", () => {
       completeMeaningVariations,
       generatingExampleByMeaningId: {},
       generateExampleForMeaning,
+      generatingStaticExampleByLemma: {},
+      generateStaticExampleForLemma,
+      sentences: [],
       verificationOverview: {
         targets: [],
         queuedCount: 0,
@@ -141,6 +145,7 @@ describe("section prop adapters", () => {
     result.onRetryVerificationTarget("bog::root::root")
     result.onRerunMeaningVerification(12)
     result.onRevertVerificationChange(4)
+    result.onGenerateStaticExample("hvor")
 
     await Promise.resolve()
 
@@ -154,6 +159,7 @@ describe("section prop adapters", () => {
     expect(retry).toHaveBeenCalledTimes(1)
     expect(rerun).toHaveBeenCalledWith(12)
     expect(revertChange).toHaveBeenCalledWith(4)
+    expect(generateStaticExampleForLemma).toHaveBeenCalledWith("hvor")
     result.onOpenSentence?.(41)
     expect(openSentence).toHaveBeenCalledWith(41)
     expect(result.selectedMeaningId).toBe(12)
@@ -185,6 +191,7 @@ describe("section prop adapters", () => {
       isTestingGemini: false,
       geminiProbeResult: null,
       isResettingDatabase: false,
+      isSeedingNumbersAudio: false,
       setTranslationProvider: vi.fn(),
       setDeveloperTranslationAzureApiKey: vi.fn(),
       setDeveloperTranslationAzureRegion: vi.fn(),
@@ -200,6 +207,7 @@ describe("section prop adapters", () => {
       runSpeechProbe: vi.fn(async () => undefined),
       runGeminiProbe: vi.fn(async () => undefined),
       resetDatabase,
+      seedNumbersAudio: vi.fn(async () => undefined),
     })
 
     result.onSaveDeveloperApiKeys()

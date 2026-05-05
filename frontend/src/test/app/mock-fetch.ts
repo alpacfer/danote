@@ -691,6 +691,11 @@ export function mockFetchImplementation(options?: {
     english_translation: string
   }
   examplePreviewHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+  staticExamplePreviewResponse?: {
+    source_text: string
+    english_translation: string
+  }
+  staticExamplePreviewHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
   sentencePronunciationHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
   sentencePronunciationAudioHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
   verifySentenceResponse?: {
@@ -1016,6 +1021,7 @@ export function mockFetchImplementation(options?: {
     source_text: "jeg læser en bog",
     english_translation: "I am reading a book.",
   }
+  const staticExamplePreviewResponse = options?.staticExamplePreviewResponse ?? examplePreviewResponse
   const verifySentenceResponse = options?.verifySentenceResponse ?? {
     is_valid: true,
     errors: [],
@@ -1471,6 +1477,13 @@ export function mockFetchImplementation(options?: {
         return options.examplePreviewHandler(input, init)
       }
       return responseOf(examplePreviewResponse)
+    }
+
+    if (url.endsWith("/api/sentencebank/static-example-preview")) {
+      if (options?.staticExamplePreviewHandler) {
+        return options.staticExamplePreviewHandler(input, init)
+      }
+      return responseOf(staticExamplePreviewResponse)
     }
 
     if (url.endsWith("/api/sentencebank/sentences") && init?.method === "POST") {

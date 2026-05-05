@@ -61,6 +61,9 @@ export function useAppController() {
       completeMeaningVariations: wordbank.completeMeaningVariations,
       generatingExampleByMeaningId: wordbank.generatingExampleByMeaningId,
       generateExampleForMeaning: wordbank.generateExampleForMeaning,
+      generatingStaticExampleByLemma: wordbank.generatingStaticExampleByLemma,
+      generateStaticExampleForLemma: wordbank.generateStaticExampleForLemma,
+      sentences: lexiconData.sentences,
       verificationOverview: wordbank.verificationOverview,
       verificationChanges: wordbank.verificationChanges,
       isLoadingVerificationChanges: wordbank.isLoadingVerificationChanges,
@@ -115,6 +118,7 @@ export function useAppController() {
       isTestingGemini: developerSettings.isTestingGemini,
       geminiProbeResult: developerSettings.geminiProbeResult,
       isResettingDatabase: developerSettings.isResettingDatabase,
+      isSeedingNumbersAudio: developerSettings.isSeedingNumbersAudio,
       setTranslationProvider: developerSettings.setTranslationProvider,
       setDeveloperTranslationAzureApiKey: developerSettings.setDeveloperTranslationAzureApiKey,
       setDeveloperTranslationAzureRegion: developerSettings.setDeveloperTranslationAzureRegion,
@@ -130,6 +134,7 @@ export function useAppController() {
       runSpeechProbe: developerSettings.runSpeechProbe,
       runGeminiProbe: developerSettings.runGeminiProbe,
       resetDatabase: developerSettings.resetDatabase,
+      seedNumbersAudio: developerSettings.seedNumbersAudio,
     }),
   }
 
@@ -162,7 +167,11 @@ export function useAppController() {
     sectionProps,
     generatedExamplePreview: wordbank.generatedExamplePreview,
     isGeneratingExample: wordbank.generatedExamplePreview
-      ? Boolean(wordbank.generatingExampleByMeaningId[wordbank.generatedExamplePreview.target.meaning_id])
+      ? (
+        wordbank.generatedExamplePreview.target.kind === "wordbank"
+          ? Boolean(wordbank.generatingExampleByMeaningId[wordbank.generatedExamplePreview.target.meaning_id])
+          : Boolean(wordbank.generatingStaticExampleByLemma[wordbank.generatedExamplePreview.target.stored_lemma])
+      )
       : false,
     isSavingGeneratedExample: wordbank.isSavingSentence,
     saveGeneratedExample: wordbank.saveGeneratedExample,

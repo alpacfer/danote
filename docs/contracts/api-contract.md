@@ -67,6 +67,12 @@ Routes: `backend/app/api/routes/`. DTOs: `backend/app/api/schemas/v1/`.
 - **Notable status/error behavior:** `404` target meaning not found. `503` DB unavailable/locked or Gemini example generation unavailable. `400` invalid inputs.
 - **Field invariants:** Gemini receives the saved lemma, selected meaning id/key, gloss, translated gloss, English translation, additional translations, POS/morphology, COR lemma index, and saved surface forms. The response is a short Danish sentence plus natural English translation, with the Danish example normalized to start lowercase and omit a trailing period. The preview is not persisted until the client saves it.
 
+### POST `/api/sentencebank/static-example-preview`
+- **Request model:** `GenerateStaticExamplePreviewRequest` (`stored_lemma`).
+- **Response model:** `GenerateExamplePreviewResponse` (`source_text`, `english_translation`).
+- **Notable status/error behavior:** `404` static word not found. `503` DB unavailable/locked. `400` invalid inputs.
+- **Field invariants:** currently supports built-in HV question words. Gemini may generate the preview when available; otherwise the backend returns a curated static example. Saving the preview uses normal sentence `auto_save_all` token persistence so static HV metadata is applied.
+
 ### GET `/api/sentencebank/sentences`
 - **Request model:** none.
 - **Response model:** `SentenceListResponse`.

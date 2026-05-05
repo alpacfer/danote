@@ -8,6 +8,9 @@ import {
 } from "@/components/ui/breadcrumb"
 
 import { type AppSection } from "@/app/core"
+import { parseHvQuestionSentinel } from "@/app/sections/wordbank/hv-questions/hv-question-data"
+import { parseNumbersSentinel } from "@/app/sections/wordbank/numbers/numbers-data"
+import { parsePronounSentinel, PRONOUN_CATEGORY_LABELS } from "@/app/sections/wordbank/pronouns/pronouns-data"
 
 export type AppBreadcrumbProps = {
   activeSection: AppSection
@@ -20,6 +23,15 @@ export function AppBreadcrumb({
   selectedLemma,
   onSelectWordbank,
 }: AppBreadcrumbProps) {
+  const pronounCategory = selectedLemma ? parsePronounSentinel(selectedLemma) : null
+  const pageLabel = selectedLemma && parseHvQuestionSentinel(selectedLemma)
+    ? "HV Question Words"
+    : selectedLemma && parseNumbersSentinel(selectedLemma)
+      ? "Numbers"
+      : pronounCategory
+        ? PRONOUN_CATEGORY_LABELS[pronounCategory]
+        : selectedLemma
+
   if (activeSection === "developer") {
     return (
       <Breadcrumb>
@@ -62,7 +74,7 @@ export function AppBreadcrumb({
           <>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
-              <BreadcrumbPage>{selectedLemma}</BreadcrumbPage>
+              <BreadcrumbPage>{pageLabel}</BreadcrumbPage>
             </BreadcrumbItem>
           </>
         )}

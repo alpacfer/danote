@@ -8,8 +8,8 @@ from app.services.use_cases.analyze import AnalyzeNoteUseCase
 from app.services.use_cases.wordbank import WordbankUseCase
 from tests.helpers.factories import _bog_homograph_cor_local, _cor_local_entry, _db_path
 from tests.helpers.fakes import (
-    FakeCORLocalLexiconService,
     FakeCORLexiconService,
+    FakeCORLocalLexiconService,
     FakeGeminiWordTranslationService,
     FakeTranslationService,
 )
@@ -25,6 +25,96 @@ def test_wordbank_search_lemmas_matches_variations(tmp_path: Path) -> None:
     assert len(result.items) == 1
     assert result.items[0].lemma == "bog"
     assert result.items[0].match_surface == "bogens"
+
+
+def test_wordbank_resolve_query_uses_static_danish_pronoun_without_providers(tmp_path: Path) -> None:
+    translation_service = FakeTranslationService({"du": "provider should not be used"})
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        translation_service=translation_service,
+        cor_local_lexicon_service=FakeCORLocalLexiconService(),
+    )
+
+    resolved = use_case.resolve_query("Du")
+
+    assert translation_service.calls == []
+    assert resolved.classification == "known"
+    assert resolved.query_surface == "du"
+    assert resolved.resolved_lemma == "du"
+    assert resolved.da_to_en_translation == "you"
+    assert resolved.query_pos_tag == "PRON"
+    assert resolved.query_morphology == "PronType=Prs|Case=Nom|Person=2|Number=Sing"
+    assert resolved.word_actions[0].action_type == "open_wordbank"
+    assert resolved.word_actions[0].lemma == "du"
+    assert resolved.word_actions[0].translation_label == "you"
+
+
+def test_wordbank_resolve_query_uses_static_english_pronoun_without_providers(tmp_path: Path) -> None:
+    translation_service = FakeTranslationService({"you": "provider should not be used"}, detected_languages={"you": "EN"})
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        translation_service=translation_service,
+        cor_local_lexicon_service=FakeCORLocalLexiconService(),
+    )
+
+    resolved = use_case.resolve_query("you")
+
+    assert translation_service.calls == []
+    assert resolved.classification == "known"
+    assert resolved.query_language == "en"
+    assert resolved.en_to_da_translation == "du"
+    assert resolved.resolved_lemma == "du"
+    assert resolved.en_to_da_morphology == "PronType=Prs|Case=Nom|Person=2|Number=Sing"
+    assert resolved.word_actions[0].action_type == "open_wordbank"
+    assert resolved.word_actions[0].surface == "du"
+
+
+def test_wordbank_resolve_query_uses_static_hv_word_without_providers(tmp_path: Path) -> None:
+    translation_service = FakeTranslationService({"hvor": "provider should not be used"}, detected_languages={"where": "EN"})
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        translation_service=translation_service,
+        cor_local_lexicon_service=FakeCORLocalLexiconService(),
+    )
+
+    danish_resolved = use_case.resolve_query("Hvor")
+    english_resolved = use_case.resolve_query("where")
+
+    assert translation_service.calls == []
+    assert danish_resolved.classification == "known"
+    assert danish_resolved.resolved_lemma == "hvor"
+    assert danish_resolved.da_to_en_translation == "where"
+    assert danish_resolved.query_pos_tag == "ADV"
+    assert english_resolved.query_language == "en"
+    assert english_resolved.en_to_da_translation == "hvor"
+    assert english_resolved.word_actions[0].lemma == "hvor"
+
+
+def test_wordbank_search_lemmas_returns_static_pronouns_as_saved_defaults(tmp_path: Path) -> None:
+    use_case = WordbankUseCase(_db_path(tmp_path))
+
+    danish_result = use_case.search_lemmas("du")
+    english_result = use_case.search_lemmas("you")
+
+    assert danish_result.items[0].lemma == "du"
+    assert danish_result.items[0].english_translation == "you"
+    assert danish_result.items[0].pos_tag == "PRON"
+    assert english_result.items[0].lemma == "du"
+    assert english_result.items[0].match_surface == "you"
+
+
+def test_wordbank_search_lemmas_returns_static_hv_words_as_saved_defaults(tmp_path: Path) -> None:
+    use_case = WordbankUseCase(_db_path(tmp_path))
+
+    danish_result = use_case.search_lemmas("hvorfor")
+    english_result = use_case.search_lemmas("why")
+
+    assert danish_result.items[0].lemma == "hvorfor"
+    assert danish_result.items[0].english_translation == "why"
+    assert danish_result.items[0].pos_tag == "ADV"
+    assert english_result.items[0].lemma == "hvorfor"
+    assert english_result.items[0].match_surface == "why"
+
 
 def test_wordbank_search_lemmas_uses_matched_surface_metadata(tmp_path: Path) -> None:
     use_case = WordbankUseCase(_db_path(tmp_path))

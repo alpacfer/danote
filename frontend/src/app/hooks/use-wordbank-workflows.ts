@@ -99,9 +99,12 @@ export function useWordbankWorkflows({
   const [generatedExamplePreview, setGeneratedExamplePreview] = useState<{
     source_text: string
     english_translation: string
-    target: { stored_lemma: string; meaning_id: number }
+    target:
+      | { kind: "wordbank"; stored_lemma: string; meaning_id: number }
+      | { kind: "static"; stored_lemma: string }
   } | null>(null)
   const [generatingExampleByMeaningId, setGeneratingExampleByMeaningId] = useState<Record<number, boolean>>({})
+  const [generatingStaticExampleByLemma, setGeneratingStaticExampleByLemma] = useState<Record<string, boolean>>({})
   const apiClient = useMemo(
     () => createApiClient({ backendUrl, extractErrorMessage }),
     [backendUrl, extractErrorMessage],
@@ -347,7 +350,7 @@ export function useWordbankWorkflows({
     }
   }
 
-  async function generateExampleForMeaning(storedLemma: string, meaningId: number) {
+  async function generateExampleForMeaning(storedLemma: string, meaningId: number, tenseLabel?: string) {
     setGeneratingExampleByMeaningId((current) => ({ ...current, [meaningId]: true }))
     try {
       const payload = await apiClient.postJson<GenerateExamplePreviewResponse>(
@@ -355,13 +358,14 @@ export function useWordbankWorkflows({
         {
           stored_lemma: storedLemma,
           meaning_id: meaningId,
+          ...(tenseLabel ? { tense_label: tenseLabel } : {}),
         },
         "Could not generate example.",
       )
       setGeneratedExamplePreview({
         source_text: payload.source_text,
         english_translation: payload.english_translation,
-        target: { stored_lemma: storedLemma, meaning_id: meaningId },
+        target: { kind: "wordbank", stored_lemma: storedLemma, meaning_id: meaningId },
       })
     } catch (error) {
       const message = error instanceof Error ? error.message : "Could not generate example. Try again."
@@ -371,8 +375,41 @@ export function useWordbankWorkflows({
     }
   }
 
+  async function generateStaticExampleForLemma(storedLemma: string) {
+    const normalizedLemma = normalizeSearchWord(storedLemma)
+    if (!normalizedLemma) {
+      return
+    }
+    setGeneratingStaticExampleByLemma((current) => ({ ...current, [normalizedLemma]: true }))
+    try {
+      const payload = await apiClient.postJson<GenerateExamplePreviewResponse>(
+        "/api/sentencebank/static-example-preview",
+        { stored_lemma: normalizedLemma },
+        "Could not generate example.",
+      )
+      setGeneratedExamplePreview({
+        source_text: payload.source_text,
+        english_translation: payload.english_translation,
+        target: { kind: "static", stored_lemma: normalizedLemma },
+      })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not generate example. Try again."
+      toast.error(message)
+    } finally {
+      setGeneratingStaticExampleByLemma((current) => ({ ...current, [normalizedLemma]: false }))
+    }
+  }
+
   async function saveGeneratedExample() {
     if (!generatedExamplePreview) {
+      return
+    }
+    if (generatedExamplePreview.target.kind === "static") {
+      await addSentenceToSentencebank(
+        generatedExamplePreview.source_text,
+        generatedExamplePreview.english_translation,
+        { skipPendingView: true },
+      )
       return
     }
     await addSentenceToSentencebank(
@@ -394,10 +431,11 @@ export function useWordbankWorkflows({
     if (!generatedExamplePreview) {
       return
     }
-    await generateExampleForMeaning(
-      generatedExamplePreview.target.stored_lemma,
-      generatedExamplePreview.target.meaning_id,
-    )
+    if (generatedExamplePreview.target.kind === "static") {
+      await generateStaticExampleForLemma(generatedExamplePreview.target.stored_lemma)
+      return
+    }
+    await generateExampleForMeaning(generatedExamplePreview.target.stored_lemma, generatedExamplePreview.target.meaning_id)
   }
 
   async function saveRelatedWordFromSearchSeed(
@@ -460,6 +498,7 @@ export function useWordbankWorkflows({
     isSavingSentence,
     generatedExamplePreview,
     generatingExampleByMeaningId,
+    generatingStaticExampleByLemma,
     pronunciationLoadingByForm,
     regeneratingPronunciationByForm,
     pronunciationLoadingBySentenceId,
@@ -481,6 +520,7 @@ export function useWordbankWorkflows({
     saveSentenceTokenToWordbank,
     addSentenceToSentencebank,
     generateExampleForMeaning,
+    generateStaticExampleForLemma,
     saveGeneratedExample,
     discardGeneratedExample,
     regenerateExample,

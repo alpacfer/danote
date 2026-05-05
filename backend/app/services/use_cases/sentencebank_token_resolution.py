@@ -15,6 +15,8 @@ from app.services.use_cases.sentencebank_token_persistence import (
     persist_candidate_to_wordbank,
     persist_generated_to_wordbank,
     save_root_level_sentence_token,
+    save_static_hv_word_sentence_token,
+    save_static_pronoun_sentence_token,
     sentence_token_from_saved_word,
     unsaved_sentence_token,
     verification_metadata_for_new_sentence_token,
@@ -354,6 +356,25 @@ def resolve_sentence_token(
         if existing is not None:
             return existing, False
 
+    if should_use_static_pronoun_sentence_token(pos_tag):
+        static_hv_word = save_static_hv_word_sentence_token(
+            runtime,
+            token_index=token_index,
+            display_surface=display_surface,
+            normalized_surface=normalized_surface,
+        )
+        if static_hv_word is not None:
+            return static_hv_word
+
+        static_pronoun = save_static_pronoun_sentence_token(
+            runtime,
+            token_index=token_index,
+            display_surface=display_surface,
+            normalized_surface=normalized_surface,
+        )
+        if static_pronoun is not None:
+            return static_pronoun
+
     candidate_resolution = select_sentence_candidate(
         runtime,
         surface_form=normalized_surface,
@@ -540,6 +561,10 @@ def batch_generate_non_cor_sentence_tokens(
 
 def should_generate_non_cor_sentence_token(pos_tag: str | None) -> bool:
     return (pos_tag or "").upper() in {"ADJ", "NOUN", "PROPN"}
+
+
+def should_use_static_pronoun_sentence_token(pos_tag: str | None) -> bool:
+    return pos_tag is None or (pos_tag or "").upper() in {"ADV", "DET", "PRON"}
 
 
 def finalize_generated_sentence_token(

@@ -63,6 +63,10 @@ export function useSidebarCommandSelection({
     if (isSentenceMode && sentenceSearchPreview) {
       return ["sentence-translation-result"]
     }
+    const numericPage = matchingPageItems.find((page) => page.key === "page-numbers")
+    if (numericPage) {
+      values.push(numericPage.key)
+    }
     if (!wordbankDidYouMean) {
       for (const item of orderedWordbankResults) {
         values.push(`wordbank-${savedWordbankResultKey(item)}`)
@@ -95,6 +99,9 @@ export function useSidebarCommandSelection({
       }
     }
     for (const page of matchingPageItems) {
+      if (page.key === "page-numbers") {
+        continue
+      }
       values.push(page.key)
     }
     return values

@@ -4,7 +4,7 @@ import logging
 
 from fastapi import APIRouter, HTTPException, Query, Request, Response
 
-from app.api.routes._runtime import run_db_operation
+from app.api.routes._runtime import get_services, get_settings, run_db_operation
 from app.api.routes._use_case_factories import build_wordbank_use_case
 from app.api.schemas.v1.wordbank import (
     AddWordRequest,
@@ -34,6 +34,7 @@ from app.api.schemas.v1.wordbank import (
     QueueVerificationRequest,
     QueueVerificationResponse,
     ResetDatabaseResponse,
+    SeedNumbersAudioResponse,
     ResolveQueryRequest,
     ResolveQueryResponse,
     RethinkCategoriesRequest,
@@ -45,6 +46,10 @@ from app.api.schemas.v1.wordbank import (
     WordbankSearchResponse,
 )
 from app.core.app_state import set_runtime_field
+from app.services.use_cases.numbers_pronunciation import (
+    get_numbers_pronunciation_audio as _get_numbers_audio,
+    seed_numbers_audio as _seed_numbers_audio,
+)
 from app.services.use_cases.wordbank.mappers import map_lemma_details_response
 
 router = APIRouter()
@@ -343,6 +348,43 @@ def get_pronunciation_audio(request: Request, form: str = Query(..., min_length=
         error_log_name="wordbank_db_operational_error",
     )
     return Response(content=pronunciation.audio_bytes, media_type=pronunciation.mime_type)
+
+
+@router.get("/wordbank/numbers/pronunciation")
+def get_numbers_pronunciation_audio(request: Request, term: str = Query(..., min_length=1)) -> Response:
+    pronunciation = run_db_operation(
+        request,
+        lambda: _get_numbers_audio(term, get_settings(request).db_path),
+        include_lookup_error=True,
+        error_log_name="numbers_pronunciation_db_operational_error",
+    )
+    return Response(content=pronunciation.audio_bytes, media_type=pronunciation.mime_type)
+
+
+@router.post("/wordbank/numbers/pronunciation/seed", response_model=SeedNumbersAudioResponse)
+def seed_numbers_pronunciation_audio(request: Request) -> SeedNumbersAudioResponse:
+    tts_service = get_services(request).tts_service
+    db_path = get_settings(request).db_path
+    result = run_db_operation(
+        request,
+        lambda: _seed_numbers_audio(tts_service, db_path),
+        include_runtime_error=True,
+        error_log_name="numbers_seed_db_operational_error",
+    )
+    parts = []
+    if result.generated:
+        parts.append(f"{result.generated} generated")
+    if result.skipped:
+        parts.append(f"{result.skipped} already stored")
+    if result.failed:
+        parts.append(f"{result.failed} failed")
+    message = ", ".join(parts) if parts else "Nothing to do."
+    return SeedNumbersAudioResponse(
+        generated=result.generated,
+        skipped=result.skipped,
+        failed=result.failed,
+        message=message,
+    )
 
 
 @router.delete("/wordbank/database", response_model=ResetDatabaseResponse)

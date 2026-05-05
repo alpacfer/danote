@@ -9,13 +9,14 @@ from app.api.schemas.v1.wordbank import (
 from app.services.cor_local import CORLocalEntry, CORLocalLexiconService
 from app.services.fuzzy_search import fuzzy_suggest
 from app.services.token_classifier import normalize_token
+from app.services.use_cases.static_pronouns import StaticPronoun, static_pronoun_for_token
 from app.services.use_cases.wordbank.collaborators.cor_local_translations import (
     AzureFrameCacheKey,
     ContextualCacheKey,
     lemma_translation_for_entry,
     lookup_translation_for_cor_gloss,
-    search_translation_decision_for_cor_local_entry,
     prime_cor_form_contextual_translations,
+    search_translation_decision_for_cor_local_entry,
 )
 from app.services.use_cases.wordbank.collaborators.translation import TranslationCollaborator
 
@@ -33,6 +34,9 @@ def search_cor_form(
         raise ValueError("form is required")
     if limit < 1:
         raise ValueError("limit must be at least 1")
+    static_pronoun = static_pronoun_for_token(normalized_form)
+    if static_pronoun is not None:
+        return static_pronoun_cor_search_response(normalized_form, static_pronoun)
     if cor_local_lexicon_service is None:
         raise RuntimeError("COR local lookup service is unavailable.")
 
@@ -130,6 +134,42 @@ def search_cor_form(
         )
 
     return CORSearchFormResponse(form=normalized_form, groups=groups, did_you_mean=did_you_mean)
+
+
+def static_pronoun_cor_search_response(form: str, pronoun: StaticPronoun) -> CORSearchFormResponse:
+    variant = CORSearchVariant(
+        cor_id=f"STATIC.PRONOUN.{pronoun.lemma.upper()}",
+        form=pronoun.lemma,
+        lemma=pronoun.lemma,
+        gloss=None,
+        gloss_translation=None,
+        gram_raw="pron",
+        norm="N",
+        lemma_idx=0,
+        gram_code=0,
+        variation=0,
+        pos_tag=pronoun.pos_tag,
+        morphology=pronoun.morphology,
+        features={},
+        extra_tags=[],
+        lemma_translation=pronoun.english_translation,
+        saveable_translation=pronoun.english_translation,
+        lemma_translation_provider="static_pronoun",
+        lemma_translation_status="provider",
+        lemma_translation_reason=None,
+    )
+    return CORSearchFormResponse(
+        form=form,
+        groups=[
+            CORSearchGroup(
+                lemma=pronoun.lemma,
+                gloss=None,
+                pos_tag=pronoun.pos_tag,
+                variants=[variant],
+            )
+        ],
+        did_you_mean=None,
+    )
 
 
 def search_cor_lemma_paradigm(

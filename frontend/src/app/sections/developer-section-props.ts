@@ -25,6 +25,7 @@ export type DeveloperSectionAdapterArgs = {
   isTestingGemini: ComponentProps<typeof DeveloperSection>["isTestingGemini"]
   geminiProbeResult: ComponentProps<typeof DeveloperSection>["geminiProbeResult"]
   isResettingDatabase: ComponentProps<typeof DeveloperSection>["isResettingDatabase"]
+  isSeedingNumbersAudio: ComponentProps<typeof DeveloperSection>["isSeedingNumbersAudio"]
   setTranslationProvider: (provider: ComponentProps<typeof DeveloperSection>["translationProvider"]) => void
   setDeveloperTranslationAzureApiKey: (value: string) => void
   setDeveloperTranslationAzureRegion: (value: string) => void
@@ -40,6 +41,7 @@ export type DeveloperSectionAdapterArgs = {
   runSpeechProbe: () => Promise<void>
   runGeminiProbe: () => Promise<void>
   resetDatabase: () => Promise<void>
+  seedNumbersAudio: () => Promise<void>
 }
 
 function badgeVariantForStatus(status: ConnectionStatus): ComponentProps<typeof DeveloperSection>["badgeVariant"] {
@@ -79,6 +81,7 @@ export function buildDeveloperSectionProps(
     isTestingGemini: args.isTestingGemini,
     geminiProbeResult: args.geminiProbeResult,
     isResettingDatabase: args.isResettingDatabase,
+    isSeedingNumbersAudio: args.isSeedingNumbersAudio,
     onTranslationProviderChange: args.setTranslationProvider,
     onDeveloperTranslationAzureApiKeyChange: args.setDeveloperTranslationAzureApiKey,
     onDeveloperTranslationAzureRegionChange: args.setDeveloperTranslationAzureRegion,
@@ -103,6 +106,9 @@ export function buildDeveloperSectionProps(
     },
     onResetDatabase: () => {
       void args.resetDatabase()
+    },
+    onSeedNumbersAudio: () => {
+      void args.seedNumbersAudio()
     },
   }
 }

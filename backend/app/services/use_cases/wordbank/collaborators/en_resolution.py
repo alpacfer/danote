@@ -10,6 +10,7 @@ from app.api.schemas.v1.wordbank import (
 )
 from app.services.en_local import ENLocalLexiconService
 from app.services.translation import TranslationService
+from app.services.use_cases.static_pronouns import StaticPronoun, static_pronoun_for_english
 from app.services.use_cases.wordbank.collaborators.en_local_translations import (
     translate_en_lemma_contextual,
 )
@@ -102,6 +103,9 @@ def search_en_form(
     include_translations: bool,
 ) -> ENSearchFormResponse:
     normalized_form = _normalize_translation_candidate(form) or ""
+    static_pronoun = static_pronoun_for_english(normalized_form)
+    if static_pronoun is not None:
+        return static_pronoun_en_search_response(normalized_form, static_pronoun)
     if en_local_lexicon_service is None or not normalized_form:
         return ENSearchFormResponse(form=normalized_form, groups=[])
     return ENSearchFormResponse(
@@ -113,6 +117,31 @@ def search_en_form(
             translation_service=translation_service,
             include_translations=include_translations,
         ),
+    )
+
+
+def static_pronoun_en_search_response(form: str, pronoun: StaticPronoun) -> ENSearchFormResponse:
+    return ENSearchFormResponse(
+        form=form,
+        groups=[
+            ENPosGroup(
+                lemma=form,
+                form=form,
+                pos_ud="PRON",
+                pos_raw="pronoun",
+                danish_translation=pronoun.lemma,
+                meaning_description=pronoun.english_translation,
+                senses=[
+                    ENSenseOut(
+                        pos_ud="PRON",
+                        sense_idx=1,
+                        gloss=pronoun.english_translation,
+                        danish_translation=pronoun.lemma,
+                        examples=[],
+                    )
+                ],
+            )
+        ],
     )
 
 

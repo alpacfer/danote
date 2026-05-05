@@ -5,6 +5,13 @@ export type ResetDatabaseResponse = {
   message: string
 }
 
+export type SeedNumbersAudioResponse = {
+  generated: number
+  skipped: number
+  failed: number
+  message: string
+}
+
 export type GenerateTranslationResponse = {
   status: "generated" | "unavailable"
   source_word: string

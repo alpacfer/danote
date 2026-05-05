@@ -24,6 +24,41 @@ async function waitForSearchCloseCleanup() {
 }
 
 describe("App shell and search", () => {
+  it("routes numeric search results to the numbers reference page", async () => {
+    const fetchSpy = mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      searchWordbankResponse: { items: [] },
+      corSearchFormResponse: { form: "21", groups: [] },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    const commandDialog = await screen.findByRole("dialog")
+    const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
+    fireEvent.change(searchInput, { target: { value: "21" } })
+
+    expect(await within(commandDialog).findByText(/21 = enogtyve/i)).toBeInTheDocument()
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 450))
+    })
+    expect(
+      fetchSpy.mock.calls.some(([input]) => {
+        const url = String(input)
+        return url.includes("/api/wordbank/search?query=")
+          || url.includes("/api/wordbank/search/cor-form")
+          || url.includes("/api/wordbank/search/en-form")
+          || url.includes("/api/sentencebank/search-preview")
+      }),
+    ).toBe(false)
+
+    fireEvent.click(await findCommandOptionByValue(commandDialog, "page-numbers"))
+
+    expect(await screen.findByText(/0-19/i)).toBeInTheDocument()
+    expect(screen.getByText(/21 = enogtyve/i)).toBeInTheDocument()
+  })
+
   it("request-shape: command search uses local COR endpoint, renders grouped variants, and adds selected variant", async () => {
     const fetchSpy = mockFetchImplementation({
       lemmasResponse: { items: [] },

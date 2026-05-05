@@ -17,6 +17,7 @@ from app.api.schemas.v1.sentencebank import (
     GenerateExamplePreviewResponse,
     GenerateSentencePronunciationRequest,
     GenerateSentencePronunciationResponse,
+    GenerateStaticExamplePreviewRequest,
     SaveSentenceTokenResponse,
     SentenceListResponse,
     SentenceSearchPreviewRequest,
@@ -67,10 +68,25 @@ def generate_example_preview(
         lambda: _sentencebank_use_case(request).generate_example_preview(
             payload.stored_lemma,
             payload.meaning_id,
+            tense_label=payload.tense_label,
         ),
         include_lookup_error=True,
         include_runtime_error=True,
         error_log_name="sentencebank_example_preview_db_operational_error",
+    )
+
+
+@router.post("/sentencebank/static-example-preview", response_model=GenerateExamplePreviewResponse)
+def generate_static_example_preview(
+    payload: GenerateStaticExamplePreviewRequest,
+    request: Request,
+) -> GenerateExamplePreviewResponse:
+    return run_db_operation(
+        request,
+        lambda: _sentencebank_use_case(request).generate_static_example_preview(payload.stored_lemma),
+        include_lookup_error=True,
+        include_runtime_error=True,
+        error_log_name="sentencebank_static_example_preview_db_operational_error",
     )
 
 

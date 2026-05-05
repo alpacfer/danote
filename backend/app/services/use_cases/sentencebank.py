@@ -17,7 +17,10 @@ from app.services.sentence_verification import SentenceVerificationService
 from app.services.token_classifier import normalize_token
 from app.services.translation import TranslationService
 from app.services.tts import PronunciationAudio, TTSService
-from app.services.use_cases.sentencebank_examples import generate_example_preview
+from app.services.use_cases.sentencebank_examples import (
+    generate_example_preview,
+    generate_static_example_preview,
+)
 from app.services.use_cases.sentencebank_mappers import (
     sentence_response,
     sentence_summary,
@@ -187,11 +190,24 @@ class SentencebankUseCase:
             message=f'Added "{saved_token.surface_form}" to wordbank.',
         )
 
-    def generate_example_preview(self, stored_lemma: str, meaning_id: int) -> GenerateExamplePreviewResponse:
+    def generate_example_preview(self, stored_lemma: str, meaning_id: int, *, tense_label: str | None = None) -> GenerateExamplePreviewResponse:
+        existing = [
+            s.source_text
+            for s in self._repository.list_linked_sentences_for_lemma(stored_lemma)
+            if any(t.meaning_id == meaning_id for t in s.tokens)
+        ]
         return generate_example_preview(
             self._wordbank_use_case.runtime if self._wordbank_use_case is not None else None,
             stored_lemma=stored_lemma,
             meaning_id=meaning_id,
+            tense_label=tense_label,
+            existing_examples=existing,
+        )
+
+    def generate_static_example_preview(self, stored_lemma: str) -> GenerateExamplePreviewResponse:
+        return generate_static_example_preview(
+            self._wordbank_use_case.runtime if self._wordbank_use_case is not None else None,
+            stored_lemma=stored_lemma,
         )
 
     def verify_sentence(self, source_text: str) -> VerifySentenceResponse:

@@ -3,13 +3,23 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Literal
 
-from app.api.schemas.v1.wordbank import ResolveQueryResponse
+from app.api.schemas.v1.wordbank import ResolveQueryResponse, WordActionSuggestion
 from app.db.migrations import get_connection
 from app.nlp.token_filter import is_short_letter_word
 from app.services.en_local import ENLocalLexiconService
-from app.services.token_classifier import LemmaAwareClassifier, normalize_token
 from app.services.text_preprocessing import strip_inline_comments
+from app.services.token_classifier import LemmaAwareClassifier, normalize_token
 from app.services.translation import TranslationService
+from app.services.use_cases.static_hv_words import (
+    StaticHvWord,
+    static_hv_word_for_english,
+    static_hv_word_for_token,
+)
+from app.services.use_cases.static_pronouns import (
+    StaticPronoun,
+    static_pronoun_for_english,
+    static_pronoun_for_token,
+)
 from app.services.use_cases.wordbank.collaborators.cor_actions import (
     build_cor_add_options,
     find_saved_lemma,
@@ -38,6 +48,30 @@ def resolve_query(
     normalized_query = normalize_token(query_without_comments)
     if not normalized_query:
         raise ValueError("query_text is required")
+
+    static_hv_word = static_hv_word_for_token(normalized_query)
+    if static_hv_word is not None:
+        return static_hv_word_resolve_response(normalized_query, static_hv_word, language="da")
+
+    static_english_hv_word = static_hv_word_for_english(query_without_comments)
+    if static_english_hv_word is not None:
+        return static_hv_word_resolve_response(
+            normalized_query,
+            static_english_hv_word,
+            language="en",
+        )
+
+    static_pronoun = static_pronoun_for_token(normalized_query)
+    if static_pronoun is not None:
+        return static_pronoun_resolve_response(normalized_query, static_pronoun, language="da")
+
+    static_english_pronoun = static_pronoun_for_english(query_without_comments)
+    if static_english_pronoun is not None:
+        return static_pronoun_resolve_response(
+            normalized_query,
+            static_english_pronoun,
+            language="en",
+        )
 
     en_query_response: ResolveQueryResponse | None = None
     has_en_local_match = (
@@ -222,6 +256,86 @@ def resolve_query(
         query_language_confidence=query_language_confidence,
         word_actions=word_actions,
         en_pos_groups=en_query_response.en_pos_groups if en_query_response is not None else [],
+    )
+
+
+def static_hv_word_resolve_response(
+    query: str,
+    hv_word: StaticHvWord,
+    *,
+    language: Literal["da", "en"],
+) -> ResolveQueryResponse:
+    is_english = language == "en"
+    return ResolveQueryResponse(
+        query_surface=query,
+        query_lemma=hv_word.lemma,
+        classification="known",
+        matched_lemma=hv_word.lemma,
+        matched_lemma_summary=None,
+        query_pos_tag=hv_word.pos_tag,
+        query_morphology=hv_word.morphology,
+        resolved_surface=hv_word.lemma,
+        resolved_lemma=hv_word.lemma,
+        da_to_en_translation=None if is_english else hv_word.english_translation,
+        en_to_da_translation=hv_word.lemma if is_english else None,
+        en_to_da_lemma=hv_word.lemma if is_english else None,
+        en_to_da_pos_tag=hv_word.pos_tag if is_english else None,
+        en_to_da_morphology=hv_word.morphology if is_english else None,
+        query_language=language,
+        query_language_confidence=1.0,
+        word_actions=[
+            WordActionSuggestion(
+                action_type="open_wordbank",
+                surface=hv_word.lemma,
+                lemma=hv_word.lemma,
+                translation_label=hv_word.english_translation,
+                direction="known",
+                direction_label="Wordbank",
+                pos_tag=hv_word.pos_tag,
+                morphology=hv_word.morphology,
+            )
+        ],
+        en_pos_groups=[],
+    )
+
+
+def static_pronoun_resolve_response(
+    query: str,
+    pronoun: StaticPronoun,
+    *,
+    language: Literal["da", "en"],
+) -> ResolveQueryResponse:
+    is_english = language == "en"
+    return ResolveQueryResponse(
+        query_surface=query,
+        query_lemma=pronoun.lemma,
+        classification="known",
+        matched_lemma=pronoun.lemma,
+        matched_lemma_summary=None,
+        query_pos_tag=pronoun.pos_tag,
+        query_morphology=pronoun.morphology,
+        resolved_surface=pronoun.lemma,
+        resolved_lemma=pronoun.lemma,
+        da_to_en_translation=None if is_english else pronoun.english_translation,
+        en_to_da_translation=pronoun.lemma if is_english else None,
+        en_to_da_lemma=pronoun.lemma if is_english else None,
+        en_to_da_pos_tag=pronoun.pos_tag if is_english else None,
+        en_to_da_morphology=pronoun.morphology if is_english else None,
+        query_language=language,
+        query_language_confidence=1.0,
+        word_actions=[
+            WordActionSuggestion(
+                action_type="open_wordbank",
+                surface=pronoun.lemma,
+                lemma=pronoun.lemma,
+                translation_label=pronoun.english_translation,
+                direction="known",
+                direction_label="Wordbank",
+                pos_tag=pronoun.pos_tag,
+                morphology=pronoun.morphology,
+            )
+        ],
+        en_pos_groups=[],
     )
 
 

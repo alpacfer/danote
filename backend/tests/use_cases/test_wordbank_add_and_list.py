@@ -3,10 +3,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from app.api.schemas.v1.wordbank import LemmaDetailsResponse
 from app.db.migrations import get_connection
 from app.nlp.adapter import NLPToken
-from app.services.tts import PronunciationAudio
 from app.services.use_cases.wordbank import WordbankUseCase
 from tests.helpers.factories import _bog_homograph_cor_local, _cor_local_entry, _db_path
 from tests.helpers.fakes import (
@@ -17,7 +18,6 @@ from tests.helpers.fakes import (
     FakeTTSService,
     FakeVerificationService,
 )
-import pytest
 
 
 def _verify_meaning_targets(use_case: WordbankUseCase, *, lemma: str, meaning_id: int, surfaces: list[str]) -> None:
@@ -407,6 +407,30 @@ def test_wordbank_use_case_round_trip(tmp_path: Path) -> None:
     assert listing.items[0].display_lemma == "bog"
     assert listing.items[0].variation_count == 1
     assert listing.items[0].english_translation is None
+
+
+def test_wordbank_add_word_uses_static_pronoun_metadata(tmp_path: Path) -> None:
+    translation_service = FakeTranslationService({"du": "provider should not be used"})
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        translation_service=translation_service,
+        cor_local_lexicon_service=FakeCORLocalLexiconService(),
+    )
+
+    added = use_case.add_word("Du", "du")
+    details = use_case.get_lemma_details("du")
+    listing = use_case.list_lemmas()
+
+    assert added.status == "inserted"
+    assert added.verification is None
+    assert added.queued_verification_targets == []
+    assert added.queued_pronunciation_forms == []
+    assert translation_service.calls == []
+    assert details.english_translation == "you"
+    assert details.pos_tag == "PRON"
+    assert details.morphology == "PronType=Prs|Case=Nom|Person=2|Number=Sing"
+    assert [form.form for form in details.surface_forms] == ["du"]
+    assert [item.lemma for item in listing.items] == []
 
 
 def test_wordbank_starter_categories_are_seeded_once(tmp_path: Path) -> None:
@@ -1243,7 +1267,6 @@ def test_wordbank_get_lemma_details_persists_extracted_pos_and_morphology_for_fo
     use_case = WordbankUseCase(_db_path(tmp_path), nlp_adapter=adapter)
 
     use_case.add_word("Bogen", "bog")
-    calls_after_add = adapter.calls
 
     details_first = use_case.get_lemma_details("bog")
     assert details_first.pos_tag == "NOUN"

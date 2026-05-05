@@ -27,6 +27,8 @@ Exact behavior of sidebar command search ("Search words...").
 ## Sentence mode
 
 - Trigger: normalized query contains 2 or more whitespace-delimited words.
+- Number-only queries are excluded from sentence mode and use the Numbers page
+  result only; mixed number+word queries still use normal sentence mode.
 - Preview endpoint: `POST /api/sentencebank/search-preview`.
 - Result set: exactly one row under `Sentence`.
 - While sentence mode is active, sidebar suppresses saved-word, COR, and page groups.
@@ -55,7 +57,8 @@ Exact behavior of sidebar command search ("Search words...").
 
 Endpoint: `GET /api/wordbank/search?query=<q>&limit=8`
 
-- Debounced by `SEARCH_RESOLVE_DEBOUNCE_MS`. Skipped when query length `< 2`.
+- Debounced by `SEARCH_RESOLVE_DEBOUNCE_MS`. Skipped when query length `< 2`,
+  sentence mode is active, or the query is number-only.
 - Cached by normalized query. Error/empty → empty matches.
 - Sidebar keeps exact-ish rows only: `normalized lemma === normalizedQuery` or `normalized match_surface === normalizedQuery`; all others discarded.
 
@@ -65,7 +68,8 @@ Endpoints:
 - `GET /api/wordbank/search/cor-form?form=<q>&limit=100&include_translations=false`
 - `GET /api/wordbank/search/cor-form?form=<q>&limit=100`
 
-- Skipped when: empty query, whitespace present, `isShortLetterWord(...)`.
+- Skipped when: empty query, whitespace present, `isShortLetterWord(...)`,
+  sentence mode is active, or the query is number-only.
 - Debounced by `SEARCH_RESOLVE_DEBOUNCE_MS`.
 - Two-phase fetch: (1) partial payload without translations → render; (2) full payload with translations → replace.
 - Phase 2 in-flight: `isCorTranslationsLoading=true`, skeleton placeholders, COR save rows disabled (loading skeletons, no extra locked copy).
@@ -77,7 +81,7 @@ Endpoints:
 
 Endpoint: `GET /api/wordbank/search/en-form?form=<q>&include_translations=true`
 
-- Skipped when: sentence mode, empty query, length `< 2`, whitespace present, or `isShortLetterWord(...)`.
+- Skipped when: sentence mode, number-only query, empty query, length `< 2`, whitespace present, or `isShortLetterWord(...)`.
 - Debounced by `SEARCH_RESOLVE_DEBOUNCE_MS`.
 - Uses the local English dictionary only; it does not run COR lookup, Danish classification, or `/resolve-query`.
 - Full payload cached by normalized query, including empty `groups`.

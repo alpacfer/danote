@@ -243,7 +243,18 @@ def build_example_sentence_prompt(payload: ExampleSentenceGenerationInput) -> st
         "morphology": payload.morphology,
         "cor_lemma_idx": payload.cor_lemma_idx,
         "saved_surface_forms_da": payload.surface_forms,
+        "existing_examples_da": payload.existing_examples,
     }
+    tense_rule = (
+        f"- The verb must appear in the {payload.tense_label} form in the example sentence.\n"
+        if payload.tense_label
+        else ""
+    )
+    existing_rule = (
+        "- Do NOT reuse or closely paraphrase any sentence in existing_examples_da; explore a different situation or angle.\n"
+        if payload.existing_examples
+        else ""
+    )
     return (
         "You write one short Danish example sentence for a language-learning word card.\n"
         "Return JSON only with this exact shape: "
@@ -258,7 +269,9 @@ def build_example_sentence_prompt(payload: ExampleSentenceGenerationInput) -> st
         "- Keep the sentence simple enough for a learner; avoid names, obscure idioms, and long clauses.\n"
         "- english_translation must be a natural English translation of source_text.\n"
         "- Do not add explanations, alternatives, markdown, or quotes.\n"
-        f"Context:\n{json.dumps(context, ensure_ascii=False)}"
+        + tense_rule
+        + existing_rule
+        + f"Context:\n{json.dumps(context, ensure_ascii=False)}"
     )
 
 

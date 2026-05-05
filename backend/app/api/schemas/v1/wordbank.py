@@ -527,5 +527,12 @@ class ResetDatabaseResponse(BaseModel):
     message: str
 
 
+class SeedNumbersAudioResponse(BaseModel):
+    generated: int
+    skipped: int
+    failed: int
+    message: str
+
+
 AddWordResponse.model_rebuild()
 LemmaDetailsResponse.model_rebuild()

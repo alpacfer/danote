@@ -1,13 +1,19 @@
 import type { ReactElement } from "react"
 
+import type { VerbFormLabel } from "@/app/core/morphology"
 import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu"
 import { Languages, Loader2, MessageSquareQuote, RefreshCw, Sparkles, TableProperties } from "lucide-react"
+
+const VERB_TENSES: VerbFormLabel[] = ["Infinitive", "Present", "Past", "Past participle", "Imperative"]
 
 type WordbankScopeContextMenuProps = {
   children: ReactElement
@@ -18,7 +24,8 @@ type WordbankScopeContextMenuProps = {
   isRethinkingCategories: boolean
   onRethinkCategories: () => void
   isGeneratingExample?: boolean
-  onGenerateExample?: () => void
+  onGenerateExample?: (tense?: VerbFormLabel) => void
+  isVerb?: boolean
   canCompleteVariations?: boolean
   completeVariationsLabel?: string
   isCompletingVariations?: boolean
@@ -35,6 +42,7 @@ export function WordbankScopeContextMenu({
   onRethinkCategories,
   isGeneratingExample = false,
   onGenerateExample,
+  isVerb = false,
   canCompleteVariations = false,
   completeVariationsLabel = "Complete variations",
   isCompletingVariations = false,
@@ -65,10 +73,24 @@ export function WordbankScopeContextMenu({
           {isRethinkingCategories ? <Loader2 className="animate-spin" /> : <Sparkles />}
           {isRethinkingCategories ? "Rethinking categories..." : "Rethink categories"}
         </ContextMenuItem>
-        {onGenerateExample ? (
+        {onGenerateExample && isVerb ? (
+          <ContextMenuSub>
+            <ContextMenuSubTrigger disabled={isGeneratingExample} className="gap-2">
+              {isGeneratingExample ? <Loader2 className="animate-spin" /> : <MessageSquareQuote />}
+              {isGeneratingExample ? "Generating example..." : "Generate example"}
+            </ContextMenuSubTrigger>
+            <ContextMenuSubContent>
+              {VERB_TENSES.map((tense) => (
+                <ContextMenuItem key={tense} onSelect={() => onGenerateExample(tense)}>
+                  {tense}
+                </ContextMenuItem>
+              ))}
+            </ContextMenuSubContent>
+          </ContextMenuSub>
+        ) : onGenerateExample ? (
           <ContextMenuItem
             disabled={isGeneratingExample}
-            onSelect={onGenerateExample}
+            onSelect={() => onGenerateExample()}
           >
             {isGeneratingExample ? <Loader2 className="animate-spin" /> : <MessageSquareQuote />}
             {isGeneratingExample ? "Generating example..." : "Generate example"}

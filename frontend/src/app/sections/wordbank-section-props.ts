@@ -26,7 +26,10 @@ export type WordbankSectionAdapterArgs = {
   isCompletingMeaningVariations: boolean
   completeMeaningVariations: (meaningId: number | null) => Promise<void>
   generatingExampleByMeaningId: Record<number, boolean>
-  generateExampleForMeaning: (storedLemma: string, meaningId: number) => Promise<void>
+  generateExampleForMeaning: (storedLemma: string, meaningId: number, tenseLabel?: string) => Promise<void>
+  generatingStaticExampleByLemma: Record<string, boolean>
+  generateStaticExampleForLemma: (storedLemma: string) => Promise<void>
+  sentences: ComponentProps<typeof WordbankSection>["sentences"]
   verificationOverview: ComponentProps<typeof WordbankSection>["verificationOverview"]
   verificationChanges: ComponentProps<typeof WordbankSection>["verificationChanges"]
   isLoadingVerificationChanges: boolean
@@ -90,11 +93,16 @@ export function buildWordbankSectionProps(
       void args.completeMeaningVariations(meaningId)
     },
     generatingExampleByMeaningId: args.generatingExampleByMeaningId,
-    onGenerateExample: (meaningId: number) => {
+    onGenerateExample: (meaningId: number, tense?: import("@/app/core/morphology").VerbFormLabel) => {
       if (args.selectedLemma) {
-        void args.generateExampleForMeaning(args.selectedLemma, meaningId)
+        void args.generateExampleForMeaning(args.selectedLemma, meaningId, tense)
       }
     },
+    generatingStaticExampleByLemma: args.generatingStaticExampleByLemma,
+    onGenerateStaticExample: (lemma: string) => {
+      void args.generateStaticExampleForLemma(lemma)
+    },
+    sentences: args.sentences,
     verificationOverview: args.verificationOverview,
     verificationChanges: args.verificationChanges,
     isLoadingVerificationChanges: args.isLoadingVerificationChanges,

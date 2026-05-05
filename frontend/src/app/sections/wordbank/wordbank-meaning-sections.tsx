@@ -41,7 +41,7 @@ type WordbankMeaningSectionsProps = {
   isCompletingMeaningVariations: boolean
   onCompleteMeaningVariations: (meaningId: number | null) => void
   generatingExampleByMeaningId: Record<number, boolean>
-  onGenerateExample: (meaningId: number) => void
+  onGenerateExample: (meaningId: number, tense?: import("@/app/core/morphology").VerbFormLabel) => void
   rerunningMeaningVerificationById: Record<number, boolean>
   onRerunMeaningVerification: (meaningId: number) => void
 }
@@ -143,7 +143,8 @@ export function WordbankMeaningSections({
             isRethinkingCategories={isRethinkingCategories}
             onRethinkCategories={() => onRethinkCategories(section.id)}
             isGeneratingExample={Boolean(generatingExampleByMeaningId[section.id])}
-            onGenerateExample={() => onGenerateExample(section.id)}
+            isVerb={isVerb}
+            onGenerateExample={(tense) => onGenerateExample(section.id, tense)}
             canCompleteVariations={canCompleteParadigm && !completionGate.isLocked}
             completeVariationsLabel={completionGate.label}
             isCompletingVariations={isCompletingMeaningVariations}

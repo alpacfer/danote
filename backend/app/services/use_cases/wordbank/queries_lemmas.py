@@ -8,6 +8,16 @@ from app.api.schemas.v1.wordbank import (
 )
 from app.services.fuzzy_search import fuzzy_suggest
 from app.services.token_classifier import normalize_token
+from app.services.use_cases.static_hv_words import (
+    StaticHvWord,
+    static_hv_word_for_english,
+    static_hv_word_for_token,
+)
+from app.services.use_cases.static_pronouns import (
+    StaticPronoun,
+    static_pronoun_for_english,
+    static_pronoun_for_token,
+)
 from app.services.use_cases.wordbank.gloss_translations import meaning_gloss_translation
 from app.services.use_cases.wordbank.meaning_sections import ensure_wordbank_meaning_compatibility
 from app.services.use_cases.wordbank.runtime import WordbankRuntime
@@ -15,7 +25,12 @@ from app.services.use_cases.wordbank.runtime import WordbankRuntime
 
 def list_lemmas(runtime: WordbankRuntime) -> LemmaListResponse:
     ensure_wordbank_meaning_compatibility(runtime)
-    rows = runtime.repository.list_lemmas()
+    rows = [
+        row
+        for row in runtime.repository.list_lemmas()
+        if static_pronoun_for_token(row.lemma) is None
+        and static_hv_word_for_token(row.lemma) is None
+    ]
 
     return LemmaListResponse(
         items=[
@@ -37,6 +52,20 @@ def search_lemmas(runtime: WordbankRuntime, query: str, *, limit: int = 8) -> Wo
         raise ValueError("query is required")
     if limit < 1:
         raise ValueError("limit must be at least 1")
+
+    static_hv_word = static_hv_word_for_token(normalized_query)
+    if static_hv_word is not None:
+        return _static_hv_word_search_response(static_hv_word, match_surface=None)
+    static_english_hv_word = static_hv_word_for_english(query)
+    if static_english_hv_word is not None:
+        return _static_hv_word_search_response(static_english_hv_word, match_surface=normalized_query)
+
+    static_pronoun = static_pronoun_for_token(normalized_query)
+    if static_pronoun is not None:
+        return _static_pronoun_search_response(static_pronoun, match_surface=None)
+    static_english_pronoun = static_pronoun_for_english(query)
+    if static_english_pronoun is not None:
+        return _static_pronoun_search_response(static_english_pronoun, match_surface=normalized_query)
 
     rows = runtime.repository.search_lemmas(normalized_query, limit=limit)
 
@@ -83,6 +112,60 @@ def search_lemmas(runtime: WordbankRuntime, query: str, *, limit: int = 8) -> Wo
             )
             for row in rows
         ]
+    )
+
+
+def _static_hv_word_search_response(
+    hv_word: StaticHvWord,
+    *,
+    match_surface: str | None,
+) -> WordbankSearchResponse:
+    return WordbankSearchResponse(
+        did_you_mean=None,
+        items=[
+            WordbankSearchItem(
+                lemma=hv_word.lemma,
+                display_lemma=hv_word.lemma,
+                meaning_id=None,
+                meaning_key=None,
+                gloss=None,
+                gloss_translation=None,
+                cor_lemma_idx=None,
+                english_translation=hv_word.english_translation,
+                variation_count=1,
+                match_surface=match_surface,
+                query_cor_ids=[],
+                pos_tag=hv_word.pos_tag,
+                morphology=hv_word.morphology,
+            )
+        ],
+    )
+
+
+def _static_pronoun_search_response(
+    pronoun: StaticPronoun,
+    *,
+    match_surface: str | None,
+) -> WordbankSearchResponse:
+    return WordbankSearchResponse(
+        did_you_mean=None,
+        items=[
+            WordbankSearchItem(
+                lemma=pronoun.lemma,
+                display_lemma=pronoun.lemma,
+                meaning_id=None,
+                meaning_key=None,
+                gloss=None,
+                gloss_translation=None,
+                cor_lemma_idx=None,
+                english_translation=pronoun.english_translation,
+                variation_count=1,
+                match_surface=match_surface,
+                query_cor_ids=[],
+                pos_tag=pronoun.pos_tag,
+                morphology=pronoun.morphology,
+            )
+        ],
     )
 
 

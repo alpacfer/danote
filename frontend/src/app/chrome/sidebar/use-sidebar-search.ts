@@ -14,6 +14,7 @@ import { useSidebarCorSearch } from "@/app/chrome/sidebar/use-sidebar-cor-search
 import { useSidebarEnSearch } from "@/app/chrome/sidebar/use-sidebar-en-search"
 import { useSidebarSentencePreview } from "@/app/chrome/sidebar/use-sidebar-sentence-preview"
 import { useSidebarWordbankSearch } from "@/app/chrome/sidebar/use-sidebar-wordbank-search"
+import { numberFromSearchQuery } from "@/app/sections/wordbank/numbers/numbers-data"
 import { extractErrorMessage } from "@/app/hooks/app/controller/runtime-utils"
 
 export function useSidebarSearch({
@@ -29,21 +30,24 @@ export function useSidebarSearch({
 
   const sentenceQuery = normalizeSentenceText(searchQuery)
   const normalizedQuery = normalizeSearchWord(searchQuery)
-  const isSentenceMode = hasMultipleWords(sentenceQuery) && sentenceQuery.length <= SENTENCE_VERIFY_MAX_CHARS
+  const isNumberMode = numberFromSearchQuery(normalizedQuery) !== null
+  const isSentenceMode = !isNumberMode && hasMultipleWords(sentenceQuery) && sentenceQuery.length <= SENTENCE_VERIFY_MAX_CHARS
+  const shouldSkipWordLookups = isSentenceMode || isNumberMode
   const isEnglishSingleWordQuery = !isSentenceMode
+    && !isNumberMode
     && normalizedQuery.length >= 2
     && !/\s/u.test(normalizedQuery)
     && !isShortLetterWord(normalizedQuery)
 
   const { searchApiMatches, wordbankDidYouMean } = useSidebarWordbankSearch({
     apiClient,
-    isSentenceMode,
+    shouldSkipLookup: shouldSkipWordLookups,
     normalizedQuery,
     resetVersion,
   })
   const { corDidYouMean, corFormSearchResult, isCorTranslationsLoading } = useSidebarCorSearch({
     apiClient,
-    isSentenceMode,
+    shouldSkipLookup: shouldSkipWordLookups,
     normalizedQuery,
     resetVersion,
   })

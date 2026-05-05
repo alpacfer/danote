@@ -142,6 +142,90 @@ def test_sentencebank_save_persists_every_word_token_in_order_including_short_an
     assert [token.surface_form for token in duplicate.tokens] == ["Du", "og", "du"]
 
 
+def test_sentencebank_save_uses_static_pronoun_metadata_without_translation_selection(tmp_path: Path) -> None:
+    db_path = _db_path(tmp_path)
+    nlp_adapter = MappingNLPAdapter(
+        {
+            "Du ser hvad": [
+                NLPToken(text="Du", lemma="du", pos="PRON", morphology=None, is_punctuation=False),
+                NLPToken(text="ser", lemma="se", pos="VERB", morphology=None, is_punctuation=False),
+                NLPToken(text="hvad", lemma="hvad", pos="PRON", morphology=None, is_punctuation=False),
+            ],
+        }
+    )
+    gemini_service = SelectingGeminiService(selected_id=1)
+    wordbank_use_case = WordbankUseCase(
+        db_path,
+        gemini_word_translation_service=gemini_service,
+        cor_local_lexicon_service=FakeCORLocalLexiconService(),
+        nlp_adapter=nlp_adapter,
+    )
+    sentencebank_use_case = SentencebankUseCase(
+        db_path,
+        translation_service=FakeTranslationService({"Du ser hvad": "you see what"}),
+        nlp_adapter=nlp_adapter,
+        wordbank_use_case=wordbank_use_case,
+    )
+
+    inserted = sentencebank_use_case.add_sentence("Du ser hvad")
+    details = wordbank_use_case.get_lemma_details("du")
+
+    du_token = inserted.tokens[0]
+    hvad_token = inserted.tokens[2]
+    assert du_token.stored_lemma == "du"
+    assert du_token.english_translation == "you"
+    assert du_token.pos_tag == "PRON"
+    assert du_token.morphology == "PronType=Prs|Case=Nom|Person=2|Number=Sing"
+    assert hvad_token.stored_lemma == "hvad"
+    assert hvad_token.english_translation == "what"
+    assert details.english_translation == "you"
+    assert gemini_service.batch_calls == []
+
+
+def test_sentencebank_save_uses_static_hv_metadata_without_translation_selection(tmp_path: Path) -> None:
+    db_path = _db_path(tmp_path)
+    nlp_adapter = MappingNLPAdapter(
+        {
+            "Hvor bor du": [
+                NLPToken(text="Hvor", lemma="hvor", pos="ADV", morphology=None, is_punctuation=False),
+                NLPToken(text="bor", lemma="bo", pos="VERB", morphology=None, is_punctuation=False),
+                NLPToken(text="du", lemma="du", pos="PRON", morphology=None, is_punctuation=False),
+            ],
+        }
+    )
+    gemini_service = SelectingGeminiService(selected_id=1)
+    wordbank_use_case = WordbankUseCase(
+        db_path,
+        gemini_word_translation_service=gemini_service,
+        cor_local_lexicon_service=FakeCORLocalLexiconService(),
+        nlp_adapter=nlp_adapter,
+    )
+    sentencebank_use_case = SentencebankUseCase(
+        db_path,
+        translation_service=FakeTranslationService({"Hvor bor du": "where do you live"}),
+        nlp_adapter=nlp_adapter,
+        wordbank_use_case=wordbank_use_case,
+    )
+
+    inserted = sentencebank_use_case.add_sentence("Hvor bor du")
+    hvor_token = inserted.tokens[0]
+
+    assert hvor_token.stored_lemma == "hvor"
+    assert hvor_token.english_translation == "where"
+    assert hvor_token.pos_tag == "ADV"
+    assert hvor_token.morphology == "PronType=Int"
+    assert gemini_service.batch_calls == []
+
+
+def test_sentencebank_static_example_preview_returns_hv_example(tmp_path: Path) -> None:
+    sentencebank_use_case = SentencebankUseCase(_db_path(tmp_path))
+
+    preview = sentencebank_use_case.generate_static_example_preview("hvor")
+
+    assert preview.source_text == "hvor bor du?"
+    assert preview.english_translation == "Where do you live?"
+
+
 def test_sentencebank_save_persists_word_tokens_when_nlp_is_unavailable(tmp_path: Path) -> None:
     db_path = _db_path(tmp_path)
     wordbank_use_case = WordbankUseCase(db_path)

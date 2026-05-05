@@ -1,6 +1,7 @@
 import type {
   LemmaDetailsResponse,
   SearchSaveSeed,
+  SentencebankSentence,
   VerificationChangeEntry,
   VerificationOverview,
   WordbankLemma,
@@ -30,7 +31,10 @@ export type WordbankSectionProps = {
   isCompletingMeaningVariations: boolean
   onCompleteMeaningVariations: (meaningId: number | null) => void
   generatingExampleByMeaningId: Record<number, boolean>
-  onGenerateExample: (meaningId: number) => void
+  onGenerateExample: (meaningId: number, tense?: import("@/app/core/morphology").VerbFormLabel) => void
+  generatingStaticExampleByLemma: Record<string, boolean>
+  onGenerateStaticExample: (lemma: string) => void
+  sentences: SentencebankSentence[]
   verificationOverview: VerificationOverview
   verificationChanges: VerificationChangeEntry[]
   isLoadingVerificationChanges: boolean

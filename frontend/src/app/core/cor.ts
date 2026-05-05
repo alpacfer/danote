@@ -77,6 +77,8 @@ export const COR_SECONDARY_BADGE_CLASS_BY_LABEL: Record<string, string> = {
   Superlative: "bg-rose-50 text-rose-900 border-rose-400 dark:bg-rose-950/30 dark:text-rose-200 dark:border-rose-500",
   Adverbial: "bg-stone-50 text-stone-900 border-stone-400 dark:bg-stone-900/40 dark:text-stone-200 dark:border-stone-500",
   "Perfect participle": "bg-purple-50 text-purple-900 border-purple-400 dark:bg-purple-950/30 dark:text-purple-200 dark:border-purple-500",
+  Interrogative: "bg-teal-50 text-teal-900 border-teal-400 dark:bg-teal-950/30 dark:text-teal-200 dark:border-teal-500",
+  Possessive: "bg-amber-50 text-amber-900 border-amber-400 dark:bg-amber-950/30 dark:text-amber-200 dark:border-amber-500",
 }
 
 export function corSecondaryBadgeClass(label: string): string {

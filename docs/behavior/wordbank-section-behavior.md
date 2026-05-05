@@ -59,6 +59,26 @@ Per-chip:
   - unread `>1` → numeric badge pill
 - Click → `onSelectLemma(lemma)` → opens word page
 
+Static pronouns are built into Wordbank and shown through the default pronoun
+reference card even when there are no saved lemmas. Selecting any known pronoun
+lemma opens the matching shared pronoun page instead of fetching
+`/api/wordbank/lemmas/{lemma}`. Pronoun forms are not highlighted as discovered
+or undiscovered because all are available by default. Breadcrumbs use the
+reader-facing pronoun category label rather than the internal sentinel. Danish
+and English pronoun search results come from the static pronoun catalog rather
+than COR, translation, or Gemini, and are treated as already available.
+
+Static HV question words are also built-in and open a shared card-based
+reference page. The page groups all `hv-` words, shows translation plus
+reader-facing POS/morphology badges, can request a generated example preview
+from each card's context menu, and derives related sentences from saved
+sentence tokens. Matching sentence examples are exposed through a compact
+examples action, which opens a dialog with all saved examples for that HV word;
+each example opens its sentence page. HV cards with no matching saved sentences
+do not render an empty sentence state. Number search adds a built-in `Numbers`
+result for numeric queries such as `21`, labeled with the Danish written form;
+selecting it opens the numbers reference tables.
+
 ## Word page behavior (WordbankWordPage)
 
 - `lemmaDetailsError` → error alert

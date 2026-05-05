@@ -15,6 +15,37 @@ function getSentenceOption(dialog: HTMLElement) {
 }
 
 describe("Sentence verification in search", () => {
+  it("keeps mixed number-and-word queries in the sentence flow", async () => {
+    const previewBodies: Array<{ source_text?: string; fast?: boolean }> = []
+    mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      sentenceSearchPreviewHandler: async (_input, init) => {
+        previewBodies.push(JSON.parse(String(init?.body ?? "{}")) as { source_text?: string; fast?: boolean })
+        return responseOf({
+          status: "ready",
+          query_language: "en",
+          source_text: "jeg har 21 katte",
+          english_translation: "I have 21 cats",
+          is_valid: true,
+          errors: [],
+          message: null,
+        })
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    const dialog = await openSearch()
+    typeInSearch(dialog, "21 cats")
+
+    expect(await within(dialog).findByText(/^jeg har 21 katte$/i)).toBeInTheDocument()
+    await waitFor(() => {
+      expect(previewBodies.some((body) => body.source_text === "21 cats")).toBe(true)
+    })
+    expect(within(dialog).queryByText(/21 =/i)).not.toBeInTheDocument()
+  })
+
   it("keeps the sentence loading row visible during debounce instead of flashing no results", async () => {
     mockFetchImplementation({
       lemmasResponse: { items: [] },

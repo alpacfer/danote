@@ -91,6 +91,20 @@ export function caseFromMorphology(morphology: string | null): CaseLabel | null 
   return null
 }
 
+export type PronTypeLabel = "Interrogative"
+export function pronTypeFromMorphology(morphology: string | null): PronTypeLabel | null {
+  if (!morphology) return null
+  if (/(^|\|)PronType=Int(\||$)/u.test(morphology)) return "Interrogative"
+  return null
+}
+
+export type PossessionLabel = "Possessive"
+export function possessionFromMorphology(morphology: string | null): PossessionLabel | null {
+  if (!morphology) return null
+  if (/(^|\|)Poss=Yes(\||$)/u.test(morphology)) return "Possessive"
+  return null
+}
+
 export function posBadgeClass(posTag: string | null): string {
   if (!posTag) return ""
   const colorByPos: Record<string, string> = {
@@ -117,6 +131,12 @@ export function posBadgeClass(posTag: string | null): string {
 
 export function secondaryTagsForPos(posTag: string | null, morphology: string | null): string[] {
   const tags: string[] = []
+  const pronType = pronTypeFromMorphology(morphology)
+  const possession = possessionFromMorphology(morphology)
+  if (posTag === "PRON" || posTag === "DET" || posTag === "ADV") {
+    if (pronType) tags.push(pronType)
+    if (possession) tags.push(possession)
+  }
   if (posTag === "VERB" || posTag === "AUX") {
     const form = verbFormFromMorphology(morphology)
     if (form) tags.push(form)

@@ -81,6 +81,13 @@ Each token card renders:
 
 While full NLP is retired, sentence saves still use a lightweight word tokenizer so the sentence page keeps one card per saved word. Existing saved words are linked when possible; otherwise the fallback creates root-level wordbank entries without POS/morphology metadata.
 
+Known Danish pronouns use the static pronoun catalog before COR, translation, or
+Gemini selection. Saved sentence pronoun tokens carry hardcoded translation,
+POS, and morphology metadata and open the shared Wordbank pronoun reference page.
+Known Danish HV question words use the static HV catalog the same way; they are
+saved with hardcoded translation, POS, and morphology metadata and open the
+shared Wordbank HV reference page.
+
 ## 5) Refresh / invalidation
 
 `useLexiconData` handles fetching. Sentence loader effect depends on `[apiClient, sentencebankRefreshTick]`. Tick change → set loading true, clear error, fetch `/api/sentencebank/sentences`, store `payload.items ?? []` on success / empty list + error on failure, set loading false. `addSentenceToSentencebank` increments tick after successful save → triggers re-fetch.

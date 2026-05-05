@@ -1,8 +1,10 @@
 from __future__ import annotations
 
-from app.api.schemas.v1.wordbank import AddWordResponse, MeaningContext, VerificationResult
+from app.api.schemas.v1.wordbank import AddWordResponse
 from app.services.cor_local import CORLocalEntry
 from app.services.gemini_translation import NonCORWordGenerationInput
+from app.services.use_cases.static_hv_words import StaticHvWord, static_hv_word_for_token
+from app.services.use_cases.static_pronouns import StaticPronoun, static_pronoun_for_token
 from app.services.use_cases.wordbank.add_word_normalization import (
     normalize_add_word_inputs,
 )
@@ -49,6 +51,14 @@ def add_word(
     search_seed: dict[str, object] | None = None,
     queue_verification: bool = True,
 ) -> AddWordResponse:
+    static_hv_word = static_hv_word_for_token(surface_token) or static_hv_word_for_token(lemma_candidate)
+    if static_hv_word is not None:
+        return _add_static_hv_word(runtime, surface_token=surface_token, hv_word=static_hv_word)
+
+    static_pronoun = static_pronoun_for_token(surface_token) or static_pronoun_for_token(lemma_candidate)
+    if static_pronoun is not None:
+        return _add_static_pronoun(runtime, surface_token=surface_token, pronoun=static_pronoun)
+
     if search_seed is not None:
         return add_word_from_search_seed(
             runtime,
@@ -109,6 +119,106 @@ def add_word(
         inserted_lexeme=inserted_lexeme,
         meaning_resolution=meaning_resolution,
         translations=translations,
+    )
+
+
+def _add_static_hv_word(
+    runtime: WordbankRuntime,
+    *,
+    surface_token: str,
+    hv_word: StaticHvWord,
+) -> AddWordResponse:
+    actual_surface = static_hv_word_for_token(surface_token)
+    normalized_surface = actual_surface.lemma if actual_surface is not None else hv_word.lemma
+    lexeme_id, inserted_lexeme = runtime.repository.insert_or_load_lexeme(
+        stored_lemma=hv_word.lemma,
+        translation=hv_word.english_translation,
+        provider="static_hv_word",
+        pos_tag=hv_word.pos_tag,
+        morphology=hv_word.morphology,
+        dictionary_status="unknown",
+    )
+    _surface_form, inserted_surface_form = runtime.repository.insert_or_update_surface_form(
+        lexeme_id=lexeme_id,
+        meaning_id=None,
+        form=normalized_surface,
+        pos_tag=actual_surface.pos_tag if actual_surface is not None else hv_word.pos_tag,
+        morphology=actual_surface.morphology if actual_surface is not None else hv_word.morphology,
+        source="static",
+    )
+    runtime.nlp.add_user_lexeme(hv_word.lemma)
+    runtime.nlp.invalidate_pos_cache(hv_word.lemma, normalized_surface)
+    return build_add_word_response(
+        runtime=runtime,
+        inputs=AddWordCommandInputs(
+            normalized_surface=normalized_surface,
+            stored_lemma=hv_word.lemma,
+            normalized_cor_id=None,
+            selected_pos_tag=hv_word.pos_tag,
+            selected_morphology=hv_word.morphology,
+        ),
+        write_result=AddWordWriteResult(
+            inserted_lexeme=inserted_lexeme,
+            inserted_meaning=False,
+            inserted_surface_form=inserted_surface_form,
+            inserted_lemma_surface_form=False,
+            inserted_cor_variant=False,
+        ),
+        meaning=None,
+        verification=None,
+        queued_verification_targets=[],
+        queued_pronunciation_forms=[],
+        pronunciation=None,
+    )
+
+
+def _add_static_pronoun(
+    runtime: WordbankRuntime,
+    *,
+    surface_token: str,
+    pronoun: StaticPronoun,
+) -> AddWordResponse:
+    actual_surface = static_pronoun_for_token(surface_token)
+    normalized_surface = actual_surface.lemma if actual_surface is not None else pronoun.lemma
+    lexeme_id, inserted_lexeme = runtime.repository.insert_or_load_lexeme(
+        stored_lemma=pronoun.lemma,
+        translation=pronoun.english_translation,
+        provider="static_pronoun",
+        pos_tag=pronoun.pos_tag,
+        morphology=pronoun.morphology,
+        dictionary_status="unknown",
+    )
+    _surface_form, inserted_surface_form = runtime.repository.insert_or_update_surface_form(
+        lexeme_id=lexeme_id,
+        meaning_id=None,
+        form=normalized_surface,
+        pos_tag=actual_surface.pos_tag if actual_surface is not None else pronoun.pos_tag,
+        morphology=actual_surface.morphology if actual_surface is not None else pronoun.morphology,
+        source="static",
+    )
+    runtime.nlp.add_user_lexeme(pronoun.lemma)
+    runtime.nlp.invalidate_pos_cache(pronoun.lemma, normalized_surface)
+    return build_add_word_response(
+        runtime=runtime,
+        inputs=AddWordCommandInputs(
+            normalized_surface=normalized_surface,
+            stored_lemma=pronoun.lemma,
+            normalized_cor_id=None,
+            selected_pos_tag=pronoun.pos_tag,
+            selected_morphology=pronoun.morphology,
+        ),
+        write_result=AddWordWriteResult(
+            inserted_lexeme=inserted_lexeme,
+            inserted_meaning=False,
+            inserted_surface_form=inserted_surface_form,
+            inserted_lemma_surface_form=False,
+            inserted_cor_variant=False,
+        ),
+        meaning=None,
+        verification=None,
+        queued_verification_targets=[],
+        queued_pronunciation_forms=[],
+        pronunciation=None,
     )
 
 

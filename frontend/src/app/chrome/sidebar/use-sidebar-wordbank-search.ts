@@ -10,12 +10,12 @@ import type { SidebarApiClient } from "@/app/chrome/sidebar/sidebar-search-types
 
 export function useSidebarWordbankSearch({
   apiClient,
-  isSentenceMode,
+  shouldSkipLookup,
   normalizedQuery,
   resetVersion,
 }: {
   apiClient: SidebarApiClient
-  isSentenceMode: boolean
+  shouldSkipLookup: boolean
   normalizedQuery: string
   resetVersion: string
 }) {
@@ -49,7 +49,7 @@ export function useSidebarWordbankSearch({
       }, 0)
     }
 
-    if (isSentenceMode || !normalizedQuery || normalizedQuery.length < 2) {
+    if (shouldSkipLookup || !normalizedQuery || normalizedQuery.length < 2) {
       commitSearchMatches([])
       commitDidYouMean(null)
       return () => {
@@ -109,7 +109,7 @@ export function useSidebarWordbankSearch({
       window.clearTimeout(timeoutId)
       controller.abort()
     }
-  }, [apiClient, isSentenceMode, normalizedQuery, resetVersion])
+  }, [apiClient, normalizedQuery, resetVersion, shouldSkipLookup])
 
   return { searchApiMatches, wordbankDidYouMean }
 }

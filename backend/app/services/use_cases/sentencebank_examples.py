@@ -4,6 +4,7 @@ from app.api.schemas.v1.sentencebank import GenerateExamplePreviewResponse
 from app.services.gemini_translation import ExampleSentenceGenerationInput
 from app.services.token_classifier import normalize_token
 from app.services.use_cases.sentencebank_text import normalize_sentence_text
+from app.services.use_cases.static_hv_words import static_hv_word_for_token
 from app.services.use_cases.wordbank.gloss_translations import meaning_gloss_translation
 from app.services.use_cases.wordbank.runtime import WordbankRuntime
 
@@ -21,6 +22,8 @@ def generate_example_preview(
     *,
     stored_lemma: str,
     meaning_id: int,
+    tense_label: str | None = None,
+    existing_examples: list[str] | None = None,
 ) -> GenerateExamplePreviewResponse:
     if runtime is None:
         raise RuntimeError("Gemini example generation is unavailable.")
@@ -70,6 +73,8 @@ def generate_example_preview(
             morphology=meaning.morphology,
             cor_lemma_idx=meaning.cor_lemma_idx,
             surface_forms=surface_forms,
+            tense_label=tense_label,
+            existing_examples=existing_examples or [],
         )
     )
     if result is None:
@@ -81,4 +86,41 @@ def generate_example_preview(
     return GenerateExamplePreviewResponse(
         source_text=source_text,
         english_translation=english_translation,
+    )
+
+
+def generate_static_example_preview(
+    runtime: WordbankRuntime | None,
+    *,
+    stored_lemma: str,
+) -> GenerateExamplePreviewResponse:
+    hv_word = static_hv_word_for_token(stored_lemma)
+    if hv_word is None:
+        raise ValueError("static word was not found")
+    generator = getattr(runtime.translation, "generate_example_sentence", None) if runtime is not None else None
+    if callable(generator):
+        result = generator(
+            ExampleSentenceGenerationInput(
+                stored_lemma=hv_word.lemma,
+                meaning_id=0,
+                meaning_key=f"static-hv-{hv_word.lemma}",
+                gloss=hv_word.english_translation,
+                gloss_translation=hv_word.english_translation,
+                english_translation=hv_word.english_translation,
+                pos_tag=hv_word.pos_tag,
+                morphology=hv_word.morphology,
+                surface_forms=[hv_word.lemma],
+            )
+        )
+        if result is not None:
+            source_text = _normalize_generated_source_text(result.source_text)
+            english_translation = normalize_sentence_text(result.english_translation)
+            if source_text and english_translation:
+                return GenerateExamplePreviewResponse(
+                    source_text=source_text,
+                    english_translation=english_translation,
+                )
+    return GenerateExamplePreviewResponse(
+        source_text=hv_word.example_source,
+        english_translation=hv_word.example_translation,
     )

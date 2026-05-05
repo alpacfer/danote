@@ -8,6 +8,7 @@ import {
   type DeveloperApiKeysUpdateResponse,
   type HealthPayload,
   type ResetDatabaseResponse,
+  type SeedNumbersAudioResponse,
 } from "@/app/core"
 
 type TranslationProviderOption = "deepl" | "azure"
@@ -51,6 +52,7 @@ export function useDeveloperSettings({
   onNotifyError,
 }: UseDeveloperSettingsParams) {
   const [isResettingDatabase, setIsResettingDatabase] = useState(false)
+  const [isSeedingNumbersAudio, setIsSeedingNumbersAudio] = useState(false)
   const [translationProvider, setTranslationProvider] = useState<TranslationProviderOption>("deepl")
   const [developerTranslationAzureApiKey, setDeveloperTranslationAzureApiKey] = useState("")
   const [developerTranslationAzureRegion, setDeveloperTranslationAzureRegion] = useState("")
@@ -119,6 +121,23 @@ export function useDeveloperSettings({
       onNotifyError(message)
     } finally {
       setIsResettingDatabase(false)
+    }
+  }
+
+  async function seedNumbersAudio() {
+    setIsSeedingNumbersAudio(true)
+    try {
+      const payload = await apiClient.postJson<SeedNumbersAudioResponse>(
+        "/api/wordbank/numbers/pronunciation/seed",
+        {},
+        "Could not seed number audio.",
+      )
+      onNotifySuccess(payload.message || "Number audio seeded.")
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not seed number audio."
+      onNotifyError(message)
+    } finally {
+      setIsSeedingNumbersAudio(false)
     }
   }
 
@@ -276,6 +295,8 @@ export function useDeveloperSettings({
 
   return {
     isResettingDatabase,
+    isSeedingNumbersAudio,
+    seedNumbersAudio,
     translationProvider,
     setTranslationProvider,
     developerTranslationAzureApiKey,

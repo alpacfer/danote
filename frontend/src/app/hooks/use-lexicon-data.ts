@@ -11,6 +11,9 @@ import {
   type SentencebankSentence,
   type WordbankLemma,
 } from "@/app/core"
+import { parseHvQuestionSentinel } from "@/app/sections/wordbank/hv-questions/hv-question-data"
+import { parseNumbersSentinel } from "@/app/sections/wordbank/numbers/numbers-data"
+import { parsePronounSentinel } from "@/app/sections/wordbank/pronouns/pronouns-data"
 
 const PRONUNCIATION_POLL_WINDOW_MS = 15_000
 
@@ -57,6 +60,10 @@ export function useLexiconData({
   )
   const normalizedSelectedLemma = normalizeSearchWord(selectedLemma ?? "")
   const normalizedLoadedLemma = normalizeSearchWord(lemmaDetails?.lemma ?? "")
+  const selectedPronounCategory = selectedLemma ? parsePronounSentinel(selectedLemma) : null
+  const selectedBuiltInReference = selectedLemma
+    ? Boolean(selectedPronounCategory || parseHvQuestionSentinel(selectedLemma) || parseNumbersSentinel(selectedLemma))
+    : false
 
   useEffect(() => {
     const shouldLoadWordbank = activeSection === "wordbank" || Boolean(selectedLemma) || hasLoadedWordbank
@@ -133,7 +140,7 @@ export function useLexiconData({
   }, [apiClient, sentencebankRefreshTick])
 
   useEffect(() => {
-    if (activeSection !== "wordbank" || !selectedLemma) {
+    if (activeSection !== "wordbank" || !selectedLemma || selectedBuiltInReference) {
       if (lemmaDetailsLoadingDelayTimeoutRef.current !== null) {
         window.clearTimeout(lemmaDetailsLoadingDelayTimeoutRef.current)
         lemmaDetailsLoadingDelayTimeoutRef.current = null
@@ -199,6 +206,7 @@ export function useLexiconData({
     normalizedLoadedLemma,
     normalizedSelectedLemma,
     selectedLemma,
+    selectedBuiltInReference,
     wordbankRefreshTick,
   ])
 

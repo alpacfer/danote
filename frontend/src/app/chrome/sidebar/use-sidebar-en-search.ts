@@ -9,6 +9,8 @@ import {
 } from "@/app/core"
 import { buildEnTranslatedCorResults } from "@/app/chrome/sidebar/sidebar-search-query"
 import type { EnResolveResult, SidebarApiClient } from "@/app/chrome/sidebar/sidebar-search-types"
+import { isEnglishHvQuestionQuery } from "@/app/sections/wordbank/hv-questions/hv-question-data"
+import { isEnglishPronounQuery } from "@/app/sections/wordbank/pronouns/pronouns-data"
 
 export function useSidebarEnSearch({
   apiClient,
@@ -54,6 +56,8 @@ export function useSidebarEnSearch({
       || normalizedQuery.length < 2
       || /\s/u.test(normalizedQuery)
       || isShortLetterWord(normalizedQuery)
+      || isEnglishHvQuestionQuery(normalizedQuery)
+      || isEnglishPronounQuery(normalizedQuery)
       || !isEnglishSingleWordQuery
     ) {
       setEnResolveResult(null)

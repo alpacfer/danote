@@ -13,7 +13,9 @@ import {
 export type GeneratedExamplePreview = {
   source_text: string
   english_translation: string
-  target: { stored_lemma: string; meaning_id: number }
+  target:
+    | { kind: "wordbank"; stored_lemma: string; meaning_id: number }
+    | { kind: "static"; stored_lemma: string }
 }
 
 type GeneratedExampleDialogProps = {

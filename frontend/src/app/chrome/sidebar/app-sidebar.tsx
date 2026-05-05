@@ -125,6 +125,7 @@ export function AppSidebar({
     onSelectWordbank,
     onSelectSentencebank,
     onSelectDeveloper,
+    onOpenWordbankLemma,
   })
 
   const hasPageResults = matchingPageItems.length > 0
