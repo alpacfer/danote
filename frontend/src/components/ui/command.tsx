@@ -94,9 +94,9 @@ function CommandInput({
     return (
       <div
         data-slot="command-input-wrapper"
-        className="!h-auto min-h-9 m-2 flex items-start gap-2 rounded-md border px-3"
+        className="!h-auto min-h-9 m-2 flex items-center gap-2 rounded-md border px-3"
       >
-        <SearchIcon className="mt-2 size-4 shrink-0 opacity-50" />
+        <SearchIcon className="self-start mt-2 size-4 shrink-0 opacity-50" />
         <div className="relative min-w-0 flex-1">
           {overlay ? (
             <div
