@@ -2,6 +2,7 @@ import { formatSentenceTranslation, type SentencebankSentence } from "@/app/core
 import { Card, CardContent } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
 type SentencebankListViewProps = {
   sentencebankError: string | null
@@ -49,24 +50,32 @@ export function SentencebankListView({
 
   return (
     <ScrollArea className="min-h-0 flex-1">
-      <div className="space-y-3 pr-1">
-        {sentences.map((sentence) => (
-          <button
-            key={sentence.id}
-            type="button"
-            className="w-full text-left"
-            onClick={() => onOpenSentence(sentence.id)}
-          >
-            <Card className="hover:bg-accent/40 transition-colors cursor-pointer">
-              <CardContent className="space-y-2">
-                <p className="text-base font-medium leading-relaxed max-w-[70ch] break-words">{sentence.source_text}</p>
-                <p className="text-muted-foreground text-sm max-w-[70ch] break-words">
-                  {formatSentenceTranslation(sentence.english_translation) || "No translation available."}
-                </p>
-              </CardContent>
-            </Card>
-          </button>
-        ))}
+      <div className="flex flex-wrap gap-3 items-start pr-1">
+        {sentences.map((sentence) => {
+          const translation = formatSentenceTranslation(sentence.english_translation) || "No translation available."
+          return (
+            <Tooltip key={sentence.id}>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  className="text-left"
+                  onClick={() => onOpenSentence(sentence.id)}
+                >
+                  <Card className="hover:bg-accent/40 transition-colors cursor-pointer max-w-sm">
+                    <CardContent className="space-y-1.5">
+                      <p className="text-base font-medium leading-snug truncate">{sentence.source_text}</p>
+                      <p className="text-muted-foreground text-sm truncate">{translation}</p>
+                    </CardContent>
+                  </Card>
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-xs">
+                <p className="font-medium">{sentence.source_text}</p>
+                <p className="text-muted-foreground mt-0.5">{translation}</p>
+              </TooltipContent>
+            </Tooltip>
+          )
+        })}
       </div>
     </ScrollArea>
   )

@@ -6,8 +6,8 @@ import {
   CommandItem,
   CommandList,
   CommandSeparator,
-  CommandShortcut,
 } from "@/components/ui/command"
+import { Kbd, KbdGroup } from "@/components/ui/kbd"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   normalizeSearchWord,
@@ -90,6 +90,16 @@ type SidebarSearchResultsProps = {
   state: SidebarSearchResultsState
   data: SidebarSearchResultsData
   actions: SidebarSearchResultsActions
+}
+
+function renderShortcut(shortcut: string) {
+  const keys = shortcut.split("+")
+  if (keys.length === 1) return <Kbd>{shortcut}</Kbd>
+  return (
+    <KbdGroup>
+      {keys.map((k) => <Kbd key={k}>{k}</Kbd>)}
+    </KbdGroup>
+  )
 }
 
 function isSelfTranslatedCorVariant(variant: CORSearchVariant, normalizedQuery: string) {
@@ -299,7 +309,7 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
               >
                 <Icon />
                 <span>{item.label}</span>
-                <CommandShortcut>{item.shortcut}</CommandShortcut>
+                <span className="ml-auto">{renderShortcut(item.shortcut)}</span>
               </CommandItem>
             )
           })}

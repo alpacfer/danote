@@ -10,6 +10,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
+import { Kbd, KbdGroup } from "@/components/ui/kbd"
 import type { SidebarNavigationActions } from "@/app/chrome/sidebar/sidebar-page-items"
 
 type SidebarNavigationProps = SidebarNavigationActions & {
@@ -39,7 +40,10 @@ export function SidebarNavigation({
                     {unreadWordbankNotificationCount}
                   </span>
                 ) : (
-                  <span aria-hidden="true" className="text-muted-foreground ml-auto text-[11px]">Alt+W</span>
+                  <KbdGroup aria-hidden="true" className="ml-auto">
+                    <Kbd>Alt</Kbd>
+                    <Kbd>W</Kbd>
+                  </KbdGroup>
                 )}
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -47,14 +51,20 @@ export function SidebarNavigation({
               <SidebarMenuButton type="button" isActive={activeSection === "sentencebank"} onClick={onSelectSentencebank}>
                 <BookOpen />
                 <span>Sentencebank</span>
-                <span aria-hidden="true" className="text-muted-foreground ml-auto text-[11px]">Alt+S</span>
+                <KbdGroup aria-hidden="true" className="ml-auto">
+                  <Kbd>Alt</Kbd>
+                  <Kbd>S</Kbd>
+                </KbdGroup>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton type="button" isActive={activeSection === "developer"} onClick={onSelectDeveloper}>
                 <Settings />
                 <span>Developer</span>
-                <span aria-hidden="true" className="text-muted-foreground ml-auto text-[11px]">Alt+D</span>
+                <KbdGroup aria-hidden="true" className="ml-auto">
+                  <Kbd>Alt</Kbd>
+                  <Kbd>D</Kbd>
+                </KbdGroup>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>

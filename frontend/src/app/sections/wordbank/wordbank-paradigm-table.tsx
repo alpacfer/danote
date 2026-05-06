@@ -24,20 +24,21 @@ export function WordbankParadigmTable({
   return (
     <div className="space-y-3">
       <Table>
-        <TableHeader>
-          <TableRow className="hover:bg-transparent">
-            <TableHead className="text-muted-foreground w-24 text-[11px] font-semibold uppercase tracking-wide" />
-            {paradigm.columns.map((column) => (
-              <TableHead
-                key={column}
-                aria-label={hideSingleFormColumnHeader ? column : undefined}
-                className="text-muted-foreground text-[11px] font-semibold uppercase tracking-wide"
-              >
-                {hideSingleFormColumnHeader ? null : column}
-              </TableHead>
-            ))}
-          </TableRow>
-        </TableHeader>
+        {!hideSingleFormColumnHeader && (
+          <TableHeader>
+            <TableRow className="hover:bg-transparent">
+              <TableHead className="text-muted-foreground w-24 text-[11px] font-semibold uppercase tracking-wide" />
+              {paradigm.columns.map((column) => (
+                <TableHead
+                  key={column}
+                  className="text-muted-foreground text-[11px] font-semibold uppercase tracking-wide"
+                >
+                  {column}
+                </TableHead>
+              ))}
+            </TableRow>
+          </TableHeader>
+        )}
         <TableBody>
           {paradigm.rows.map((row) => (
             <TableRow key={row} className="hover:bg-transparent">

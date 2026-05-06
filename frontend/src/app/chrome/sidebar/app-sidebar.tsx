@@ -26,6 +26,7 @@ import {
 } from "@/app/core"
 import { Button } from "@/components/ui/button"
 import { CommandDialog } from "@/components/ui/command"
+import { Kbd, KbdGroup } from "@/components/ui/kbd"
 import {
   Sidebar,
   SidebarFooter,
@@ -214,7 +215,10 @@ export function AppSidebar({
       <SidebarHeader className="gap-2">
         <Button type="button" variant="outline" className="justify-between" onClick={() => setIsSearchOpen(true)}>
           Search...
-          <span className="text-muted-foreground text-[10px] uppercase">Cmd/Ctrl+K</span>
+          <KbdGroup>
+            <Kbd>⌘</Kbd>
+            <Kbd>K</Kbd>
+          </KbdGroup>
         </Button>
         <CommandDialog
           open={isSearchOpen}
