@@ -94,7 +94,7 @@ function CommandInput({
     return (
       <div
         data-slot="command-input-wrapper"
-        className="!h-auto min-h-12 flex items-start gap-2 border-b px-3"
+        className="!h-auto min-h-12 m-3 flex items-start gap-2 rounded-md border px-3"
       >
         <SearchIcon className="mt-3.5 size-4 shrink-0 opacity-50" />
         <div className="relative min-w-0 flex-1">
@@ -142,7 +142,7 @@ function CommandInput({
   return (
     <div
       data-slot="command-input-wrapper"
-      className="flex h-9 items-center gap-2 border-b px-3"
+      className="m-3 flex h-9 items-center gap-2 rounded-md border px-3"
     >
       <SearchIcon className="size-4 shrink-0 opacity-50" />
       <div className="relative min-w-0 flex-1">
