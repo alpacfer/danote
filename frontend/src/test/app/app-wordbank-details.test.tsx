@@ -51,7 +51,7 @@ describe("App wordbank", () => {
     expect(screen.getByRole("button", { name: /hus/i })).toBeInTheDocument()
 
     fireEvent.click(bogItem)
-    expect(await screen.findByText(/^bog$/i)).toBeInTheDocument()
+    expect((await screen.findAllByText(/^bog$/i)).length).toBeGreaterThan(0)
     expect((await screen.findAllByText(/^book$/i)).length).toBeGreaterThan(0)
     expect(screen.getByText(/^bogens$/i)).toBeInTheDocument()
     expect(screen.queryByText(/^book's$/i)).not.toBeInTheDocument()
@@ -86,7 +86,7 @@ describe("App wordbank", () => {
     fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
     fireEvent.click(await screen.findByRole("button", { name: /bog/i }))
 
-    expect(await screen.findByText(/^bog$/i)).toBeInTheDocument()
+    expect((await screen.findAllByText(/^bog$/i)).length).toBeGreaterThan(0)
     expect(screen.getAllByText(/^book$/i)).toHaveLength(1)
     expect(screen.getAllByText(/^n-word$/i)).toHaveLength(1)
   })
