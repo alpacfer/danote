@@ -1,4 +1,4 @@
-import { AppBreadcrumb, AppSidebar } from "@/app/chrome"
+import { AppNavBar, AppSidebar } from "@/app/chrome"
 import { useAppController } from "@/app/hooks/app/use-app-controller"
 import { SectionContent } from "@/app/layout/section-content"
 import { GeneratedExampleDialog } from "@/app/sections/sentencebank/generated-example-dialog"
@@ -7,18 +7,24 @@ import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/s
 function App() {
   const {
     activeSection,
-    selectedLemma,
     status,
     lemmas,
+    sentences,
     wordbankRefreshTick,
     searchTranslationConfigVersion,
     unreadWordbankNotificationCount,
+    canGoBack,
+    canGoForward,
+    previousNavEntry,
+    nextNavEntry,
+    currentNavEntry,
+    goBack,
+    goForward,
     selectWordbank,
     selectSentencebank,
     selectDeveloper,
     openWordbankLemma,
     openWordbankMeaning,
-    openWordbankRoot,
     addSentenceToSentencebank,
     addWordFromSearch,
     sectionProps,
@@ -54,10 +60,15 @@ function App() {
           <span className="sr-only" aria-label="backend-connection-status">{status}</span>
           <div className="mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col">
             <div className="mb-[var(--danote-shell-stack-gap)] flex items-center justify-between gap-3">
-              <AppBreadcrumb
-                activeSection={activeSection}
-                selectedLemma={selectedLemma}
-                onSelectWordbank={openWordbankRoot}
+              <AppNavBar
+                currentEntry={currentNavEntry}
+                previousEntry={previousNavEntry}
+                nextEntry={nextNavEntry}
+                canGoBack={canGoBack}
+                canGoForward={canGoForward}
+                onBack={goBack}
+                onForward={goForward}
+                sentences={sentences}
               />
             </div>
             <SectionContent

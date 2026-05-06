@@ -42,9 +42,6 @@ type UseWordbankWorkflowsParams = {
   setAnalysisRefreshTick: Dispatch<SetStateAction<number>>
   setWordbankRefreshTick: Dispatch<SetStateAction<number>>
   setSentencebankRefreshTick: Dispatch<SetStateAction<number>>
-  setActiveSection: (value: AppSection) => void
-  setSelectedLemma: (value: string | null) => void
-  setSelectedMeaningId: (value: number | null) => void
   openPendingSentence: (text: string, englishTranslation?: string | null) => void
   openSentence: (id: number) => void
   openWordbankTarget: (lemma: string, meaningId: number | null) => void
@@ -83,9 +80,6 @@ export function useWordbankWorkflows({
   setAnalysisRefreshTick,
   setWordbankRefreshTick,
   setSentencebankRefreshTick,
-  setActiveSection,
-  setSelectedLemma,
-  setSelectedMeaningId,
   openPendingSentence,
   openSentence,
   openWordbankTarget,
@@ -183,9 +177,7 @@ export function useWordbankWorkflows({
     markWordVerificationNotificationsAsRead,
     clearWordVerificationNotification,
     onOpenWordbankTarget: (lemma, meaningId) => {
-      setActiveSection("wordbank")
-      setSelectedLemma(lemma)
-      setSelectedMeaningId(meaningId)
+      openWordbankTarget(lemma, meaningId)
     },
   })
 
@@ -285,9 +277,7 @@ export function useWordbankWorkflows({
       }
       setAnalysisRefreshTick((current) => current + 1)
       setWordbankRefreshTick((current) => current + 1)
-      setActiveSection("wordbank")
-      setSelectedLemma(payload.stored_lemma)
-      setSelectedMeaningId(payload.meaning?.id ?? null)
+      openWordbankTarget(payload.stored_lemma, payload.meaning?.id ?? null)
       return payload.stored_lemma
     } catch (error) {
       const message = error instanceof Error ? error.message : "Could not add word to wordbank. Try again."
@@ -484,9 +474,7 @@ export function useWordbankWorkflows({
       setWordbankRefreshTick((current) => current + 1)
       const saved = payload.saved_token
       if (saved.stored_lemma) {
-        setActiveSection("wordbank")
-        setSelectedLemma(saved.stored_lemma)
-        setSelectedMeaningId(saved.meaning_id ?? null)
+        openWordbankTarget(saved.stored_lemma, saved.meaning_id ?? null)
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Could not save sentence word. Try again."

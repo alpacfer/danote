@@ -28,16 +28,9 @@ export function useWordbankComposition({ foundation, onSentenceSaved }: UseWordb
     setAnalysisRefreshTick: analysis.setAnalysisRefreshTick,
     setWordbankRefreshTick: foundation.setWordbankRefreshTick,
     setSentencebankRefreshTick: foundation.setSentencebankRefreshTick,
-    setActiveSection: navigation.setActiveSection,
-    setSelectedLemma: navigation.setSelectedLemma,
-    setSelectedMeaningId: navigation.setSelectedMeaningId,
     openPendingSentence: navigation.openPendingSentence,
     openSentence: navigation.openSentence,
-    openWordbankTarget: (lemma, meaningId) => {
-      navigation.setActiveSection("wordbank")
-      navigation.setSelectedLemma(lemma)
-      navigation.setSelectedMeaningId(meaningId)
-    },
+    openWordbankTarget: navigation.openWordbankTarget,
     trackQueuedPronunciationForms: lexiconData.trackQueuedPronunciationForms,
     postTokenFeedback: async (payload) => {
       await postTokenFeedback(backendUrl, payload)
