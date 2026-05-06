@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react"
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 
 import { type AppSection } from "@/app/core"
 import { getHvQuestionEntry, HV_QUESTION_SENTINEL } from "@/app/sections/wordbank/hv-questions/hv-question-data"
@@ -25,6 +25,8 @@ const ROOT_ENTRY: NavEntry = {
   pendingSentence: null,
 }
 
+const APP_HISTORY_KEY = "danote.nav"
+
 function entriesEqual(a: NavEntry, b: NavEntry): boolean {
   return (
     a.section === b.section
@@ -45,150 +47,206 @@ function builtinAwareLemma(lemma: string | null): string | null {
 
 type HistoryState = { entries: NavEntry[]; index: number }
 
-function pushEntry(prev: HistoryState, next: NavEntry): HistoryState {
-  const currentEntry = prev.entries[prev.index] ?? ROOT_ENTRY
-  if (entriesEqual(currentEntry, next)) return prev
-  const truncated = prev.entries.slice(0, prev.index + 1)
-  return { entries: [...truncated, next], index: truncated.length }
+function readBrowserNavIndex(): number | null {
+  if (typeof window === "undefined") return null
+  const raw = window.history.state as Record<string, unknown> | null
+  const navState = raw && typeof raw === "object" ? (raw as Record<string, unknown>)[APP_HISTORY_KEY] : null
+  if (!navState || typeof navState !== "object") return null
+  const index = (navState as { index?: unknown }).index
+  return typeof index === "number" ? index : null
+}
+
+function writeBrowserNavIndex(method: "push" | "replace", index: number) {
+  if (typeof window === "undefined") return
+  const existing = (window.history.state as Record<string, unknown> | null) ?? {}
+  const next = { ...existing, [APP_HISTORY_KEY]: { index } }
+  if (method === "push") window.history.pushState(next, "")
+  else window.history.replaceState(next, "")
 }
 
 export function useSectionNavigation() {
   const [history, setHistory] = useState<HistoryState>(() => ({ entries: [ROOT_ENTRY], index: 0 }))
+  const historyRef = useRef(history)
+
+  useLayoutEffect(() => {
+    historyRef.current = history
+  }, [history])
+
+  useEffect(() => {
+    writeBrowserNavIndex("replace", 0)
+  }, [])
+
+  useEffect(() => {
+    function onPopState() {
+      const navIndex = readBrowserNavIndex()
+      if (navIndex == null) return
+      const cur = historyRef.current
+      if (cur.index === navIndex) return
+      if (navIndex < 0 || navIndex >= cur.entries.length) return
+      const next = { ...cur, index: navIndex }
+      historyRef.current = next
+      setHistory(next)
+    }
+    window.addEventListener("popstate", onPopState)
+    return () => window.removeEventListener("popstate", onPopState)
+  }, [])
+
+  const applyPush = useCallback((entry: NavEntry) => {
+    const cur = historyRef.current
+    const currentEntry = cur.entries[cur.index] ?? ROOT_ENTRY
+    if (entriesEqual(currentEntry, entry)) return
+    const truncated = cur.entries.slice(0, cur.index + 1)
+    const newIndex = truncated.length
+    const next: HistoryState = { entries: [...truncated, entry], index: newIndex }
+    historyRef.current = next
+    setHistory(next)
+    writeBrowserNavIndex("push", newIndex)
+  }, [])
 
   const current = history.entries[history.index] ?? ROOT_ENTRY
   const previousEntry = history.index > 0 ? history.entries[history.index - 1] : null
   const nextEntry = history.index < history.entries.length - 1 ? history.entries[history.index + 1] : null
 
   const goBack = useCallback(() => {
-    setHistory(prev => (prev.index > 0 ? { ...prev, index: prev.index - 1 } : prev))
+    const cur = historyRef.current
+    if (cur.index <= 0) return
+    const newIndex = cur.index - 1
+    const next: HistoryState = { ...cur, index: newIndex }
+    historyRef.current = next
+    setHistory(next)
+    if (typeof window !== "undefined") window.history.back()
   }, [])
 
   const goForward = useCallback(() => {
-    setHistory(prev => (prev.index < prev.entries.length - 1 ? { ...prev, index: prev.index + 1 } : prev))
+    const cur = historyRef.current
+    if (cur.index >= cur.entries.length - 1) return
+    const newIndex = cur.index + 1
+    const next: HistoryState = { ...cur, index: newIndex }
+    historyRef.current = next
+    setHistory(next)
+    if (typeof window !== "undefined") window.history.forward()
   }, [])
 
   const setActiveSection = useCallback((section: AppSection) => {
-    setHistory(prev => pushEntry(prev, { ...ROOT_ENTRY, section }))
-  }, [])
+    applyPush({ ...ROOT_ENTRY, section })
+  }, [applyPush])
 
   const setSelectedLemma = useCallback((lemma: string | null) => {
-    const resolved = builtinAwareLemma(lemma)
-    setHistory(prev => pushEntry(prev, {
-      section: "wordbank",
-      selectedLemma: resolved,
-      selectedMeaningId: null,
-      selectedSentenceId: null,
-      pendingSentence: null,
-    }))
-  }, [])
-
-  const setSelectedMeaningId = useCallback((meaningId: number | null) => {
-    setHistory(prev => {
-      const cur = prev.entries[prev.index] ?? ROOT_ENTRY
-      return pushEntry(prev, {
-        section: "wordbank",
-        selectedLemma: cur.selectedLemma,
-        selectedMeaningId: meaningId,
-        selectedSentenceId: null,
-        pendingSentence: null,
-      })
-    })
-  }, [])
-
-  const setSelectedSentenceId = useCallback((id: number | null) => {
-    setHistory(prev => pushEntry(prev, {
-      section: "sentencebank",
-      selectedLemma: null,
-      selectedMeaningId: null,
-      selectedSentenceId: id,
-      pendingSentence: null,
-    }))
-  }, [])
-
-  const selectWordbank = useCallback(() => {
-    setHistory(prev => pushEntry(prev, { ...ROOT_ENTRY, section: "wordbank" }))
-  }, [])
-
-  const selectSentencebank = useCallback(() => {
-    setHistory(prev => pushEntry(prev, { ...ROOT_ENTRY, section: "sentencebank" }))
-  }, [])
-
-  const selectDeveloper = useCallback(() => {
-    setHistory(prev => pushEntry(prev, { ...ROOT_ENTRY, section: "developer" }))
-  }, [])
-
-  const openWordbankLemma = useCallback((lemma: string) => {
-    setHistory(prev => pushEntry(prev, {
+    applyPush({
       section: "wordbank",
       selectedLemma: builtinAwareLemma(lemma),
       selectedMeaningId: null,
       selectedSentenceId: null,
       pendingSentence: null,
-    }))
-  }, [])
+    })
+  }, [applyPush])
 
-  const openWordbankMeaning = useCallback((lemma: string, meaningId: number) => {
-    const nextLemma = builtinAwareLemma(lemma)
-    setHistory(prev => pushEntry(prev, {
+  const setSelectedMeaningId = useCallback((meaningId: number | null) => {
+    const cur = historyRef.current.entries[historyRef.current.index] ?? ROOT_ENTRY
+    applyPush({
       section: "wordbank",
-      selectedLemma: nextLemma,
-      selectedMeaningId: nextLemma === lemma ? meaningId : null,
+      selectedLemma: cur.selectedLemma,
+      selectedMeaningId: meaningId,
       selectedSentenceId: null,
       pendingSentence: null,
-    }))
-  }, [])
+    })
+  }, [applyPush])
 
-  const openWordbankTarget = useCallback((lemma: string, meaningId: number | null) => {
-    const nextLemma = builtinAwareLemma(lemma)
-    setHistory(prev => pushEntry(prev, {
-      section: "wordbank",
-      selectedLemma: nextLemma,
-      selectedMeaningId: nextLemma === lemma ? meaningId : null,
-      selectedSentenceId: null,
-      pendingSentence: null,
-    }))
-  }, [])
-
-  const openWordbankRoot = useCallback(() => {
-    setHistory(prev => pushEntry(prev, { ...ROOT_ENTRY, section: "wordbank" }))
-  }, [])
-
-  const openPendingSentence = useCallback(
-    (sourceText: string, englishTranslation: string | null = null) => {
-      setHistory(prev => pushEntry(prev, {
-        section: "sentencebank",
-        selectedLemma: null,
-        selectedMeaningId: null,
-        selectedSentenceId: null,
-        pendingSentence: { source_text: sourceText, english_translation: englishTranslation },
-      }))
-    },
-    [],
-  )
-
-  const openSentence = useCallback((id: number) => {
-    setHistory(prev => pushEntry(prev, {
+  const setSelectedSentenceId = useCallback((id: number | null) => {
+    applyPush({
       section: "sentencebank",
       selectedLemma: null,
       selectedMeaningId: null,
       selectedSentenceId: id,
       pendingSentence: null,
-    }))
-  }, [])
+    })
+  }, [applyPush])
 
-  const replaceCurrentSentence = useCallback((id: number) => {
-    setHistory(prev => {
-      const next: NavEntry = {
+  const selectWordbank = useCallback(() => {
+    applyPush({ ...ROOT_ENTRY, section: "wordbank" })
+  }, [applyPush])
+
+  const selectSentencebank = useCallback(() => {
+    applyPush({ ...ROOT_ENTRY, section: "sentencebank" })
+  }, [applyPush])
+
+  const selectDeveloper = useCallback(() => {
+    applyPush({ ...ROOT_ENTRY, section: "developer" })
+  }, [applyPush])
+
+  const openWordbankLemma = useCallback((lemma: string) => {
+    applyPush({
+      section: "wordbank",
+      selectedLemma: builtinAwareLemma(lemma),
+      selectedMeaningId: null,
+      selectedSentenceId: null,
+      pendingSentence: null,
+    })
+  }, [applyPush])
+
+  const openWordbankMeaning = useCallback((lemma: string, meaningId: number) => {
+    const nextLemma = builtinAwareLemma(lemma)
+    applyPush({
+      section: "wordbank",
+      selectedLemma: nextLemma,
+      selectedMeaningId: nextLemma === lemma ? meaningId : null,
+      selectedSentenceId: null,
+      pendingSentence: null,
+    })
+  }, [applyPush])
+
+  const openWordbankTarget = useCallback((lemma: string, meaningId: number | null) => {
+    const nextLemma = builtinAwareLemma(lemma)
+    applyPush({
+      section: "wordbank",
+      selectedLemma: nextLemma,
+      selectedMeaningId: nextLemma === lemma ? meaningId : null,
+      selectedSentenceId: null,
+      pendingSentence: null,
+    })
+  }, [applyPush])
+
+  const openWordbankRoot = useCallback(() => {
+    applyPush({ ...ROOT_ENTRY, section: "wordbank" })
+  }, [applyPush])
+
+  const openPendingSentence = useCallback(
+    (sourceText: string, englishTranslation: string | null = null) => {
+      applyPush({
         section: "sentencebank",
         selectedLemma: null,
         selectedMeaningId: null,
-        selectedSentenceId: id,
-        pendingSentence: null,
-      }
-      const entries = [...prev.entries]
-      entries[prev.index] = next
-      return { entries, index: prev.index }
+        selectedSentenceId: null,
+        pendingSentence: { source_text: sourceText, english_translation: englishTranslation },
+      })
+    },
+    [applyPush],
+  )
+
+  const openSentence = useCallback((id: number) => {
+    applyPush({
+      section: "sentencebank",
+      selectedLemma: null,
+      selectedMeaningId: null,
+      selectedSentenceId: id,
+      pendingSentence: null,
     })
+  }, [applyPush])
+
+  const replaceCurrentSentence = useCallback((id: number) => {
+    const cur = historyRef.current
+    const next: NavEntry = {
+      section: "sentencebank",
+      selectedLemma: null,
+      selectedMeaningId: null,
+      selectedSentenceId: id,
+      pendingSentence: null,
+    }
+    const entries = [...cur.entries]
+    entries[cur.index] = next
+    const nextState: HistoryState = { entries, index: cur.index }
+    historyRef.current = nextState
+    setHistory(nextState)
   }, [])
 
   return useMemo(() => ({

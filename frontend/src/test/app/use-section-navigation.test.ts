@@ -4,6 +4,32 @@ import { describe, expect, it } from "vitest"
 import { useSectionNavigation } from "@/app/hooks/app/use-section-navigation"
 
 describe("useSectionNavigation history", () => {
+  it("syncs browser popstate to internal index", async () => {
+    const { result } = renderHook(() => useSectionNavigation())
+
+    act(() => {
+      result.current.openSentence(11)
+    })
+    act(() => {
+      result.current.openWordbankLemma("hund")
+    })
+    expect(result.current.selectedLemma).toBe("hund")
+
+    await act(async () => {
+      window.history.back()
+      await new Promise(resolve => setTimeout(resolve, 50))
+    })
+    expect(result.current.selectedSentenceId).toBe(11)
+    expect(result.current.canGoForward).toBe(true)
+
+    await act(async () => {
+      window.history.forward()
+      await new Promise(resolve => setTimeout(resolve, 50))
+    })
+    expect(result.current.selectedLemma).toBe("hund")
+  })
+
+
   it("starts at the wordbank root with no back/forward", () => {
     const { result } = renderHook(() => useSectionNavigation())
 
