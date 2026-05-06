@@ -96,13 +96,13 @@ function CommandInput({
         data-slot="command-input-wrapper"
         className="!h-auto min-h-9 m-2 flex items-start gap-2 rounded-md border px-3"
       >
-        <SearchIcon className="mt-3.5 size-4 shrink-0 opacity-50" />
+        <SearchIcon className="mt-2 size-4 shrink-0 opacity-50" />
         <div className="relative min-w-0 flex-1">
           {overlay ? (
             <div
               aria-hidden="true"
               data-slot="command-input-overlay"
-              className="text-foreground pointer-events-none absolute inset-0 overflow-hidden py-3 text-sm whitespace-pre-wrap"
+              className="text-foreground pointer-events-none absolute inset-0 overflow-hidden py-1.5 text-sm whitespace-pre-wrap"
             >
               {overlay}
             </div>
@@ -122,7 +122,7 @@ function CommandInput({
             spellCheck={false}
             autoCapitalize="none"
             className={cn(
-              "placeholder:text-muted-foreground field-sizing-content w-full resize-none bg-transparent py-3 text-sm outline-hidden disabled:cursor-not-allowed disabled:opacity-50",
+              "placeholder:text-muted-foreground field-sizing-content w-full resize-none bg-transparent py-1.5 text-sm outline-hidden disabled:cursor-not-allowed disabled:opacity-50",
               concealValue ? "relative z-10 text-transparent caret-foreground" : "",
               className
             )}
