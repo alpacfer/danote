@@ -176,6 +176,21 @@ export function useSectionNavigation() {
     }))
   }, [])
 
+  const replaceCurrentSentence = useCallback((id: number) => {
+    setHistory(prev => {
+      const next: NavEntry = {
+        section: "sentencebank",
+        selectedLemma: null,
+        selectedMeaningId: null,
+        selectedSentenceId: id,
+        pendingSentence: null,
+      }
+      const entries = [...prev.entries]
+      entries[prev.index] = next
+      return { entries, index: prev.index }
+    })
+  }, [])
+
   return useMemo(() => ({
     activeSection: current.section,
     selectedLemma: current.selectedLemma,
@@ -202,6 +217,7 @@ export function useSectionNavigation() {
     openWordbankRoot,
     openPendingSentence,
     openSentence,
+    replaceCurrentSentence,
   }), [
     current,
     history.index,
@@ -223,5 +239,6 @@ export function useSectionNavigation() {
     openWordbankRoot,
     openPendingSentence,
     openSentence,
+    replaceCurrentSentence,
   ])
 }

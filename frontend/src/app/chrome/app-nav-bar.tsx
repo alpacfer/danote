@@ -10,8 +10,6 @@ import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 
-const SHORT_LABEL_MAX_CHARS = 28
-
 type SentenceLookup = Map<number, string>
 
 function describeLemma(selectedLemma: string): string {
@@ -30,18 +28,13 @@ function describeNavEntry(entry: NavEntry, sentenceLookup: SentenceLookup): stri
   }
   if (entry.pendingSentence) {
     const text = entry.pendingSentence.source_text.trim()
-    return text ? `New sentence: ${text}` : "New sentence"
+    return text || "New sentence"
   }
   if (entry.selectedSentenceId != null) {
     const text = sentenceLookup.get(entry.selectedSentenceId)?.trim()
-    return text ? `Sentence: ${text}` : "Sentence"
+    return text || "Sentence"
   }
   return "Sentencebank"
-}
-
-function truncate(label: string, max: number): string {
-  if (label.length <= max) return label
-  return `${label.slice(0, max - 1).trimEnd()}…`
 }
 
 export type AppNavBarProps = {
@@ -81,68 +74,54 @@ export function AppNavBar({
     <TooltipProvider delayDuration={200}>
       <nav
         aria-label="Section navigation"
-        className="flex w-full items-center gap-2"
+        className="flex w-full min-w-0 items-center gap-3"
       >
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={onBack}
-              disabled={!canGoBack}
-              aria-label={previousLabel ? `Back to ${previousLabel}` : "Back"}
-              className="max-w-[14rem] shrink-0 gap-1.5"
-            >
-              <ArrowLeft className="size-4" aria-hidden />
-              {previousLabel ? (
-                <span className="truncate text-sm font-medium">
-                  {truncate(previousLabel, SHORT_LABEL_MAX_CHARS)}
-                </span>
-              ) : (
-                <span className="sr-only">Back</span>
-              )}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            {previousLabel ? `Back to ${previousLabel}` : "No previous page"}
-          </TooltipContent>
-        </Tooltip>
+        <div className="flex shrink-0 items-center gap-1">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={onBack}
+                disabled={!canGoBack}
+                aria-label={previousLabel ? `Back to ${previousLabel}` : "Back"}
+              >
+                <ArrowLeft className="size-4" aria-hidden />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {previousLabel ? `Back to ${previousLabel}` : "No previous page"}
+            </TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={onForward}
+                disabled={!canGoForward}
+                aria-label={nextLabel ? `Forward to ${nextLabel}` : "Forward"}
+              >
+                <ArrowRight className="size-4" aria-hidden />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {nextLabel ? `Forward to ${nextLabel}` : "No next page"}
+            </TooltipContent>
+          </Tooltip>
+        </div>
 
         <div
           aria-current="page"
           className={cn(
-            "min-w-0 flex-1 truncate text-center text-2xl leading-[1.1] font-semibold tracking-tight",
+            "min-w-0 flex-1 truncate text-left text-2xl leading-[1.1] font-semibold tracking-tight",
           )}
         >
           {currentLabel}
         </div>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={onForward}
-              disabled={!canGoForward}
-              aria-label={nextLabel ? `Forward to ${nextLabel}` : "Forward"}
-              className="max-w-[14rem] shrink-0 gap-1.5"
-            >
-              {nextLabel ? (
-                <span className="truncate text-sm font-medium">
-                  {truncate(nextLabel, SHORT_LABEL_MAX_CHARS)}
-                </span>
-              ) : (
-                <span className="sr-only">Forward</span>
-              )}
-              <ArrowRight className="size-4" aria-hidden />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            {nextLabel ? `Forward to ${nextLabel}` : "No next page"}
-          </TooltipContent>
-        </Tooltip>
       </nav>
     </TooltipProvider>
   )

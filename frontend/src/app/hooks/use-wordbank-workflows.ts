@@ -44,6 +44,7 @@ type UseWordbankWorkflowsParams = {
   setSentencebankRefreshTick: Dispatch<SetStateAction<number>>
   openPendingSentence: (text: string, englishTranslation?: string | null) => void
   openSentence: (id: number) => void
+  replaceCurrentSentence: (id: number) => void
   openWordbankTarget: (lemma: string, meaningId: number | null) => void
   postTokenFeedback: (payload: TokenFeedbackPayload) => Promise<void>
   onSentenceSaved?: () => void
@@ -82,6 +83,7 @@ export function useWordbankWorkflows({
   setSentencebankRefreshTick,
   openPendingSentence,
   openSentence,
+  replaceCurrentSentence,
   openWordbankTarget,
   postTokenFeedback,
   onSentenceSaved,
@@ -329,7 +331,11 @@ export function useWordbankWorkflows({
       }
       if (payload.id != null) {
         setGeneratedExamplePreview(null)
-        openSentence(payload.id)
+        if (options?.skipPendingView) {
+          openSentence(payload.id)
+        } else {
+          replaceCurrentSentence(payload.id)
+        }
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Could not save sentence. Try again."

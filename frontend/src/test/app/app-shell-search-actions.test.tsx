@@ -333,7 +333,7 @@ describe("App shell and search", () => {
       ).length).toBeGreaterThan(initialWordbankGetCount)
     })
 
-    expect(await screen.findByText(/^jeg elsker dansk$/i)).toBeInTheDocument()
+    expect((await screen.findAllByText(/^jeg elsker dansk$/i)).length).toBeGreaterThan(0)
 
     expect(
       fetchSpy.mock.calls.some(([input]) => String(input).endsWith("/api/wordbank/resolve-query")),
@@ -378,7 +378,7 @@ describe("App shell and search", () => {
     })
     fireEvent.click(within(commandDialog).getByRole("option"))
 
-    expect(await screen.findByText(/^jeg elsker dansk$/i)).toBeInTheDocument()
+    expect((await screen.findAllByText(/^jeg elsker dansk$/i)).length).toBeGreaterThan(0)
     const pendingCards = await screen.findAllByTestId("sentence-page-pending-token-card")
     expect(pendingCards).toHaveLength(3)
     expect(pendingCards.map((card) => card.textContent)).toEqual(["jeg", "elsker", "dansk"])

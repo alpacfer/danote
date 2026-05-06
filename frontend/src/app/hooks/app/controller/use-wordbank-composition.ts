@@ -30,6 +30,7 @@ export function useWordbankComposition({ foundation, onSentenceSaved }: UseWordb
     setSentencebankRefreshTick: foundation.setSentencebankRefreshTick,
     openPendingSentence: navigation.openPendingSentence,
     openSentence: navigation.openSentence,
+    replaceCurrentSentence: navigation.replaceCurrentSentence,
     openWordbankTarget: navigation.openWordbankTarget,
     trackQueuedPronunciationForms: lexiconData.trackQueuedPronunciationForms,
     postTokenFeedback: async (payload) => {

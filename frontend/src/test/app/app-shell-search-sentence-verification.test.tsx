@@ -634,7 +634,7 @@ it("underlines the typo in the input and shows only the correction plus correcte
     })
 
     await waitFor(() => {
-      expect(screen.getByText(/^jeg er glad$/i)).toBeInTheDocument()
+      expect(screen.getAllByText(/^jeg er glad$/i).length).toBeGreaterThan(0)
     }, { timeout: 5_000 })
   })
 

@@ -84,6 +84,30 @@ describe("useSectionNavigation history", () => {
     expect(result.current.canGoForward).toBe(true)
   })
 
+  it("replaceCurrentSentence swaps the current entry instead of pushing", () => {
+    const { result } = renderHook(() => useSectionNavigation())
+
+    act(() => {
+      result.current.openWordbankLemma("hund")
+    })
+    act(() => {
+      result.current.openPendingSentence("Hvor bor du?", "Where do you live?")
+    })
+    expect(result.current.pendingSentence?.source_text).toBe("Hvor bor du?")
+
+    act(() => {
+      result.current.replaceCurrentSentence(99)
+    })
+    expect(result.current.pendingSentence).toBeNull()
+    expect(result.current.selectedSentenceId).toBe(99)
+
+    act(() => {
+      result.current.goBack()
+    })
+    expect(result.current.selectedLemma).toBe("hund")
+    expect(result.current.pendingSentence).toBeNull()
+  })
+
   it("openWordbankTarget pushes a single entry for combined lemma+meaning navigation", () => {
     const { result } = renderHook(() => useSectionNavigation())
 
