@@ -25,7 +25,7 @@ export function WordbankLinkedSentences({
       >
         Sentences
       </h2>
-      <div className="space-y-3">
+      <div className="flex flex-wrap gap-3">
         {linkedSentences.map((sentence: LinkedSentence) => {
           const content = (
             <Card
@@ -52,7 +52,7 @@ export function WordbankLinkedSentences({
               <button
                 key={`linked-sentence-btn-${sentence.id}`}
                 type="button"
-                className="w-full text-left"
+                className="text-left"
                 onClick={() => onOpenSentence(sentence.id)}
               >
                 {content}
