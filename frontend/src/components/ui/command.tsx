@@ -65,7 +65,7 @@ function CommandDialog({
           value={commandValue}
           onValueChange={onCommandValueChange}
           shouldFilter={commandShouldFilter}
-          className="[&_[cmdk-group-heading]]:text-muted-foreground **:data-[slot=command-input-wrapper]:h-11 [&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group]]:px-2 [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-9 [&_[cmdk-input]]:py-0 [&_[cmdk-item]]:px-3 [&_[cmdk-item]]:py-2 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5"
+          className="[&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group]]:px-2 [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-input-wrapper]_svg]:h-4 [&_[cmdk-input-wrapper]_svg]:w-4 [&_[cmdk-input]]:!h-9 [&_[cmdk-input]]:!py-0 [&_[cmdk-item]]:px-3 [&_[cmdk-item]]:py-2 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5"
         >
           {children}
         </Command>
@@ -94,7 +94,7 @@ function CommandInput({
     return (
       <div
         data-slot="command-input-wrapper"
-        className="!h-auto min-h-12 m-3 flex items-start gap-2 rounded-md border px-3"
+        className="!h-auto min-h-9 m-2 flex items-start gap-2 rounded-md border px-3"
       >
         <SearchIcon className="mt-3.5 size-4 shrink-0 opacity-50" />
         <div className="relative min-w-0 flex-1">
@@ -142,7 +142,7 @@ function CommandInput({
   return (
     <div
       data-slot="command-input-wrapper"
-      className="m-3 flex h-9 items-center gap-2 rounded-md border px-3"
+      className="m-2 flex h-9 items-center gap-2 rounded-md border px-3"
     >
       <SearchIcon className="size-4 shrink-0 opacity-50" />
       <div className="relative min-w-0 flex-1">
