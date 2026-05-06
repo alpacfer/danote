@@ -234,7 +234,8 @@ describe("App sentencebank", () => {
 
     expect(await screen.findByRole("heading", { name: /place, time, manner and reason/i })).toBeInTheDocument()
     expect(screen.getAllByText(/^hvor$/i).length).toBeGreaterThan(0)
-    expect(screen.getByText(/where do you live/i)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: /see examples/i }))
+    expect(await screen.findByText(/where do you live/i)).toBeInTheDocument()
     expect(fetchSpy.mock.calls.some(([input]) => String(input).includes("__hv_questions"))).toBe(false)
   })
 
