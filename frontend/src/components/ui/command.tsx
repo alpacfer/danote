@@ -122,7 +122,7 @@ function CommandInput({
             spellCheck={false}
             autoCapitalize="none"
             className={cn(
-              "placeholder:text-muted-foreground field-sizing-content w-full resize-none bg-transparent py-0 text-sm outline-hidden disabled:cursor-not-allowed disabled:opacity-50",
+              "placeholder:text-muted-foreground field-sizing-content block w-full resize-none bg-transparent py-0 text-sm outline-hidden disabled:cursor-not-allowed disabled:opacity-50",
               concealValue ? "relative z-10 text-transparent caret-foreground" : "",
               className
             )}
