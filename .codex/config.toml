@@ -10,7 +10,7 @@ plan_mode_reasoning_effort = "high"
 # into Codex-specific files.
 developer_instructions = """
 For this repository, follow AGENTS.md as the canonical project guidance.
-CLAUDE.md and AGENT.md are compatibility symlinks to AGENTS.md.
+CLAUDE.md is a compatibility symlink for Claude Code.
 Do not duplicate agent behavior into tool-specific files; update AGENTS.md instead.
 """
 

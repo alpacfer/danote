@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Tool-agnostic AI agent context for danote. This is the canonical source of truth — **edit `AGENTS.md`**. `CLAUDE.md` and `AGENT.md` are compatibility symlinks. Claude Code, Codex, and other coding agents all read from here.
+Tool-agnostic AI agent context for danote. This is the canonical source of truth — **edit `AGENTS.md`**. `CLAUDE.md` is a compatibility symlink for Claude Code. Codex finds this file natively.
 
 ## Mission
 
@@ -53,10 +53,21 @@ Frontend:
 
 Quick lookup:
 
-- Backend entry: `backend/app/main.py`
-- API router: `backend/app/api/router.py`
-- E2E script: `scripts/e2e-regression.sh`
-- Docs smoke: `scripts/docs-smoke.sh`
+- Backend entry: `backend/app/main.py` · API router: `backend/app/api/router.py`
+- E2E script: `scripts/e2e-regression.sh` · Docs smoke: `scripts/docs-smoke.sh`
+
+Per-directory READMEs (read these before editing — they explain what goes where):
+
+- `backend/app/services/README.md` — domain services + external adapters; explains the `cor.py`/`translation.py`/`verification.py` naming overlap with `collaborators/`.
+- `backend/app/services/use_cases/README.md` — use-case orchestrators.
+- `backend/app/services/use_cases/wordbank/collaborators/README.md` — wordbank-flow-specific helpers; when to edit here vs. `services/`.
+- `backend/app/db/repositories/README.md` — repository file map (reads/mutations/search/change-log split).
+- `frontend/src/app/core/README.md` — cross-cutting frontend primitives and `types-*.ts` files.
+
+Disambiguating duplicate filenames:
+
+- `cor.py` / `translation.py` / `verification.py` exist in **both** `backend/app/services/` (generic, reusable) and `backend/app/services/use_cases/wordbank/collaborators/` (wordbank-flow-specific). Always check the path before assuming which one is meant.
+- `wordbank.py` exists in `api/routes/`, `api/schemas/v1/`, and `db/repositories/` — one per layer; the path tells you which.
 
 ## Change Policy
 
@@ -161,6 +172,17 @@ Keep secrets and generated artifacts out of normal edits:
 
 Claude-specific runtime hooks and permissions may exist under `.claude/`; they should implement these rules, not redefine project behavior.
 
+## Hygiene Rules
+
+Apply on every change. These rules exist because the last audit found orphan files, missing READMEs, and aspirational docs that referenced things that didn't exist.
+
+- **Orphan check**: after deleting or replacing exports, `grep -rn <basename>` across the repo (excluding the file itself). If no references remain, delete the file. Don't leave dead code.
+- **Size budget**: `make maintainability-check` enforces hard caps. If a file you touch crosses its soft limit, extract a sibling instead of expanding it.
+- **Local READMEs are part of the contract**: if a directory you touch has ≥5 source files and no `README.md`, add one (15–25 lines: what lives here, what does not, how to choose between sibling files). When a directory's structure changes, update its README.
+- **Duplicate-name discipline**: before creating a file with a basename that already exists in the repo, either pick a more specific name or document the split in the parent directory's README. Existing pattern: `backend/app/services/cor.py` (generic) vs `services/use_cases/wordbank/collaborators/cor.py` (wordbank-specific) — disambiguated in `services/README.md`.
+- **No aspirational guidance**: every agent, script, make target, and path mentioned in any docs file must actually exist. References to `.claude/agents/<name>` require `.claude/agents/<name>.md` to be present. `make hygiene` will flag broken refs.
+- **Soft check before declaring done**: `make hygiene` warns about dirs missing READMEs. Run on broad changes.
+
 ## Finish Checklist
 
 - [ ] Related docs reviewed before implementation.
@@ -168,4 +190,8 @@ Claude-specific runtime hooks and permissions may exist under `.claude/`; they s
 - [ ] Broad/high-risk changes ran `make lint`, `make test`, and `make docs-smoke`.
 - [ ] Backend orchestration changes ran `tests/use_cases`.
 - [ ] Docs parity verified.
+- [ ] No orphan files left behind (search-confirm any deletion).
+- [ ] Touched files stay under their soft size limit (or have been split).
+- [ ] Any directory that grew past 5 source files has a README.md.
+- [ ] No references to non-existent agents/scripts/paths in docs.
 - [ ] No scratch files, caches, duplicate artifacts, or accidental generated files remain.

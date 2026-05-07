@@ -1,4 +1,4 @@
-.PHONY: help setup-backend setup-backend-search setup-frontend setup lint lint-backend maintainability-check test pytest-backend test-backend-fast test-backend-unit test-backend-api test-backend-medium test-backend-slow test-backend-perf test-frontend docs-smoke agent-verify dev seed-numbers-audio
+.PHONY: help setup-backend setup-backend-search setup-frontend setup lint lint-backend maintainability-check hygiene test pytest-backend test-backend-fast test-backend-unit test-backend-api test-backend-medium test-backend-slow test-backend-perf test-frontend docs-smoke agent-verify dev seed-numbers-audio
 
 BACKEND_DIR := backend
 FRONTEND_DIR := frontend
@@ -19,6 +19,7 @@ help:
 	@echo "  setup               Run setup-backend and setup-frontend"
 	@echo "  lint                Run frontend lint and backend lint checks"
 	@echo "  maintainability-check Run file size budget guardrails"
+	@echo "  hygiene             Soft check: missing READMEs, aspirational doc refs"
 	@echo "  pytest-backend      Run backend pytest with ARGS passthrough"
 	@echo "  test-backend-fast   Run fast backend unit + API tests"
 	@echo "  test-backend-unit   Run fast backend unit tests"
@@ -55,6 +56,9 @@ lint:
 
 maintainability-check:
 	./scripts/check-maintainability-budgets.sh
+
+hygiene:
+	./scripts/check-hygiene.sh
 
 lint-backend:
 	cd $(BACKEND_DIR) && .venv/bin/python -m compileall -q app

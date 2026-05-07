@@ -26,8 +26,10 @@ Read `AGENTS.md` § "Change Policy" — especially the docs map — and `docs/RE
 2. Classify each by the table above.
 3. For each affected doc: read it, update only what the code change requires, keep tone consistent with surrounding sections.
 4. Update the freshness entry in `docs/README.md` when a `docs/behavior/*` file changes.
-5. Run `make docs-smoke` to verify links and structure.
-6. If no docs need updating, surface a clear "No documentation impact" line for the PR summary.
+5. **Structural docs**: if directory structure changed (new dir, dir grew past 5 source files, files moved/renamed), audit affected directories for missing/stale local `README.md` and add or update them. See `AGENTS.md` § "Hygiene Rules".
+6. Run `make hygiene` to flag dirs that lack a README and any aspirational refs to `.claude/agents/<name>` files that don't exist.
+7. Run `make docs-smoke` to verify links and structure.
+8. If no docs need updating, surface a clear "No documentation impact" line for the PR summary.
 
 ## Working rules
 

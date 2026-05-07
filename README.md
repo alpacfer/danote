@@ -57,9 +57,9 @@ make agent-verify
 
 Agent guidance:
 
-- `AGENT.md` is the source of truth.
-- `AGENTS.md` and `CLAUDE.md` are compatibility symlinks.
-- `.codex/config.toml` points Codex at `AGENT.md` and keeps project-scoped sandbox/approval defaults.
+- `AGENTS.md` is the source of truth.
+- `CLAUDE.md` is a compatibility symlink for Claude Code.
+- `.codex/config.toml` keeps project-scoped sandbox/approval defaults; Codex finds `AGENTS.md` natively.
 
 One-command startup (recommended):
 
