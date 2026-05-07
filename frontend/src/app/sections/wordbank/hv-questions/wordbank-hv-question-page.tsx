@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { BookOpenText, ChevronLeft, ChevronRight, Loader2, MessageSquareQuote } from "lucide-react"
+import { BookOpenText, ChevronRight, Loader2, MessageSquareQuote } from "lucide-react"
 
 import {
   corSecondaryBadgeClass,
@@ -38,7 +38,6 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 type WordbankHvQuestionPageProps = {
   sentences: SentencebankSentence[]
   generatingStaticExampleByLemma: Record<string, boolean>
-  onBack: () => void
   onGenerateStaticExample: (lemma: string) => void
   onOpenSentence?: (id: number) => void
 }
@@ -46,19 +45,12 @@ type WordbankHvQuestionPageProps = {
 export function WordbankHvQuestionPage({
   sentences,
   generatingStaticExampleByLemma,
-  onBack,
   onGenerateStaticExample,
   onOpenSentence,
 }: WordbankHvQuestionPageProps) {
   const grouped = groupHvWords()
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
-      <div>
-        <Button type="button" variant="ghost" size="sm" className="-ml-2" onClick={onBack}>
-          <ChevronLeft className="size-4" />
-          Back
-        </Button>
-      </div>
       <ScrollArea className="min-h-0 flex-1">
         <div className="space-y-6 pr-2">
           {grouped.map(([category, entries]) => (

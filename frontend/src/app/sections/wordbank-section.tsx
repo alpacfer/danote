@@ -21,14 +21,13 @@ export function WordbankSection(props: WordbankSectionProps) {
       <WordbankHvQuestionPage
         sentences={props.sentences}
         generatingStaticExampleByLemma={props.generatingStaticExampleByLemma}
-        onBack={() => props.onSelectLemma("")}
         onGenerateStaticExample={props.onGenerateStaticExample}
         onOpenSentence={props.onOpenSentence}
       />
     )
   }
   if (parseNumbersSentinel(props.selectedLemma)) {
-    return <WordbankNumbersPage onBack={() => props.onSelectLemma("")} />
+    return <WordbankNumbersPage />
   }
 
   if (pronounCategory) {
@@ -36,7 +35,6 @@ export function WordbankSection(props: WordbankSectionProps) {
       <WordbankPronounPage
         category={pronounCategory}
         lemmas={props.lemmas}
-        onBack={() => props.onSelectLemma("")}
       />
     )
   }

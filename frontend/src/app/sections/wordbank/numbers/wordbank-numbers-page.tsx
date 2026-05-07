@@ -1,5 +1,3 @@
-import { ChevronLeft } from "lucide-react"
-
 import {
   BASIC_NUMBER_ROWS,
   NUMBER_RULE_ROWS,
@@ -7,7 +5,6 @@ import {
 } from "@/app/sections/wordbank/numbers/numbers-data"
 import { useNumberAudio } from "@/app/sections/wordbank/numbers/use-number-audio"
 import { WordbankPronunciationWord } from "@/app/sections/wordbank/wordbank-pronunciation-word"
-import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
@@ -19,17 +16,11 @@ import {
   TableRow,
 } from "@/components/ui/table"
 
-export function WordbankNumbersPage({ onBack }: { onBack: () => void }) {
+export function WordbankNumbersPage() {
   const { loadingByTerm, playTerm } = useNumberAudio()
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
-      <div>
-        <Button type="button" variant="ghost" size="sm" className="-ml-2" onClick={onBack}>
-          <ChevronLeft className="size-4" />
-          Back
-        </Button>
-      </div>
       <ScrollArea className="min-h-0 flex-1">
         <div className="grid gap-4 pr-2 xl:grid-cols-[1fr_1fr]">
           <NumberTable

@@ -7,6 +7,7 @@ import {
   posBadgeClass,
   type SentenceTokenCard,
 } from "@/app/core"
+import { enrichSentenceTokenWithBuiltins } from "@/app/sections/sentencebank/builtin-token-enrichment"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -20,12 +21,13 @@ type SentencebankTokenButtonProps = {
 }
 
 export function SentencebankTokenButton({
-  token,
+  token: rawToken,
   onOpenWordbankLemma,
   onOpenWordbankMeaning,
   onAddUnsavedToken,
   onHighlightTokenIndex,
 }: SentencebankTokenButtonProps) {
+  const token = enrichSentenceTokenWithBuiltins(rawToken)
   const lemmaDisplay = lemmaDisplayForSavedForm({
     form: token.surface_form,
     lemma: token.stored_lemma ?? token.surface_form,

@@ -71,6 +71,16 @@ export function WordbankListView({
                 onClick={() => onSelectLemma(PRONOUN_SENTINELS.personal_possessive)}
               />
               <BuiltInReferenceCard
+                label={PRONOUN_CATEGORY_LABELS.demonstrative}
+                ariaLabel={`Open ${PRONOUN_CATEGORY_LABELS.demonstrative} reference`}
+                onClick={() => onSelectLemma(PRONOUN_SENTINELS.demonstrative)}
+              />
+              <BuiltInReferenceCard
+                label={PRONOUN_CATEGORY_LABELS.interrogative_other}
+                ariaLabel={`Open ${PRONOUN_CATEGORY_LABELS.interrogative_other} reference`}
+                onClick={() => onSelectLemma(PRONOUN_SENTINELS.interrogative_other)}
+              />
+              <BuiltInReferenceCard
                 label="HV Question Words"
                 ariaLabel="Open HV Question Words reference"
                 onClick={() => onSelectLemma(HV_QUESTION_SENTINEL)}
