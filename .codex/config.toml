@@ -9,13 +9,11 @@ plan_mode_reasoning_effort = "high"
 # Keep Codex pointed at the tool-agnostic source of truth without duplicating it
 # into Codex-specific files.
 developer_instructions = """
-For this repository, read and follow AGENT.md as the canonical project guidance.
-AGENTS.md and CLAUDE.md are compatibility symlinks to AGENT.md.
-Do not duplicate agent behavior into tool-specific files; update AGENT.md instead.
+For this repository, follow AGENTS.md as the canonical project guidance.
+CLAUDE.md and AGENT.md are compatibility symlinks to AGENTS.md.
+Do not duplicate agent behavior into tool-specific files; update AGENTS.md instead.
 """
 
-# AGENT.md is used if AGENTS.md is absent in a future cleanup or subdirectory.
-project_doc_fallback_filenames = ["AGENT.md"]
 project_doc_max_bytes = 65536
 
 # Conservative interactive defaults: allow ordinary workspace edits and ask
