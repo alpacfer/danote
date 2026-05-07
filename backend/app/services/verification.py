@@ -54,7 +54,7 @@ class GeminiWordVerificationService:
     """Wordbank entry verifier backed by Gemini Flash."""
 
     api_key: str
-    model: str = "gemini-3-flash-preview"
+    model: str = "gemini-3.1-flash-lite"
     timeout_seconds: float = 20.0
     max_retries: int = 2
     backoff_seconds: float = 0.5

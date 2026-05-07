@@ -32,7 +32,7 @@ def test_load_settings_defaults_to_deepl_provider(monkeypatch, tmp_path: Path) -
     assert settings.translation_azure_api_version == "3.0"
     assert settings.translation_deepl_api_key is None
     assert settings.translation_deepl_endpoint is None
-    assert settings.gemini_model == "gemini-3.1-flash-lite-preview"
+    assert settings.gemini_model == "gemini-3.1-flash-lite"
     assert settings.tts_provider == "azure"
     assert settings.tts_azure_voice_name == "da-DK-ChristelNeural"
     assert settings.word_verification_enabled is True

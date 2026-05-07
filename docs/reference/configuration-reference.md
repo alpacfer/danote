@@ -87,7 +87,7 @@ Notes:
 | `DANOTE_WORD_VERIFICATION_ENABLED` | `1` | Boolean-like (`1/0`, `true/false`, `yes/no`) | Disables Gemini-based word verification when falsey. |
 | `DANOTE_WORDBANK_BACKGROUND_JOB_WORKERS` | `4` | Integer string parseable by Python `int()` | Max concurrent wordbank background jobs in backend dispatcher. Values below `1` clamped to `1`. |
 | `DANOTE_WORD_VERIFICATION_GEMINI_API_KEY` | fallback chain | Gemini API key string | Resolution: `DANOTE_WORD_VERIFICATION_GEMINI_API_KEY` → `DANOTE_GEMINI_API_KEY` → unset. |
-| `DANOTE_WORD_VERIFICATION_GEMINI_MODEL` | `gemini-3.1-flash-lite-preview` (via alias fallback) | Gemini model name string | Resolution: `DANOTE_WORD_VERIFICATION_GEMINI_MODEL` → `DANOTE_GEMINI_MODEL` → built-in default. |
+| `DANOTE_WORD_VERIFICATION_GEMINI_MODEL` | `gemini-3.1-flash-lite` (via alias fallback) | Gemini model name string | Resolution: `DANOTE_WORD_VERIFICATION_GEMINI_MODEL` → `DANOTE_GEMINI_MODEL` → built-in default. |
 | `DANOTE_GEMINI_API_KEY` | fallback chain | Gemini API key string | Resolution: `DANOTE_GEMINI_API_KEY` → `DANOTE_WORD_VERIFICATION_GEMINI_API_KEY` → unset. Alias for shared Gemini credentials. |
-| `DANOTE_GEMINI_MODEL` | `gemini-3.1-flash-lite-preview` (via alias fallback) | Gemini model name string | Resolution: `DANOTE_GEMINI_MODEL` → `DANOTE_WORD_VERIFICATION_GEMINI_MODEL` → built-in default. Alias for shared Gemini model config. |
+| `DANOTE_GEMINI_MODEL` | `gemini-3.1-flash-lite` (via alias fallback) | Gemini model name string | Resolution: `DANOTE_GEMINI_MODEL` → `DANOTE_WORD_VERIFICATION_GEMINI_MODEL` → built-in default. Alias for shared Gemini model config. |
 | `DANOTE_GEMINI_CHANGES_LOG_PATH` | `backend/data/gemini-applied-changes.jsonl` | Any filesystem path | Relative paths resolve from repo root; audit log location for Gemini "apply changes" actions. |

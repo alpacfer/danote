@@ -29,14 +29,14 @@ class Settings:
     translation_deepl_api_key: str | None = None
     translation_deepl_endpoint: str | None = None
     gemini_api_key: str | None = None
-    gemini_model: str = "gemini-3.1-flash-lite-preview"
+    gemini_model: str = "gemini-3.1-flash-lite"
     cor_lookup_enabled: bool = False
     cor_lookup_timeout_seconds: float = 4.0
     cor_local_db_path: Path = BASE_DIR / "resources" / "dictionaries" / "cor.sqlite"
     en_local_db_path: Path = BASE_DIR / "resources" / "dictionaries" / "english_wiki.sqlite"
     word_verification_enabled: bool = False
     word_verification_gemini_api_key: str | None = None
-    word_verification_gemini_model: str = "gemini-3-flash-preview"
+    word_verification_gemini_model: str = "gemini-3.1-flash-lite"
     wordbank_background_job_workers: int = 4
     tts_enabled: bool = True
     tts_provider: str = "azure"
@@ -82,7 +82,7 @@ def load_settings(*, env_file: Path | None = None) -> Settings:
         gemini_model=_required_env(
             "DANOTE_GEMINI_MODEL",
             env_values,
-            _required_env("DANOTE_WORD_VERIFICATION_GEMINI_MODEL", env_values, "gemini-3.1-flash-lite-preview"),
+            _required_env("DANOTE_WORD_VERIFICATION_GEMINI_MODEL", env_values, "gemini-3.1-flash-lite"),
         ),
         cor_lookup_enabled=_required_env("DANOTE_COR_LOOKUP_ENABLED", env_values, "1").lower() not in {"0", "false", "no"},
         cor_lookup_timeout_seconds=float(_required_env("DANOTE_COR_LOOKUP_TIMEOUT_SECONDS", env_values, "4.0")),
@@ -106,7 +106,7 @@ def load_settings(*, env_file: Path | None = None) -> Settings:
         word_verification_gemini_model=_required_env(
             "DANOTE_WORD_VERIFICATION_GEMINI_MODEL",
             env_values,
-            _required_env("DANOTE_GEMINI_MODEL", env_values, "gemini-3.1-flash-lite-preview"),
+            _required_env("DANOTE_GEMINI_MODEL", env_values, "gemini-3.1-flash-lite"),
         ),
         wordbank_background_job_workers=int(
             _required_env("DANOTE_WORDBANK_BACKGROUND_JOB_WORKERS", env_values, "4")

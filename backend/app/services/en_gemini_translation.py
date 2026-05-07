@@ -31,7 +31,7 @@ class ENGeminiTranslationService:
     """Thin Gemini client for English-lemma → Danish-lemma with POS+gloss context."""
 
     api_key: str
-    model: str = "gemini-3.1-flash-lite-preview"
+    model: str = "gemini-3.1-flash-lite"
     timeout_seconds: float = 20.0
     max_retries: int = 2
     backoff_seconds: float = 0.5

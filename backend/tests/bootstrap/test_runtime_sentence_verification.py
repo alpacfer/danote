@@ -37,7 +37,7 @@ def test_initialize_sentence_verification_key_present_sets_service(monkeypatch, 
     settings = _settings(
         tmp_path,
         gemini_api_key="test-gemini-key",
-        gemini_model="gemini-3.1-flash-lite-preview",
+        gemini_model="gemini-3.1-flash-lite",
     )
     init_app_state(app, settings)
 
@@ -52,7 +52,7 @@ def test_initialize_sentence_verification_key_present_sets_service(monkeypatch, 
     assert runtime.sentence_verification_error is None
     assert runtime.services.sentence_verification_service is not None
     assert runtime.services.sentence_verification_service.api_key == "test-gemini-key"
-    assert runtime.services.sentence_verification_service.model == "gemini-3.1-flash-lite-preview"
+    assert runtime.services.sentence_verification_service.model == "gemini-3.1-flash-lite"
 
 
 def test_initialize_sentence_verification_uses_word_verification_fallbacks(
@@ -63,9 +63,9 @@ def test_initialize_sentence_verification_uses_word_verification_fallbacks(
     settings = _settings(
         tmp_path,
         gemini_api_key=None,
-        gemini_model="gemini-3.1-flash-lite-preview",
+        gemini_model="gemini-3.1-flash-lite",
         word_verification_gemini_api_key="test-word-verification-key",
-        word_verification_gemini_model="gemini-3-flash-preview",
+        word_verification_gemini_model="gemini-3.1-flash-lite",
     )
     init_app_state(app, settings)
 
@@ -80,7 +80,7 @@ def test_initialize_sentence_verification_uses_word_verification_fallbacks(
     assert runtime.sentence_verification_error is None
     assert runtime.services.sentence_verification_service is not None
     assert runtime.services.sentence_verification_service.api_key == "test-word-verification-key"
-    assert runtime.services.sentence_verification_service.model == "gemini-3-flash-preview"
+    assert runtime.services.sentence_verification_service.model == "gemini-3.1-flash-lite"
 
 
 def test_initialize_sentence_verification_key_absent_leaves_service_none(tmp_path: Path) -> None:

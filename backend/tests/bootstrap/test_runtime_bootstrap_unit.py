@@ -137,7 +137,7 @@ def test_initialize_tts_disabled_leaves_service_unset(tmp_path: Path) -> None:
 
 def test_initialize_gemini_word_translation_uses_shared_gemini_settings(monkeypatch, tmp_path: Path) -> None:
     app = FastAPI()
-    settings = _settings(tmp_path, gemini_api_key="shared-key", gemini_model="gemini-3.1-flash-lite-preview")
+    settings = _settings(tmp_path, gemini_api_key="shared-key", gemini_model="gemini-3.1-flash-lite")
     init_app_state(app, settings)
 
     class StubGeminiWordTranslationService:
@@ -161,7 +161,7 @@ def test_initialize_gemini_word_translation_uses_shared_gemini_settings(monkeypa
     assert runtime.gemini_word_translation_error is None
     assert runtime.services.gemini_word_translation_service is not None
     assert runtime.services.gemini_word_translation_service.api_key == "shared-key"
-    assert runtime.services.gemini_word_translation_service.model == "gemini-3.1-flash-lite-preview"
+    assert runtime.services.gemini_word_translation_service.model == "gemini-3.1-flash-lite"
 
 
 def test_initialize_word_verification_missing_key_sets_runtime_error(tmp_path: Path) -> None:
@@ -185,10 +185,10 @@ def test_initialize_word_verification_falls_back_to_shared_gemini_key(monkeypatc
     settings = _settings(
         tmp_path,
         gemini_api_key="shared-key",
-        gemini_model="gemini-3.1-flash-lite-preview",
+        gemini_model="gemini-3.1-flash-lite",
         word_verification_enabled=True,
         word_verification_gemini_api_key=None,
-        word_verification_gemini_model="gemini-3.1-flash-lite-preview",
+        word_verification_gemini_model="gemini-3.1-flash-lite",
     )
     init_app_state(app, settings)
 
@@ -210,7 +210,7 @@ def test_initialize_word_verification_falls_back_to_shared_gemini_key(monkeypatc
     assert runtime.word_verification_error is None
     assert runtime.services.word_verification_service is not None
     assert runtime.services.word_verification_service.api_key == "shared-key"
-    assert runtime.services.word_verification_service.model == "gemini-3.1-flash-lite-preview"
+    assert runtime.services.word_verification_service.model == "gemini-3.1-flash-lite"
 
 
 def test_initialize_translation_logs_structured_failure_payload(monkeypatch, caplog, tmp_path: Path) -> None:
@@ -244,7 +244,7 @@ def test_initialize_translation_logs_structured_failure_payload(monkeypatch, cap
 
 def test_initialize_gemini_word_translation_logs_structured_failure_payload(monkeypatch, caplog, tmp_path: Path) -> None:
     app = FastAPI()
-    settings = _settings(tmp_path, gemini_api_key="shared-key", gemini_model="gemini-3.1-flash-lite-preview")
+    settings = _settings(tmp_path, gemini_api_key="shared-key", gemini_model="gemini-3.1-flash-lite")
     init_app_state(app, settings)
 
     class FailingGeminiService:

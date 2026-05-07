@@ -20,7 +20,7 @@ Each `*.json` file should look like this:
   },
   "recording": {
     "recorded_at_utc": "2026-04-18T12:00:00+00:00",
-    "model": "gemini-3.1-flash-lite-preview",
+    "model": "gemini-3.1-flash-lite",
     "prompt": "..."
   }
 }

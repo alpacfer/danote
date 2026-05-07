@@ -53,7 +53,7 @@ class GeminiRelatedWordsService(Protocol):
 @dataclass
 class GeminiCompoundRelatedWordsService:
     api_key: str
-    model: str = "gemini-3.1-flash-lite-preview"
+    model: str = "gemini-3.1-flash-lite"
     timeout_seconds: float = 20.0
     provider: str = field(default="gemini_related_words", init=False)
     _client: object | None = field(default=None, init=False, repr=False, compare=False)
