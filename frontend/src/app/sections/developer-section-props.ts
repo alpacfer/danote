@@ -26,6 +26,8 @@ export type DeveloperSectionAdapterArgs = {
   geminiProbeResult: ComponentProps<typeof DeveloperSection>["geminiProbeResult"]
   isResettingDatabase: ComponentProps<typeof DeveloperSection>["isResettingDatabase"]
   isSeedingNumbersAudio: ComponentProps<typeof DeveloperSection>["isSeedingNumbersAudio"]
+  isSeedingPresavedWordsAudio: ComponentProps<typeof DeveloperSection>["isSeedingPresavedWordsAudio"]
+  isRegeneratingPresavedWordsAudio: ComponentProps<typeof DeveloperSection>["isRegeneratingPresavedWordsAudio"]
   setTranslationProvider: (provider: ComponentProps<typeof DeveloperSection>["translationProvider"]) => void
   setDeveloperTranslationAzureApiKey: (value: string) => void
   setDeveloperTranslationAzureRegion: (value: string) => void
@@ -42,6 +44,8 @@ export type DeveloperSectionAdapterArgs = {
   runGeminiProbe: () => Promise<void>
   resetDatabase: () => Promise<void>
   seedNumbersAudio: () => Promise<void>
+  seedPresavedWordsAudio: () => Promise<void>
+  regeneratePresavedWordsAudio: () => Promise<void>
 }
 
 function badgeVariantForStatus(status: ConnectionStatus): ComponentProps<typeof DeveloperSection>["badgeVariant"] {
@@ -82,6 +86,8 @@ export function buildDeveloperSectionProps(
     geminiProbeResult: args.geminiProbeResult,
     isResettingDatabase: args.isResettingDatabase,
     isSeedingNumbersAudio: args.isSeedingNumbersAudio,
+    isSeedingPresavedWordsAudio: args.isSeedingPresavedWordsAudio,
+    isRegeneratingPresavedWordsAudio: args.isRegeneratingPresavedWordsAudio,
     onTranslationProviderChange: args.setTranslationProvider,
     onDeveloperTranslationAzureApiKeyChange: args.setDeveloperTranslationAzureApiKey,
     onDeveloperTranslationAzureRegionChange: args.setDeveloperTranslationAzureRegion,
@@ -109,6 +115,12 @@ export function buildDeveloperSectionProps(
     },
     onSeedNumbersAudio: () => {
       void args.seedNumbersAudio()
+    },
+    onSeedPresavedWordsAudio: () => {
+      void args.seedPresavedWordsAudio()
+    },
+    onRegeneratePresavedWordsAudio: () => {
+      void args.regeneratePresavedWordsAudio()
     },
   }
 }

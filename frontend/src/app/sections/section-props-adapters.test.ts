@@ -192,6 +192,8 @@ describe("section prop adapters", () => {
       geminiProbeResult: null,
       isResettingDatabase: false,
       isSeedingNumbersAudio: false,
+      isSeedingPresavedWordsAudio: false,
+      isRegeneratingPresavedWordsAudio: false,
       setTranslationProvider: vi.fn(),
       setDeveloperTranslationAzureApiKey: vi.fn(),
       setDeveloperTranslationAzureRegion: vi.fn(),
@@ -208,6 +210,8 @@ describe("section prop adapters", () => {
       runGeminiProbe: vi.fn(async () => undefined),
       resetDatabase,
       seedNumbersAudio: vi.fn(async () => undefined),
+      seedPresavedWordsAudio: vi.fn(async () => undefined),
+      regeneratePresavedWordsAudio: vi.fn(async () => undefined),
     })
 
     result.onSaveDeveloperApiKeys()

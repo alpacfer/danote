@@ -534,5 +534,12 @@ class SeedNumbersAudioResponse(BaseModel):
     message: str
 
 
+class SeedPresavedWordsAudioResponse(BaseModel):
+    generated: int
+    skipped: int
+    failed: int
+    message: str
+
+
 AddWordResponse.model_rebuild()
 LemmaDetailsResponse.model_rebuild()

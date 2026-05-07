@@ -275,6 +275,26 @@ def build_example_sentence_prompt(payload: ExampleSentenceGenerationInput) -> st
     )
 
 
+_UD_MORPHOLOGY_RULES = (
+    "- pos_tag is a Universal POS tag from {NOUN,VERB,ADJ,ADV,AUX,PRON,DET,ADP,CCONJ,SCONJ,PART,INTJ,NUM,X}.\n"
+    "- morphology is a pipe-separated UD feature string using ONLY these keys and values:\n"
+    "  Gender=Com|Neut, Number=Sing|Plur, Definite=Ind|Def, Case=Gen,\n"
+    "  Degree=Pos|Cmp|Sup, VerbForm=Inf|Fin|Part, Tense=Pres|Past, Mood=Imp, Voice=Act|Pass,\n"
+    "  PronType=Prs|Int, Poss=Yes, Person=1|2|3.\n"
+    "- Lemma-level morphology examples by POS:\n"
+    "    NOUN common gender → 'Gender=Com|Number=Sing|Definite=Ind'\n"
+    "    NOUN neuter gender → 'Gender=Neut|Number=Sing|Definite=Ind'\n"
+    "    ADJ → 'Degree=Pos'\n"
+    "    VERB → 'VerbForm=Inf|Voice=Act'\n"
+    "    ADV → 'Degree=Pos' (omit if not gradable)\n"
+    "- surface_morphology must reflect the inflected form actually observed in sentence_context. Examples:\n"
+    "    ADJ predicative common-gender singular → 'Degree=Pos|Gender=Com|Number=Sing|Definite=Ind'\n"
+    "    NOUN definite singular → 'Gender=Com|Number=Sing|Definite=Def'\n"
+    "    VERB present finite active → 'Tense=Pres|VerbForm=Fin|Voice=Act'\n"
+    "- Use empty string '' (not 'adj' or freeform text) when no features apply.\n"
+)
+
+
 def build_non_cor_word_generation_prompt(payload: NonCORWordGenerationInput) -> str:
     return (
         "You are creating one Danish dictionary-style entry for a real Danish word that is missing from the source dictionary.\n"
@@ -287,8 +307,7 @@ def build_non_cor_word_generation_prompt(payload: NonCORWordGenerationInput) -> 
         "- english_translation must be the best short English translation for the intended sense.\n"
         "- meaning_key should be a stable lowercased key for this sense.\n"
         "- gloss should be a short lowercased English gloss for the exact sense.\n"
-        "- pos_tag and morphology describe the lemma/meaning.\n"
-        "- surface_pos_tag and surface_morphology describe the observed surface form in context.\n"
+        + _UD_MORPHOLOGY_RULES +
         "- Use sentence_context to disambiguate the intended meaning and form.\n"
         "- Do not invent extra senses.\n"
         "- Do not explain your reasoning.\n"
@@ -301,8 +320,8 @@ def build_batch_non_cor_word_generation_prompt(items: list[dict[str, object]]) -
         "You are creating Danish dictionary-style entries for real Danish words that are missing from the source dictionary.\n"
         "Return JSON only with this exact shape: "
         "{\"items\":[{\"id\":\"0\",\"lemma\":\"...\",\"english_translation\":\"...\",\"meaning_key\":\"...\","
-        "\"gloss\":\"...\",\"pos_tag\":\"ADJ\",\"morphology\":\"...\",\"surface_pos_tag\":\"ADJ\","
-        "\"surface_morphology\":\"...\"}]}\n"
+        "\"gloss\":\"...\",\"pos_tag\":\"ADJ\",\"morphology\":\"Degree=Pos\",\"surface_pos_tag\":\"ADJ\","
+        "\"surface_morphology\":\"Degree=Pos|Gender=Com|Number=Sing|Definite=Ind\"}]}\n"
         "Rules:\n"
         "- Return exactly one item for every input id.\n"
         "- Copy each id exactly.\n"
@@ -310,8 +329,7 @@ def build_batch_non_cor_word_generation_prompt(items: list[dict[str, object]]) -
         "- english_translation must be the best short English translation for the intended sense.\n"
         "- meaning_key should be a stable lowercased key for this sense.\n"
         "- gloss should be a short lowercased English gloss for the exact sense.\n"
-        "- pos_tag and morphology describe the lemma/meaning.\n"
-        "- surface_pos_tag and surface_morphology describe the observed surface form in context.\n"
+        + _UD_MORPHOLOGY_RULES +
         "- Use sentence_context to disambiguate the intended meaning and form.\n"
         "- Do not explain your reasoning.\n"
         f"Items:\n{json.dumps(items, ensure_ascii=False)}"

@@ -560,7 +560,10 @@ def batch_generate_non_cor_sentence_tokens(
 
 
 def should_generate_non_cor_sentence_token(pos_tag: str | None) -> bool:
-    return (pos_tag or "").upper() in {"ADJ", "NOUN", "PROPN"}
+    resolved = (pos_tag or "").upper()
+    if not resolved:
+        return True
+    return resolved in {"ADJ", "NOUN", "PROPN"}
 
 
 def should_use_static_pronoun_sentence_token(pos_tag: str | None) -> bool:

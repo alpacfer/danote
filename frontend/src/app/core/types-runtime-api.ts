@@ -12,6 +12,13 @@ export type SeedNumbersAudioResponse = {
   message: string
 }
 
+export type SeedPresavedWordsAudioResponse = {
+  generated: number
+  skipped: number
+  failed: number
+  message: string
+}
+
 export type GenerateTranslationResponse = {
   status: "generated" | "unavailable"
   source_word: string

@@ -9,6 +9,7 @@ import {
   type HealthPayload,
   type ResetDatabaseResponse,
   type SeedNumbersAudioResponse,
+  type SeedPresavedWordsAudioResponse,
 } from "@/app/core"
 
 type TranslationProviderOption = "deepl" | "azure"
@@ -53,6 +54,8 @@ export function useDeveloperSettings({
 }: UseDeveloperSettingsParams) {
   const [isResettingDatabase, setIsResettingDatabase] = useState(false)
   const [isSeedingNumbersAudio, setIsSeedingNumbersAudio] = useState(false)
+  const [isSeedingPresavedWordsAudio, setIsSeedingPresavedWordsAudio] = useState(false)
+  const [isRegeneratingPresavedWordsAudio, setIsRegeneratingPresavedWordsAudio] = useState(false)
   const [translationProvider, setTranslationProvider] = useState<TranslationProviderOption>("deepl")
   const [developerTranslationAzureApiKey, setDeveloperTranslationAzureApiKey] = useState("")
   const [developerTranslationAzureRegion, setDeveloperTranslationAzureRegion] = useState("")
@@ -121,6 +124,40 @@ export function useDeveloperSettings({
       onNotifyError(message)
     } finally {
       setIsResettingDatabase(false)
+    }
+  }
+
+  async function seedPresavedWordsAudio() {
+    setIsSeedingPresavedWordsAudio(true)
+    try {
+      const payload = await apiClient.postJson<SeedPresavedWordsAudioResponse>(
+        "/api/wordbank/presaved-words/pronunciation/seed",
+        {},
+        "Could not seed presaved word audio.",
+      )
+      onNotifySuccess(payload.message || "Presaved word audio seeded.")
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not seed presaved word audio."
+      onNotifyError(message)
+    } finally {
+      setIsSeedingPresavedWordsAudio(false)
+    }
+  }
+
+  async function regeneratePresavedWordsAudio() {
+    setIsRegeneratingPresavedWordsAudio(true)
+    try {
+      const payload = await apiClient.postJson<SeedPresavedWordsAudioResponse>(
+        "/api/wordbank/presaved-words/pronunciation/seed?force=true",
+        {},
+        "Could not regenerate presaved word audio.",
+      )
+      onNotifySuccess(payload.message || "Presaved word audio regenerated.")
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not regenerate presaved word audio."
+      onNotifyError(message)
+    } finally {
+      setIsRegeneratingPresavedWordsAudio(false)
     }
   }
 
@@ -297,6 +334,10 @@ export function useDeveloperSettings({
     isResettingDatabase,
     isSeedingNumbersAudio,
     seedNumbersAudio,
+    isSeedingPresavedWordsAudio,
+    isRegeneratingPresavedWordsAudio,
+    seedPresavedWordsAudio,
+    regeneratePresavedWordsAudio,
     translationProvider,
     setTranslationProvider,
     developerTranslationAzureApiKey,

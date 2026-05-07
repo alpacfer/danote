@@ -30,6 +30,7 @@ type WordbankPronunciationWordProps = {
   className?: string
   iconClassName?: string
   as?: "h2" | "span"
+  tooltipContent?: ReactNode | null
 }
 
 export function WordbankPronunciationWord({
@@ -43,7 +44,10 @@ export function WordbankPronunciationWord({
   className,
   iconClassName,
   as: Wrapper,
+  tooltipContent,
 }: WordbankPronunciationWordProps) {
+  const tooltipDisabled = tooltipContent === null
+  const tooltipBody = tooltipContent === undefined ? <p>Click to listen</p> : tooltipContent
   const effectivePlayForm = playForm ?? form
   const isLoading = Boolean(pronunciationLoadingByForm[normalizeSearchWord(effectivePlayForm)])
   const isDisabled = isLoading
@@ -78,14 +82,18 @@ export function WordbankPronunciationWord({
 
   const interactiveButton = hasContextMenu ? (
     <ContextMenu>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <ContextMenuTrigger asChild>
-            {button}
-          </ContextMenuTrigger>
-        </TooltipTrigger>
-        <TooltipContent side="right" sideOffset={8}><p>Click to listen</p></TooltipContent>
-      </Tooltip>
+      {tooltipDisabled ? (
+        <ContextMenuTrigger asChild>{button}</ContextMenuTrigger>
+      ) : (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <ContextMenuTrigger asChild>
+              {button}
+            </ContextMenuTrigger>
+          </TooltipTrigger>
+          <TooltipContent side="right" sideOffset={8}>{tooltipBody}</TooltipContent>
+        </Tooltip>
+      )}
       <ContextMenuContent>
         {contextMenuItems?.map((item) => (
           <Fragment key={`${form}-${item.label}`}>
@@ -101,10 +109,12 @@ export function WordbankPronunciationWord({
         ))}
       </ContextMenuContent>
     </ContextMenu>
+  ) : tooltipDisabled ? (
+    button
   ) : (
     <Tooltip>
       <TooltipTrigger asChild>{button}</TooltipTrigger>
-      <TooltipContent side="right" sideOffset={8}><p>Click to listen</p></TooltipContent>
+      <TooltipContent side="right" sideOffset={8}>{tooltipBody}</TooltipContent>
     </Tooltip>
   )
 

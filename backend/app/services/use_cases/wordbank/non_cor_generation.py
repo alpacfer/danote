@@ -20,7 +20,7 @@ def build_non_cor_search_seed(
         "cor_id": None,
         "cor_lemma_idx": None,
         "meaning_key": normalize_token(generated.meaning_key or "") or generated.lemma,
-        "gloss": normalize_token(generated.gloss or "") or None,
+        "gloss": None,
         "english_translation": generated.english_translation,
         "pos_tag": generated.surface_pos_tag or generated.pos_tag,
         "morphology": generated.surface_morphology or generated.morphology,

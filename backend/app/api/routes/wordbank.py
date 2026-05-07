@@ -35,6 +35,7 @@ from app.api.schemas.v1.wordbank import (
     QueueVerificationResponse,
     ResetDatabaseResponse,
     SeedNumbersAudioResponse,
+    SeedPresavedWordsAudioResponse,
     ResolveQueryRequest,
     ResolveQueryResponse,
     RethinkCategoriesRequest,
@@ -49,6 +50,10 @@ from app.core.app_state import set_runtime_field
 from app.services.use_cases.numbers_pronunciation import (
     get_numbers_pronunciation_audio as _get_numbers_audio,
     seed_numbers_audio as _seed_numbers_audio,
+)
+from app.services.use_cases.presaved_words_pronunciation import (
+    get_presaved_words_pronunciation_audio as _get_presaved_words_audio,
+    seed_presaved_words_audio as _seed_presaved_words_audio,
 )
 from app.services.use_cases.wordbank.mappers import map_lemma_details_response
 
@@ -380,6 +385,46 @@ def seed_numbers_pronunciation_audio(request: Request) -> SeedNumbersAudioRespon
         parts.append(f"{result.failed} failed")
     message = ", ".join(parts) if parts else "Nothing to do."
     return SeedNumbersAudioResponse(
+        generated=result.generated,
+        skipped=result.skipped,
+        failed=result.failed,
+        message=message,
+    )
+
+
+@router.get("/wordbank/presaved-words/pronunciation")
+def get_presaved_words_pronunciation_audio(request: Request, term: str = Query(..., min_length=1)) -> Response:
+    pronunciation = run_db_operation(
+        request,
+        lambda: _get_presaved_words_audio(term, get_settings(request).db_path),
+        include_lookup_error=True,
+        error_log_name="presaved_words_pronunciation_db_operational_error",
+    )
+    return Response(content=pronunciation.audio_bytes, media_type=pronunciation.mime_type)
+
+
+@router.post("/wordbank/presaved-words/pronunciation/seed", response_model=SeedPresavedWordsAudioResponse)
+def seed_presaved_words_pronunciation_audio(
+    request: Request,
+    force: bool = Query(False),
+) -> SeedPresavedWordsAudioResponse:
+    tts_service = get_services(request).tts_service
+    db_path = get_settings(request).db_path
+    result = run_db_operation(
+        request,
+        lambda: _seed_presaved_words_audio(tts_service, db_path, force=force),
+        include_runtime_error=True,
+        error_log_name="presaved_words_seed_db_operational_error",
+    )
+    parts = []
+    if result.generated:
+        parts.append(f"{result.generated} generated")
+    if result.skipped:
+        parts.append(f"{result.skipped} already stored")
+    if result.failed:
+        parts.append(f"{result.failed} failed")
+    message = ", ".join(parts) if parts else "Nothing to do."
+    return SeedPresavedWordsAudioResponse(
         generated=result.generated,
         skipped=result.skipped,
         failed=result.failed,

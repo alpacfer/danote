@@ -119,6 +119,8 @@ export function useAppController() {
       geminiProbeResult: developerSettings.geminiProbeResult,
       isResettingDatabase: developerSettings.isResettingDatabase,
       isSeedingNumbersAudio: developerSettings.isSeedingNumbersAudio,
+      isSeedingPresavedWordsAudio: developerSettings.isSeedingPresavedWordsAudio,
+      isRegeneratingPresavedWordsAudio: developerSettings.isRegeneratingPresavedWordsAudio,
       setTranslationProvider: developerSettings.setTranslationProvider,
       setDeveloperTranslationAzureApiKey: developerSettings.setDeveloperTranslationAzureApiKey,
       setDeveloperTranslationAzureRegion: developerSettings.setDeveloperTranslationAzureRegion,
@@ -135,6 +137,8 @@ export function useAppController() {
       runGeminiProbe: developerSettings.runGeminiProbe,
       resetDatabase: developerSettings.resetDatabase,
       seedNumbersAudio: developerSettings.seedNumbersAudio,
+      seedPresavedWordsAudio: developerSettings.seedPresavedWordsAudio,
+      regeneratePresavedWordsAudio: developerSettings.regeneratePresavedWordsAudio,
     }),
   }
 
