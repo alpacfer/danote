@@ -32,11 +32,40 @@ export const BASIC_NUMBER_ROWS = [
 export const TENS_NUMBER_ROWS = Object.entries(TENS).map(([number, word]) => ({ number: Number(number), word }))
 
 export const NUMBER_RULE_ROWS = [
-  { pattern: "21-99", form: "unit + og + ten", example: "21 = enogtyve" },
+  { pattern: "21–99", form: "unit + og + ten", example: "21 = enogtyve" },
   { pattern: "100", form: "hundrede", example: "100 = et hundrede / hundrede" },
-  { pattern: "101-999", form: "hundreds + og + remainder", example: "342 = tre hundrede og toogfyrre" },
+  { pattern: "101–999", form: "hundreds + og + remainder", example: "342 = tre hundrede og toogfyrre" },
   { pattern: "1.000+", form: "thousands + tusind + remainder", example: "2.021 = to tusind og enogtyve" },
 ]
+
+export type OrdinalNumberRow = {
+  number: number
+  cardinal: string
+  ordinal: string
+  english: string
+}
+
+export const ORDINAL_NUMBER_ROWS: OrdinalNumberRow[] = [
+  { number: 1, cardinal: "en", ordinal: "første", english: "first" },
+  { number: 2, cardinal: "to", ordinal: "anden", english: "second" },
+  { number: 3, cardinal: "tre", ordinal: "tredje", english: "third" },
+  { number: 4, cardinal: "fire", ordinal: "fjerde", english: "fourth" },
+  { number: 5, cardinal: "fem", ordinal: "femte", english: "fifth" },
+  { number: 6, cardinal: "seks", ordinal: "sjette", english: "sixth" },
+  { number: 7, cardinal: "syv", ordinal: "syvende", english: "seventh" },
+  { number: 8, cardinal: "otte", ordinal: "ottende", english: "eighth" },
+  { number: 9, cardinal: "ni", ordinal: "niende", english: "ninth" },
+  { number: 10, cardinal: "ti", ordinal: "tiende", english: "tenth" },
+  { number: 11, cardinal: "elleve", ordinal: "ellevte", english: "eleventh" },
+  { number: 12, cardinal: "tolv", ordinal: "tolvte", english: "twelfth" },
+  { number: 13, cardinal: "tretten", ordinal: "trettende", english: "thirteenth" },
+  { number: 20, cardinal: "tyve", ordinal: "tyvende", english: "twentieth" },
+  { number: 30, cardinal: "tredive", ordinal: "tredivte", english: "thirtieth" },
+  { number: 100, cardinal: "hundrede", ordinal: "hundrede", english: "hundredth" },
+  { number: 1000, cardinal: "tusind", ordinal: "tusinde", english: "thousandth" },
+]
+
+export const ORDINAL_NUMBER_RULE = "Most ordinals add -(en)de to the cardinal: syv → syvende, ti → tiende. Irregulars: første (1st), anden (2nd), tredje (3rd), fjerde (4th)."
 
 export function parseNumbersSentinel(selectedLemma: string): boolean {
   return selectedLemma === NUMBERS_SENTINEL

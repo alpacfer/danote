@@ -7,9 +7,7 @@ import {
   type RevertVerificationChangeResponse,
   type VerificationChangeEntry,
 } from "@/app/core"
-import { parseHvQuestionSentinel } from "@/app/sections/wordbank/hv-questions/hv-question-data"
-import { parseNumbersSentinel } from "@/app/sections/wordbank/numbers/numbers-data"
-import { parsePronounSentinel } from "@/app/sections/wordbank/pronouns/pronouns-data"
+import { isPinnedPageSentinel } from "@/app/sections/wordbank/_shared/pinned-pages-registry"
 import { toast } from "sonner"
 
 type UseVerificationChangesParams = {
@@ -33,9 +31,7 @@ export function useVerificationChanges({
     () => createApiClient({ backendUrl, extractErrorMessage }),
     [backendUrl, extractErrorMessage],
   )
-  const isBuiltInReference = selectedLemma
-    ? Boolean(parsePronounSentinel(selectedLemma) || parseHvQuestionSentinel(selectedLemma) || parseNumbersSentinel(selectedLemma))
-    : false
+  const isBuiltInReference = isPinnedPageSentinel(selectedLemma)
   const lemmaKey = isBuiltInReference ? "" : normalizeSearchWord(selectedLemma ?? "")
 
   const refreshChanges = useCallback(async () => {

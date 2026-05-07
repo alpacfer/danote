@@ -59,25 +59,35 @@ Per-chip:
   - unread `>1` → numeric badge pill
 - Click → `onSelectLemma(lemma)` → opens word page
 
-Static pronouns are built into Wordbank and shown through the default pronoun
-reference card even when there are no saved lemmas. Selecting any known pronoun
-lemma opens the matching shared pronoun page instead of fetching
-`/api/wordbank/lemmas/{lemma}`. Pronoun forms are not highlighted as discovered
-or undiscovered because all are available by default. Breadcrumbs use the
-reader-facing pronoun category label rather than the internal sentinel. Danish
-and English pronoun search results come from the static pronoun catalog rather
-than COR, translation, or Gemini, and are treated as already available.
+Twelve built-in reference pages are pinned at the top of the wordbank list and
+shown even when there are no saved lemmas. They are grouped under three
+subheadings: **Pronouns** (Personal, Possessive, Demonstrative, Relative,
+Indefinite, Question Words), **Function words** (Articles & Gender,
+Prepositions, Conjunctions), and **Numbers & time** (Numbers, Days · Months
+· Seasons, Time Expressions). Each page is identified by a sentinel lemma
+(e.g. `__pronouns_personal`, `__question_words`); the wordbank dispatcher
+routes any sentinel through the central registry in
+`frontend/src/app/sections/wordbank/_shared/pinned-pages-registry.ts` to its
+page component. Selecting a built-in lemma resolves to its owning sentinel
+instead of fetching `/api/wordbank/lemmas/{lemma}`. Built-in lemmas are not
+highlighted as discovered/undiscovered because all are available by default;
+Danish and English search results for built-in lemmas come from their static
+catalogs rather than COR, translation, or Gemini.
 
-Static HV question words are also built-in and open a shared card-based
-reference page. The page groups all `hv-` words, shows translation plus
-reader-facing POS/morphology badges, can request a generated example preview
-from each card's context menu, and derives related sentences from saved
-sentence tokens. Matching sentence examples are exposed through a compact
-examples action, which opens a dialog with all saved examples for that HV word;
-each example opens its sentence page. HV cards with no matching saved sentences
-do not render an empty sentence state. Number search adds a built-in `Numbers`
-result for numeric queries such as `21`, labeled with the Danish written form;
-selecting it opens the numbers reference tables.
+Every pinned page renders through the shared `PinnedPageLayout` shell —
+title, optional description, scroll area, and `PinnedPageSection` cards with
+consistent `<h2>` headings. Two content primitives cover all pages:
+`PinnedParadigmTable` for paradigms (personal/possessive/demonstrative
+pronouns, articles & gender, numbers, days/months/seasons, time expressions)
+and `PinnedLemmaGrid` of `PinnedLemmaCard`s for browseable lists (relative
+and indefinite pronouns, question words, prepositions, conjunctions).
+Lemma cards expose translation, POS/morphology badges, audio playback, a
+right-click "Generate example" action, and a "See examples" dialog when
+matching saved sentences exist. Each example opens its sentence page. Cards
+with no matching sentences do not render an empty state. Number search adds
+a built-in `Numbers` result for numeric queries (e.g. `21`) labeled with the
+Danish written form; selecting it opens the numbers reference, which now
+includes an Ordinal Numbers section in addition to the cardinal tables.
 
 ## Word page behavior (WordbankWordPage)
 

@@ -81,12 +81,14 @@ Each token card renders:
 
 While full NLP is retired, sentence saves still use a lightweight word tokenizer so the sentence page keeps one card per saved word. Existing saved words are linked when possible; otherwise the fallback creates root-level wordbank entries without POS/morphology metadata.
 
-Known Danish pronouns use the static pronoun catalog before COR, translation, or
-Gemini selection. Saved sentence pronoun tokens carry hardcoded translation,
-POS, and morphology metadata and open the shared Wordbank pronoun reference page.
-Known Danish HV question words use the static HV catalog the same way; they are
-saved with hardcoded translation, POS, and morphology metadata and open the
-shared Wordbank HV reference page.
+Known Danish pronouns, question words, prepositions, conjunctions, and
+calendar terms (days, months, seasons) all use static built-in catalogs
+before COR, translation, or Gemini selection. Saved sentence tokens for
+these built-ins carry hardcoded translation, POS, and morphology metadata
+and open the matching Wordbank pinned reference page (e.g. pronoun tokens
+open Personal / Possessive / Demonstrative / Relative / Indefinite Pronouns
+based on lemma; interrogatives open Question Words; `i`, `på`, `og`, `at`,
+`mandag`, etc. open the corresponding function-word or calendar page).
 
 ## 5) Refresh / invalidation
 

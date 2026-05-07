@@ -11,8 +11,9 @@ describe("App wordbank HV questions", () => {
     renderApp()
     await screen.findByLabelText("backend-connection-status")
 
-    expect(await screen.findByRole("button", { name: /personal and possessive pronouns/i })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: /hv question words/i })).toBeInTheDocument()
+    expect(await screen.findByRole("button", { name: /personal pronouns/i })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /possessive pronouns/i })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /question words/i })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /numbers/i })).toBeInTheDocument()
     expect(screen.queryByText(/no saved lemmas yet/i)).not.toBeInTheDocument()
   })
@@ -34,12 +35,12 @@ describe("App wordbank HV questions", () => {
     renderApp()
     await screen.findByLabelText("backend-connection-status")
 
-    fireEvent.click(await screen.findByRole("button", { name: /hv question words/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /question words/i }))
     expect(await screen.findByText(/^hvor$/i)).toBeInTheDocument()
     expect(screen.queryByRole("button", { name: /generate example/i })).not.toBeInTheDocument()
     expect(screen.queryByRole("button", { name: /see examples/i })).not.toBeInTheDocument()
     expect(screen.queryByText(/no sentences yet/i)).not.toBeInTheDocument()
-    expect(screen.getAllByText(/interrogative/i).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/place, time, manner & reason/i).length).toBeGreaterThan(0)
 
     const hvorCard = screen.getByText(/^hvor$/i).closest("[data-slot='context-menu-trigger']")
     expect(hvorCard).not.toBeNull()
@@ -95,7 +96,7 @@ describe("App wordbank HV questions", () => {
     renderApp()
     await screen.findByLabelText("backend-connection-status")
 
-    fireEvent.click(await screen.findByRole("button", { name: /hv question words/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /question words/i }))
     fireEvent.click(await screen.findByRole("button", { name: /see examples/i }))
 
     const dialog = await screen.findByRole("dialog", { name: /hvor examples/i })

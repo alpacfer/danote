@@ -1,113 +1,90 @@
 import {
   BASIC_NUMBER_ROWS,
   NUMBER_RULE_ROWS,
+  ORDINAL_NUMBER_ROWS,
+  ORDINAL_NUMBER_RULE,
   TENS_NUMBER_ROWS,
 } from "@/app/sections/wordbank/numbers/numbers-data"
 import { useNumberAudio } from "@/app/sections/wordbank/numbers/use-number-audio"
-import { WordbankPronunciationWord } from "@/app/sections/wordbank/wordbank-pronunciation-word"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+  PinnedPageLayout,
+  PinnedPageSection,
+  PinnedParadigmTable,
+  type ParadigmRow,
+} from "@/app/sections/wordbank/_shared"
 
 export function WordbankNumbersPage() {
   const { loadingByTerm, playTerm } = useNumberAudio()
 
-  return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4">
-      <ScrollArea className="min-h-0 flex-1">
-        <div className="grid gap-4 pr-2 xl:grid-cols-[1fr_1fr]">
-          <NumberTable
-            title="0-19"
-            rows={BASIC_NUMBER_ROWS}
-            loadingByTerm={loadingByTerm}
-            onPlayTerm={playTerm}
-          />
-          <NumberTable
-            title="Tens"
-            rows={TENS_NUMBER_ROWS}
-            loadingByTerm={loadingByTerm}
-            onPlayTerm={playTerm}
-          />
-          <Card className="xl:col-span-2">
-            <CardHeader>
-              <CardTitle className="text-lg">Forming Numbers</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Range</TableHead>
-                    <TableHead>Form</TableHead>
-                    <TableHead>Example</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {NUMBER_RULE_ROWS.map((row) => (
-                    <TableRow key={row.pattern}>
-                      <TableCell className="font-medium">{row.pattern}</TableCell>
-                      <TableCell>{row.form}</TableCell>
-                      <TableCell>{row.example}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </div>
-      </ScrollArea>
-    </div>
-  )
-}
+  const basicRows: ParadigmRow[] = BASIC_NUMBER_ROWS.map((row) => ({
+    key: `basic-${row.number}`,
+    cells: [
+      { type: "text", text: String(row.number), muted: true },
+      { type: "lemma", lemma: row.word },
+    ],
+  }))
+  const tensRows: ParadigmRow[] = TENS_NUMBER_ROWS.map((row) => ({
+    key: `tens-${row.number}`,
+    cells: [
+      { type: "text", text: String(row.number), muted: true },
+      { type: "lemma", lemma: row.word },
+    ],
+  }))
+  const ruleRows: ParadigmRow[] = NUMBER_RULE_ROWS.map((row) => ({
+    key: `rule-${row.pattern}`,
+    cells: [
+      { type: "text", text: row.pattern, muted: true },
+      { type: "text", text: row.form },
+      { type: "text", text: row.example, italic: true },
+    ],
+  }))
+  const ordinalRows: ParadigmRow[] = ORDINAL_NUMBER_ROWS.map((row) => ({
+    key: `ord-${row.number}`,
+    cells: [
+      { type: "text", text: `${row.number}.`, muted: true },
+      { type: "lemma", lemma: row.cardinal },
+      { type: "lemma", lemma: row.ordinal },
+      { type: "text", text: row.english, muted: true, italic: true },
+    ],
+  }))
 
-function NumberTable({
-  title,
-  rows,
-  loadingByTerm,
-  onPlayTerm,
-}: {
-  title: string
-  rows: Array<{ number: number; word: string }>
-  loadingByTerm: Record<string, boolean>
-  onPlayTerm: (term: string) => void
-}) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-lg">{title}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Number</TableHead>
-              <TableHead>Danish</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((row) => (
-              <TableRow key={row.number}>
-                <TableCell className="font-medium">{row.number}</TableCell>
-                <TableCell>
-                  <WordbankPronunciationWord
-                    form={row.word}
-                    hasPronunciation={true}
-                    pronunciationLoadingByForm={loadingByTerm}
-                    onPlayPronunciation={onPlayTerm}
-                    className="text-sm font-semibold"
-                  />
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
+    <PinnedPageLayout
+      title="Numbers"
+      description="Cardinal and ordinal numbers in Danish, with the rules for forming larger numbers."
+    >
+      <div className="grid gap-4 xl:grid-cols-2">
+        <PinnedPageSection title="0–19">
+          <PinnedParadigmTable
+            headers={["Number", "Danish"]}
+            rows={basicRows}
+            pronunciationLoadingByForm={loadingByTerm}
+            onPlayPronunciation={playTerm}
+          />
+        </PinnedPageSection>
+        <PinnedPageSection title="Tens">
+          <PinnedParadigmTable
+            headers={["Number", "Danish"]}
+            rows={tensRows}
+            pronunciationLoadingByForm={loadingByTerm}
+            onPlayPronunciation={playTerm}
+          />
+        </PinnedPageSection>
+      </div>
+      <PinnedPageSection title="Forming larger numbers">
+        <PinnedParadigmTable headers={["Range", "Form", "Example"]} rows={ruleRows} />
+      </PinnedPageSection>
+      <PinnedPageSection
+        title="Ordinal numbers"
+        description={ORDINAL_NUMBER_RULE}
+      >
+        <PinnedParadigmTable
+          headers={["#", "Cardinal", "Ordinal", "English"]}
+          rows={ordinalRows}
+          pronunciationLoadingByForm={loadingByTerm}
+          onPlayPronunciation={playTerm}
+        />
+      </PinnedPageSection>
+    </PinnedPageLayout>
   )
 }

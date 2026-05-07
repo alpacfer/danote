@@ -1,91 +1,94 @@
 // Static Danish pronoun data.
 // This file is the single source of truth for which lemmas are pronouns
-// and which shared page they belong to.
+// and which pinned reference page they belong to.
 
-export type PronounCategory = "personal_possessive" | "demonstrative" | "interrogative_other"
+export type PronounCategory =
+  | "personal"
+  | "possessive"
+  | "demonstrative"
+  | "relative"
+  | "indefinite"
 
-// ─── Sentinel lemmas used as selectedLemma values ─────────────────────────────
-export const PRONOUN_SENTINEL_PREFIX = "__pronouns_"
 export const PRONOUN_SENTINELS: Record<PronounCategory, string> = {
-  personal_possessive: `${PRONOUN_SENTINEL_PREFIX}personal_possessive`,
-  demonstrative: `${PRONOUN_SENTINEL_PREFIX}demonstrative`,
-  interrogative_other: `${PRONOUN_SENTINEL_PREFIX}interrogative_other`,
+  personal: "__pronouns_personal",
+  possessive: "__pronouns_possessive",
+  demonstrative: "__pronouns_demonstrative",
+  relative: "__pronouns_relative",
+  indefinite: "__pronouns_indefinite",
+}
+
+const SENTINEL_TO_CATEGORY: Record<string, PronounCategory> = {
+  __pronouns_personal: "personal",
+  __pronouns_possessive: "possessive",
+  __pronouns_demonstrative: "demonstrative",
+  __pronouns_relative: "relative",
+  __pronouns_indefinite: "indefinite",
 }
 
 export function parsePronounSentinel(lemma: string): PronounCategory | null {
-  if (!lemma.startsWith(PRONOUN_SENTINEL_PREFIX)) return null
-  const cat = lemma.slice(PRONOUN_SENTINEL_PREFIX.length) as PronounCategory
-  return cat in PRONOUN_SENTINELS ? cat : null
+  return SENTINEL_TO_CATEGORY[lemma] ?? null
 }
 
 // ─── Category map ──────────────────────────────────────────────────────────────
-// Maps each Danish pronoun lemma (lowercase) to its category.
-// den/det/de appear in both personal and demonstrative contexts; we map them to
-// personal_possessive because that is the most common pronoun usage.
+// Maps each Danish pronoun lemma (lowercase) to its category. Each lemma has
+// exactly one canonical home; interrogatives (hvem/hvad/hvilken/hvis) live on
+// the Question Words page, not on any pronoun page.
 const PRONOUN_CATEGORY_MAP: Record<string, PronounCategory> = {
   // Personal — nominative
-  jeg: "personal_possessive",
-  du: "personal_possessive",
-  han: "personal_possessive",
-  hun: "personal_possessive",
-  den: "personal_possessive",
-  det: "personal_possessive",
-  vi: "personal_possessive",
-  i: "personal_possessive", // 2nd person plural
-  de: "personal_possessive",
+  jeg: "personal",
+  du: "personal",
+  han: "personal",
+  hun: "personal",
+  den: "personal",
+  det: "personal",
+  vi: "personal",
+  i: "personal", // 2nd person plural
+  de: "personal",
   // Personal — accusative / oblique
-  mig: "personal_possessive",
-  dig: "personal_possessive",
-  ham: "personal_possessive",
-  hende: "personal_possessive",
-  os: "personal_possessive",
-  jer: "personal_possessive",
-  dem: "personal_possessive",
-  sig: "personal_possessive", // reflexive
-  // Formal register (capital De / Dem treated the same)
+  mig: "personal",
+  dig: "personal",
+  ham: "personal",
+  hende: "personal",
+  os: "personal",
+  jer: "personal",
+  dem: "personal",
+  sig: "personal", // reflexive
   // Possessive
-  min: "personal_possessive",
-  mit: "personal_possessive",
-  mine: "personal_possessive",
-  din: "personal_possessive",
-  dit: "personal_possessive",
-  dine: "personal_possessive",
-  hans: "personal_possessive",
-  hendes: "personal_possessive",
-  dens: "personal_possessive",
-  dets: "personal_possessive",
-  sin: "personal_possessive",
-  sit: "personal_possessive",
-  sine: "personal_possessive",
-  vores: "personal_possessive",
-  jeres: "personal_possessive",
-  deres: "personal_possessive",
+  min: "possessive",
+  mit: "possessive",
+  mine: "possessive",
+  din: "possessive",
+  dit: "possessive",
+  dine: "possessive",
+  hans: "possessive",
+  hendes: "possessive",
+  dens: "possessive",
+  dets: "possessive",
+  sin: "possessive",
+  sit: "possessive",
+  sine: "possessive",
+  vores: "possessive",
+  jeres: "possessive",
+  deres: "possessive",
   // Demonstrative
   denne: "demonstrative",
   dette: "demonstrative",
   disse: "demonstrative",
-  // Interrogative
-  hvem: "interrogative_other",
-  hvad: "interrogative_other",
-  hvilken: "interrogative_other",
-  hvilket: "interrogative_other",
-  hvilke: "interrogative_other",
-  hvis: "interrogative_other",
   // Relative
-  som: "interrogative_other",
-  der: "interrogative_other",
+  som: "relative",
+  der: "relative",
   // Indefinite
-  man: "interrogative_other",
-  nogen: "interrogative_other",
-  noget: "interrogative_other",
-  ingen: "interrogative_other",
-  intet: "interrogative_other",
-  alle: "interrogative_other",
-  enhver: "interrogative_other",
-  ethvert: "interrogative_other",
-  begge: "interrogative_other",
-  hinanden: "interrogative_other",
-  hverandre: "interrogative_other",
+  man: "indefinite",
+  nogen: "indefinite",
+  noget: "indefinite",
+  ingen: "indefinite",
+  intet: "indefinite",
+  alle: "indefinite",
+  enhver: "indefinite",
+  ethvert: "indefinite",
+  begge: "indefinite",
+  hinanden: "indefinite",
+  hverandre: "indefinite",
 }
 
 /** Returns the PronounCategory for a lemma (case-insensitive), or null if not a pronoun. */
@@ -130,12 +133,6 @@ export const PRONOUN_TRANSLATIONS: Record<string, string> = {
   denne: "this",
   dette: "this",
   disse: "these",
-  hvem: "who",
-  hvad: "what",
-  hvilken: "which",
-  hvilket: "which",
-  hvilke: "which",
-  hvis: "whose",
   som: "who / which / that",
   der: "who / which",
   man: "one / you",
@@ -179,10 +176,6 @@ const ENGLISH_PRONOUN_QUERIES = new Set([
   "these",
   "that",
   "those",
-  "who",
-  "what",
-  "which",
-  "whose",
   "one",
   "someone",
   "something",
@@ -212,9 +205,9 @@ export type PersonalPronounRow = {
 
 export type PossessivePronounRow = {
   label: string
-  common: string    // fælleskon  -en form
-  neuter: string    // intetkøn   -et form
-  plural: string    // flertal
+  common: string
+  neuter: string
+  plural: string
 }
 
 export type DemonstrativeRow = {
@@ -225,12 +218,12 @@ export type DemonstrativeRow = {
   plural: string
 }
 
-export type OtherPronounGroup = {
-  heading: string
-  items: Array<{ lemma: string; english: string }>
+export type SimplePronounRow = {
+  lemma: string
+  english: string
+  note?: string
 }
 
-// Personal pronouns — rows ordered by person / number
 export const PERSONAL_PRONOUN_ROWS: PersonalPronounRow[] = [
   { label: "1st sg", nominative: "jeg", accusative: "mig" },
   { label: "2nd sg", nominative: "du", accusative: "dig" },
@@ -245,7 +238,6 @@ export const PERSONAL_PRONOUN_ROWS: PersonalPronounRow[] = [
   { label: "Formal", nominative: "De", accusative: "Dem" },
 ]
 
-// Possessive pronouns
 export const POSSESSIVE_PRONOUN_ROWS: PossessivePronounRow[] = [
   { label: "1st sg", common: "min", neuter: "mit", plural: "mine" },
   { label: "2nd sg", common: "din", neuter: "dit", plural: "dine" },
@@ -257,66 +249,42 @@ export const POSSESSIVE_PRONOUN_ROWS: PossessivePronounRow[] = [
   { label: "3rd pl", common: "deres", neuter: "deres", plural: "deres" },
 ]
 
-// Demonstrative pronouns
 export const DEMONSTRATIVE_ROWS: DemonstrativeRow[] = [
   { label: "Proximal", english: "this / these", common: "denne", neuter: "dette", plural: "disse" },
   { label: "Distal", english: "that / those", common: "den", neuter: "det", plural: "de" },
 ]
 
-// Interrogative / relative / indefinite groups
-export const OTHER_PRONOUN_GROUPS: OtherPronounGroup[] = [
-  {
-    heading: "Interrogative",
-    items: [
-      { lemma: "hvem", english: "who" },
-      { lemma: "hvad", english: "what" },
-      { lemma: "hvilken", english: "which (c.)" },
-      { lemma: "hvilket", english: "which (n.)" },
-      { lemma: "hvilke", english: "which (pl.)" },
-      { lemma: "hvis", english: "whose" },
-    ],
-  },
-  {
-    heading: "Relative",
-    items: [
-      { lemma: "som", english: "who / which / that" },
-      { lemma: "der", english: "who / which (subject)" },
-    ],
-  },
-  {
-    heading: "Indefinite",
-    items: [
-      { lemma: "man", english: "one / you (generic)" },
-      { lemma: "nogen", english: "someone / any (c.)" },
-      { lemma: "noget", english: "something / any (n.)" },
-      { lemma: "ingen", english: "no one / none (c.)" },
-      { lemma: "intet", english: "nothing / none (n.)" },
-      { lemma: "alle", english: "all / everyone" },
-      { lemma: "enhver", english: "each / every (c.)" },
-      { lemma: "ethvert", english: "each / every (n.)" },
-      { lemma: "begge", english: "both" },
-      { lemma: "hinanden", english: "each other" },
-    ],
-  },
+export const RELATIVE_PRONOUN_ROWS: SimplePronounRow[] = [
+  { lemma: "som", english: "who / which / that", note: "Most common; used as subject or object." },
+  { lemma: "der", english: "who / which", note: "Subject only — replaces som when the relative is the subject." },
 ]
 
-export const PRONOUN_CATEGORY_LABELS: Record<PronounCategory, string> = {
-  personal_possessive: "Personal and Possessive Pronouns",
-  demonstrative: "Demonstrative Pronouns",
-  interrogative_other: "Questions and More Pronouns",
-}
+export const INDEFINITE_PRONOUN_ROWS: SimplePronounRow[] = [
+  { lemma: "man", english: "one / you (generic)", note: "Generic subject, like English 'you' or 'one'." },
+  { lemma: "nogen", english: "someone / any", note: "Common gender." },
+  { lemma: "noget", english: "something / any", note: "Neuter gender." },
+  { lemma: "ingen", english: "no one / none", note: "Common gender." },
+  { lemma: "intet", english: "nothing / none", note: "Neuter gender." },
+  { lemma: "alle", english: "all / everyone" },
+  { lemma: "enhver", english: "each / every", note: "Common gender." },
+  { lemma: "ethvert", english: "each / every", note: "Neuter gender." },
+  { lemma: "begge", english: "both" },
+  { lemma: "hinanden", english: "each other" },
+]
 
 // All lemmas that belong to each category (used for saved-count checks)
 export const PRONOUN_LEMMAS_BY_CATEGORY: Record<PronounCategory, Set<string>> = {
-  personal_possessive: new Set(
-    [...PERSONAL_PRONOUN_ROWS.flatMap((r) => [r.nominative, r.accusative].filter(Boolean) as string[]),
-     ...POSSESSIVE_PRONOUN_ROWS.flatMap((r) => [r.common, r.neuter, r.plural])
-    ].map((l) => l.toLowerCase()),
+  personal: new Set(
+    PERSONAL_PRONOUN_ROWS.flatMap((r) => [r.nominative, r.accusative].filter(Boolean) as string[]).map(
+      (l) => l.toLowerCase(),
+    ),
+  ),
+  possessive: new Set(
+    POSSESSIVE_PRONOUN_ROWS.flatMap((r) => [r.common, r.neuter, r.plural]).map((l) => l.toLowerCase()),
   ),
   demonstrative: new Set(
     DEMONSTRATIVE_ROWS.flatMap((r) => [r.common, r.neuter, r.plural]).map((l) => l.toLowerCase()),
   ),
-  interrogative_other: new Set(
-    OTHER_PRONOUN_GROUPS.flatMap((g) => g.items.map((i) => i.lemma)).map((l) => l.toLowerCase()),
-  ),
+  relative: new Set(RELATIVE_PRONOUN_ROWS.map((r) => r.lemma.toLowerCase())),
+  indefinite: new Set(INDEFINITE_PRONOUN_ROWS.map((r) => r.lemma.toLowerCase())),
 }

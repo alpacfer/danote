@@ -1,11 +1,11 @@
 import { ChevronRight } from "lucide-react"
 
 import {
-  PRONOUN_CATEGORY_LABELS,
-  PRONOUN_SENTINELS,
-} from "@/app/sections/wordbank/pronouns/pronouns-data"
-import { HV_QUESTION_SENTINEL } from "@/app/sections/wordbank/hv-questions/hv-question-data"
-import { NUMBERS_SENTINEL } from "@/app/sections/wordbank/numbers/numbers-data"
+  PINNED_PAGES_BY_GROUP,
+  PINNED_PAGE_GROUP_LABELS,
+  type PinnedPageGroup,
+  type PinnedPageMeta,
+} from "@/app/sections/wordbank/_shared/pinned-pages-registry"
 import type { WordbankSectionProps } from "@/app/sections/wordbank/wordbank-section-types"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -16,6 +16,8 @@ type WordbankListViewProps = Pick<
   WordbankSectionProps,
   "wordbankError" | "isWordbankLoading" | "lemmas" | "groupedWordbankLemmas" | "unreadWordbankLemmaCounts" | "onSelectLemma"
 >
+
+const PINNED_GROUP_ORDER: PinnedPageGroup[] = ["pronouns", "function_words", "numbers_and_time"]
 
 export function WordbankListView({
   wordbankError,
@@ -63,34 +65,15 @@ export function WordbankListView({
         </div>
       ) : (
         <ScrollArea className="min-h-0 flex-1">
-          <div className="space-y-4">
-            <div className="flex flex-wrap gap-2">
-              <BuiltInReferenceCard
-                label={PRONOUN_CATEGORY_LABELS.personal_possessive}
-                ariaLabel={`Open ${PRONOUN_CATEGORY_LABELS.personal_possessive} pronoun reference`}
-                onClick={() => onSelectLemma(PRONOUN_SENTINELS.personal_possessive)}
+          <div className="space-y-5">
+            {PINNED_GROUP_ORDER.map((group) => (
+              <PinnedGroupSection
+                key={group}
+                label={PINNED_PAGE_GROUP_LABELS[group]}
+                pages={PINNED_PAGES_BY_GROUP[group]}
+                onSelectLemma={onSelectLemma}
               />
-              <BuiltInReferenceCard
-                label={PRONOUN_CATEGORY_LABELS.demonstrative}
-                ariaLabel={`Open ${PRONOUN_CATEGORY_LABELS.demonstrative} reference`}
-                onClick={() => onSelectLemma(PRONOUN_SENTINELS.demonstrative)}
-              />
-              <BuiltInReferenceCard
-                label={PRONOUN_CATEGORY_LABELS.interrogative_other}
-                ariaLabel={`Open ${PRONOUN_CATEGORY_LABELS.interrogative_other} reference`}
-                onClick={() => onSelectLemma(PRONOUN_SENTINELS.interrogative_other)}
-              />
-              <BuiltInReferenceCard
-                label="HV Question Words"
-                ariaLabel="Open HV Question Words reference"
-                onClick={() => onSelectLemma(HV_QUESTION_SENTINEL)}
-              />
-              <BuiltInReferenceCard
-                label="Numbers"
-                ariaLabel="Open Numbers reference"
-                onClick={() => onSelectLemma(NUMBERS_SENTINEL)}
-              />
-            </div>
+            ))}
 
             {groupedWordbankLemmas.map((group) => (
               <section key={group.letter} className="space-y-2">
@@ -135,6 +118,32 @@ export function WordbankListView({
         </ScrollArea>
       )}
     </div>
+  )
+}
+
+function PinnedGroupSection({
+  label,
+  pages,
+  onSelectLemma,
+}: {
+  label: string
+  pages: PinnedPageMeta[]
+  onSelectLemma: (lemma: string) => void
+}) {
+  return (
+    <section className="space-y-2">
+      <h3 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">{label}</h3>
+      <div className="flex flex-wrap gap-2">
+        {pages.map((page) => (
+          <BuiltInReferenceCard
+            key={page.sentinel}
+            label={page.title}
+            ariaLabel={`Open ${page.title} reference`}
+            onClick={() => onSelectLemma(page.sentinel)}
+          />
+        ))}
+      </div>
+    </section>
   )
 }
 

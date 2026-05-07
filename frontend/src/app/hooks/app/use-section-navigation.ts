@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 
 import { type AppSection } from "@/app/core"
-import { getHvQuestionEntry, HV_QUESTION_SENTINEL } from "@/app/sections/wordbank/hv-questions/hv-question-data"
+import { CONJUNCTION_LEMMAS, CONJUNCTIONS_SENTINEL } from "@/app/sections/wordbank/conjunctions/conjunctions-data"
+import { CALENDAR_LEMMAS, DAYS_MONTHS_SEASONS_SENTINEL } from "@/app/sections/wordbank/days-months-seasons/days-months-seasons-data"
+import { PREPOSITION_LEMMAS, PREPOSITIONS_SENTINEL } from "@/app/sections/wordbank/prepositions/prepositions-data"
 import { getPronounCategory, PRONOUN_SENTINELS } from "@/app/sections/wordbank/pronouns/pronouns-data"
+import { getQuestionWordEntry, QUESTION_WORDS_SENTINEL } from "@/app/sections/wordbank/question-words/question-words-data"
 
 export type PendingSentence = {
   source_text: string
@@ -40,9 +43,14 @@ function entriesEqual(a: NavEntry, b: NavEntry): boolean {
 
 function builtinAwareLemma(lemma: string | null): string | null {
   if (!lemma) return null
-  if (getHvQuestionEntry(lemma)) return HV_QUESTION_SENTINEL
-  const category = getPronounCategory(lemma)
-  return category ? PRONOUN_SENTINELS[category] : lemma
+  const normalized = lemma.toLowerCase()
+  if (getQuestionWordEntry(normalized)) return QUESTION_WORDS_SENTINEL
+  const category = getPronounCategory(normalized)
+  if (category) return PRONOUN_SENTINELS[category]
+  if (PREPOSITION_LEMMAS.has(normalized)) return PREPOSITIONS_SENTINEL
+  if (CONJUNCTION_LEMMAS.has(normalized)) return CONJUNCTIONS_SENTINEL
+  if (CALENDAR_LEMMAS.has(normalized)) return DAYS_MONTHS_SEASONS_SENTINEL
+  return lemma
 }
 
 type HistoryState = { entries: NavEntry[]; index: number }

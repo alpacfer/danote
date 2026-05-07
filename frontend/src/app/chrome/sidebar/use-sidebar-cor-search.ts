@@ -6,8 +6,8 @@ import {
   isShortLetterWord,
   type CORSearchFormResponse,
 } from "@/app/core"
-import { getHvQuestionEntry } from "@/app/sections/wordbank/hv-questions/hv-question-data"
 import { getPronounCategory } from "@/app/sections/wordbank/pronouns/pronouns-data"
+import { getQuestionWordEntry } from "@/app/sections/wordbank/question-words/question-words-data"
 import { hasExactCorFormMatch } from "@/app/chrome/sidebar/sidebar-search-query"
 import type { CorFormSearchResult, SidebarApiClient } from "@/app/chrome/sidebar/sidebar-search-types"
 
@@ -43,7 +43,7 @@ export function useSidebarCorSearch({
       || !normalizedQuery
       || /\s/u.test(normalizedQuery)
       || isShortLetterWord(normalizedQuery)
-      || getHvQuestionEntry(normalizedQuery)
+      || getQuestionWordEntry(normalizedQuery)
       || getPronounCategory(normalizedQuery)
     ) {
       setIsCorTranslationsLoading(false)

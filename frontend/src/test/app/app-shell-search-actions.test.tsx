@@ -55,7 +55,7 @@ describe("App shell and search", () => {
 
     fireEvent.click(await findCommandOptionByValue(commandDialog, "page-numbers"))
 
-    expect(await screen.findByText(/0-19/i)).toBeInTheDocument()
+    expect(await screen.findByText(/0[-–]19/i)).toBeInTheDocument()
     expect(screen.getByText(/21 = enogtyve/i)).toBeInTheDocument()
   })
 

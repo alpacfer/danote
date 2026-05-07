@@ -190,9 +190,8 @@ describe("App sentencebank", () => {
     fireEvent.click((await screen.findByText(/^du$/i)).closest("button") as HTMLButtonElement)
 
     expect(await screen.findByRole("heading", { name: /personal pronouns/i })).toBeInTheDocument()
-    expect(screen.getByRole("heading", { name: /possessive pronouns/i })).toBeInTheDocument()
     expect(screen.getAllByText(/^du$/i).length).toBeGreaterThan(0)
-    expect(fetchSpy.mock.calls.some(([input]) => String(input).includes("__pronouns_personal_possessive"))).toBe(false)
+    expect(fetchSpy.mock.calls.some(([input]) => String(input).includes("__pronouns_personal"))).toBe(false)
   })
 
   it("clicking an hv token opens the shared question words page with related sentences", async () => {
@@ -232,11 +231,11 @@ describe("App sentencebank", () => {
     fireEvent.click(await screen.findByRole("button", { name: /hvor bor du/i }))
     fireEvent.click((await screen.findByText(/^hvor$/i)).closest("button") as HTMLButtonElement)
 
-    expect(await screen.findByRole("heading", { name: /place, time, manner and reason/i })).toBeInTheDocument()
+    expect(await screen.findByRole("heading", { name: /place, time, manner & reason/i })).toBeInTheDocument()
     expect(screen.getAllByText(/^hvor$/i).length).toBeGreaterThan(0)
     fireEvent.click(screen.getByRole("button", { name: /see examples/i }))
     expect(await screen.findByText(/where do you live/i)).toBeInTheDocument()
-    expect(fetchSpy.mock.calls.some(([input]) => String(input).includes("__hv_questions"))).toBe(false)
+    expect(fetchSpy.mock.calls.some(([input]) => String(input).includes("__question_words"))).toBe(false)
   })
 
   it("clicking an unsaved sentence token saves it through the sentence-token flow", async () => {

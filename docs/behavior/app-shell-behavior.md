@@ -41,7 +41,7 @@ Page trail labels:
 - Sentencebank: `Sentencebank`
 - Developer: `Developer`
 - Wordbank root: `Wordbank`; lemma detail: clickable `Wordbank` + `selectedLemma` tail
-- Built-in Wordbank reference tails use readable labels such as `HV Question Words` and `Numbers`
+- Built-in Wordbank reference tails use readable labels (e.g. `Personal Pronouns`, `Question Words`, `Prepositions`, `Numbers`)
 
 ## 2. Section switching contract
 
