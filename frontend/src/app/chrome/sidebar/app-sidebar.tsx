@@ -1,5 +1,6 @@
 import { useState } from "react"
 
+import { DanoteIcon } from "@/app/chrome/danote-icon"
 import { ThemeToggleButton } from "@/app/chrome/theme-toggle-button"
 import { SidebarNavigation } from "@/app/chrome/sidebar/sidebar-navigation"
 import { useSidebarPageItems } from "@/app/chrome/sidebar/sidebar-page-items"
@@ -28,6 +29,7 @@ import { CommandDialog } from "@/components/ui/command"
 import {
   Sidebar,
   SidebarFooter,
+  SidebarHeader,
 } from "@/components/ui/sidebar"
 
 export type AppSidebarProps = {
@@ -209,6 +211,12 @@ export function AppSidebar({
 
   return (
     <Sidebar variant="inset">
+      <SidebarHeader>
+        <div className="flex items-center gap-2 px-2 py-1">
+          <DanoteIcon className="size-5 shrink-0" />
+          <span className="text-sm font-semibold">danote</span>
+        </div>
+      </SidebarHeader>
       <CommandDialog
         open={isSearchOpen}
         onOpenChange={(open) => {
