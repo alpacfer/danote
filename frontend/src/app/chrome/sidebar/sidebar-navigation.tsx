@@ -1,4 +1,4 @@
-import { BookOpen, Settings } from "lucide-react"
+import { BookOpen, Search, Settings } from "lucide-react"
 
 import type { AppSection } from "@/app/core"
 import {
@@ -16,6 +16,7 @@ import type { SidebarNavigationActions } from "@/app/chrome/sidebar/sidebar-page
 type SidebarNavigationProps = SidebarNavigationActions & {
   activeSection: AppSection
   unreadWordbankNotificationCount: number
+  onOpenSearch: () => void
 }
 
 export function SidebarNavigation({
@@ -24,6 +25,7 @@ export function SidebarNavigation({
   onSelectWordbank,
   onSelectSentencebank,
   onSelectDeveloper,
+  onOpenSearch,
 }: SidebarNavigationProps) {
   return (
     <SidebarContent>
@@ -31,6 +33,16 @@ export function SidebarNavigation({
         <SidebarGroupLabel>Navigation</SidebarGroupLabel>
         <SidebarGroupContent>
           <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton type="button" onClick={onOpenSearch}>
+                <Search />
+                <span>Search</span>
+                <KbdGroup aria-hidden="true" className="ml-auto">
+                  <Kbd>⌘</Kbd>
+                  <Kbd>K</Kbd>
+                </KbdGroup>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton type="button" isActive={activeSection === "wordbank"} onClick={onSelectWordbank}>
                 <BookOpen />

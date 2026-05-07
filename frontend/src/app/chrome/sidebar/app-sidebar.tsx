@@ -24,13 +24,10 @@ import {
   type WordbankLemma,
   type WordbankSearchItem,
 } from "@/app/core"
-import { Button } from "@/components/ui/button"
 import { CommandDialog } from "@/components/ui/command"
-import { Kbd, KbdGroup } from "@/components/ui/kbd"
 import {
   Sidebar,
   SidebarFooter,
-  SidebarHeader,
 } from "@/components/ui/sidebar"
 
 export type AppSidebarProps = {
@@ -212,73 +209,65 @@ export function AppSidebar({
 
   return (
     <Sidebar variant="inset">
-      <SidebarHeader className="gap-2">
-        <Button type="button" variant="outline" className="justify-between" onClick={() => setIsSearchOpen(true)}>
-          Search...
-          <KbdGroup>
-            <Kbd>⌘</Kbd>
-            <Kbd>K</Kbd>
-          </KbdGroup>
-        </Button>
-        <CommandDialog
-          open={isSearchOpen}
-          onOpenChange={(open) => {
-            setIsSearchOpen(open)
-            if (!open) {
-              setTimeout(() => {
-                setSearchQuery("")
-                setCommandSelectionOverride("")
-              }, 200)
-            }
-          }}
-          commandShouldFilter={false}
-          commandValue={commandSelectionValue}
-          onCommandValueChange={setCommandSelectionOverride}
-          showCloseButton={false}
-          className="rounded-xl"
-          title="Search wordbank"
-          description="Search saved words and local COR analyses."
-        >
-          <SidebarSearchInput
-            value={searchQuery}
-            sentenceSearchPreview={sentenceSearchPreview}
-            onKeyDown={(event) => {
-              if (
-                event.key !== "Enter"
-                || !isSentenceMode
-                || !sentenceSearchPreview
-                || isSentenceSearchPreviewLoading
-                || sentenceSearchPreview.source_text === null
-                || sentenceSearchPreview.status === "blocked"
-              ) {
-                return
-              }
-
-              event.preventDefault()
-              event.stopPropagation()
-              saveSentenceFromSearch(
-                sentenceSearchPreview.source_text,
-                sentenceSearchPreview.english_translation ?? null,
-              )
-            }}
-            onValueChange={(value) => {
-              setSearchQuery(value)
+      <CommandDialog
+        open={isSearchOpen}
+        onOpenChange={(open) => {
+          setIsSearchOpen(open)
+          if (!open) {
+            setTimeout(() => {
+              setSearchQuery("")
               setCommandSelectionOverride("")
-            }}
-          />
-          <SidebarSearchResults
-            state={searchResultState}
-            data={searchResultData}
-            actions={searchResultActions}
-          />
-        </CommandDialog>
-      </SidebarHeader>
+            }, 200)
+          }
+        }}
+        commandShouldFilter={false}
+        commandValue={commandSelectionValue}
+        onCommandValueChange={setCommandSelectionOverride}
+        showCloseButton={false}
+        className="rounded-xl"
+        title="Search wordbank"
+        description="Search saved words and local COR analyses."
+      >
+        <SidebarSearchInput
+          value={searchQuery}
+          sentenceSearchPreview={sentenceSearchPreview}
+          onKeyDown={(event) => {
+            if (
+              event.key !== "Enter"
+              || !isSentenceMode
+              || !sentenceSearchPreview
+              || isSentenceSearchPreviewLoading
+              || sentenceSearchPreview.source_text === null
+              || sentenceSearchPreview.status === "blocked"
+            ) {
+              return
+            }
+
+            event.preventDefault()
+            event.stopPropagation()
+            saveSentenceFromSearch(
+              sentenceSearchPreview.source_text,
+              sentenceSearchPreview.english_translation ?? null,
+            )
+          }}
+          onValueChange={(value) => {
+            setSearchQuery(value)
+            setCommandSelectionOverride("")
+          }}
+        />
+        <SidebarSearchResults
+          state={searchResultState}
+          data={searchResultData}
+          actions={searchResultActions}
+        />
+      </CommandDialog>
       <SidebarNavigation
         activeSection={activeSection}
         unreadWordbankNotificationCount={unreadWordbankNotificationCount}
         onSelectWordbank={onSelectWordbank}
         onSelectSentencebank={onSelectSentencebank}
         onSelectDeveloper={onSelectDeveloper}
+        onOpenSearch={() => setIsSearchOpen(true)}
       />
       <SidebarFooter>
         <ThemeToggleButton />
