@@ -1,4 +1,4 @@
-import { BookOpen, Search, Settings } from "lucide-react"
+import { BookOpen, Search, Settings, ScrollText } from "lucide-react"
 
 import type { AppSection } from "@/app/core"
 import {
@@ -12,7 +12,10 @@ import {
 import { Kbd, KbdGroup } from "@/components/ui/kbd"
 import type { SidebarNavigationActions } from "@/app/chrome/sidebar/sidebar-page-items"
 
-type SidebarNavigationProps = SidebarNavigationActions & {
+type SidebarNavigationProps = Pick<
+  SidebarNavigationActions,
+  "onSelectWordbank" | "onSelectSentencebank" | "onSelectDeveloper"
+> & {
   activeSection: AppSection
   unreadWordbankNotificationCount: number
   onOpenSearch: () => void
@@ -59,7 +62,7 @@ export function SidebarNavigation({
             </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton type="button" isActive={activeSection === "sentencebank"} onClick={onSelectSentencebank}>
-                <BookOpen />
+                <ScrollText />
                 <span>Sentencebank</span>
                 <KbdGroup aria-hidden="true" className="ml-auto">
                   <Kbd>Alt</Kbd>

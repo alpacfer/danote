@@ -29,6 +29,7 @@ import {
   Sidebar,
   SidebarFooter,
   SidebarHeader,
+  SidebarTrigger,
 } from "@/components/ui/sidebar"
 
 export type AppSidebarProps = {
@@ -209,10 +210,11 @@ export function AppSidebar({
   }
 
   return (
-    <Sidebar variant="inset">
+    <Sidebar variant="inset" collapsible="icon">
       <SidebarHeader>
-        <div className="px-2 py-1">
-          <span className="text-base font-semibold">danote</span>
+        <div className="flex h-8 items-center gap-2 group-data-[collapsible=icon]:contents">
+          <span className="truncate text-base font-semibold group-data-[collapsible=icon]:sr-only">danote</span>
+          <SidebarTrigger className="ml-auto size-8 cursor-ew-resize group-data-[collapsible=icon]:ml-0" />
         </div>
       </SidebarHeader>
       <CommandDialog

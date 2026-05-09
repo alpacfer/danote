@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from app.api.schemas.v1.wordbank import AddWordResponse, MeaningContext, VerificationResult
+from app.services.gemini_translation import NonCORWordGenerationInput
 from app.services.token_classifier import normalize_token
 from app.services.use_cases.wordbank.meaning_sections import ensure_wordbank_meaning_compatibility
 from app.services.use_cases.wordbank.pronunciation_queue import queue_pronunciation_generation
@@ -8,6 +9,7 @@ from app.services.use_cases.wordbank.queries_details import get_lemma_details
 from app.services.use_cases.wordbank.related_words_queue import queue_related_words_resolution
 from app.services.use_cases.wordbank.runtime import WordbankRuntime
 from app.services.use_cases.wordbank.search_seed_persistence import (
+    SearchSeedInputs,
     normalize_search_seed,
     persist_search_seed_surface_form,
 )
@@ -32,6 +34,9 @@ def add_word_from_search_seed(
         raise ValueError("search_seed.surface must match surface_token")
     if normalized_lemma != seed.lemma:
         raise ValueError("search_seed.lemma must match lemma_candidate")
+
+    if seed.dictionary_status == "generated_non_cor" and seed.morphology is None:
+        seed = _enrich_non_cor_seed_morphology(runtime, seed)
 
     persist_result = persist_search_seed_surface_form(runtime, seed=seed)
     verification = (
@@ -89,4 +94,31 @@ def add_word_from_search_seed(
         queued_pronunciation_forms=queued_pronunciation_forms,
         pronunciation=pronunciation,
         saved_snapshot=saved_snapshot,
+    )
+
+
+def _enrich_non_cor_seed_morphology(runtime: WordbankRuntime, seed: SearchSeedInputs) -> SearchSeedInputs:
+    payload = NonCORWordGenerationInput(
+        surface_form=seed.surface,
+        lemma_candidate=seed.lemma,
+        pos_tag=seed.pos_tag,
+        morphology=None,
+        sentence_context=None,
+    )
+    results = runtime.translation.generate_non_cor_word_entries_batch([payload])
+    generated = results[0] if results else None
+    if generated is None:
+        return seed
+    return SearchSeedInputs(
+        lemma=seed.lemma,
+        surface=seed.surface,
+        cor_id=seed.cor_id,
+        cor_lemma_idx=seed.cor_lemma_idx,
+        dictionary_status=seed.dictionary_status,
+        meaning_key=seed.meaning_key,
+        gloss=seed.gloss,
+        english_translation=seed.english_translation or generated.english_translation,
+        pos_tag=generated.surface_pos_tag or generated.pos_tag or seed.pos_tag,
+        morphology=generated.surface_morphology or generated.morphology,
+        target_meaning_id=seed.target_meaning_id,
     )

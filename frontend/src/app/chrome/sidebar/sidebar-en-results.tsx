@@ -72,7 +72,7 @@ export function SidebarEnResults({
                     meaning_key: group.lemma,
                     gloss: topSense?.gloss ?? null,
                     english_translation: originalQuery || group.lemma,
-                    pos_tag: null,
+                    pos_tag: group.pos_ud ?? null,
                     morphology: null,
                   },
                 )
