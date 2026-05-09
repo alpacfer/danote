@@ -480,6 +480,10 @@ export function useWordbankWorkflows({
       setWordbankRefreshTick((current) => current + 1)
       const saved = payload.saved_token
       if (saved.stored_lemma) {
+        trackQueuedPronunciationForms(saved.stored_lemma, [
+          saved.stored_lemma,
+          saved.surface_form,
+        ])
         openWordbankTarget(saved.stored_lemma, saved.meaning_id ?? null)
       }
     } catch (error) {

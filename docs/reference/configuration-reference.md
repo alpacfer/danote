@@ -26,7 +26,7 @@ Notes:
 | `DANOTE_APP_NAME` | `danote-backend` | Any non-empty string | App metadata/logging only. |
 | `DANOTE_HOST` | `127.0.0.1` | Host/IP string | Paired with `DANOTE_PORT` for local bind. |
 | `DANOTE_PORT` | `8000` | Integer string parseable by Python `int()` | Invalid integer raises at startup. |
-| `DANOTE_CORS_ORIGINS` | `http://127.0.0.1:4173,http://localhost:4173` (effective fallback) | Comma-separated origins | Empty/only commas/spaces falls back to default local origins tuple. |
+| `DANOTE_CORS_ORIGINS` | `http://127.0.0.1:5173,http://localhost:5173,http://127.0.0.1:4173,http://localhost:4173` (effective fallback) | Comma-separated origins | Empty/only commas/spaces falls back to default local origins tuple. `run-project.sh` appends the selected frontend origin when this is set. |
 
 ## Database
 

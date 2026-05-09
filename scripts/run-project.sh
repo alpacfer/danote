@@ -20,6 +20,9 @@ BACKEND_PORT=""
 FRONTEND_HOST=""
 FRONTEND_PORT=""
 VITE_BACKEND_URL=""
+DANOTE_HOST=""
+DANOTE_PORT=""
+DANOTE_CORS_ORIGINS=""
 DANOTE_TRANSLATION_PROVIDER=""
 DANOTE_GEMINI_MODEL=""
 DANOTE_GEMINI_API_KEY=""
@@ -50,16 +53,52 @@ cleanup() {
 }
 
 configure_runtime() {
-  BACKEND_HOST="${BACKEND_HOST:-127.0.0.1}"
-  BACKEND_PORT="${BACKEND_PORT:-8000}"
+  BACKEND_HOST="${BACKEND_HOST:-${DANOTE_HOST:-127.0.0.1}}"
+  BACKEND_PORT="${BACKEND_PORT:-${DANOTE_PORT:-8000}}"
   FRONTEND_HOST="${FRONTEND_HOST:-127.0.0.1}"
-  FRONTEND_PORT="${FRONTEND_PORT:-4173}"
+  FRONTEND_PORT="${FRONTEND_PORT:-5173}"
   VITE_BACKEND_URL="${VITE_BACKEND_URL:-http://$BACKEND_HOST:$BACKEND_PORT}"
+  DANOTE_HOST="$BACKEND_HOST"
+  DANOTE_PORT="$BACKEND_PORT"
+  configure_cors_origins
   DANOTE_TRANSLATION_PROVIDER="${DANOTE_TRANSLATION_PROVIDER:-deepl}"
   DANOTE_GEMINI_MODEL="${DANOTE_GEMINI_MODEL:-gemini-3.1-flash-lite-preview}"
   DANOTE_GEMINI_API_KEY="${DANOTE_GEMINI_API_KEY:-${DANOTE_WORD_VERIFICATION_GEMINI_API_KEY:-}}"
   DANOTE_TRANSLATION_DEEPL_API_KEY="${DANOTE_TRANSLATION_DEEPL_API_KEY:-${DANOTE_DEEPL_API_KEY:-}}"
   BACKEND_LOG_FILE="${BACKEND_LOG_FILE:-$(mktemp -t danote-backend-log.XXXXXX)}"
+}
+
+configure_cors_origins() {
+  local frontend_origin="http://$FRONTEND_HOST:$FRONTEND_PORT"
+  local localhost_frontend_origin="http://localhost:$FRONTEND_PORT"
+  if [[ -z "${DANOTE_CORS_ORIGINS:-}" ]]; then
+    DANOTE_CORS_ORIGINS="$frontend_origin,$localhost_frontend_origin,http://127.0.0.1:4173,http://localhost:4173"
+    return
+  fi
+  DANOTE_CORS_ORIGINS="$(csv_append_unique "$DANOTE_CORS_ORIGINS" "$frontend_origin")"
+  DANOTE_CORS_ORIGINS="$(csv_append_unique "$DANOTE_CORS_ORIGINS" "$localhost_frontend_origin")"
+}
+
+csv_append_unique() {
+  local csv="$1"
+  local value="$2"
+  local item
+  IFS=',' read -ra items <<< "$csv"
+  for item in "${items[@]}"; do
+    item="$(trim "$item")"
+    if [[ "$item" == "$value" ]]; then
+      printf '%s\n' "$csv"
+      return
+    fi
+  done
+  printf '%s,%s\n' "$csv" "$value"
+}
+
+trim() {
+  local value="$1"
+  value="${value#"${value%%[![:space:]]*}"}"
+  value="${value%"${value##*[![:space:]]}"}"
+  printf '%s\n' "$value"
 }
 
 is_disabled_value() {
@@ -169,12 +208,23 @@ ensure_frontend_env() {
 }
 
 start_backend() {
+  if backend_is_healthy; then
+    bootstrap::log "reusing healthy backend at http://$BACKEND_HOST:$BACKEND_PORT"
+    BACKEND_PID=""
+    return
+  fi
+  if port_is_listening "$BACKEND_HOST" "$BACKEND_PORT"; then
+    bootstrap::die "port $BACKEND_PORT is already in use, but http://$BACKEND_HOST:$BACKEND_PORT/api/health is not healthy. Stop that process or set BACKEND_PORT/DANOTE_PORT explicitly."
+  fi
   bootstrap::log "capturing backend logs in $BACKEND_LOG_FILE"
   : > "$BACKEND_LOG_FILE"
   bootstrap::log "starting backend on http://$BACKEND_HOST:$BACKEND_PORT"
   bootstrap::log "translation provider: $DANOTE_TRANSLATION_PROVIDER"
   (
     cd "$BACKEND_DIR"
+    export DANOTE_HOST
+    export DANOTE_PORT
+    export DANOTE_CORS_ORIGINS
     export DANOTE_TRANSLATION_PROVIDER
     export DANOTE_GEMINI_MODEL
     export DANOTE_GEMINI_API_KEY
@@ -194,6 +244,10 @@ print_backend_log_tail() {
 
 wait_for_backend() {
   local health_url="http://$BACKEND_HOST:$BACKEND_PORT/api/health"
+  if [[ -z "$BACKEND_PID" ]]; then
+    bootstrap::log "backend health check passed: $health_url"
+    return
+  fi
   for _ in {1..30}; do
     if curl -fsS "$health_url" >/dev/null 2>&1; then
       bootstrap::log "backend health check passed: $health_url"
@@ -211,13 +265,62 @@ wait_for_backend() {
 }
 
 start_frontend() {
+  if frontend_is_reachable; then
+    bootstrap::log "reusing running frontend at http://$FRONTEND_HOST:$FRONTEND_PORT"
+    FRONTEND_PID=""
+    return
+  fi
+  if port_is_listening "$FRONTEND_HOST" "$FRONTEND_PORT"; then
+    bootstrap::die "port $FRONTEND_PORT is already in use, but http://$FRONTEND_HOST:$FRONTEND_PORT is not reachable. Stop that process or set FRONTEND_PORT explicitly."
+  fi
   bootstrap::log "starting frontend on http://$FRONTEND_HOST:$FRONTEND_PORT"
   (
     cd "$FRONTEND_DIR"
     export VITE_BACKEND_URL
-    exec npm run dev -- --host "$FRONTEND_HOST" --port "$FRONTEND_PORT"
+    exec npm run dev -- --host "$FRONTEND_HOST" --port "$FRONTEND_PORT" --strictPort
   ) &
   FRONTEND_PID=$!
+}
+
+backend_is_healthy() {
+  curl -fsS "http://$BACKEND_HOST:$BACKEND_PORT/api/health" >/dev/null 2>&1
+}
+
+frontend_is_reachable() {
+  curl -fsS "http://$FRONTEND_HOST:$FRONTEND_PORT" >/dev/null 2>&1
+}
+
+port_is_listening() {
+  local host="$1"
+  local port="$2"
+  "$BACKEND_DIR/.venv/bin/python" - "$host" "$port" <<'PY' >/dev/null 2>&1
+import socket
+import sys
+
+host = sys.argv[1]
+port = int(sys.argv[2])
+with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+    sock.settimeout(0.25)
+    sys.exit(0 if sock.connect_ex((host, port)) == 0 else 1)
+PY
+}
+
+wait_for_services() {
+  if [[ -n "$BACKEND_PID" && -n "$FRONTEND_PID" ]]; then
+    wait "$BACKEND_PID" "$FRONTEND_PID"
+    return
+  fi
+  if [[ -n "$BACKEND_PID" ]]; then
+    wait "$BACKEND_PID"
+    return
+  fi
+  if [[ -n "$FRONTEND_PID" ]]; then
+    wait "$FRONTEND_PID"
+    return
+  fi
+  while true; do
+    sleep 3600
+  done
 }
 
 main() {
@@ -239,7 +342,7 @@ main() {
   bootstrap::log "backend:  http://$BACKEND_HOST:$BACKEND_PORT"
   bootstrap::log "press Ctrl+C to stop"
 
-  wait "$BACKEND_PID" "$FRONTEND_PID"
+  wait_for_services
 }
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then

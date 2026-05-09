@@ -7,7 +7,12 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parents[2]
 REPO_DIR = BASE_DIR.parent
 DATA_DIR = BASE_DIR / "data"
-DEFAULT_CORS_ORIGINS = ("http://127.0.0.1:4173", "http://localhost:4173")
+DEFAULT_CORS_ORIGINS = (
+    "http://127.0.0.1:5173",
+    "http://localhost:5173",
+    "http://127.0.0.1:4173",
+    "http://localhost:4173",
+)
 
 
 @dataclass(frozen=True)

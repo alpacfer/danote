@@ -207,7 +207,7 @@ describe("App wordbank", () => {
     expect(await screen.findByText(/^father, dad$/i)).toBeInTheDocument()
   })
 
-  it("renderer-only: pronunciation tooltip opens on the right of the word trigger", async () => {
+  it("renderer-only: pronunciation triggers do not show click-to-listen tooltips", async () => {
     mockFetchImplementation({
       lemmasResponse: {
         items: [{ lemma: "bog", variation_count: 1 }],
@@ -223,9 +223,7 @@ describe("App wordbank", () => {
     const listenButton = await screen.findByRole("button", { name: /^listen to bog$/i })
     fireEvent.focus(listenButton)
 
-    await waitFor(() => {
-      expect(document.querySelector("[data-slot='tooltip-content']")).toHaveAttribute("data-side", "right")
-    })
+    expect(document.querySelector("[data-slot='tooltip-content']")).not.toBeInTheDocument()
   })
 
   it("renderer-only: sectioned word pages use section gram_raw so adjective cards keep the full search badge set", async () => {
@@ -797,6 +795,81 @@ describe("App wordbank", () => {
     expect(within(table).getByText(/^singular$/i)).toBeInTheDocument()
     expect(within(table).getByText(/^plural$/i)).toBeInTheDocument()
     expect(within(table).getByText(/^definite$/i)).toBeInTheDocument()
+  })
+
+  it("renderer-only: non-COR adjective forms with partial morphology stay in the paradigm table", async () => {
+    mockFetchImplementation({
+      lemmasResponse: {
+        items: [{ lemma: "ukomfortabel", variation_count: 2 }],
+      },
+      lemmaDetailsResponse: {
+        lemma: "ukomfortabel",
+        english_translation: "uncomfortable",
+        is_sectioned: false,
+        pos_tag: "ADJ",
+        morphology: "Degree=Pos|Gender=Com|Number=Sing",
+        surface_forms: [
+          { form: "ukomfortabel", pos_tag: "ADJ", morphology: "Degree=Pos|Gender=Com|Number=Sing", has_pronunciation: false },
+          { form: "ukomfortabelt", pos_tag: "ADJ", morphology: "Degree=Pos|Gender=Neut|Number=Sing", has_pronunciation: false },
+          { form: "ukomfortable", pos_tag: "ADJ", morphology: "Degree=Pos|Number=Plur", has_pronunciation: false },
+        ],
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+    fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /ukomfortabel/i }))
+
+    const scopeCard = await screen.findByTestId("wordbank-lemma-scope-card")
+    const table = within(scopeCard).getByRole("table")
+    expect(within(table).getByRole("button", { name: /^listen to ukomfortabelt$/i })).toBeInTheDocument()
+    expect(within(table).getAllByRole("button", { name: /^listen to ukomfortable$/i })).toHaveLength(2)
+    expect(within(scopeCard).queryByText(/other forms/i)).not.toBeInTheDocument()
+  })
+
+  it("renderer-only: non-COR singular definite adjective forms fill the shared plural slots", async () => {
+    mockFetchImplementation({
+      lemmasResponse: {
+        items: [{ lemma: "ukomfortabel", variation_count: 2 }],
+      },
+      lemmaDetailsResponse: {
+        lemma: "ukomfortabel",
+        english_translation: "uncomfortable",
+        is_sectioned: false,
+        pos_tag: "ADJ",
+        morphology: "Degree=Pos|Gender=Com|Number=Sing|Definite=Ind",
+        surface_forms: [
+          {
+            form: "ukomfortabel",
+            pos_tag: "ADJ",
+            morphology: "Degree=Pos|Gender=Com|Number=Sing|Definite=Ind",
+            has_pronunciation: false,
+          },
+          {
+            form: "ukomfortabelt",
+            pos_tag: "ADJ",
+            morphology: "Degree=Pos|Gender=Neut|Number=Sing|Definite=Ind",
+            has_pronunciation: false,
+          },
+          {
+            form: "ukomfortable",
+            pos_tag: "ADJ",
+            morphology: "Degree=Pos|Number=Sing|Definite=Def",
+            has_pronunciation: false,
+          },
+        ],
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+    fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /ukomfortabel/i }))
+
+    const scopeCard = await screen.findByTestId("wordbank-lemma-scope-card")
+    const table = within(scopeCard).getByRole("table")
+    expect(within(table).getAllByRole("button", { name: /^listen to ukomfortable$/i })).toHaveLength(3)
   })
 
   it("renderer-only: non-sectioned word pages keep the paradigm table inside the scope card", async () => {

@@ -17,10 +17,12 @@ from app.services.use_cases.wordbank.paradigm_variations import (
     noun_slot_from_morphology,
     paradigm_kind_from_pos_tag,
     resolve_target_slot_entries,
-    slots_for_gram_raw_and_morphology,
     slots_for_entry,
+    slots_for_gram_raw_and_morphology,
 )
-from app.services.use_cases.wordbank.verification_action_models import VerificationActionExecutionResult
+from app.services.use_cases.wordbank.verification_action_models import (
+    VerificationActionExecutionResult,
+)
 
 
 @dataclass(frozen=True)
@@ -42,6 +44,7 @@ def apply_fix_variations(
     context = meaning_context_from_rows(
         source_lexeme=source_lexeme,
         source_meaning=source_meaning,
+        allow_missing_cor_identity=True,
     )
     fallback_slot_entries = resolve_target_slot_entries(
         cor,
@@ -187,15 +190,12 @@ def _apply_fix_variations_compacted(
     managed_rows = [
         row
         for row in current_rows
-        if any(
-            slot in _managed_compacted_slots(context.paradigm_kind)
-            for slot in _current_row_slots(
-                cor,
-                context=context,
-                form=str(row["form"]),
-                pos_tag=row["pos_tag"] or None,
-                morphology=row["morphology"] or None,
-            )
+        if _is_managed_compacted_row(
+            cor,
+            context=context,
+            form=str(row["form"]),
+            pos_tag=row["pos_tag"] or None,
+            morphology=row["morphology"] or None,
         )
     ]
 
@@ -309,7 +309,11 @@ def _resolve_fix_variations_slots(
                 DesiredParadigmVariationForm(
                     form=desired_form,
                     pos_tag=fallback_entry.pos_tag if fallback_entry is not None else _default_pos_tag(paradigm_kind),
-                    morphology=fallback_entry.morphology if fallback_entry is not None else None,
+                    morphology=(
+                        fallback_entry.morphology
+                        if fallback_entry is not None
+                        else _default_morphology(paradigm_kind, slot_name)
+                    ),
                     cor_ids=tuple(
                         dict.fromkeys(
                             cor_id
@@ -324,6 +328,34 @@ def _resolve_fix_variations_slots(
             )
         desired_slots[slot_name] = tuple(slot_forms)
     return desired_slots
+
+
+def _default_morphology(paradigm_kind: str, slot_name: str) -> str | None:
+    if paradigm_kind == "noun":
+        return {
+            "singular_indefinite": "Number=Sing|Definite=Ind",
+            "singular_definite": "Number=Sing|Definite=Def",
+            "plural_indefinite": "Number=Plur|Definite=Ind",
+            "plural_definite": "Number=Plur|Definite=Def",
+        }.get(slot_name)
+    if paradigm_kind == "adjective":
+        return {
+            "singular_indefinite_n_word": "Degree=Pos|Gender=Com|Number=Sing|Definite=Ind",
+            "singular_indefinite_t_word": "Degree=Pos|Gender=Neut|Number=Sing|Definite=Ind",
+            "singular_definite": "Degree=Pos|Number=Sing|Definite=Def",
+            "plural_indefinite": "Degree=Pos|Number=Plur|Definite=Ind",
+            "plural_definite": "Degree=Pos|Number=Plur|Definite=Def",
+            "plural_shared": "Degree=Pos|Number=Plur",
+        }.get(slot_name)
+    if paradigm_kind == "verb":
+        return {
+            "infinitive": "VerbForm=Inf|Voice=Act",
+            "present": "Tense=Pres|VerbForm=Fin|Voice=Act",
+            "past": "Tense=Past|VerbForm=Fin|Voice=Act",
+            "imperative": "Mood=Imp|VerbForm=Fin|Voice=Act",
+            "past_participle": "VerbForm=Part|Voice=Act",
+        }.get(slot_name)
+    return None
 
 
 def _ensure_lemma_in_slot_forms(desired_form_list: list[str], lemma: str) -> list[str]:
@@ -443,25 +475,50 @@ def _current_row_slots(
     pos_tag: str | None,
     morphology: str | None,
 ) -> tuple[str, ...]:
-    entries = cor.cor_local_entries_for_form(
-        form=form,
-        lemma=context.lemma,
-        preferred_pos_tag=_default_pos_tag(context.paradigm_kind),
-        preferred_lemma_idx=context.cor_lemma_idx,
-    )
-    if entries:
-        slots: list[str] = []
-        for entry in entries:
-            for slot in slots_for_entry(context.paradigm_kind, entry):
-                if slot not in slots:
-                    slots.append(slot)
-        return tuple(slots)
+    if context.cor_lemma_idx is not None:
+        entries = cor.cor_local_entries_for_form(
+            form=form,
+            lemma=context.lemma,
+            preferred_pos_tag=_default_pos_tag(context.paradigm_kind),
+            preferred_lemma_idx=context.cor_lemma_idx,
+        )
+        if entries:
+            slots: list[str] = []
+            for entry in entries:
+                for slot in slots_for_entry(context.paradigm_kind, entry):
+                    if slot not in slots:
+                        slots.append(slot)
+            return tuple(slots)
     if paradigm_kind_from_pos_tag(pos_tag) != context.paradigm_kind:
         return ()
     return slots_for_gram_raw_and_morphology(
         context.paradigm_kind,
         gram_raw=None,
         morphology=morphology,
+    )
+
+
+def _is_managed_compacted_row(
+    cor: CorResolutionCollaborator,
+    *,
+    context,
+    form: str,
+    pos_tag: str | None,
+    morphology: str | None,
+) -> bool:
+    if paradigm_kind_from_pos_tag(pos_tag) != context.paradigm_kind:
+        return False
+    if context.cor_lemma_idx is None:
+        return True
+    return any(
+        slot in _managed_compacted_slots(context.paradigm_kind)
+        for slot in _current_row_slots(
+            cor,
+            context=context,
+            form=form,
+            pos_tag=pos_tag,
+            morphology=morphology,
+        )
     )
 
 

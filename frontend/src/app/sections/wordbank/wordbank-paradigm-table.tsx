@@ -1,5 +1,7 @@
+import { Fragment } from "react"
+
 import { normalizeSearchWord } from "@/app/core"
-import type { ParadigmTableData, SurfaceForm } from "@/app/sections/wordbank/wordbank-paradigm-utils"
+import type { ParadigmCellEntry, ParadigmTableData, SurfaceForm } from "@/app/sections/wordbank/wordbank-paradigm-utils"
 import { WordbankPronunciationWord } from "@/app/sections/wordbank/wordbank-pronunciation-word"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { AudioLines, Loader2 } from "lucide-react"
@@ -50,12 +52,12 @@ export function WordbankParadigmTable({
                 return (
                   <TableCell key={`${row}-${column}`} className="whitespace-normal">
                     {cell && cell.entries.length > 0 ? (
-                      <div className="space-y-1">
-                        {cell.entries.map((entry) => (
-                          <ParadigmCellForm
-                            key={`${entry.label ?? "form"}-${entry.form.form}`}
-                            form={entry.form}
-                            label={entry.label}
+                      <div className="flex flex-col gap-1">
+                        {groupCellEntries(cell.entries).map((group) => (
+                          <ParadigmCellFormGroup
+                            key={`${group.label ?? "form"}-${group.forms.map((form) => form.form).join("/")}`}
+                            forms={group.forms}
+                            label={group.label}
                             pronunciationLoadingByForm={pronunciationLoadingByForm}
                             regeneratingPronunciationByForm={regeneratingPronunciationByForm}
                             onPlayPronunciation={onPlayPronunciation}
@@ -94,16 +96,61 @@ export function WordbankParadigmTable({
   )
 }
 
-function ParadigmCellForm({
-  form,
+function groupCellEntries(entries: ParadigmCellEntry[]): Array<{ label?: string; forms: SurfaceForm[] }> {
+  const groups: Array<{ label?: string; forms: SurfaceForm[] }> = []
+  for (const entry of entries) {
+    const group = groups.find((item) => item.label === entry.label)
+    if (group) {
+      group.forms.push(entry.form)
+    } else {
+      groups.push({ label: entry.label, forms: [entry.form] })
+    }
+  }
+  return groups
+}
+
+function ParadigmCellFormGroup({
+  forms,
   label,
   pronunciationLoadingByForm,
   regeneratingPronunciationByForm,
   onPlayPronunciation,
   onRegeneratePronunciation,
 }: {
-  form: SurfaceForm
+  forms: SurfaceForm[]
   label?: string
+  pronunciationLoadingByForm: Record<string, boolean>
+  regeneratingPronunciationByForm: Record<string, boolean>
+  onPlayPronunciation: (form: string) => void
+  onRegeneratePronunciation: (form: string) => void
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+      {label ? <span className="text-muted-foreground text-xs font-medium">{label}:</span> : null}
+      {forms.map((form, index) => (
+        <Fragment key={`${form.form}-${index}`}>
+          {index > 0 ? <span className="text-muted-foreground text-sm">/</span> : null}
+          <ParadigmCellForm
+            form={form}
+            pronunciationLoadingByForm={pronunciationLoadingByForm}
+            regeneratingPronunciationByForm={regeneratingPronunciationByForm}
+            onPlayPronunciation={onPlayPronunciation}
+            onRegeneratePronunciation={onRegeneratePronunciation}
+          />
+        </Fragment>
+      ))}
+    </div>
+  )
+}
+
+function ParadigmCellForm({
+  form,
+  pronunciationLoadingByForm,
+  regeneratingPronunciationByForm,
+  onPlayPronunciation,
+  onRegeneratePronunciation,
+}: {
+  form: SurfaceForm
   pronunciationLoadingByForm: Record<string, boolean>
   regeneratingPronunciationByForm: Record<string, boolean>
   onPlayPronunciation: (form: string) => void
@@ -112,8 +159,7 @@ function ParadigmCellForm({
   const normalizedForm = normalizeSearchWord(form.form)
   const isRegenerating = Boolean(regeneratingPronunciationByForm[normalizedForm])
   return (
-    <div className={label ? "flex flex-wrap items-center gap-x-1.5 gap-y-1" : undefined}>
-      {label ? <span className="text-muted-foreground text-xs font-medium">{label}:</span> : null}
+    <span>
       <WordbankPronunciationWord
         form={form.form}
         hasPronunciation={form.has_pronunciation ?? false}
@@ -130,6 +176,6 @@ function ParadigmCellForm({
         className="text-sm font-semibold"
         iconClassName="size-3"
       />
-    </div>
+    </span>
   )
 }

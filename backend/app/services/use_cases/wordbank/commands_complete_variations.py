@@ -7,9 +7,13 @@ from app.services.gemini_translation import (
 )
 from app.services.token_classifier import normalize_token
 from app.services.use_cases.wordbank.paradigm_variations import (
+    ADJECTIVE_DISPLAY_SLOT_ORDER,
+    TARGET_NOUN_SLOTS,
+    VERB_DISPLAY_SLOT_ORDER,
     build_completion_candidate_entries,
     meaning_context_from_rows,
     resolve_target_slot_entries,
+    slots_for_gram_raw_and_morphology,
 )
 from app.services.use_cases.wordbank.pronunciation_queue import queue_pronunciation_generation
 from app.services.use_cases.wordbank.runtime import WordbankRuntime
@@ -235,6 +239,7 @@ def _complete_generated_non_cor_variations(
             "english_translation": meaning.english_translation,
             "pos_tag": meaning.pos_tag or lexeme.pos_tag,
         },
+        allow_missing_cor_identity=True,
     )
     completion_gate_message = _complete_variations_gate_message(runtime, context=context)
     if completion_gate_message is not None:
@@ -258,7 +263,7 @@ def _complete_generated_non_cor_variations(
             stored_lemma=lexeme.lemma,
             english_translation=meaning.english_translation or lexeme.english_translation,
             meaning_key=meaning.meaning_key,
-            gloss=meaning.gloss,
+            gloss=meaning.gloss or meaning.meaning_key,
             pos_tag=meaning.pos_tag or lexeme.pos_tag,
             morphology=meaning.morphology or lexeme.morphology,
             existing_forms=[
@@ -274,6 +279,8 @@ def _complete_generated_non_cor_variations(
 
     added_surface_forms: list[str] = []
     for candidate in generated.forms:
+        if not _is_non_cor_completion_candidate(candidate, paradigm_kind=context.paradigm_kind):
+            continue
         normalized_form = normalize_token(candidate.form)
         if not normalized_form or normalized_form == lexeme.lemma or normalized_form in existing_rows:
             continue
@@ -330,6 +337,29 @@ def _complete_generated_non_cor_variations(
         queued_verification_targets=queued_verification_targets,
         message=_updated_message(lexeme.lemma, added_surface_forms, paradigm_kind=context.paradigm_kind),
     )
+
+
+def _is_non_cor_completion_candidate(candidate: NonCORVariationCandidate, *, paradigm_kind: str) -> bool:
+    candidate_kind = (candidate.pos_tag or "").upper()
+    if paradigm_kind == "noun" and candidate_kind != "NOUN":
+        return False
+    if paradigm_kind == "adjective" and candidate_kind != "ADJ":
+        return False
+    if paradigm_kind == "verb" and candidate_kind != "VERB":
+        return False
+
+    slots = slots_for_gram_raw_and_morphology(
+        paradigm_kind,
+        gram_raw=None,
+        morphology=candidate.morphology,
+    )
+    if paradigm_kind == "noun":
+        allowed_slots = {slot_name for slot_name, _number, _definite in TARGET_NOUN_SLOTS}
+    elif paradigm_kind == "adjective":
+        allowed_slots = {*ADJECTIVE_DISPLAY_SLOT_ORDER, "plural_shared"}
+    else:
+        allowed_slots = set(VERB_DISPLAY_SLOT_ORDER)
+    return any(slot in allowed_slots for slot in slots)
 
 
 def _updated_message(stored_lemma: str, added_surface_forms: list[str], *, paradigm_kind: str) -> str:

@@ -1894,6 +1894,81 @@ def test_complete_variations_uses_gemini_for_generated_non_cor_meanings(tmp_path
     assert {item.form for item in details.meaning_sections[0].surface_forms} == {"superstort", "superstore"}
 
 
+def test_complete_variations_rejects_non_cor_adjective_comparison_forms(tmp_path: Path) -> None:
+    db_path = _db_path(tmp_path)
+    gemini_service = FakeGeminiWordTranslationService(
+        {},
+        non_cor_generation_overrides={
+            ("ukomfortabel", "ukomfortabel", None): {
+                "lemma": "ukomfortabel",
+                "english_translation": "uncomfortable",
+                "meaning_key": "uncomfortable",
+                "gloss": "uncomfortable",
+                "pos_tag": "ADJ",
+                "morphology": "Degree=Pos|Gender=Com|Number=Sing|Definite=Ind",
+                "surface_pos_tag": "ADJ",
+                "surface_morphology": "Degree=Pos|Gender=Com|Number=Sing|Definite=Ind",
+            },
+        },
+        non_cor_variation_overrides={
+            ("ukomfortabel", "ADJ", "uncomfortable"): [
+                {
+                    "form": "ukomfortabelt",
+                    "pos_tag": "ADJ",
+                    "morphology": "Degree=Pos|Gender=Neut|Number=Sing|Definite=Ind",
+                },
+                {
+                    "form": "ukomfortable",
+                    "pos_tag": "ADJ",
+                    "morphology": "Degree=Pos|Number=Plur|Definite=Def",
+                },
+                {
+                    "form": "mere ukomfortabel",
+                    "pos_tag": "ADJ",
+                    "morphology": "Degree=Cmp",
+                },
+                {
+                    "form": "mest ukomfortabel",
+                    "pos_tag": "ADJ",
+                    "morphology": "Degree=Sup",
+                },
+            ],
+        },
+    )
+    use_case = WordbankUseCase(
+        db_path,
+        gemini_word_translation_service=gemini_service,
+        verification_service=FakeVerificationService(),
+    )
+
+    added = use_case.add_word(
+        "ukomfortabel",
+        "ukomfortabel",
+        search_seed={
+            "lemma": "ukomfortabel",
+            "surface": "ukomfortabel",
+            "dictionary_status": "generated_non_cor",
+            "meaning_key": "uncomfortable",
+            "gloss": "uncomfortable",
+            "english_translation": "uncomfortable",
+            "pos_tag": "ADJ",
+            "morphology": "Degree=Pos|Gender=Com|Number=Sing|Definite=Ind",
+        },
+    )
+    assert added.meaning is not None
+    use_case.verify_added_word("ukomfortabel", None, meaning_id=added.meaning.id)
+
+    completed = use_case.complete_meaning_variations("ukomfortabel", meaning_id=added.meaning.id)
+
+    assert completed.status == "updated"
+    assert completed.added_surface_forms == ["ukomfortabelt", "ukomfortable"]
+    details = use_case.get_lemma_details("ukomfortabel")
+    assert {item.form for item in details.meaning_sections[0].surface_forms} == {
+        "ukomfortabelt",
+        "ukomfortable",
+    }
+
+
 def test_generated_non_cor_related_words_render_without_cor_variants(tmp_path: Path) -> None:
     db_path = _db_path(tmp_path)
     gemini_service = FakeGeminiWordTranslationService(

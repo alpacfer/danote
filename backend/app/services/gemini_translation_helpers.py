@@ -337,6 +337,7 @@ def build_batch_non_cor_word_generation_prompt(items: list[dict[str, object]]) -
 
 
 def build_non_cor_variations_prompt(payload: NonCORVariationGenerationInput) -> str:
+    slot_rules = _non_cor_variation_slot_rules(payload.pos_tag)
     return (
         "You are completing missing paradigm forms for one saved Danish meaning that is not present in the source dictionary.\n"
         "Return JSON only with this exact shape: "
@@ -347,10 +348,32 @@ def build_non_cor_variations_prompt(payload: NonCORVariationGenerationInput) -> 
         "- Keep the same lemma, meaning, and part of speech.\n"
         "- Each form must be lowercased Danish text.\n"
         "- Include pos_tag and morphology for every returned form.\n"
+        f"{slot_rules}"
         "- If no additional forms are appropriate, return an empty forms array.\n"
         "- Do not explain your reasoning.\n"
         f"Context:\n{json.dumps(asdict(payload), ensure_ascii=False)}"
     )
+
+
+def _non_cor_variation_slot_rules(pos_tag: str | None) -> str:
+    normalized = str(pos_tag or "").upper()
+    if normalized == "NOUN":
+        return (
+            "- For nouns, return only missing singular definite, plural indefinite, and plural definite forms.\n"
+            "- Do not return genitive, derivational, or comparison-like forms.\n"
+        )
+    if normalized == "ADJ":
+        return (
+            "- For adjectives, return only positive-degree agreement forms: singular indefinite n-word, singular indefinite t-word, singular definite, plural indefinite, and plural definite.\n"
+            "- Do not return comparative or superlative forms, including analytic forms with 'mere' or 'mest'.\n"
+            "- Use Degree=Pos in adjective morphology, plus Gender/Number/Definite features for the agreement slot.\n"
+        )
+    if normalized == "VERB":
+        return (
+            "- For verbs, return only missing infinitive, present, past, imperative, and past participle forms.\n"
+            "- Do not return nouns, adjectives, derived words, or multi-word tense phrases.\n"
+        )
+    return ""
 
 
 def is_retryable_exception(

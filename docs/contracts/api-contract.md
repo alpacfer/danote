@@ -183,10 +183,11 @@ Routes: `backend/app/api/routes/`. DTOs: `backend/app/api/schemas/v1/`.
 - **Notable status/error behavior:** `503` DB unavailable/locked. `404` target not found. `400` invalid inputs. body `status`: `updated` or `skipped`.
 - **Field invariants:**
   - v1 is meaning-scoped for noun, adjective, verb meanings; other POS returns `skipped`.
-  - Uses saved meaning's `cor_lemma_idx` to resolve paradigm; returns `skipped` when missing.
+  - Uses saved meaning's `cor_lemma_idx` to resolve COR paradigms; generated non-COR meanings use Gemini slot completion instead.
   - Gated by verification state: returns `skipped` until meaning target + all saved variations are `verified`. `queued`/`error`/`flagged` states return explicit skip messages.
   - Noun: adds missing non-lemma variations among singular-definite, plural-indefinite, plural-definite.
   - Adjective: adds missing agreement forms: singular-indefinite `t-word`, singular-definite, shared plurals. Shared plural persisted once.
+  - Generated non-COR adjective completion accepts only positive-degree agreement slots; comparative/superlative forms such as `mere ...`/`mest ...` are discarded.
   - Verb: adds missing forms: present, past, imperative, past participle. Infinitive row is lemma/default, not duplicated.
   - `added_surface_forms`: forms inserted. `queued_pronunciation_forms`: forms queued for background pronunciation (lemma-scoped, merged by `stored_lemma`; may include lemma itself).
   - `queued_verification_targets`: meaning-level completion-review targets for polling.
@@ -204,6 +205,7 @@ Routes: `backend/app/api/routes/`. DTOs: `backend/app/api/schemas/v1/`.
   - `action.action_type`: `fix_translation`, `fix_variations`, `move_to_meaning_section`, `move_to_lemma`.
   - `fix_translation`: valid only for lemma/meaning-scoped targets with `stored_surface_form = null`; rejected for surface-scoped.
   - Completion-review records expose meaning-level `fix_variations` reconciling whole variation set. `fix_variations` reserved for completion follow-up; normal save verification never emits it.
+  - Generated non-COR meanings can apply structured `fix_variations` without COR identity; apply uses the provided slot forms and removes generated off-slot adjective/verb rows.
   - When persisted `review_intent = "complete_variations"`: backend rejects any apply whose `action_type != fix_variations`.
   - `fix_variations` slot fields (provided by Gemini, used directly, not re-derived from COR):
     - Noun: `singular_indefinite_forms`, `singular_definite_forms`, `plural_indefinite_forms`, `plural_definite_forms`

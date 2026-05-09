@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import re
-from typing import Iterable, Mapping
+from collections.abc import Mapping
+from dataclasses import dataclass
 
 from app.services.cor_local import CORLocalEntry
 from app.services.token_classifier import normalize_token
@@ -112,7 +112,7 @@ class ParadigmMeaningContext:
     meaning_id: int
     gloss: str | None
     english_translation: str | None
-    cor_lemma_idx: int
+    cor_lemma_idx: int | None
     paradigm_kind: ParadigmKind
 
 
@@ -131,6 +131,7 @@ def meaning_context_from_rows(
     *,
     source_lexeme,
     source_meaning,
+    allow_missing_cor_identity: bool = False,
 ) -> ParadigmMeaningContext:
     if source_meaning is None:
         raise ValueError("fix_variations requires a meaning-scoped entry.")
@@ -138,7 +139,7 @@ def meaning_context_from_rows(
     if paradigm_kind is None:
         raise ValueError("fix_variations requires a noun, adjective, or verb meaning.")
     cor_lemma_idx = source_meaning["cor_lemma_idx"]
-    if cor_lemma_idx is None:
+    if cor_lemma_idx is None and not allow_missing_cor_identity:
         raise RuntimeError("fix_variations requires COR identity.")
     return ParadigmMeaningContext(
         lexeme_id=int(source_lexeme["id"]),
@@ -146,7 +147,7 @@ def meaning_context_from_rows(
         meaning_id=int(source_meaning["id"]),
         gloss=source_meaning["gloss"],
         english_translation=source_meaning["english_translation"] or source_lexeme["english_translation"],
-        cor_lemma_idx=int(cor_lemma_idx),
+        cor_lemma_idx=int(cor_lemma_idx) if cor_lemma_idx is not None else None,
         paradigm_kind=paradigm_kind,
     )
 
@@ -164,6 +165,8 @@ def resolve_target_slot_entries(
     context: ParadigmMeaningContext,
     allow_lemma_mismatch: bool = False,
 ) -> dict[str, list[CORLocalEntry]]:
+    if context.cor_lemma_idx is None:
+        return {}
     preferred_lemma = context.lemma
     preferred_pos_tag = _preferred_pos_tag_for_kind(context.paradigm_kind)
     if allow_lemma_mismatch:

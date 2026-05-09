@@ -159,7 +159,7 @@ Meaning auto-scroll:
 ## Word-card context menu
 
 - Uses shadcn `ContextMenu` for audio actions + category-bearing scopes
-- All pronunciation-enabled words: tooltip `Click to listen`, right-side
+- Pronunciation words are direct click targets; no click-to-listen tooltip is shown
 - Sectioned pages:
   - header lemma word → `Regenerate audio`
   - each meaning card → context-menu trigger exposing `Rerun verification`, `Find alternative translations`; noun/adj/verb cards also expose `Rethink categories`, `Complete variations`; other POS cards expose only `Find alternative translations` + `Rethink categories`
@@ -176,6 +176,7 @@ Meaning auto-scroll:
 - `Complete variations`: meaning-only v1 for noun, adjective, verb sections
   - noun: fills missing singular-definite, plural-indefinite, plural-definite
   - adjective: fills missing singular-indefinite `t-word`, singular-definite, shared plural (persisted once, rendered into both plural cells)
+  - generated non-COR adjective completion asks for and persists only positive agreement slots; comparative/superlative forms such as `mere ...`/`mest ...` are discarded
   - verb: fills missing present, past, imperative, past participle; infinitive from canonical lemma metadata unless distinct saved row exists
   - gated by verification state: enabled only when meaning target + all saved variations are `verified`
   - gated labels: `Waiting for verification...` (any queued), `Retry verification first` (any error), `Resolve verification review first` (any flagged), `Complete variations unavailable` (other non-verified)
@@ -185,7 +186,7 @@ Meaning auto-scroll:
   - completion review keeps saved lemma fixed; checks if completed forms fit lemma/meaning; canonical-lemma mismatch → question variation set, not suggest moving lemma
   - flagged completion → one meaning-level `Fix variations` apply action (no per-variation/relocation)
   - existing per-surface records cleared before completion review requeued
-  - insufficient COR identity → skipped with user-facing message
+  - insufficient COR identity → skipped with user-facing message, except generated non-COR meanings, which use Gemini slot completion
 
 ## Body mode A: sectioned meanings (WordbankMeaningSections)
 
@@ -205,7 +206,7 @@ Meaning auto-scroll:
   - noun/adj meanings → 2x2 paradigm table when >=1 slot derivable
   - verb meanings → fixed rows: `Infinitive`, `Present`, `Past`, `Imperative`, `Past participle` (no visible `Form` header)
   - initial saved form shown in table immediately
-  - adj tables: number × definiteness; singular-indefinite has separate `n-word`/`t-word` lines; same-form entries (e.g. `store`, invariant `orange`) may render into multiple cells
+  - adj tables: number × definiteness; singular-indefinite has separate `n-word`/`t-word` lines; partial generated non-COR morphology is still slotted when gender/number is enough; equivalent forms in one slot are separated with `/`; same-form entries (e.g. `store`, invariant `orange`) may render into multiple cells
   - verb same-form entries may render into multiple rows
   - noun order: non-slot/irregular first, then singular-definite, plural-indefinite, plural-definite
   - saved POS/morphology badges normalize to reader-facing labels (e.g. adj agreement uses `n-word`/`t-word` not `Common`/`Neuter`)
@@ -266,7 +267,7 @@ Shared by header + section rows + variation rows.
 ## Regenerate flow (`POST /api/wordbank/lexemes/pronunciation`)
 
 - Explicit regeneration: notification-enabled, targets exact right-clicked word (`stored_surface_form`)
-- Automatic add/save/completion: no browser call; backend queues lemma-scoped pronunciation, page refreshes from persisted state
+- Automatic add/save/completion: no browser call; backend queues lemma-scoped pronunciation, page refreshes from persisted state; sentence-token saves track the saved lemma/surface so the opened word page polls for newly generated audio
 - `status === "generated"`: invalidate cache, increment `wordbankRefreshTick`, success toast (notify mode)
 
 ## Verification workflow behavior
@@ -295,6 +296,7 @@ Shared by header + section rows + variation rows.
 - Exception: completion review keeps saved lemma fixed; canonical mismatch → question variation set, not rewrite lemma
 - Completion review remediation: single meaning-level `fix_variations` action rewriting saved noun/adj/verb variations in one apply
 - `fix_variations` carries reviewed slot form lists: noun (`singular_indefinite_forms`, `singular_definite_forms`, `plural_indefinite_forms`, `plural_definite_forms`) or adjective (`singular_indefinite_n_word_forms`, `singular_indefinite_t_word_forms`, `singular_definite_forms`, `plural_indefinite_forms`, `plural_definite_forms`); apply treats lists as exact slot sets, removes stale aliases
+- Generated non-COR `fix_variations` apply does not require COR identity; it rewrites from structured slots and removes off-slot generated adjective/verb rows
 - `singular_indefinite_forms` may include lemma + alternatives
 - `fix_variations` structured-only: no slot lists → review stays flagged, no applyable prose fallback
 - Translation context from lemma/meaning only (surface forms have no independent translations)

@@ -211,14 +211,14 @@ function adjectiveSlotsForForm(form: SurfaceForm): string[] {
   const number = numberFromMorphology(form.morphology)
   const definiteness = definitenessFromMorphology(form.morphology)
   const wordType = determinerWordTypeFromMorphology(form.morphology)
-  if (number === "Singular" && definiteness === "Indefinite" && wordType === "n-word") {
+  if (number === "Singular" && definiteness !== "Definite" && wordType === "n-word") {
     return ["singular_indefinite_n_word"]
   }
-  if (number === "Singular" && definiteness === "Indefinite" && wordType === "t-word") {
+  if (number === "Singular" && definiteness !== "Definite" && wordType === "t-word") {
     return ["singular_indefinite_t_word"]
   }
   if (number === "Singular" && definiteness === "Definite") {
-    return ["singular_definite"]
+    return ["singular_definite", "plural_shared"]
   }
   if (number === "Plural") {
     return ["plural_shared"]

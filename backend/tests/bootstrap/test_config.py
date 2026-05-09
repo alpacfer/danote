@@ -16,6 +16,17 @@ def test_load_settings_parses_cors_origins_from_env(monkeypatch, tmp_path: Path)
     assert settings.cors_origins == ("http://127.0.0.1:4173", "http://localhost:5173")
 
 
+def test_load_settings_defaults_include_vite_dev_origins(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.delenv("DANOTE_CORS_ORIGINS", raising=False)
+
+    settings = load_settings(env_file=tmp_path / "missing.env")
+
+    assert "http://127.0.0.1:5173" in settings.cors_origins
+    assert "http://localhost:5173" in settings.cors_origins
+    assert "http://127.0.0.1:4173" in settings.cors_origins
+    assert "http://localhost:4173" in settings.cors_origins
+
+
 def test_load_settings_defaults_to_deepl_provider(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.delenv("DANOTE_TRANSLATION_PROVIDER", raising=False)
     monkeypatch.delenv("DANOTE_TRANSLATION_DEEPL_API_KEY", raising=False)

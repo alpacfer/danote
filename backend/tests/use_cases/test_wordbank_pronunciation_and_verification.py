@@ -5,11 +5,9 @@ from pathlib import Path
 
 import pytest
 
-from app.api.schemas.v1.wordbank import LemmaDetailsResponse
 from app.db.migrations import get_connection
-from app.nlp.adapter import NLPToken
-from app.services.tts import PronunciationAudio
 from app.db.repositories.wordbank import WordbankRepository
+from app.services.tts import PronunciationAudio
 from app.services.use_cases.wordbank import WordbankUseCase
 from app.services.verification import GeminiWordVerificationService, WordVerificationAction
 from tests.helpers.factories import _bog_homograph_cor_local, _cor_local_entry, _db_path
@@ -1416,6 +1414,117 @@ def test_wordbank_use_case_applies_fix_variations_action_for_adjective_completio
     assert sorted(form.form for form in details.meaning_sections[0].surface_forms) == ["store", "stort"]
 
 
+def test_wordbank_use_case_applies_fix_variations_for_generated_non_cor_adjective(tmp_path: Path) -> None:
+    db_path = _db_path(tmp_path)
+    use_case = WordbankUseCase(db_path)
+    added = use_case.add_word(
+        "ukomfortabel",
+        "ukomfortabel",
+        search_seed={
+            "lemma": "ukomfortabel",
+            "surface": "ukomfortabel",
+            "dictionary_status": "generated_non_cor",
+            "meaning_key": "uncomfortable",
+            "gloss": "uncomfortable",
+            "english_translation": "uncomfortable",
+            "pos_tag": "ADJ",
+            "morphology": "Degree=Pos|Gender=Com|Number=Sing|Definite=Ind",
+        },
+    )
+    assert added.meaning is not None
+    with get_connection(db_path) as conn:
+        lexeme = conn.execute("SELECT id FROM lexemes WHERE lemma = ?", ("ukomfortabel",)).fetchone()
+        assert lexeme is not None
+        for form, morphology in (
+            ("mere ukomfortabel", "Degree=Cmp"),
+            ("mest ukomfortabel", "Degree=Sup"),
+        ):
+            conn.execute(
+                """
+                INSERT INTO surface_forms (lexeme_id, meaning_id, form, source, pos_tag, morphology)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (int(lexeme["id"]), added.meaning.id, form, "search", "ADJ", morphology),
+            )
+
+    response = use_case.apply_verification_changes(
+        stored_lemma="ukomfortabel",
+        stored_surface_form=None,
+        meaning_id=added.meaning.id,
+        action={
+            "action_type": "fix_variations",
+            "singular_indefinite_n_word_forms": ["ukomfortabel"],
+            "singular_indefinite_t_word_forms": ["ukomfortabelt"],
+            "singular_definite_forms": ["ukomfortable"],
+            "plural_indefinite_forms": ["ukomfortable"],
+            "plural_definite_forms": ["ukomfortable"],
+        },
+        provider="gemini",
+    )
+
+    assert response.status == "applied"
+    details = use_case.get_lemma_details("ukomfortabel")
+    assert sorted(form.form for form in details.meaning_sections[0].surface_forms) == [
+        "ukomfortabelt",
+        "ukomfortable",
+    ]
+    forms = {form.form: form for form in details.meaning_sections[0].surface_forms}
+    assert forms["ukomfortabelt"].morphology == "Degree=Pos|Gender=Neut|Number=Sing|Definite=Ind"
+    assert forms["ukomfortable"].morphology == "Degree=Pos|Number=Sing|Definite=Def"
+
+
+def test_wordbank_use_case_applies_fix_variations_when_generated_non_cor_rows_lack_morphology(tmp_path: Path) -> None:
+    db_path = _db_path(tmp_path)
+    use_case = WordbankUseCase(db_path)
+    added = use_case.add_word(
+        "ukomfortabel",
+        "ukomfortabel",
+        search_seed={
+            "lemma": "ukomfortabel",
+            "surface": "ukomfortabel",
+            "dictionary_status": "generated_non_cor",
+            "meaning_key": "uncomfortable",
+            "gloss": "uncomfortable",
+            "english_translation": "uncomfortable",
+            "pos_tag": "ADJ",
+            "morphology": "Degree=Pos|Gender=Com|Number=Sing|Definite=Ind",
+        },
+    )
+    assert added.meaning is not None
+    with get_connection(db_path) as conn:
+        lexeme = conn.execute("SELECT id FROM lexemes WHERE lemma = ?", ("ukomfortabel",)).fetchone()
+        assert lexeme is not None
+        for form in ("ukomfortabelt", "ukomfortable"):
+            conn.execute(
+                """
+                INSERT INTO surface_forms (lexeme_id, meaning_id, form, source, pos_tag, morphology)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (int(lexeme["id"]), added.meaning.id, form, "search", "ADJ", None),
+            )
+
+    response = use_case.apply_verification_changes(
+        stored_lemma="ukomfortabel",
+        stored_surface_form=None,
+        meaning_id=added.meaning.id,
+        action={
+            "action_type": "fix_variations",
+            "singular_indefinite_n_word_forms": ["ukomfortabel"],
+            "singular_indefinite_t_word_forms": ["ukomfortabelt"],
+            "singular_definite_forms": ["ukomfortable"],
+            "plural_indefinite_forms": ["ukomfortable"],
+            "plural_definite_forms": ["ukomfortable"],
+        },
+        provider="gemini",
+    )
+
+    assert response.status == "applied"
+    details = use_case.get_lemma_details("ukomfortabel")
+    forms = {form.form: form for form in details.meaning_sections[0].surface_forms}
+    assert forms["ukomfortabelt"].morphology == "Degree=Pos|Gender=Neut|Number=Sing|Definite=Ind"
+    assert forms["ukomfortable"].morphology == "Degree=Pos|Number=Sing|Definite=Def"
+
+
 def test_wordbank_use_case_applies_fix_variations_action_for_verb_completion_review(tmp_path: Path) -> None:
     db_path = _db_path(tmp_path)
     komme_inf = _cor_local_entry(
@@ -2196,6 +2305,7 @@ def test_wordbank_use_case_logs_gemini_applied_changes(tmp_path: Path) -> None:
 def test_permanently_failed_verify_word_job_sets_verification_status_to_error(tmp_path: Path) -> None:
     """When a verify_word background job exhausts all retries, the verification record must be 'error'."""
     import time
+
     from app.db.migrations import get_connection
     from app.services.use_cases.wordbank.background_jobs import WordbankBackgroundJobRunner
 

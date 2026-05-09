@@ -78,4 +78,46 @@ if PATH="$minimal_path" /bin/bash -c "source '$RUN_PROJECT'; PLATFORM_OS='Darwin
 fi
 grep -q "brew install node@20" "$missing_node_log"
 
+# Case 6: runtime config uses one canonical frontend port and includes it in CORS.
+unset BACKEND_HOST BACKEND_PORT FRONTEND_HOST FRONTEND_PORT VITE_BACKEND_URL DANOTE_HOST DANOTE_PORT DANOTE_CORS_ORIGINS
+configure_runtime
+[[ "$BACKEND_HOST" == "127.0.0.1" ]]
+[[ "$BACKEND_PORT" == "8000" ]]
+[[ "$FRONTEND_HOST" == "127.0.0.1" ]]
+[[ "$FRONTEND_PORT" == "5173" ]]
+[[ "$VITE_BACKEND_URL" == "http://127.0.0.1:8000" ]]
+[[ "$DANOTE_HOST" == "127.0.0.1" ]]
+[[ "$DANOTE_PORT" == "8000" ]]
+[[ "$DANOTE_CORS_ORIGINS" == *"http://127.0.0.1:5173"* ]]
+[[ "$DANOTE_CORS_ORIGINS" == *"http://localhost:5173"* ]]
+
+# Case 7: a healthy existing backend is reused instead of starting another process.
+backend_is_healthy() { return 0; }
+port_is_listening() { return 1; }
+BACKEND_PID="sentinel"
+start_backend
+[[ -z "$BACKEND_PID" ]]
+
+# Case 8: frontend startup uses strictPort so Vite cannot silently hop ports.
+npm_run_log="$tmpdir/npm-run.log"
+frontend_is_reachable() { return 1; }
+port_is_listening() { return 1; }
+fake_bin="$tmpdir/bin"
+mkdir -p "$fake_bin"
+cat > "$fake_bin/npm" <<STUB
+#!/usr/bin/env bash
+printf '%s\n' "\$*" > "$npm_run_log"
+sleep 10
+STUB
+chmod +x "$fake_bin/npm"
+PATH="$fake_bin:$PATH"
+start_frontend
+for _ in {1..20}; do
+  [[ -f "$npm_run_log" ]] && break
+  sleep 0.1
+done
+kill "$FRONTEND_PID" 2>/dev/null || true
+wait "$FRONTEND_PID" 2>/dev/null || true
+grep -q -- "--strictPort" "$npm_run_log"
+
 echo "run-project bootstrap tests passed"

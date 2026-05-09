@@ -149,7 +149,7 @@ export function WordbankWordPage({
         </p>
       ) : null}
       <ScrollArea className="min-h-0 flex-1">
-        <div className="space-y-3 pr-1">
+        <div className="flex flex-col gap-3 pr-1">
           {isSectioned ? (
             <>
               {lemmaHeader}
@@ -175,8 +175,8 @@ export function WordbankWordPage({
               />
             </>
           ) : (
-            <Card data-testid="wordbank-lemma-scope-card" className="w-1/2 py-5">
-              <CardContent className="space-y-3">
+            <Card data-testid="wordbank-lemma-scope-card" className="w-full py-5 xl:w-1/2">
+              <CardContent className="flex flex-col gap-3">
                 {lemmaHeader}
                 <WordbankVariationGrid
                   allSurfaceForms={activeLemmaDetails.surface_forms}

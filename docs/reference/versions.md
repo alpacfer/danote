@@ -14,6 +14,7 @@ Tracks baseline dev env and dependency locking for reproducibility.
 ## Frontend
 
 - Framework: `Vite + React`
+- Dev server: `vite --host 127.0.0.1 --port 5173 --strictPort` via `scripts/run-project.sh`
 - Versions: `Vite 7.3.1`, `React 19.2.0`
 - Language: `TypeScript`
 - Tailwind: `Tailwind CSS v4 via @tailwindcss/vite plugin`
@@ -41,6 +42,7 @@ Tracks baseline dev env and dependency locking for reproducibility.
 - ASGI server: `uvicorn 0.35.0`
 - Deps: `pip + pinned requirements files`
 - Entrypoint: `uvicorn app.main:app --reload --host 127.0.0.1 --port 8000`
+- Dev runner: `scripts/run-project.sh` reuses a healthy backend on `127.0.0.1:8000` instead of starting a duplicate.
 - SQLite strategy: `versioned SQL migrations` in `backend/migrations/` with `schema_migrations` tracking
 - Schema version: `v0` (`001_init_schema.sql`)
 - DB init: `auto-apply migrations on startup`

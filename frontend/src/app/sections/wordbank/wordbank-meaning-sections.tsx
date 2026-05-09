@@ -73,7 +73,7 @@ export function WordbankMeaningSections({
   }
 
   return (
-    <div className="grid grid-cols-2 gap-3">
+    <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
       {meaningSections.map((section) => {
         const sectionBadges = badgesForSavedForm({
           pos_tag: section.pos_tag ?? null,
@@ -157,7 +157,7 @@ export function WordbankMeaningSections({
               data-selected={selectedMeaningId === section.id ? "true" : "false"}
               className="py-5"
             >
-              <CardContent className="space-y-3">
+              <CardContent className="flex flex-col gap-3">
                 {/* Line 1: Lemma + translation | Category badges */}
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">

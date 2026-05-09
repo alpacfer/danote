@@ -68,7 +68,10 @@ cd <repo-root>
 ./scripts/run-project.sh
 ```
 
-This starts backend and frontend together, checks backend health, and stops both on `Ctrl+C`.
+This starts backend and frontend together, checks backend health, and stops only the processes it started on `Ctrl+C`.
+Defaults are stable: backend `http://127.0.0.1:8000`, frontend `http://127.0.0.1:5173`.
+If a healthy backend or frontend is already running on those ports, the script reuses it.
+If a port is occupied by something unhealthy, startup fails with a clear message instead of silently opening another port.
 It also auto-loads root-level `.env` and `.env.local` files when present.
 On macOS and Linux, the script now self-heals the backend bootstrap path: it installs `uv`
 user-locally when missing, provisions Python `3.11`, recreates stale backend virtualenvs, and installs
@@ -151,7 +154,7 @@ cd frontend
 npm install
 # optional if backend is not on default http://127.0.0.1:8000
 # export VITE_BACKEND_URL=http://127.0.0.1:8000
-npm run dev -- --host 127.0.0.1 --port 4173
+npm run dev -- --host 127.0.0.1 --port 5173 --strictPort
 ```
 
 Connectivity check:
