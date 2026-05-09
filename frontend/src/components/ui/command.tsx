@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -94,7 +95,7 @@ function CommandInput({
     return (
       <div
         data-slot="command-input-wrapper"
-        className="!h-auto min-h-9 m-2 flex items-center gap-2 rounded-md border bg-[#f7f7f7] px-3"
+        className="!h-auto min-h-9 m-2 flex items-center gap-2 rounded-md border bg-background px-3"
       >
         <SearchIcon className="self-start mt-2 size-4 shrink-0 opacity-50" />
         <div className="relative min-w-0 flex-1">
@@ -142,7 +143,7 @@ function CommandInput({
   return (
     <div
       data-slot="command-input-wrapper"
-      className="m-2 flex h-9 items-center gap-2 rounded-md border bg-[#f7f7f7] px-3"
+      className="m-2 flex h-9 items-center gap-2 rounded-md border bg-background px-3"
     >
       <SearchIcon className="size-4 shrink-0 opacity-50" />
       <div className="relative min-w-0 flex-1">
