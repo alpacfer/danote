@@ -10,6 +10,7 @@ import {
   PinnedWordGrid,
   type PinnedPageTabId,
   type PinnedWordEntry,
+  hiddenBadgesForPinnedTab,
   sentinelForPinnedPageTab,
   usePinnedPageAudio,
 } from "@/app/sections/wordbank/_shared"
@@ -59,6 +60,7 @@ function PinnedTab({
         pronunciationLoadingByForm={audio.loadingByForm}
         onPlayPronunciation={audio.playForm}
         onOpenWord={onOpenWord}
+        hiddenBadges={hiddenBadgesForPinnedTab("function_words", value)}
       />
     </TabsContent>
   )
@@ -68,7 +70,6 @@ function articleEntries(): PinnedWordEntry[] {
   return ARTICLE_ROWS.map((row) => ({
     lemma: row.lemma,
     translation: row.english,
-    description: row.description,
     playForm: row.playForm,
     posTag: "DET",
     morphology: row.lemma === "-en"

@@ -10,7 +10,6 @@ import { Card, CardHeader, CardTitle } from "@/components/ui/card"
 export type PinnedWordEntry = {
   lemma: string
   translation: string
-  description?: string | null
   playForm?: string | null
   posTag?: string | null
   morphology?: string | null
@@ -22,6 +21,7 @@ type PinnedWordCardProps = {
   pronunciationLoadingByForm: Record<string, boolean>
   onPlayPronunciation: (form: string) => void
   onOpenWord: (lemma: string) => void
+  hiddenBadges?: readonly string[]
 }
 
 export function PinnedWordCard({
@@ -29,15 +29,18 @@ export function PinnedWordCard({
   pronunciationLoadingByForm,
   onPlayPronunciation,
   onOpenWord,
+  hiddenBadges,
 }: PinnedWordCardProps) {
   const openWord = () => onOpenWord(entry.lemma)
   const metadata = metadataForPinnedWord(entry.lemma)
   const posTag = entry.posTag ?? metadata?.posTag ?? null
-  const badges = entry.badges
+  const allBadges = entry.badges
     ?? (entry.posTag || entry.morphology
       ? wordPageBadgesForSavedForm({ pos_tag: entry.posTag ?? null, morphology: entry.morphology ?? null })
       : metadata?.badges)
     ?? []
+  const hiddenSet = hiddenBadges && hiddenBadges.length > 0 ? new Set(hiddenBadges) : null
+  const badges = hiddenSet ? allBadges.filter((badge) => !hiddenSet.has(badge.label)) : allBadges
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key !== "Enter" && event.key !== " ") return
@@ -70,9 +73,6 @@ export function PinnedWordCard({
             />
           </CardTitle>
           <p className="text-muted-foreground text-sm">{entry.translation}</p>
-          {entry.description ? (
-            <p className="text-muted-foreground/80 text-xs">{entry.description}</p>
-          ) : null}
           {badges.length > 0 ? (
             <div className="flex flex-wrap gap-1.5 pt-1">
               {badges.map((badge) => (

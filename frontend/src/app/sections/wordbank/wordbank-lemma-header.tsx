@@ -1,9 +1,11 @@
 import type { LemmaDetailsResponse, VerificationChangeEntry, VerificationOverview } from "@/app/core"
 import { additionalTranslationsDisplay, corSecondaryBadgeClass, normalizeSearchWord, posBadgeClass, semanticCategoryBadgeClass } from "@/app/core"
+import { pinnedHomesForLemma } from "@/app/sections/wordbank/_shared/pinned-word-index"
 import { wordPageBadgesForSavedForm } from "@/app/sections/wordbank/wordbank-card-badges"
 import { WordbankPronunciationWord } from "@/app/sections/wordbank/wordbank-pronunciation-word"
 import { WordbankVerificationPopover } from "@/app/sections/wordbank/wordbank-verification-popover"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -32,6 +34,7 @@ type WordbankLemmaHeaderProps = {
   onRetryVerificationTarget: (targetKey: string) => void
   onRevertVerificationChange: (changeId: number) => void
   showSupplementaryMetadata: boolean
+  onOpenPinnedTab: (sentinel: string) => void
 }
 
 export function WordbankLemmaHeader({
@@ -57,6 +60,7 @@ export function WordbankLemmaHeader({
   onRetryVerificationTarget,
   onRevertVerificationChange,
   showSupplementaryMetadata,
+  onOpenPinnedTab,
 }: WordbankLemmaHeaderProps) {
   const normalizedSelectedLemma = (lemmaDetails.lemma ?? selectedLemma).trim().toLocaleLowerCase("da-DK")
   const selectedMeaningSection = (lemmaDetails.meaning_sections ?? []).find((section) => section.id === selectedMeaningId) ?? null
@@ -95,6 +99,7 @@ export function WordbankLemmaHeader({
         gram_raw: selectedMeaningSection?.gram_raw ?? lemmaSurfaceDetails?.gram_raw ?? null,
       })
     : []
+  const pinnedHomes = pinnedHomesForLemma(lemmaDetails.lemma)
   const isRegeneratingLemma = Boolean(regeneratingPronunciationByForm[normalizeSearchWord(lemmaDetails.lemma)])
   const lemmaContextMenuItems = [
     {
@@ -149,24 +154,26 @@ export function WordbankLemmaHeader({
           iconClassName="size-4"
           as="h2"
         />
-        <div className="shrink-0">
-          <WordbankVerificationPopover
-            verificationOverview={verificationOverview}
-            changes={verificationChanges}
-            isLoadingChanges={isLoadingVerificationChanges}
-            isApplyingVerificationChanges={isApplyingVerificationChanges}
-            isRetryingVerification={isRetryingVerification}
-            isRevertingChange={isRevertingVerificationChange}
-            onOpenChange={(open) => {
-              if (open) {
-                onMarkVisibleVerificationNotificationsAsRead()
-              }
-            }}
-            onApplyVerificationAction={onApplyVerificationAction}
-            onRetryVerificationTarget={onRetryVerificationTarget}
-            onRevertChange={onRevertVerificationChange}
-          />
-        </div>
+        {pinnedHomes.length === 0 ? (
+          <div className="shrink-0">
+            <WordbankVerificationPopover
+              verificationOverview={verificationOverview}
+              changes={verificationChanges}
+              isLoadingChanges={isLoadingVerificationChanges}
+              isApplyingVerificationChanges={isApplyingVerificationChanges}
+              isRetryingVerification={isRetryingVerification}
+              isRevertingChange={isRevertingVerificationChange}
+              onOpenChange={(open) => {
+                if (open) {
+                  onMarkVisibleVerificationNotificationsAsRead()
+                }
+              }}
+              onApplyVerificationAction={onApplyVerificationAction}
+              onRetryVerificationTarget={onRetryVerificationTarget}
+              onRevertChange={onRevertVerificationChange}
+            />
+          </div>
+        ) : null}
       </div>
 
       {/* POS + morphology badges */}
@@ -187,6 +194,24 @@ export function WordbankLemmaHeader({
       {/* Translation */}
       {headerTranslationLine && (showSupplementaryMetadata || selectedMeaningSection) ? (
         <p className="text-muted-foreground mt-2 text-base italic">{headerTranslationLine}</p>
+      ) : null}
+
+      {/* Pinned section links */}
+      {pinnedHomes.length > 0 ? (
+        <div data-testid="wordbank-pinned-home-card" className="mt-2 flex flex-wrap gap-1.5">
+          {pinnedHomes.map((home) => (
+            <Button
+              key={home.sentinel}
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-auto px-2 py-0.5 text-xs"
+              onClick={() => onOpenPinnedTab(home.sentinel)}
+            >
+              {home.pageTitle}: {home.tabTitle}
+            </Button>
+          ))}
+        </div>
       ) : null}
     </div>
   )

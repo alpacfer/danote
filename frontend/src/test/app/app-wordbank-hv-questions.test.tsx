@@ -42,7 +42,7 @@ describe("App wordbank pinned pages", () => {
     expect(within(hvorCard).getByRole("button", { name: /listen to hvor/i })).toBeInTheDocument()
     expect(within(hvorCard).getByText(/^where$/i)).toBeInTheDocument()
     expect(within(hvorCard).getByText(/^Adverb$/i)).toBeInTheDocument()
-    expect(within(hvorCard).getByText(/^Interrogative$/i)).toBeInTheDocument()
+    expect(within(hvorCard).queryByText(/^Interrogative$/i)).not.toBeInTheDocument()
     expect(screen.queryByRole("button", { name: /generate example/i })).not.toBeInTheDocument()
     expect(screen.queryByRole("button", { name: /see examples/i })).not.toBeInTheDocument()
   })

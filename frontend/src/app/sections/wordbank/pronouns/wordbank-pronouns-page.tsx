@@ -13,6 +13,7 @@ import {
   PinnedWordGrid,
   type PinnedPageTabId,
   type PinnedWordEntry,
+  hiddenBadgesForPinnedTab,
   sentinelForPinnedPageTab,
   usePinnedPageAudio,
 } from "@/app/sections/wordbank/_shared"
@@ -68,6 +69,7 @@ function PinnedTab({
         pronunciationLoadingByForm={audio.loadingByForm}
         onPlayPronunciation={audio.playForm}
         onOpenWord={onOpenWord}
+        hiddenBadges={hiddenBadgesForPinnedTab("pronouns", value)}
       />
     </TabsContent>
   )
@@ -77,26 +79,26 @@ function personalEntries(): PinnedWordEntry[] {
   return PERSONAL_PRONOUN_ROWS.flatMap((row) => {
     const entries: PinnedWordEntry[] = []
     if (row.nominative) {
-      entries.push(toPronounEntry(row.nominative, `${row.label}, subject`))
+      entries.push(toPronounEntry(row.nominative))
     }
-    entries.push(toPronounEntry(row.accusative, `${row.label}, object`))
+    entries.push(toPronounEntry(row.accusative))
     return entries
   })
 }
 
 function possessiveEntries(): PinnedWordEntry[] {
   return POSSESSIVE_PRONOUN_ROWS.flatMap((row) => [
-    toPronounEntry(row.common, `${row.label}, n-word`),
-    toPronounEntry(row.neuter, `${row.label}, t-word`),
-    toPronounEntry(row.plural, `${row.label}, plural`),
+    toPronounEntry(row.common),
+    toPronounEntry(row.neuter),
+    toPronounEntry(row.plural),
   ])
 }
 
 function demonstrativeEntries(): PinnedWordEntry[] {
   return DEMONSTRATIVE_ROWS.flatMap((row) => [
-    toPronounEntry(row.common, `${row.english}, n-word`),
-    toPronounEntry(row.neuter, `${row.english}, t-word`),
-    toPronounEntry(row.plural, `${row.english}, plural`),
+    toPronounEntry(row.common),
+    toPronounEntry(row.neuter),
+    toPronounEntry(row.plural),
   ])
 }
 
@@ -104,7 +106,6 @@ function relativeEntries(): PinnedWordEntry[] {
   return RELATIVE_PRONOUN_ROWS.map((row) => ({
     lemma: row.lemma,
     translation: row.english,
-    description: row.lemma === "der" ? "subject" : null,
   }))
 }
 
@@ -112,7 +113,6 @@ function indefiniteEntries(): PinnedWordEntry[] {
   return INDEFINITE_PRONOUN_ROWS.map((row) => ({
     lemma: row.lemma,
     translation: row.english,
-    description: shortDescription(row.note),
   }))
 }
 
@@ -125,17 +125,9 @@ function questionWordEntries(): PinnedWordEntry[] {
   }))
 }
 
-function toPronounEntry(lemma: string, description: string): PinnedWordEntry {
+function toPronounEntry(lemma: string): PinnedWordEntry {
   return {
     lemma,
     translation: pronounTranslation(lemma) ?? "",
-    description,
   }
-}
-
-function shortDescription(note: string | undefined): string | null {
-  if (!note) return null
-  if (note.includes("Common gender")) return "n-word"
-  if (note.includes("Neuter gender")) return "t-word"
-  return null
 }

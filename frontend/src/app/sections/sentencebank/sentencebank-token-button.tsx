@@ -2,6 +2,7 @@ import { Eye, Plus } from "lucide-react"
 
 import {
   badgesForSavedForm,
+  corSecondaryBadgeClass,
   lemmaDisplayForSavedForm,
   lemmaTranslationWithGloss,
   posBadgeClass,
@@ -84,8 +85,8 @@ export function SentencebankTokenButton({
                 {badges.map((badge) => (
                   <Badge
                     key={`sentence-token-${token.token_index}-${badge.label}`}
-                    variant={badge.tone === "primary" ? "outline" : "secondary"}
-                    className={`text-xs ${badge.tone === "primary" ? `border ${posBadgeClass(token.pos_tag ?? null)}` : ""}`.trim()}
+                    variant={badge.tone === "primary" ? "default" : "secondary"}
+                    className={`text-xs ${badge.tone === "primary" ? `border ${posBadgeClass(token.pos_tag ?? null)}` : `border ${corSecondaryBadgeClass(badge.label)}`}`.trim()}
                   >
                     {badge.label}
                   </Badge>

@@ -19,6 +19,7 @@ import {
   PinnedWordGrid,
   type PinnedPageTabId,
   type PinnedWordEntry,
+  hiddenBadgesForPinnedTab,
   sentinelForPinnedPageTab,
   usePinnedPageAudio,
 } from "@/app/sections/wordbank/_shared"
@@ -74,6 +75,7 @@ function PinnedTab({
         pronunciationLoadingByForm={audio.loadingByForm}
         onPlayPronunciation={audio.playForm}
         onOpenWord={onOpenWord}
+        hiddenBadges={hiddenBadgesForPinnedTab("numbers_time", value)}
       />
     </TabsContent>
   )
@@ -91,7 +93,6 @@ function ordinalEntries(): PinnedWordEntry[] {
   return ORDINAL_NUMBER_ROWS.map((row) => ({
     lemma: row.ordinal,
     translation: row.english,
-    description: String(row.number),
     posTag: row.ordinal === "hundrede" ? "NUM" : "ADJ",
   }))
 }

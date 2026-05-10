@@ -5,6 +5,7 @@ type PinnedWordGridProps = {
   pronunciationLoadingByForm: Record<string, boolean>
   onPlayPronunciation: (form: string) => void
   onOpenWord: (lemma: string) => void
+  hiddenBadges?: readonly string[]
 }
 
 export function PinnedWordGrid({
@@ -12,6 +13,7 @@ export function PinnedWordGrid({
   pronunciationLoadingByForm,
   onPlayPronunciation,
   onOpenWord,
+  hiddenBadges,
 }: PinnedWordGridProps) {
   return (
     <div className="grid items-start gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -22,6 +24,7 @@ export function PinnedWordGrid({
           pronunciationLoadingByForm={pronunciationLoadingByForm}
           onPlayPronunciation={onPlayPronunciation}
           onOpenWord={onOpenWord}
+          hiddenBadges={hiddenBadges}
         />
       ))}
     </div>
