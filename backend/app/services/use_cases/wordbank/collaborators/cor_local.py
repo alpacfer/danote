@@ -9,6 +9,10 @@ from app.api.schemas.v1.wordbank import (
 from app.services.cor_local import CORLocalEntry, CORLocalLexiconService
 from app.services.fuzzy_search import fuzzy_suggest
 from app.services.token_classifier import normalize_token
+from app.services.use_cases.static_presaved_words import (
+    StaticPresavedWord,
+    static_presaved_word_for_token,
+)
 from app.services.use_cases.static_pronouns import StaticPronoun, static_pronoun_for_token
 from app.services.use_cases.wordbank.collaborators.cor_local_translations import (
     AzureFrameCacheKey,
@@ -37,6 +41,9 @@ def search_cor_form(
     static_pronoun = static_pronoun_for_token(normalized_form)
     if static_pronoun is not None:
         return static_pronoun_cor_search_response(normalized_form, static_pronoun)
+    static_presaved_word = static_presaved_word_for_token(normalized_form)
+    if static_presaved_word is not None:
+        return static_presaved_word_cor_search_response(normalized_form, static_presaved_word)
     if cor_local_lexicon_service is None:
         raise RuntimeError("COR local lookup service is unavailable.")
 
@@ -172,6 +179,40 @@ def static_pronoun_cor_search_response(form: str, pronoun: StaticPronoun) -> COR
     )
 
 
+def static_presaved_word_cor_search_response(form: str, word: StaticPresavedWord) -> CORSearchFormResponse:
+    variant = CORSearchVariant(
+        cor_id=f"STATIC.PRESAVED.{word.lemma.upper()}",
+        form=word.lemma,
+        lemma=word.lemma,
+        gloss=None,
+        gloss_translation=None,
+        gram_raw="",
+        norm="N",
+        lemma_idx=0,
+        gram_code=0,
+        variation=0,
+        pos_tag=word.pos_tag,
+        morphology=word.morphology,
+        features={},
+        extra_tags=[],
+        lemma_translation=word.english_translation,
+        saveable_translation=word.english_translation,
+        lemma_translation_provider="static_presaved_word",
+        lemma_translation_status="provider",
+        lemma_translation_reason=None,
+    )
+    return CORSearchFormResponse(
+        form=form,
+        groups=[
+            CORSearchGroup(
+                lemma=word.lemma,
+                gloss=None,
+                pos_tag=word.pos_tag,
+                variants=[variant],
+            )
+        ],
+        did_you_mean=None,
+    )
 def search_cor_lemma_paradigm(
     cor_local_lexicon_service: CORLocalLexiconService | None,
     translation: TranslationCollaborator,

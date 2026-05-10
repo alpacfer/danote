@@ -1,7 +1,6 @@
 import type { LemmaDetailsResponse } from "@/app/core"
 import {
   additionalTranslationsDisplay,
-  badgesForSavedForm,
   corSecondaryBadgeClass,
   getMeaningVerificationGate,
   lemmaTranslationWithGloss,
@@ -9,6 +8,7 @@ import {
   semanticCategoryBadgeClass,
 } from "@/app/core"
 import { WordbankFormList } from "@/app/sections/wordbank/wordbank-form-list"
+import { wordPageBadgesForSavedForm } from "@/app/sections/wordbank/wordbank-card-badges"
 import { WordbankParadigmTable } from "@/app/sections/wordbank/wordbank-paradigm-table"
 import {
   buildPronunciationAvailabilityMap,
@@ -75,7 +75,7 @@ export function WordbankMeaningSections({
   return (
     <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
       {meaningSections.map((section) => {
-        const sectionBadges = badgesForSavedForm({
+        const sectionBadges = wordPageBadgesForSavedForm({
           pos_tag: section.pos_tag ?? null,
           morphology: section.morphology ?? null,
           gram_raw: section.gram_raw ?? null,
@@ -169,7 +169,7 @@ export function WordbankMeaningSections({
                     </div>
                     {/* Line 2: POS + morphology badges */}
                     {sectionBadges.length > 0 ? (
-                      <div className="mt-1.5 flex flex-wrap gap-1.5">
+                      <div data-testid={`wordbank-meaning-badges-${section.id}`} className="mt-1.5 flex flex-wrap gap-1.5">
                         {isGeneratedNonCor ? (
                           <Badge
                             variant="outline"

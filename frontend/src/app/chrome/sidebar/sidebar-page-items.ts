@@ -1,4 +1,4 @@
-import { BookOpen, Hash, Settings, type LucideIcon } from "lucide-react"
+import { BookOpen, Hash, ScrollText, Settings, type LucideIcon } from "lucide-react"
 import { useMemo } from "react"
 
 import { NUMBERS_SENTINEL, danishNumber, numberFromSearchQuery } from "@/app/sections/wordbank/numbers/numbers-data"
@@ -18,6 +18,12 @@ export type SidebarNavigationActions = {
   onOpenWordbankLemma: (lemma: string) => void
 }
 
+export const SIDEBAR_PAGE_DEFINITIONS = {
+  wordbank: { key: "page-wordbank", label: "Wordbank", shortcut: "Alt+W", icon: BookOpen },
+  sentencebank: { key: "page-sentencebank", label: "Sentencebank", shortcut: "Alt+S", icon: ScrollText },
+  developer: { key: "page-developer", label: "Developer", shortcut: "Alt+D", icon: Settings },
+} satisfies Record<string, Omit<SidebarPageItem, "onSelect">>
+
 export function useSidebarPageItems({
   normalizedQuery,
   onSelectWordbank,
@@ -28,9 +34,9 @@ export function useSidebarPageItems({
   return useMemo(() => {
     const numericQuery = numberFromSearchQuery(normalizedQuery)
     const pageItems: SidebarPageItem[] = [
-      { key: "page-wordbank", label: "Wordbank", shortcut: "Alt+W", icon: BookOpen, onSelect: onSelectWordbank },
-      { key: "page-sentencebank", label: "Sentencebank", shortcut: "Alt+S", icon: BookOpen, onSelect: onSelectSentencebank },
-      { key: "page-developer", label: "Developer", shortcut: "Alt+D", icon: Settings, onSelect: onSelectDeveloper },
+      { ...SIDEBAR_PAGE_DEFINITIONS.wordbank, onSelect: onSelectWordbank },
+      { ...SIDEBAR_PAGE_DEFINITIONS.sentencebank, onSelect: onSelectSentencebank },
+      { ...SIDEBAR_PAGE_DEFINITIONS.developer, onSelect: onSelectDeveloper },
     ]
     if (numericQuery !== null) {
       return [

@@ -25,11 +25,18 @@ export function usePinnedPageAudio() {
         if (numbersRes.ok) {
           url = URL.createObjectURL(await numbersRes.blob())
         } else {
-          const res = await fetch(
-            `${BACKEND_URL}/api/wordbank/pronunciation?form=${encodeURIComponent(term)}`,
+          const presavedRes = await fetch(
+            `${BACKEND_URL}/api/wordbank/presaved-words/pronunciation?term=${encodeURIComponent(term)}`,
           )
-          if (!res.ok) return
-          url = URL.createObjectURL(await res.blob())
+          if (presavedRes.ok) {
+            url = URL.createObjectURL(await presavedRes.blob())
+          } else {
+            const res = await fetch(
+              `${BACKEND_URL}/api/wordbank/pronunciation?form=${encodeURIComponent(term)}`,
+            )
+            if (!res.ok) return
+            url = URL.createObjectURL(await res.blob())
+          }
         }
         cachedUrls.current.set(term, url)
       }

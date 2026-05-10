@@ -55,8 +55,9 @@ describe("App shell and search", () => {
 
     fireEvent.click(await findCommandOptionByValue(commandDialog, "page-numbers"))
 
-    expect(await screen.findByText(/0[-–]19/i)).toBeInTheDocument()
-    expect(screen.getByText(/21 = enogtyve/i)).toBeInTheDocument()
+    expect(await screen.findByRole("heading", { name: /numbers & time/i })).toBeInTheDocument()
+    expect(screen.getByRole("tab", { name: /cardinal numbers/i })).toHaveAttribute("data-state", "active")
+    expect(screen.getByText(/^tyve$/i)).toBeInTheDocument()
   })
 
   it("request-shape: command search uses local COR endpoint, renders grouped variants, and adds selected variant", async () => {

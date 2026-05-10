@@ -129,35 +129,49 @@ export function useDeveloperSettings({
 
   async function seedPresavedWordsAudio() {
     setIsSeedingPresavedWordsAudio(true)
+    setIsSeedingNumbersAudio(true)
     try {
+      const numbersPayload = await apiClient.postJson<SeedNumbersAudioResponse>(
+        "/api/wordbank/numbers/pronunciation/seed",
+        {},
+        "Could not seed number audio.",
+      )
       const payload = await apiClient.postJson<SeedPresavedWordsAudioResponse>(
         "/api/wordbank/presaved-words/pronunciation/seed",
         {},
         "Could not seed presaved word audio.",
       )
-      onNotifySuccess(payload.message || "Presaved word audio seeded.")
+      onNotifySuccess(`Pinned word audio seeded. Numbers: ${numbersPayload.message}; words: ${payload.message}`)
     } catch (error) {
       const message = error instanceof Error ? error.message : "Could not seed presaved word audio."
       onNotifyError(message)
     } finally {
       setIsSeedingPresavedWordsAudio(false)
+      setIsSeedingNumbersAudio(false)
     }
   }
 
   async function regeneratePresavedWordsAudio() {
     setIsRegeneratingPresavedWordsAudio(true)
+    setIsSeedingNumbersAudio(true)
     try {
+      const numbersPayload = await apiClient.postJson<SeedNumbersAudioResponse>(
+        "/api/wordbank/numbers/pronunciation/seed?force=true",
+        {},
+        "Could not regenerate number audio.",
+      )
       const payload = await apiClient.postJson<SeedPresavedWordsAudioResponse>(
         "/api/wordbank/presaved-words/pronunciation/seed?force=true",
         {},
         "Could not regenerate presaved word audio.",
       )
-      onNotifySuccess(payload.message || "Presaved word audio regenerated.")
+      onNotifySuccess(`Pinned word audio regenerated. Numbers: ${numbersPayload.message}; words: ${payload.message}`)
     } catch (error) {
       const message = error instanceof Error ? error.message : "Could not regenerate presaved word audio."
       onNotifyError(message)
     } finally {
       setIsRegeneratingPresavedWordsAudio(false)
+      setIsSeedingNumbersAudio(false)
     }
   }
 

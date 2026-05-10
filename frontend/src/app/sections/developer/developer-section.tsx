@@ -47,7 +47,6 @@ export type DeveloperSectionProps = {
   onRunSpeechProbe: () => void
   onRunGeminiProbe: () => void
   onResetDatabase: () => void
-  onSeedNumbersAudio: () => void
   onSeedPresavedWordsAudio: () => void
   onRegeneratePresavedWordsAudio: () => void
 }
@@ -118,7 +117,6 @@ export function DeveloperSection(props: DeveloperSectionProps) {
             isSeedingPresavedWordsAudio={props.isSeedingPresavedWordsAudio}
             isRegeneratingPresavedWordsAudio={props.isRegeneratingPresavedWordsAudio}
             onResetDatabase={props.onResetDatabase}
-            onSeedNumbersAudio={props.onSeedNumbersAudio}
             onSeedPresavedWordsAudio={props.onSeedPresavedWordsAudio}
             onRegeneratePresavedWordsAudio={props.onRegeneratePresavedWordsAudio}
           />

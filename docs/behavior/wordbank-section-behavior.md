@@ -59,35 +59,42 @@ Per-chip:
   - unread `>1` → numeric badge pill
 - Click → `onSelectLemma(lemma)` → opens word page
 
-Twelve built-in reference pages are pinned at the top of the wordbank list and
-shown even when there are no saved lemmas. They are grouped under three
-subheadings: **Pronouns** (Personal, Possessive, Demonstrative, Relative,
-Indefinite, Question Words), **Function words** (Articles & Gender,
-Prepositions, Conjunctions), and **Numbers & time** (Numbers, Days · Months
-· Seasons, Time Expressions). Each page is identified by a sentinel lemma
-(e.g. `__pronouns_personal`, `__question_words`); the wordbank dispatcher
-routes any sentinel through the central registry in
-`frontend/src/app/sections/wordbank/_shared/pinned-pages-registry.ts` to its
-page component. Selecting a built-in lemma resolves to its owning sentinel
-instead of fetching `/api/wordbank/lemmas/{lemma}`. Built-in lemmas are not
-highlighted as discovered/undiscovered because all are available by default;
-Danish and English search results for built-in lemmas come from their static
-catalogs rather than COR, translation, or Gemini.
+Three built-in reference cards are pinned at the top of the wordbank list and
+shown even when there are no saved lemmas: **Pronouns**, **Function Words**,
+and **Numbers & Time**. Each grouped page is identified by a sentinel lemma
+(`__pinned_pronouns`, `__pinned_function_words`, `__pinned_numbers_time`).
+Legacy sentinels such as `__pronouns_personal`, `__question_words`, and
+`__numbers` still route through
+`frontend/src/app/sections/wordbank/_shared/pinned-pages-registry.ts`; they
+open the owning grouped page and select the matching default tab.
 
-Every pinned page renders through the shared `PinnedPageLayout` shell —
-title, optional description, scroll area, and `PinnedPageSection` cards with
-consistent `<h2>` headings. Two content primitives cover all pages:
-`PinnedParadigmTable` for paradigms (personal/possessive/demonstrative
-pronouns, articles & gender, numbers, days/months/seasons, time expressions)
-and `PinnedLemmaGrid` of `PinnedLemmaCard`s for browseable lists (relative
-and indefinite pronouns, question words, prepositions, conjunctions).
-Lemma cards expose translation, POS/morphology badges, audio playback, a
-right-click "Generate example" action, and a "See examples" dialog when
-matching saved sentences exist. Each example opens its sentence page. Cards
-with no matching sentences do not render an empty state. Number search adds
-a built-in `Numbers` result for numeric queries (e.g. `21`) labeled with the
-Danish written form; selecting it opens the numbers reference, which now
-includes an Ordinal Numbers section in addition to the cardinal tables.
+Grouped pinned pages render through `PinnedPageLayout` and shadcn/Radix
+`Tabs`. Pronouns includes Personal, Possessive, Demonstrative, Relative,
+Indefinite, and Question Words. Function Words includes Articles,
+Prepositions, and Conjunctions. Numbers & Time includes Cardinal Numbers,
+Ordinal Numbers, Days, Months, Seasons, and Time Words. The pages intentionally
+avoid instructional descriptions, note sections, generated examples, and
+textbook-style rules; they are word collections only.
+
+Every pinned tab uses the same simplified `PinnedWordCard` grid. Cards show the
+Danish word, pronunciation control, English translation, and only a short
+disambiguation label when needed. Cards also show compact POS/morphology badges
+when useful, reusing the normal word-page/search badge pipeline
+(`n-word`/`t-word`, person/number, interrogative, possessive, etc.). Cards do
+not show add buttons, eye icons, generated-example context menus, or
+saved-sentence example dialogs. Clicking the card opens
+`/api/wordbank/lemmas/{lemma}` through a raw lemma navigation path. Sentence
+token navigation still uses sentinels.
+
+Pinned tab changes are navigation entries: changing tabs writes the tab-specific
+sentinel, so browser Back/Forward restores the previous pinned tab state.
+Backend static search/detail fallbacks let built-in/presaved words open normal
+word pages even when they are not stored as regular lexemes. Search for a
+presaved Danish or English word returns the static saved-default row before COR
+or provider translation. Opening that saved row routes to the normal word page,
+not to the pinned collection. Number-only search still adds a page result for
+numeric queries (e.g. `21`) labeled with the Danish written form and opens the
+Numbers & Time page on Cardinal Numbers.
 
 ## Word page behavior (WordbankWordPage)
 
@@ -99,6 +106,7 @@ includes an Ordinal Numbers section in addition to the cardinal tables.
   - always `WordbankLemmaHeader`
   - body: `WordbankMeaningSections` if `is_sectioned === true`, else `WordbankVariationGrid`
   - after body: `WordbankRelatedWords` when `related_words.status === "ready"` and cards exist
+  - presaved/static words that belong to pinned collections show a `Pinned section` card linking back to each owning pinned tab
   - Related section includes direct compound components + reverse compound-host links
 
 Meaning auto-scroll:

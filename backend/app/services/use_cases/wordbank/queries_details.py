@@ -6,11 +6,14 @@ from app.db.repositories import SentencebankRepository
 from app.services.token_classifier import normalize_token
 from app.services.use_cases.wordbank.gloss_translations import (
     gloss_translation as resolve_gloss_translation,
+)
+from app.services.use_cases.wordbank.gloss_translations import (
     is_likely_english_gloss,
     meaning_gloss_translation,
 )
 from app.services.use_cases.wordbank.meaning_sections import ensure_wordbank_meaning_compatibility
 from app.services.use_cases.wordbank.runtime import WordbankRuntime
+from app.services.use_cases.wordbank.static_details import static_builtin_lemma_details
 from app.services.use_cases.wordbank.surface_form_ordering import order_surface_form_details
 from app.services.use_cases.wordbank.verification_categories import category_labels_by_scope
 from app.services.use_cases.wordbank.verification_records import verification_record_to_schema
@@ -24,6 +27,9 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
 
     lexeme = runtime.repository.get_lexeme(normalized_lemma)
     if lexeme is None:
+        static_details = static_builtin_lemma_details(lemma, normalized_lemma)
+        if static_details is not None:
+            return static_details
         raise LookupError(f"Lemma '{normalized_lemma}' was not found")
 
     form_rows = runtime.repository.list_surface_forms(lexeme.id)

@@ -6,7 +6,6 @@ type DatabaseTabProps = {
   isSeedingPresavedWordsAudio: boolean
   isRegeneratingPresavedWordsAudio: boolean
   onResetDatabase: () => void
-  onSeedNumbersAudio: () => void
   onSeedPresavedWordsAudio: () => void
   onRegeneratePresavedWordsAudio: () => void
 }
@@ -17,55 +16,38 @@ export function DatabaseTab({
   isSeedingPresavedWordsAudio,
   isRegeneratingPresavedWordsAudio,
   onResetDatabase,
-  onSeedNumbersAudio,
   onSeedPresavedWordsAudio,
   onRegeneratePresavedWordsAudio,
 }: DatabaseTabProps) {
+  const isSeedingPinnedAudio = isSeedingNumbersAudio || isSeedingPresavedWordsAudio
+  const isRegeneratingPinnedAudio = isSeedingNumbersAudio || isRegeneratingPresavedWordsAudio
+
   return (
     <div className="space-y-6">
       <div className="space-y-4">
-        <p className="text-sm font-medium">Number audio</p>
+        <p className="text-sm font-medium">Pinned word audio</p>
         <p className="text-muted-foreground text-xs">
-          Generates and stores TTS audio for all 28 Danish number words (0–90). Uses the Azure
-          Speech key configured in API Keys. Already-stored terms are skipped.
-        </p>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          disabled={isSeedingNumbersAudio}
-          onClick={onSeedNumbersAudio}
-        >
-          {isSeedingNumbersAudio ? "Generating..." : "Seed number audio"}
-        </Button>
-      </div>
-
-      <div className="space-y-4">
-        <p className="text-sm font-medium">Presaved word audio</p>
-        <p className="text-muted-foreground text-xs">
-          Generates and stores TTS audio for every term shown on a pinned reference page —
-          pronouns, question words, articles & gender examples, prepositions, conjunctions,
-          days/months/seasons, ordinal numbers, and frequency adverbs. Uses the Azure Speech
-          key configured in API Keys.
+          Generates and stores TTS audio for every word shown on a pinned page, including numbers.
+          Uses the Azure Speech key configured in API Keys.
         </p>
         <div className="flex gap-2">
           <Button
             type="button"
             size="sm"
             variant="outline"
-            disabled={isSeedingPresavedWordsAudio || isRegeneratingPresavedWordsAudio}
+            disabled={isSeedingPinnedAudio || isRegeneratingPinnedAudio}
             onClick={onSeedPresavedWordsAudio}
           >
-            {isSeedingPresavedWordsAudio ? "Generating..." : "Generate missing"}
+            {isSeedingPinnedAudio ? "Generating..." : "Generate missing"}
           </Button>
           <Button
             type="button"
             size="sm"
             variant="outline"
-            disabled={isSeedingPresavedWordsAudio || isRegeneratingPresavedWordsAudio}
+            disabled={isSeedingPinnedAudio || isRegeneratingPinnedAudio}
             onClick={onRegeneratePresavedWordsAudio}
           >
-            {isRegeneratingPresavedWordsAudio ? "Regenerating..." : "Regenerate all"}
+            {isRegeneratingPinnedAudio ? "Regenerating..." : "Regenerate all"}
           </Button>
         </div>
       </div>

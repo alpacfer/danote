@@ -41,7 +41,7 @@ Page trail labels:
 - Sentencebank: `Sentencebank`
 - Developer: `Developer`
 - Wordbank root: `Wordbank`; lemma detail: clickable `Wordbank` + `selectedLemma` tail
-- Built-in Wordbank reference tails use readable labels (e.g. `Personal Pronouns`, `Question Words`, `Prepositions`, `Numbers`)
+- Built-in Wordbank reference tails use grouped labels: `Pronouns`, `Function Words`, `Numbers & Time`
 
 ## 2. Section switching contract
 
@@ -58,7 +58,9 @@ Centralized in `useSectionNavigation()`.
 - `selectWordbank()`: `activeSection = "wordbank"`, clears `selectedLemma` + `selectedMeaningId` (root)
 - `selectSentencebank()`: `activeSection = "sentencebank"`, clears `selectedLemma` + `selectedMeaningId`
 - `selectDeveloper()`: `activeSection = "developer"`, clears `selectedLemma` + `selectedMeaningId`
-- `openWordbankLemma(lemma)`: `activeSection = "wordbank"`, `selectedLemma = lemma`, clears `selectedMeaningId`
+- `openWordbankLemma(lemma)`: `activeSection = "wordbank"`, maps built-in words to grouped pinned sentinels, clears `selectedMeaningId`
+- `openWordbankLemmaRaw(lemma)`: `activeSection = "wordbank"`, keeps the raw lemma for pinned word-card and command-search saved-row click-through, clears `selectedMeaningId`
+- `openWordbankPinnedTab(sentinel)`: `activeSection = "wordbank"`, writes a tab-specific pinned sentinel so browser Back/Forward restores the selected pinned tab
 - `openWordbankMeaning(lemma, meaningId)`: `activeSection = "wordbank"`, sets both
 - `openWordbankRoot()`: `activeSection = "wordbank"`, clears `selectedLemma` + `selectedMeaningId`
 
@@ -82,7 +84,9 @@ Via shadcn sidebar primitives:
 
 - Nav buttons call section-select handlers from `useAppController`
 - Search results route to:
-  - wordbank lemma/meaning → `openWordbankLemma` / `openWordbankMeaning`
+  - saved wordbank lemma rows → `openWordbankLemmaRaw`
+  - saved wordbank meaning rows → `openWordbankMeaning`
+  - sentence-token/built-in collection links → sentinel-aware `openWordbankLemma`
 - Breadcrumb renders from same controller state (`activeSection`, `selectedLemma`) → nav + breadcrumb synchronized by construction
 - Lemma detail: clicking breadcrumb `Wordbank` → `openWordbankRoot()`, resets lemma/meaning
 

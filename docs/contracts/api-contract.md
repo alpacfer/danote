@@ -283,7 +283,7 @@ Routes: `backend/app/api/routes/`. DTOs: `backend/app/api/schemas/v1/`.
 - **Request model:** none (`query`, `limit` query params).
 - **Response model:** `WordbankSearchResponse`.
 - **Notable status/error behavior:** `422` validation failures (empty query, limit out of range). `503` DB unavailable/locked. `503` runtime errors.
-- **Field invariants:** saved search rows keep lemma translation + gloss translation separate. `english_translation` = saved lemma translation only. `gloss_translation` = optional disambiguation context. Raw `gloss` not promoted into `english_translation`. `did_you_mean`: non-null when query had no direct matches and a Levenshtein-close wordbank lemma was found; `items` then contains results for the corrected word.
+- **Field invariants:** saved search rows keep lemma translation + gloss translation separate. `english_translation` = saved lemma translation only. `gloss_translation` = optional disambiguation context. Raw `gloss` not promoted into `english_translation`. Static presaved words may return saved-default rows even when not persisted as DB lexemes; those rows include lemma, translation, POS/morphology, `variation_count=1`, empty `query_cor_ids`, and optional `match_surface` for English matches. `did_you_mean`: non-null when query had no direct matches and a Levenshtein-close wordbank lemma was found; `items` then contains results for the corrected word.
 
 ### GET `/api/wordbank/search/cor-form`
 - **Request model:** none (`form`, `limit`, `include_translations` query params).
@@ -324,6 +324,7 @@ Routes: `backend/app/api/routes/`. DTOs: `backend/app/api/schemas/v1/`.
 - **Request model:** none (`lemma` path param).
 - **Response model:** `LemmaDetailsResponse`.
 - **Notable response behavior:**
+  - Static presaved words may return detail payloads without a DB lexeme; these payloads are non-sectioned, include one pronunciation-enabled surface form, and have empty categories/related/linked sentence lists.
   - Root payload may include `categories`, `verification`, `additional_translations: string[]`.
   - Each `meaning_sections[]` may include `categories`, `verification`, `gram_raw`, `additional_translations: string[]`.
   - Each `surface_forms[]` may include `verification`, `gram_raw`.
@@ -534,6 +535,26 @@ Routes: `backend/app/api/routes/`. DTOs: `backend/app/api/schemas/v1/`.
 - **Request model:** none (`form` query param).
 - **Response model:** raw audio bytes (`fastapi.Response`, dynamic `media_type`), not Pydantic schema.
 - **Notable status/error behavior:** `422` validation failures. `404` not found. `503` DB unavailable/locked. `503` runtime errors.
+
+### GET `/api/wordbank/numbers/pronunciation`
+- **Request model:** none (`term` query param).
+- **Response model:** raw audio bytes (`fastapi.Response`, dynamic `media_type`), not Pydantic schema.
+- **Notable status/error behavior:** `422` validation failures. `404` not found. `503` DB unavailable/locked.
+
+### POST `/api/wordbank/numbers/pronunciation/seed`
+- **Request model:** none (`force: bool = False` query param).
+- **Response model:** `SeedNumbersAudioResponse`.
+- **Notable status/error behavior:** `503` DB unavailable/locked or TTS unavailable. `force=true` regenerates stored number audio.
+
+### GET `/api/wordbank/presaved-words/pronunciation`
+- **Request model:** none (`term` query param).
+- **Response model:** raw audio bytes (`fastapi.Response`, dynamic `media_type`), not Pydantic schema.
+- **Notable status/error behavior:** `422` validation failures. `404` not found. `503` DB unavailable/locked.
+
+### POST `/api/wordbank/presaved-words/pronunciation/seed`
+- **Request model:** none (`force: bool = False` query param).
+- **Response model:** `SeedPresavedWordsAudioResponse`.
+- **Notable status/error behavior:** `503` DB unavailable/locked or TTS unavailable. `force=true` regenerates stored presaved-word audio.
 
 ### DELETE `/api/wordbank/database`
 - **Request model:** none.

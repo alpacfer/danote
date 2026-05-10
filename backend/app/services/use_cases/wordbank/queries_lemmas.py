@@ -13,6 +13,11 @@ from app.services.use_cases.static_hv_words import (
     static_hv_word_for_english,
     static_hv_word_for_token,
 )
+from app.services.use_cases.static_presaved_words import (
+    StaticPresavedWord,
+    static_presaved_word_for_english,
+    static_presaved_word_for_token,
+)
 from app.services.use_cases.static_pronouns import (
     StaticPronoun,
     static_pronoun_for_english,
@@ -66,6 +71,13 @@ def search_lemmas(runtime: WordbankRuntime, query: str, *, limit: int = 8) -> Wo
     static_english_pronoun = static_pronoun_for_english(query)
     if static_english_pronoun is not None:
         return _static_pronoun_search_response(static_english_pronoun, match_surface=normalized_query)
+
+    static_presaved_word = static_presaved_word_for_token(normalized_query)
+    if static_presaved_word is not None:
+        return _static_presaved_word_search_response(static_presaved_word, match_surface=None)
+    static_english_presaved_word = static_presaved_word_for_english(query)
+    if static_english_presaved_word is not None:
+        return _static_presaved_word_search_response(static_english_presaved_word, match_surface=normalized_query)
 
     rows = runtime.repository.search_lemmas(normalized_query, limit=limit)
 
@@ -164,6 +176,33 @@ def _static_pronoun_search_response(
                 query_cor_ids=[],
                 pos_tag=pronoun.pos_tag,
                 morphology=pronoun.morphology,
+            )
+        ],
+    )
+
+
+def _static_presaved_word_search_response(
+    word: StaticPresavedWord,
+    *,
+    match_surface: str | None,
+) -> WordbankSearchResponse:
+    return WordbankSearchResponse(
+        did_you_mean=None,
+        items=[
+            WordbankSearchItem(
+                lemma=word.lemma,
+                display_lemma=word.lemma,
+                meaning_id=None,
+                meaning_key=None,
+                gloss=None,
+                gloss_translation=None,
+                cor_lemma_idx=None,
+                english_translation=word.english_translation,
+                variation_count=1,
+                match_surface=match_surface,
+                query_cor_ids=[],
+                pos_tag=word.pos_tag,
+                morphology=word.morphology,
             )
         ],
     )

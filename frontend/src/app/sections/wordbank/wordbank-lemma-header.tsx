@@ -1,5 +1,6 @@
 import type { LemmaDetailsResponse, VerificationChangeEntry, VerificationOverview } from "@/app/core"
-import { additionalTranslationsDisplay, badgesForSavedForm, corSecondaryBadgeClass, normalizeSearchWord, posBadgeClass, semanticCategoryBadgeClass } from "@/app/core"
+import { additionalTranslationsDisplay, corSecondaryBadgeClass, normalizeSearchWord, posBadgeClass, semanticCategoryBadgeClass } from "@/app/core"
+import { wordPageBadgesForSavedForm } from "@/app/sections/wordbank/wordbank-card-badges"
 import { WordbankPronunciationWord } from "@/app/sections/wordbank/wordbank-pronunciation-word"
 import { WordbankVerificationPopover } from "@/app/sections/wordbank/wordbank-verification-popover"
 import { Badge } from "@/components/ui/badge"
@@ -88,7 +89,7 @@ export function WordbankLemmaHeader({
   const headerPosTag = selectedMeaningSection?.pos_tag ?? lemmaDetails.pos_tag
   const headerMorphology = selectedMeaningSection?.morphology ?? lemmaDetails.morphology
   const headerBadges = showSupplementaryMetadata
-    ? badgesForSavedForm({
+    ? wordPageBadgesForSavedForm({
         pos_tag: headerPosTag ?? null,
         morphology: headerMorphology ?? null,
         gram_raw: selectedMeaningSection?.gram_raw ?? lemmaSurfaceDetails?.gram_raw ?? null,

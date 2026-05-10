@@ -1,11 +1,6 @@
 import { ChevronRight } from "lucide-react"
 
-import {
-  PINNED_PAGES_BY_GROUP,
-  PINNED_PAGE_GROUP_LABELS,
-  type PinnedPageGroup,
-  type PinnedPageMeta,
-} from "@/app/sections/wordbank/_shared/pinned-pages-registry"
+import { PINNED_PAGES, type PinnedPageMeta } from "@/app/sections/wordbank/_shared/pinned-pages-registry"
 import type { WordbankSectionProps } from "@/app/sections/wordbank/wordbank-section-types"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -16,8 +11,6 @@ type WordbankListViewProps = Pick<
   WordbankSectionProps,
   "wordbankError" | "isWordbankLoading" | "lemmas" | "groupedWordbankLemmas" | "unreadWordbankLemmaCounts" | "onSelectLemma"
 >
-
-const PINNED_GROUP_ORDER: PinnedPageGroup[] = ["pronouns", "function_words", "numbers_and_time"]
 
 export function WordbankListView({
   wordbankError,
@@ -66,14 +59,7 @@ export function WordbankListView({
       ) : (
         <ScrollArea className="min-h-0 flex-1">
           <div className="space-y-5">
-            {PINNED_GROUP_ORDER.map((group) => (
-              <PinnedGroupSection
-                key={group}
-                label={PINNED_PAGE_GROUP_LABELS[group]}
-                pages={PINNED_PAGES_BY_GROUP[group]}
-                onSelectLemma={onSelectLemma}
-              />
-            ))}
+            <PinnedGroupSection pages={PINNED_PAGES} onSelectLemma={onSelectLemma} />
 
             {groupedWordbankLemmas.map((group) => (
               <section key={group.letter} className="space-y-2">
@@ -81,7 +67,6 @@ export function WordbankListView({
                 <div className="flex flex-wrap gap-2">
                   {group.items.map((lemma) => {
                     const displayWord = lemma.display_lemma?.trim() || lemma.lemma
-                    const showCount = lemma.variation_count > 1
                     const unreadCount = unreadWordbankLemmaCounts.get(lemma.lemma) ?? 0
                     return (
                       <Button
@@ -93,9 +78,6 @@ export function WordbankListView({
                         onClick={() => onSelectLemma(lemma.lemma)}
                       >
                         {displayWord}
-                        {showCount ? (
-                          <span className="text-muted-foreground font-normal"> · {lemma.variation_count}</span>
-                        ) : null}
                         {unreadCount > 0 ? (
                           unreadCount > 1 ? (
                             <span className="bg-primary text-primary-foreground ml-2 inline-flex min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] leading-5">
@@ -122,17 +104,14 @@ export function WordbankListView({
 }
 
 function PinnedGroupSection({
-  label,
   pages,
   onSelectLemma,
 }: {
-  label: string
   pages: PinnedPageMeta[]
   onSelectLemma: (lemma: string) => void
 }) {
   return (
     <section className="space-y-2">
-      <h3 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">{label}</h3>
       <div className="flex flex-wrap gap-2">
         {pages.map((page) => (
           <BuiltInReferenceCard

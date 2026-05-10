@@ -10,6 +10,10 @@ from app.api.schemas.v1.wordbank import (
 )
 from app.services.en_local import ENLocalLexiconService
 from app.services.translation import TranslationService
+from app.services.use_cases.static_presaved_words import (
+    StaticPresavedWord,
+    static_presaved_word_for_english,
+)
 from app.services.use_cases.static_pronouns import StaticPronoun, static_pronoun_for_english
 from app.services.use_cases.wordbank.collaborators.en_local_translations import (
     translate_en_lemma_contextual,
@@ -106,6 +110,9 @@ def search_en_form(
     static_pronoun = static_pronoun_for_english(normalized_form)
     if static_pronoun is not None:
         return static_pronoun_en_search_response(normalized_form, static_pronoun)
+    static_presaved_word = static_presaved_word_for_english(normalized_form)
+    if static_presaved_word is not None:
+        return static_presaved_word_en_search_response(normalized_form, static_presaved_word)
     if en_local_lexicon_service is None or not normalized_form:
         return ENSearchFormResponse(form=normalized_form, groups=[])
     return ENSearchFormResponse(
@@ -137,6 +144,32 @@ def static_pronoun_en_search_response(form: str, pronoun: StaticPronoun) -> ENSe
                         sense_idx=1,
                         gloss=pronoun.english_translation,
                         danish_translation=pronoun.lemma,
+                        examples=[],
+                    )
+                ],
+            )
+        ],
+    )
+
+
+def static_presaved_word_en_search_response(form: str, word: StaticPresavedWord) -> ENSearchFormResponse:
+    pos_tag = word.pos_tag or "X"
+    return ENSearchFormResponse(
+        form=form,
+        groups=[
+            ENPosGroup(
+                lemma=form,
+                form=form,
+                pos_ud=pos_tag,
+                pos_raw=pos_tag.lower(),
+                danish_translation=word.lemma,
+                meaning_description=word.english_translation,
+                senses=[
+                    ENSenseOut(
+                        pos_ud=pos_tag,
+                        sense_idx=1,
+                        gloss=word.english_translation,
+                        danish_translation=word.lemma,
                         examples=[],
                     )
                 ],

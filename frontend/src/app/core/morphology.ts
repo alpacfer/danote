@@ -91,10 +91,17 @@ export function caseFromMorphology(morphology: string | null): CaseLabel | null 
   return null
 }
 
-export type PronTypeLabel = "Interrogative"
+export type PronTypeLabel = "Personal" | "Demonstrative" | "Interrogative" | "Relative" | "Indefinite" | "Negative" | "Total" | "Reciprocal"
 export function pronTypeFromMorphology(morphology: string | null): PronTypeLabel | null {
   if (!morphology) return null
-  if (/(^|\|)PronType=Int(\||$)/u.test(morphology)) return "Interrogative"
+  if (/(^|\|)PronType=[^|]*Prs/u.test(morphology)) return "Personal"
+  if (/(^|\|)PronType=[^|]*Dem/u.test(morphology)) return "Demonstrative"
+  if (/(^|\|)PronType=[^|]*Int/u.test(morphology)) return "Interrogative"
+  if (/(^|\|)PronType=[^|]*Rel/u.test(morphology)) return "Relative"
+  if (/(^|\|)PronType=[^|]*Ind/u.test(morphology)) return "Indefinite"
+  if (/(^|\|)PronType=[^|]*Neg/u.test(morphology)) return "Negative"
+  if (/(^|\|)PronType=[^|]*Tot/u.test(morphology)) return "Total"
+  if (/(^|\|)PronType=[^|]*Rcp/u.test(morphology)) return "Reciprocal"
   return null
 }
 
@@ -102,6 +109,13 @@ export type PossessionLabel = "Possessive"
 export function possessionFromMorphology(morphology: string | null): PossessionLabel | null {
   if (!morphology) return null
   if (/(^|\|)Poss=Yes(\||$)/u.test(morphology)) return "Possessive"
+  return null
+}
+
+export type ReflexiveLabel = "Reflexive"
+export function reflexiveFromMorphology(morphology: string | null): ReflexiveLabel | null {
+  if (!morphology) return null
+  if (/(^|\|)Reflex=Yes(\||$)/u.test(morphology)) return "Reflexive"
   return null
 }
 
@@ -133,9 +147,11 @@ export function secondaryTagsForPos(posTag: string | null, morphology: string | 
   const tags: string[] = []
   const pronType = pronTypeFromMorphology(morphology)
   const possession = possessionFromMorphology(morphology)
+  const reflexive = reflexiveFromMorphology(morphology)
   if (posTag === "PRON" || posTag === "DET" || posTag === "ADV") {
     if (pronType) tags.push(pronType)
     if (possession) tags.push(possession)
+    if (reflexive) tags.push(reflexive)
   }
   if (posTag === "VERB" || posTag === "AUX") {
     const form = verbFormFromMorphology(morphology)

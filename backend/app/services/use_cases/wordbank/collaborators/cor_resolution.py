@@ -15,6 +15,11 @@ from app.services.use_cases.static_hv_words import (
     static_hv_word_for_english,
     static_hv_word_for_token,
 )
+from app.services.use_cases.static_presaved_words import (
+    StaticPresavedWord,
+    static_presaved_word_for_english,
+    static_presaved_word_for_token,
+)
 from app.services.use_cases.static_pronouns import (
     StaticPronoun,
     static_pronoun_for_english,
@@ -70,6 +75,18 @@ def resolve_query(
         return static_pronoun_resolve_response(
             normalized_query,
             static_english_pronoun,
+            language="en",
+        )
+
+    static_presaved_word = static_presaved_word_for_token(normalized_query)
+    if static_presaved_word is not None:
+        return static_presaved_word_resolve_response(normalized_query, static_presaved_word, language="da")
+
+    static_english_presaved_word = static_presaved_word_for_english(query_without_comments)
+    if static_english_presaved_word is not None:
+        return static_presaved_word_resolve_response(
+            normalized_query,
+            static_english_presaved_word,
             language="en",
         )
 
@@ -333,6 +350,46 @@ def static_pronoun_resolve_response(
                 direction_label="Wordbank",
                 pos_tag=pronoun.pos_tag,
                 morphology=pronoun.morphology,
+            )
+        ],
+        en_pos_groups=[],
+    )
+
+
+def static_presaved_word_resolve_response(
+    query: str,
+    word: StaticPresavedWord,
+    *,
+    language: Literal["da", "en"],
+) -> ResolveQueryResponse:
+    is_english = language == "en"
+    return ResolveQueryResponse(
+        query_surface=query,
+        query_lemma=word.lemma,
+        classification="known",
+        matched_lemma=word.lemma,
+        matched_lemma_summary=None,
+        query_pos_tag=word.pos_tag,
+        query_morphology=word.morphology,
+        resolved_surface=word.lemma,
+        resolved_lemma=word.lemma,
+        da_to_en_translation=None if is_english else word.english_translation,
+        en_to_da_translation=word.lemma if is_english else None,
+        en_to_da_lemma=word.lemma if is_english else None,
+        en_to_da_pos_tag=word.pos_tag if is_english else None,
+        en_to_da_morphology=word.morphology if is_english else None,
+        query_language=language,
+        query_language_confidence=1.0,
+        word_actions=[
+            WordActionSuggestion(
+                action_type="open_wordbank",
+                surface=word.lemma,
+                lemma=word.lemma,
+                translation_label=word.english_translation,
+                direction="known",
+                direction_label="Wordbank",
+                pos_tag=word.pos_tag,
+                morphology=word.morphology,
             )
         ],
         en_pos_groups=[],

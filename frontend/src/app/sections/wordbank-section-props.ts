@@ -11,6 +11,8 @@ export type WordbankSectionAdapterArgs = {
   groupedWordbankLemmas: ComponentProps<typeof WordbankSection>["groupedWordbankLemmas"]
   unreadWordbankLemmaCounts: ComponentProps<typeof WordbankSection>["unreadWordbankLemmaCounts"]
   setSelectedLemma: (lemma: string | null) => void
+  openWordbankLemmaRaw: (lemma: string) => void
+  openWordbankPinnedTab: (sentinel: string) => void
   lemmaDetails: ComponentProps<typeof WordbankSection>["lemmaDetails"]
   lemmaDetailsError: ComponentProps<typeof WordbankSection>["lemmaDetailsError"]
   isLemmaDetailsLoading: boolean
@@ -68,6 +70,8 @@ export function buildWordbankSectionProps(
     groupedWordbankLemmas: args.groupedWordbankLemmas,
     unreadWordbankLemmaCounts: args.unreadWordbankLemmaCounts,
     onSelectLemma: args.setSelectedLemma,
+    onOpenPinnedWord: args.openWordbankLemmaRaw,
+    onOpenPinnedTab: args.openWordbankPinnedTab,
     lemmaDetails: args.lemmaDetails,
     lemmaDetailsError: args.lemmaDetailsError,
     isLemmaDetailsLoading: args.isLemmaDetailsLoading,

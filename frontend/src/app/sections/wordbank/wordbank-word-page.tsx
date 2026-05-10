@@ -1,6 +1,7 @@
 import { useEffect } from "react"
 
 import { normalizeSearchWord } from "@/app/core"
+import { PinnedWordHomeCard } from "@/app/sections/wordbank/_shared"
 import type { WordbankSectionProps } from "@/app/sections/wordbank/wordbank-section-types"
 import { WordbankDetailsLoadingSkeleton, WordbankLemmaHeader } from "@/app/sections/wordbank/wordbank-lemma-header"
 import { WordbankLinkedSentences } from "@/app/sections/wordbank/wordbank-linked-sentences"
@@ -45,6 +46,7 @@ type WordbankWordPageProps = Pick<
   | "onSaveRelatedWordFromSearchSeed"
   | "onOpenRelatedWordTarget"
   | "onOpenSentence"
+  | "onOpenPinnedTab"
 >
 
 export function WordbankWordPage({
@@ -81,6 +83,7 @@ export function WordbankWordPage({
   onSaveRelatedWordFromSearchSeed,
   onOpenRelatedWordTarget,
   onOpenSentence,
+  onOpenPinnedTab,
 }: WordbankWordPageProps) {
   const normalizedRequestedLemma = normalizeSearchWord(selectedLemma ?? "")
   const normalizedLoadedLemma = normalizeSearchWord(lemmaDetails?.lemma ?? "")
@@ -195,6 +198,7 @@ export function WordbankWordPage({
             onSaveRelatedWordFromSearchSeed={onSaveRelatedWordFromSearchSeed}
             onOpenRelatedWordTarget={onOpenRelatedWordTarget}
           />
+          <PinnedWordHomeCard lemma={activeLemmaDetails.lemma} onOpenPinnedTab={onOpenPinnedTab} />
           <WordbankLinkedSentences
             linkedSentences={activeLemmaDetails.linked_sentences}
             onOpenSentence={onOpenSentence}

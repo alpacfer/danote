@@ -43,9 +43,9 @@ The Developer section uses Shadcn/Radix tabs with standard `Tabs` / `TabsList` /
 - `Status`: backend connection, API status list
 - `API Keys`: runtime provider credentials and apply action
 - `Probes`: translation, speech, and Gemini test actions/results
-- `Database`: destructive reset action
+- `Database`: pinned audio generation and destructive reset actions
 
-Database reset controls are scoped to the `Database` tab only; they are not rendered globally beneath the tab set.
+Database reset and pinned audio controls are scoped to the `Database` tab only; they are not rendered globally beneath the tab set.
 
 ## 4) Provider probe workflows
 
@@ -82,12 +82,20 @@ Trigger: `Apply runtime API keys` → `saveDeveloperApiKeys()`. Request: `POST /
 
 Trigger: `Delete complete DB` → `resetDatabase()`. Guardrail: confirmation dialog must return true. Request: `DELETE /api/wordbank/database`. In-flight: button disabled (`isResettingDatabase === true`), label `Deleting...`. Success → toast with backend message, invoke `onDatabaseReset()`. Failure → error toast with extracted message/fallback. Post-reset transitions delegated to `onDatabaseReset()` in composition layer.
 
-## 8) Test map
+## 8) Pinned audio generation
+
+The Database tab has one `Pinned word audio` control group. `Generate missing`
+calls both `POST /api/wordbank/numbers/pronunciation/seed` and
+`POST /api/wordbank/presaved-words/pronunciation/seed`. `Regenerate all` calls
+the same endpoints with `force=true`. The UI treats the two backend stores as
+one developer setting because pinned cards use a shared audio playback hook.
+
+## 9) Test map
 
 Primary: `frontend/src/test/app/app-system-state.test.tsx`
 - Connection status: offline on health failure, degraded on degraded report
 - Developer basics: NLP picker presence/label, API status list + humanized labels
-- Developer tabs: inactive tab content is hidden/unmounted; database reset only appears on `Database`
+- Developer tabs: inactive tab content is hidden/unmounted; database reset and pinned audio controls only appear on `Database`
 - Probes: Gemini (button, inline result, toast, API row updates), DeepL + Speech (independent results, toasts, status updates)
 - DB reset: confirmation + DELETE method, success toast
 

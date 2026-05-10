@@ -34,14 +34,14 @@ from app.api.schemas.v1.wordbank import (
     QueueVerificationRequest,
     QueueVerificationResponse,
     ResetDatabaseResponse,
-    SeedNumbersAudioResponse,
-    SeedPresavedWordsAudioResponse,
     ResolveQueryRequest,
     ResolveQueryResponse,
     RethinkCategoriesRequest,
     RethinkCategoriesResponse,
     RevertVerificationChangeRequest,
     RevertVerificationChangeResponse,
+    SeedNumbersAudioResponse,
+    SeedPresavedWordsAudioResponse,
     VerifyWordRequest,
     VerifyWordResponse,
     WordbankSearchResponse,
@@ -49,10 +49,14 @@ from app.api.schemas.v1.wordbank import (
 from app.core.app_state import set_runtime_field
 from app.services.use_cases.numbers_pronunciation import (
     get_numbers_pronunciation_audio as _get_numbers_audio,
+)
+from app.services.use_cases.numbers_pronunciation import (
     seed_numbers_audio as _seed_numbers_audio,
 )
 from app.services.use_cases.presaved_words_pronunciation import (
     get_presaved_words_pronunciation_audio as _get_presaved_words_audio,
+)
+from app.services.use_cases.presaved_words_pronunciation import (
     seed_presaved_words_audio as _seed_presaved_words_audio,
 )
 from app.services.use_cases.wordbank.mappers import map_lemma_details_response
@@ -367,12 +371,15 @@ def get_numbers_pronunciation_audio(request: Request, term: str = Query(..., min
 
 
 @router.post("/wordbank/numbers/pronunciation/seed", response_model=SeedNumbersAudioResponse)
-def seed_numbers_pronunciation_audio(request: Request) -> SeedNumbersAudioResponse:
+def seed_numbers_pronunciation_audio(
+    request: Request,
+    force: bool = Query(False),
+) -> SeedNumbersAudioResponse:
     tts_service = get_services(request).tts_service
     db_path = get_settings(request).db_path
     result = run_db_operation(
         request,
-        lambda: _seed_numbers_audio(tts_service, db_path),
+        lambda: _seed_numbers_audio(tts_service, db_path, force=force),
         include_runtime_error=True,
         error_log_name="numbers_seed_db_operational_error",
     )

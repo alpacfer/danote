@@ -189,12 +189,13 @@ describe("App sentencebank", () => {
     fireEvent.click(await screen.findByRole("button", { name: /du elsker dansk/i }))
     fireEvent.click((await screen.findByText(/^du$/i)).closest("button") as HTMLButtonElement)
 
-    expect(await screen.findByRole("heading", { name: /personal pronouns/i })).toBeInTheDocument()
+    expect(await screen.findByRole("heading", { name: /^pronouns$/i })).toBeInTheDocument()
+    expect(screen.getByRole("tab", { name: /personal/i })).toHaveAttribute("data-state", "active")
     expect(screen.getAllByText(/^du$/i).length).toBeGreaterThan(0)
     expect(fetchSpy.mock.calls.some(([input]) => String(input).includes("__pronouns_personal"))).toBe(false)
   })
 
-  it("clicking an hv token opens the shared question words page with related sentences", async () => {
+  it("clicking an hv token opens the shared pronouns page on question words", async () => {
     const fetchSpy = mockFetchImplementation({
       lemmasResponse: {
         items: [{ lemma: "hvor", variation_count: 1 }],
@@ -231,10 +232,10 @@ describe("App sentencebank", () => {
     fireEvent.click(await screen.findByRole("button", { name: /hvor bor du/i }))
     fireEvent.click((await screen.findByText(/^hvor$/i)).closest("button") as HTMLButtonElement)
 
-    expect(await screen.findByRole("heading", { name: /place, time, manner & reason/i })).toBeInTheDocument()
+    expect(await screen.findByRole("heading", { name: /^pronouns$/i })).toBeInTheDocument()
+    expect(screen.getByRole("tab", { name: /question words/i })).toHaveAttribute("data-state", "active")
     expect(screen.getAllByText(/^hvor$/i).length).toBeGreaterThan(0)
-    fireEvent.click(screen.getByRole("button", { name: /see examples/i }))
-    expect(await screen.findByText(/where do you live/i)).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /see examples/i })).not.toBeInTheDocument()
     expect(fetchSpy.mock.calls.some(([input]) => String(input).includes("__question_words"))).toBe(false)
   })
 

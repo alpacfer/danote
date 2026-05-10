@@ -11,6 +11,7 @@ import {
   type LemmaDetailsResponse,
   type SearchSaveSeed,
 } from "@/app/core"
+import { wordPageBadgesForSavedForm } from "@/app/sections/wordbank/wordbank-card-badges"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -198,7 +199,11 @@ function RelatedWordCardBody({
       </div>
       {uniqueVariant ? (
         <div className="mt-2 flex flex-wrap gap-1.5">
-          {badgesFromGramRaw(uniqueVariant.gram_raw).map((badge) => (
+          {wordPageBadgesForSavedForm({
+            pos_tag: uniqueVariant.pos_tag ?? item.pos_tag ?? null,
+            morphology: uniqueVariant.morphology ?? null,
+            gram_raw: uniqueVariant.gram_raw,
+          }).map((badge) => (
             <Badge
               key={`related-word-${item.id}-${uniqueVariant.cor_id}-${badge.label}`}
               variant={badge.tone === "primary" ? "outline" : "secondary"}

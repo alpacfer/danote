@@ -43,7 +43,6 @@ export type DeveloperSectionAdapterArgs = {
   runSpeechProbe: () => Promise<void>
   runGeminiProbe: () => Promise<void>
   resetDatabase: () => Promise<void>
-  seedNumbersAudio: () => Promise<void>
   seedPresavedWordsAudio: () => Promise<void>
   regeneratePresavedWordsAudio: () => Promise<void>
 }
@@ -112,9 +111,6 @@ export function buildDeveloperSectionProps(
     },
     onResetDatabase: () => {
       void args.resetDatabase()
-    },
-    onSeedNumbersAudio: () => {
-      void args.seedNumbersAudio()
     },
     onSeedPresavedWordsAudio: () => {
       void args.seedPresavedWordsAudio()

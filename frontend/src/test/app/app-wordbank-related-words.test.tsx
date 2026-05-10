@@ -149,6 +149,8 @@ describe("App wordbank related words", () => {
       expect(relatedHeading).toHaveClass("text-muted-foreground", "text-[11px]", "tracking-wide")
       expect(screen.getByText(/^at lege$/i)).toBeInTheDocument()
       expect(screen.getByText(/^Verb$/i)).toHaveClass("bg-blue-100")
+      expect(screen.queryByText(/^Infinitive$/i)).not.toBeInTheDocument()
+      expect(screen.queryByText(/^Active$/i)).not.toBeInTheDocument()
     }, { timeout: 4_000 })
   }, 10_000)
 

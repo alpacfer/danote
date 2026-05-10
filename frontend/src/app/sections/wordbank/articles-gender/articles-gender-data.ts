@@ -1,5 +1,20 @@
 export const ARTICLES_GENDER_SENTINEL = "__articles_gender"
 
+export type ArticleEntry = {
+  lemma: string
+  english: string
+  description?: string
+  playForm?: string
+}
+
+export const ARTICLE_ROWS: ArticleEntry[] = [
+  { lemma: "en", english: "a / an", description: "n-word" },
+  { lemma: "et", english: "a / an", description: "t-word" },
+  { lemma: "-en", english: "the", description: "n-word singular suffix", playForm: "en" },
+  { lemma: "-et", english: "the", description: "t-word singular suffix", playForm: "et" },
+  { lemma: "-ne", english: "the", description: "plural suffix" },
+]
+
 export type ArticleParadigmRow = {
   label: string
   example: string

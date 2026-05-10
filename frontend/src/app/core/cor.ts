@@ -6,6 +6,9 @@ import {
   determinerWordTypeFromMorphology,
   numberFromMorphology,
   personFromMorphology,
+  possessionFromMorphology,
+  pronTypeFromMorphology,
+  reflexiveFromMorphology,
   secondaryTagsForPos,
   verbFormFromMorphology,
   voiceFromMorphology,
@@ -77,8 +80,15 @@ export const COR_SECONDARY_BADGE_CLASS_BY_LABEL: Record<string, string> = {
   Superlative: "bg-rose-50 text-rose-900 border-rose-400 dark:bg-rose-950/30 dark:text-rose-200 dark:border-rose-500",
   Adverbial: "bg-stone-50 text-stone-900 border-stone-400 dark:bg-stone-900/40 dark:text-stone-200 dark:border-stone-500",
   "Perfect participle": "bg-purple-50 text-purple-900 border-purple-400 dark:bg-purple-950/30 dark:text-purple-200 dark:border-purple-500",
+  Personal: "bg-cyan-50 text-cyan-900 border-cyan-400 dark:bg-cyan-950/30 dark:text-cyan-200 dark:border-cyan-500",
+  Demonstrative: "bg-violet-50 text-violet-900 border-violet-400 dark:bg-violet-950/30 dark:text-violet-200 dark:border-violet-500",
   Interrogative: "bg-teal-50 text-teal-900 border-teal-400 dark:bg-teal-950/30 dark:text-teal-200 dark:border-teal-500",
+  Relative: "bg-blue-50 text-blue-900 border-blue-400 dark:bg-blue-950/30 dark:text-blue-200 dark:border-blue-500",
+  Negative: "bg-red-50 text-red-900 border-red-400 dark:bg-red-950/30 dark:text-red-200 dark:border-red-500",
+  Total: "bg-lime-50 text-lime-900 border-lime-400 dark:bg-lime-950/30 dark:text-lime-200 dark:border-lime-500",
+  Reciprocal: "bg-fuchsia-50 text-fuchsia-900 border-fuchsia-400 dark:bg-fuchsia-950/30 dark:text-fuchsia-200 dark:border-fuchsia-500",
   Possessive: "bg-amber-50 text-amber-900 border-amber-400 dark:bg-amber-950/30 dark:text-amber-200 dark:border-amber-500",
+  Reflexive: "bg-orange-50 text-orange-900 border-orange-400 dark:bg-orange-950/30 dark:text-orange-200 dark:border-orange-500",
 }
 
 export function corSecondaryBadgeClass(label: string): string {
@@ -320,7 +330,10 @@ function savedSecondaryTagsForPos(posTag: string | null, morphology: string | nu
   const number = numberFromMorphology(morphology)
   const definiteness = definitenessFromMorphology(morphology)
   const caseLabel = caseFromMorphology(morphology)
+  const pronType = pronTypeFromMorphology(morphology)
   const person = personFromMorphology(morphology)
+  const possession = possessionFromMorphology(morphology)
+  const reflexive = reflexiveFromMorphology(morphology)
   const verbForm = verbFormFromMorphology(morphology)
   const voice = voiceFromMorphology(morphology)
   const degree = degreeFromMorphology(morphology)
@@ -333,16 +346,16 @@ function savedSecondaryTagsForPos(posTag: string | null, morphology: string | nu
     tags.push(wordType, number, definiteness, caseLabel)
   }
   if (posTag === "DET") {
-    tags.push(wordType, number, definiteness)
+    tags.push(wordType, pronType, possession, number, definiteness)
   }
   if (posTag === "ADJ") {
     tags.push(wordType, number, definiteness, comparableDegree)
   }
   if (posTag === "PRON") {
-    tags.push(wordType, person, number, caseLabel)
+    tags.push(wordType, pronType, possession, reflexive, person, number, caseLabel)
   }
   if (posTag === "ADV") {
-    tags.push(comparableDegree)
+    tags.push(pronType, comparableDegree)
   }
 
   if (tags.length === 0) {

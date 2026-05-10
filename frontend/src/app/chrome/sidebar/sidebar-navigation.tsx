@@ -1,6 +1,7 @@
-import { BookOpen, Search, Settings, ScrollText } from "lucide-react"
+import { Search } from "lucide-react"
 
 import type { AppSection } from "@/app/core"
+import { SIDEBAR_PAGE_DEFINITIONS, type SidebarNavigationActions } from "@/app/chrome/sidebar/sidebar-page-items"
 import {
   SidebarContent,
   SidebarGroup,
@@ -10,7 +11,6 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 import { Kbd, KbdGroup } from "@/components/ui/kbd"
-import type { SidebarNavigationActions } from "@/app/chrome/sidebar/sidebar-page-items"
 
 type SidebarNavigationProps = Pick<
   SidebarNavigationActions,
@@ -29,6 +29,10 @@ export function SidebarNavigation({
   onSelectDeveloper,
   onOpenSearch,
 }: SidebarNavigationProps) {
+  const WordbankIcon = SIDEBAR_PAGE_DEFINITIONS.wordbank.icon
+  const SentencebankIcon = SIDEBAR_PAGE_DEFINITIONS.sentencebank.icon
+  const DeveloperIcon = SIDEBAR_PAGE_DEFINITIONS.developer.icon
+
   return (
     <SidebarContent>
       <SidebarGroup>
@@ -46,7 +50,7 @@ export function SidebarNavigation({
             </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton type="button" isActive={activeSection === "wordbank"} onClick={onSelectWordbank}>
-                <BookOpen />
+                <WordbankIcon />
                 <span>Wordbank</span>
                 {unreadWordbankNotificationCount > 0 ? (
                   <span className="bg-primary text-primary-foreground ml-auto inline-flex min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] leading-5">
@@ -62,7 +66,7 @@ export function SidebarNavigation({
             </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton type="button" isActive={activeSection === "sentencebank"} onClick={onSelectSentencebank}>
-                <ScrollText />
+                <SentencebankIcon />
                 <span>Sentencebank</span>
                 <KbdGroup aria-hidden="true" className="ml-auto">
                   <Kbd>Alt</Kbd>
@@ -72,7 +76,7 @@ export function SidebarNavigation({
             </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton type="button" isActive={activeSection === "developer"} onClick={onSelectDeveloper}>
-                <Settings />
+                <DeveloperIcon />
                 <span>Developer</span>
                 <KbdGroup aria-hidden="true" className="ml-auto">
                   <Kbd>Alt</Kbd>

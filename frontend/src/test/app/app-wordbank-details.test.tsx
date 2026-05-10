@@ -88,7 +88,11 @@ describe("App wordbank", () => {
 
     expect((await screen.findAllByText(/^bog$/i)).length).toBeGreaterThan(0)
     expect(screen.getAllByText(/^book$/i)).toHaveLength(1)
-    expect(screen.getAllByText(/^n-word$/i)).toHaveLength(1)
+    const meaningBadges = screen.getByTestId("wordbank-meaning-badges-1")
+    expect(within(meaningBadges).getByText(/^Noun$/i)).toBeInTheDocument()
+    expect(within(meaningBadges).getByText(/^n-word$/i)).toBeInTheDocument()
+    expect(within(meaningBadges).queryByText(/^Singular$/i)).not.toBeInTheDocument()
+    expect(within(meaningBadges).queryByText(/^Indefinite$/i)).not.toBeInTheDocument()
   })
 
   it("renderer-only: meaning-section surface forms show badges without rendering surface translations", async () => {
@@ -226,7 +230,7 @@ describe("App wordbank", () => {
     expect(document.querySelector("[data-slot='tooltip-content']")).not.toBeInTheDocument()
   })
 
-  it("renderer-only: sectioned word pages use section gram_raw so adjective cards keep the full search badge set", async () => {
+  it("renderer-only: sectioned adjective cards summarize POS while the table carries variation details", async () => {
     mockFetchImplementation({
       lemmasResponse: {
         items: [{ lemma: "orange", variation_count: 0 }],
@@ -270,8 +274,12 @@ describe("App wordbank", () => {
     expect(within(table).getByText(/^singular$/i)).toBeInTheDocument()
     expect(within(table).getByText(/^plural$/i)).toBeInTheDocument()
     expect(within(table).getByText(/^definite$/i)).toBeInTheDocument()
-    expect(within(meaningCard).getByText(/^n-word$/i)).toBeInTheDocument()
-    expect(within(meaningCard).getByText(/^t-word$/i)).toBeInTheDocument()
+    const meaningBadges = within(meaningCard).getByTestId("wordbank-meaning-badges-1")
+    expect(within(meaningBadges).getByText(/^Adjective$/i)).toBeInTheDocument()
+    expect(within(meaningBadges).queryByText(/^n-word$/i)).not.toBeInTheDocument()
+    expect(within(meaningBadges).queryByText(/^t-word$/i)).not.toBeInTheDocument()
+    expect(within(meaningBadges).queryByText(/^Singular$/i)).not.toBeInTheDocument()
+    expect(within(meaningBadges).queryByText(/^Indefinite$/i)).not.toBeInTheDocument()
   })
 
   it("renderer-only: sectioned meaning cards inherit pronunciation availability from hidden lemma rows", async () => {
@@ -678,6 +686,10 @@ describe("App wordbank", () => {
     fireEvent.click(await screen.findByRole("button", { name: /lære/i }))
 
     expect(await screen.findByText(/^learn$/i)).toBeInTheDocument()
+    const headerBadges = screen.getByTestId("wordbank-lemma-header-badges")
+    expect(within(headerBadges).getByText(/^Verb$/i)).toBeInTheDocument()
+    expect(within(headerBadges).queryByText(/^Infinitive$/i)).not.toBeInTheDocument()
+    expect(within(headerBadges).queryByText(/^Active$/i)).not.toBeInTheDocument()
     const table = screen.getByRole("table")
     expect(within(table).getByText(/^infinitive$/i)).toBeInTheDocument()
     expect(within(table).getByText(/^present$/i)).toBeInTheDocument()
@@ -726,6 +738,10 @@ describe("App wordbank", () => {
     const meaningCard = await screen.findByTestId("wordbank-meaning-card-1")
     expect(within(meaningCard).getByText(/^at komme$/i)).toBeInTheDocument()
     expect(within(meaningCard).queryByText(/^1$/)).not.toBeInTheDocument()
+    const meaningBadges = within(meaningCard).getByTestId("wordbank-meaning-badges-1")
+    expect(within(meaningBadges).getByText(/^Verb$/i)).toBeInTheDocument()
+    expect(within(meaningBadges).queryByText(/^Infinitive$/i)).not.toBeInTheDocument()
+    expect(within(meaningBadges).queryByText(/^Active$/i)).not.toBeInTheDocument()
     const table = within(meaningCard).getByRole("table")
     expect(within(table).getByText(/^past$/i)).toBeInTheDocument()
     expect(within(table).getByText(/^imperative$/i)).toBeInTheDocument()
@@ -792,6 +808,11 @@ describe("App wordbank", () => {
     fireEvent.click(await screen.findByRole("button", { name: /bog/i }))
 
     const table = await screen.findByRole("table")
+    const headerBadges = screen.getByTestId("wordbank-lemma-header-badges")
+    expect(within(headerBadges).getByText(/^Noun$/i)).toBeInTheDocument()
+    expect(within(headerBadges).getByText(/^n-word$/i)).toBeInTheDocument()
+    expect(within(headerBadges).queryByText(/^Singular$/i)).not.toBeInTheDocument()
+    expect(within(headerBadges).queryByText(/^Indefinite$/i)).not.toBeInTheDocument()
     expect(within(table).getByText(/^singular$/i)).toBeInTheDocument()
     expect(within(table).getByText(/^plural$/i)).toBeInTheDocument()
     expect(within(table).getByText(/^definite$/i)).toBeInTheDocument()

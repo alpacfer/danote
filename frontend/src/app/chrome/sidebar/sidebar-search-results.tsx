@@ -71,6 +71,7 @@ export type SidebarSearchResultsActions = {
   onAddSentenceFromSearch: (sourceText: string, englishTranslation: string | null) => Promise<void>
   onSetSearchQuery: (query: string) => void
   onOpenWordbankLemma: (lemma: string) => void
+  onOpenWordbankLemmaRaw: (lemma: string) => void
   onOpenWordbankMeaning: (lemma: string, meaningId: number) => void
   onAddWordFromSearch: (
     surfaceToken: string,
@@ -176,7 +177,7 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
               isTranslationsLoading={data.isCorTranslationsLoading}
               wordbankItemValue={data.wordbankItemValue}
               onAddWordFromSearch={actions.onAddWordFromSearch}
-              onOpenWordbankLemma={actions.onOpenWordbankLemma}
+              onOpenWordbankLemma={actions.onOpenWordbankLemmaRaw}
               onOpenWordbankMeaning={actions.onOpenWordbankMeaning}
               onCloseSearch={actions.onCloseSearch}
             />
@@ -236,7 +237,7 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
               isTranslationsLoading={data.isCorTranslationsLoading}
               wordbankItemValue={data.wordbankItemValue}
               onAddWordFromSearch={actions.onAddWordFromSearch}
-              onOpenWordbankLemma={actions.onOpenWordbankLemma}
+              onOpenWordbankLemma={actions.onOpenWordbankLemmaRaw}
               onOpenWordbankMeaning={actions.onOpenWordbankMeaning}
               onCloseSearch={actions.onCloseSearch}
             />

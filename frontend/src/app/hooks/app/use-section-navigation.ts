@@ -192,6 +192,26 @@ export function useSectionNavigation() {
     })
   }, [applyPush])
 
+  const openWordbankLemmaRaw = useCallback((lemma: string) => {
+    applyPush({
+      section: "wordbank",
+      selectedLemma: lemma,
+      selectedMeaningId: null,
+      selectedSentenceId: null,
+      pendingSentence: null,
+    })
+  }, [applyPush])
+
+  const openWordbankPinnedTab = useCallback((sentinel: string) => {
+    applyPush({
+      section: "wordbank",
+      selectedLemma: sentinel,
+      selectedMeaningId: null,
+      selectedSentenceId: null,
+      pendingSentence: null,
+    })
+  }, [applyPush])
+
   const openWordbankMeaning = useCallback((lemma: string, meaningId: number) => {
     const nextLemma = builtinAwareLemma(lemma)
     applyPush({
@@ -278,6 +298,8 @@ export function useSectionNavigation() {
     selectSentencebank,
     selectDeveloper,
     openWordbankLemma,
+    openWordbankLemmaRaw,
+    openWordbankPinnedTab,
     openWordbankMeaning,
     openWordbankTarget,
     openWordbankRoot,
@@ -300,6 +322,8 @@ export function useSectionNavigation() {
     selectSentencebank,
     selectDeveloper,
     openWordbankLemma,
+    openWordbankLemmaRaw,
+    openWordbankPinnedTab,
     openWordbankMeaning,
     openWordbankTarget,
     openWordbankRoot,

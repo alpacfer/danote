@@ -29,7 +29,7 @@ PRESAVED_WORD_TERMS = [
     # HV adverbs
     "hvor", "hvornår", "hvordan", "hvorfor",
     # Articles & gender — paradigm examples shown on the Articles & Gender page
-    "en", "et",
+    "en", "et", "-en", "-et", "-ne",
     "bil", "bilen", "biler", "bilerne",
     "hus", "huset", "huse", "husene",
     "dreng", "drengen", "drenge", "drengene",

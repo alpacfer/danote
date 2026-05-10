@@ -61,6 +61,11 @@ Endpoint: `GET /api/wordbank/search?query=<q>&limit=8`
   sentence mode is active, or the query is number-only.
 - Cached by normalized query. Error/empty → empty matches.
 - Sidebar keeps exact-ish rows only: `normalized lemma === normalizedQuery` or `normalized match_surface === normalizedQuery`; all others discarded.
+- Static presaved words (pronouns, function words, calendar/time words, and
+  number words represented as saved defaults) are returned by the backend before
+  COR or provider translation. Selecting a saved static row opens the raw lemma
+  word page; it does not route to the owning pinned tab. Numeric-only page
+  results still open the Numbers & Time pinned page.
 
 ## COR form API behavior
 

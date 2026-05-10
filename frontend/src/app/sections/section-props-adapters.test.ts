@@ -93,6 +93,8 @@ describe("section prop adapters", () => {
       groupedWordbankLemmas: [],
       unreadWordbankLemmaCounts: new Map(),
       setSelectedLemma: vi.fn(),
+      openWordbankLemmaRaw: vi.fn(),
+      openWordbankPinnedTab: vi.fn(),
       lemmaDetails: null,
       lemmaDetailsError: null,
       isLemmaDetailsLoading: false,

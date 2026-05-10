@@ -90,6 +90,27 @@ def test_wordbank_resolve_query_uses_static_hv_word_without_providers(tmp_path: 
     assert english_resolved.word_actions[0].lemma == "hvor"
 
 
+def test_wordbank_resolve_query_uses_static_presaved_word_without_providers(tmp_path: Path) -> None:
+    translation_service = FakeTranslationService({"mandag": "provider should not be used"}, detected_languages={"monday": "EN"})
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        translation_service=translation_service,
+        cor_local_lexicon_service=FakeCORLocalLexiconService(),
+    )
+
+    danish_resolved = use_case.resolve_query("mandag")
+    english_resolved = use_case.resolve_query("Monday")
+
+    assert translation_service.calls == []
+    assert danish_resolved.classification == "known"
+    assert danish_resolved.resolved_lemma == "mandag"
+    assert danish_resolved.da_to_en_translation == "Monday"
+    assert danish_resolved.query_pos_tag == "NOUN"
+    assert english_resolved.query_language == "en"
+    assert english_resolved.en_to_da_translation == "mandag"
+    assert english_resolved.word_actions[0].lemma == "mandag"
+
+
 def test_wordbank_search_lemmas_returns_static_pronouns_as_saved_defaults(tmp_path: Path) -> None:
     use_case = WordbankUseCase(_db_path(tmp_path))
 
@@ -114,6 +135,50 @@ def test_wordbank_search_lemmas_returns_static_hv_words_as_saved_defaults(tmp_pa
     assert danish_result.items[0].pos_tag == "ADV"
     assert english_result.items[0].lemma == "hvorfor"
     assert english_result.items[0].match_surface == "why"
+
+
+def test_wordbank_search_lemmas_returns_static_presaved_words_as_saved_defaults(tmp_path: Path) -> None:
+    use_case = WordbankUseCase(_db_path(tmp_path))
+
+    danish_result = use_case.search_lemmas("mandag")
+    english_result = use_case.search_lemmas("Monday")
+
+    assert danish_result.items[0].lemma == "mandag"
+    assert danish_result.items[0].english_translation == "Monday"
+    assert danish_result.items[0].pos_tag == "NOUN"
+    assert english_result.items[0].lemma == "mandag"
+    assert english_result.items[0].match_surface == "monday"
+
+
+def test_wordbank_get_lemma_details_returns_static_pronoun_defaults(tmp_path: Path) -> None:
+    use_case = WordbankUseCase(_db_path(tmp_path))
+
+    details = use_case.get_lemma_details("du")
+
+    assert details.lemma == "du"
+    assert details.english_translation == "you"
+    assert details.pos_tag == "PRON"
+    assert details.surface_forms[0].form == "du"
+    assert details.surface_forms[0].has_pronunciation is True
+
+
+def test_wordbank_get_lemma_details_returns_static_presaved_defaults(tmp_path: Path) -> None:
+    use_case = WordbankUseCase(_db_path(tmp_path))
+
+    preposition_details = use_case.get_lemma_details("i")
+    article_details = use_case.get_lemma_details("-en")
+    question_details = use_case.get_lemma_details("hvis")
+    formal_pronoun_details = use_case.get_lemma_details("I")
+
+    assert preposition_details.lemma == "i"
+    assert preposition_details.english_translation == "in / for"
+    assert preposition_details.pos_tag == "ADP"
+    assert article_details.lemma == "-en"
+    assert article_details.english_translation == "the"
+    assert question_details.lemma == "hvis"
+    assert question_details.english_translation == "whose / if"
+    assert formal_pronoun_details.lemma == "i"
+    assert formal_pronoun_details.pos_tag == "PRON"
 
 
 def test_wordbank_search_lemmas_uses_matched_surface_metadata(tmp_path: Path) -> None:

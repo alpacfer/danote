@@ -42,6 +42,7 @@ export type AppSidebarProps = {
   onSelectSentencebank: () => void
   onSelectDeveloper: () => void
   onOpenWordbankLemma: (lemma: string) => void
+  onOpenWordbankLemmaRaw: (lemma: string) => void
   onOpenWordbankMeaning: (lemma: string, meaningId: number) => void
   onAddSentenceToSentencebank: (sourceText: string, englishTranslation?: string | null) => Promise<void>
   onAddWordFromSearch: (
@@ -67,6 +68,7 @@ export function AppSidebar({
   onSelectSentencebank,
   onSelectDeveloper,
   onOpenWordbankLemma,
+  onOpenWordbankLemmaRaw,
   onOpenWordbankMeaning,
   onAddSentenceToSentencebank,
   onAddWordFromSearch,
@@ -204,6 +206,7 @@ export function AppSidebar({
     },
     onSetSearchQuery: (query: string) => { setSearchQuery(query) },
     onOpenWordbankLemma,
+    onOpenWordbankLemmaRaw,
     onOpenWordbankMeaning,
     onAddWordFromSearch,
     onCloseSearch: closeSearch,

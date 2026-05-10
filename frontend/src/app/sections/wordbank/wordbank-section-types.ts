@@ -16,6 +16,8 @@ export type WordbankSectionProps = {
   groupedWordbankLemmas: Array<{ letter: string; items: WordbankLemma[] }>
   unreadWordbankLemmaCounts: Map<string, number>
   onSelectLemma: (lemma: string) => void
+  onOpenPinnedWord: (lemma: string) => void
+  onOpenPinnedTab: (sentinel: string) => void
   lemmaDetails: LemmaDetailsResponse | null
   lemmaDetailsError: string | null
   isLemmaDetailsLoading: boolean

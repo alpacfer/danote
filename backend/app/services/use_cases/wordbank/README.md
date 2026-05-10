@@ -5,6 +5,7 @@ Purpose: application workflows for wordbank lookups, mutations, enrichment, and 
 Main entrypoints:
 - `core.py`: public facade for the wordbank use case surface.
 - `commands_add_word.py`, `queries_*.py`, `shared.py`: focused workflow helpers.
+- `static_details.py`: details fallback for built-in words that are browsable but not stored as DB lexemes.
 - `collaborators/`: provider- and subsystem-specific orchestration helpers.
 
 Where to add new behavior:

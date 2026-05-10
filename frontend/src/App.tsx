@@ -16,6 +16,7 @@ function App() {
     selectSentencebank,
     selectDeveloper,
     openWordbankLemma,
+    openWordbankLemmaRaw,
     openWordbankMeaning,
     addSentenceToSentencebank,
     addWordFromSearch,
@@ -40,6 +41,7 @@ function App() {
         onSelectSentencebank={selectSentencebank}
         onSelectDeveloper={selectDeveloper}
         onOpenWordbankLemma={openWordbankLemma}
+        onOpenWordbankLemmaRaw={openWordbankLemmaRaw}
         onOpenWordbankMeaning={openWordbankMeaning}
         onAddSentenceToSentencebank={addSentenceToSentencebank}
         onAddWordFromSearch={addWordFromSearch}
