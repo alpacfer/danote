@@ -17,7 +17,7 @@ from app.services.use_cases.wordbank.verification_targets import (
 from app.services.verification import WordVerificationInput
 
 if TYPE_CHECKING:
-    from app.services.use_cases.sentencebank_token_resolution import SentenceMeaningCandidate
+    from app.services.use_cases.sentencebank_candidates import SentenceMeaningCandidate
     from app.services.use_cases.wordbank import WordbankUseCase
 
 from app.services.gemini_translation import NonCORWordGenerationResult

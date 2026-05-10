@@ -1,7 +1,12 @@
 from __future__ import annotations
 
+import json
 import sqlite3
+import time
 from pathlib import Path
+from types import SimpleNamespace
+
+import pytest
 
 from app.api.schemas.v1.sentencebank import SentenceVerificationErrorItem
 from app.nlp.adapter import NLPToken
@@ -61,6 +66,60 @@ class SelectingGeminiService:
         return [self._selected_id for _ in payloads]
 
 
+def _run_pending_sentence_token_verifications(
+    db_path: Path,
+    *,
+    translation_service=None,
+    gemini_word_translation_service=None,
+    nlp_adapter=None,
+    cor_local_lexicon_service=None,
+    verification_service=None,
+) -> None:
+    from app.services.use_cases.wordbank.background_jobs import WordbankBackgroundJobRunner
+
+    services = SimpleNamespace(
+        translation_service=translation_service,
+        gemini_word_translation_service=gemini_word_translation_service,
+        gemini_related_words_service=None,
+        nlp_adapter=nlp_adapter,
+        cor_lexicon_service=None,
+        cor_local_lexicon_service=cor_local_lexicon_service,
+        en_local_lexicon_service=None,
+        en_gemini_translation_service=None,
+        word_verification_service=verification_service,
+        sentence_verification_service=None,
+        tts_service=None,
+    )
+    runner = WordbankBackgroundJobRunner(
+        db_path=db_path,
+        services=services,
+        gemini_changes_log_path=None,
+    )
+    try:
+        with sqlite3.connect(db_path) as conn:
+            rows = conn.execute(
+                """
+                SELECT id, payload_json
+                FROM wordbank_background_jobs
+                WHERE job_type = 'verify_sentence_tokens' AND status = 'pending'
+                ORDER BY id ASC
+                """
+            ).fetchall()
+        for job_id, payload_json in rows:
+            runner._handle_job("verify_sentence_tokens", json.loads(str(payload_json)))
+            with sqlite3.connect(db_path) as conn:
+                conn.execute(
+                    """
+                    UPDATE wordbank_background_jobs
+                    SET status = 'completed', completed_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                    """,
+                    (int(job_id),),
+                )
+    finally:
+        runner.stop()
+
+
 def test_sentencebank_use_case_add_and_list(tmp_path: Path) -> None:
     use_case = SentencebankUseCase(
         _db_path(tmp_path),
@@ -89,6 +148,39 @@ def test_sentencebank_translation_preserves_provider_text_without_forcing_lowerc
 
     assert inserted.status == "inserted"
     assert inserted.english_translation == "I LOVE DANISH"
+
+
+def test_sentencebank_save_resolves_translation_and_tokens_concurrently(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    sleep_seconds = 0.2
+
+    def slow_translation(**_kwargs) -> str:
+        time.sleep(sleep_seconds)
+        return "hello world"
+
+    def slow_token_resolution(*_args, **_kwargs) -> tuple[list, list[dict[str, object]]]:
+        time.sleep(sleep_seconds)
+        return [], []
+
+    monkeypatch.setattr(
+        "app.services.use_cases.sentencebank.lookup_phrase_translation",
+        slow_translation,
+    )
+    monkeypatch.setattr(
+        "app.services.use_cases.sentencebank.resolve_sentence_tokens",
+        slow_token_resolution,
+    )
+    use_case = SentencebankUseCase(_db_path(tmp_path))
+
+    started = time.perf_counter()
+    inserted = use_case.add_sentence("Hej verden")
+    elapsed = time.perf_counter() - started
+
+    assert inserted.status == "inserted"
+    assert inserted.english_translation == "hello world"
+    assert elapsed < sleep_seconds * 1.75
 
 
 def test_sentencebank_save_reuses_cached_phrase_translation(tmp_path: Path) -> None:
@@ -439,6 +531,16 @@ def test_sentencebank_batch_verification_auto_applies_gemini_translation_for_mis
     )
 
     inserted = sentencebank_use_case.add_sentence("Vi har")
+    _run_pending_sentence_token_verifications(
+        db_path,
+        gemini_word_translation_service=gemini_translation,
+        nlp_adapter=nlp_adapter,
+        cor_local_lexicon_service=FakeCORLocalLexiconService(
+            by_form={"har": [have_present]},
+            by_lemma_idx={30035: [have_infinitive, have_present]},
+        ),
+        verification_service=verification_service,
+    )
     details = wordbank_use_case.get_lemma_details("have")
 
     har_token = next(token for token in inserted.tokens if token.surface_form == "har")
@@ -825,6 +927,24 @@ def test_sentencebank_add_sentence_triggers_batch_verification(tmp_path: Path) -
     inserted = sentencebank_use_case.add_sentence("Huset er stort")
 
     assert inserted.status == "inserted"
+    assert verification_service.batch_calls == []
+    with sqlite3.connect(db_path) as conn:
+        queued_batch_jobs = conn.execute(
+            """
+            SELECT COUNT(*)
+            FROM wordbank_background_jobs
+            WHERE job_type = 'verify_sentence_tokens' AND status = 'pending'
+            """
+        ).fetchone()[0]
+    assert queued_batch_jobs == 1
+
+    _run_pending_sentence_token_verifications(
+        db_path,
+        translation_service=translation_service,
+        nlp_adapter=nlp_adapter,
+        verification_service=verification_service,
+    )
+
     assert len(verification_service.batch_calls) == 1
     batch_payloads, batch_context = verification_service.batch_calls[0]
     assert batch_context == "Huset er stort"
@@ -1141,6 +1261,11 @@ def test_sentencebank_batch_verification_persists_lemma_targets_for_lemma_form_t
     )
 
     sentencebank_use_case.add_sentence("kat hund")
+    _run_pending_sentence_token_verifications(
+        db_path,
+        nlp_adapter=nlp_adapter,
+        verification_service=verification_service,
+    )
 
     with sqlite3.connect(db_path) as conn:
         verified_lemma_targets = conn.execute(
@@ -1186,6 +1311,11 @@ def test_sentencebank_batch_verification_persists_root_and_surface_targets_for_i
     )
 
     sentencebank_use_case.add_sentence("er")
+    _run_pending_sentence_token_verifications(
+        db_path,
+        nlp_adapter=nlp_adapter,
+        verification_service=verification_service,
+    )
 
     assert len(verification_service.batch_calls) == 1
     batch_payloads, batch_context = verification_service.batch_calls[0]
@@ -1228,6 +1358,11 @@ def test_sentencebank_batch_verification_assigns_categories_to_new_words(tmp_pat
     )
 
     sentencebank_use_case.add_sentence("er")
+    _run_pending_sentence_token_verifications(
+        db_path,
+        nlp_adapter=nlp_adapter,
+        verification_service=verification_service,
+    )
 
     details = wordbank_use_case.get_lemma_details("være")
     assert details.categories == ["Actions", "Grammar"]
@@ -1284,6 +1419,15 @@ def test_sentencebank_batch_verification_persists_meaning_and_surface_targets_fo
     )
 
     sentencebank_use_case.add_sentence("elsker")
+    _run_pending_sentence_token_verifications(
+        db_path,
+        nlp_adapter=nlp_adapter,
+        cor_local_lexicon_service=FakeCORLocalLexiconService(
+            by_form={"elsker": [verb_entry]},
+            by_lemma_idx={62001: [lemma_entry, verb_entry]},
+        ),
+        verification_service=verification_service,
+    )
 
     assert len(verification_service.batch_calls) == 1
     batch_payloads, batch_context = verification_service.batch_calls[0]
@@ -1349,6 +1493,13 @@ def test_sentencebank_add_sentence_falls_back_on_batch_failure(tmp_path: Path) -
     inserted = sentencebank_use_case.add_sentence("Huset er stort")
 
     assert inserted.status == "inserted"
+    assert not verification_service.batch_called
+    _run_pending_sentence_token_verifications(
+        db_path,
+        translation_service=translation_service,
+        nlp_adapter=nlp_adapter,
+        verification_service=verification_service,
+    )
     assert verification_service.batch_called
     with sqlite3.connect(db_path) as conn:
         queued_verify_jobs = conn.execute(

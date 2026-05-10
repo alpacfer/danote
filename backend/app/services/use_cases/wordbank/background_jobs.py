@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 import logging
 import threading
+from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from pathlib import Path
 from typing import Any
 
@@ -213,6 +213,20 @@ class WordbankBackgroundJobRunner:
                 force=_optional_bool_value(payload, "force") or False,
             )
             return
+        if job_type == "verify_sentence_tokens":
+            sentence_use_case = SentencebankUseCase(
+                db_path=self._db_path,
+                translation_service=self._services.translation_service,
+                nlp_adapter=self._services.nlp_adapter,
+                wordbank_use_case=use_case,
+                sentence_verification_service=self._services.sentence_verification_service,
+                tts_service=self._services.tts_service,
+            )
+            sentence_use_case.process_queued_sentence_token_verification(
+                new_token_metadata=_metadata_list_value(payload, "new_token_metadata"),
+                sentence_context=_string_value(payload, "sentence_context"),
+            )
+            return
         if job_type == "resolve_related_words":
             stored_lemma = _string_value(payload, "stored_lemma")
             use_case.process_queued_related_words(stored_lemma)
@@ -296,3 +310,30 @@ def _optional_string_list(payload: dict[str, object], key: str) -> list[str] | N
     if not isinstance(value, list) or any(not isinstance(item, str) for item in value):
         raise ValueError(f"Background job payload field '{key}' is invalid.")
     return [item for item in value if item.strip()]
+
+
+def _metadata_list_value(payload: dict[str, object], key: str) -> list[dict[str, object]]:
+    value = payload.get(key)
+    if not isinstance(value, list):
+        raise ValueError(f"Background job payload field '{key}' is invalid.")
+    metadata: list[dict[str, object]] = []
+    for item in value:
+        if not isinstance(item, dict):
+            raise ValueError(f"Background job payload field '{key}' is invalid.")
+        stored_lemma = item.get("stored_lemma")
+        stored_surface_form = item.get("stored_surface_form")
+        meaning_id = item.get("meaning_id")
+        if not isinstance(stored_lemma, str) or not stored_lemma.strip():
+            raise ValueError(f"Background job payload field '{key}' is invalid.")
+        if stored_surface_form is not None and not isinstance(stored_surface_form, str):
+            raise ValueError(f"Background job payload field '{key}' is invalid.")
+        if meaning_id is not None and not isinstance(meaning_id, int):
+            raise ValueError(f"Background job payload field '{key}' is invalid.")
+        metadata.append(
+            {
+                "stored_lemma": stored_lemma,
+                "stored_surface_form": stored_surface_form,
+                "meaning_id": meaning_id,
+            }
+        )
+    return metadata

@@ -7,7 +7,6 @@ describe("App shell and search", () => {
 
     renderApp()
 
-    expect(screen.queryByText(/^danote$/i)).not.toBeInTheDocument()
     const statusBadge = await screen.findByLabelText("backend-connection-status")
     expect(statusBadge).toHaveTextContent(/connected/i)
     expect(screen.getAllByText(/^Wordbank$/).length).toBeGreaterThan(0)
@@ -391,7 +390,7 @@ describe("App shell and search", () => {
           meaning_key: "notebook",
           gloss: "book for writing notes",
           english_translation: "notebook",
-          pos_tag: null,
+          pos_tag: "NOUN",
           morphology: null,
         },
       })

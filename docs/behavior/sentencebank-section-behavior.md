@@ -81,6 +81,12 @@ Each token card renders:
 
 While full NLP is retired, sentence saves still use a lightweight word tokenizer so the sentence page keeps one card per saved word. Existing saved words are linked when possible; otherwise the fallback creates root-level wordbank entries without POS/morphology metadata.
 
+New wordbank entries created during a sentence save are available to the
+sentence response immediately, but Gemini word verification for those entries
+runs through the shared background job queue. The queued job preserves the
+sentence-context batch verification path, so save latency is not blocked by the
+extra verification request.
+
 Known Danish pronouns, question words, prepositions, conjunctions, and
 calendar terms (days, months, seasons) all use static built-in catalogs
 before COR, translation, or Gemini selection. Saved sentence tokens for

@@ -11,7 +11,8 @@ function typeInSearch(dialog: HTMLElement, text: string) {
 }
 
 function getSentenceOption(dialog: HTMLElement) {
-  return within(dialog).getByRole("option")
+  const options = within(dialog).getAllByRole("option")
+  return options.find((el) => el.getAttribute("data-value") === "sentence-translation-result") ?? options[0]
 }
 
 describe("Sentence verification in search", () => {

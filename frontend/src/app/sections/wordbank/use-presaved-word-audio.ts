@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from "react"
 
-import { BACKEND_URL } from "@/app/core"
+import { fetchPresavedWordPronunciationBlob } from "@/app/core/audio-api"
 
 export function usePresavedWordAudio() {
   const [loadingByTerm, setLoadingByTerm] = useState<Record<string, boolean>>({})
@@ -13,11 +13,9 @@ export function usePresavedWordAudio() {
     try {
       let url = cachedUrls.current.get(key)
       if (!url) {
-        const res = await fetch(
-          `${BACKEND_URL}/api/wordbank/presaved-words/pronunciation?term=${encodeURIComponent(key)}`,
-        )
-        if (!res.ok) return
-        url = URL.createObjectURL(await res.blob())
+        const blob = await fetchPresavedWordPronunciationBlob(key)
+        if (!blob) return
+        url = URL.createObjectURL(blob)
         cachedUrls.current.set(key, url)
       }
       activeAudio.current?.pause()

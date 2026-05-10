@@ -1,6 +1,10 @@
 import { useCallback, useRef, useState } from "react"
 
-import { BACKEND_URL } from "@/app/core"
+import {
+  fetchNumbersPronunciationBlob,
+  fetchPresavedWordPronunciationBlob,
+  fetchWordPronunciationBlob,
+} from "@/app/core/audio-api"
 
 // Plays pronunciation audio for built-in pinned-page words. Falls back silently
 // if the form has no stored pronunciation (older built-ins are seeded; newer
@@ -19,23 +23,17 @@ export function usePinnedPageAudio() {
       if (!url) {
         // Try the seeded numbers endpoint first for numerals; the regular
         // pronunciation endpoint requires the form to be in surface_forms.
-        const numbersRes = await fetch(
-          `${BACKEND_URL}/api/wordbank/numbers/pronunciation?term=${encodeURIComponent(term)}`,
-        )
-        if (numbersRes.ok) {
-          url = URL.createObjectURL(await numbersRes.blob())
+        const numbersBlob = await fetchNumbersPronunciationBlob(term)
+        if (numbersBlob) {
+          url = URL.createObjectURL(numbersBlob)
         } else {
-          const presavedRes = await fetch(
-            `${BACKEND_URL}/api/wordbank/presaved-words/pronunciation?term=${encodeURIComponent(term)}`,
-          )
-          if (presavedRes.ok) {
-            url = URL.createObjectURL(await presavedRes.blob())
+          const presavedBlob = await fetchPresavedWordPronunciationBlob(term)
+          if (presavedBlob) {
+            url = URL.createObjectURL(presavedBlob)
           } else {
-            const res = await fetch(
-              `${BACKEND_URL}/api/wordbank/pronunciation?form=${encodeURIComponent(term)}`,
-            )
-            if (!res.ok) return
-            url = URL.createObjectURL(await res.blob())
+            const blob = await fetchWordPronunciationBlob(term)
+            if (!blob) return
+            url = URL.createObjectURL(blob)
           }
         }
         cachedUrls.current.set(term, url)

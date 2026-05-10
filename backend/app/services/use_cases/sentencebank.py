@@ -13,6 +13,7 @@ from app.api.schemas.v1.sentencebank import (
 from app.db.repositories import SentencebankRepository
 from app.db.repositories.wordbank_background_jobs import WordbankBackgroundJobRepository
 from app.nlp.adapter import NLPAdapter
+from app.services.concurrency import run_in_parallel
 from app.services.sentence_verification import SentenceVerificationService
 from app.services.token_classifier import normalize_token
 from app.services.translation import TranslationService
@@ -84,17 +85,43 @@ class SentencebankUseCase:
                 message=f'"{existing.source_text}" is already in sentencebank.',
             )
 
-        normalized_english_translation = (
+        user_provided_translation = (
             normalize_sentence_text(english_translation)
             if english_translation is not None
             else None
         )
-        if normalized_english_translation is None:
-            normalized_english_translation = lookup_phrase_translation(
+
+        def _resolve_translation() -> str | None:
+            if user_provided_translation is not None:
+                return user_provided_translation
+            return lookup_phrase_translation(
                 source_text=normalized_source_text,
                 translation_service=self._translation_service,
                 wordbank_use_case=self._wordbank_use_case,
             )
+
+        def _resolve_tokens() -> tuple[list, list[dict[str, object]]]:
+            if token_persistence_mode == "link_existing_only":
+                if target is None:
+                    raise ValueError("target is required for link_existing_only")
+                tokens = resolve_sentence_tokens_link_existing_only(
+                    self._wordbank_use_case.runtime if self._wordbank_use_case is not None else None,
+                    source_text=normalized_source_text,
+                    nlp_adapter=self._nlp_adapter,
+                    stored_lemma=str(getattr(target, "stored_lemma", "")),
+                    meaning_id=int(getattr(target, "meaning_id", 0)),
+                )
+                return tokens, []
+            return resolve_sentence_tokens(
+                self._wordbank_use_case.runtime if self._wordbank_use_case is not None else None,
+                source_text=normalized_source_text,
+                nlp_adapter=self._nlp_adapter,
+                wordbank_use_case=self._wordbank_use_case,
+            )
+
+        normalized_english_translation, (token_records, new_token_metadata) = run_in_parallel(
+            _resolve_translation, _resolve_tokens
+        )
         provider = translation_provider_name(self._translation_service)
         sentence_id = self._repository.insert_sentence(
             source_text=normalized_source_text,
@@ -102,31 +129,13 @@ class SentencebankUseCase:
             english_translation=normalized_english_translation,
             translation_provider=provider if normalized_english_translation else None,
         )
-        if token_persistence_mode == "link_existing_only":
-            if target is None:
-                raise ValueError("target is required for link_existing_only")
-            token_records = resolve_sentence_tokens_link_existing_only(
-                self._wordbank_use_case.runtime if self._wordbank_use_case is not None else None,
-                source_text=normalized_source_text,
-                nlp_adapter=self._nlp_adapter,
-                stored_lemma=str(getattr(target, "stored_lemma", "")),
-                meaning_id=int(getattr(target, "meaning_id", 0)),
-            )
-            new_token_metadata = []
-        else:
-            token_records, new_token_metadata = resolve_sentence_tokens(
-                self._wordbank_use_case.runtime if self._wordbank_use_case is not None else None,
-                source_text=normalized_source_text,
-                nlp_adapter=self._nlp_adapter,
-                wordbank_use_case=self._wordbank_use_case,
-            )
         self._repository.replace_sentence_tokens(sentence_id=sentence_id, tokens=token_records)
-        if new_token_metadata and self._wordbank_use_case is not None:
-            batch_verify_new_sentence_tokens(
-                self._wordbank_use_case.runtime,
-                new_token_metadata=new_token_metadata,
-                sentence_context=normalized_source_text,
-            )
+        self._queue_new_token_verification(
+            sentence_id=sentence_id,
+            scope="add",
+            new_token_metadata=new_token_metadata,
+            sentence_context=normalized_source_text,
+        )
         queued_pronunciation = self._pronunciation.queued_pronunciation_result(sentence_id)
         if queued_pronunciation.status == "queued":
             self._background_jobs.enqueue(
@@ -142,6 +151,46 @@ class SentencebankUseCase:
             status="inserted",
             message=f'Added "{normalized_source_text}" to sentencebank.',
             pronunciation=queued_pronunciation,
+        )
+
+    def _queue_new_token_verification(
+        self,
+        *,
+        sentence_id: int,
+        scope: str,
+        new_token_metadata: list[dict[str, object]],
+        sentence_context: str,
+    ) -> None:
+        if not new_token_metadata or self._wordbank_use_case is None:
+            return
+        payload_metadata = _verification_metadata_payload(new_token_metadata)
+        if not payload_metadata:
+            return
+        self._background_jobs.enqueue(
+            job_type="verify_sentence_tokens",
+            dedupe_key=f"verify_sentence_tokens::{sentence_id}::{scope}",
+            payload={
+                "sentence_id": sentence_id,
+                "sentence_context": sentence_context,
+                "new_token_metadata": payload_metadata,
+            },
+        )
+
+    def process_queued_sentence_token_verification(
+        self,
+        *,
+        new_token_metadata: list[dict[str, object]],
+        sentence_context: str,
+    ) -> None:
+        if self._wordbank_use_case is None:
+            return
+        payload_metadata = _verification_metadata_payload(new_token_metadata)
+        if not payload_metadata:
+            return
+        batch_verify_new_sentence_tokens(
+            self._wordbank_use_case.runtime,
+            new_token_metadata=payload_metadata,
+            sentence_context=sentence_context,
         )
 
     def list_sentences(self) -> SentenceListResponse:
@@ -174,12 +223,12 @@ class SentencebankUseCase:
             wordbank_use_case=self._wordbank_use_case,
         )
         self._repository.replace_sentence_token(sentence_id=sentence.id, token=saved_token)
-        if new_token_metadata and self._wordbank_use_case is not None:
-            batch_verify_new_sentence_tokens(
-                self._wordbank_use_case.runtime,
-                new_token_metadata=new_token_metadata,
-                sentence_context=sentence.source_text,
-            )
+        self._queue_new_token_verification(
+            sentence_id=sentence.id,
+            scope=f"token::{token_index}",
+            new_token_metadata=new_token_metadata,
+            sentence_context=sentence.source_text,
+        )
         updated = self._repository.get_sentence(sentence.id)
         if updated is None:
             raise RuntimeError("Sentence token was saved but the sentence could not be reloaded.")
@@ -252,3 +301,27 @@ class SentencebankUseCase:
 
     def get_pronunciation_audio(self, sentence_id: int) -> PronunciationAudio:
         return self._pronunciation.get_pronunciation_audio(sentence_id)
+
+
+def _verification_metadata_payload(
+    metadata_items: list[dict[str, object]],
+) -> list[dict[str, object]]:
+    payload: list[dict[str, object]] = []
+    for item in metadata_items:
+        stored_lemma = item.get("stored_lemma")
+        if not isinstance(stored_lemma, str) or not stored_lemma.strip():
+            continue
+        stored_surface_form = item.get("stored_surface_form")
+        meaning_id = item.get("meaning_id")
+        payload.append(
+            {
+                "stored_lemma": stored_lemma,
+                "stored_surface_form": (
+                    stored_surface_form
+                    if isinstance(stored_surface_form, str) and stored_surface_form.strip()
+                    else None
+                ),
+                "meaning_id": meaning_id if isinstance(meaning_id, int) else None,
+            }
+        )
+    return payload
