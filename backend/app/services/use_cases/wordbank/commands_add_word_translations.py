@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import re
+from dataclasses import dataclass
 from typing import Literal
 
 from app.services.cor_local import CORLocalEntry
@@ -94,10 +94,10 @@ def _batch_lookup_contextual_translations(
         return {}
 
     payloads_by_key: dict[
-        tuple[str, str, str | None, str | None, str | None, str | None, str | None],
+        tuple[str, str, str | None, str | None, str | None, str | None, str | None, str | None],
         ContextualWordTranslationInput,
     ] = {}
-    target_key_by_id: dict[str, tuple[str, str, str | None, str | None, str | None, str | None, str | None]] = {}
+    target_key_by_id: dict[str, tuple[str, str, str | None, str | None, str | None, str | None, str | None, str | None]] = {}
     for target in targets:
         payload = _build_contextual_payload(runtime, target)
         cache_key = runtime.translation.contextual_translation_cache_key(payload)

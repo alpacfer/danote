@@ -21,6 +21,10 @@ if TYPE_CHECKING:
     from app.services.use_cases.wordbank import WordbankUseCase
 
 from app.services.gemini_translation import NonCORWordGenerationResult
+from app.services.use_cases.sentencebank_contextual_translations import (
+    apply_contextual_translation_to_saved_word,
+    contextual_static_pronoun_translation,
+)
 from app.services.use_cases.wordbank.non_cor_generation import build_non_cor_search_seed
 
 
@@ -82,9 +86,21 @@ def existing_saved_token(
     normalized_surface: str,
     lemma_candidate: str,
     token_index: int,
+    pos_tag: str | None = None,
+    morphology: str | None = None,
+    sentence_context: str | None = None,
 ) -> SentenceTokenWriteRecord | None:
     saved_variation = runtime.repository.find_saved_variation_translation_target(normalized_surface)
     if saved_variation is not None:
+        apply_contextual_translation_to_saved_word(
+            runtime,
+            stored_lemma=saved_variation.lemma,
+            meaning_id=saved_variation.meaning_id,
+            normalized_surface=normalized_surface,
+            pos_tag=pos_tag,
+            morphology=morphology,
+            sentence_context=sentence_context,
+        )
         return sentence_token_from_saved_word(
             runtime,
             token_index=token_index,
@@ -96,6 +112,15 @@ def existing_saved_token(
     if normalized_surface == lemma_candidate:
         saved_lemma = runtime.repository.find_saved_lemma_translation_target(lemma_candidate)
         if saved_lemma is not None:
+            apply_contextual_translation_to_saved_word(
+                runtime,
+                stored_lemma=saved_lemma.lemma,
+                meaning_id=saved_lemma.meaning_id,
+                normalized_surface=normalized_surface,
+                pos_tag=pos_tag,
+                morphology=morphology,
+                sentence_context=sentence_context,
+            )
             return sentence_token_from_saved_word(
                 runtime,
                 token_index=token_index,
@@ -113,13 +138,24 @@ def save_static_pronoun_sentence_token(
     token_index: int,
     display_surface: str,
     normalized_surface: str,
+    pos_tag: str | None = None,
+    morphology: str | None = None,
+    sentence_context: str | None = None,
 ) -> tuple[SentenceTokenWriteRecord, bool] | None:
     pronoun = static_pronoun_for_token(normalized_surface)
     if pronoun is None:
         return None
+    english_translation = contextual_static_pronoun_translation(
+        runtime,
+        normalized_surface=normalized_surface,
+        pronoun_translation=pronoun.english_translation,
+        pos_tag=pos_tag or pronoun.pos_tag,
+        morphology=morphology or pronoun.morphology,
+        sentence_context=sentence_context,
+    )
     lexeme_id, _inserted_lexeme = runtime.repository.insert_or_load_lexeme(
         stored_lemma=pronoun.lemma,
-        translation=pronoun.english_translation,
+        translation=english_translation,
         provider="static_pronoun",
         pos_tag=pronoun.pos_tag,
         morphology=pronoun.morphology,
@@ -135,6 +171,12 @@ def save_static_pronoun_sentence_token(
     )
     runtime.nlp.add_user_lexeme(pronoun.lemma)
     runtime.nlp.invalidate_pos_cache(pronoun.lemma, normalized_surface)
+    if english_translation != pronoun.english_translation:
+        runtime.repository.replace_lexeme_translation(
+            lexeme_id=lexeme_id,
+            english_translation=english_translation,
+            provider="sentence_context",
+        )
     return (
         SentenceTokenWriteRecord(
             token_index=token_index,
@@ -148,7 +190,7 @@ def save_static_pronoun_sentence_token(
             pos_tag=pronoun.pos_tag,
             morphology=pronoun.morphology,
             gloss=None,
-            english_translation=pronoun.english_translation,
+            english_translation=english_translation,
             gloss_translation=None,
         ),
         False,

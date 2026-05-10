@@ -4,7 +4,6 @@ import httpx
 
 from app.services.gemini_translation import GeminiTranslationError
 from app.services.token_classifier import normalize_token
-from app.services.use_cases.wordbank.collaborators.translation_models import TranslationLookupResult
 from app.services.use_cases.wordbank.collaborators.translation_contextual import (
     build_contextual_input,
 )
@@ -20,6 +19,7 @@ from app.services.use_cases.wordbank.collaborators.translation_helpers import (
     normalize_translation_value,
     provider_name,
 )
+from app.services.use_cases.wordbank.collaborators.translation_models import TranslationLookupResult
 from app.services.use_cases.wordbank.collaborators.translation_word_frames import (
     cor_local_word_translation_frame,
 )
@@ -76,9 +76,10 @@ def lookup_contextual_word_translation(
     pos_tag: str | None = None,
     morphology: str | None = None,
     gloss: str | None = None,
+    sentence_context: str | None = None,
     lemma_translation_hint: str | None = None,
     gloss_translation_hint: str | None = None,
-    cache: dict[tuple[str, str, str | None, str | None, str, str | None, str | None], str | None] | None = None,
+    cache: dict[tuple[str, str, str | None, str | None, str | None, str | None, str | None, str | None], str | None] | None = None,
 ) -> TranslationLookupResult:
     normalized_surface = normalize_token(surface_form)
     normalized_lemma = normalize_token(lemma)
@@ -92,6 +93,7 @@ def lookup_contextual_word_translation(
         pos_tag=pos_tag,
         morphology=morphology,
         gloss=normalized_gloss,
+        sentence_context=sentence_context,
         lemma_translation_hint=lemma_translation_hint,
         gloss_translation_hint=gloss_translation_hint,
         best_cor_local_entry_with_gloss=lambda **kwargs: best_cor_local_entry_with_gloss(
@@ -109,6 +111,7 @@ def lookup_contextual_word_translation(
         context_entry.pos_tag,
         context_entry.morphology,
         context_entry.gloss,
+        context_entry.sentence_context,
         context_entry.lemma_translation_hint,
         context_entry.gloss_translation_hint,
     )
@@ -144,7 +147,7 @@ def batch_lookup_contextual_word_translations(
     collaborator,
     payloads,
     *,
-    cache: dict[tuple[str, str, str | None, str | None, str | None, str | None, str | None], str | None]
+    cache: dict[tuple[str, str, str | None, str | None, str | None, str | None, str | None, str | None], str | None]
     | None = None,
 ) -> list[TranslationLookupResult]:
     if not payloads:
@@ -185,7 +188,7 @@ def lookup_contextual_word_translation_from_payload(
     collaborator,
     payload,
     *,
-    cache: dict[tuple[str, str, str | None, str | None, str | None, str | None, str | None], str | None]
+    cache: dict[tuple[str, str, str | None, str | None, str | None, str | None, str | None, str | None], str | None]
     | None = None,
 ) -> TranslationLookupResult:
     if collaborator._gemini_word_translation_service is None:

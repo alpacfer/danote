@@ -40,8 +40,6 @@ def select_sentence_candidate(
     morphology: str | None,
     sentence_context: str,
 ) -> SentenceCandidateResolution:
-    del morphology
-    del sentence_context
     entries = candidate_entries_for_sentence_token(
         runtime,
         surface_form=surface_form,
@@ -50,7 +48,13 @@ def select_sentence_candidate(
     )
     if not entries:
         return SentenceCandidateResolution(candidate=None, is_ambiguous=False, candidates=())
-    candidates = group_sentence_candidates(runtime, entries=entries)
+    candidates = group_sentence_candidates(
+        runtime,
+        entries=entries,
+        surface_form=surface_form,
+        sentence_context=sentence_context,
+        morphology=morphology,
+    )
     if not candidates:
         return SentenceCandidateResolution(candidate=None, is_ambiguous=False, candidates=())
     if len(candidates) == 1:
@@ -102,6 +106,9 @@ def group_sentence_candidates(
     runtime: WordbankRuntime,
     *,
     entries: list[CORLocalEntry],
+    surface_form: str,
+    sentence_context: str,
+    morphology: str | None,
 ) -> list[SentenceMeaningCandidate]:
     grouped: dict[tuple[str, int | None, str | None, str | None], CORLocalEntry] = {}
     for entry in entries:
@@ -114,7 +121,13 @@ def group_sentence_candidates(
         grouped.setdefault(key, entry)
     candidates: list[SentenceMeaningCandidate] = []
     for index, entry in enumerate(grouped.values(), start=1):
-        english_translation = lookup_translation_for_cor_local_entry(runtime.translation, entry)
+        english_translation = contextual_translation_for_sentence_candidate(
+            runtime,
+            surface_form=surface_form,
+            sentence_context=sentence_context,
+            morphology=morphology,
+            entry=entry,
+        )
         gloss_translation = runtime.cor.lookup_translation_for_cor_gloss(
             entry=entry,
             lemma_translation=english_translation,
@@ -135,3 +148,27 @@ def group_sentence_candidates(
             )
         )
     return candidates
+
+
+def contextual_translation_for_sentence_candidate(
+    runtime: WordbankRuntime,
+    *,
+    surface_form: str,
+    sentence_context: str,
+    morphology: str | None,
+    entry: CORLocalEntry,
+) -> str | None:
+    normalized_gloss = normalize_token(entry.gloss or "") or None
+    if (entry.pos_tag or "").upper() == "VERB" and normalized_gloss is None:
+        return lookup_translation_for_cor_local_entry(runtime.translation, entry)
+    contextual = runtime.translation.lookup_contextual_word_translation(
+        surface_form=surface_form,
+        lemma=entry.lemma,
+        pos_tag=entry.pos_tag,
+        morphology=morphology or entry.morphology,
+        gloss=normalized_gloss,
+        sentence_context=sentence_context,
+    )
+    if contextual.translation:
+        return contextual.translation
+    return lookup_translation_for_cor_local_entry(runtime.translation, entry)

@@ -15,6 +15,7 @@ class ContextualWordTranslationInput:
     pos_tag: str | None = None
     morphology: str | None = None
     gloss: str | None = None
+    sentence_context: str | None = None
     lemma_translation_hint: str | None = None
     gloss_translation_hint: str | None = None
 

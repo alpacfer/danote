@@ -7,23 +7,23 @@ from dataclasses import dataclass
 from app.services.cor_local import CORLocalEntry
 from app.services.gemini_translation import ContextualWordTranslationInput
 from app.services.token_classifier import normalize_token
-from app.services.use_cases.wordbank.collaborators.translation_word_frames import (
-    WordTranslationFrame,
-    cor_local_word_translation_frame,
-)
 from app.services.use_cases.wordbank.collaborators.translation import TranslationCollaborator
 from app.services.use_cases.wordbank.collaborators.translation_search_fallbacks import (
-    SearchTranslationDecision,
     SearchTranslationCandidate,
+    SearchTranslationDecision,
     build_search_translation_decision,
     evaluate_search_translation_candidate,
     invalid_search_translation,
     should_allow_identical_glossless_verb_translation,
 )
+from app.services.use_cases.wordbank.collaborators.translation_word_frames import (
+    WordTranslationFrame,
+    cor_local_word_translation_frame,
+)
 
 logger = logging.getLogger(__name__)
 
-ContextualCacheKey = tuple[str, str, str | None, str | None, str | None, str | None, str | None]
+ContextualCacheKey = tuple[str, str, str | None, str | None, str | None, str | None, str | None, str | None]
 WordFrameCacheKey = WordTranslationFrame
 AzureFrameCacheKey = WordFrameCacheKey
 
@@ -59,6 +59,7 @@ def lookup_translation_for_cor_gloss(
         entry.pos_tag,
         entry.morphology,
         normalized_gloss,
+        None,
         lemma_translation,
         None,
     )

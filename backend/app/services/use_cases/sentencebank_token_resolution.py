@@ -341,6 +341,9 @@ def resolve_sentence_token(
             normalized_surface=normalized_surface,
             lemma_candidate=lemma_candidate,
             token_index=token_index,
+            pos_tag=pos_tag,
+            morphology=morphology,
+            sentence_context=sentence_context,
         )
         if existing is not None:
             return existing, False
@@ -360,6 +363,9 @@ def resolve_sentence_token(
             token_index=token_index,
             display_surface=display_surface,
             normalized_surface=normalized_surface,
+            pos_tag=pos_tag,
+            morphology=morphology,
+            sentence_context=sentence_context,
         )
         if static_pronoun is not None:
             return static_pronoun

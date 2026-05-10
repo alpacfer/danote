@@ -237,9 +237,10 @@ class TranslationCollaborator:
         pos_tag: str | None = None,
         morphology: str | None = None,
         gloss: str | None = None,
+        sentence_context: str | None = None,
         lemma_translation_hint: str | None = None,
         gloss_translation_hint: str | None = None,
-        cache: dict[tuple[str, str, str | None, str | None, str, str | None, str | None], str | None] | None = None,
+        cache: dict[tuple[str, str, str | None, str | None, str | None, str | None, str | None, str | None], str | None] | None = None,
     ) -> TranslationLookupResult:
         return translation_lookup_ops.lookup_contextual_word_translation(
             self,
@@ -248,6 +249,7 @@ class TranslationCollaborator:
             pos_tag=pos_tag,
             morphology=morphology,
             gloss=gloss,
+            sentence_context=sentence_context,
             lemma_translation_hint=lemma_translation_hint,
             gloss_translation_hint=gloss_translation_hint,
             cache=cache,
@@ -292,13 +294,14 @@ class TranslationCollaborator:
     def contextual_translation_cache_key(
         self,
         payload: ContextualWordTranslationInput,
-    ) -> tuple[str, str, str | None, str | None, str | None, str | None, str | None]:
+    ) -> tuple[str, str, str | None, str | None, str | None, str | None, str | None, str | None]:
         return (
             payload.surface_form,
             payload.lemma,
             payload.pos_tag,
             payload.morphology,
             payload.gloss,
+            payload.sentence_context,
             payload.lemma_translation_hint,
             payload.gloss_translation_hint,
         )
@@ -307,7 +310,7 @@ class TranslationCollaborator:
         self,
         payloads: list[ContextualWordTranslationInput],
         *,
-        cache: dict[tuple[str, str, str | None, str | None, str | None, str | None, str | None], str | None]
+        cache: dict[tuple[str, str, str | None, str | None, str | None, str | None, str | None, str | None], str | None]
         | None = None,
     ) -> list[TranslationLookupResult]:
         return translation_lookup_ops.batch_lookup_contextual_word_translations(
@@ -320,7 +323,7 @@ class TranslationCollaborator:
         self,
         payload: ContextualWordTranslationInput,
         *,
-        cache: dict[tuple[str, str, str | None, str | None, str | None, str | None, str | None], str | None]
+        cache: dict[tuple[str, str, str | None, str | None, str | None, str | None, str | None, str | None], str | None]
         | None = None,
     ) -> TranslationLookupResult:
         return translation_lookup_ops.lookup_contextual_word_translation_from_payload(

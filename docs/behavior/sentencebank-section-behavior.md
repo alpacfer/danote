@@ -81,6 +81,13 @@ Each token card renders:
 
 While full NLP is retired, sentence saves still use a lightweight word tokenizer so the sentence page keeps one card per saved word. Existing saved words are linked when possible; otherwise the fallback creates root-level wordbank entries without POS/morphology metadata.
 
+Sentence-save word cards use the full sentence as translation context when they
+persist or relink wordbank entries. COR-backed tokens keep the chosen meaning
+section but may store a context-fit English lemma translation for that section
+(for example `sted` as "place" in a sentence where the sentence translation uses
+"place"). Existential `der` in `der er` / `der var` / `der findes` contexts is
+saved as "there" instead of the relative-pronoun fallback.
+
 New wordbank entries created during a sentence save are available to the
 sentence response immediately, but Gemini word verification for those entries
 runs through the shared background job queue. The queued job preserves the

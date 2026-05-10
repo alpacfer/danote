@@ -419,6 +419,84 @@ def test_sentencebank_homograph_token_uses_gemini_sentence_selection(tmp_path: P
     assert inserted.tokens[0].gloss == "person"
 
 
+def test_sentencebank_token_translation_uses_sentence_context_for_selected_meaning(
+    tmp_path: Path,
+) -> None:
+    db_path = _db_path(tmp_path)
+    sentence = "Militæret er et svært sted at være i"
+    nlp_adapter = MappingNLPAdapter(
+        {
+            sentence: [
+                NLPToken(text="sted", lemma="sted", pos="NOUN", morphology="Gender=Neut|Number=Sing", is_punctuation=False),
+            ],
+        }
+    )
+    place_entry = _cor_local_entry(
+        cor_id="COR.STED.01",
+        lemma="sted",
+        gloss="somewhere",
+        form="sted",
+        lemma_idx=62001,
+        pos_tag="NOUN",
+        morphology="Gender=Neut|Number=Sing|Definite=Ind",
+        gram_raw="sb.itk.sg.ubest",
+    )
+    gemini_translation = FakeGeminiWordTranslationService(
+        {("sted", "sted", "somewhere"): "place"}
+    )
+    wordbank_use_case = WordbankUseCase(
+        db_path,
+        gemini_word_translation_service=gemini_translation,
+        cor_local_lexicon_service=FakeCORLocalLexiconService(
+            by_form={"sted": [place_entry]},
+            by_lemma_idx={62001: [place_entry]},
+        ),
+        nlp_adapter=nlp_adapter,
+    )
+    sentencebank_use_case = SentencebankUseCase(
+        db_path,
+        nlp_adapter=nlp_adapter,
+        wordbank_use_case=wordbank_use_case,
+    )
+
+    inserted = sentencebank_use_case.add_sentence(sentence)
+    details = wordbank_use_case.get_lemma_details("sted")
+
+    assert inserted.tokens[0].english_translation == "place"
+    assert details.meaning_sections[0].english_translation == "place"
+    assert gemini_translation.calls == [("sted", "sted", "somewhere")]
+
+
+def test_sentencebank_static_der_uses_existential_sentence_context(tmp_path: Path) -> None:
+    db_path = _db_path(tmp_path)
+    sentence = "Der er noget skørt derovre"
+    nlp_adapter = MappingNLPAdapter(
+        {
+            sentence: [
+                NLPToken(text="Der", lemma="der", pos="PRON", morphology=None, is_punctuation=False),
+                NLPToken(text="noget", lemma="noget", pos="PRON", morphology=None, is_punctuation=False),
+            ],
+        }
+    )
+    wordbank_use_case = WordbankUseCase(
+        db_path,
+        nlp_adapter=nlp_adapter,
+    )
+    sentencebank_use_case = SentencebankUseCase(
+        db_path,
+        nlp_adapter=nlp_adapter,
+        wordbank_use_case=wordbank_use_case,
+    )
+
+    inserted = sentencebank_use_case.add_sentence(sentence)
+    details = wordbank_use_case.get_lemma_details("der")
+
+    der_token = inserted.tokens[0]
+    assert der_token.stored_lemma == "der"
+    assert der_token.english_translation == "there"
+    assert details.english_translation == "there"
+
+
 def test_sentencebank_save_keeps_glossless_have_translation_when_provider_returns_valid_english_verb(
     tmp_path: Path,
 ) -> None:

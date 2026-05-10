@@ -50,6 +50,8 @@ def build_translation_prompt(payload: ContextualWordTranslationInput) -> str:
         "pos_tag": payload.pos_tag,
         "morphology": payload.morphology,
         "gloss": payload.gloss,
+        "sentence_context_da": payload.sentence_context,
+        "sentence_context_target_marked_da": _mark_surface_in_sentence(payload.sentence_context, payload.surface_form),
         "lemma_translation_hint": payload.lemma_translation_hint,
         "gloss_translation_hint": payload.gloss_translation_hint,
     }
@@ -83,6 +85,7 @@ def build_translation_prompt(payload: ContextualWordTranslationInput) -> str:
         + "Rules:\n"
         + "- Output only the English translation.\n"
         + "- Translate lemma_da, not surface_form_da.\n"
+        + "- If sentence_context_da is present, choose the English lemma or short phrase for this exact occurrence in that sentence.\n"
         + "- Return a lemma-level translation; avoid adding articles/function words unless part of the lemma meaning.\n"
         + "- Treat pos_tag and morphology as hard constraints for sense disambiguation.\n"
         + "- If multiple senses are possible, choose the most common modern English meaning for the given Danish lemma/POS/morphology.\n"
@@ -115,6 +118,7 @@ def build_batch_translation_prompt(items: list[BatchContextualWordTranslationReq
         "- Copy each id exactly.\n"
         "- Output only the English translation.\n"
         "- Translate lemma, not surface_form.\n"
+        "- If sentence_context_da is present, choose the English lemma or short phrase for this exact occurrence in that sentence.\n"
         "- Return lemma-level translations; avoid adding articles/function words unless part of the lemma meaning.\n"
         "- Treat pos_tag and morphology as hard constraints for sense disambiguation.\n"
         "- If multiple senses are possible, choose the most common modern English meaning for the given Danish lemma/POS/morphology.\n"
