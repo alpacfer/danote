@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useMemo, useState } from "react"
 
 import { ThemeToggleButton } from "@/app/chrome/theme-toggle-button"
 import { SidebarNavigation } from "@/app/chrome/sidebar/sidebar-navigation"
@@ -21,6 +21,7 @@ import {
   type CORSearchVariant,
   type SearchSaveSeed,
   type SearchFeedbackContext,
+  type SentencebankSentence,
   type WordbankLemma,
   type WordbankSearchItem,
 } from "@/app/core"
@@ -35,6 +36,7 @@ import {
 export type AppSidebarProps = {
   activeSection: AppSection
   lemmas: WordbankLemma[]
+  sentences: SentencebankSentence[]
   wordbankCacheVersion: number
   searchTranslationConfigVersion: number
   unreadWordbankNotificationCount: number
@@ -44,6 +46,7 @@ export type AppSidebarProps = {
   onOpenWordbankLemma: (lemma: string) => void
   onOpenWordbankLemmaRaw: (lemma: string) => void
   onOpenWordbankMeaning: (lemma: string, meaningId: number) => void
+  onOpenSentence: (id: number) => void
   onAddSentenceToSentencebank: (sourceText: string, englishTranslation?: string | null) => Promise<void>
   onAddWordFromSearch: (
     surfaceToken: string,
@@ -61,6 +64,7 @@ export type AppSidebarProps = {
 export function AppSidebar({
   activeSection,
   lemmas,
+  sentences,
   wordbankCacheVersion,
   searchTranslationConfigVersion,
   unreadWordbankNotificationCount,
@@ -70,6 +74,7 @@ export function AppSidebar({
   onOpenWordbankLemma,
   onOpenWordbankLemmaRaw,
   onOpenWordbankMeaning,
+  onOpenSentence,
   onAddSentenceToSentencebank,
   onAddWordFromSearch,
 }: AppSidebarProps) {
@@ -97,6 +102,18 @@ export function AppSidebar({
     searchTranslationConfigVersion,
   })
   const searchLemmas = useSidebarLemmas(lemmas, isSearchOpen)
+
+  const matchedSavedSentences = useMemo(() => {
+    const q = normalizedQuery.toLowerCase().trim()
+    if (q.length < 2) return []
+    return sentences
+      .filter(
+        (s) =>
+          s.source_text.toLowerCase().includes(q) ||
+          (s.english_translation ?? "").toLowerCase().includes(q),
+      )
+      .slice(0, 6)
+  }, [sentences, normalizedQuery])
 
   useSidebarHotkeys({
     onToggleSearch: () => setIsSearchOpen((current) => !current),
@@ -134,9 +151,10 @@ export function AppSidebar({
   const hasTranslatedEnResults = activeEnTranslatedCorResults.corSearchVariantsToRender.length > 0
   const hasFallbackEnResults = activeEnTranslatedCorResults.fallbackEnPosGroups.length > 0
   const hasEnResults = hasTranslatedEnResults || hasFallbackEnResults
+  const hasMatchedSentences = matchedSavedSentences.length > 0
   const hasAnyResults = isSentenceMode
-    ? Boolean(sentenceSearchPreview)
-    : (hasWordbankSectionResults || hasEnResults || hasPageResults || isEnResolveLoading || isEnTranslatedCorLoading)
+    ? (Boolean(sentenceSearchPreview) || hasMatchedSentences)
+    : (hasWordbankSectionResults || hasEnResults || hasPageResults || hasMatchedSentences || isEnResolveLoading || isEnTranslatedCorLoading)
 
   const { commandSelectionValue } = useSidebarCommandSelection({
     activeEnTranslatedCorResults,
@@ -180,6 +198,7 @@ export function AppSidebar({
   const searchResultData: SidebarSearchResultsData = {
     sentenceSearchPreview,
     isSentenceSearchPreviewLoading,
+    matchedSavedSentences,
     orderedWordbankResults,
     displayVariantBySavedResult,
     addVariationBySavedResult,
@@ -208,6 +227,7 @@ export function AppSidebar({
     onOpenWordbankLemma,
     onOpenWordbankLemmaRaw,
     onOpenWordbankMeaning,
+    onOpenSentence,
     onAddWordFromSearch,
     onCloseSearch: closeSearch,
   }
@@ -216,13 +236,7 @@ export function AppSidebar({
     <Sidebar variant="inset" collapsible="icon">
       <SidebarHeader>
         <div className="flex h-8 items-center gap-2 group-data-[collapsible=icon]:contents">
-          <button
-            type="button"
-            onClick={onSelectWordbank}
-            className="truncate text-base font-semibold group-data-[collapsible=icon]:sr-only hover:opacity-70 transition-opacity cursor-pointer"
-          >
-            danote
-          </button>
+          <span className="truncate text-base font-semibold group-data-[collapsible=icon]:sr-only">danote</span>
           <SidebarTrigger className="ml-auto size-8 cursor-ew-resize group-data-[collapsible=icon]:ml-0" />
         </div>
       </SidebarHeader>

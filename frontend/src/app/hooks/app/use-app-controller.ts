@@ -167,6 +167,7 @@ export function useAppController() {
     openWordbankLemmaRaw: navigation.openWordbankLemmaRaw,
     openWordbankMeaning: navigation.openWordbankMeaning,
     openWordbankRoot: navigation.openWordbankRoot,
+    sentences: lexiconData.sentences,
     openSentence: navigation.openSentence,
     addSentenceToSentencebank: wordbank.addSentenceToSentencebank,
     addWordFromSearch: wordbank.addWordFromSearch,

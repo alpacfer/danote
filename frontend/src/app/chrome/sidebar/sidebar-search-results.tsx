@@ -10,10 +10,12 @@ import {
 import { Kbd, KbdGroup } from "@/components/ui/kbd"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
+  formatSentenceTranslation,
   normalizeSearchWord,
   type CORSearchGroup,
   type CORSearchVariant,
   type ENPosGroup,
+  type SentencebankSentence,
   type SentenceSearchPreviewResponse,
   type SearchSaveSeed,
   type SearchFeedbackContext,
@@ -47,6 +49,7 @@ export type SidebarSearchResultsState = {
 export type SidebarSearchResultsData = {
   sentenceSearchPreview: SentenceSearchPreviewResponse | null
   isSentenceSearchPreviewLoading: boolean
+  matchedSavedSentences: SentencebankSentence[]
   orderedWordbankResults: WordbankSearchItem[]
   displayVariantBySavedResult: Map<string, { group: CORSearchGroup; variant: CORSearchVariant }>
   addVariationBySavedResult: Map<string, { group: CORSearchGroup; variant: CORSearchVariant }>
@@ -73,6 +76,7 @@ export type SidebarSearchResultsActions = {
   onOpenWordbankLemma: (lemma: string) => void
   onOpenWordbankLemmaRaw: (lemma: string) => void
   onOpenWordbankMeaning: (lemma: string, meaningId: number) => void
+  onOpenSentence: (id: number) => void
   onAddWordFromSearch: (
     surfaceToken: string,
     lemmaCandidate: string | null,
@@ -118,6 +122,15 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
           isSentenceSearchPreviewLoading={data.isSentenceSearchPreviewLoading || !data.sentenceSearchPreview}
           onSaveSentence={actions.onAddSentenceFromSearch}
         />
+        {data.matchedSavedSentences.length > 0 ? (
+          <>
+            <CommandSeparator />
+            <SavedSentencesGroup
+              sentences={data.matchedSavedSentences}
+              onOpen={(id) => { actions.onOpenSentence(id); actions.onCloseSearch() }}
+            />
+          </>
+        ) : null}
       </CommandList>
     )
   }
@@ -316,6 +329,44 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
           })}
         </CommandGroup>
       ) : null}
+
+      {data.matchedSavedSentences.length > 0 ? (
+        <>
+          {(hasWordbankSection || hasEnResults || isAnyEnLoading || state.hasPageResults) ? <CommandSeparator /> : null}
+          <SavedSentencesGroup
+            sentences={data.matchedSavedSentences}
+            onOpen={(id) => { actions.onOpenSentence(id); actions.onCloseSearch() }}
+          />
+        </>
+      ) : null}
     </CommandList>
+  )
+}
+
+type SavedSentencesGroupProps = {
+  sentences: SentencebankSentence[]
+  onOpen: (id: number) => void
+}
+
+function SavedSentencesGroup({ sentences, onOpen }: SavedSentencesGroupProps) {
+  return (
+    <CommandGroup heading="Saved Sentences">
+      {sentences.map((sentence) => {
+        const translation = formatSentenceTranslation(sentence.english_translation)
+        return (
+          <CommandItem
+            key={sentence.id}
+            value={`saved-sentence-${sentence.id}`}
+            onSelect={() => onOpen(sentence.id)}
+            className="flex flex-col items-start gap-0.5"
+          >
+            <span className="text-sm font-medium leading-snug">{sentence.source_text}</span>
+            {translation ? (
+              <span className="text-muted-foreground text-xs leading-4">{translation}</span>
+            ) : null}
+          </CommandItem>
+        )
+      })}
+    </CommandGroup>
   )
 }

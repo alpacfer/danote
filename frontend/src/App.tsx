@@ -9,6 +9,7 @@ function App() {
     activeSection,
     status,
     lemmas,
+    sentences,
     wordbankRefreshTick,
     searchTranslationConfigVersion,
     unreadWordbankNotificationCount,
@@ -18,6 +19,7 @@ function App() {
     openWordbankLemma,
     openWordbankLemmaRaw,
     openWordbankMeaning,
+    openSentence,
     addSentenceToSentencebank,
     addWordFromSearch,
     sectionProps,
@@ -34,6 +36,7 @@ function App() {
       <AppSidebar
         activeSection={activeSection}
         lemmas={lemmas}
+        sentences={sentences}
         wordbankCacheVersion={wordbankRefreshTick}
         searchTranslationConfigVersion={searchTranslationConfigVersion}
         unreadWordbankNotificationCount={unreadWordbankNotificationCount}
@@ -43,6 +46,7 @@ function App() {
         onOpenWordbankLemma={openWordbankLemma}
         onOpenWordbankLemmaRaw={openWordbankLemmaRaw}
         onOpenWordbankMeaning={openWordbankMeaning}
+        onOpenSentence={openSentence}
         onAddSentenceToSentencebank={addSentenceToSentencebank}
         onAddWordFromSearch={addWordFromSearch}
       />
