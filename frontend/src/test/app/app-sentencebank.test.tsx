@@ -152,10 +152,18 @@ describe("App sentencebank", () => {
     expect(screen.getByText(/^love$/i)).toBeInTheDocument()
   })
 
-  it("clicking a pronoun token opens the shared pronouns page", async () => {
+  it("clicking a pronoun token opens its normal word page", async () => {
     const fetchSpy = mockFetchImplementation({
       lemmasResponse: {
         items: [{ lemma: "du", variation_count: 1 }],
+      },
+      lemmaDetailsResponse: {
+        lemma: "du",
+        english_translation: "you",
+        pos_tag: "PRON",
+        morphology: "PronType=Prs|Case=Nom|Person=2|Number=Sing",
+        is_sectioned: false,
+        surface_forms: [{ form: "du", has_pronunciation: false }],
       },
       sentencebankResponse: {
         items: [
@@ -189,16 +197,25 @@ describe("App sentencebank", () => {
     fireEvent.click(await screen.findByRole("button", { name: /du elsker dansk/i }))
     fireEvent.click((await screen.findByText(/^du$/i)).closest("button") as HTMLButtonElement)
 
-    expect(await screen.findByRole("heading", { name: /^pronouns$/i })).toBeInTheDocument()
-    expect(screen.getByRole("tab", { name: /personal/i })).toHaveAttribute("data-state", "active")
-    expect(screen.getAllByText(/^du$/i).length).toBeGreaterThan(0)
+    expect(await screen.findByRole("heading", { name: /^du$/i })).toBeInTheDocument()
+    expect(screen.getByText(/^you$/i)).toBeInTheDocument()
+    expect(screen.queryByRole("heading", { name: /^pronouns$/i })).not.toBeInTheDocument()
     expect(fetchSpy.mock.calls.some(([input]) => String(input).includes("__pronouns_personal"))).toBe(false)
+    expect(fetchSpy.mock.calls.some(([input]) => String(input).includes("/api/wordbank/lemmas/du"))).toBe(true)
   })
 
-  it("clicking an hv token opens the shared pronouns page on question words", async () => {
+  it("clicking an hv token opens its normal word page", async () => {
     const fetchSpy = mockFetchImplementation({
       lemmasResponse: {
         items: [{ lemma: "hvor", variation_count: 1 }],
+      },
+      lemmaDetailsResponse: {
+        lemma: "hvor",
+        english_translation: "where",
+        pos_tag: "ADV",
+        morphology: "PronType=Int",
+        is_sectioned: false,
+        surface_forms: [{ form: "hvor", has_pronunciation: false }],
       },
       sentencebankResponse: {
         items: [
@@ -232,11 +249,12 @@ describe("App sentencebank", () => {
     fireEvent.click(await screen.findByRole("button", { name: /hvor bor du/i }))
     fireEvent.click((await screen.findByText(/^hvor$/i)).closest("button") as HTMLButtonElement)
 
-    expect(await screen.findByRole("heading", { name: /^pronouns$/i })).toBeInTheDocument()
-    expect(screen.getByRole("tab", { name: /question words/i })).toHaveAttribute("data-state", "active")
-    expect(screen.getAllByText(/^hvor$/i).length).toBeGreaterThan(0)
+    expect(await screen.findByRole("heading", { name: /^hvor$/i })).toBeInTheDocument()
+    expect(screen.getByText(/^where$/i)).toBeInTheDocument()
+    expect(screen.queryByRole("heading", { name: /^pronouns$/i })).not.toBeInTheDocument()
     expect(screen.queryByRole("button", { name: /see examples/i })).not.toBeInTheDocument()
     expect(fetchSpy.mock.calls.some(([input]) => String(input).includes("__question_words"))).toBe(false)
+    expect(fetchSpy.mock.calls.some(([input]) => String(input).includes("/api/wordbank/lemmas/hvor"))).toBe(true)
   })
 
   it("clicking an unsaved sentence token saves it through the sentence-token flow", async () => {

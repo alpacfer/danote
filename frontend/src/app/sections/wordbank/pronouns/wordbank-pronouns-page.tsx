@@ -76,14 +76,14 @@ function PinnedTab({
 }
 
 function personalEntries(): PinnedWordEntry[] {
-  return PERSONAL_PRONOUN_ROWS.flatMap((row) => {
+  return dedupePinnedEntries(PERSONAL_PRONOUN_ROWS.flatMap((row) => {
     const entries: PinnedWordEntry[] = []
     if (row.nominative) {
       entries.push(toPronounEntry(row.nominative))
     }
     entries.push(toPronounEntry(row.accusative))
     return entries
-  })
+  }))
 }
 
 function possessiveEntries(): PinnedWordEntry[] {
@@ -130,4 +130,14 @@ function toPronounEntry(lemma: string): PinnedWordEntry {
     lemma,
     translation: pronounTranslation(lemma) ?? "",
   }
+}
+
+function dedupePinnedEntries(entries: PinnedWordEntry[]): PinnedWordEntry[] {
+  const seen = new Set<string>()
+  return entries.filter((entry) => {
+    const key = entry.lemma.trim().toLocaleLowerCase("da-DK")
+    if (!key || seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
 }

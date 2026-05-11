@@ -4,6 +4,10 @@ from typing import TYPE_CHECKING
 
 from app.db.repositories.sentencebank import SentenceTokenWriteRecord
 from app.services.token_classifier import normalize_token
+from app.services.use_cases.static_builtin_words import (
+    ensure_static_builtin_sense,
+    select_static_builtin_sense,
+)
 from app.services.use_cases.static_hv_words import static_hv_word_for_token
 from app.services.use_cases.static_pronouns import static_pronoun_for_token
 from app.services.use_cases.wordbank.gloss_translations import meaning_gloss_translation
@@ -24,6 +28,7 @@ from app.services.gemini_translation import NonCORWordGenerationResult
 from app.services.use_cases.sentencebank_contextual_translations import (
     apply_contextual_translation_to_saved_word,
     contextual_static_pronoun_translation,
+    is_existential_der_context,
 )
 from app.services.use_cases.wordbank.non_cor_generation import build_non_cor_search_seed
 
@@ -191,6 +196,48 @@ def save_static_pronoun_sentence_token(
             morphology=pronoun.morphology,
             gloss=None,
             english_translation=english_translation,
+            gloss_translation=None,
+        ),
+        False,
+    )
+
+
+def save_static_builtin_sentence_token(
+    runtime: WordbankRuntime,
+    *,
+    token_index: int,
+    display_surface: str,
+    normalized_surface: str,
+    pos_tag: str | None = None,
+    morphology: str | None = None,
+    sentence_context: str | None = None,
+) -> tuple[SentenceTokenWriteRecord, bool] | None:
+    english_translation = "there" if normalized_surface == "der" and is_existential_der_context(sentence_context) else None
+    sense = select_static_builtin_sense(
+        normalized_surface,
+        pos_tag=pos_tag,
+        morphology=morphology,
+        english_translation=english_translation,
+    )
+    if sense is None:
+        return None
+    lexeme_id, meaning_id = ensure_static_builtin_sense(runtime, sense)
+    runtime.nlp.add_user_lexeme(sense.lemma)
+    runtime.nlp.invalidate_pos_cache(sense.lemma, normalized_surface)
+    return (
+        SentenceTokenWriteRecord(
+            token_index=token_index,
+            surface_form=display_surface,
+            normalized_surface=normalized_surface,
+            lemma_candidate=sense.lemma,
+            stored_lemma=sense.lemma,
+            lexeme_id=lexeme_id,
+            meaning_id=meaning_id,
+            cor_id=None,
+            pos_tag=sense.pos_tag,
+            morphology=sense.morphology,
+            gloss=None,
+            english_translation=sense.english_translation,
             gloss_translation=None,
         ),
         False,

@@ -13,12 +13,14 @@ from app.services.use_cases.sentencebank_candidates import (
     SentenceMeaningCandidate,
     select_sentence_candidate,
 )
+from app.services.use_cases.sentencebank_contextual_translations import is_existential_der_context
 from app.services.use_cases.sentencebank_text import should_skip_sentence_wordbank_token
 from app.services.use_cases.sentencebank_token_persistence import (
     existing_saved_token,
     persist_candidate_to_wordbank,
     persist_generated_to_wordbank,
     save_root_level_sentence_token,
+    save_static_builtin_sentence_token,
     save_static_hv_word_sentence_token,
     save_static_pronoun_sentence_token,
     sentence_token_from_saved_word,
@@ -334,6 +336,24 @@ def resolve_sentence_token(
     sentence_context: str,
     prefer_existing: bool = True,
 ) -> tuple[SentenceTokenWriteRecord, bool] | PendingSentenceTokenSelection | PendingGeneratedSentenceToken | None:
+    should_prefer_static_builtin = _should_prefer_static_builtin(
+        normalized_surface=normalized_surface,
+        pos_tag=pos_tag,
+        sentence_context=sentence_context,
+    )
+    if should_prefer_static_builtin:
+        static_builtin = save_static_builtin_sentence_token(
+            runtime,
+            token_index=token_index,
+            display_surface=display_surface,
+            normalized_surface=normalized_surface,
+            pos_tag=pos_tag,
+            morphology=morphology,
+            sentence_context=sentence_context,
+        )
+        if static_builtin is not None:
+            return static_builtin
+
     if prefer_existing:
         existing = existing_saved_token(
             runtime,
@@ -563,6 +583,19 @@ def should_generate_non_cor_sentence_token(pos_tag: str | None) -> bool:
 
 def should_use_static_pronoun_sentence_token(pos_tag: str | None) -> bool:
     return pos_tag is None or (pos_tag or "").upper() in {"ADV", "DET", "PRON"}
+
+
+def _should_prefer_static_builtin(
+    *,
+    normalized_surface: str,
+    pos_tag: str | None,
+    sentence_context: str | None,
+) -> bool:
+    if normalized_surface == "der" and is_existential_der_context(sentence_context):
+        return True
+    if normalized_surface in {"en", "et"}:
+        return True
+    return (pos_tag or "").upper() in {"ADP", "ADV", "CCONJ", "DET", "NUM", "PRON"}
 
 
 def finalize_generated_sentence_token(

@@ -28,7 +28,7 @@ type WordbankPronunciationWordProps = {
   children?: ReactNode
   className?: string
   iconClassName?: string
-  as?: "h2" | "span"
+  as?: "h2" | "h3" | "span"
 }
 
 export function WordbankPronunciationWord({

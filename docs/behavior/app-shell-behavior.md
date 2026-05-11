@@ -27,7 +27,7 @@ Pure render switch; no app-shell side effects.
 
 #### Sidebar (`frontend/src/app/chrome/sidebar/app-sidebar.tsx`)
 
-- Search-first header (no standalone app title)
+- Header title: `danote`, clicking it opens the Wordbank root
 - Section nav buttons: Wordbank, Sentencebank, Developer
 - Wordbank unread badge in nav
 - Command search dialog state + query state
@@ -83,10 +83,12 @@ Via shadcn sidebar primitives:
 ### Selected target routing and breadcrumb sync
 
 - Nav buttons call section-select handlers from `useAppController`
+- Sidebar title calls `selectWordbank()` and resets to the Wordbank root
 - Search results route to:
   - saved wordbank lemma rows → `openWordbankLemmaRaw`
   - saved wordbank meaning rows → `openWordbankMeaning`
-  - sentence-token/built-in collection links → sentinel-aware `openWordbankLemma`
+  - sentence-token saved word clicks → raw word-page navigation
+  - built-in collection links → sentinel-aware `openWordbankLemma`
 - Breadcrumb renders from same controller state (`activeSection`, `selectedLemma`) → nav + breadcrumb synchronized by construction
 - Lemma detail: clicking breadcrumb `Wordbank` → `openWordbankRoot()`, resets lemma/meaning
 

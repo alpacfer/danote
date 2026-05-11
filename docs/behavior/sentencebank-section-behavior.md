@@ -86,7 +86,10 @@ persist or relink wordbank entries. COR-backed tokens keep the chosen meaning
 section but may store a context-fit English lemma translation for that section
 (for example `sted` as "place" in a sentence where the sentence translation uses
 "place"). Existential `der` in `der er` / `der var` / `der findes` contexts is
-saved as "there" instead of the relative-pronoun fallback.
+saved to the `der` adverb sense as "there" instead of linking to the
+relative-pronoun sense. Static article/number homographs such as `en` and `et`
+use the sentence POS to choose the article or number meaning, and `et` remains
+its own lemma page.
 
 New wordbank entries created during a sentence save are available to the
 sentence response immediately, but Gemini word verification for those entries
@@ -94,14 +97,14 @@ runs through the shared background job queue. The queued job preserves the
 sentence-context batch verification path, so save latency is not blocked by the
 extra verification request.
 
-Known Danish pronouns, question words, prepositions, conjunctions, and
-calendar terms (days, months, seasons) all use static built-in catalogs
-before COR, translation, or Gemini selection. Saved sentence tokens for
-these built-ins carry hardcoded translation, POS, and morphology metadata
-and open the matching Wordbank pinned reference page (e.g. pronoun tokens
-open Personal / Possessive / Demonstrative / Relative / Indefinite Pronouns
-based on lemma; interrogatives open Question Words; `i`, `på`, `og`, `at`,
-`mandag`, etc. open the corresponding function-word or calendar page).
+Known Danish pronouns, question words, prepositions, conjunctions, numerals,
+articles, and calendar terms (days, months, seasons) use the backend static
+built-in sense registry before COR, translation, or Gemini selection when POS
+and sentence context match. Saved sentence tokens for these built-ins carry the
+selected meaning id when a lemma has multiple static senses, so `der` as
+adverbial "there" and `der` as relative pronoun open different word-page cards.
+Clicking a saved sentence token opens the normal word page for that lemma,
+including built-in words that also belong to pinned reference collections.
 
 ## 5) Refresh / invalidation
 

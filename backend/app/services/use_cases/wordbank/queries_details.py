@@ -4,6 +4,11 @@ from app.api.schemas.v1.sentencebank import SentenceTokenCard
 from app.api.schemas.v1.wordbank import LemmaDetailsResponse, VerificationResult
 from app.db.repositories import SentencebankRepository
 from app.services.token_classifier import normalize_token
+from app.services.use_cases.static_builtin_words import (
+    ensure_static_builtin_sense,
+    static_builtin_reference_links,
+    static_builtin_senses_for_token,
+)
 from app.services.use_cases.wordbank.gloss_translations import (
     gloss_translation as resolve_gloss_translation,
 )
@@ -31,6 +36,12 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
         if static_details is not None:
             return static_details
         raise LookupError(f"Lemma '{normalized_lemma}' was not found")
+    static_senses = static_builtin_senses_for_token(normalized_lemma)
+    if lexeme.source == "static" and static_senses and _needs_static_builtin_upgrade(runtime, lexeme.id, static_senses):
+        ensure_static_builtin_sense(runtime, static_senses[0])
+        lexeme = runtime.repository.get_lexeme(normalized_lemma)
+        if lexeme is None:
+            raise LookupError(f"Lemma '{normalized_lemma}' was not found")
 
     form_rows = runtime.repository.list_surface_forms(lexeme.id)
     meaning_rows = runtime.repository.list_lexeme_meanings(lexeme.id)
@@ -74,6 +85,13 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
             morphology=lexeme.morphology,
             is_sectioned=False,
             categories=category_assignments.get(None, []),
+            reference_links=_schema_reference_links(
+                static_builtin_reference_links(
+                    lexeme.lemma,
+                    meaning_key=None,
+                    pos_tag=lexeme.pos_tag,
+                )
+            ),
             verification=verification_records.get((None, None)),
             meaning_sections=[],
             related_words=related_words,
@@ -182,6 +200,13 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
                 morphology=meaning.morphology,
                 gram_raw=_meaning_gram_raw(runtime, lexeme=lexeme, meaning=meaning),
                 categories=category_assignments.get(meaning.id, []),
+                reference_links=_schema_reference_links(
+                    static_builtin_reference_links(
+                        lexeme.lemma,
+                        meaning_key=meaning.meaning_key,
+                        pos_tag=meaning.pos_tag,
+                    )
+                ),
                 verification=verification_records.get((meaning.id, None)),
                 surface_forms=order_surface_form_details(section_forms.get(meaning.id, [])),
             )
@@ -215,6 +240,13 @@ def _get_manual_lemma_details(
             morphology=lexeme.morphology,
             is_sectioned=False,
             categories=category_assignments.get(None, []),
+            reference_links=_schema_reference_links(
+                static_builtin_reference_links(
+                    lexeme.lemma,
+                    meaning_key=None,
+                    pos_tag=lexeme.pos_tag,
+                )
+            ),
             verification=verification_records.get((None, None)),
             meaning_sections=[],
             related_words=related_words,
@@ -309,6 +341,13 @@ def _get_manual_lemma_details(
                 morphology=meaning.morphology,
                 gram_raw=_meaning_gram_raw(runtime, lexeme=lexeme, meaning=meaning),
                 categories=category_assignments.get(meaning.id, []),
+                reference_links=_schema_reference_links(
+                    static_builtin_reference_links(
+                        lexeme.lemma,
+                        meaning_key=meaning.meaning_key,
+                        pos_tag=meaning.pos_tag,
+                    )
+                ),
                 verification=verification_records.get((meaning.id, None)),
                 surface_forms=order_surface_form_details(section_forms.get(meaning.id, [])),
             )
@@ -346,6 +385,28 @@ def _linked_sentences(runtime: WordbankRuntime, lemma: str) -> list[LemmaDetails
             ],
         )
         for row in rows
+    ]
+
+
+def _needs_static_builtin_upgrade(runtime: WordbankRuntime, lexeme_id: int, static_senses) -> bool:
+    meaning_rows = runtime.repository.list_lexeme_meanings(lexeme_id)
+    if len(static_senses) <= 1:
+        return False
+    existing_keys = {meaning.meaning_key for meaning in meaning_rows}
+    expected_keys = {sense.meaning_key for sense in static_senses}
+    return not expected_keys.issubset(existing_keys)
+
+
+def _schema_reference_links(reference_links):
+    return [
+        LemmaDetailsResponse.ReferenceLink(
+            page_id=link.page_id,
+            page_title=link.page_title,
+            tab_id=link.tab_id,
+            tab_title=link.tab_title,
+            sentinel=link.sentinel,
+        )
+        for link in reference_links
     ]
 
 

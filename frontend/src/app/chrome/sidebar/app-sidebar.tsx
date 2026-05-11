@@ -236,7 +236,13 @@ export function AppSidebar({
     <Sidebar variant="inset" collapsible="icon">
       <SidebarHeader>
         <div className="flex h-8 items-center gap-2 group-data-[collapsible=icon]:contents">
-          <span className="truncate text-base font-semibold group-data-[collapsible=icon]:sr-only">danote</span>
+          <button
+            type="button"
+            className="truncate text-left text-base font-semibold hover:text-foreground/80 focus-visible:ring-ring rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-offset-2 group-data-[collapsible=icon]:sr-only"
+            onClick={onSelectWordbank}
+          >
+            danote
+          </button>
           <SidebarTrigger className="ml-auto size-8 cursor-ew-resize group-data-[collapsible=icon]:ml-0" />
         </div>
       </SidebarHeader>

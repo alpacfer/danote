@@ -6,6 +6,7 @@ import {
 } from "@/app/sections/wordbank/days-months-seasons/days-months-seasons-data"
 import {
   BASIC_NUMBER_ROWS,
+  ENGLISH_CARDINALS,
   ORDINAL_NUMBER_ROWS,
   TENS_NUMBER_ROWS,
 } from "@/app/sections/wordbank/numbers/numbers-data"
@@ -84,7 +85,7 @@ function PinnedTab({
 function cardinalEntries(): PinnedWordEntry[] {
   return [...BASIC_NUMBER_ROWS, ...TENS_NUMBER_ROWS].map((row) => ({
     lemma: row.word,
-    translation: String(row.number),
+    translation: ENGLISH_CARDINALS[row.number] ?? String(row.number),
     posTag: "NUM",
   }))
 }

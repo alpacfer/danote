@@ -12,6 +12,7 @@ type WordbankParadigmTableProps = {
   regeneratingPronunciationByForm: Record<string, boolean>
   onPlayPronunciation: (form: string) => void
   onRegeneratePronunciation: (form: string) => void
+  nonInteractiveForms?: Set<string>
 }
 
 export function WordbankParadigmTable({
@@ -20,6 +21,7 @@ export function WordbankParadigmTable({
   regeneratingPronunciationByForm,
   onPlayPronunciation,
   onRegeneratePronunciation,
+  nonInteractiveForms,
 }: WordbankParadigmTableProps) {
   const hideSingleFormColumnHeader = paradigm.columns.length === 1 && paradigm.columns[0] === "Form"
 
@@ -62,6 +64,7 @@ export function WordbankParadigmTable({
                             regeneratingPronunciationByForm={regeneratingPronunciationByForm}
                             onPlayPronunciation={onPlayPronunciation}
                             onRegeneratePronunciation={onRegeneratePronunciation}
+                            nonInteractiveForms={nonInteractiveForms}
                           />
                         ))}
                       </div>
@@ -87,6 +90,7 @@ export function WordbankParadigmTable({
                 regeneratingPronunciationByForm={regeneratingPronunciationByForm}
                 onPlayPronunciation={onPlayPronunciation}
                 onRegeneratePronunciation={onRegeneratePronunciation}
+                nonInteractiveForms={nonInteractiveForms}
               />
             ))}
           </div>
@@ -116,6 +120,7 @@ function ParadigmCellFormGroup({
   regeneratingPronunciationByForm,
   onPlayPronunciation,
   onRegeneratePronunciation,
+  nonInteractiveForms,
 }: {
   forms: SurfaceForm[]
   label?: string
@@ -123,6 +128,7 @@ function ParadigmCellFormGroup({
   regeneratingPronunciationByForm: Record<string, boolean>
   onPlayPronunciation: (form: string) => void
   onRegeneratePronunciation: (form: string) => void
+  nonInteractiveForms?: Set<string>
 }) {
   return (
     <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
@@ -136,6 +142,7 @@ function ParadigmCellFormGroup({
             regeneratingPronunciationByForm={regeneratingPronunciationByForm}
             onPlayPronunciation={onPlayPronunciation}
             onRegeneratePronunciation={onRegeneratePronunciation}
+            nonInteractiveForms={nonInteractiveForms}
           />
         </Fragment>
       ))}
@@ -149,15 +156,20 @@ function ParadigmCellForm({
   regeneratingPronunciationByForm,
   onPlayPronunciation,
   onRegeneratePronunciation,
+  nonInteractiveForms,
 }: {
   form: SurfaceForm
   pronunciationLoadingByForm: Record<string, boolean>
   regeneratingPronunciationByForm: Record<string, boolean>
   onPlayPronunciation: (form: string) => void
   onRegeneratePronunciation: (form: string) => void
+  nonInteractiveForms?: Set<string>
 }) {
   const normalizedForm = normalizeSearchWord(form.form)
   const isRegenerating = Boolean(regeneratingPronunciationByForm[normalizedForm])
+  if (nonInteractiveForms?.has(normalizedForm)) {
+    return <span className="text-sm font-semibold">{form.form}</span>
+  }
   return (
     <span>
       <WordbankPronunciationWord

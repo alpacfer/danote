@@ -493,8 +493,76 @@ def test_sentencebank_static_der_uses_existential_sentence_context(tmp_path: Pat
 
     der_token = inserted.tokens[0]
     assert der_token.stored_lemma == "der"
+    assert der_token.meaning_id is not None
     assert der_token.english_translation == "there"
-    assert details.english_translation == "there"
+    assert details.is_sectioned is True
+    assert [(section.pos_tag, section.english_translation) for section in details.meaning_sections] == [
+        ("ADV", "there"),
+        ("PRON", "who / which"),
+    ]
+
+
+def test_sentencebank_static_en_uses_article_sense_without_linking_et(tmp_path: Path) -> None:
+    db_path = _db_path(tmp_path)
+    sentence = "Der er en bil"
+    nlp_adapter = MappingNLPAdapter(
+        {
+            sentence: [
+                NLPToken(text="en", lemma="en", pos="DET", morphology="Gender=Com|Number=Sing", is_punctuation=False),
+            ],
+        }
+    )
+    wordbank_use_case = WordbankUseCase(db_path, nlp_adapter=nlp_adapter)
+    sentencebank_use_case = SentencebankUseCase(
+        db_path,
+        nlp_adapter=nlp_adapter,
+        wordbank_use_case=wordbank_use_case,
+    )
+
+    inserted = sentencebank_use_case.add_sentence(sentence)
+    en_details = wordbank_use_case.get_lemma_details("en")
+    et_details = wordbank_use_case.get_lemma_details("et")
+
+    assert inserted.tokens[0].stored_lemma == "en"
+    assert inserted.tokens[0].english_translation == "a / an"
+    assert [(section.pos_tag, section.english_translation) for section in en_details.meaning_sections] == [
+        ("DET", "a / an"),
+        ("NUM", "one"),
+    ]
+    assert all(form.form != "et" for form in en_details.surface_forms)
+    assert et_details.lemma == "et"
+    assert [(section.pos_tag, section.english_translation) for section in et_details.meaning_sections] == [
+        ("DET", "a / an"),
+        ("NUM", "one"),
+    ]
+    assert et_details.meaning_sections[1].reference_links[0].tab_id == "cardinal_numbers"
+
+
+def test_sentencebank_static_et_uses_number_sense(tmp_path: Path) -> None:
+    db_path = _db_path(tmp_path)
+    sentence = "Jeg har et"
+    nlp_adapter = MappingNLPAdapter(
+        {
+            sentence: [
+                NLPToken(text="et", lemma="et", pos="NUM", morphology=None, is_punctuation=False),
+            ],
+        }
+    )
+    wordbank_use_case = WordbankUseCase(db_path, nlp_adapter=nlp_adapter)
+    sentencebank_use_case = SentencebankUseCase(
+        db_path,
+        nlp_adapter=nlp_adapter,
+        wordbank_use_case=wordbank_use_case,
+    )
+
+    inserted = sentencebank_use_case.add_sentence(sentence)
+    et_details = wordbank_use_case.get_lemma_details("et")
+
+    assert inserted.tokens[0].stored_lemma == "et"
+    assert inserted.tokens[0].meaning_id is not None
+    assert inserted.tokens[0].english_translation == "one"
+    assert et_details.meaning_sections[1].pos_tag == "NUM"
+    assert et_details.meaning_sections[1].reference_links[0].tab_id == "cardinal_numbers"
 
 
 def test_sentencebank_save_keeps_glossless_have_translation_when_provider_returns_valid_english_verb(

@@ -3,6 +3,11 @@ from __future__ import annotations
 from app.api.schemas.v1.wordbank import AddWordResponse
 from app.services.cor_local import CORLocalEntry
 from app.services.gemini_translation import NonCORWordGenerationInput
+from app.services.use_cases.static_builtin_words import (
+    StaticBuiltinSense,
+    ensure_static_builtin_sense,
+    select_static_builtin_sense,
+)
 from app.services.use_cases.static_hv_words import StaticHvWord, static_hv_word_for_token
 from app.services.use_cases.static_pronouns import StaticPronoun, static_pronoun_for_token
 from app.services.use_cases.wordbank.add_word_normalization import (
@@ -51,6 +56,12 @@ def add_word(
     search_seed: dict[str, object] | None = None,
     queue_verification: bool = True,
 ) -> AddWordResponse:
+    is_formal_i = surface_token.strip() == "I" or (lemma_candidate or "").strip() == "I"
+    if not is_formal_i:
+        static_builtin = select_static_builtin_sense(surface_token, pos_tag=pos_tag, morphology=morphology)
+        if static_builtin is not None:
+            return _add_static_builtin(runtime, surface_token=surface_token, sense=static_builtin)
+
     static_hv_word = static_hv_word_for_token(surface_token) or static_hv_word_for_token(lemma_candidate)
     if static_hv_word is not None:
         return _add_static_hv_word(runtime, surface_token=surface_token, hv_word=static_hv_word)
@@ -58,6 +69,10 @@ def add_word(
     static_pronoun = static_pronoun_for_token(surface_token) or static_pronoun_for_token(lemma_candidate)
     if static_pronoun is not None:
         return _add_static_pronoun(runtime, surface_token=surface_token, pronoun=static_pronoun)
+
+    static_builtin = select_static_builtin_sense(surface_token, pos_tag=pos_tag, morphology=morphology)
+    if static_builtin is not None:
+        return _add_static_builtin(runtime, surface_token=surface_token, sense=static_builtin)
 
     if search_seed is not None:
         return add_word_from_search_seed(
@@ -222,6 +237,40 @@ def _add_static_pronoun(
     )
 
 
+def _add_static_builtin(
+    runtime: WordbankRuntime,
+    *,
+    surface_token: str,
+    sense: StaticBuiltinSense,
+) -> AddWordResponse:
+    normalized_surface = sense.lemma
+    inserted_lexeme = runtime.repository.get_lexeme(sense.lemma) is None
+    lexeme_id, meaning_id = ensure_static_builtin_sense(runtime, sense)
+    runtime.nlp.add_user_lexeme(sense.lemma)
+    runtime.nlp.invalidate_pos_cache(sense.lemma, normalized_surface)
+    meaning = runtime.repository.get_lexeme_meaning(meaning_id) if meaning_id is not None else None
+    return build_add_word_response(
+        runtime=runtime,
+        inputs=AddWordCommandInputs(
+            normalized_surface=normalized_surface,
+            stored_lemma=sense.lemma,
+            normalized_cor_id=None,
+            selected_pos_tag=sense.pos_tag,
+            selected_morphology=sense.morphology,
+        ),
+        write_result=AddWordWriteResult(
+            inserted_lexeme=inserted_lexeme,
+            inserted_meaning=inserted_lexeme and meaning_id is not None,
+            inserted_surface_form=inserted_lexeme,
+            inserted_lemma_surface_form=False,
+            inserted_cor_variant=False,
+        ),
+        meaning=meaning,
+        verification=None,
+        queued_verification_targets=[],
+        queued_pronunciation_forms=[],
+        pronunciation=None,
+    )
 def _should_try_non_cor_generation(meaning_resolution: MeaningResolution) -> bool:
     resolved_pos_tag = (meaning_resolution.pos_tag or "").upper()
     if resolved_pos_tag and resolved_pos_tag not in {"ADJ", "NOUN", "PROPN"}:

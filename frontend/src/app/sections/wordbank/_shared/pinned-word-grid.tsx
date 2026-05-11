@@ -15,9 +15,10 @@ export function PinnedWordGrid({
   onOpenWord,
   hiddenBadges,
 }: PinnedWordGridProps) {
+  const dedupedEntries = dedupePinnedEntries(entries)
   return (
     <div className="grid items-start gap-3 sm:grid-cols-2 xl:grid-cols-3">
-      {entries.map((entry, index) => (
+      {dedupedEntries.map((entry, index) => (
         <PinnedWordCard
           key={`${entry.lemma}-${index}`}
           entry={entry}
@@ -29,4 +30,19 @@ export function PinnedWordGrid({
       ))}
     </div>
   )
+}
+
+function dedupePinnedEntries(entries: PinnedWordEntry[]): PinnedWordEntry[] {
+  const seen = new Set<string>()
+  return entries.filter((entry) => {
+    const key = [
+      entry.lemma.trim().toLocaleLowerCase("da-DK"),
+      entry.posTag ?? "",
+      entry.morphology ?? "",
+      entry.translation.trim().toLocaleLowerCase("da-DK"),
+    ].join("\u0000")
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
 }

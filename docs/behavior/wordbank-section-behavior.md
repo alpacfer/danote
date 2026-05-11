@@ -84,7 +84,7 @@ when useful, reusing the normal word-page/search badge pipeline
 not show add buttons, eye icons, generated-example context menus, or
 saved-sentence example dialogs. Clicking the card opens
 `/api/wordbank/lemmas/{lemma}` through a raw lemma navigation path. Sentence
-token navigation still uses sentinels.
+token navigation also uses raw lemma/meaning navigation.
 
 Pinned tab changes are navigation entries: changing tabs writes the tab-specific
 sentinel, so browser Back/Forward restores the previous pinned tab state.
@@ -92,9 +92,16 @@ Backend static search/detail fallbacks let built-in/presaved words open normal
 word pages even when they are not stored as regular lexemes. Search for a
 presaved Danish or English word returns the static saved-default row before COR
 or provider translation. Opening that saved row routes to the normal word page,
-not to the pinned collection. Number-only search still adds a page result for
-numeric queries (e.g. `21`) labeled with the Danish written form and opens the
-Numbers & Time page on Cardinal Numbers.
+not to the pinned collection. Sentence-token clicks also open normal word pages
+for saved built-in words rather than jumping to pinned collection tabs.
+Static homographs such as `der`, `en`, `et`, and preposition/conjunction
+overlaps render as sense-aware lemma pages. The backend owns each built-in
+sense's POS, translation, meaning key, and `reference_links`; the frontend does
+not infer pinned homes from lemma-only matching. Pinned collection links live
+inside the matching word card rather than in the lemma header.
+Number-only search still adds a page result for numeric queries (e.g. `21`)
+labeled with the Danish written form and opens the Numbers & Time page on
+Cardinal Numbers.
 
 ## Word page behavior (WordbankWordPage)
 
@@ -103,10 +110,10 @@ Numbers & Time page on Cardinal Numbers.
 - Loading + skeleton gate not open → `null`
 - Not loading + no details → `No details found for this lemma.`
 - With details:
-  - always `WordbankLemmaHeader`
-  - body: `WordbankMeaningSections` if `is_sectioned === true`, else `WordbankVariationGrid`
+  - sectioned pages render `WordbankLemmaHeader` followed by `WordbankMeaningSections`
+  - non-sectioned pages render the same standard word-card layout through a root `WordbankMeaningSections` card
   - after body: `WordbankRelatedWords` when `related_words.status === "ready"` and cards exist
-  - presaved/static words that belong to pinned collections show a `Pinned section` card linking back to each owning pinned tab
+  - presaved/static words that belong to pinned collections show backend-provided reference links inside the owning word card
   - Related section includes direct compound components + reverse compound-host links
 
 Meaning auto-scroll:
@@ -127,7 +134,7 @@ Meaning auto-scroll:
 ## Header metadata and translation
 
 - Sectioned mode → translation suppressed
-- Non-sectioned → translation prefers selected meaning translation then lemma translation
+- Non-sectioned legacy header metadata is mirrored in the standard root word card
 - `additional_translations` → inline comma-separated italic line when present
 - Badges shown only when `showSupplementaryMetadata` true
 - Badge source: POS/morphology from selected meaning (fallback lemma-level); `gram_raw` from lemma-level surface form matching selected lemma
@@ -201,11 +208,12 @@ Meaning auto-scroll:
 - No meaning sections → `No saved meanings for this lemma.`
 - Each section card:
   - left border color from POS class; no selected-state border/ring (`selectedMeaningId` for scroll/header only)
-  - left metadata: lemma label + section POS/morphology badges
+  - left metadata: lemma label + inline translation + section POS/morphology badges
   - verb cards: lemma in infinitive form `at <lemma>`
   - section `gram_raw` → badge set from COR grammar (e.g. invariant `orange` keeps merged badges)
   - right semantic category badges from `meaning_sections[].categories`; right-aligned wide, wrap narrow
   - optional combined translation line: `translation, gloss translation` format (gloss is supplemental, not replacement)
+  - optional `reference_links` render as compact buttons inside the same card
 - Surface forms per meaning:
   - divided list, each row uses `WordbankPronunciationWord`
   - section lists render only non-lemma variations

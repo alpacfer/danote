@@ -34,6 +34,7 @@ type WordbankLemmaHeaderProps = {
   onRetryVerificationTarget: (targetKey: string) => void
   onRevertVerificationChange: (changeId: number) => void
   showSupplementaryMetadata: boolean
+  showLemmaTitle?: boolean
   onOpenPinnedTab: (sentinel: string) => void
 }
 
@@ -60,6 +61,7 @@ export function WordbankLemmaHeader({
   onRetryVerificationTarget,
   onRevertVerificationChange,
   showSupplementaryMetadata,
+  showLemmaTitle = true,
   onOpenPinnedTab,
 }: WordbankLemmaHeaderProps) {
   const normalizedSelectedLemma = (lemmaDetails.lemma ?? selectedLemma).trim().toLocaleLowerCase("da-DK")
@@ -124,6 +126,35 @@ export function WordbankLemmaHeader({
       : []),
   ]
   const categories = lemmaDetails.categories ?? []
+  const verificationTrigger = pinnedHomes.length === 0 ? (
+    <div className="shrink-0">
+      <WordbankVerificationPopover
+        verificationOverview={verificationOverview}
+        changes={verificationChanges}
+        isLoadingChanges={isLoadingVerificationChanges}
+        isApplyingVerificationChanges={isApplyingVerificationChanges}
+        isRetryingVerification={isRetryingVerification}
+        isRevertingChange={isRevertingVerificationChange}
+        onOpenChange={(open) => {
+          if (open) {
+            onMarkVisibleVerificationNotificationsAsRead()
+          }
+        }}
+        onApplyVerificationAction={onApplyVerificationAction}
+        onRetryVerificationTarget={onRetryVerificationTarget}
+        onRevertChange={onRevertVerificationChange}
+      />
+    </div>
+  ) : null
+
+  if (!showLemmaTitle) {
+    return verificationTrigger ? (
+      <div id="wordbank-lemma-header" className="flex justify-end">
+        {verificationTrigger}
+      </div>
+    ) : null
+  }
+
   return (
     <div id="wordbank-lemma-header">
       {/* Category badges */}
@@ -154,26 +185,7 @@ export function WordbankLemmaHeader({
           iconClassName="size-4"
           as="h2"
         />
-        {pinnedHomes.length === 0 ? (
-          <div className="shrink-0">
-            <WordbankVerificationPopover
-              verificationOverview={verificationOverview}
-              changes={verificationChanges}
-              isLoadingChanges={isLoadingVerificationChanges}
-              isApplyingVerificationChanges={isApplyingVerificationChanges}
-              isRetryingVerification={isRetryingVerification}
-              isRevertingChange={isRevertingVerificationChange}
-              onOpenChange={(open) => {
-                if (open) {
-                  onMarkVisibleVerificationNotificationsAsRead()
-                }
-              }}
-              onApplyVerificationAction={onApplyVerificationAction}
-              onRetryVerificationTarget={onRetryVerificationTarget}
-              onRevertChange={onRevertVerificationChange}
-            />
-          </div>
-        ) : null}
+        {verificationTrigger}
       </div>
 
       {/* POS + morphology badges */}
@@ -197,7 +209,7 @@ export function WordbankLemmaHeader({
       ) : null}
 
       {/* Pinned section links */}
-      {pinnedHomes.length > 0 ? (
+      {showSupplementaryMetadata && pinnedHomes.length > 0 ? (
         <div data-testid="wordbank-pinned-home-card" className="mt-2 flex flex-wrap gap-1.5">
           {pinnedHomes.map((home) => (
             <Button

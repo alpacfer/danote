@@ -415,6 +415,13 @@ class LemmaDetailsResponse(BaseModel):
     pos_tag: str | None = None
     morphology: str | None = None
 
+    class ReferenceLink(BaseModel):
+        page_id: str
+        page_title: str
+        tab_id: str
+        tab_title: str
+        sentinel: str
+
     class SurfaceFormDetails(BaseModel):
         form: str
         pos_tag: str | None = None
@@ -448,6 +455,7 @@ class LemmaDetailsResponse(BaseModel):
         morphology: str | None = None
         gram_raw: str | None = None
         categories: list[str] = Field(default_factory=list)
+        reference_links: list[LemmaDetailsResponse.ReferenceLink] = Field(default_factory=list)
         verification: VerificationResult | None = None
         surface_forms: list[LemmaDetailsResponse.SurfaceFormDetails] = Field(default_factory=list)
 
@@ -513,6 +521,7 @@ class LemmaDetailsResponse(BaseModel):
     additional_translations: list[str] = Field(default_factory=list)
     is_sectioned: bool = False
     categories: list[str] = Field(default_factory=list)
+    reference_links: list[ReferenceLink] = Field(default_factory=list)
     verification: VerificationResult | None = None
     meaning_sections: list[MeaningSection] = Field(default_factory=list)
     surface_forms: list[SurfaceFormDetails]

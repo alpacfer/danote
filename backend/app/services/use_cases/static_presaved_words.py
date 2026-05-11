@@ -11,12 +11,14 @@ class StaticPresavedWord:
     english_translation: str
     pos_tag: str | None = None
     morphology: str | None = None
+    meaning_key: str | None = None
 
 
 STATIC_PRESAVED_WORDS: dict[str, StaticPresavedWord] = {
     "i": StaticPresavedWord("i", "in / for", "ADP"),
-    "en": StaticPresavedWord("en", "one / a", "NUM"),
-    "et": StaticPresavedWord("et", "one / a", "NUM"),
+    "der": StaticPresavedWord("der", "there", "ADV", meaning_key="there"),
+    "en": StaticPresavedWord("en", "a / an", "DET", "Gender=Com|Number=Sing", meaning_key="article"),
+    "et": StaticPresavedWord("et", "a / an", "DET", "Gender=Neut|Number=Sing", meaning_key="article"),
     "-en": StaticPresavedWord("-en", "the", "DET", "Gender=Com|Number=Sing"),
     "-et": StaticPresavedWord("-et", "the", "DET", "Gender=Neut|Number=Sing"),
     "-ne": StaticPresavedWord("-ne", "the", "DET", "Number=Plur"),
@@ -49,33 +51,33 @@ STATIC_PRESAVED_WORDS: dict[str, StaticPresavedWord] = {
     "mens": StaticPresavedWord("mens", "while", "SCONJ"),
     "selvom": StaticPresavedWord("selvom", "although / even though", "SCONJ"),
     "inden": StaticPresavedWord("inden", "before", "SCONJ"),
-    "nul": StaticPresavedWord("nul", "0", "NUM"),
-    "to": StaticPresavedWord("to", "2", "NUM"),
-    "tre": StaticPresavedWord("tre", "3", "NUM"),
-    "fire": StaticPresavedWord("fire", "4", "NUM"),
-    "fem": StaticPresavedWord("fem", "5", "NUM"),
-    "seks": StaticPresavedWord("seks", "6", "NUM"),
-    "syv": StaticPresavedWord("syv", "7", "NUM"),
-    "otte": StaticPresavedWord("otte", "8", "NUM"),
-    "ni": StaticPresavedWord("ni", "9", "NUM"),
-    "ti": StaticPresavedWord("ti", "10", "NUM"),
-    "elleve": StaticPresavedWord("elleve", "11", "NUM"),
-    "tolv": StaticPresavedWord("tolv", "12", "NUM"),
-    "tretten": StaticPresavedWord("tretten", "13", "NUM"),
-    "fjorten": StaticPresavedWord("fjorten", "14", "NUM"),
-    "femten": StaticPresavedWord("femten", "15", "NUM"),
-    "seksten": StaticPresavedWord("seksten", "16", "NUM"),
-    "sytten": StaticPresavedWord("sytten", "17", "NUM"),
-    "atten": StaticPresavedWord("atten", "18", "NUM"),
-    "nitten": StaticPresavedWord("nitten", "19", "NUM"),
-    "tyve": StaticPresavedWord("tyve", "20", "NUM"),
-    "tredive": StaticPresavedWord("tredive", "30", "NUM"),
-    "fyrre": StaticPresavedWord("fyrre", "40", "NUM"),
-    "halvtreds": StaticPresavedWord("halvtreds", "50", "NUM"),
-    "tres": StaticPresavedWord("tres", "60", "NUM"),
-    "halvfjerds": StaticPresavedWord("halvfjerds", "70", "NUM"),
-    "firs": StaticPresavedWord("firs", "80", "NUM"),
-    "halvfems": StaticPresavedWord("halvfems", "90", "NUM"),
+    "nul": StaticPresavedWord("nul", "zero", "NUM", meaning_key="number"),
+    "to": StaticPresavedWord("to", "two", "NUM", meaning_key="number"),
+    "tre": StaticPresavedWord("tre", "three", "NUM", meaning_key="number"),
+    "fire": StaticPresavedWord("fire", "four", "NUM", meaning_key="number"),
+    "fem": StaticPresavedWord("fem", "five", "NUM", meaning_key="number"),
+    "seks": StaticPresavedWord("seks", "six", "NUM", meaning_key="number"),
+    "syv": StaticPresavedWord("syv", "seven", "NUM", meaning_key="number"),
+    "otte": StaticPresavedWord("otte", "eight", "NUM", meaning_key="number"),
+    "ni": StaticPresavedWord("ni", "nine", "NUM", meaning_key="number"),
+    "ti": StaticPresavedWord("ti", "ten", "NUM", meaning_key="number"),
+    "elleve": StaticPresavedWord("elleve", "eleven", "NUM", meaning_key="number"),
+    "tolv": StaticPresavedWord("tolv", "twelve", "NUM", meaning_key="number"),
+    "tretten": StaticPresavedWord("tretten", "thirteen", "NUM", meaning_key="number"),
+    "fjorten": StaticPresavedWord("fjorten", "fourteen", "NUM", meaning_key="number"),
+    "femten": StaticPresavedWord("femten", "fifteen", "NUM", meaning_key="number"),
+    "seksten": StaticPresavedWord("seksten", "sixteen", "NUM", meaning_key="number"),
+    "sytten": StaticPresavedWord("sytten", "seventeen", "NUM", meaning_key="number"),
+    "atten": StaticPresavedWord("atten", "eighteen", "NUM", meaning_key="number"),
+    "nitten": StaticPresavedWord("nitten", "nineteen", "NUM", meaning_key="number"),
+    "tyve": StaticPresavedWord("tyve", "twenty", "NUM", meaning_key="number"),
+    "tredive": StaticPresavedWord("tredive", "thirty", "NUM", meaning_key="number"),
+    "fyrre": StaticPresavedWord("fyrre", "forty", "NUM", meaning_key="number"),
+    "halvtreds": StaticPresavedWord("halvtreds", "fifty", "NUM", meaning_key="number"),
+    "tres": StaticPresavedWord("tres", "sixty", "NUM", meaning_key="number"),
+    "halvfjerds": StaticPresavedWord("halvfjerds", "seventy", "NUM", meaning_key="number"),
+    "firs": StaticPresavedWord("firs", "eighty", "NUM", meaning_key="number"),
+    "halvfems": StaticPresavedWord("halvfems", "ninety", "NUM", meaning_key="number"),
     "første": StaticPresavedWord("første", "first", "ADJ"),
     "anden": StaticPresavedWord("anden", "second", "ADJ"),
     "tredje": StaticPresavedWord("tredje", "third", "ADJ"),
@@ -124,6 +126,24 @@ STATIC_PRESAVED_WORDS: dict[str, StaticPresavedWord] = {
     "siden": StaticPresavedWord("siden", "since", "ADP"),
 }
 
+STATIC_PRESAVED_SENSES_BY_TOKEN: dict[str, tuple[StaticPresavedWord, ...]] = {
+    "der": (
+        STATIC_PRESAVED_WORDS["der"],
+    ),
+    "en": (
+        STATIC_PRESAVED_WORDS["en"],
+        StaticPresavedWord("en", "one", "NUM", meaning_key="number"),
+    ),
+    "et": (
+        STATIC_PRESAVED_WORDS["et"],
+        StaticPresavedWord("et", "one", "NUM", meaning_key="number"),
+    ),
+    "for": (
+        StaticPresavedWord("for", "for", "ADP", meaning_key="preposition"),
+        StaticPresavedWord("for", "because", "CCONJ", meaning_key="conjunction"),
+    ),
+}
+
 STATIC_PRESAVED_WORDS_BY_ENGLISH: dict[str, StaticPresavedWord] = {}
 for word in STATIC_PRESAVED_WORDS.values():
     for part in word.english_translation.replace("(", "/").replace(")", "").split("/"):
@@ -137,6 +157,16 @@ def static_presaved_word_for_token(token: str | None) -> StaticPresavedWord | No
     if not normalized:
         return None
     return STATIC_PRESAVED_WORDS.get(normalized)
+
+
+def static_presaved_words_for_token(token: str | None) -> tuple[StaticPresavedWord, ...]:
+    normalized = normalize_token(token or "")
+    if not normalized:
+        return ()
+    if normalized in STATIC_PRESAVED_SENSES_BY_TOKEN:
+        return STATIC_PRESAVED_SENSES_BY_TOKEN[normalized]
+    word = STATIC_PRESAVED_WORDS.get(normalized)
+    return (word,) if word is not None else ()
 
 
 def static_presaved_word_for_english(token: str | None) -> StaticPresavedWord | None:

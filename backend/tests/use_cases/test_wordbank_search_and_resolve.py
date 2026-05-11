@@ -176,9 +176,48 @@ def test_wordbank_get_lemma_details_returns_static_presaved_defaults(tmp_path: P
     assert article_details.lemma == "-en"
     assert article_details.english_translation == "the"
     assert question_details.lemma == "hvis"
-    assert question_details.english_translation == "whose / if"
+    assert question_details.is_sectioned is True
+    assert {section.english_translation for section in question_details.meaning_sections} == {"whose / if", "whose"}
     assert formal_pronoun_details.lemma == "i"
     assert formal_pronoun_details.pos_tag == "PRON"
+
+
+def test_wordbank_get_lemma_details_sections_static_homographs(tmp_path: Path) -> None:
+    use_case = WordbankUseCase(_db_path(tmp_path))
+
+    en_details = use_case.get_lemma_details("en")
+    der_details = use_case.get_lemma_details("der")
+
+    assert en_details.is_sectioned is True
+    assert [(section.pos_tag, section.english_translation) for section in en_details.meaning_sections] == [
+        ("DET", "a / an"),
+        ("NUM", "one"),
+    ]
+    assert en_details.meaning_sections[0].reference_links[0].tab_id == "articles"
+    assert en_details.meaning_sections[1].reference_links[0].tab_id == "cardinal_numbers"
+    assert [form.form for form in en_details.surface_forms] == ["en"]
+    assert der_details.is_sectioned is True
+    assert [(section.pos_tag, section.english_translation) for section in der_details.meaning_sections] == [
+        ("ADV", "there"),
+        ("PRON", "who / which"),
+    ]
+    assert der_details.meaning_sections[1].reference_links[0].tab_id == "relative"
+
+
+def test_wordbank_get_lemma_details_sections_static_preposition_homographs(tmp_path: Path) -> None:
+    use_case = WordbankUseCase(_db_path(tmp_path))
+
+    details = use_case.get_lemma_details("for")
+
+    assert details.is_sectioned is True
+    assert [(section.pos_tag, section.english_translation) for section in details.meaning_sections] == [
+        ("ADP", "for"),
+        ("CCONJ", "because"),
+    ]
+    assert [section.reference_links[0].tab_id for section in details.meaning_sections] == [
+        "prepositions",
+        "conjunctions",
+    ]
 
 
 def test_wordbank_search_lemmas_uses_matched_surface_metadata(tmp_path: Path) -> None:

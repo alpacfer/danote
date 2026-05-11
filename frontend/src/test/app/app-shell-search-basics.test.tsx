@@ -24,6 +24,22 @@ describe("App shell and search", () => {
     expect(screen.getByRole("button", { name: /sentencebank/i })).toBeInTheDocument()
   })
 
+  it("clicking the sidebar title returns to the wordbank root", async () => {
+    mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      sentencebankResponse: { items: [] },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /sentencebank/i }))
+    expect(await screen.findByText(/no saved sentences yet/i)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole("button", { name: /^danote$/i }))
+    expect(await screen.findByRole("button", { name: /open pronouns reference/i })).toBeInTheDocument()
+  })
+
   it("command dialog search opens and supports wordbank results", async () => {
     mockFetchImplementation({
       lemmasResponse: {

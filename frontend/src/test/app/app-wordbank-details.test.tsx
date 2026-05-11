@@ -95,6 +95,60 @@ describe("App wordbank", () => {
     expect(within(meaningBadges).queryByText(/^Indefinite$/i)).not.toBeInTheDocument()
   })
 
+  it("renderer-only: sectioned pinned words keep pinned links inside the matching meaning card", async () => {
+    mockFetchImplementation({
+      lemmasResponse: {
+        items: [{ lemma: "en", variation_count: 1 }],
+      },
+      lemmaDetailsResponse: {
+        lemma: "en",
+        english_translation: null,
+        is_sectioned: true,
+        meaning_sections: [
+          {
+            id: 1,
+            meaning_key: "article",
+            english_translation: "a / an",
+            pos_tag: "DET",
+            morphology: "Gender=Com|Number=Sing",
+            reference_links: [{
+              page_id: "function_words",
+              page_title: "Function Words",
+              tab_id: "articles",
+              tab_title: "Articles",
+              sentinel: "__pinned_function_words_articles",
+            }],
+            surface_forms: [],
+          },
+          {
+            id: 2,
+            meaning_key: "number",
+            english_translation: "one",
+            pos_tag: "NUM",
+            reference_links: [{
+              page_id: "numbers_time",
+              page_title: "Numbers & Time",
+              tab_id: "cardinal_numbers",
+              tab_title: "Cardinal Numbers",
+              sentinel: "__pinned_numbers_time_cardinal_numbers",
+            }],
+            surface_forms: [],
+          },
+        ],
+        surface_forms: [{ form: "en", has_pronunciation: true }],
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+    fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /^en/i }))
+
+    expect(screen.queryByTestId("wordbank-pinned-home-card")).not.toBeInTheDocument()
+    expect(within(await screen.findByTestId("wordbank-meaning-pinned-links-1")).getByText("Function Words: Articles")).toBeInTheDocument()
+    expect(within(await screen.findByTestId("wordbank-meaning-pinned-links-2")).getByText("Numbers & Time: Cardinal Numbers")).toBeInTheDocument()
+  }, 10_000)
+
   it("renderer-only: meaning-section surface forms show badges without rendering surface translations", async () => {
     mockFetchImplementation({
       lemmasResponse: {

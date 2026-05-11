@@ -63,6 +63,15 @@ describe("App wordbank pinned pages", () => {
           english_translation: "where",
           pos_tag: "ADV",
           morphology: "PronType=Int",
+          reference_links: [
+            {
+              page_id: "pronouns",
+              page_title: "Pronouns",
+              tab_id: "question_words",
+              tab_title: "Question Words",
+              sentinel: "__pinned_pronouns_question_words",
+            },
+          ],
           is_sectioned: false,
           meaning_sections: [],
           surface_forms: [

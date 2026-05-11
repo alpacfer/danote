@@ -52,12 +52,12 @@ Use this table to find the current source of truth quickly when behavior changes
 
 | Document | Audience | Primary source modules | Last verification checkpoint | Owner |
 | --- | --- | --- | --- | --- |
-| [App shell behavior](./behavior/app-shell-behavior.md) | Frontend engineers, maintainers | `frontend/src/App.tsx`, `frontend/src/app/layout/section-content.tsx`, `frontend/src/app/chrome/*` | Raw saved-row search navigation and pinned tab history entries (2026-05-09) | Frontend |
+| [App shell behavior](./behavior/app-shell-behavior.md) | Frontend engineers, maintainers | `frontend/src/App.tsx`, `frontend/src/app/layout/section-content.tsx`, `frontend/src/app/chrome/*` | Sidebar title opens the Wordbank root (2026-05-10) | Frontend |
 | [Notes section behavior](./behavior/notes-section-behavior.md) | Frontend engineers, QA | Retired/hidden UI reference | Notes section hidden from shell navigation and command pages (2026-05-02) | Frontend |
 | [Playground section behavior](./behavior/playground-section-behavior.md) | Frontend engineers, QA | Retired/inaccessible UI reference | DaCy retirement and Playground hide update (2026-05-01) | Frontend |
 | [Sidebar search behavior](./behavior/sidebar-search-behavior.md) | Frontend engineers, product QA | `frontend/src/app/chrome/sidebar/*`, `frontend/src/app/hooks/sidebar/*` | Presaved static word search opens raw word pages; number-only page result still opens Numbers flow (2026-05-09) | Frontend |
-| [Wordbank section behavior](./behavior/wordbank-section-behavior.md) | Frontend engineers, backend integrators | `frontend/src/app/sections/wordbank/*`, `backend/app/api/routes/wordbank.py` | Pinned word badges, pinned-home cards, tab history, and static search/detail fallbacks (2026-05-09) | Shared |
-| [Sentencebank section behavior](./behavior/sentencebank-section-behavior.md) | Frontend engineers, backend integrators | `frontend/src/app/sections/sentencebank/*`, `backend/app/api/routes/sentencebank.py` | Sentence-save token cards now persist context-fit word translations for COR meanings and existential `der` (2026-05-10) | Shared |
+| [Wordbank section behavior](./behavior/wordbank-section-behavior.md) | Frontend engineers, backend integrators | `frontend/src/app/sections/wordbank/*`, `backend/app/api/routes/wordbank.py` | Sense-aware built-in links and standard word-card layout (2026-05-11) | Shared |
+| [Sentencebank section behavior](./behavior/sentencebank-section-behavior.md) | Frontend engineers, backend integrators | `frontend/src/app/sections/sentencebank/*`, `backend/app/api/routes/sentencebank.py` | Static homograph sentence saves choose contextual `der`/article/number senses (2026-05-11) | Shared |
 | [Developer section behavior](./behavior/developer-section-behavior.md) | Frontend engineers, platform maintainers | `frontend/src/app/sections/developer/*`, `frontend/src/app/hooks/app/use-developer-settings.ts`, `backend/app/api/routes/developer.py` | Combined pinned word and number audio generation controls (2026-05-09) | Shared |
 
 Update the checkpoint column when behavior or owning modules change.

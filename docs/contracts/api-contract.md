@@ -324,9 +324,10 @@ Routes: `backend/app/api/routes/`. DTOs: `backend/app/api/schemas/v1/`.
 - **Request model:** none (`lemma` path param).
 - **Response model:** `LemmaDetailsResponse`.
 - **Notable response behavior:**
-  - Static presaved words may return detail payloads without a DB lexeme; these payloads are non-sectioned, include one pronunciation-enabled surface form, and have empty categories/related/linked sentence lists.
-  - Root payload may include `categories`, `verification`, `additional_translations: string[]`.
-  - Each `meaning_sections[]` may include `categories`, `verification`, `gram_raw`, `additional_translations: string[]`.
+  - Static presaved words may return detail payloads without a DB lexeme; single-sense payloads are non-sectioned, static homographs are sectioned by built-in POS/sense, and both shapes have empty categories/related/linked sentence lists unless the lexeme has been materialized.
+  - Root payload may include `categories`, `verification`, `additional_translations: string[]`, and `reference_links[]`.
+  - Each `meaning_sections[]` may include `categories`, `verification`, `gram_raw`, `additional_translations: string[]`, and `reference_links[]`.
+  - `reference_links[]` rows contain `page_id`, `page_title`, `tab_id`, `tab_title`, and `sentinel`; clients render these as word-card links to pinned reference tabs without deriving homes from lemma-only matching.
   - Each `surface_forms[]` may include `verification`, `gram_raw`.
   - Sectioned lemmas: top-level `surface_forms[]` may include saved lemma form for pronunciation/metadata binding. Sectioned meaning `surface_forms[]` exclude lemma-matching rows (available via top-level only).
   - Noun `surface_forms[]` ordered: non-slot/irregular first, then singular-definite, plural-indefinite, plural-definite.

@@ -149,4 +149,15 @@ describe("useSectionNavigation history", () => {
     expect(result.current.selectedLemma).toBeNull()
     expect(result.current.selectedMeaningId).toBeNull()
   })
+
+  it("raw wordbank meaning navigation keeps built-in lemmas on word pages", () => {
+    const { result } = renderHook(() => useSectionNavigation())
+
+    act(() => {
+      result.current.openWordbankMeaningRaw("du", 42)
+    })
+
+    expect(result.current.selectedLemma).toBe("du")
+    expect(result.current.selectedMeaningId).toBe(42)
+  })
 })

@@ -223,12 +223,21 @@ export function useSectionNavigation() {
     })
   }, [applyPush])
 
-  const openWordbankTarget = useCallback((lemma: string, meaningId: number | null) => {
-    const nextLemma = builtinAwareLemma(lemma)
+  const openWordbankMeaningRaw = useCallback((lemma: string, meaningId: number) => {
     applyPush({
       section: "wordbank",
-      selectedLemma: nextLemma,
-      selectedMeaningId: nextLemma === lemma ? meaningId : null,
+      selectedLemma: lemma,
+      selectedMeaningId: meaningId,
+      selectedSentenceId: null,
+      pendingSentence: null,
+    })
+  }, [applyPush])
+
+  const openWordbankTarget = useCallback((lemma: string, meaningId: number | null) => {
+    applyPush({
+      section: "wordbank",
+      selectedLemma: lemma,
+      selectedMeaningId: meaningId,
       selectedSentenceId: null,
       pendingSentence: null,
     })
@@ -301,6 +310,7 @@ export function useSectionNavigation() {
     openWordbankLemmaRaw,
     openWordbankPinnedTab,
     openWordbankMeaning,
+    openWordbankMeaningRaw,
     openWordbankTarget,
     openWordbankRoot,
     openPendingSentence,
@@ -325,6 +335,7 @@ export function useSectionNavigation() {
     openWordbankLemmaRaw,
     openWordbankPinnedTab,
     openWordbankMeaning,
+    openWordbankMeaningRaw,
     openWordbankTarget,
     openWordbankRoot,
     openPendingSentence,

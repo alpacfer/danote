@@ -2,6 +2,14 @@ import type { TokenClassification, WordActionSuggestion } from "@/app/core/types
 import type { SentenceTokenCard } from "@/app/core/types-sentencebank"
 import type { CORSearchVariant, VerificationResult } from "@/app/core/types-wordbank-api"
 
+export type WordbankReferenceLink = {
+  page_id: string
+  page_title: string
+  tab_id: string
+  tab_title: string
+  sentinel: string
+}
+
 export type LemmaDetailsResponse = {
   dictionary_status?: "cor" | "generated_non_cor" | "unknown"
   related_words?: {
@@ -37,6 +45,7 @@ export type LemmaDetailsResponse = {
   morphology: string | null
   is_sectioned?: boolean
   categories?: string[]
+  reference_links?: WordbankReferenceLink[]
   verification?: VerificationResult | null
   meaning_sections?: Array<{
     id: number
@@ -50,6 +59,7 @@ export type LemmaDetailsResponse = {
     morphology?: string | null
     gram_raw?: string | null
     categories?: string[]
+    reference_links?: WordbankReferenceLink[]
     verification?: VerificationResult | null
     surface_forms: Array<{
       form: string

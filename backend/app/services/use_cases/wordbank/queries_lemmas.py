@@ -8,6 +8,7 @@ from app.api.schemas.v1.wordbank import (
 )
 from app.services.fuzzy_search import fuzzy_suggest
 from app.services.token_classifier import normalize_token
+from app.services.use_cases.static_builtin_words import static_builtin_senses_for_token
 from app.services.use_cases.static_hv_words import (
     StaticHvWord,
     static_hv_word_for_english,
@@ -33,7 +34,8 @@ def list_lemmas(runtime: WordbankRuntime) -> LemmaListResponse:
     rows = [
         row
         for row in runtime.repository.list_lemmas()
-        if static_pronoun_for_token(row.lemma) is None
+        if not static_builtin_senses_for_token(row.lemma)
+        and static_pronoun_for_token(row.lemma) is None
         and static_hv_word_for_token(row.lemma) is None
     ]
 

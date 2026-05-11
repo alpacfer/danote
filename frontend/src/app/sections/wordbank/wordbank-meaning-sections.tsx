@@ -4,6 +4,7 @@ import {
   corSecondaryBadgeClass,
   getMeaningVerificationGate,
   lemmaTranslationWithGloss,
+  normalizeSearchWord,
   posBadgeClass,
   semanticCategoryBadgeClass,
 } from "@/app/core"
@@ -15,6 +16,7 @@ import {
   hasPronunciationForForm,
   resolvePronunciationAvailability,
 } from "@/app/sections/wordbank/wordbank-pronunciation-availability"
+import { WordbankPronunciationWord } from "@/app/sections/wordbank/wordbank-pronunciation-word"
 import { WordbankScopeContextMenu } from "@/app/sections/wordbank/wordbank-scope-context-menu"
 import {
   buildAdjectiveDegreeGroups,
@@ -23,7 +25,9 @@ import {
   buildVerbParadigm,
 } from "@/app/sections/wordbank/wordbank-paradigm-utils"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { AudioLines, Languages, Loader2, Sparkles } from "lucide-react"
 
 type WordbankMeaningSectionsProps = {
   lemma: string
@@ -44,6 +48,7 @@ type WordbankMeaningSectionsProps = {
   onGenerateExample: (meaningId: number, tense?: import("@/app/core/morphology").VerbFormLabel) => void
   rerunningMeaningVerificationById: Record<number, boolean>
   onRerunMeaningVerification: (meaningId: number) => void
+  onOpenPinnedTab?: (sentinel: string) => void
 }
 
 export function WordbankMeaningSections({
@@ -65,6 +70,7 @@ export function WordbankMeaningSections({
   onGenerateExample,
   rerunningMeaningVerificationById,
   onRerunMeaningVerification,
+  onOpenPinnedTab,
 }: WordbankMeaningSectionsProps) {
   const normalizedLemma = lemma.trim().toLocaleLowerCase("da-DK")
 
@@ -99,13 +105,13 @@ export function WordbankMeaningSections({
             meaning_sections: meaningSections,
             surface_forms: [],
           },
-          section.id,
+          section.id > 0 ? section.id : null,
         )
         const posTag = (section.pos_tag ?? "").toUpperCase()
         const isNoun = posTag === "NOUN"
         const isAdjective = posTag === "ADJ"
         const isVerb = posTag === "VERB"
-        const meaningLemma = isVerb ? `at ${lemma}` : lemma
+        const meaningLemma = isVerb && section.id > 0 ? `at ${lemma}` : lemma
         const canCompleteParadigm = isNoun || isAdjective || isVerb
         const pronunciationAvailability = buildPronunciationAvailabilityMap([
           ...lemmaSurfaceForms,
@@ -116,6 +122,37 @@ export function WordbankMeaningSections({
           pronunciationAvailability,
         )
         const lemmaHasPronunciation = hasPronunciationForForm(pronunciationAvailability, lemma)
+        const lemmaPronunciationForm = (() => {
+          const allForms = [...lemmaSurfaceForms, ...section.surface_forms]
+          const exactMatch = allForms.find(
+            (form) => normalizeSearchWord(form.form) === normalizeSearchWord(lemma) && form.has_pronunciation,
+          )
+          if (exactMatch) return exactMatch.form
+          const firstAvailable = allForms.find((form) => form.has_pronunciation)
+          return firstAvailable?.form ?? null
+        })()
+        const isRegeneratingLemma = Boolean(regeneratingPronunciationByForm[normalizeSearchWord(lemma)])
+        const rootContextMenuItems = section.id === 0 ? [
+          {
+            icon: isRegeneratingLemma ? <Loader2 className="animate-spin" /> : <AudioLines />,
+            label: isRegeneratingLemma ? "Regenerating audio..." : "Regenerate audio",
+            disabled: isRegeneratingLemma,
+            onSelect: () => onRegeneratePronunciation(lemma),
+          },
+          {
+            icon: isFindingAlternativeTranslations ? <Loader2 className="animate-spin" /> : <Languages />,
+            label: isFindingAlternativeTranslations ? "Finding alternative translations..." : "Find alternative translations",
+            disabled: isFindingAlternativeTranslations,
+            separatorBefore: true as const,
+            onSelect: () => onFindAlternativeTranslations(null),
+          },
+          {
+            icon: isRethinkingCategories ? <Loader2 className="animate-spin" /> : <Sparkles />,
+            label: isRethinkingCategories ? "Rethinking categories..." : "Rethink categories",
+            disabled: isRethinkingCategories,
+            onSelect: () => onRethinkCategories(null),
+          },
+        ] : []
         const lemmaSyntheticForm = {
           form: lemma,
           pos_tag: section.pos_tag ?? null,
@@ -132,27 +169,33 @@ export function WordbankMeaningSections({
         const formGroups = posTag === "ADJ" ? buildAdjectiveDegreeGroups(formsWithLemma) : []
         const hasRenderableForms = Boolean(nounParadigm || adjectiveParadigm || verbParadigm || resolvedSectionSurfaceForms.length > 0)
         const sectionBadgeLabels = new Set(sectionBadges.map((b) => b.label))
+        const referenceLinks = onOpenPinnedTab ? (section.reference_links ?? []) : []
+        const actionMeaningId = section.id > 0 ? section.id : null
 
         return (
           <WordbankScopeContextMenu
             key={`meaning-section-${section.id}-${section.meaning_key}`}
             isRerunningVerification={Boolean(rerunningMeaningVerificationById[section.id])}
-            onRerunVerification={() => onRerunMeaningVerification(section.id)}
+            onRerunVerification={() => {
+              if (actionMeaningId !== null) onRerunMeaningVerification(actionMeaningId)
+            }}
             isFindingAlternativeTranslations={isFindingAlternativeTranslations}
-            onFindAlternativeTranslations={() => onFindAlternativeTranslations(section.id)}
+            onFindAlternativeTranslations={() => onFindAlternativeTranslations(actionMeaningId)}
             isRethinkingCategories={isRethinkingCategories}
-            onRethinkCategories={() => onRethinkCategories(section.id)}
+            onRethinkCategories={() => onRethinkCategories(actionMeaningId)}
             isGeneratingExample={Boolean(generatingExampleByMeaningId[section.id])}
             isVerb={isVerb}
-            onGenerateExample={(tense) => onGenerateExample(section.id, tense)}
+            onGenerateExample={(tense) => {
+              if (actionMeaningId !== null) onGenerateExample(actionMeaningId, tense)
+            }}
             canCompleteVariations={canCompleteParadigm && !completionGate.isLocked}
             completeVariationsLabel={completionGate.label}
             isCompletingVariations={isCompletingMeaningVariations}
-            onCompleteVariations={canCompleteParadigm ? () => onCompleteMeaningVariations(section.id) : undefined}
+            onCompleteVariations={canCompleteParadigm ? () => onCompleteMeaningVariations(actionMeaningId) : undefined}
           >
             <Card
               id={`wordbank-meaning-${section.id}`}
-              data-testid={`wordbank-meaning-card-${section.id}`}
+              data-testid={section.id === 0 ? "wordbank-lemma-scope-card" : `wordbank-meaning-card-${section.id}`}
               data-meaning-id={section.id}
               data-selected={selectedMeaningId === section.id ? "true" : "false"}
               className="py-5"
@@ -162,14 +205,30 @@ export function WordbankMeaningSections({
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
-                      <span className="text-lg leading-tight font-bold">{meaningLemma}</span>
+                      {section.id === 0 ? (
+                        <WordbankPronunciationWord
+                          form={lemma}
+                          playForm={lemmaPronunciationForm ?? undefined}
+                          hasPronunciation={Boolean(lemmaPronunciationForm)}
+                          pronunciationLoadingByForm={pronunciationLoadingByForm}
+                          onPlayPronunciation={onPlayPronunciation}
+                          contextMenuItems={rootContextMenuItems}
+                          className="text-lg leading-tight font-bold"
+                          iconClassName="size-3"
+                          as="h3"
+                        >
+                          {meaningLemma}
+                        </WordbankPronunciationWord>
+                      ) : (
+                        <span className="text-lg leading-tight font-bold">{meaningLemma}</span>
+                      )}
                       {sectionTranslation ? (
                         <span className="text-muted-foreground text-sm italic">{sectionTranslation}</span>
                       ) : null}
                     </div>
                     {/* Line 2: POS + morphology badges */}
                     {sectionBadges.length > 0 ? (
-                      <div data-testid={`wordbank-meaning-badges-${section.id}`} className="mt-1.5 flex flex-wrap gap-1.5">
+                      <div data-testid={section.id === 0 ? "wordbank-lemma-header-badges" : `wordbank-meaning-badges-${section.id}`} className="mt-1.5 flex flex-wrap gap-1.5">
                         {isGeneratedNonCor ? (
                           <Badge
                             variant="outline"
@@ -201,7 +260,7 @@ export function WordbankMeaningSections({
                   </div>
                   {section.categories && section.categories.length > 0 ? (
                     <div
-                      data-testid={`wordbank-meaning-category-badges-${section.id}`}
+                      data-testid={section.id === 0 ? "wordbank-lemma-category-badges" : `wordbank-meaning-category-badges-${section.id}`}
                       className="flex flex-wrap justify-end gap-1.5 sm:max-w-[45%]"
                     >
                       {section.categories.map((category) => (
@@ -227,6 +286,7 @@ export function WordbankMeaningSections({
                         regeneratingPronunciationByForm={regeneratingPronunciationByForm}
                         onPlayPronunciation={onPlayPronunciation}
                         onRegeneratePronunciation={onRegeneratePronunciation}
+                        nonInteractiveForms={section.id === 0 ? new Set([normalizeSearchWord(lemma)]) : undefined}
                       />
                     ) : (
                         <WordbankFormList
@@ -240,6 +300,22 @@ export function WordbankMeaningSections({
                         onRegeneratePronunciation={onRegeneratePronunciation}
                       />
                     )}
+                  </div>
+                ) : null}
+                {referenceLinks.length > 0 ? (
+                  <div data-testid={section.id === 0 ? "wordbank-pinned-home-card" : `wordbank-meaning-pinned-links-${section.id}`} className="flex flex-wrap gap-1.5">
+                    {referenceLinks.map((home) => (
+                      <Button
+                        key={home.sentinel}
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-auto px-2 py-0.5 text-xs"
+                        onClick={() => onOpenPinnedTab?.(home.sentinel)}
+                      >
+                        {home.page_title}: {home.tab_title}
+                      </Button>
+                    ))}
                   </div>
                 ) : null}
               </CardContent>
