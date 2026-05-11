@@ -72,6 +72,7 @@ Endpoint: `GET /api/wordbank/search?query=<q>&limit=8`
 Endpoints:
 - `GET /api/wordbank/search/cor-form?form=<q>&limit=100&include_translations=false`
 - `GET /api/wordbank/search/cor-form?form=<q>&limit=100`
+- `GET /api/wordbank/search/cor-form?form=<da>&en_query=<en>`
 
 - Skipped when: empty query, whitespace present, `isShortLetterWord(...)`,
   sentence mode is active, or the query is number-only.
@@ -81,6 +82,7 @@ Endpoints:
 - Full payload cached by normalized query.
 - Translation fetch failure → toast error, partial results remain.
 - Translation label normalization: content-word results drop frame scaffolding but may keep short multi-word phrases; function words keep minimal lexicalized context.
+- `en_query` narrows all returned COR groups through Gemini meaning-match selection. If Gemini returns no usable match or fails, all groups remain visible.
 
 ## English form API behavior
 

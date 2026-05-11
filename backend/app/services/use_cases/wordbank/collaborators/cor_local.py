@@ -7,6 +7,7 @@ from app.api.schemas.v1.wordbank import (
     CORSearchVariant,
 )
 from app.services.cor_local import CORLocalEntry, CORLocalLexiconService
+from app.services.en_gemini_translation import ENGeminiTranslationService
 from app.services.fuzzy_search import fuzzy_suggest
 from app.services.token_classifier import normalize_token
 from app.services.use_cases.static_presaved_words import (
@@ -141,6 +142,65 @@ def search_cor_form(
         )
 
     return CORSearchFormResponse(form=normalized_form, groups=groups, did_you_mean=did_you_mean)
+
+
+def filter_cor_form_response_by_en_query(
+    response: CORSearchFormResponse,
+    *,
+    en_query: str,
+    en_gemini_translation_service: ENGeminiTranslationService | None,
+) -> CORSearchFormResponse:
+    """Drop COR groups whose Danish meaning Gemini judges not to translate ``en_query``.
+
+    On any Gemini failure the response is returned unchanged.
+    """
+    if en_gemini_translation_service is None or not response.groups or not en_query.strip():
+        return response
+
+    choices: list[dict[str, object]] = []
+    group_indices = set(range(len(response.groups)))
+    for index, group in enumerate(response.groups):
+        first_variant = group.variants[0] if group.variants else None
+        choices.append(
+            {
+                "id": str(index),
+                "danish_lemma": group.lemma,
+                "danish_gloss": group.gloss or "",
+                "english_gloss": (first_variant.gloss_translation if first_variant else None) or "",
+                "lemma_translation": (first_variant.lemma_translation if first_variant else None) or "",
+                "pos": group.pos_tag or "",
+            }
+        )
+
+    try:
+        decisions = en_gemini_translation_service.select_translation_matches(
+            query=en_query.strip(),
+            choices=choices,
+        )
+    except Exception:
+        return response
+
+    if not decisions:
+        return response
+
+    matching_indices: set[int] = set()
+    for raw_id, matches in decisions.items():
+        try:
+            int_id = int(raw_id)
+        except (TypeError, ValueError):
+            continue
+        if matches and int_id in group_indices:
+            matching_indices.add(int_id)
+
+    if not matching_indices:
+        return response
+
+    filtered_groups = [group for index, group in enumerate(response.groups) if index in matching_indices]
+    return CORSearchFormResponse(
+        form=response.form,
+        groups=filtered_groups,
+        did_you_mean=response.did_you_mean,
+    )
 
 
 def static_pronoun_cor_search_response(form: str, pronoun: StaticPronoun) -> CORSearchFormResponse:
@@ -445,14 +505,29 @@ def cor_local_entry_for_cor_id(
     return entry
 
 
+def _verb_form_class(gram_raw: str) -> str | None:
+    chunks = [chunk.strip() for chunk in gram_raw.lower().split(".") if chunk.strip()]
+    if len(chunks) < 2 or chunks[0] != "vb":
+        return None
+    head = chunks[1]
+    if head == "perf":
+        return "perf.part"
+    if head == "præs" and len(chunks) >= 3 and chunks[2] == "part":
+        return "præs.part"
+    if head in {"præs", "præt", "inf"}:
+        return f"{head}.fin"
+    return head
+
+
 def consolidate_cor_local_entries(entries: list[CORLocalEntry]) -> list[CORLocalEntry]:
     if len(entries) < 2:
         return entries
 
-    consolidated: dict[tuple[str, str, str | None, str | None, str | None], CORLocalEntry] = {}
-    order: list[tuple[str, str, str | None, str | None, str | None]] = []
+    consolidated: dict[tuple[str, str, str | None, str | None, str | None, str | None], CORLocalEntry] = {}
+    order: list[tuple[str, str, str | None, str | None, str | None, str | None]] = []
     for entry in entries:
-        key = (entry.form, entry.lemma, entry.gloss, entry.pos_tag, entry.norm)
+        verb_class = _verb_form_class(entry.gram_raw) if entry.pos_tag == "VERB" else None
+        key = (entry.form, entry.lemma, entry.gloss, entry.pos_tag, entry.norm, verb_class)
         existing = consolidated.get(key)
         if existing is None:
             consolidated[key] = entry

@@ -57,12 +57,21 @@ def static_builtin_senses_for_token(token: str | None) -> tuple[StaticBuiltinSen
         )
 
     if normalized != "i":
-        senses.extend(_pronoun_senses(normalized))
+        skip_interrogative_pronoun = hv_word is not None
+        for pronoun_sense in _pronoun_senses(normalized):
+            if skip_interrogative_pronoun and pronoun_sense.meaning_key in {
+                "interrogative_pronoun",
+                "relative_pronoun",
+            }:
+                continue
+            senses.append(pronoun_sense)
 
     deduped: list[StaticBuiltinSense] = []
-    seen: set[tuple[str, str, str | None]] = set()
+    seen: set[tuple[str, str, str]] = set()
     for sense in senses:
-        key = (sense.lemma, sense.meaning_key, sense.pos_tag)
+        translation_key = _canonical_translation_key(sense.english_translation)
+        pos_key = (sense.pos_tag or "").upper()
+        key = (sense.lemma, pos_key, translation_key)
         if key in seen:
             continue
         seen.add(key)
@@ -332,6 +341,10 @@ def _reference_link(page_id: str, tab_id: str) -> StaticReferenceLink:
         tab_title=_TAB_LABELS[tab_id],
         sentinel=_TAB_SENTINELS[(page_id, tab_id)],
     )
+
+
+def _canonical_translation_key(translation: str) -> str:
+    return " ".join(translation.replace("/", " ").split()).casefold()
 
 
 def _normalized_translation_parts(translation: str) -> set[str]:

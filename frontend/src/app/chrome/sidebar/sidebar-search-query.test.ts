@@ -139,9 +139,42 @@ describe("buildEnTranslatedCorResults", () => {
     const result = buildEnTranslatedCorResults(activeEnResolveResult, { lort: lortPayload() }, "shit")
 
     expect(result.corSearchVariantsToRender).toHaveLength(2)
-    expect(result.corSearchVariantsToRender[0].variant.cor_id).toBe("COR.LORT.SHIT")
-    expect(result.corSearchVariantsToRender[0].variant.english_source_description).toBe("feces or low quality")
-    expect(result.corSearchVariantsToRender[1].variant.cor_id).toBe("COR.LORT.CRAP")
+    const [first, second] = result.corSearchVariantsToRender
+    expect(first.variant.cor_id).toBe("COR.LORT.SHIT")
+    expect(second.variant.cor_id).toBe("COR.LORT.CRAP")
+    // Multi-sense: the EN-side meaning_description must not be stamped onto every row,
+    // and per-sense translations must not be overwritten with the English query.
+    expect(first.variant.english_source_description).toBeNull()
+    expect(second.variant.english_source_description).toBeNull()
+    expect(first.variant.saveable_translation).toBe("shit")
+    expect(second.variant.saveable_translation).toBe("crap")
+  })
+
+  it("stamps the source description and overrides translation only when one Danish sense matches", () => {
+    const activeEnResolveResult: EnResolveResult = {
+      query: "shit",
+      groups: [
+        {
+          lemma: "shit",
+          pos_ud: "NOUN",
+          pos_raw: "noun",
+          danish_translation: "lort",
+          meaning_description: "feces or low quality",
+          senses: [],
+        },
+      ],
+    }
+    const singleSensePayload: CORSearchFormResponse = {
+      form: "lort",
+      groups: [lortPayload().groups[0]],
+    }
+
+    const result = buildEnTranslatedCorResults(activeEnResolveResult, { lort: singleSensePayload }, "shit")
+
+    expect(result.corSearchVariantsToRender).toHaveLength(1)
+    const [only] = result.corSearchVariantsToRender
+    expect(only.variant.english_source_description).toBe("feces or low quality")
+    expect(only.variant.saveable_translation).toBe("shit")
   })
 
   it("keeps distinct COR senses for the same Danish form and ranks by gloss-translation match", () => {

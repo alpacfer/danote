@@ -40,15 +40,16 @@ function matchingCorGroupsForEnglishSource(
   )
   const groupsToUse = matchingPosGroups.length > 0 ? matchingPosGroups : withFormMatch
   const ranked = selectRankedCorVariantsByForm(groupsToUse, englishQuery)
+  const isSingleSense = ranked.length === 1
 
   return ranked.map(({ group, variant }) => ({
     ...group,
     variants: [
       {
         ...variant,
-        english_source_description: sourceGroup.meaning_description,
-        lemma_translation: englishQuery,
-        saveable_translation: englishQuery,
+        english_source_description: isSingleSense ? sourceGroup.meaning_description : null,
+        lemma_translation: isSingleSense ? englishQuery : variant.lemma_translation,
+        saveable_translation: isSingleSense ? englishQuery : variant.saveable_translation,
       },
     ],
   }))

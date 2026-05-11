@@ -156,7 +156,6 @@ export function WordbankWordPage({
       onRetryVerificationTarget={onRetryVerificationTarget}
       onRevertVerificationChange={onRevertVerificationChange}
       showSupplementaryMetadata={false}
-      showLemmaTitle={isSectioned}
       onOpenPinnedTab={onOpenPinnedTab}
     />
   )

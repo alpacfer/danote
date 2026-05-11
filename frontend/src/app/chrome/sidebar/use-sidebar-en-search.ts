@@ -130,9 +130,10 @@ export function useSidebarEnSearch({
       return
     }
 
+    const filteredCacheKey = (translationKey: string) => `${normalizedQuery}::${translationKey}`
     const cachedPayloads: Record<string, CORSearchFormResponse> = {}
     const missing = translationKeys.filter((translationKey) => {
-      const cached = enTranslatedCorCacheRef.current.get(translationKey)
+      const cached = enTranslatedCorCacheRef.current.get(filteredCacheKey(translationKey))
       if (cached) {
         cachedPayloads[translationKey] = cached
         return false
@@ -182,7 +183,7 @@ export function useSidebarEnSearch({
         missing.map(async (translationKey) => {
           const payload = await apiClient
             .getJson<CORSearchFormResponse>(
-              `/api/wordbank/search/cor-form?form=${encodeURIComponent(translationKey)}&limit=100`,
+              `/api/wordbank/search/cor-form?form=${encodeURIComponent(translationKey)}&limit=100&en_query=${encodeURIComponent(normalizedQuery)}`,
               "Search translation is unavailable.",
             )
             .catch(() => null)
@@ -197,7 +198,7 @@ export function useSidebarEnSearch({
         if (!item) {
           continue
         }
-        enTranslatedCorCacheRef.current.set(item.translationKey, item.payload)
+        enTranslatedCorCacheRef.current.set(filteredCacheKey(item.translationKey), item.payload)
         mergedPayloads[item.translationKey] = item.payload
       }
       setEnTranslatedCorPayloads({ query: normalizedQuery, payloads: mergedPayloads })

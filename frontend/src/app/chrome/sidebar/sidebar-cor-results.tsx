@@ -78,8 +78,10 @@ export function SidebarCorResults({
               const sourceDescriptionLine = variant.english_source_description?.trim() || null
               const lemmaDisplay = lemmaDisplayForVariant(variant)
               const lemmaTranslation = lemmaTranslationForVariant(variant)
-              const detailLine = sourceDescriptionLine || (!lemmaTranslation ? glossLine : null)
               const translationLine = lemmaTranslationWithGlossComma(lemmaTranslation, glossLine)
+              const translationLineCoversGloss = showTranslationLine && Boolean(translationLine)
+              const detailLine = sourceDescriptionLine
+                || (translationLineCoversGloss ? null : glossLine)
               const saveableTranslation = saveableTranslationForVariant(variant)
               const sourceDisplay = sourceLabel?.trim() || lemmaDisplay
               const shouldShowSource = Boolean(sourceDisplay)

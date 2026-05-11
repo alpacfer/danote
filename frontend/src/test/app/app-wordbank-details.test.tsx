@@ -971,7 +971,8 @@ describe("App wordbank", () => {
     fireEvent.click(await screen.findByRole("button", { name: /bad/i }))
 
     const scopeCard = await screen.findByTestId("wordbank-lemma-scope-card")
-    expect(within(scopeCard).getByRole("heading", { name: /^bad$/i })).toBeInTheDocument()
+    expect(await screen.findByRole("heading", { name: /^bad$/i })).toBeInTheDocument()
+    expect(within(scopeCard).queryByRole("heading", { name: /^bad$/i })).not.toBeInTheDocument()
     expect(within(scopeCard).getByRole("table")).toBeInTheDocument()
   })
 

@@ -62,6 +62,39 @@ class ENGeminiTranslationService:
         response = self._generate_content(prompt)
         return self._parse(response)
 
+    def select_translation_matches(self, *, query: str, choices: list[dict[str, object]]) -> dict[str, bool]:
+        """Return id → True/False indicating which Danish senses validly translate the English query.
+
+        Used to filter out homograph senses of the same Danish lemma that do not match the
+        intended English meaning (e.g. ``bord`` "ship plank" when the query is ``table``).
+        """
+        if not choices:
+            return {}
+        valid_ids = {str(choice.get("id")) for choice in choices}
+        prompt = self._build_match_prompt(query=query, choices=choices)
+        response = self._generate_content(
+            prompt,
+            response_schema={
+                "type": "OBJECT",
+                "properties": {
+                    "items": {
+                        "type": "ARRAY",
+                        "items": {
+                            "type": "OBJECT",
+                            "properties": {
+                                "id": {"type": "STRING"},
+                                "matches": {"type": "BOOLEAN"},
+                            },
+                            "required": ["id", "matches"],
+                        },
+                    },
+                },
+                "required": ["items"],
+            },
+            max_output_tokens=max(128, min(1024, len(choices) * 32)),
+        )
+        return self._parse_match_decisions(response, valid_ids=valid_ids)
+
     def describe_translation_choices(self, *, query: str, choices: list[dict[str, object]]) -> dict[str, str]:
         if not choices:
             return {}
@@ -100,6 +133,22 @@ class ENGeminiTranslationService:
             "using the base (dictionary/infinitive) form. "
             'Reply strictly as JSON: {"translation": "<danish-word>"}. '
             "If no good translation exists, use null."
+        )
+
+    def _build_match_prompt(self, *, query: str, choices: list[dict[str, object]]) -> str:
+        return (
+            "Decide which Danish senses are valid translations of one English query word.\n"
+            "Return JSON only with this exact shape: "
+            "{\"items\":[{\"id\":\"0\",\"matches\":true}]}\n"
+            "Rules:\n"
+            "- Return exactly one item per input id; copy ids exactly.\n"
+            "- matches=true if the Danish sense (its meaning, judged from gloss/examples) is a "
+            "natural translation of the English query as that part of speech.\n"
+            "- matches=false if the Danish sense refers to a different concept that just happens "
+            "to share spelling with another sense (homograph). Be strict: when in doubt, prefer false.\n"
+            "- Use the supplied glosses/examples as the primary evidence, not the Danish lemma alone.\n"
+            f"English query: {query}\n"
+            f"Choices:\n{json.dumps(choices, ensure_ascii=False)}"
         )
 
     def _build_disambiguation_prompt(self, *, query: str, choices: list[dict[str, object]]) -> str:
@@ -182,6 +231,26 @@ class ENGeminiTranslationService:
             return None
         return _extract_translation(payload)
 
+    def _parse_match_decisions(self, response: object, *, valid_ids: set[str]) -> dict[str, bool]:
+        parsed = getattr(response, "parsed", None)
+        extracted = _extract_match_decisions(parsed, valid_ids=valid_ids)
+        if extracted:
+            return extracted
+
+        raw = getattr(response, "text", None)
+        if not isinstance(raw, str):
+            return {}
+        cleaned = raw.strip()
+        if cleaned.startswith("```"):
+            cleaned = cleaned.removeprefix("```json").removeprefix("```").strip()
+            if cleaned.endswith("```"):
+                cleaned = cleaned[:-3].strip()
+        try:
+            payload = json.loads(cleaned)
+        except ValueError:
+            return {}
+        return _extract_match_decisions(payload, valid_ids=valid_ids)
+
     def _parse_descriptions(self, response: object, *, valid_ids: set[str]) -> dict[str, str]:
         parsed = getattr(response, "parsed", None)
         extracted = _extract_descriptions(parsed, valid_ids=valid_ids)
@@ -238,6 +307,25 @@ def _extract_translation(payload: object) -> str | None:
         return None
     cleaned = value.strip()
     return cleaned or None
+
+
+def _extract_match_decisions(payload: object, *, valid_ids: set[str]) -> dict[str, bool]:
+    if not isinstance(payload, dict):
+        return {}
+    items = payload.get("items")
+    if not isinstance(items, list):
+        return {}
+    decisions: dict[str, bool] = {}
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        item_id = item.get("id")
+        if not isinstance(item_id, str) or item_id not in valid_ids:
+            continue
+        matches = item.get("matches")
+        if isinstance(matches, bool):
+            decisions[item_id] = matches
+    return decisions
 
 
 def _extract_descriptions(payload: object, *, valid_ids: set[str]) -> dict[str, str]:

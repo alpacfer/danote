@@ -9,6 +9,10 @@ import {
   type GeneratePronunciationResponse,
   type LemmaDetailsResponse,
 } from "@/app/core"
+import {
+  fetchNumbersPronunciationBlob,
+  fetchPresavedWordPronunciationBlob,
+} from "@/app/core/audio-api"
 import { toast } from "sonner"
 
 type UsePronunciationWorkflowParams = {
@@ -118,27 +122,33 @@ export function usePronunciationWorkflow({
       while (true) {
         let objectUrl = pronunciationUrlByFormRef.current.get(normalizedForm)
         if (!objectUrl) {
-          let response: Response
+          let audioBlob: Blob | null = null
           try {
-            response = await apiClient.getBlob(
+            const response = await apiClient.getBlob(
               `/api/wordbank/pronunciation?form=${encodeURIComponent(normalizedForm)}`,
               "Could not load pronunciation.",
             )
+            const contentType = typeof response.headers?.get === "function"
+              ? response.headers.get("content-type")
+              : null
+            if (!isPlayableAudioContentType(contentType)) {
+              throw new Error(`Unsupported pronunciation format: ${contentType}`)
+            }
+            audioBlob = await response.blob()
           } catch (error) {
             if (error instanceof ApiRequestError && error.status === 404) {
-              toast.error(`No pronunciation is available yet for '${normalizedForm}'.`)
-              return
+              audioBlob = await fetchPresavedWordPronunciationBlob(normalizedForm)
+              if (!audioBlob) {
+                audioBlob = await fetchNumbersPronunciationBlob(normalizedForm)
+              }
+              if (!audioBlob) {
+                toast.error(`No pronunciation is available yet for '${normalizedForm}'.`)
+                return
+              }
+            } else {
+              throw error
             }
-            throw error
           }
-
-          const contentType = typeof response.headers?.get === "function"
-            ? response.headers.get("content-type")
-            : null
-          if (!isPlayableAudioContentType(contentType)) {
-            throw new Error(`Unsupported pronunciation format: ${contentType}`)
-          }
-          const audioBlob = await response.blob()
           objectUrl = URL.createObjectURL(audioBlob)
           pronunciationUrlByFormRef.current.set(normalizedForm, objectUrl)
         }

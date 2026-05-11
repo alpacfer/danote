@@ -16,7 +16,6 @@ import {
   hasPronunciationForForm,
   resolvePronunciationAvailability,
 } from "@/app/sections/wordbank/wordbank-pronunciation-availability"
-import { WordbankPronunciationWord } from "@/app/sections/wordbank/wordbank-pronunciation-word"
 import { WordbankScopeContextMenu } from "@/app/sections/wordbank/wordbank-scope-context-menu"
 import {
   buildAdjectiveDegreeGroups,
@@ -27,7 +26,6 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { AudioLines, Languages, Loader2, Sparkles } from "lucide-react"
 
 type WordbankMeaningSectionsProps = {
   lemma: string
@@ -122,37 +120,6 @@ export function WordbankMeaningSections({
           pronunciationAvailability,
         )
         const lemmaHasPronunciation = hasPronunciationForForm(pronunciationAvailability, lemma)
-        const lemmaPronunciationForm = (() => {
-          const allForms = [...lemmaSurfaceForms, ...section.surface_forms]
-          const exactMatch = allForms.find(
-            (form) => normalizeSearchWord(form.form) === normalizeSearchWord(lemma) && form.has_pronunciation,
-          )
-          if (exactMatch) return exactMatch.form
-          const firstAvailable = allForms.find((form) => form.has_pronunciation)
-          return firstAvailable?.form ?? null
-        })()
-        const isRegeneratingLemma = Boolean(regeneratingPronunciationByForm[normalizeSearchWord(lemma)])
-        const rootContextMenuItems = section.id === 0 ? [
-          {
-            icon: isRegeneratingLemma ? <Loader2 className="animate-spin" /> : <AudioLines />,
-            label: isRegeneratingLemma ? "Regenerating audio..." : "Regenerate audio",
-            disabled: isRegeneratingLemma,
-            onSelect: () => onRegeneratePronunciation(lemma),
-          },
-          {
-            icon: isFindingAlternativeTranslations ? <Loader2 className="animate-spin" /> : <Languages />,
-            label: isFindingAlternativeTranslations ? "Finding alternative translations..." : "Find alternative translations",
-            disabled: isFindingAlternativeTranslations,
-            separatorBefore: true as const,
-            onSelect: () => onFindAlternativeTranslations(null),
-          },
-          {
-            icon: isRethinkingCategories ? <Loader2 className="animate-spin" /> : <Sparkles />,
-            label: isRethinkingCategories ? "Rethinking categories..." : "Rethink categories",
-            disabled: isRethinkingCategories,
-            onSelect: () => onRethinkCategories(null),
-          },
-        ] : []
         const lemmaSyntheticForm = {
           form: lemma,
           pos_tag: section.pos_tag ?? null,
@@ -171,6 +138,7 @@ export function WordbankMeaningSections({
         const sectionBadgeLabels = new Set(sectionBadges.map((b) => b.label))
         const referenceLinks = onOpenPinnedTab ? (section.reference_links ?? []) : []
         const actionMeaningId = section.id > 0 ? section.id : null
+        const isRootSection = section.id === 0
 
         return (
           <WordbankScopeContextMenu
@@ -201,34 +169,20 @@ export function WordbankMeaningSections({
               className="py-5"
             >
               <CardContent className="flex flex-col gap-3">
-                {/* Line 1: Lemma + translation | Category badges */}
+                {/* Line 1: Lemma (sectioned only — root lemma sits in the top page header) + translation | Category badges */}
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
-                      {section.id === 0 ? (
-                        <WordbankPronunciationWord
-                          form={lemma}
-                          playForm={lemmaPronunciationForm ?? undefined}
-                          hasPronunciation={Boolean(lemmaPronunciationForm)}
-                          pronunciationLoadingByForm={pronunciationLoadingByForm}
-                          onPlayPronunciation={onPlayPronunciation}
-                          contextMenuItems={rootContextMenuItems}
-                          className="text-lg leading-tight font-bold"
-                          iconClassName="size-3"
-                          as="h3"
-                        >
-                          {meaningLemma}
-                        </WordbankPronunciationWord>
-                      ) : (
-                        <span className="text-lg leading-tight font-bold">{meaningLemma}</span>
-                      )}
+                      <span data-testid={isRootSection ? "wordbank-lemma-card-lemma" : `wordbank-meaning-card-lemma-${section.id}`} className="text-lg leading-tight font-bold">
+                        {meaningLemma}
+                      </span>
                       {sectionTranslation ? (
                         <span className="text-muted-foreground text-sm italic">{sectionTranslation}</span>
                       ) : null}
                     </div>
                     {/* Line 2: POS + morphology badges */}
                     {sectionBadges.length > 0 ? (
-                      <div data-testid={section.id === 0 ? "wordbank-lemma-header-badges" : `wordbank-meaning-badges-${section.id}`} className="mt-1.5 flex flex-wrap gap-1.5">
+                      <div data-testid={isRootSection ? "wordbank-lemma-header-badges" : `wordbank-meaning-badges-${section.id}`} className="mt-1.5 flex flex-wrap gap-1.5">
                         {isGeneratedNonCor ? (
                           <Badge
                             variant="outline"
@@ -260,7 +214,7 @@ export function WordbankMeaningSections({
                   </div>
                   {section.categories && section.categories.length > 0 ? (
                     <div
-                      data-testid={section.id === 0 ? "wordbank-lemma-category-badges" : `wordbank-meaning-category-badges-${section.id}`}
+                      data-testid={isRootSection ? "wordbank-lemma-category-badges" : `wordbank-meaning-category-badges-${section.id}`}
                       className="flex flex-wrap justify-end gap-1.5 sm:max-w-[45%]"
                     >
                       {section.categories.map((category) => (
@@ -303,7 +257,7 @@ export function WordbankMeaningSections({
                   </div>
                 ) : null}
                 {referenceLinks.length > 0 ? (
-                  <div data-testid={section.id === 0 ? "wordbank-pinned-home-card" : `wordbank-meaning-pinned-links-${section.id}`} className="flex flex-wrap gap-1.5">
+                  <div data-testid={isRootSection ? "wordbank-pinned-home-card" : `wordbank-meaning-pinned-links-${section.id}`} className="flex flex-wrap gap-1.5">
                     {referenceLinks.map((home) => (
                       <Button
                         key={home.sentinel}

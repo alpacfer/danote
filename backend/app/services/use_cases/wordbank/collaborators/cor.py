@@ -20,6 +20,7 @@ from app.services.use_cases.wordbank.collaborators.cor_local import (
     cor_local_entries_for_lemma_idx,
     cor_local_entries_for_surface_form,
     cor_local_entry_for_cor_id,
+    filter_cor_form_response_by_en_query,
     lookup_translation_for_cor_gloss,
     search_cor_form,
     search_cor_lemma_paradigm,
@@ -83,14 +84,28 @@ class CorResolutionCollaborator:
     # Public API — COR local search
     # ------------------------------------------------------------------
 
-    def search_cor_form(self, form: str, *, limit: int = 100, include_translations: bool = True) -> CORSearchFormResponse:
-        return search_cor_form(
+    def search_cor_form(
+        self,
+        form: str,
+        *,
+        limit: int = 100,
+        include_translations: bool = True,
+        en_query: str | None = None,
+    ) -> CORSearchFormResponse:
+        response = search_cor_form(
             self._cor_local_lexicon_service,
             self._translation,
             form,
             limit=limit,
             include_translations=include_translations,
         )
+        if en_query and en_query.strip():
+            response = filter_cor_form_response_by_en_query(
+                response,
+                en_query=en_query,
+                en_gemini_translation_service=self._en_gemini_translation_service,
+            )
+        return response
 
     def search_cor_lemma_paradigm(
         self, lemma_idx: int, *, limit: int = 1000

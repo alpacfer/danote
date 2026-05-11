@@ -220,6 +220,264 @@ def test_wordbank_search_cor_form_consolidates_same_entry_with_multiple_grams(tm
     assert len(response.groups[0].variants) == 1
     assert response.groups[0].variants[0].gram_raw == "sb.itk.sg.ubest | sb.itk.pl.ubest"
 
+class _StubENGeminiForMatchFilter:
+    def __init__(self, decisions: dict[str, bool]) -> None:
+        self._decisions = decisions
+        self.calls: list[tuple[str, list[dict[str, object]]]] = []
+
+    def select_translation_matches(
+        self, *, query: str, choices: list[dict[str, object]]
+    ) -> dict[str, bool]:
+        self.calls.append((query, choices))
+        return dict(self._decisions)
+
+    # Other methods on ENGeminiTranslationService — not exercised here.
+    def translate_english_lemma(self, *, lemma: str, pos_ud: str | None, gloss: str | None) -> str | None:
+        return None
+
+    def describe_translation_choices(self, *, query: str, choices: list[dict[str, object]]) -> dict[str, str]:
+        return {}
+
+
+def _bord_homograph_lookup() -> dict[str, list[CORLocalEntry]]:
+    return {
+        "bord": [
+            CORLocalEntry(
+                cor_id="COR.44636.120.01",
+                lemma="bord",
+                gloss="et møbel",
+                gram_raw="sb.itk.sg.ubest",
+                form="bord",
+                norm="N",
+                lemma_idx=44636,
+                gram_code=120,
+                variation=1,
+                pos_tag="NOUN",
+                morphology="Gender=Neut|Number=Sing|Definite=Ind",
+                features={"Gender": "Neut", "Number": "Sing", "Definite": "Ind"},
+                extra_tags=[],
+            ),
+            CORLocalEntry(
+                cor_id="COR.46065.120.01",
+                lemma="bord",
+                gloss="planke på skib el. båd",
+                gram_raw="sb.itk.sg.ubest",
+                form="bord",
+                norm="N",
+                lemma_idx=46065,
+                gram_code=120,
+                variation=1,
+                pos_tag="NOUN",
+                morphology="Gender=Neut|Number=Sing|Definite=Ind",
+                features={"Gender": "Neut", "Number": "Sing", "Definite": "Ind"},
+                extra_tags=[],
+            ),
+        ]
+    }
+
+
+def _kort_multi_pos_lookup() -> dict[str, list[CORLocalEntry]]:
+    return {
+        "kort": [
+            CORLocalEntry(
+                cor_id="COR.10001.300.01",
+                lemma="kort",
+                gloss="ikke lang",
+                gram_raw="adj.pos.sg.ubest",
+                form="kort",
+                norm="N",
+                lemma_idx=10001,
+                gram_code=300,
+                variation=1,
+                pos_tag="ADJ",
+                morphology="Degree=Pos|Number=Sing|Definite=Ind",
+                features={"Degree": "Pos", "Number": "Sing", "Definite": "Ind"},
+                extra_tags=[],
+            ),
+            CORLocalEntry(
+                cor_id="COR.10002.202.01",
+                lemma="korte",
+                gloss="gøre kortere",
+                gram_raw="vb.byd.akt",
+                form="kort",
+                norm="N",
+                lemma_idx=10002,
+                gram_code=202,
+                variation=1,
+                pos_tag="VERB",
+                morphology="Mood=Imp|VerbForm=Fin|Voice=Act",
+                features={"Mood": "Imp", "VerbForm": "Fin", "Voice": "Act"},
+                extra_tags=[],
+            ),
+            CORLocalEntry(
+                cor_id="COR.10003.120.01",
+                lemma="kort",
+                gloss="spillekort eller landkort",
+                gram_raw="sb.itk.sg.ubest",
+                form="kort",
+                norm="N",
+                lemma_idx=10003,
+                gram_code=120,
+                variation=1,
+                pos_tag="NOUN",
+                morphology="Gender=Neut|Number=Sing|Definite=Ind",
+                features={"Gender": "Neut", "Number": "Sing", "Definite": "Ind"},
+                extra_tags=[],
+            ),
+        ]
+    }
+
+
+def test_wordbank_search_cor_form_filters_competing_senses_via_en_query(tmp_path: Path) -> None:
+    local_cor = FakeCORLocalLexiconService(by_form=_bord_homograph_lookup())
+    gemini = _StubENGeminiForMatchFilter({"0": True, "1": False})
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_local_lexicon_service=local_cor,
+        en_gemini_translation_service=gemini,
+    )
+
+    response = use_case.search_cor_form(
+        "bord",
+        limit=100,
+        include_translations=False,
+        en_query="table",
+    )
+
+    assert len(response.groups) == 1
+    assert response.groups[0].gloss == "et møbel"
+    assert response.groups[0].variants[0].cor_id == "COR.44636.120.01"
+    assert len(gemini.calls) == 1
+    assert gemini.calls[0][0] == "table"
+    assert {choice["danish_gloss"] for choice in gemini.calls[0][1]} == {
+        "et møbel",
+        "planke på skib el. båd",
+    }
+
+
+def test_wordbank_search_cor_form_filters_single_group_per_pos_via_en_query(tmp_path: Path) -> None:
+    local_cor = FakeCORLocalLexiconService(by_form=_kort_multi_pos_lookup())
+    gemini = _StubENGeminiForMatchFilter({"0": True, "1": False, "2": False})
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_local_lexicon_service=local_cor,
+        en_gemini_translation_service=gemini,
+    )
+
+    response = use_case.search_cor_form(
+        "kort",
+        limit=100,
+        include_translations=False,
+        en_query="short",
+    )
+
+    assert len(response.groups) == 1
+    assert response.groups[0].pos_tag == "ADJ"
+    assert response.groups[0].gloss == "ikke lang"
+    assert len(gemini.calls) == 1
+    assert [choice["pos"] for choice in gemini.calls[0][1]] == ["ADJ", "VERB", "NOUN"]
+
+
+def test_wordbank_search_cor_form_keeps_all_senses_when_gemini_marks_none_matching(tmp_path: Path) -> None:
+    local_cor = FakeCORLocalLexiconService(by_form=_bord_homograph_lookup())
+    gemini = _StubENGeminiForMatchFilter({"0": False, "1": False})
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_local_lexicon_service=local_cor,
+        en_gemini_translation_service=gemini,
+    )
+
+    response = use_case.search_cor_form(
+        "bord",
+        limit=100,
+        include_translations=False,
+        en_query="table",
+    )
+
+    # Empty filter result is treated as a Gemini failure: keep all senses rather than
+    # leaving the user with zero results.
+    assert {group.gloss for group in response.groups} == {"et møbel", "planke på skib el. båd"}
+
+
+def test_wordbank_search_cor_form_does_not_call_gemini_without_en_query(tmp_path: Path) -> None:
+    local_cor = FakeCORLocalLexiconService(by_form=_bord_homograph_lookup())
+    gemini = _StubENGeminiForMatchFilter({"0": True, "1": False})
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_local_lexicon_service=local_cor,
+        en_gemini_translation_service=gemini,
+    )
+
+    response = use_case.search_cor_form("bord", limit=100, include_translations=False)
+
+    assert len(response.groups) == 2
+    assert gemini.calls == []
+
+
+def test_wordbank_search_cor_form_keeps_finite_verb_separate_from_perfect_participle(tmp_path: Path) -> None:
+    local_cor = FakeCORLocalLexiconService(
+        by_form={
+            "råbte": [
+                CORLocalEntry(
+                    cor_id="COR.35978.206.01",
+                    lemma="råbe",
+                    gloss=None,
+                    gram_raw="vb.præt.akt",
+                    form="råbte",
+                    norm="N",
+                    lemma_idx=35978,
+                    gram_code=206,
+                    variation=1,
+                    pos_tag="VERB",
+                    morphology="Tense=Past|VerbForm=Fin|Voice=Act",
+                    features={"Tense": "Past", "VerbForm": "Fin", "Voice": "Act"},
+                    extra_tags=[],
+                ),
+                CORLocalEntry(
+                    cor_id="COR.35978.214.01",
+                    lemma="råbe",
+                    gloss=None,
+                    gram_raw="vb.perf.part.sg.best",
+                    form="råbte",
+                    norm="N",
+                    lemma_idx=35978,
+                    gram_code=214,
+                    variation=1,
+                    pos_tag="VERB",
+                    morphology="VerbForm=Part|Number=Sing|Definite=Def",
+                    features={"VerbForm": "Part", "Number": "Sing", "Definite": "Def"},
+                    extra_tags=[],
+                ),
+                CORLocalEntry(
+                    cor_id="COR.35978.215.01",
+                    lemma="råbe",
+                    gloss=None,
+                    gram_raw="vb.perf.part.pl",
+                    form="råbte",
+                    norm="N",
+                    lemma_idx=35978,
+                    gram_code=215,
+                    variation=1,
+                    pos_tag="VERB",
+                    morphology="VerbForm=Part|Number=Plur",
+                    features={"VerbForm": "Part", "Number": "Plur"},
+                    extra_tags=[],
+                ),
+            ]
+        }
+    )
+    use_case = WordbankUseCase(_db_path(tmp_path), cor_local_lexicon_service=local_cor)
+
+    response = use_case.search_cor_form("råbte", limit=100, include_translations=False)
+
+    assert len(response.groups) == 1
+    variants = response.groups[0].variants
+    grams = [variant.gram_raw for variant in variants]
+    assert "vb.præt.akt" in grams
+    assert "vb.perf.part.sg.best | vb.perf.part.pl" in grams
+    assert len(variants) == 2
+
+
 def test_wordbank_search_cor_form_prefers_glossed_entries_within_same_pos(tmp_path: Path) -> None:
     local_cor = FakeCORLocalLexiconService(
         by_form={

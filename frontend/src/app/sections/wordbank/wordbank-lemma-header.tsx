@@ -1,5 +1,5 @@
 import type { LemmaDetailsResponse, VerificationChangeEntry, VerificationOverview } from "@/app/core"
-import { additionalTranslationsDisplay, corSecondaryBadgeClass, normalizeSearchWord, posBadgeClass, semanticCategoryBadgeClass } from "@/app/core"
+import { additionalTranslationsDisplay, corSecondaryBadgeClass, normalizeSearchWord, posBadgeClass } from "@/app/core"
 import { pinnedHomesForLemma } from "@/app/sections/wordbank/_shared/pinned-word-index"
 import { wordPageBadgesForSavedForm } from "@/app/sections/wordbank/wordbank-card-badges"
 import { WordbankPronunciationWord } from "@/app/sections/wordbank/wordbank-pronunciation-word"
@@ -34,7 +34,6 @@ type WordbankLemmaHeaderProps = {
   onRetryVerificationTarget: (targetKey: string) => void
   onRevertVerificationChange: (changeId: number) => void
   showSupplementaryMetadata: boolean
-  showLemmaTitle?: boolean
   onOpenPinnedTab: (sentinel: string) => void
 }
 
@@ -61,7 +60,6 @@ export function WordbankLemmaHeader({
   onRetryVerificationTarget,
   onRevertVerificationChange,
   showSupplementaryMetadata,
-  showLemmaTitle = true,
   onOpenPinnedTab,
 }: WordbankLemmaHeaderProps) {
   const normalizedSelectedLemma = (lemmaDetails.lemma ?? selectedLemma).trim().toLocaleLowerCase("da-DK")
@@ -125,18 +123,21 @@ export function WordbankLemmaHeader({
         }]
       : []),
   ]
-  const categories = lemmaDetails.categories ?? []
-  const verificationTrigger = pinnedHomes.length === 0 ? (
+  const isBuiltInLemma = pinnedHomes.length > 0
+  const effectiveVerificationOverview = isBuiltInLemma
+    ? buildBuiltInVerificationOverview(lemmaDetails.lemma)
+    : verificationOverview
+  const verificationTrigger = (
     <div className="shrink-0">
       <WordbankVerificationPopover
-        verificationOverview={verificationOverview}
-        changes={verificationChanges}
-        isLoadingChanges={isLoadingVerificationChanges}
-        isApplyingVerificationChanges={isApplyingVerificationChanges}
-        isRetryingVerification={isRetryingVerification}
-        isRevertingChange={isRevertingVerificationChange}
+        verificationOverview={effectiveVerificationOverview}
+        changes={isBuiltInLemma ? [] : verificationChanges}
+        isLoadingChanges={isBuiltInLemma ? false : isLoadingVerificationChanges}
+        isApplyingVerificationChanges={isBuiltInLemma ? false : isApplyingVerificationChanges}
+        isRetryingVerification={isBuiltInLemma ? false : isRetryingVerification}
+        isRevertingChange={isBuiltInLemma ? false : isRevertingVerificationChange}
         onOpenChange={(open) => {
-          if (open) {
+          if (open && !isBuiltInLemma) {
             onMarkVisibleVerificationNotificationsAsRead()
           }
         }}
@@ -145,35 +146,14 @@ export function WordbankLemmaHeader({
         onRevertChange={onRevertVerificationChange}
       />
     </div>
-  ) : null
-
-  if (!showLemmaTitle) {
-    return verificationTrigger ? (
-      <div id="wordbank-lemma-header" className="flex justify-end">
-        {verificationTrigger}
-      </div>
-    ) : null
-  }
+  )
 
   return (
     <div id="wordbank-lemma-header">
-      {/* Category badges */}
-      {categories.length > 0 ? (
-        <div data-testid="wordbank-lemma-category-badges" className="flex flex-wrap justify-end gap-1.5">
-          {categories.map((category) => (
-            <Badge
-              key={`lemma-category-${category}`}
-              variant="outline"
-              className={`text-xs ${semanticCategoryBadgeClass(category)}`.trim()}
-            >
-              {category}
-            </Badge>
-          ))}
-        </div>
-      ) : null}
-
-      {/* Lemma word + verification button */}
-      <div className="mt-2 flex items-start justify-between gap-3">
+      {/* Lemma word + verification button. Categories, POS badges, translation,
+          and pinned-home chips live inside the meaning section card(s) below so
+          every word page (saved or built-in) shares the same chrome. */}
+      <div className="flex items-start justify-between gap-3">
         <WordbankPronunciationWord
           form={lemmaDetails.lemma}
           playForm={lemmaPronunciationForm ?? undefined}
@@ -314,6 +294,34 @@ function WordbankMeaningCardLoadingSkeleton() {
       </CardContent>
     </Card>
   )
+}
+
+function buildBuiltInVerificationOverview(lemma: string): VerificationOverview {
+  return {
+    targets: [
+      {
+        key: `builtin::${lemma}`,
+        label: lemma,
+        scopeLabel: "Built-in reference",
+        meaningId: null,
+        storedSurfaceForm: null,
+        verification: null,
+        errorDetail: null,
+        successDetail: {
+          provider: "built_in",
+          rawMessage: "Built-in reference word, no verification needed.",
+          storedSurfaceForm: null,
+          meaningId: null,
+          verifiedAt: null,
+        },
+        queuedDetail: null,
+      },
+    ],
+    queuedCount: 0,
+    verifiedCount: 1,
+    reviewCount: 0,
+    totalSuggestedActions: 0,
+  }
 }
 
 function WordbankParadigmLoadingSkeleton() {
