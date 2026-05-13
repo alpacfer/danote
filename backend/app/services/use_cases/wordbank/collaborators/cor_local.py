@@ -17,6 +17,9 @@ from app.services.use_cases.static_presaved_words import (
     static_presaved_word_for_token,
 )
 from app.services.use_cases.static_pronouns import StaticPronoun, static_pronoun_for_token
+from app.services.use_cases.wordbank.collaborators.cor_local_batch_filter import (
+    filter_cor_form_responses_by_en_query_batch as filter_cor_form_responses_by_en_query_batch_with_runner,
+)
 from app.services.use_cases.wordbank.collaborators.cor_local_translations import (
     AzureFrameCacheKey,
     ContextualCacheKey,
@@ -246,6 +249,18 @@ def filter_cor_form_response_by_en_query(
         form=response.form,
         groups=filtered_groups,
         did_you_mean=response.did_you_mean,
+    )
+
+
+def filter_cor_form_responses_by_en_query_batch(
+    items: list[tuple[CORSearchFormResponse, str, str | None]],
+    *,
+    en_gemini_translation_service: ENGeminiTranslationService | None,
+) -> list[CORSearchFormResponse]:
+    return filter_cor_form_responses_by_en_query_batch_with_runner(
+        items,
+        en_gemini_translation_service=en_gemini_translation_service,
+        single_filter=filter_cor_form_response_by_en_query,
     )
 
 

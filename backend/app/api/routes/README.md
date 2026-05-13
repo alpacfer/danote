@@ -7,7 +7,8 @@ API DTOs or binary responses.
 ## What Lives Here
 
 - `root.py`, `health`-style routes, and small feature entry points.
-- `wordbank.py` for wordbank lexeme/search/verification endpoints.
+- `wordbank.py` for wordbank lexeme/verification endpoints.
+- `wordbank_search.py` for wordbank search endpoints, including COR/English search helpers.
 - `wordbank_audio.py` for wordbank, number, and presaved-word pronunciation
   endpoints.
 - `sentencebank.py` for sentence save/list/preview/pronunciation endpoints.
@@ -20,7 +21,7 @@ API DTOs or binary responses.
 
 ## Choosing A File
 
-- Add new wordbank JSON endpoints to `wordbank.py` unless they are specifically
-  pronunciation/audio related.
+- Add new wordbank search endpoints to `wordbank_search.py`; add other wordbank
+  JSON endpoints to `wordbank.py` unless they are specifically pronunciation/audio related.
 - Add binary or seeding pronunciation endpoints to `wordbank_audio.py`.
 - Keep route functions thin; if the lambda grows, add a use-case method instead.

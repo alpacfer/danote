@@ -327,6 +327,33 @@ def test_wordbank_search_cor_form_passes_en_pos_to_gemini(tmp_path: Path) -> Non
     assert gemini.calls[0][2] == "NOUN"
 
 
+def test_wordbank_search_cor_form_batch_preserves_order_and_filter_semantics(tmp_path: Path) -> None:
+    local_cor = FakeCORLocalLexiconService(by_form=_bord_homograph_lookup())
+    gemini = _StubENGeminiForMatchFilter({"0": True, "1": False})
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_local_lexicon_service=local_cor,
+        en_gemini_translation_service=gemini,
+    )
+
+    responses = use_case.search_cor_form_batch(
+        [
+            ("bord", "table", "NOUN"),
+            ("bord", "table", None),
+        ],
+        limit=100,
+        include_translations=False,
+    )
+
+    assert [response.form for response in responses] == ["bord", "bord"]
+    assert [response.groups[0].variants[0].cor_id for response in responses] == [
+        "COR.44636.120.01",
+        "COR.44636.120.01",
+    ]
+    assert len(gemini.calls) == 2
+    assert gemini.calls[0][2] in {"NOUN", None}
+
+
 def test_wordbank_search_cor_form_keeps_all_senses_when_gemini_marks_none_matching(tmp_path: Path) -> None:
     local_cor = FakeCORLocalLexiconService(by_form=_bord_homograph_lookup())
     gemini = _StubENGeminiForMatchFilter({"0": False, "1": False})

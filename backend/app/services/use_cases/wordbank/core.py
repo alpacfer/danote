@@ -369,6 +369,19 @@ class WordbankUseCase:
             en_pos_ud=en_pos_ud,
         )
 
+    def search_cor_form_batch(
+        self,
+        items: list[tuple[str, str | None, str | None]],
+        *,
+        limit: int = 100,
+        include_translations: bool = False,
+    ) -> list[CORSearchFormResponse]:
+        return self._runtime.cor.search_cor_form_batch(
+            items,
+            limit=limit,
+            include_translations=include_translations,
+        )
+
     def search_cor_lemma_paradigm(
         self, lemma_idx: int, *, limit: int = 1000
     ) -> CORLemmaParadigmResponse:

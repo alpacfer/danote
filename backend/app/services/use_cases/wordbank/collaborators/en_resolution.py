@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import os
 from collections import OrderedDict
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from app.api.schemas.v1.wordbank import (
     ENPosGroup,
@@ -196,58 +198,34 @@ def build_en_pos_groups(
         key=lambda m: (_POS_ORDER.get(m.pos_ud, 99), m.lemma.lower()),
     )
 
+    group_inputs: list[tuple[object, list[object], tuple[str, str], bool]] = []
     for match in sorted_matches:
         key = (match.lemma.lower(), match.pos_ud)
-        if key in groups_by_key:
+        if key in groups_by_key or any(existing_key == key for _, _, existing_key, _ in group_inputs):
             continue
         senses = en_local_lexicon_service.lookup_lemma_senses(match.lemma, match.pos_ud)
         if not senses:
             continue
         senses = senses[:_MAX_SENSES_PER_POS]
-        sense_outs: list[ENSenseOut] = []
-        # When the queried form is inflected away from the lemma ("dogs" vs "dog"),
-        # the surface translator preserves the inflection in Danish ("hunde" vs
-        # "hund") and that's what the user expects to see. When the form equals
-        # the lemma ("run", "card"), the surface translator is POS-blind and
-        # would assign the same Danish word to every POS group of the query;
-        # in that case we must let the POS-aware Gemini contextual lookup pick
-        # a different lemma per POS (so "run" NOUN → "løb" and VERB → "løbe").
         form_is_inflected = match.form.strip().lower() != match.lemma.strip().lower()
+        group_inputs.append((match, senses, key, form_is_inflected))
+
+    group_translations: dict[tuple[str, str], str | None] = {}
+    if include_translations:
+        group_translations = _initial_group_translations(
+            normalized_query=normalized_query,
+            group_inputs=group_inputs,
+            en_gemini_translation_service=en_gemini_translation_service,
+            translation_service=translation_service,
+            translation_cache=translation_cache,
+            surface_translation_cache=surface_translation_cache,
+        )
+
+    for match, senses, key, _form_is_inflected in group_inputs:
+        sense_outs: list[ENSenseOut] = []
         group_translation: str | None = None
         if include_translations:
-            if form_is_inflected:
-                group_translation = _translate_en_surface_form(
-                    form=match.form,
-                    translation_service=translation_service,
-                    cache=surface_translation_cache,
-                )
-                if not group_translation:
-                    group_translation = translate_en_lemma_contextual(
-                        lemma=match.lemma,
-                        pos_ud=match.pos_ud,
-                        gloss=senses[0].gloss,
-                        gemini_service=en_gemini_translation_service,
-                        translation_service=translation_service,
-                        cache=translation_cache,
-                    )
-            else:
-                group_translation = translate_en_lemma_contextual(
-                    lemma=match.lemma,
-                    pos_ud=match.pos_ud,
-                    gloss=senses[0].gloss,
-                    gemini_service=en_gemini_translation_service,
-                    translation_service=translation_service,
-                    cache=translation_cache,
-                )
-                if not group_translation:
-                    group_translation = _translate_en_surface_form(
-                        form=match.form,
-                        translation_service=translation_service,
-                        cache=surface_translation_cache,
-                    )
-            group_translation = _normalize_translation_candidate(group_translation)
-            if group_translation and group_translation.lower() == match.lemma.lower():
-                group_translation = None
+            group_translation = group_translations.get(key)
         for sense in senses:
             translation_value = group_translation
             if include_translations and not translation_value:
@@ -293,6 +271,142 @@ def build_en_pos_groups(
     return groups
 
 
+def _initial_group_translations(
+    *,
+    normalized_query: str,
+    group_inputs: list[tuple[object, list[object], tuple[str, str], bool]],
+    en_gemini_translation_service,
+    translation_service: TranslationService | None,
+    translation_cache: dict[tuple[str, str, str], str | None],
+    surface_translation_cache: dict[str, str | None],
+) -> dict[tuple[str, str], str | None]:
+    if _flag_enabled("DANOTE_SEARCH_BATCHED_GEMINI", default=False):
+        batched = _initial_group_translations_batched(
+            normalized_query=normalized_query,
+            group_inputs=group_inputs,
+            en_gemini_translation_service=en_gemini_translation_service,
+        )
+        if batched is not None:
+            return batched
+    if not _flag_enabled("DANOTE_SEARCH_PARALLEL", default=True) or len(group_inputs) < 2:
+        return {
+            key: _initial_group_translation(
+                match=match,
+                senses=senses,
+                form_is_inflected=form_is_inflected,
+                en_gemini_translation_service=en_gemini_translation_service,
+                translation_service=translation_service,
+                translation_cache=translation_cache,
+                surface_translation_cache=surface_translation_cache,
+            )
+            for match, senses, key, form_is_inflected in group_inputs
+        }
+
+    translations: dict[tuple[str, str], str | None] = {}
+    with ThreadPoolExecutor(max_workers=min(4, len(group_inputs))) as executor:
+        futures = {
+            executor.submit(
+                _initial_group_translation,
+                match=match,
+                senses=senses,
+                form_is_inflected=form_is_inflected,
+                en_gemini_translation_service=en_gemini_translation_service,
+                translation_service=translation_service,
+                translation_cache=translation_cache,
+                surface_translation_cache=surface_translation_cache,
+            ): key
+            for match, senses, key, form_is_inflected in group_inputs
+        }
+        for future in as_completed(futures):
+            key = futures[future]
+            translations[key] = future.result()
+    return translations
+
+
+def _initial_group_translation(
+    *,
+    match,
+    senses,
+    form_is_inflected: bool,
+    en_gemini_translation_service,
+    translation_service: TranslationService | None,
+    translation_cache: dict[tuple[str, str, str], str | None],
+    surface_translation_cache: dict[str, str | None],
+) -> str | None:
+    if form_is_inflected:
+        group_translation = _translate_en_surface_form(
+            form=match.form,
+            translation_service=translation_service,
+            cache=surface_translation_cache,
+        )
+        if not group_translation:
+            group_translation = translate_en_lemma_contextual(
+                lemma=match.lemma,
+                pos_ud=match.pos_ud,
+                gloss=senses[0].gloss,
+                gemini_service=en_gemini_translation_service,
+                translation_service=translation_service,
+                cache=translation_cache,
+            )
+    else:
+        group_translation = translate_en_lemma_contextual(
+            lemma=match.lemma,
+            pos_ud=match.pos_ud,
+            gloss=senses[0].gloss,
+            gemini_service=en_gemini_translation_service,
+            translation_service=translation_service,
+            cache=translation_cache,
+        )
+        if not group_translation:
+            group_translation = _translate_en_surface_form(
+                form=match.form,
+                translation_service=translation_service,
+                cache=surface_translation_cache,
+            )
+    group_translation = _normalize_translation_candidate(group_translation)
+    if group_translation and group_translation.lower() == match.lemma.lower():
+        return None
+    return group_translation
+
+
+def _initial_group_translations_batched(
+    *,
+    normalized_query: str,
+    group_inputs: list[tuple[object, list[object], tuple[str, str], bool]],
+    en_gemini_translation_service,
+) -> dict[tuple[str, str], str | None] | None:
+    batch_translate = getattr(en_gemini_translation_service, "translate_english_lemmas_batch", None)
+    if not callable(batch_translate):
+        return None
+    candidates = [
+        {
+            "id": str(index),
+            "lemma": match.lemma,
+            "pos_ud": match.pos_ud,
+            "gloss": senses[0].gloss,
+        }
+        for index, (match, senses, _key, _form_is_inflected) in enumerate(group_inputs)
+    ]
+    try:
+        results = batch_translate(query=normalized_query, candidates=candidates)
+    except Exception:
+        return None
+    translations: dict[tuple[str, str], str | None] = {}
+    for index, (match, _senses, key, _form_is_inflected) in enumerate(group_inputs):
+        value = _normalize_translation_candidate(results.get(str(index)))
+        if value and value.lower() == match.lemma.lower():
+            value = None
+        translations[key] = value
+    return translations
+
+
+def _flag_enabled(name: str, *, default: bool) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() not in {"0", "false", "no"}
+
+
 def _attach_disambiguation_descriptions(
     *,
     normalized_query: str,
@@ -315,12 +429,7 @@ def _attach_disambiguation_descriptions(
             "pos_ud": group.pos_ud,
             "danish_translation": group.danish_translation,
             "glosses": [sense.gloss for sense in group.senses[:3] if sense.gloss],
-            "examples": [
-                example
-                for sense in group.senses[:2]
-                for example in sense.examples[:1]
-                if example
-            ],
+            "examples": [example for sense in group.senses[:2] for example in sense.examples[:1] if example],
         }
         for index, group in enumerate(translated_groups)
     ]

@@ -1241,6 +1241,40 @@ export function mockFetchImplementation(options?: {
       return responseOf({ items: filtered })
     }
 
+    if (url.includes("/api/wordbank/search/cor-form-batch")) {
+      const body = typeof init?.body === "string" ? JSON.parse(init.body) : {}
+      const items = Array.isArray(body.items) ? body.items : []
+      const includeTranslations = body.include_translations !== false
+      const responses = await Promise.all(
+        items.map(async (item) => {
+          const params = new URLSearchParams({
+            form: String(item.form ?? ""),
+            limit: String(body.limit ?? 100),
+          })
+          if (!includeTranslations) {
+            params.set("include_translations", "false")
+          }
+          if (item.en_query) {
+            params.set("en_query", String(item.en_query))
+          }
+          if (item.en_pos_ud) {
+            params.set("en_pos_ud", String(item.en_pos_ud))
+          }
+          const requestUrl = `/api/wordbank/search/cor-form?${params.toString()}`
+          if (options?.corSearchFormHandler) {
+            const response = await options.corSearchFormHandler(requestUrl, init)
+            return response.json()
+          }
+          const form = String(item.form ?? "").trim().toLocaleLowerCase("da-DK")
+          if (form === corSearchFormResponse.form.toLocaleLowerCase("da-DK")) {
+            return corSearchFormResponse
+          }
+          return { form, groups: [] }
+        }),
+      )
+      return responseOf({ items: responses })
+    }
+
     if (url.includes("/api/wordbank/search/cor-form?")) {
       if (options?.corSearchFormHandler) {
         return options.corSearchFormHandler(input, init)

@@ -232,6 +232,10 @@ export type CORSearchFormResponse = {
   did_you_mean?: string | null
 }
 
+export type CORSearchFormBatchResponse = {
+  items: CORSearchFormResponse[]
+}
+
 export type ENSearchFormResponse = {
   form: string
   groups: ENPosGroup[]

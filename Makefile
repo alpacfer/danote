@@ -62,7 +62,7 @@ hygiene:
 
 lint-backend:
 	cd $(BACKEND_DIR) && .venv/bin/python -m compileall -q app
-	cd $(BACKEND_DIR) && .venv/bin/python -m ruff check app/bootstrap app/core app/db app/api/routes/_runtime.py app/api/routes/_use_case_factories.py app/api/routes/root.py app/api/routes/analyze.py app/api/routes/sentencebank.py app/api/routes/wordbank.py app/main.py
+	cd $(BACKEND_DIR) && .venv/bin/python -m ruff check app/bootstrap app/core app/db app/api/routes/_runtime.py app/api/routes/_use_case_factories.py app/api/routes/root.py app/api/routes/analyze.py app/api/routes/sentencebank.py app/api/routes/wordbank.py app/api/routes/wordbank_search.py app/main.py
 	cd $(BACKEND_DIR) && PYTHONPATH=. .venv/bin/python -m mypy app/bootstrap app/core app/db app/api/routes/_runtime.py app/api/routes/_use_case_factories.py
 
 pytest-backend:

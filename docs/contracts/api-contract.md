@@ -286,7 +286,7 @@ Routes: `backend/app/api/routes/`. DTOs: `backend/app/api/schemas/v1/`.
 - **Field invariants:** saved search rows keep lemma translation + gloss translation separate. `english_translation` = saved lemma translation only. `gloss_translation` = optional disambiguation context. Raw `gloss` not promoted into `english_translation`. Static presaved words may return saved-default rows even when not persisted as DB lexemes; those rows include lemma, translation, POS/morphology, `variation_count=1`, empty `query_cor_ids`, and optional `match_surface` for English matches. `did_you_mean`: non-null when query had no direct matches and a Levenshtein-close wordbank lemma was found; `items` then contains results for the corrected word.
 
 ### GET `/api/wordbank/search/cor-form`
-- **Request model:** none (`form`, `limit`, `include_translations`, optional `en_query` query params).
+- **Request model:** none (`form`, `limit`, `include_translations`, optional `en_query`/`en_pos_ud` query params).
 - **Response model:** `CORSearchFormResponse`.
 - **Notable status/error behavior:** `422` validation failures. `503` DB unavailable/locked. `503` runtime errors.
 - **Field invariants:**
@@ -302,6 +302,12 @@ Routes: `backend/app/api/routes/`. DTOs: `backend/app/api/schemas/v1/`.
   - Gemini returns nothing: backend may keep `lemma_translation = null` with gloss-derived `saveable_translation`; no gloss fallback means both stay `null`.
   - `en_query`: when provided, backend may ask Gemini to keep only COR groups whose Danish meaning translates that English query; if Gemini returns no usable match or fails, all COR groups are kept.
   - `did_you_mean`: non-null when `form` had no COR entries and a Levenshtein-close COR lemma was found; `groups` then contains results for the corrected lemma.
+
+### POST `/api/wordbank/search/cor-form-batch`
+- **Request model:** `CORSearchFormBatchRequest` (`items[]` of `form`, optional `en_query`, optional `en_pos_ud`; shared `limit` and `include_translations`).
+- **Response model:** `CORSearchFormBatchResponse`.
+- **Notable status/error behavior:** `422` validation failures. `503` DB unavailable/locked. `503` runtime errors.
+- **Field invariants:** equivalent to calling `GET /api/wordbank/search/cor-form` once per item and returning responses in request order. When `en_query` is present, the same Gemini sense-filter safety rule applies: if the filter returns no usable match or fails, that item keeps all COR groups.
 
 ### GET `/api/wordbank/search/en-form`
 - **Request model:** none (`form`, `include_translations` query params).

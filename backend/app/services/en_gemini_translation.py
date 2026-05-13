@@ -5,6 +5,20 @@ import math
 import time
 from dataclasses import dataclass, field
 
+from app.services.en_gemini_support import (
+    cache_key,
+    extract_descriptions,
+    extract_match_decisions,
+    extract_translation,
+    json_loads,
+    normalize_key_text,
+    stable_json,
+)
+from app.services.en_gemini_support import (
+    translate_english_lemmas_batch as translate_english_lemmas_batch_with_support,
+)
+from app.services.gemini_result_cache import GeminiResultCache
+
 _UD_POS_LABELS = {
     "NOUN": "noun",
     "VERB": "verb",
@@ -35,6 +49,7 @@ class ENGeminiTranslationService:
     timeout_seconds: float = 20.0
     max_retries: int = 2
     backoff_seconds: float = 0.5
+    cache: GeminiResultCache | None = None
     provider: str = field(default="en_gemini_translation", init=False)
     _client: object | None = field(default=None, init=False, repr=False, compare=False)
 
@@ -58,9 +73,20 @@ class ENGeminiTranslationService:
         pos_ud: str | None,
         gloss: str | None,
     ) -> str | None:
+        cache_key_value = cache_key(
+            "trans_v1",
+            normalize_key_text(lemma),
+            (pos_ud or "").strip().upper(),
+            normalize_key_text(gloss),
+        )
+        cached = self._cache_get(cache_key_value)
+        if cached is not None:
+            return json_loads(cached)
         prompt = self._build_prompt(lemma=lemma, pos_ud=pos_ud, gloss=gloss)
         response = self._generate_content(prompt)
-        return self._parse(response)
+        result = self._parse(response)
+        self._cache_put(cache_key_value, json.dumps(result, ensure_ascii=False))
+        return result
 
     def select_translation_matches(
         self,
@@ -77,6 +103,16 @@ class ENGeminiTranslationService:
         if not choices:
             return {}
         valid_ids = {str(choice.get("id")) for choice in choices}
+        cache_key_value = cache_key(
+            "match_v1",
+            normalize_key_text(query),
+            (en_pos_ud or "").strip().upper(),
+            stable_json(choices),
+        )
+        cached = self._cache_get(cache_key_value)
+        if cached is not None:
+            loaded = json_loads(cached)
+            return loaded if isinstance(loaded, dict) else {}
         prompt = self._build_match_prompt(query=query, choices=choices, en_pos_ud=en_pos_ud)
         response = self._generate_content(
             prompt,
@@ -99,11 +135,22 @@ class ENGeminiTranslationService:
             },
             max_output_tokens=max(128, min(1024, len(choices) * 32)),
         )
-        return self._parse_match_decisions(response, valid_ids=valid_ids)
+        result = self._parse_match_decisions(response, valid_ids=valid_ids)
+        self._cache_put(cache_key_value, json.dumps(result, ensure_ascii=False, sort_keys=True))
+        return result
 
     def describe_translation_choices(self, *, query: str, choices: list[dict[str, object]]) -> dict[str, str]:
         if not choices:
             return {}
+        cache_key_value = cache_key(
+            "desc_v1",
+            normalize_key_text(query),
+            stable_json(choices),
+        )
+        cached = self._cache_get(cache_key_value)
+        if cached is not None:
+            loaded = json_loads(cached)
+            return loaded if isinstance(loaded, dict) else {}
         prompt = self._build_disambiguation_prompt(query=query, choices=choices)
         response = self._generate_content(
             prompt,
@@ -126,7 +173,30 @@ class ENGeminiTranslationService:
             },
             max_output_tokens=max(128, min(1024, len(choices) * 48)),
         )
-        return self._parse_descriptions(response, valid_ids={str(choice.get("id")) for choice in choices})
+        result = self._parse_descriptions(response, valid_ids={str(choice.get("id")) for choice in choices})
+        self._cache_put(cache_key_value, json.dumps(result, ensure_ascii=False, sort_keys=True))
+        return result
+
+    def translate_english_lemmas_batch(
+        self,
+        *,
+        query: str,
+        candidates: list[dict[str, object]],
+    ) -> dict[str, str | None]:
+        return translate_english_lemmas_batch_with_support(self, query=query, candidates=candidates)
+
+    def select_translation_matches_batch(
+        self,
+        *,
+        query: str,
+        en_pos_ud: str | None,
+        lemma_choices: list[dict[str, object]],
+    ) -> dict[str, bool]:
+        return self.select_translation_matches(
+            query=query,
+            choices=lemma_choices,
+            en_pos_ud=en_pos_ud,
+        )
 
     def _build_prompt(self, *, lemma: str, pos_ud: str | None, gloss: str | None) -> str:
         pos_label = _UD_POS_LABELS.get((pos_ud or "").upper(), "word")
@@ -209,6 +279,22 @@ class ENGeminiTranslationService:
             f"Choices:\n{json.dumps(choices, ensure_ascii=False)}"
         )
 
+    def _cache_get(self, key: str) -> str | None:
+        if self.cache is None:
+            return None
+        try:
+            return self.cache.get(key)
+        except Exception:
+            return None
+
+    def _cache_put(self, key: str, value: str) -> None:
+        if self.cache is None:
+            return
+        try:
+            self.cache.put(key, value)
+        except Exception:
+            return
+
     def _generate_content(
         self,
         prompt: str,
@@ -255,7 +341,7 @@ class ENGeminiTranslationService:
 
     def _parse(self, response: object) -> str | None:
         parsed = getattr(response, "parsed", None)
-        value = _extract_translation(parsed)
+        value = extract_translation(parsed)
         if value is not None:
             return value
 
@@ -271,11 +357,11 @@ class ENGeminiTranslationService:
             payload = json.loads(cleaned)
         except ValueError:
             return None
-        return _extract_translation(payload)
+        return extract_translation(payload)
 
     def _parse_match_decisions(self, response: object, *, valid_ids: set[str]) -> dict[str, bool]:
         parsed = getattr(response, "parsed", None)
-        extracted = _extract_match_decisions(parsed, valid_ids=valid_ids)
+        extracted = extract_match_decisions(parsed, valid_ids=valid_ids)
         if extracted:
             return extracted
 
@@ -291,11 +377,11 @@ class ENGeminiTranslationService:
             payload = json.loads(cleaned)
         except ValueError:
             return {}
-        return _extract_match_decisions(payload, valid_ids=valid_ids)
+        return extract_match_decisions(payload, valid_ids=valid_ids)
 
     def _parse_descriptions(self, response: object, *, valid_ids: set[str]) -> dict[str, str]:
         parsed = getattr(response, "parsed", None)
-        extracted = _extract_descriptions(parsed, valid_ids=valid_ids)
+        extracted = extract_descriptions(parsed, valid_ids=valid_ids)
         if extracted:
             return extracted
 
@@ -311,7 +397,7 @@ class ENGeminiTranslationService:
             payload = json.loads(cleaned)
         except ValueError:
             return {}
-        return _extract_descriptions(payload, valid_ids=valid_ids)
+        return extract_descriptions(payload, valid_ids=valid_ids)
 
     def _ensure_client(self) -> object:
         if self._client is None:
@@ -338,55 +424,3 @@ class ENGeminiTranslationService:
             ) from exc
         return genai_types
 
-
-def _extract_translation(payload: object) -> str | None:
-    if not isinstance(payload, dict):
-        return None
-    value = payload.get("translation")
-    if value is None:
-        return None
-    if not isinstance(value, str):
-        return None
-    cleaned = value.strip()
-    return cleaned or None
-
-
-def _extract_match_decisions(payload: object, *, valid_ids: set[str]) -> dict[str, bool]:
-    if not isinstance(payload, dict):
-        return {}
-    items = payload.get("items")
-    if not isinstance(items, list):
-        return {}
-    decisions: dict[str, bool] = {}
-    for item in items:
-        if not isinstance(item, dict):
-            continue
-        item_id = item.get("id")
-        if not isinstance(item_id, str) or item_id not in valid_ids:
-            continue
-        matches = item.get("matches")
-        if isinstance(matches, bool):
-            decisions[item_id] = matches
-    return decisions
-
-
-def _extract_descriptions(payload: object, *, valid_ids: set[str]) -> dict[str, str]:
-    if not isinstance(payload, dict):
-        return {}
-    items = payload.get("items")
-    if not isinstance(items, list):
-        return {}
-    descriptions: dict[str, str] = {}
-    for item in items:
-        if not isinstance(item, dict):
-            continue
-        item_id = item.get("id")
-        if not isinstance(item_id, str) or item_id not in valid_ids:
-            continue
-        description = item.get("description")
-        if not isinstance(description, str):
-            continue
-        cleaned = " ".join(description.strip().split()).strip(".,;:!?\"'")
-        if cleaned:
-            descriptions[item_id] = cleaned
-    return descriptions

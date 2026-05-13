@@ -91,3 +91,14 @@ Notes:
 | `DANOTE_GEMINI_API_KEY` | fallback chain | Gemini API key string | Resolution: `DANOTE_GEMINI_API_KEY` → `DANOTE_WORD_VERIFICATION_GEMINI_API_KEY` → unset. Alias for shared Gemini credentials. |
 | `DANOTE_GEMINI_MODEL` | `gemini-3.1-flash-lite` (via alias fallback) | Gemini model name string | Resolution: `DANOTE_GEMINI_MODEL` → `DANOTE_WORD_VERIFICATION_GEMINI_MODEL` → built-in default. Alias for shared Gemini model config. |
 | `DANOTE_GEMINI_CHANGES_LOG_PATH` | `backend/data/gemini-applied-changes.jsonl` | Any filesystem path | Relative paths resolve from repo root; audit log location for Gemini "apply changes" actions. |
+
+## Search latency controls
+
+| Variable | Default | Accepted values | Interactions / fallbacks |
+| --- | --- | --- | --- |
+| `DANOTE_SEARCH_GEMINI_CACHE` | `1` | Boolean-like (`1/0`, `true/false`, `yes/no`) | Enables persistent SQLite caching for deterministic English-search Gemini calls. |
+| `DANOTE_SEARCH_GEMINI_CACHE_PATH` | `backend/resources/cache/en_gemini.sqlite` | Any filesystem path | Relative paths resolve from repo root; generated SQLite files are gitignored. |
+| `DANOTE_SEARCH_PARALLEL` | `1` | Boolean-like (`1/0`, `true/false`, `yes/no`) | Enables thread-pool fan-out for independent English POS translations and batch COR filters. |
+| `DANOTE_SEARCH_COR_BATCH` | `1` | Boolean-like (`1/0`, `true/false`, `yes/no`) | Enables the sidebar's single-request COR batch flow. The backend endpoint remains available for compatibility. |
+| `DANOTE_SEARCH_BATCHED_GEMINI` | `0` | Boolean-like (`1/0`, `true/false`, `yes/no`) | Experimental prompt batching for English translation and COR sense filtering; keep off unless benchmark quality diff passes. |
+| `DANOTE_SEARCH_ADMIN_ENABLED` | `0` | Boolean-like (`1/0`, `true/false`, `yes/no`) | Enables `POST /api/admin/clear-search-cache` for benchmark cold-cache runs. |

@@ -405,6 +405,21 @@ class CORSearchFormResponse(BaseModel):
     did_you_mean: str | None = None
 
 
+class CORSearchFormBatchRequest(BaseModel):
+    class Item(BaseModel):
+        form: str = Field(..., min_length=1)
+        en_query: str | None = Field(default=None, min_length=1)
+        en_pos_ud: str | None = Field(default=None, min_length=1)
+
+    items: list[Item] = Field(default_factory=list, max_length=25)
+    limit: int = Field(default=100, ge=1, le=500)
+    include_translations: bool = False
+
+
+class CORSearchFormBatchResponse(BaseModel):
+    items: list[CORSearchFormResponse] = Field(default_factory=list)
+
+
 class CORLemmaParadigmResponse(BaseModel):
     lemma_idx: int
     variants: list[CORSearchVariant] = Field(default_factory=list)

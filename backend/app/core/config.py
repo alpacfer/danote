@@ -35,6 +35,12 @@ class Settings:
     translation_deepl_endpoint: str | None = None
     gemini_api_key: str | None = None
     gemini_model: str = "gemini-3.1-flash-lite"
+    search_gemini_cache_enabled: bool = True
+    search_parallel_enabled: bool = True
+    search_batched_gemini_enabled: bool = False
+    search_cor_batch_enabled: bool = True
+    search_admin_enabled: bool = False
+    search_gemini_cache_path: Path = BASE_DIR / "resources" / "cache" / "en_gemini.sqlite"
     cor_lookup_enabled: bool = False
     cor_lookup_timeout_seconds: float = 4.0
     cor_local_db_path: Path = BASE_DIR / "resources" / "dictionaries" / "cor.sqlite"
@@ -88,6 +94,29 @@ def load_settings(*, env_file: Path | None = None) -> Settings:
             "DANOTE_GEMINI_MODEL",
             env_values,
             _required_env("DANOTE_WORD_VERIFICATION_GEMINI_MODEL", env_values, "gemini-3.1-flash-lite"),
+        ),
+        search_gemini_cache_enabled=_required_env(
+            "DANOTE_SEARCH_GEMINI_CACHE",
+            env_values,
+            "1",
+        ).lower()
+        not in {"0", "false", "no"},
+        search_parallel_enabled=_required_env("DANOTE_SEARCH_PARALLEL", env_values, "1").lower()
+        not in {"0", "false", "no"},
+        search_batched_gemini_enabled=_required_env(
+            "DANOTE_SEARCH_BATCHED_GEMINI",
+            env_values,
+            "0",
+        ).lower()
+        not in {"0", "false", "no"},
+        search_cor_batch_enabled=_required_env("DANOTE_SEARCH_COR_BATCH", env_values, "1").lower()
+        not in {"0", "false", "no"},
+        search_admin_enabled=_required_env("DANOTE_SEARCH_ADMIN_ENABLED", env_values, "0").lower()
+        not in {"0", "false", "no"},
+        search_gemini_cache_path=_path_env(
+            "DANOTE_SEARCH_GEMINI_CACHE_PATH",
+            env_values,
+            BASE_DIR / "resources" / "cache" / "en_gemini.sqlite",
         ),
         cor_lookup_enabled=_required_env("DANOTE_COR_LOOKUP_ENABLED", env_values, "1").lower() not in {"0", "false", "no"},
         cor_lookup_timeout_seconds=float(_required_env("DANOTE_COR_LOOKUP_TIMEOUT_SECONDS", env_values, "4.0")),

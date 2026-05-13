@@ -21,6 +21,7 @@ from app.services.use_cases.wordbank.collaborators.cor_local import (
     cor_local_entries_for_surface_form,
     cor_local_entry_for_cor_id,
     filter_cor_form_response_by_en_query,
+    filter_cor_form_responses_by_en_query_batch,
     lookup_translation_for_cor_gloss,
     search_cor_form,
     search_cor_lemma_paradigm,
@@ -108,6 +109,43 @@ class CorResolutionCollaborator:
                 en_gemini_translation_service=self._en_gemini_translation_service,
             )
         return response
+
+    def search_cor_form_batch(
+        self,
+        items: list[tuple[str, str | None, str | None]],
+        *,
+        limit: int = 100,
+        include_translations: bool = False,
+    ) -> list[CORSearchFormResponse]:
+        responses = [
+            search_cor_form(
+                self._cor_local_lexicon_service,
+                self._translation,
+                form,
+                limit=limit,
+                include_translations=include_translations,
+            )
+            for form, _en_query, _en_pos_ud in items
+        ]
+        filter_items = [
+            (response, en_query, en_pos_ud)
+            for response, (_form, en_query, en_pos_ud) in zip(responses, items, strict=False)
+            if en_query and en_query.strip()
+        ]
+        if not filter_items:
+            return responses
+        filtered = filter_cor_form_responses_by_en_query_batch(
+            filter_items,
+            en_gemini_translation_service=self._en_gemini_translation_service,
+        )
+        filtered_iter = iter(filtered)
+        merged: list[CORSearchFormResponse] = []
+        for response, (_form, en_query, _en_pos_ud) in zip(responses, items, strict=False):
+            if en_query and en_query.strip():
+                merged.append(next(filtered_iter))
+            else:
+                merged.append(response)
+        return merged
 
     def search_cor_lemma_paradigm(
         self, lemma_idx: int, *, limit: int = 1000

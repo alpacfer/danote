@@ -97,6 +97,8 @@ DANOTE_TTS_AZURE_API_KEY=your-speech-key
 DANOTE_TTS_AZURE_REGION=your-speech-region
 DANOTE_WORD_VERIFICATION_GEMINI_API_KEY=your-gemini-key
 DANOTE_WORDBANK_BACKGROUND_JOB_WORKERS=4
+DANOTE_SEARCH_GEMINI_CACHE=1
+DANOTE_SEARCH_PARALLEL=1
 ```
 
 See the full per-variable reference (defaults, accepted values, and fallback interactions) in [`docs/reference/configuration-reference.md`](docs/reference/configuration-reference.md).

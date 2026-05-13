@@ -15,6 +15,7 @@ from app.services.en_gemini_translation import (
     ENGeminiTranslationError,
     ENGeminiTranslationService,
 )
+from app.services.gemini_result_cache import GeminiResultCache
 
 logger = logging.getLogger(__name__)
 
@@ -42,12 +43,14 @@ def initialize_en_gemini_translation(
         return
 
     try:
+        cache = GeminiResultCache(settings.search_gemini_cache_path) if settings.search_gemini_cache_enabled else None
         set_service_field(
             app,
             "en_gemini_translation_service",
             ENGeminiTranslationService(
                 api_key=gemini_key,
                 model=settings.gemini_model,
+                cache=cache,
             ),
         )
     except (ENGeminiTranslationError, ValueError, TypeError) as exc:

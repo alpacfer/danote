@@ -4,6 +4,7 @@ import {
   SEARCH_RESOLVE_DEBOUNCE_MS,
   isShortLetterWord,
   normalizeSearchWord,
+  type CORSearchFormBatchResponse,
   type CORSearchFormResponse,
   type ENSearchFormResponse,
 } from "@/app/core"
@@ -187,29 +188,32 @@ export function useSidebarEnSearch({
         )
       }
 
-      const fullResults = await Promise.all(
-        missing.map(async (translationKey) => {
-          const posParam = enPosForKey(translationKey)
-          const posSuffix = posParam ? `&en_pos_ud=${encodeURIComponent(posParam)}` : ""
-          const payload = await apiClient
-            .getJson<CORSearchFormResponse>(
-              `/api/wordbank/search/cor-form?form=${encodeURIComponent(translationKey)}&limit=100&en_query=${encodeURIComponent(normalizedQuery)}${posSuffix}`,
-              "Search translation is unavailable.",
-            )
-            .catch(() => null)
-          return payload ? { translationKey, payload } : null
-        }),
-      )
+      const batchPayload = await apiClient
+        .postJson<CORSearchFormBatchResponse>(
+          "/api/wordbank/search/cor-form-batch",
+          {
+            limit: 100,
+            include_translations: true,
+            items: missing.map((translationKey) => ({
+              form: translationKey,
+              en_query: normalizedQuery,
+              en_pos_ud: enPosForKey(translationKey) || null,
+            })),
+          },
+          "Search translation is unavailable.",
+        )
+        .catch(() => null)
       if (cancelled) {
         return
       }
       const mergedPayloads = { ...cachedPayloads }
-      for (const item of fullResults) {
-        if (!item) {
-          continue
-        }
-        enTranslatedCorCacheRef.current.set(filteredCacheKey(item.translationKey), item.payload)
-        mergedPayloads[item.translationKey] = item.payload
+      if (batchPayload) {
+        batchPayload.items.forEach((payload, index) => {
+          const translationKey = missing[index]
+          if (!translationKey) return
+          enTranslatedCorCacheRef.current.set(filteredCacheKey(translationKey), payload)
+          mergedPayloads[translationKey] = payload
+        })
       }
       setEnTranslatedCorPayloads({ query: normalizedQuery, payloads: mergedPayloads })
       setIsEnTranslatedCorLoading(false)

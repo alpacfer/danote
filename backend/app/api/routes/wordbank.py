@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from app.api.routes._runtime import run_db_operation
 from app.api.routes._use_case_factories import build_wordbank_use_case
 from app.api.routes.wordbank_audio import router as audio_router
+from app.api.routes.wordbank_search import router as search_router
 from app.api.schemas.v1.wordbank import (
     AddWordRequest,
     AddWordResponse,
@@ -14,11 +15,8 @@ from app.api.schemas.v1.wordbank import (
     ApplyVerificationChangesResponse,
     CompleteVariationsRequest,
     CompleteVariationsResponse,
-    CORLemmaParadigmResponse,
-    CORSearchFormResponse,
     DetectWordLanguageRequest,
     DetectWordLanguageResponse,
-    ENSearchFormResponse,
     FindAlternativeTranslationsRequest,
     FindAlternativeTranslationsResponse,
     GeneratePhraseTranslationRequest,
@@ -51,6 +49,7 @@ from app.services.use_cases.wordbank.mappers import map_lemma_details_response
 router = APIRouter()
 logger = logging.getLogger(__name__)
 router.include_router(audio_router)
+router.include_router(search_router)
 
 @router.post("/wordbank/lexemes", response_model=AddWordResponse)
 def add_word(payload: AddWordRequest, request: Request) -> AddWordResponse:
@@ -271,60 +270,6 @@ def search_wordbank(
     return run_db_operation(
         request,
         lambda: build_wordbank_use_case(request).search_lemmas(query, limit=limit),
-        include_runtime_error=True,
-        error_log_name="wordbank_db_operational_error",
-    )
-
-
-@router.get("/wordbank/search/cor-form", response_model=CORSearchFormResponse)
-def search_cor_form(
-    request: Request,
-    form: str = Query(..., min_length=1),
-    limit: int = Query(100, ge=1, le=500),
-    include_translations: bool = Query(True),
-    en_query: str | None = Query(None, min_length=1),
-    en_pos_ud: str | None = Query(None, min_length=1),
-) -> CORSearchFormResponse:
-    return run_db_operation(
-        request,
-        lambda: build_wordbank_use_case(request).search_cor_form(
-            form,
-            limit=limit,
-            include_translations=include_translations,
-            en_query=en_query,
-            en_pos_ud=en_pos_ud,
-        ),
-        include_runtime_error=True,
-        error_log_name="wordbank_db_operational_error",
-    )
-
-
-@router.get("/wordbank/search/en-form", response_model=ENSearchFormResponse)
-def search_en_form(
-    request: Request,
-    form: str = Query(..., min_length=1),
-    include_translations: bool = Query(True),
-) -> ENSearchFormResponse:
-    return run_db_operation(
-        request,
-        lambda: build_wordbank_use_case(request).search_en_form(
-            form,
-            include_translations=include_translations,
-        ),
-        include_runtime_error=True,
-        error_log_name="wordbank_db_operational_error",
-    )
-
-
-@router.get("/wordbank/search/cor-lemma/{lemma_idx}", response_model=CORLemmaParadigmResponse)
-def search_cor_lemma_paradigm(
-    lemma_idx: int,
-    request: Request,
-    limit: int = Query(1000, ge=1, le=5000),
-) -> CORLemmaParadigmResponse:
-    return run_db_operation(
-        request,
-        lambda: build_wordbank_use_case(request).search_cor_lemma_paradigm(lemma_idx, limit=limit),
         include_runtime_error=True,
         error_log_name="wordbank_db_operational_error",
     )

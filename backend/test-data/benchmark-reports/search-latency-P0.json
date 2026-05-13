@@ -1,0 +1,1042 @@
+{
+  "label": "P0",
+  "backend": "http://127.0.0.1:8003",
+  "created_at": "2026-05-13T19:53:45.171479+00:00",
+  "queries": [
+    "card",
+    "run",
+    "chair"
+  ],
+  "runs": [
+    {
+      "query": "card",
+      "run_index": 0,
+      "cold": true,
+      "total_wall_ms": 5537.241,
+      "sum_http_ms": 5537.092417,
+      "timings": [
+        {
+          "label": "en-form card",
+          "duration_ms": 3084.212875
+        },
+        {
+          "label": "cor-form kort",
+          "duration_ms": 989.3275829999997
+        },
+        {
+          "label": "cor-form legitimere",
+          "duration_ms": 1463.5519590000001
+        }
+      ],
+      "responses": {
+        "en_form": {
+          "form": "card",
+          "groups": [
+            {
+              "lemma": "card",
+              "form": "card",
+              "pos_ud": "NOUN",
+              "pos_raw": "noun",
+              "danish_translation": "kort",
+              "meaning_description": "small piece of paper",
+              "senses": [
+                {
+                  "pos_ud": "NOUN",
+                  "sense_idx": 0,
+                  "gloss": "A card is a small, often rectangular piece of paper or plastic, usually with information.",
+                  "danish_translation": "kort",
+                  "examples": [
+                    "The police stopped me and asked to see my identity card.",
+                    "\"I don't have any money with me, can I pay with my credit card?\"",
+                    "The soccer player got a red card and left the game.",
+                    "We spent the afternoon playing card games.",
+                    "I think we sent them a Christmas card last year."
+                  ]
+                }
+              ]
+            },
+            {
+              "lemma": "card",
+              "form": "card",
+              "pos_ud": "VERB",
+              "pos_raw": "verb",
+              "danish_translation": "legitimere",
+              "meaning_description": "check identification documents",
+              "senses": [
+                {
+                  "pos_ud": "VERB",
+                  "sense_idx": 0,
+                  "gloss": "If you card someone, you check their ID cards, usually to see if they are old enough to enter a place or drink alcohol.",
+                  "danish_translation": "legitimere",
+                  "examples": [
+                    "They have to card anybody who looks 30 or younger."
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "cor_forms": {
+          "kort": {
+            "form": "kort",
+            "groups": [
+              {
+                "lemma": "kort",
+                "gloss": null,
+                "pos_tag": "NOUN",
+                "variants": [
+                  {
+                    "cor_id": "COR.53487.120.01",
+                    "form": "kort",
+                    "lemma": "kort",
+                    "gloss": null,
+                    "gloss_translation": null,
+                    "gram_raw": "sb.itk.sg.ubest | sb.itk.pl.ubest",
+                    "norm": "N",
+                    "lemma_idx": 53487,
+                    "gram_code": 120,
+                    "variation": 1,
+                    "pos_tag": "NOUN",
+                    "morphology": "Gender=Neut|Number=Sing|Definite=Ind",
+                    "features": {
+                      "Gender": "Neut",
+                      "Definite": "Ind"
+                    },
+                    "extra_tags": [],
+                    "lemma_translation": null,
+                    "saveable_translation": null,
+                    "lemma_translation_provider": null,
+                    "lemma_translation_status": null,
+                    "lemma_translation_reason": null
+                  }
+                ]
+              }
+            ],
+            "did_you_mean": null
+          },
+          "legitimere": {
+            "form": "legitimere",
+            "groups": [
+              {
+                "lemma": "legitimere",
+                "gloss": null,
+                "pos_tag": "VERB",
+                "variants": [
+                  {
+                    "cor_id": "COR.39149.200.01",
+                    "form": "legitimere",
+                    "lemma": "legitimere",
+                    "gloss": null,
+                    "gloss_translation": null,
+                    "gram_raw": "vb.inf.akt",
+                    "norm": "N",
+                    "lemma_idx": 39149,
+                    "gram_code": 200,
+                    "variation": 1,
+                    "pos_tag": "VERB",
+                    "morphology": "VerbForm=Inf|Voice=Act",
+                    "features": {
+                      "VerbForm": "Inf",
+                      "Voice": "Act"
+                    },
+                    "extra_tags": [],
+                    "lemma_translation": null,
+                    "saveable_translation": null,
+                    "lemma_translation_provider": null,
+                    "lemma_translation_status": null,
+                    "lemma_translation_reason": null
+                  }
+                ]
+              }
+            ],
+            "did_you_mean": null
+          }
+        }
+      }
+    },
+    {
+      "query": "card",
+      "run_index": 1,
+      "cold": true,
+      "total_wall_ms": 3955.735207999999,
+      "sum_http_ms": 3955.600833,
+      "timings": [
+        {
+          "label": "en-form card",
+          "duration_ms": 2242.9595830000003
+        },
+        {
+          "label": "cor-form kort",
+          "duration_ms": 891.1644999999995
+        },
+        {
+          "label": "cor-form legitimere",
+          "duration_ms": 821.4767500000004
+        }
+      ],
+      "responses": {
+        "en_form": {
+          "form": "card",
+          "groups": [
+            {
+              "lemma": "card",
+              "form": "card",
+              "pos_ud": "NOUN",
+              "pos_raw": "noun",
+              "danish_translation": "kort",
+              "meaning_description": "small piece of paper",
+              "senses": [
+                {
+                  "pos_ud": "NOUN",
+                  "sense_idx": 0,
+                  "gloss": "A card is a small, often rectangular piece of paper or plastic, usually with information.",
+                  "danish_translation": "kort",
+                  "examples": [
+                    "The police stopped me and asked to see my identity card.",
+                    "\"I don't have any money with me, can I pay with my credit card?\"",
+                    "The soccer player got a red card and left the game.",
+                    "We spent the afternoon playing card games.",
+                    "I think we sent them a Christmas card last year."
+                  ]
+                }
+              ]
+            },
+            {
+              "lemma": "card",
+              "form": "card",
+              "pos_ud": "VERB",
+              "pos_raw": "verb",
+              "danish_translation": "legitimere",
+              "meaning_description": "check identification documents",
+              "senses": [
+                {
+                  "pos_ud": "VERB",
+                  "sense_idx": 0,
+                  "gloss": "If you card someone, you check their ID cards, usually to see if they are old enough to enter a place or drink alcohol.",
+                  "danish_translation": "legitimere",
+                  "examples": [
+                    "They have to card anybody who looks 30 or younger."
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "cor_forms": {
+          "kort": {
+            "form": "kort",
+            "groups": [
+              {
+                "lemma": "kort",
+                "gloss": null,
+                "pos_tag": "NOUN",
+                "variants": [
+                  {
+                    "cor_id": "COR.53487.120.01",
+                    "form": "kort",
+                    "lemma": "kort",
+                    "gloss": null,
+                    "gloss_translation": null,
+                    "gram_raw": "sb.itk.sg.ubest | sb.itk.pl.ubest",
+                    "norm": "N",
+                    "lemma_idx": 53487,
+                    "gram_code": 120,
+                    "variation": 1,
+                    "pos_tag": "NOUN",
+                    "morphology": "Gender=Neut|Number=Sing|Definite=Ind",
+                    "features": {
+                      "Gender": "Neut",
+                      "Definite": "Ind"
+                    },
+                    "extra_tags": [],
+                    "lemma_translation": null,
+                    "saveable_translation": null,
+                    "lemma_translation_provider": null,
+                    "lemma_translation_status": null,
+                    "lemma_translation_reason": null
+                  }
+                ]
+              }
+            ],
+            "did_you_mean": null
+          },
+          "legitimere": {
+            "form": "legitimere",
+            "groups": [
+              {
+                "lemma": "legitimere",
+                "gloss": null,
+                "pos_tag": "VERB",
+                "variants": [
+                  {
+                    "cor_id": "COR.39149.200.01",
+                    "form": "legitimere",
+                    "lemma": "legitimere",
+                    "gloss": null,
+                    "gloss_translation": null,
+                    "gram_raw": "vb.inf.akt",
+                    "norm": "N",
+                    "lemma_idx": 39149,
+                    "gram_code": 200,
+                    "variation": 1,
+                    "pos_tag": "VERB",
+                    "morphology": "VerbForm=Inf|Voice=Act",
+                    "features": {
+                      "VerbForm": "Inf",
+                      "Voice": "Act"
+                    },
+                    "extra_tags": [],
+                    "lemma_translation": null,
+                    "saveable_translation": null,
+                    "lemma_translation_provider": null,
+                    "lemma_translation_status": null,
+                    "lemma_translation_reason": null
+                  }
+                ]
+              }
+            ],
+            "did_you_mean": null
+          }
+        }
+      }
+    },
+    {
+      "query": "run",
+      "run_index": 0,
+      "cold": true,
+      "total_wall_ms": 5695.412667,
+      "sum_http_ms": 5695.241001000001,
+      "timings": [
+        {
+          "label": "en-form run",
+          "duration_ms": 3102.393417
+        },
+        {
+          "label": "cor-form løbetur",
+          "duration_ms": 1652.676584
+        },
+        {
+          "label": "cor-form løbe",
+          "duration_ms": 940.1710000000012
+        }
+      ],
+      "responses": {
+        "en_form": {
+          "form": "run",
+          "groups": [
+            {
+              "lemma": "run",
+              "form": "run",
+              "pos_ud": "NOUN",
+              "pos_raw": "noun",
+              "danish_translation": "løbetur",
+              "meaning_description": "physical exercise or score",
+              "senses": [
+                {
+                  "pos_ud": "NOUN",
+                  "sense_idx": 0,
+                  "gloss": "A trip made by a runner; compare to walk.",
+                  "danish_translation": "løbetur",
+                  "examples": [
+                    "I’m going for a run."
+                  ]
+                },
+                {
+                  "pos_ud": "NOUN",
+                  "sense_idx": 1,
+                  "gloss": "A run in baseball is when a batter safely touches home plate.",
+                  "danish_translation": "løbetur",
+                  "examples": []
+                },
+                {
+                  "pos_ud": "NOUN",
+                  "sense_idx": 2,
+                  "gloss": "A run in cricket is scored when the batsmen run between the two wickets.",
+                  "danish_translation": "løbetur",
+                  "examples": []
+                },
+                {
+                  "pos_ud": "NOUN",
+                  "sense_idx": 3,
+                  "gloss": "An unbroken course of performances or showings.",
+                  "danish_translation": "løbetur",
+                  "examples": [
+                    "The musical had a long run on Broadway."
+                  ]
+                }
+              ]
+            },
+            {
+              "lemma": "run",
+              "form": "run",
+              "pos_ud": "VERB",
+              "pos_raw": "verb",
+              "danish_translation": "løbe",
+              "meaning_description": "move quickly or operate",
+              "senses": [
+                {
+                  "pos_ud": "VERB",
+                  "sense_idx": 0,
+                  "gloss": "If you run, you go quickly, with both feet off the ground at one time.",
+                  "danish_translation": "løbe",
+                  "examples": [
+                    "I must run.",
+                    "I like to run in the afternoon."
+                  ]
+                },
+                {
+                  "pos_ud": "VERB",
+                  "sense_idx": 1,
+                  "gloss": "If a machine runs, it works.",
+                  "danish_translation": "løbe",
+                  "examples": [
+                    "The car runs well."
+                  ]
+                },
+                {
+                  "pos_ud": "VERB",
+                  "sense_idx": 2,
+                  "gloss": "If you run from someone or something, you try to get away from them.",
+                  "danish_translation": "løbe",
+                  "examples": [
+                    "He ran from the cops."
+                  ]
+                },
+                {
+                  "pos_ud": "VERB",
+                  "sense_idx": 3,
+                  "gloss": "If you run a place, you manage it.",
+                  "danish_translation": "løbe",
+                  "examples": [
+                    "He ran the hotel together with his beloved wife."
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "cor_forms": {
+          "løbetur": {
+            "form": "løbetur",
+            "groups": [
+              {
+                "lemma": "løbetur",
+                "gloss": null,
+                "pos_tag": "NOUN",
+                "variants": [
+                  {
+                    "cor_id": "COR.67278.110.01",
+                    "form": "løbetur",
+                    "lemma": "løbetur",
+                    "gloss": null,
+                    "gloss_translation": null,
+                    "gram_raw": "sb.fk.sg.ubest",
+                    "norm": "N",
+                    "lemma_idx": 67278,
+                    "gram_code": 110,
+                    "variation": 1,
+                    "pos_tag": "NOUN",
+                    "morphology": "Gender=Com|Number=Sing|Definite=Ind",
+                    "features": {
+                      "Gender": "Com",
+                      "Number": "Sing",
+                      "Definite": "Ind"
+                    },
+                    "extra_tags": [],
+                    "lemma_translation": null,
+                    "saveable_translation": null,
+                    "lemma_translation_provider": null,
+                    "lemma_translation_status": null,
+                    "lemma_translation_reason": null
+                  }
+                ]
+              }
+            ],
+            "did_you_mean": null
+          },
+          "løbe": {
+            "form": "løbe",
+            "groups": [
+              {
+                "lemma": "løbe",
+                "gloss": "bevæge sig i løb",
+                "pos_tag": "VERB",
+                "variants": [
+                  {
+                    "cor_id": "COR.30653.200.01",
+                    "form": "løbe",
+                    "lemma": "løbe",
+                    "gloss": "bevæge sig i løb",
+                    "gloss_translation": null,
+                    "gram_raw": "vb.inf.akt",
+                    "norm": "N",
+                    "lemma_idx": 30653,
+                    "gram_code": 200,
+                    "variation": 1,
+                    "pos_tag": "VERB",
+                    "morphology": "VerbForm=Inf|Voice=Act",
+                    "features": {
+                      "VerbForm": "Inf",
+                      "Voice": "Act"
+                    },
+                    "extra_tags": [],
+                    "lemma_translation": null,
+                    "saveable_translation": null,
+                    "lemma_translation_provider": null,
+                    "lemma_translation_status": null,
+                    "lemma_translation_reason": null
+                  }
+                ]
+              }
+            ],
+            "did_you_mean": null
+          }
+        }
+      }
+    },
+    {
+      "query": "run",
+      "run_index": 1,
+      "cold": true,
+      "total_wall_ms": 13484.635417000001,
+      "sum_http_ms": 13484.469042000004,
+      "timings": [
+        {
+          "label": "en-form run",
+          "duration_ms": 11298.512958
+        },
+        {
+          "label": "cor-form løbetur",
+          "duration_ms": 1328.1870420000032
+        },
+        {
+          "label": "cor-form løbe",
+          "duration_ms": 857.769042000001
+        }
+      ],
+      "responses": {
+        "en_form": {
+          "form": "run",
+          "groups": [
+            {
+              "lemma": "run",
+              "form": "run",
+              "pos_ud": "NOUN",
+              "pos_raw": "noun",
+              "danish_translation": "løbetur",
+              "meaning_description": "physical exercise or score",
+              "senses": [
+                {
+                  "pos_ud": "NOUN",
+                  "sense_idx": 0,
+                  "gloss": "A trip made by a runner; compare to walk.",
+                  "danish_translation": "løbetur",
+                  "examples": [
+                    "I’m going for a run."
+                  ]
+                },
+                {
+                  "pos_ud": "NOUN",
+                  "sense_idx": 1,
+                  "gloss": "A run in baseball is when a batter safely touches home plate.",
+                  "danish_translation": "løbetur",
+                  "examples": []
+                },
+                {
+                  "pos_ud": "NOUN",
+                  "sense_idx": 2,
+                  "gloss": "A run in cricket is scored when the batsmen run between the two wickets.",
+                  "danish_translation": "løbetur",
+                  "examples": []
+                },
+                {
+                  "pos_ud": "NOUN",
+                  "sense_idx": 3,
+                  "gloss": "An unbroken course of performances or showings.",
+                  "danish_translation": "løbetur",
+                  "examples": [
+                    "The musical had a long run on Broadway."
+                  ]
+                }
+              ]
+            },
+            {
+              "lemma": "run",
+              "form": "run",
+              "pos_ud": "VERB",
+              "pos_raw": "verb",
+              "danish_translation": "løbe",
+              "meaning_description": "move quickly or operate",
+              "senses": [
+                {
+                  "pos_ud": "VERB",
+                  "sense_idx": 0,
+                  "gloss": "If you run, you go quickly, with both feet off the ground at one time.",
+                  "danish_translation": "løbe",
+                  "examples": [
+                    "I must run.",
+                    "I like to run in the afternoon."
+                  ]
+                },
+                {
+                  "pos_ud": "VERB",
+                  "sense_idx": 1,
+                  "gloss": "If a machine runs, it works.",
+                  "danish_translation": "løbe",
+                  "examples": [
+                    "The car runs well."
+                  ]
+                },
+                {
+                  "pos_ud": "VERB",
+                  "sense_idx": 2,
+                  "gloss": "If you run from someone or something, you try to get away from them.",
+                  "danish_translation": "løbe",
+                  "examples": [
+                    "He ran from the cops."
+                  ]
+                },
+                {
+                  "pos_ud": "VERB",
+                  "sense_idx": 3,
+                  "gloss": "If you run a place, you manage it.",
+                  "danish_translation": "løbe",
+                  "examples": [
+                    "He ran the hotel together with his beloved wife."
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "cor_forms": {
+          "løbetur": {
+            "form": "løbetur",
+            "groups": [
+              {
+                "lemma": "løbetur",
+                "gloss": null,
+                "pos_tag": "NOUN",
+                "variants": [
+                  {
+                    "cor_id": "COR.67278.110.01",
+                    "form": "løbetur",
+                    "lemma": "løbetur",
+                    "gloss": null,
+                    "gloss_translation": null,
+                    "gram_raw": "sb.fk.sg.ubest",
+                    "norm": "N",
+                    "lemma_idx": 67278,
+                    "gram_code": 110,
+                    "variation": 1,
+                    "pos_tag": "NOUN",
+                    "morphology": "Gender=Com|Number=Sing|Definite=Ind",
+                    "features": {
+                      "Gender": "Com",
+                      "Number": "Sing",
+                      "Definite": "Ind"
+                    },
+                    "extra_tags": [],
+                    "lemma_translation": null,
+                    "saveable_translation": null,
+                    "lemma_translation_provider": null,
+                    "lemma_translation_status": null,
+                    "lemma_translation_reason": null
+                  }
+                ]
+              }
+            ],
+            "did_you_mean": null
+          },
+          "løbe": {
+            "form": "løbe",
+            "groups": [
+              {
+                "lemma": "løbe",
+                "gloss": "bevæge sig i løb",
+                "pos_tag": "VERB",
+                "variants": [
+                  {
+                    "cor_id": "COR.30653.200.01",
+                    "form": "løbe",
+                    "lemma": "løbe",
+                    "gloss": "bevæge sig i løb",
+                    "gloss_translation": null,
+                    "gram_raw": "vb.inf.akt",
+                    "norm": "N",
+                    "lemma_idx": 30653,
+                    "gram_code": 200,
+                    "variation": 1,
+                    "pos_tag": "VERB",
+                    "morphology": "VerbForm=Inf|Voice=Act",
+                    "features": {
+                      "VerbForm": "Inf",
+                      "Voice": "Act"
+                    },
+                    "extra_tags": [],
+                    "lemma_translation": null,
+                    "saveable_translation": null,
+                    "lemma_translation_provider": null,
+                    "lemma_translation_status": null,
+                    "lemma_translation_reason": null
+                  }
+                ]
+              }
+            ],
+            "did_you_mean": null
+          }
+        }
+      }
+    },
+    {
+      "query": "chair",
+      "run_index": 0,
+      "cold": true,
+      "total_wall_ms": 3706.9090829999996,
+      "sum_http_ms": 3706.7931259999937,
+      "timings": [
+        {
+          "label": "en-form chair",
+          "duration_ms": 2222.387291999997
+        },
+        {
+          "label": "cor-form stol",
+          "duration_ms": 643.456167
+        },
+        {
+          "label": "cor-form lede",
+          "duration_ms": 840.9496669999967
+        }
+      ],
+      "responses": {
+        "en_form": {
+          "form": "chair",
+          "groups": [
+            {
+              "lemma": "chair",
+              "form": "chair",
+              "pos_ud": "NOUN",
+              "pos_raw": "noun",
+              "danish_translation": "stol",
+              "meaning_description": "furniture for sitting or academic position",
+              "senses": [
+                {
+                  "pos_ud": "NOUN",
+                  "sense_idx": 0,
+                  "gloss": "A chair is a piece of furniture for one person to sit on.",
+                  "danish_translation": "stol",
+                  "examples": [
+                    "Please, pull up a chair and sit down.",
+                    "There were six chairs around the table."
+                  ]
+                },
+                {
+                  "pos_ud": "NOUN",
+                  "sense_idx": 1,
+                  "gloss": "The person who is in charge of a meeting is the chair of the meeting.",
+                  "danish_translation": "stol",
+                  "examples": [
+                    "The chair opened the floor to questions."
+                  ]
+                },
+                {
+                  "pos_ud": "NOUN",
+                  "sense_idx": 2,
+                  "gloss": "A chair is a position of professor in a university.",
+                  "danish_translation": "stol",
+                  "examples": [
+                    "A chair of Mathematics has opened at London University."
+                  ]
+                }
+              ]
+            },
+            {
+              "lemma": "chair",
+              "form": "chair",
+              "pos_ud": "VERB",
+              "pos_raw": "verb",
+              "danish_translation": "lede",
+              "meaning_description": "lead or control a meeting",
+              "senses": [
+                {
+                  "pos_ud": "VERB",
+                  "sense_idx": 0,
+                  "gloss": "If you chair a meeting, you are in charge of controlling it.",
+                  "danish_translation": "lede",
+                  "examples": [
+                    "The meeting was chaired by the head teacher."
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "cor_forms": {
+          "stol": {
+            "form": "stol",
+            "groups": [
+              {
+                "lemma": "stol",
+                "gloss": null,
+                "pos_tag": "NOUN",
+                "variants": [
+                  {
+                    "cor_id": "COR.67107.110.01",
+                    "form": "stol",
+                    "lemma": "stol",
+                    "gloss": null,
+                    "gloss_translation": null,
+                    "gram_raw": "sb.fk.sg.ubest",
+                    "norm": "N",
+                    "lemma_idx": 67107,
+                    "gram_code": 110,
+                    "variation": 1,
+                    "pos_tag": "NOUN",
+                    "morphology": "Gender=Com|Number=Sing|Definite=Ind",
+                    "features": {
+                      "Gender": "Com",
+                      "Number": "Sing",
+                      "Definite": "Ind"
+                    },
+                    "extra_tags": [],
+                    "lemma_translation": null,
+                    "saveable_translation": null,
+                    "lemma_translation_provider": null,
+                    "lemma_translation_status": null,
+                    "lemma_translation_reason": null
+                  }
+                ]
+              }
+            ],
+            "did_you_mean": null
+          },
+          "lede": {
+            "form": "lede",
+            "groups": [
+              {
+                "lemma": "lede",
+                "gloss": "føre, styre",
+                "pos_tag": "VERB",
+                "variants": [
+                  {
+                    "cor_id": "COR.30844.200.01",
+                    "form": "lede",
+                    "lemma": "lede",
+                    "gloss": "føre, styre",
+                    "gloss_translation": null,
+                    "gram_raw": "vb.inf.akt",
+                    "norm": "N",
+                    "lemma_idx": 30844,
+                    "gram_code": 200,
+                    "variation": 1,
+                    "pos_tag": "VERB",
+                    "morphology": "VerbForm=Inf|Voice=Act",
+                    "features": {
+                      "VerbForm": "Inf",
+                      "Voice": "Act"
+                    },
+                    "extra_tags": [],
+                    "lemma_translation": null,
+                    "saveable_translation": null,
+                    "lemma_translation_provider": null,
+                    "lemma_translation_status": null,
+                    "lemma_translation_reason": null
+                  }
+                ]
+              }
+            ],
+            "did_you_mean": null
+          }
+        }
+      }
+    },
+    {
+      "query": "chair",
+      "run_index": 1,
+      "cold": true,
+      "total_wall_ms": 5025.582582999995,
+      "sum_http_ms": 5025.442334000005,
+      "timings": [
+        {
+          "label": "en-form chair",
+          "duration_ms": 2654.900750000003
+        },
+        {
+          "label": "cor-form stol",
+          "duration_ms": 1420.1906669999998
+        },
+        {
+          "label": "cor-form lede",
+          "duration_ms": 950.3509170000016
+        }
+      ],
+      "responses": {
+        "en_form": {
+          "form": "chair",
+          "groups": [
+            {
+              "lemma": "chair",
+              "form": "chair",
+              "pos_ud": "NOUN",
+              "pos_raw": "noun",
+              "danish_translation": "stol",
+              "meaning_description": "furniture for sitting or academic position",
+              "senses": [
+                {
+                  "pos_ud": "NOUN",
+                  "sense_idx": 0,
+                  "gloss": "A chair is a piece of furniture for one person to sit on.",
+                  "danish_translation": "stol",
+                  "examples": [
+                    "Please, pull up a chair and sit down.",
+                    "There were six chairs around the table."
+                  ]
+                },
+                {
+                  "pos_ud": "NOUN",
+                  "sense_idx": 1,
+                  "gloss": "The person who is in charge of a meeting is the chair of the meeting.",
+                  "danish_translation": "stol",
+                  "examples": [
+                    "The chair opened the floor to questions."
+                  ]
+                },
+                {
+                  "pos_ud": "NOUN",
+                  "sense_idx": 2,
+                  "gloss": "A chair is a position of professor in a university.",
+                  "danish_translation": "stol",
+                  "examples": [
+                    "A chair of Mathematics has opened at London University."
+                  ]
+                }
+              ]
+            },
+            {
+              "lemma": "chair",
+              "form": "chair",
+              "pos_ud": "VERB",
+              "pos_raw": "verb",
+              "danish_translation": "lede",
+              "meaning_description": "lead or control a meeting",
+              "senses": [
+                {
+                  "pos_ud": "VERB",
+                  "sense_idx": 0,
+                  "gloss": "If you chair a meeting, you are in charge of controlling it.",
+                  "danish_translation": "lede",
+                  "examples": [
+                    "The meeting was chaired by the head teacher."
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "cor_forms": {
+          "stol": {
+            "form": "stol",
+            "groups": [
+              {
+                "lemma": "stol",
+                "gloss": null,
+                "pos_tag": "NOUN",
+                "variants": [
+                  {
+                    "cor_id": "COR.67107.110.01",
+                    "form": "stol",
+                    "lemma": "stol",
+                    "gloss": null,
+                    "gloss_translation": null,
+                    "gram_raw": "sb.fk.sg.ubest",
+                    "norm": "N",
+                    "lemma_idx": 67107,
+                    "gram_code": 110,
+                    "variation": 1,
+                    "pos_tag": "NOUN",
+                    "morphology": "Gender=Com|Number=Sing|Definite=Ind",
+                    "features": {
+                      "Gender": "Com",
+                      "Number": "Sing",
+                      "Definite": "Ind"
+                    },
+                    "extra_tags": [],
+                    "lemma_translation": null,
+                    "saveable_translation": null,
+                    "lemma_translation_provider": null,
+                    "lemma_translation_status": null,
+                    "lemma_translation_reason": null
+                  }
+                ]
+              }
+            ],
+            "did_you_mean": null
+          },
+          "lede": {
+            "form": "lede",
+            "groups": [
+              {
+                "lemma": "lede",
+                "gloss": "føre, styre",
+                "pos_tag": "VERB",
+                "variants": [
+                  {
+                    "cor_id": "COR.30844.200.01",
+                    "form": "lede",
+                    "lemma": "lede",
+                    "gloss": "føre, styre",
+                    "gloss_translation": null,
+                    "gram_raw": "vb.inf.akt",
+                    "norm": "N",
+                    "lemma_idx": 30844,
+                    "gram_code": 200,
+                    "variation": 1,
+                    "pos_tag": "VERB",
+                    "morphology": "VerbForm=Inf|Voice=Act",
+                    "features": {
+                      "VerbForm": "Inf",
+                      "Voice": "Act"
+                    },
+                    "extra_tags": [],
+                    "lemma_translation": null,
+                    "saveable_translation": null,
+                    "lemma_translation_provider": null,
+                    "lemma_translation_status": null,
+                    "lemma_translation_reason": null
+                  }
+                ]
+              }
+            ],
+            "did_you_mean": null
+          }
+        }
+      }
+    }
+  ],
+  "summary": {
+    "card": {
+      "runs": 2,
+      "p50_wall_ms": 4746.488104,
+      "p95_wall_ms": 5537.241,
+      "p50_sum_http_ms": 4746.346625,
+      "p95_sum_http_ms": 5537.092417,
+      "total_wall_ms": 9492.976208
+    },
+    "chair": {
+      "runs": 2,
+      "p50_wall_ms": 4366.245832999997,
+      "p95_wall_ms": 5025.582582999995,
+      "p50_sum_http_ms": 4366.117729999999,
+      "p95_sum_http_ms": 5025.442334000005,
+      "total_wall_ms": 8732.491665999994
+    },
+    "run": {
+      "runs": 2,
+      "p50_wall_ms": 9590.024042000001,
+      "p95_wall_ms": 13484.635417000001,
+      "p50_sum_http_ms": 9589.855021500003,
+      "p95_sum_http_ms": 13484.469042000004,
+      "total_wall_ms": 19180.048084000002
+    }
+  }
+}
