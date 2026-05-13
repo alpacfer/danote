@@ -22,12 +22,14 @@ export function useSidebarWordbankSearch({
   const cacheRef = useRef<Map<string, { matches: WordbankSearchItem[]; correction: string | null }>>(new Map())
   const [searchApiMatches, setSearchApiMatches] = useState<WordbankSearchItem[]>([])
   const [wordbankDidYouMean, setWordbankDidYouMean] = useState<string | null>(null)
+  const [isWordbankSearchLoading, setIsWordbankSearchLoading] = useState(false)
 
   useEffect(() => {
     cacheRef.current.clear()
     const clearId = window.setTimeout(() => {
       setSearchApiMatches([])
       setWordbankDidYouMean(null)
+      setIsWordbankSearchLoading(false)
     }, 0)
     return () => window.clearTimeout(clearId)
   }, [resetVersion])
@@ -50,6 +52,7 @@ export function useSidebarWordbankSearch({
     }
 
     if (shouldSkipLookup || !normalizedQuery || normalizedQuery.length < 2) {
+      setIsWordbankSearchLoading(false)
       commitSearchMatches([])
       commitDidYouMean(null)
       return () => {
@@ -59,6 +62,7 @@ export function useSidebarWordbankSearch({
 
     const cached = cacheRef.current.get(normalizedQuery)
     if (cached) {
+      setIsWordbankSearchLoading(false)
       commitDidYouMean(cached.correction)
       commitSearchMatches(cached.matches)
       return () => {
@@ -67,6 +71,7 @@ export function useSidebarWordbankSearch({
     }
 
     commitSearchMatches([])
+    setIsWordbankSearchLoading(true)
 
     const controller = new AbortController()
     const timeoutId = window.setTimeout(() => {
@@ -100,6 +105,10 @@ export function useSidebarWordbankSearch({
             commitDidYouMean(null)
             commitSearchMatches([])
           }
+        } finally {
+          if (!cancelled) {
+            setIsWordbankSearchLoading(false)
+          }
         }
       })()
     }, SEARCH_RESOLVE_DEBOUNCE_MS)
@@ -108,8 +117,9 @@ export function useSidebarWordbankSearch({
       cancelled = true
       window.clearTimeout(timeoutId)
       controller.abort()
+      setIsWordbankSearchLoading(false)
     }
   }, [apiClient, normalizedQuery, resetVersion, shouldSkipLookup])
 
-  return { searchApiMatches, wordbankDidYouMean }
+  return { searchApiMatches, wordbankDidYouMean, isWordbankSearchLoading }
 }

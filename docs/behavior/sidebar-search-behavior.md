@@ -15,6 +15,7 @@ Exact behavior of sidebar command search ("Search words...").
 - Close → clears `searchQuery` + command selection override.
 - Input keeps the raw typed value so spaces survive while composing a sentence query. Normalization happens downstream in `useSidebarSearch`.
 - Placeholder: `Search words...`
+- Single-word queries render a generic `Searching` skeleton group as soon as wordbank/COR/English lookup starts, including during debounce. Once the flow shape is known, those generic rows give way to source-specific results or source-specific skeleton rows.
 
 ## Data sources
 
@@ -98,7 +99,7 @@ Endpoint: `GET /api/wordbank/search/en-form?form=<q>&include_translations=true`
 - Translated English results use one batch COR request for all Danish translation keys; the backend returns item responses in the same order as requested.
 - Groups without a matching COR row stay as generated non-COR fallback rows.
 - When one English query has two or more distinct Danish translations, the backend asks Gemini once for short per-choice disambiguation labels and the sidebar shows those compact labels on both COR-backed and fallback rows.
-- While English/COR translation lookup is loading, the `Translated From English` section waits for untranslated COR candidate lookup to determine the exact pending row count, then renders that many placeholders until the translated payload arrives.
+- While English/COR translation lookup is loading, search first shows the generic `Searching` skeleton during English resolution. After untranslated COR candidate lookup determines the exact pending row count, the UI switches to the `Translated From English` section and renders that many placeholders until the translated payload arrives.
 
 ## Cache invalidation
 
@@ -208,7 +209,7 @@ Sorted by best variant score per group:
 
 ## Empty state and sections
 
-- "No results found." only when: query non-empty AND no wordbank/page results.
+- "No results found." only when: query non-empty, no wordbank/page results, and no search lookup is still loading.
 - Section order: (1) Wordbank, (2) Translated From English, (3) Pages. Separators between present sections.
 
 ## Test coverage map

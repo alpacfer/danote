@@ -39,13 +39,13 @@ export function useSidebarSearch({
     && !/\s/u.test(normalizedQuery)
     && !isShortLetterWord(normalizedQuery)
 
-  const { searchApiMatches, wordbankDidYouMean } = useSidebarWordbankSearch({
+  const { searchApiMatches, wordbankDidYouMean, isWordbankSearchLoading } = useSidebarWordbankSearch({
     apiClient,
     shouldSkipLookup: shouldSkipWordLookups,
     normalizedQuery,
     resetVersion,
   })
-  const { corDidYouMean, corFormSearchResult, isCorTranslationsLoading } = useSidebarCorSearch({
+  const { corDidYouMean, corFormSearchResult, isCorLookupLoading, isCorTranslationsLoading } = useSidebarCorSearch({
     apiClient,
     shouldSkipLookup: shouldSkipWordLookups,
     normalizedQuery,
@@ -90,9 +90,11 @@ export function useSidebarSearch({
     sentenceSearchPreview,
     isSentenceSearchPreviewLoading,
     searchApiMatches,
+    isWordbankSearchLoading,
     wordbankDidYouMean,
     corDidYouMean,
     activeCorFormSearchResult,
+    isCorLookupLoading,
     isCorTranslationsLoading,
     sentenceSearchPreviewError,
     activeEnResolveResult,

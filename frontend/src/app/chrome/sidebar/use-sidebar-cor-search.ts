@@ -25,6 +25,7 @@ export function useSidebarCorSearch({
   const cacheRef = useRef<Map<string, CORSearchFormResponse>>(new Map())
   const [corDidYouMean, setCorDidYouMean] = useState<string | null>(null)
   const [corFormSearchResult, setCorFormSearchResult] = useState<CorFormSearchResult | null>(null)
+  const [isCorLookupLoading, setIsCorLookupLoading] = useState(false)
   const [isCorTranslationsLoading, setIsCorTranslationsLoading] = useState(false)
 
   useEffect(() => {
@@ -32,6 +33,7 @@ export function useSidebarCorSearch({
     const clearId = window.setTimeout(() => {
       setCorFormSearchResult(null)
       setCorDidYouMean(null)
+      setIsCorLookupLoading(false)
       setIsCorTranslationsLoading(false)
     }, 0)
     return () => window.clearTimeout(clearId)
@@ -46,6 +48,7 @@ export function useSidebarCorSearch({
       || getQuestionWordEntry(normalizedQuery)
       || getPronounCategory(normalizedQuery)
     ) {
+      setIsCorLookupLoading(false)
       setIsCorTranslationsLoading(false)
       setCorDidYouMean(null)
       setCorFormSearchResult(null)
@@ -57,12 +60,14 @@ export function useSidebarCorSearch({
       setCorFormSearchResult({ query: normalizedQuery, payload: cachedPayload })
       const cachedExact = hasExactCorFormMatch(cachedPayload.groups ?? [], normalizedQuery)
       setCorDidYouMean(cachedExact ? null : (cachedPayload.did_you_mean ?? null))
+      setIsCorLookupLoading(false)
       setIsCorTranslationsLoading(false)
       return
     }
 
     const controller = new AbortController()
     let cancelled = false
+    setIsCorLookupLoading(true)
     const timeoutId = window.setTimeout(() => {
       void (async () => {
         try {
@@ -94,6 +99,7 @@ export function useSidebarCorSearch({
           }
         } finally {
           if (!cancelled) {
+            setIsCorLookupLoading(false)
             setIsCorTranslationsLoading(false)
           }
         }
@@ -104,9 +110,10 @@ export function useSidebarCorSearch({
       cancelled = true
       window.clearTimeout(timeoutId)
       controller.abort()
+      setIsCorLookupLoading(false)
       setIsCorTranslationsLoading(false)
     }
   }, [apiClient, normalizedQuery, resetVersion, shouldSkipLookup])
 
-  return { corDidYouMean, corFormSearchResult, isCorTranslationsLoading }
+  return { corDidYouMean, corFormSearchResult, isCorLookupLoading, isCorTranslationsLoading }
 }

@@ -25,6 +25,7 @@ import {
 import { SidebarCorResults } from "@/app/chrome/sidebar/sidebar-cor-results"
 import { SidebarEnResults } from "@/app/chrome/sidebar/sidebar-en-results"
 import { SidebarSentenceResult } from "@/app/chrome/sidebar/sidebar-sentence-result"
+import { SidebarSearchPendingSkeleton } from "@/app/chrome/sidebar/sidebar-search-skeletons"
 import { SidebarWordbankResults } from "@/app/chrome/sidebar/sidebar-wordbank-results"
 
 type PageItem = {
@@ -60,6 +61,8 @@ export type SidebarSearchResultsData = {
   translatedEnCorSearchGroups: CORSearchGroup[]
   translatedEnCorVariantsToRender: Array<{ group: CORSearchGroup; variant: CORSearchVariant }>
   matchingPageItems: PageItem[]
+  isWordbankSearchLoading: boolean
+  isCorLookupLoading: boolean
   isCorTranslationsLoading: boolean
   wordbankItemValue: (item: WordbankSearchItem) => string
   corVariantItemValue: (variant: CORSearchVariant) => string
@@ -172,10 +175,23 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
   const hasCorrectedResults = hasCorrectedWordbank || hasCorrectedCor
 
   const hasWordbankSection = hasDirectResults || hasCorrectedResults
+  const hasFlowSpecificLoading = showEnSkeletonResults
+  const isInitialSearchLoading = Boolean(state.normalizedQuery)
+    && (data.isWordbankSearchLoading || data.isCorLookupLoading || data.isEnResolveLoading || data.isEnTranslatedCorLoading)
+    && !hasDirectResults
+    && !hasCorrectedResults
+    && !hasTranslatedEnSection
+    && !hasFlowSpecificLoading
 
   return (
     <CommandList>
-      {state.normalizedQuery && !state.hasAnyResults ? <CommandEmpty>No results found.</CommandEmpty> : null}
+      {state.normalizedQuery && !state.hasAnyResults && !isInitialSearchLoading ? <CommandEmpty>No results found.</CommandEmpty> : null}
+
+      {isInitialSearchLoading ? (
+        <CommandGroup heading="Searching" className="animate-in fade-in-0 duration-150">
+          <SidebarSearchPendingSkeleton />
+        </CommandGroup>
+      ) : null}
 
       {/* Direct results — exact query match */}
       {hasDirectResults ? (

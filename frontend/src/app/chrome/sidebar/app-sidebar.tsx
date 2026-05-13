@@ -89,9 +89,11 @@ export function AppSidebar({
     sentenceSearchPreview,
     isSentenceSearchPreviewLoading,
     searchApiMatches,
+    isWordbankSearchLoading,
     wordbankDidYouMean,
     corDidYouMean,
     activeCorFormSearchResult,
+    isCorLookupLoading,
     isCorTranslationsLoading,
     isEnResolveLoading,
     activeEnTranslatedCorResults,
@@ -154,7 +156,16 @@ export function AppSidebar({
   const hasMatchedSentences = matchedSavedSentences.length > 0
   const hasAnyResults = isSentenceMode
     ? (Boolean(sentenceSearchPreview) || hasMatchedSentences)
-    : (hasWordbankSectionResults || hasEnResults || hasPageResults || hasMatchedSentences || isEnResolveLoading || isEnTranslatedCorLoading)
+    : (
+        hasWordbankSectionResults
+        || hasEnResults
+        || hasPageResults
+        || hasMatchedSentences
+        || isWordbankSearchLoading
+        || isCorLookupLoading
+        || isEnResolveLoading
+        || isEnTranslatedCorLoading
+      )
 
   const { commandSelectionValue } = useSidebarCommandSelection({
     activeEnTranslatedCorResults,
@@ -209,6 +220,8 @@ export function AppSidebar({
     translatedEnCorSearchGroups: activeEnTranslatedCorResults.orderedCorSearchGroups,
     translatedEnCorVariantsToRender: activeEnTranslatedCorResults.corSearchVariantsToRender,
     matchingPageItems,
+    isWordbankSearchLoading,
+    isCorLookupLoading,
     isCorTranslationsLoading,
     wordbankItemValue: (item: WordbankSearchItem) => `wordbank-${savedWordbankResultKey(item)}`,
     corVariantItemValue: (variant: CORSearchVariant) => `cor-variant-${variant.cor_id}`,

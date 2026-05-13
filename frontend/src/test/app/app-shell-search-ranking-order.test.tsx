@@ -698,8 +698,28 @@ describe("App shell and search", () => {
     const commandDialog = await screen.findByRole("dialog")
     fireEvent.change(within(commandDialog).getByPlaceholderText(/search words/i), { target: { value: "run" } })
 
+    expect(await within(commandDialog).findAllByTestId("search-pending-skeleton")).toHaveLength(3)
     expect(await within(commandDialog).findAllByTestId("search-en-skeleton")).toHaveLength(3)
     expect(within(commandDialog).queryByText(/^løbe$/i, { selector: "strong" })).not.toBeInTheDocument()
+  })
+
+  it("shows search skeletons immediately while the search flow is still resolving", async () => {
+    mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      wordbankSearchHandler: async () => new Promise<Response>(() => {}),
+      corSearchFormHandler: async () => new Promise<Response>(() => {}),
+      enSearchFormHandler: async () => new Promise<Response>(() => {}),
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    const commandDialog = await screen.findByRole("dialog")
+    fireEvent.change(within(commandDialog).getByPlaceholderText(/search words/i), { target: { value: "zztest" } })
+
+    expect(await within(commandDialog).findAllByTestId("search-pending-skeleton")).toHaveLength(3)
+    expect(within(commandDialog).queryByText(/^No results found\.$/i)).not.toBeInTheDocument()
   })
 
   it("does not guess translated English skeletons while English lookup is still resolving", async () => {

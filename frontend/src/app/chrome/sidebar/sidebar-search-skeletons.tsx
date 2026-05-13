@@ -1,0 +1,30 @@
+import { Eye } from "lucide-react"
+
+import { CommandItem } from "@/components/ui/command"
+import { Skeleton } from "@/components/ui/skeleton"
+
+export function SidebarSearchPendingSkeleton() {
+  return (
+    <>
+      {Array.from({ length: 3 }, (_, i) => (
+        <CommandItem
+          key={`search-pending-skeleton-${i}`}
+          disabled
+          aria-hidden="true"
+          data-testid="search-pending-skeleton"
+          className="flex items-start justify-between gap-3"
+        >
+          <div className="flex min-w-0 flex-col items-start gap-1">
+            <Skeleton className={i === 1 ? "h-3.5 w-20" : "h-3.5 w-28"} />
+            <Skeleton className={i === 2 ? "h-3 w-24" : "h-3 w-36"} />
+            <div className="mt-1 flex flex-wrap gap-1.5">
+              <Skeleton className="h-5 w-10 rounded-full" />
+              {i === 0 ? <Skeleton className="h-5 w-14 rounded-full" /> : null}
+            </div>
+          </div>
+          <Eye className="text-muted-foreground size-4 shrink-0 opacity-0" aria-hidden />
+        </CommandItem>
+      ))}
+    </>
+  )
+}
