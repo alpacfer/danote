@@ -91,6 +91,7 @@ class CorResolutionCollaborator:
         limit: int = 100,
         include_translations: bool = True,
         en_query: str | None = None,
+        en_pos_ud: str | None = None,
     ) -> CORSearchFormResponse:
         response = search_cor_form(
             self._cor_local_lexicon_service,
@@ -103,6 +104,7 @@ class CorResolutionCollaborator:
             response = filter_cor_form_response_by_en_query(
                 response,
                 en_query=en_query,
+                en_pos_ud=en_pos_ud,
                 en_gemini_translation_service=self._en_gemini_translation_service,
             )
         return response

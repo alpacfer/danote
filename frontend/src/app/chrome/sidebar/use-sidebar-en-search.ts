@@ -116,13 +116,20 @@ export function useSidebarEnSearch({
       return
     }
 
-    const translationKeys = Array.from(
-      new Set(
-        activeEnResolveResult.groups
-          .map((group) => normalizeSearchWord(group.danish_translation ?? ""))
-          .filter(Boolean),
-      ),
-    )
+    const posByTranslationKey = new Map<string, Set<string>>()
+    for (const group of activeEnResolveResult.groups) {
+      const key = normalizeSearchWord(group.danish_translation ?? "")
+      if (!key) continue
+      const posSet = posByTranslationKey.get(key) ?? new Set<string>()
+      const pos = (group.pos_ud ?? "").toString().trim().toUpperCase()
+      if (pos) posSet.add(pos)
+      posByTranslationKey.set(key, posSet)
+    }
+    const translationKeys = Array.from(posByTranslationKey.keys())
+    const enPosForKey = (translationKey: string): string => {
+      const posSet = posByTranslationKey.get(translationKey)
+      return posSet ? Array.from(posSet).sort().join(",") : ""
+    }
     if (translationKeys.length === 0) {
       setEnTranslatedCorPayloads({ query: normalizedQuery, payloads: {} })
       setIsEnTranslatedCorLoading(false)
@@ -130,7 +137,8 @@ export function useSidebarEnSearch({
       return
     }
 
-    const filteredCacheKey = (translationKey: string) => `${normalizedQuery}::${translationKey}`
+    const filteredCacheKey = (translationKey: string) =>
+      `${normalizedQuery}::${enPosForKey(translationKey)}::${translationKey}`
     const cachedPayloads: Record<string, CORSearchFormResponse> = {}
     const missing = translationKeys.filter((translationKey) => {
       const cached = enTranslatedCorCacheRef.current.get(filteredCacheKey(translationKey))
@@ -181,9 +189,11 @@ export function useSidebarEnSearch({
 
       const fullResults = await Promise.all(
         missing.map(async (translationKey) => {
+          const posParam = enPosForKey(translationKey)
+          const posSuffix = posParam ? `&en_pos_ud=${encodeURIComponent(posParam)}` : ""
           const payload = await apiClient
             .getJson<CORSearchFormResponse>(
-              `/api/wordbank/search/cor-form?form=${encodeURIComponent(translationKey)}&limit=100&en_query=${encodeURIComponent(normalizedQuery)}`,
+              `/api/wordbank/search/cor-form?form=${encodeURIComponent(translationKey)}&limit=100&en_query=${encodeURIComponent(normalizedQuery)}${posSuffix}`,
               "Search translation is unavailable.",
             )
             .catch(() => null)

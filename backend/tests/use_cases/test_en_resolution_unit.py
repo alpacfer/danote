@@ -365,6 +365,43 @@ def test_wordbank_search_en_form_returns_translated_groups(tmp_path) -> None:
     assert lexicon.lookup_form_calls == ["BOOKS"]
 
 
+def test_wordbank_search_en_form_uses_pos_aware_translation_when_form_matches_lemma(tmp_path) -> None:
+    # Regression: when the queried form equals the lemma (e.g. "run"), a POS-blind
+    # surface translator collapses every POS group to the same Danish word — so
+    # both the noun and the verb senses of "run" came back as "løbe" and the
+    # noun "løb" was never reachable. Force the POS-aware Gemini translation to
+    # win for non-inflected queries so each POS group gets its own Danish lemma.
+    lexicon = _StubENLocalLexiconService(
+        matches=[
+            ENLocalFormMatch(form="run", lemma="run", pos_ud="NOUN", tags=[]),
+            ENLocalFormMatch(form="run", lemma="run", pos_ud="VERB", tags=[]),
+        ],
+        senses_by_key={
+            ("run", "NOUN"): [_sense(lemma="run", pos_ud="NOUN", sense_idx=0, gloss="a quick movement on foot")],
+            ("run", "VERB"): [_sense(lemma="run", pos_ud="VERB", sense_idx=0, gloss="to move quickly on foot")],
+        },
+    )
+    gemini = _StubENGeminiTranslationService(
+        {
+            ("run", "NOUN", "a quick movement on foot"): "løb",
+            ("run", "VERB", "to move quickly on foot"): "løbe",
+        }
+    )
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        en_local_lexicon_service=lexicon,
+        en_gemini_translation_service=gemini,
+        # Surface translator only knows the verb — would otherwise win and leak
+        # "løbe" into the noun group.
+        translation_service=FakeTranslationService({"run": "løbe"}),
+    )
+
+    response = use_case.search_en_form("run")
+
+    by_pos = {group.pos_ud: group.danish_translation for group in response.groups}
+    assert by_pos == {"NOUN": "løb", "VERB": "løbe"}
+
+
 def test_wordbank_search_en_form_prefers_surface_form_translation(tmp_path) -> None:
     lexicon = _StubENLocalLexiconService(
         matches=[ENLocalFormMatch(form="dogs", lemma="dog", pos_ud="NOUN", tags=["plural"])],

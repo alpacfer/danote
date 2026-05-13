@@ -359,12 +359,14 @@ class WordbankUseCase:
         limit: int = 100,
         include_translations: bool = True,
         en_query: str | None = None,
+        en_pos_ud: str | None = None,
     ) -> CORSearchFormResponse:
         return self._runtime.cor.search_cor_form(
             form,
             limit=limit,
             include_translations=include_translations,
             en_query=en_query,
+            en_pos_ud=en_pos_ud,
         )
 
     def search_cor_lemma_paradigm(

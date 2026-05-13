@@ -31,6 +31,20 @@ cd frontend && npx vitest run src/test/path/to/file.test.ts
 bash ./scripts/pytest-backend.sh -q tests/use_cases
 ```
 
+Search debugging against the live dev server:
+
+```bash
+scripts/dev-search-debug.py <english-query>      # full EN → DA → COR trace, with filter diff
+scripts/dev-search-debug.py --da <danish-form>   # direct Danish COR lookup
+scripts/dev-search-debug.py --host H --port P <q>  # override auto-detection
+```
+
+Auto-locates the running uvicorn (no port argument needed) and walks the same
+pipeline the sidebar performs: EN resolve → per-translation-key COR lookup →
+shows the Gemini sense filter's before/after with each variant marked ✓ kept
+or ✗ dropped. Use this to diagnose missing or surplus search rows without
+having to poke individual endpoints by hand.
+
 ## Architecture
 
 Backend flow: routes -> schemas -> use-cases -> domain services -> adapters -> DB.

@@ -283,6 +283,7 @@ def search_cor_form(
     limit: int = Query(100, ge=1, le=500),
     include_translations: bool = Query(True),
     en_query: str | None = Query(None, min_length=1),
+    en_pos_ud: str | None = Query(None, min_length=1),
 ) -> CORSearchFormResponse:
     return run_db_operation(
         request,
@@ -291,6 +292,7 @@ def search_cor_form(
             limit=limit,
             include_translations=include_translations,
             en_query=en_query,
+            en_pos_ud=en_pos_ud,
         ),
         include_runtime_error=True,
         error_log_name="wordbank_db_operational_error",

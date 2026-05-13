@@ -91,8 +91,49 @@ def test_en_gemini_select_translation_matches_returns_id_to_bool(monkeypatch) ->
 
     assert decisions == {"0": True, "1": False}
     assert len(captured) == 1
-    assert "English query: table" in str(captured[0]["prompt"])
+    assert "English query: \"table\"" in str(captured[0]["prompt"])
     assert captured[0]["response_schema"]["properties"]["items"]["items"]["properties"]["matches"]["type"] == "BOOLEAN"
+
+
+def test_en_gemini_select_translation_matches_includes_pos_hint(monkeypatch) -> None:
+    service = ENGeminiTranslationService(api_key="test-key")
+    captured: list[dict[str, object]] = []
+
+    def fake_generate_content(prompt: str, *, response_schema=None, max_output_tokens=64):
+        captured.append({"prompt": prompt})
+        return _FakeResponse(parsed={"items": [{"id": "0", "matches": True}]})
+
+    monkeypatch.setattr(service, "_generate_content", fake_generate_content)
+
+    service.select_translation_matches(
+        query="chair",
+        choices=[{"id": "0", "danish_lemma": "at lede", "danish_gloss": "føre, styre", "pos": "VERB"}],
+        en_pos_ud="VERB",
+    )
+
+    prompt = str(captured[0]["prompt"])
+    assert "interpreted as a verb" in prompt
+    assert "English query: \"chair\"" in prompt
+
+
+def test_en_gemini_select_translation_matches_accepts_csv_pos_hint(monkeypatch) -> None:
+    service = ENGeminiTranslationService(api_key="test-key")
+    captured: list[dict[str, object]] = []
+
+    def fake_generate_content(prompt: str, *, response_schema=None, max_output_tokens=64):
+        captured.append({"prompt": prompt})
+        return _FakeResponse(parsed={"items": [{"id": "0", "matches": True}]})
+
+    monkeypatch.setattr(service, "_generate_content", fake_generate_content)
+
+    service.select_translation_matches(
+        query="set",
+        choices=[{"id": "0", "danish_lemma": "et/en sæt", "danish_gloss": "", "pos": "NOUN"}],
+        en_pos_ud="NOUN,VERB",
+    )
+
+    prompt = str(captured[0]["prompt"])
+    assert "noun or verb" in prompt
 
 
 def test_en_gemini_select_translation_matches_returns_empty_for_empty_choices(monkeypatch) -> None:

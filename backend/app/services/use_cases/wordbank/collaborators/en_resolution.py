@@ -205,26 +205,63 @@ def build_en_pos_groups(
             continue
         senses = senses[:_MAX_SENSES_PER_POS]
         sense_outs: list[ENSenseOut] = []
-        group_translation = _translate_en_surface_form(
-            form=match.form,
-            translation_service=translation_service,
-            cache=surface_translation_cache,
-        ) if include_translations else None
-        for sense in senses:
-            translation_value = group_translation
-            if include_translations:
-                if not translation_value:
-                    translation_value = translate_en_lemma_contextual(
+        # When the queried form is inflected away from the lemma ("dogs" vs "dog"),
+        # the surface translator preserves the inflection in Danish ("hunde" vs
+        # "hund") and that's what the user expects to see. When the form equals
+        # the lemma ("run", "card"), the surface translator is POS-blind and
+        # would assign the same Danish word to every POS group of the query;
+        # in that case we must let the POS-aware Gemini contextual lookup pick
+        # a different lemma per POS (so "run" NOUN → "løb" and VERB → "løbe").
+        form_is_inflected = match.form.strip().lower() != match.lemma.strip().lower()
+        group_translation: str | None = None
+        if include_translations:
+            if form_is_inflected:
+                group_translation = _translate_en_surface_form(
+                    form=match.form,
+                    translation_service=translation_service,
+                    cache=surface_translation_cache,
+                )
+                if not group_translation:
+                    group_translation = translate_en_lemma_contextual(
                         lemma=match.lemma,
                         pos_ud=match.pos_ud,
-                        gloss=sense.gloss,
+                        gloss=senses[0].gloss,
                         gemini_service=en_gemini_translation_service,
                         translation_service=translation_service,
                         cache=translation_cache,
                     )
-                    translation_value = _normalize_translation_candidate(translation_value)
-                    if translation_value and translation_value.lower() == match.lemma.lower():
-                        translation_value = None
+            else:
+                group_translation = translate_en_lemma_contextual(
+                    lemma=match.lemma,
+                    pos_ud=match.pos_ud,
+                    gloss=senses[0].gloss,
+                    gemini_service=en_gemini_translation_service,
+                    translation_service=translation_service,
+                    cache=translation_cache,
+                )
+                if not group_translation:
+                    group_translation = _translate_en_surface_form(
+                        form=match.form,
+                        translation_service=translation_service,
+                        cache=surface_translation_cache,
+                    )
+            group_translation = _normalize_translation_candidate(group_translation)
+            if group_translation and group_translation.lower() == match.lemma.lower():
+                group_translation = None
+        for sense in senses:
+            translation_value = group_translation
+            if include_translations and not translation_value:
+                translation_value = translate_en_lemma_contextual(
+                    lemma=match.lemma,
+                    pos_ud=match.pos_ud,
+                    gloss=sense.gloss,
+                    gemini_service=en_gemini_translation_service,
+                    translation_service=translation_service,
+                    cache=translation_cache,
+                )
+                translation_value = _normalize_translation_candidate(translation_value)
+                if translation_value and translation_value.lower() == match.lemma.lower():
+                    translation_value = None
             if not group_translation and translation_value:
                 group_translation = translation_value
             sense_outs.append(

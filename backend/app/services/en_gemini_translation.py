@@ -62,7 +62,13 @@ class ENGeminiTranslationService:
         response = self._generate_content(prompt)
         return self._parse(response)
 
-    def select_translation_matches(self, *, query: str, choices: list[dict[str, object]]) -> dict[str, bool]:
+    def select_translation_matches(
+        self,
+        *,
+        query: str,
+        choices: list[dict[str, object]],
+        en_pos_ud: str | None = None,
+    ) -> dict[str, bool]:
         """Return id → True/False indicating which Danish senses validly translate the English query.
 
         Used to filter out homograph senses of the same Danish lemma that do not match the
@@ -71,7 +77,7 @@ class ENGeminiTranslationService:
         if not choices:
             return {}
         valid_ids = {str(choice.get("id")) for choice in choices}
-        prompt = self._build_match_prompt(query=query, choices=choices)
+        prompt = self._build_match_prompt(query=query, choices=choices, en_pos_ud=en_pos_ud)
         response = self._generate_content(
             prompt,
             response_schema={
@@ -135,20 +141,56 @@ class ENGeminiTranslationService:
             "If no good translation exists, use null."
         )
 
-    def _build_match_prompt(self, *, query: str, choices: list[dict[str, object]]) -> str:
+    def _build_match_prompt(
+        self,
+        *,
+        query: str,
+        choices: list[dict[str, object]],
+        en_pos_ud: str | None = None,
+    ) -> str:
+        pos_labels = [
+            _UD_POS_LABELS[token]
+            for token in (
+                fragment.strip().upper() for fragment in (en_pos_ud or "").split(",")
+            )
+            if token in _UD_POS_LABELS
+        ]
+        if pos_labels:
+            joined = " or ".join(dict.fromkeys(pos_labels))
+            query_line = f"English query: \"{query}\" interpreted as a {joined}"
+            pos_hint = (
+                f"\nThe English query is being used as a {joined} in this search. "
+                "Judge whether each Danish sense translates that specific reading "
+                "of the English word, not the most common reading.\n"
+            )
+        else:
+            query_line = f"English query: \"{query}\""
+            pos_hint = ""
         return (
-            "Decide which Danish senses are valid translations of one English query word.\n"
+            "Decide which Danish word senses are valid translations of one English query.\n"
             "Return JSON only with this exact shape: "
             "{\"items\":[{\"id\":\"0\",\"matches\":true}]}\n"
-            "Rules:\n"
-            "- Return exactly one item per input id; copy ids exactly.\n"
-            "- matches=true if the Danish sense (its meaning, judged from gloss/examples) is a "
-            "natural translation of the English query as that part of speech.\n"
-            "- matches=false if the Danish sense refers to a different concept that just happens "
-            "to share spelling with another sense (homograph). Be strict: when in doubt, prefer false.\n"
-            "- Use the supplied glosses/examples as the primary evidence, not the Danish lemma alone.\n"
-            f"English query: {query}\n"
-            f"Choices:\n{json.dumps(choices, ensure_ascii=False)}"
+            "\n"
+            "Each item represents ONE sense of a Danish lemma. Fields:\n"
+            "- danish_lemma: lemma with its article/marker ('et/en X' for nouns, 'at X' for verbs)\n"
+            "- danish_gloss: a short Danish description of this specific sense (may be empty)\n"
+            "- pos: part of speech\n"
+            f"{pos_hint}"
+            "\n"
+            "Decision rules — apply IN ORDER:\n"
+            "1. Treat each item independently. If two items share the same lemma but have different "
+            "glosses, they are different senses and you MUST decide each on its own merits.\n"
+            "2. matches=true ONLY if a fluent Danish speaker would naturally use THIS sense (per the "
+            "gloss) to translate the English query in the intended reading.\n"
+            "3. matches=false when this sense's meaning is unrelated to the English query, even if "
+            "the lemma has other senses that would match (those other senses appear as separate items).\n"
+            "4. When the gloss is empty, judge by the lemma and POS using common Danish meanings.\n"
+            "5. Pure spelling collisions (homographs sharing no meaning with the query) are false.\n"
+            "6. Be decisive: if the supplied gloss does not describe a concept the English query "
+            "refers to in the intended reading, the answer is false.\n"
+            "\n"
+            f"{query_line}\n"
+            f"Items:\n{json.dumps(choices, ensure_ascii=False)}"
         )
 
     def _build_disambiguation_prompt(self, *, query: str, choices: list[dict[str, object]]) -> str:
