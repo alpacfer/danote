@@ -23,6 +23,13 @@ class Settings:
     port: int
     db_path: Path
     nlp_model: str
+    auth_enabled: bool = False
+    auth_provider: str = "clerk"
+    clerk_issuer: str | None = None
+    clerk_jwks_url: str | None = None
+    clerk_public_key: str | None = None
+    allowed_emails: tuple[str, ...] = ()
+    allowed_email_domains: tuple[str, ...] = ()
     nlp_enabled: bool = False
     cors_origins: tuple[str, ...] = DEFAULT_CORS_ORIGINS
     translation_enabled: bool = True
@@ -56,6 +63,10 @@ class Settings:
     tts_azure_endpoint: str | None = None
     tts_azure_voice_name: str = "da-DK-ChristelNeural"
     gemini_changes_log_path: Path = DATA_DIR / "gemini-applied-changes.jsonl"
+    clerk_audience: str | None = None
+    key_encryption_secret: str | None = None
+    serve_frontend: bool = False
+    frontend_dist_path: Path = BASE_DIR / "static"
 
 
 def load_settings(*, env_file: Path | None = None) -> Settings:
@@ -72,6 +83,14 @@ def load_settings(*, env_file: Path | None = None) -> Settings:
         app_name=_required_env("DANOTE_APP_NAME", env_values, "danote-backend"),
         host=_required_env("DANOTE_HOST", env_values, "127.0.0.1"),
         port=int(_required_env("DANOTE_PORT", env_values, "8000")),
+        auth_enabled=_required_env("DANOTE_AUTH_ENABLED", env_values, "0").lower()
+        not in {"0", "false", "no"},
+        auth_provider=_required_env("DANOTE_AUTH_PROVIDER", env_values, "clerk"),
+        clerk_issuer=_optional_env("DANOTE_CLERK_ISSUER", env_values),
+        clerk_jwks_url=_optional_env("DANOTE_CLERK_JWKS_URL", env_values),
+        clerk_public_key=_optional_env("DANOTE_CLERK_PUBLIC_KEY", env_values),
+        allowed_emails=_csv_env("DANOTE_ALLOWED_EMAILS", env_values),
+        allowed_email_domains=_csv_env("DANOTE_ALLOWED_EMAIL_DOMAINS", env_values),
         db_path=db_path,
         nlp_model=_required_env("DANOTE_NLP_MODEL", env_values, "retired-dacy-disabled"),
         nlp_enabled=_required_env("DANOTE_NLP_ENABLED", env_values, "0").lower() not in {"0", "false", "no"},
@@ -156,6 +175,15 @@ def load_settings(*, env_file: Path | None = None) -> Settings:
             env_values,
             DATA_DIR / "gemini-applied-changes.jsonl",
         ),
+        clerk_audience=_optional_env("DANOTE_CLERK_AUDIENCE", env_values),
+        key_encryption_secret=_optional_env("DANOTE_KEY_ENCRYPTION_SECRET", env_values),
+        serve_frontend=_required_env("DANOTE_SERVE_FRONTEND", env_values, "0").lower()
+        not in {"0", "false", "no"},
+        frontend_dist_path=_path_env(
+            "DANOTE_FRONTEND_DIST_PATH",
+            env_values,
+            BASE_DIR / "static",
+        ),
     )
 
 
@@ -203,6 +231,13 @@ def _optional_env(name: str, env_values: dict[str, str]) -> str | None:
     if value is not None:
         return value
     return env_values.get(name)
+
+
+def _csv_env(name: str, env_values: dict[str, str]) -> tuple[str, ...]:
+    value = _optional_env(name, env_values)
+    if value is None:
+        return ()
+    return tuple(item.strip().lower() for item in value.split(",") if item.strip())
 
 
 def _required_or_optional_env(name: str, env_values: dict[str, str], default: str | None) -> str | None:

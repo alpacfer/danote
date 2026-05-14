@@ -53,9 +53,11 @@ class LemmaAwareClassifier:
         self,
         db_path: Path,
         nlp_adapter: NLPAdapter | None = None,
+        owner_user_id: int = 1,
     ):
         self.db_path = db_path
         self.nlp_adapter = nlp_adapter or _NullNLPAdapter()
+        self.owner_user_id = owner_user_id
 
     def classify(self, token: str) -> TokenClassification:
         with get_connection(self.db_path) as conn:
@@ -108,6 +110,7 @@ class LemmaAwareClassifier:
         unique_tokens = sorted(set(normalized_tokens))
         exact_surface_matches: dict[str, list[tuple[str, str]]] = {}
         exact_lemma_matches: set[str] = set()
+        owner_user_id = int(self.owner_user_id)
 
         for token_batch in _chunked(unique_tokens, _SQLITE_IN_CLAUSE_BATCH_SIZE):
             placeholders = ", ".join("?" for _ in token_batch)
@@ -116,7 +119,8 @@ class LemmaAwareClassifier:
                 SELECT sf.form, l.lemma
                 FROM surface_forms sf
                 JOIN lexemes l ON l.id = sf.lexeme_id
-                WHERE sf.form IN ({placeholders})
+                WHERE l.owner_user_id = {owner_user_id}
+                  AND sf.form IN ({placeholders})
                 ORDER BY sf.form ASC,
                          sf.seen_count DESC,
                          sf.last_seen_at DESC,
@@ -132,6 +136,7 @@ class LemmaAwareClassifier:
                 SELECT lemma
                 FROM lexemes
                 WHERE lemma IN ({placeholders})
+                  AND owner_user_id = {owner_user_id}
                 """,
                 tuple(token_batch),
             ).fetchall()
@@ -147,6 +152,7 @@ class LemmaAwareClassifier:
             return set()
 
         prefetched: set[str] = set()
+        owner_user_id = int(self.owner_user_id)
         for candidate_batch in _chunked(lemma_candidates, _SQLITE_IN_CLAUSE_BATCH_SIZE):
             placeholders = ", ".join("?" for _ in candidate_batch)
             lemma_rows = conn.execute(
@@ -154,6 +160,7 @@ class LemmaAwareClassifier:
                 SELECT lemma
                 FROM lexemes
                 WHERE lemma IN ({placeholders})
+                  AND owner_user_id = {owner_user_id}
                 """,
                 tuple(candidate_batch),
             ).fetchall()
@@ -183,12 +190,14 @@ class LemmaAwareClassifier:
 
         exact_matches = exact_surface_matches.get(normalized) if exact_surface_matches is not None else None
         if exact_matches is None:
+            owner_user_id = int(self.owner_user_id)
             exact_rows = conn.execute(
-                """
+                f"""
                 SELECT l.lemma, sf.form
                 FROM surface_forms sf
                 JOIN lexemes l ON l.id = sf.lexeme_id
-                WHERE sf.form = ?
+                WHERE l.owner_user_id = {owner_user_id}
+                  AND sf.form = ?
                 ORDER BY sf.seen_count DESC,
                          sf.last_seen_at DESC,
                          sf.id DESC
@@ -218,11 +227,13 @@ class LemmaAwareClassifier:
 
         lemma_known = normalized in exact_lemma_matches if exact_lemma_matches is not None else None
         if lemma_known is None:
+            owner_user_id = int(self.owner_user_id)
             lemma_exact_row = conn.execute(
-                """
+                f"""
                 SELECT lemma
                 FROM lexemes
-                WHERE lemma = ?
+                WHERE owner_user_id = {owner_user_id}
+                  AND lemma = ?
                 LIMIT 1
                 """,
                 (normalized,),
@@ -263,6 +274,7 @@ class LemmaAwareClassifier:
                 if normalized_candidate in prefetched_lemma_candidates:
                     lexeme_set.add(normalized_candidate)
         else:
+            owner_user_id = int(self.owner_user_id)
             lexeme_set = {
                 normalize_candidate(row["lemma"])
                 for row in conn.execute(
@@ -270,6 +282,7 @@ class LemmaAwareClassifier:
                     SELECT lemma
                     FROM lexemes
                     WHERE lemma IN ({", ".join("?" for _ in lemma_candidates)})
+                      AND owner_user_id = {owner_user_id}
                     """,
                     tuple(lemma_candidates),
                 ).fetchall()

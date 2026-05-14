@@ -343,6 +343,13 @@ export function mockFetchImplementation(options?: {
     morphology?: string | null
     is_sectioned?: boolean
     categories?: string[]
+    reference_links?: Array<{
+      page_id: string
+      page_title: string
+      tab_id: string
+      tab_title: string
+      sentinel: string
+    }>
     verification?: MockVerification | null
     related_words?: {
       status: "queued" | "ready" | "empty" | "error"
@@ -403,8 +410,15 @@ export function mockFetchImplementation(options?: {
       pos_tag?: string | null
       morphology?: string | null
       gram_raw?: string | null
-      categories?: string[]
-      verification?: MockVerification | null
+        categories?: string[]
+        reference_links?: Array<{
+          page_id: string
+          page_title: string
+          tab_id: string
+          tab_title: string
+          sentinel: string
+        }>
+        verification?: MockVerification | null
       surface_forms: Array<{
         form: string
         has_pronunciation?: boolean
@@ -1246,7 +1260,7 @@ export function mockFetchImplementation(options?: {
       const items = Array.isArray(body.items) ? body.items : []
       const includeTranslations = body.include_translations !== false
       const responses = await Promise.all(
-        items.map(async (item) => {
+        items.map(async (item: { form?: unknown; en_query?: unknown; en_pos_ud?: unknown }) => {
           const params = new URLSearchParams({
             form: String(item.form ?? ""),
             limit: String(body.limit ?? 100),

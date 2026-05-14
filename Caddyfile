@@ -1,0 +1,11 @@
+# Replace `danote.example.com` with the domain that points to this server.
+# Caddy will automatically obtain and renew a Let's Encrypt certificate.
+
+danote.example.com {
+    encode zstd gzip
+    reverse_proxy app:8000
+
+    # Long-lived static cache for the hashed Vite assets.
+    @assets path /assets/*
+    header @assets Cache-Control "public, max-age=31536000, immutable"
+}

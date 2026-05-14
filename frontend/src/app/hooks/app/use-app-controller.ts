@@ -163,6 +163,7 @@ export function useAppController() {
     selectWordbank: navigation.selectWordbank,
     selectSentencebank: navigation.selectSentencebank,
     selectDeveloper: navigation.selectDeveloper,
+    selectAccount: navigation.selectAccount,
     openWordbankLemma: navigation.openWordbankLemma,
     openWordbankLemmaRaw: navigation.openWordbankLemmaRaw,
     openWordbankMeaning: navigation.openWordbankMeaning,

@@ -4,6 +4,7 @@ import logging
 
 from fastapi import APIRouter, Request
 
+from app.api.auth import require_current_user
 from app.api.routes._runtime import get_services, get_settings, require_nlp_ready, run_db_operation
 from app.api.routes._use_case_factories import build_wordbank_use_case
 from app.api.schemas.v1.analyze import (
@@ -23,10 +24,12 @@ def analyze_note(payload: AnalyzeRequest, request: Request) -> AnalyzeResponse:
     require_nlp_ready(request)
     settings = get_settings(request)
     services = get_services(request)
+    current_user = require_current_user(request)
 
     use_case = AnalyzeNoteUseCase(
         settings.db_path,
         nlp_adapter=services.nlp_adapter,
+        owner_user_id=current_user.id,
     )
 
     tokens = run_db_operation(

@@ -5,15 +5,20 @@ import sqlite3
 from app.services.token_classifier import normalize_token
 
 
-def fetch_lexeme_by_lemma(conn: sqlite3.Connection, lemma: str):
+def fetch_lexeme_by_lemma(
+    conn: sqlite3.Connection,
+    lemma: str,
+    *,
+    owner_user_id: int = 1,
+):
     return conn.execute(
         """
         SELECT id, lemma, english_translation, translation_provider, pos_tag, morphology, source
         FROM lexemes
-        WHERE lemma = ?
+        WHERE owner_user_id = ? AND lemma = ?
         LIMIT 1
         """,
-        (lemma,),
+        (owner_user_id, lemma),
     ).fetchone()
 
 
@@ -67,17 +72,28 @@ def ensure_target_lexeme(
     provider_name: str,
     pos_tag: str | None,
     morphology: str | None,
+    owner_user_id: int = 1,
 ):
-    row = fetch_lexeme_by_lemma(conn, lemma)
+    row = fetch_lexeme_by_lemma(conn, lemma, owner_user_id=owner_user_id)
     if row is None:
         conn.execute(
             """
-            INSERT INTO lexemes (lemma, source, english_translation, translation_provider, pos_tag, morphology)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO lexemes (
+                owner_user_id, lemma, source, english_translation, translation_provider, pos_tag, morphology
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
-            (lemma, "manual", english_translation, provider_name if english_translation else None, pos_tag, morphology),
+            (
+                owner_user_id,
+                lemma,
+                "manual",
+                english_translation,
+                provider_name if english_translation else None,
+                pos_tag,
+                morphology,
+            ),
         )
-        row = fetch_lexeme_by_lemma(conn, lemma)
+        row = fetch_lexeme_by_lemma(conn, lemma, owner_user_id=owner_user_id)
     else:
         conn.execute(
             """
@@ -91,7 +107,7 @@ def ensure_target_lexeme(
             """,
             (english_translation, provider_name if english_translation else None, pos_tag, morphology, int(row["id"])),
         )
-        row = fetch_lexeme_by_lemma(conn, lemma)
+        row = fetch_lexeme_by_lemma(conn, lemma, owner_user_id=owner_user_id)
     if row is None:
         raise RuntimeError("Failed to create target lexeme")
     return row

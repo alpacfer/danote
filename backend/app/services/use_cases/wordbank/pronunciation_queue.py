@@ -43,7 +43,10 @@ def queue_pronunciation_generation(
     if not forms_to_generate:
         return []
 
-    WordbankBackgroundJobRepository(runtime.db_path).enqueue_pronunciation_job(
+    WordbankBackgroundJobRepository(
+        runtime.db_path,
+        owner_user_id=runtime.owner_user_id,
+    ).enqueue_pronunciation_job(
         stored_lemma=normalized_lemma,
         requested_forms=forms_to_generate,
         force=force,

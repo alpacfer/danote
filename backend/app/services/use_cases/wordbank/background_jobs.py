@@ -66,7 +66,12 @@ class WordbankBackgroundJobRunner:
                     job = self._repository.claim_next()
                     if job is None:
                         break
-                    future = self._executor.submit(self._handle_job, job.job_type, job.payload)
+                    future = self._executor.submit(
+                        self._handle_job,
+                        job.job_type,
+                        job.payload,
+                        job.owner_user_id,
+                    )
                     in_flight[future] = job
                 if in_flight:
                     self._wait_for_completion(in_flight)
@@ -103,7 +108,7 @@ class WordbankBackgroundJobRunner:
             if not stored_lemma:
                 return
 
-            repository = WordbankRepository(self._db_path)
+            repository = WordbankRepository(self._db_path, owner_user_id=job.owner_user_id)
             lexeme = repository.get_lexeme(stored_lemma)
             if lexeme is None:
                 return
@@ -154,9 +159,10 @@ class WordbankBackgroundJobRunner:
         )
         self._collect_completed_jobs(in_flight)
 
-    def _handle_job(self, job_type: str, payload: dict[str, object]) -> None:
+    def _handle_job(self, job_type: str, payload: dict[str, object], owner_user_id: int = 1) -> None:
         use_case = WordbankUseCase(
             self._db_path,
+            owner_user_id=owner_user_id,
             translation_service=self._services.translation_service,
             gemini_word_translation_service=self._services.gemini_word_translation_service,
             gemini_related_words_service=self._services.gemini_related_words_service,
@@ -202,6 +208,7 @@ class WordbankBackgroundJobRunner:
         if job_type == "generate_sentence_pronunciation":
             sentence_use_case = SentencebankUseCase(
                 db_path=self._db_path,
+                owner_user_id=owner_user_id,
                 translation_service=self._services.translation_service,
                 nlp_adapter=self._services.nlp_adapter,
                 wordbank_use_case=use_case,
@@ -216,6 +223,7 @@ class WordbankBackgroundJobRunner:
         if job_type == "verify_sentence_tokens":
             sentence_use_case = SentencebankUseCase(
                 db_path=self._db_path,
+                owner_user_id=owner_user_id,
                 translation_service=self._services.translation_service,
                 nlp_adapter=self._services.nlp_adapter,
                 wordbank_use_case=use_case,
@@ -242,7 +250,7 @@ class WordbankBackgroundJobRunner:
         meaning_id: int | None,
         review_intent: str,
     ) -> None:
-        repository = WordbankRepository(self._db_path)
+        repository = WordbankRepository(self._db_path, owner_user_id=use_case.runtime.owner_user_id)
         lexeme = repository.get_lexeme(stored_lemma)
         if lexeme is None:
             return

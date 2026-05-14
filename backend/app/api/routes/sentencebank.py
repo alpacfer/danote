@@ -4,6 +4,7 @@ import logging
 
 from fastapi import APIRouter, Query, Request, Response
 
+from app.api.auth import require_current_user
 from app.api.routes._runtime import (
     get_services,
     get_settings,
@@ -34,8 +35,10 @@ logger = logging.getLogger(__name__)
 def _sentencebank_use_case(request: Request) -> SentencebankUseCase:
     settings = get_settings(request)
     services = get_services(request)
+    current_user = require_current_user(request)
     return SentencebankUseCase(
         db_path=settings.db_path,
+        owner_user_id=current_user.id,
         translation_service=services.translation_service,
         nlp_adapter=services.nlp_adapter,
         wordbank_use_case=build_wordbank_use_case(request),

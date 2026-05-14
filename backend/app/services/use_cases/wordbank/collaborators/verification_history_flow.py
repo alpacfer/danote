@@ -19,7 +19,7 @@ def get_verification_changes(collaborator, stored_lemma: str) -> GetVerification
     normalized_lemma = normalize_token(stored_lemma)
     if not normalized_lemma:
         raise ValueError("stored_lemma is required")
-    repository = WordbankRepository(collaborator._db_path)
+    repository = WordbankRepository(collaborator._db_path, owner_user_id=collaborator._owner_user_id)
     records = repository.get_change_log_entries_for_lemma(normalized_lemma)
     items = [
         VerificationChangeEntry(
@@ -47,7 +47,7 @@ def revert_verification_change(
     normalized_lemma = normalize_token(stored_lemma)
     if not normalized_lemma:
         raise ValueError("stored_lemma is required")
-    repository = WordbankRepository(collaborator._db_path)
+    repository = WordbankRepository(collaborator._db_path, owner_user_id=collaborator._owner_user_id)
     entry = repository.get_change_log_entry(change_id)
     if entry is None or entry.stored_lemma != normalized_lemma:
         return RevertVerificationChangeResponse(status="not_found", change_id=change_id)
@@ -58,6 +58,7 @@ def revert_verification_change(
     if entry.action_type == "fix_translation":
         revert_fix_translation(
             db_path=collaborator._db_path,
+            owner_user_id=collaborator._owner_user_id,
             stored_lemma=normalized_lemma,
             meaning_id=entry.meaning_id,
             old_translation=before.get("english_translation"),
@@ -65,6 +66,7 @@ def revert_verification_change(
     elif entry.action_type == "fix_variations":
         revert_fix_variations(
             db_path=collaborator._db_path,
+            owner_user_id=collaborator._owner_user_id,
             stored_lemma=normalized_lemma,
             meaning_id=entry.meaning_id,
             surface_forms_snapshot=before.get("surface_forms", []),

@@ -1,6 +1,7 @@
 import { type ComponentProps } from "react"
 
 import {
+  AccountSection,
   DeveloperSection,
   SentencebankSection,
   WordbankSection,
@@ -25,6 +26,9 @@ export function SectionContent({
   }
   if (activeSection === "sentencebank") {
     return <SentencebankSection {...sentencebankProps} />
+  }
+  if (activeSection === "account") {
+    return <AccountSection />
   }
   return <DeveloperSection {...developerProps} />
 }

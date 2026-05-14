@@ -1,4 +1,5 @@
 export const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? "http://127.0.0.1:8000"
+export const CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
 export const ANALYZE_DEBOUNCE_MS = 450
 export const SEARCH_RESOLVE_DEBOUNCE_MS = 220
 export const SENTENCE_DEBOUNCE_DA_MS = 200

@@ -37,7 +37,7 @@ def apply_verification_changes(
     action_type_str = str(action.get("action_type", ""))
     pre_apply_surfaces: list[dict[str, object]] | None = None
     if action_type_str == "fix_variations":
-        repository = WordbankRepository(collaborator._db_path)
+        repository = WordbankRepository(collaborator._db_path, owner_user_id=collaborator._owner_user_id)
         lexeme = repository.get_lexeme(normalized_lemma)
         if lexeme is not None:
             pre_apply_surfaces = query_surface_forms_snapshot(
@@ -48,6 +48,7 @@ def apply_verification_changes(
 
     result = apply_verification_action(
         db_path=collaborator._db_path,
+        owner_user_id=collaborator._owner_user_id,
         cor=collaborator._cor,
         stored_lemma=normalized_lemma,
         stored_surface_form=normalized_surface,
@@ -81,6 +82,7 @@ def apply_verification_changes(
 
     update_persisted_verification_after_apply(
         db_path=collaborator._db_path,
+        owner_user_id=collaborator._owner_user_id,
         status=result.status,
         stored_lemma=normalized_lemma,
         stored_surface_form=normalized_surface,
@@ -113,7 +115,7 @@ def assert_apply_action_allowed(
 ) -> None:
     if stored_surface_form is not None and action.get("action_type") == "fix_translation":
         raise ValueError("fix_translation cannot be applied for surface-form verification targets.")
-    repository = WordbankRepository(collaborator._db_path)
+    repository = WordbankRepository(collaborator._db_path, owner_user_id=collaborator._owner_user_id)
     lexeme = repository.get_lexeme(stored_lemma)
     if lexeme is None:
         return

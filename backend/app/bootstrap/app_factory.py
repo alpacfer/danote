@@ -3,8 +3,11 @@ from __future__ import annotations
 import time
 from collections.abc import Callable
 
+import logging
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.api.router import api_router
 from app.bootstrap.runtime import default_nlp_adapter_factory, startup_lifespan
@@ -36,7 +39,21 @@ def create_app(
     )
     _install_request_timing_middleware(app)
     app.include_router(api_router, prefix="/api")
+    _mount_frontend(app, app_settings)
     return app
+
+
+def _mount_frontend(app: FastAPI, settings: Settings) -> None:
+    if not settings.serve_frontend:
+        return
+    static_dir = settings.frontend_dist_path
+    if not static_dir.exists():
+        logging.getLogger(__name__).warning(
+            "frontend_static_dir_missing",
+            extra={"path": str(static_dir)},
+        )
+        return
+    app.mount("/", StaticFiles(directory=static_dir, html=True), name="frontend")
 
 
 def _install_request_timing_middleware(app: FastAPI) -> None:

@@ -360,7 +360,10 @@ def _get_manual_lemma_details(
 
 
 def _linked_sentences(runtime: WordbankRuntime, lemma: str) -> list[LemmaDetailsResponse.LinkedSentence]:
-    rows = SentencebankRepository(runtime.db_path).list_linked_sentences_for_lemma(lemma)
+    rows = SentencebankRepository(
+        runtime.db_path,
+        owner_user_id=runtime.owner_user_id,
+    ).list_linked_sentences_for_lemma(lemma)
     return [
         LemmaDetailsResponse.LinkedSentence(
             id=row.id,

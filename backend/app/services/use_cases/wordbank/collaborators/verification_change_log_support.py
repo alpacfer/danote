@@ -41,6 +41,7 @@ def write_change_log_db_entry(
     provider_name: str,
     applied_at: str,
     logger: logging.Logger,
+    owner_user_id: int = 1,
 ) -> None:
     if result.log_payload is None or result.status != "applied":
         return
@@ -54,7 +55,7 @@ def write_change_log_db_entry(
         pre_apply_surfaces=pre_apply_surfaces,
     )
     after_json = dict(result.log_payload.get("after") or {})
-    repository = WordbankRepository(db_path)
+    repository = WordbankRepository(db_path, owner_user_id=owner_user_id)
     try:
         repository.insert_change_log_entry(
             stored_lemma=stored_lemma,

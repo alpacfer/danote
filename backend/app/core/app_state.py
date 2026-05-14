@@ -29,6 +29,11 @@ class BackendRuntimeState:
     services: BackendServices = field(default_factory=BackendServices)
     runtime_api_keys: dict[str, str | None] = field(default_factory=dict)
     background_worker: Any = None
+    key_encryption: Any = None
+    users_repository: Any = None
+    user_api_keys_repository: Any = None
+    clerk_jwks_client: Any = None
+    auth_error: str | None = None
     db_ready: bool = False
     db_error: str | None = None
     nlp_ready: bool = False

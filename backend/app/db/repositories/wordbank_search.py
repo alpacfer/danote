@@ -10,12 +10,14 @@ def search_lemmas(
     normalized_query: str,
     *,
     limit: int,
+    owner_user_id: int,
 ) -> list[sqlite3.Row]:
     params = {
         "exact_query": normalized_query,
         "prefix_pattern": f"{normalized_query}%",
         "contains_pattern": f"%{normalized_query}%",
         "limit": limit,
+        "owner_user_id": owner_user_id,
     }
     if len(normalized_query) >= _SHORT_QUERY_MIN_LENGTH:
         return conn.execute(_search_sql(include_contains=True), params).fetchall()
@@ -212,7 +214,8 @@ def _search_sql(*, include_contains: bool) -> str:
             LEFT JOIN nonverb_surface_counts sc ON sc.meaning_id = lm.id
             LEFT JOIN nonverb_best_surface_matches bsm ON bsm.meaning_id = lm.id
             LEFT JOIN nonverb_query_cor_ids qc ON qc.meaning_id = lm.id
-            WHERE ({nonverb_filter.format(surface_match_filter=surface_match_filter)})
+            WHERE l.owner_user_id = :owner_user_id
+              AND ({nonverb_filter.format(surface_match_filter=surface_match_filter)})
 
             UNION ALL
 
@@ -245,6 +248,7 @@ def _search_sql(*, include_contains: bool) -> str:
                 FROM lexeme_meanings lm
                 WHERE lm.lexeme_id = l.id
             )
+              AND l.owner_user_id = :owner_user_id
               AND ({verb_filter.format(surface_match_filter=surface_match_filter)})
         )
         SELECT

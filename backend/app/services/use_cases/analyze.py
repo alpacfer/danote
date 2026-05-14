@@ -11,15 +11,17 @@ from app.services.use_cases.wordbank import build_word_action_suggestions
 
 
 class AnalyzeNoteUseCase:
-    def __init__(self, db_path, nlp_adapter: NLPAdapter):
+    def __init__(self, db_path, nlp_adapter: NLPAdapter, *, owner_user_id: int = 1):
         self._db_path = db_path
         self._nlp_adapter = nlp_adapter
+        self._owner_user_id = owner_user_id
 
     def execute(self, text: str) -> list[AnalyzedToken]:
         text_without_comments = strip_inline_comments(text)
         classifier = LemmaAwareClassifier(
             self._db_path,
             nlp_adapter=self._nlp_adapter,
+            owner_user_id=self._owner_user_id,
         )
 
         token_metadata: list[tuple[str, str | None, str | None]] = []

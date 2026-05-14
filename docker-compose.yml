@@ -1,0 +1,43 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # Baked into the SPA at build time. Pull from .env on the host.
+        VITE_CLERK_PUBLISHABLE_KEY: ${VITE_CLERK_PUBLISHABLE_KEY}
+        VITE_BACKEND_URL: ""
+    image: danote-app
+    container_name: danote-app
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DANOTE_CORS_ORIGINS: ${DANOTE_CORS_ORIGINS:-}
+    volumes:
+      # SQLite + Gemini change log persist across container rebuilds.
+      - danote-data:/data
+    expose:
+      - "8000"
+    ports:
+      # Bind only to localhost when running behind Caddy on the same host.
+      - "127.0.0.1:8000:8000"
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: danote-caddy
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  danote-data:
+  caddy-data:
+  caddy-config:

@@ -50,19 +50,25 @@ class SentencebankUseCase:
     def __init__(
         self,
         db_path,
+        owner_user_id: int = 1,
         translation_service: TranslationService | None = None,
         nlp_adapter: NLPAdapter | None = None,
         wordbank_use_case: WordbankUseCase | None = None,
         sentence_verification_service: SentenceVerificationService | None = None,
         tts_service: TTSService | None = None,
     ):
-        self._repository = SentencebankRepository(db_path)
+        self._owner_user_id = owner_user_id
+        self._repository = SentencebankRepository(db_path, owner_user_id=owner_user_id)
         self._translation_service = translation_service
         self._nlp_adapter = nlp_adapter
         self._wordbank_use_case = wordbank_use_case
         self._sentence_verification_service = sentence_verification_service
-        self._background_jobs = WordbankBackgroundJobRepository(db_path)
-        self._pronunciation = SentencePronunciationCollaborator(tts_service, db_path)
+        self._background_jobs = WordbankBackgroundJobRepository(db_path, owner_user_id=owner_user_id)
+        self._pronunciation = SentencePronunciationCollaborator(
+            tts_service,
+            db_path,
+            owner_user_id=owner_user_id,
+        )
 
     def add_sentence(
         self,

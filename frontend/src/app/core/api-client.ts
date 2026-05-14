@@ -1,3 +1,5 @@
+import { getAuthToken } from "./auth-token"
+
 export type ApiErrorMessageExtractor = (
   response: Response,
   fallback: string,
@@ -55,8 +57,18 @@ export function createApiClient({
   }
 
   async function performFetch(path: string, init: RequestInit | undefined, fallback: string): Promise<Response> {
+    const token = await getAuthToken()
+    const fetchInit = token
+      ? {
+          ...init,
+          headers: {
+            ...(init?.headers ?? {}),
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      : init
     try {
-      return await fetch(`${backendUrl}${path}`, init)
+      return await fetch(`${backendUrl}${path}`, fetchInit)
     } catch (error) {
       throw new ApiRequestError(mapFetchErrorToMessage(error, fallback, backendUrl), 0)
     }
@@ -104,6 +116,21 @@ export function createApiClient({
         {
           ...init,
           method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(init?.headers ?? {}),
+          },
+          body: JSON.stringify(body),
+        },
+        fallback,
+      )
+    },
+    putJson<T>(path: string, body: unknown, fallback: string, init?: RequestInit) {
+      return requestJson<T>(
+        path,
+        {
+          ...init,
+          method: "PUT",
           headers: {
             "Content-Type": "application/json",
             ...(init?.headers ?? {}),

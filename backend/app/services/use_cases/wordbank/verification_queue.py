@@ -46,13 +46,14 @@ def persist_queued_verification(
     verification: VerificationResult | None,
     review_intent: str = "general",
     latest_snapshot_hash: str | None = None,
+    owner_user_id: int = 1,
 ) -> int | None:
     if verification is None or verification.status != "queued":
         return None
     normalized_lemma = normalize_token(stored_lemma)
     if not normalized_lemma:
         return None
-    repository = WordbankRepository(db_path)
+    repository = WordbankRepository(db_path, owner_user_id=owner_user_id)
     lexeme = repository.get_lexeme(normalized_lemma)
     if lexeme is None:
         return None
@@ -165,8 +166,9 @@ def load_verification_record(
     stored_lemma: str,
     stored_surface_form: str | None,
     meaning_id: int | None,
+    owner_user_id: int = 1,
 ) -> VerificationRecord | None:
-    repository = WordbankRepository(db_path)
+    repository = WordbankRepository(db_path, owner_user_id=owner_user_id)
     lexeme = repository.get_lexeme(stored_lemma)
     if lexeme is None:
         return None

@@ -12,6 +12,7 @@ from app.db.sqlite import get_connection, timed_db_operation
 
 class WordbankChangeLogRepository:
     _db_path: Path
+    _owner_user_id: int
 
     def insert_change_log_entry(
         self,
@@ -29,11 +30,12 @@ class WordbankChangeLogRepository:
             cursor = conn.execute(
                 """
                 INSERT INTO verification_change_log
-                    (stored_lemma, stored_surface_form, meaning_id, action_type,
+                    (owner_user_id, stored_lemma, stored_surface_form, meaning_id, action_type,
                      before_json, after_json, applied_at, provider)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
+                    self._owner_user_id,
                     stored_lemma,
                     stored_surface_form,
                     meaning_id,
@@ -59,11 +61,11 @@ class WordbankChangeLogRepository:
                 SELECT id, stored_lemma, stored_surface_form, meaning_id, action_type,
                        before_json, after_json, applied_at, reverted_at, provider
                 FROM verification_change_log
-                WHERE stored_lemma = ?
+                WHERE owner_user_id = ? AND stored_lemma = ?
                 ORDER BY applied_at DESC
                 LIMIT ?
                 """,
-                (stored_lemma, limit),
+                (self._owner_user_id, stored_lemma, limit),
             ).fetchall()
             return [verification_change_log_from_row(row) for row in rows]
 
@@ -74,10 +76,10 @@ class WordbankChangeLogRepository:
                 SELECT id, stored_lemma, stored_surface_form, meaning_id, action_type,
                        before_json, after_json, applied_at, reverted_at, provider
                 FROM verification_change_log
-                WHERE id = ?
+                WHERE id = ? AND owner_user_id = ?
                 LIMIT 1
                 """,
-                (entry_id,),
+                (entry_id, self._owner_user_id),
             ).fetchone()
             return verification_change_log_from_row(row) if row is not None else None
 
@@ -87,7 +89,7 @@ class WordbankChangeLogRepository:
                 """
                 UPDATE verification_change_log
                 SET reverted_at = ?
-                WHERE id = ?
+                WHERE id = ? AND owner_user_id = ?
                 """,
-                (reverted_at, entry_id),
+                (reverted_at, entry_id, self._owner_user_id),
             )

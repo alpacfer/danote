@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from app.bootstrap.runtime_auth import initialize_auth
 from app.bootstrap.runtime_cor import initialize_cor, initialize_cor_local, initialize_en_local
 from app.bootstrap.runtime_db import initialize_database
 from app.bootstrap.runtime_en_gemini_translation import initialize_en_gemini_translation
@@ -51,6 +52,8 @@ def initialize_runtime(
     nlp_adapter_factory: Callable[[Settings], NLPAdapter],
 ) -> list[str]:
     applied = initialize_database(app, settings)
+    if get_runtime_state(app).db_ready:
+        initialize_auth(app, settings)
     for step in build_startup_steps(nlp_adapter_factory):
         run_startup_step(step, app, settings)
     if get_runtime_state(app).db_ready:

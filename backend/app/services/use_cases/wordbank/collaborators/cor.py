@@ -44,6 +44,7 @@ class CorResolutionCollaborator:
         translation: TranslationCollaborator,
         nlp: NLPCollaborator,
         *,
+        owner_user_id: int = 1,
         en_local_lexicon_service: ENLocalLexiconService | None = None,
         en_gemini_translation_service: ENGeminiTranslationService | None = None,
         translation_service: TranslationService | None = None,
@@ -53,6 +54,7 @@ class CorResolutionCollaborator:
         self._db_path = db_path
         self._translation = translation
         self._nlp = nlp
+        self._owner_user_id = owner_user_id
         self._en_local_lexicon_service = en_local_lexicon_service
         self._en_gemini_translation_service = en_gemini_translation_service
         self._translation_service = translation_service
@@ -72,6 +74,7 @@ class CorResolutionCollaborator:
             db_path=self._db_path,
             translation=self._translation,
             nlp=self._nlp,
+            owner_user_id=self._owner_user_id,
             cor_entries_lookup=self.cor_entries_for_surface,
             query_text=query_text,
             include_translations=include_translations,

@@ -22,6 +22,7 @@ def build_verification_input(
     db_path,
     nlp: NLPCollaborator,
     cor: CorResolutionCollaborator,
+    owner_user_id: int = 1,
     stored_lemma: str,
     stored_surface_form: str | None,
     meaning_id: int | None,
@@ -53,10 +54,10 @@ def build_verification_input(
             """
             SELECT id, source, english_translation, pos_tag, morphology
             FROM lexemes
-            WHERE lemma = ?
+            WHERE owner_user_id = ? AND lemma = ?
             LIMIT 1
             """,
-            (stored_lemma,),
+            (owner_user_id, stored_lemma),
         ).fetchone()
 
         if lexeme_row is not None:
@@ -185,7 +186,7 @@ def build_verification_input(
                     preferred_pos_tag=selected_surface_pos_tag or selected_meaning_pos_tag or lexeme_pos_tag,
                 )
 
-    repository = WordbankRepository(db_path)
+    repository = WordbankRepository(db_path, owner_user_id=owner_user_id)
     current_categories: tuple[str, ...] = ()
     available_categories: tuple[str, ...] = ()
     available_surface_forms: tuple[WordVerificationSurfaceForm, ...] = ()

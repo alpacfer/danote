@@ -67,11 +67,13 @@ class TranslationCollaborator:
         gemini_word_translation_service: GeminiWordTranslationService | None,
         cor_local_lexicon_service: CORLocalLexiconService | None,
         db_path: Path,
+        owner_user_id: int = 1,
     ) -> None:
         self._translation_service = translation_service
         self._gemini_word_translation_service = gemini_word_translation_service
         self._cor_local_lexicon_service = cor_local_lexicon_service
         self._db_path = db_path
+        self._owner_user_id = owner_user_id
         self._logger = logger
 
     # ------------------------------------------------------------------

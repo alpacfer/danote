@@ -1,4 +1,4 @@
-import { BookOpen, Hash, ScrollText, Settings, type LucideIcon } from "lucide-react"
+import { BookOpen, Hash, ScrollText, Settings, UserCircle, type LucideIcon } from "lucide-react"
 import { useMemo } from "react"
 
 import { NUMBERS_SENTINEL, danishNumber, numberFromSearchQuery } from "@/app/sections/wordbank/numbers/numbers-data"
@@ -15,12 +15,14 @@ export type SidebarNavigationActions = {
   onSelectWordbank: () => void
   onSelectSentencebank: () => void
   onSelectDeveloper: () => void
+  onSelectAccount: () => void
   onOpenWordbankLemma: (lemma: string) => void
 }
 
 export const SIDEBAR_PAGE_DEFINITIONS = {
   wordbank: { key: "page-wordbank", label: "Wordbank", shortcut: "Alt+W", icon: BookOpen },
   sentencebank: { key: "page-sentencebank", label: "Sentencebank", shortcut: "Alt+S", icon: ScrollText },
+  account: { key: "page-account", label: "Account", shortcut: "Alt+A", icon: UserCircle },
   developer: { key: "page-developer", label: "Developer", shortcut: "Alt+D", icon: Settings },
 } satisfies Record<string, Omit<SidebarPageItem, "onSelect">>
 
@@ -29,6 +31,7 @@ export function useSidebarPageItems({
   onSelectWordbank,
   onSelectSentencebank,
   onSelectDeveloper,
+  onSelectAccount,
   onOpenWordbankLemma,
 }: SidebarNavigationActions & { normalizedQuery: string }) {
   return useMemo(() => {
@@ -36,6 +39,7 @@ export function useSidebarPageItems({
     const pageItems: SidebarPageItem[] = [
       { ...SIDEBAR_PAGE_DEFINITIONS.wordbank, onSelect: onSelectWordbank },
       { ...SIDEBAR_PAGE_DEFINITIONS.sentencebank, onSelect: onSelectSentencebank },
+      { ...SIDEBAR_PAGE_DEFINITIONS.account, onSelect: onSelectAccount },
       { ...SIDEBAR_PAGE_DEFINITIONS.developer, onSelect: onSelectDeveloper },
     ]
     if (numericQuery !== null) {
@@ -53,5 +57,12 @@ export function useSidebarPageItems({
       return pageItems
     }
     return pageItems.filter((item) => item.label.toLocaleLowerCase("da-DK").includes(normalizedQuery))
-  }, [normalizedQuery, onOpenWordbankLemma, onSelectDeveloper, onSelectSentencebank, onSelectWordbank])
+  }, [
+    normalizedQuery,
+    onOpenWordbankLemma,
+    onSelectAccount,
+    onSelectDeveloper,
+    onSelectSentencebank,
+    onSelectWordbank,
+  ])
 }

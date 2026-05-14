@@ -18,10 +18,11 @@ from app.services.use_cases.wordbank.shared import (
 
 
 class SentencePronunciationCollaborator:
-    def __init__(self, tts_service: TTSService | None, db_path: Path) -> None:
+    def __init__(self, tts_service: TTSService | None, db_path: Path, *, owner_user_id: int = 1) -> None:
         self._tts_service = tts_service
         self._db_path = db_path
-        self._repository = SentencebankRepository(db_path)
+        self._owner_user_id = owner_user_id
+        self._repository = SentencebankRepository(db_path, owner_user_id=owner_user_id)
 
     def queued_pronunciation_result(self, sentence_id: int) -> QueuedSentencePronunciationTask:
         return QueuedSentencePronunciationTask(
@@ -76,10 +77,10 @@ class SentencePronunciationCollaborator:
                 """
                 SELECT pronunciation_audio, pronunciation_mime_type
                 FROM sentence_bank
-                WHERE id = ?
+                WHERE id = ? AND owner_user_id = ?
                 LIMIT 1
                 """,
-                (sentence_id,),
+                (sentence_id, self._owner_user_id),
             ).fetchone()
             if row is None:
                 raise LookupError(f"Sentence '{sentence_id}' was not found")
@@ -143,10 +144,10 @@ class SentencePronunciationCollaborator:
                 """
                 SELECT pronunciation_audio, pronunciation_mime_type
                 FROM sentence_bank
-                WHERE id = ?
+                WHERE id = ? AND owner_user_id = ?
                 LIMIT 1
                 """,
-                (sentence_id,),
+                (sentence_id, self._owner_user_id),
             ).fetchone()
         if row is None or not isinstance(row["pronunciation_audio"], bytes):
             raise LookupError(f"Pronunciation for sentence '{sentence_id}' was not found")

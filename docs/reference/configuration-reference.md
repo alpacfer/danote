@@ -28,6 +28,18 @@ Notes:
 | `DANOTE_PORT` | `8000` | Integer string parseable by Python `int()` | Invalid integer raises at startup. |
 | `DANOTE_CORS_ORIGINS` | `http://127.0.0.1:5173,http://localhost:5173,http://127.0.0.1:4173,http://localhost:4173` (effective fallback) | Comma-separated origins | Empty/only commas/spaces falls back to default local origins tuple. `run-project.sh` appends the selected frontend origin when this is set. |
 
+## Auth
+
+| Variable | Default | Accepted values | Interactions / fallbacks |
+| --- | --- | --- | --- |
+| `DANOTE_AUTH_ENABLED` | `0` | Boolean-like (`1/0`, `true/false`, `yes/no`) | Disabled keeps local development on the seeded `local-dev` user. Enabled requires Clerk bearer tokens on app data routes. |
+| `DANOTE_AUTH_PROVIDER` | `clerk` | `clerk` | Other values fail protected requests. |
+| `DANOTE_CLERK_ISSUER` | unset (`None`) | Clerk issuer URL | Used as the JWT issuer check when auth is enabled. |
+| `DANOTE_CLERK_JWKS_URL` | unset (`None`) | Clerk JWKS URL | Used to verify Clerk JWTs when `DANOTE_CLERK_PUBLIC_KEY` is not set. |
+| `DANOTE_CLERK_PUBLIC_KEY` | unset (`None`) | PEM public key string | Optional networkless Clerk JWT verification path. |
+| `DANOTE_ALLOWED_EMAILS` | unset (`()`) | Comma-separated email addresses | If set, authenticated users must match an email or allowed domain. |
+| `DANOTE_ALLOWED_EMAIL_DOMAINS` | unset (`()`) | Comma-separated domains | If set, authenticated users must match an email or allowed domain. |
+
 ## Database
 
 | Variable | Default | Accepted values | Interactions / fallbacks |

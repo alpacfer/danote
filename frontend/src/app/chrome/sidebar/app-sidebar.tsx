@@ -43,6 +43,7 @@ export type AppSidebarProps = {
   onSelectWordbank: () => void
   onSelectSentencebank: () => void
   onSelectDeveloper: () => void
+  onSelectAccount: () => void
   onOpenWordbankLemma: (lemma: string) => void
   onOpenWordbankLemmaRaw: (lemma: string) => void
   onOpenWordbankMeaning: (lemma: string, meaningId: number) => void
@@ -71,6 +72,7 @@ export function AppSidebar({
   onSelectWordbank,
   onSelectSentencebank,
   onSelectDeveloper,
+  onSelectAccount,
   onOpenWordbankLemma,
   onOpenWordbankLemmaRaw,
   onOpenWordbankMeaning,
@@ -122,6 +124,7 @@ export function AppSidebar({
     onSelectWordbank,
     onSelectSentencebank,
     onSelectDeveloper,
+    onSelectAccount,
   })
 
   const {
@@ -146,6 +149,7 @@ export function AppSidebar({
     onSelectWordbank,
     onSelectSentencebank,
     onSelectDeveloper,
+    onSelectAccount,
     onOpenWordbankLemma,
   })
 
@@ -317,6 +321,7 @@ export function AppSidebar({
         onSelectWordbank={onSelectWordbank}
         onSelectSentencebank={onSelectSentencebank}
         onSelectDeveloper={onSelectDeveloper}
+        onSelectAccount={onSelectAccount}
         onOpenSearch={() => setIsSearchOpen(true)}
       />
       <SidebarFooter>

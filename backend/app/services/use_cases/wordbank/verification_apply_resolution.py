@@ -16,6 +16,7 @@ from app.services.use_cases.wordbank.verification_records import (
 def update_persisted_verification_after_apply(
     *,
     db_path: Path,
+    owner_user_id: int = 1,
     status: str,
     stored_lemma: str,
     stored_surface_form: str | None,
@@ -29,7 +30,7 @@ def update_persisted_verification_after_apply(
 ) -> None:
     if status != "applied":
         return
-    repository = WordbankRepository(db_path)
+    repository = WordbankRepository(db_path, owner_user_id=owner_user_id)
     lexeme = repository.get_lexeme(stored_lemma)
     if lexeme is None:
         return

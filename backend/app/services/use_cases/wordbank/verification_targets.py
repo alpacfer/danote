@@ -79,7 +79,7 @@ def queue_verification_targets(
     targets: tuple[VerificationTarget, ...],
     review_intent: str = "general",
 ) -> list[VerificationTargetRef]:
-    repository = WordbankBackgroundJobRepository(runtime.db_path)
+    repository = WordbankBackgroundJobRepository(runtime.db_path, owner_user_id=runtime.owner_user_id)
     queued_refs: list[VerificationTargetRef] = []
     normalized_lemma = normalize_token(stored_lemma)
     if not normalized_lemma:

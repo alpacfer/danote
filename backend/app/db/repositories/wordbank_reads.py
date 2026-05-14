@@ -28,6 +28,7 @@ from app.db.sqlite import get_connection, timed_db_operation
 
 class WordbankReadRepository:
     _db_path: Path
+    _owner_user_id: int
 
     def list_lemmas(self) -> list[LemmaListRow]:
         with timed_db_operation("wordbank.list_lemmas"), get_connection(
@@ -75,8 +76,10 @@ class WordbankReadRepository:
                 LEFT JOIN meaning_counts mc ON mc.lexeme_id = l.id
                 LEFT JOIN single_meanings sm ON sm.lexeme_id = l.id
                 LEFT JOIN surface_counts sc ON sc.lexeme_id = l.id
+                WHERE l.owner_user_id = ?
                 ORDER BY l.lemma COLLATE NOCASE
-                """
+                """,
+                (self._owner_user_id,),
             ).fetchall()
 
         return [
@@ -93,7 +96,9 @@ class WordbankReadRepository:
         with timed_db_operation("wordbank.search_lemmas"), get_connection(
             self._db_path, read_only=True
         ) as conn:
-            rows = search_wordbank_rows(conn, normalized_query, limit=limit)
+            rows = search_wordbank_rows(
+                conn, normalized_query, limit=limit, owner_user_id=self._owner_user_id
+            )
 
         return [
             WordbankSearchRow(
@@ -117,7 +122,8 @@ class WordbankReadRepository:
             self._db_path, read_only=True
         ) as conn:
             rows = conn.execute(
-                "SELECT lemma FROM lexemes ORDER BY lemma COLLATE NOCASE"
+                "SELECT lemma FROM lexemes WHERE owner_user_id = ? ORDER BY lemma COLLATE NOCASE",
+                (self._owner_user_id,),
             ).fetchall()
         return [str(row["lemma"]) for row in rows]
 
@@ -129,10 +135,10 @@ class WordbankReadRepository:
                 """
                 SELECT id, lemma, source, dictionary_status, english_translation, pos_tag, morphology
                 FROM lexemes
-                WHERE lemma = ?
+                WHERE owner_user_id = ? AND lemma = ?
                 LIMIT 1
                 """,
-                (normalized_lemma,),
+                (self._owner_user_id, normalized_lemma),
             ).fetchone()
         if row is None:
             return None
@@ -154,8 +160,11 @@ class WordbankReadRepository:
                 """SELECT sf.id,sf.lexeme_id,sf.form,sf.source,sf.pos_tag,sf.morphology,
                 (SELECT sfcv.cor_id FROM surface_form_cor_variants sfcv WHERE sfcv.surface_form_id = sf.id ORDER BY sfcv.id ASC LIMIT 1) AS cor_id,
                 sf.meaning_id, CASE WHEN sf.pronunciation_audio IS NOT NULL THEN 1 ELSE 0 END AS has_pronunciation
-                FROM surface_forms sf WHERE sf.lexeme_id = ? ORDER BY sf.form COLLATE NOCASE""",
-                (lexeme_id,),
+                FROM surface_forms sf
+                JOIN lexemes l ON l.id = sf.lexeme_id
+                WHERE sf.lexeme_id = ? AND l.owner_user_id = ?
+                ORDER BY sf.form COLLATE NOCASE""",
+                (lexeme_id, self._owner_user_id),
             ).fetchall()
         return [surface_form_from_row(row) for row in rows]
 
@@ -167,8 +176,11 @@ class WordbankReadRepository:
                 """SELECT sf.id,sf.lexeme_id,sf.form,sf.source,sf.pos_tag,sf.morphology,
                 (SELECT sfcv.cor_id FROM surface_form_cor_variants sfcv WHERE sfcv.surface_form_id = sf.id ORDER BY sfcv.id ASC LIMIT 1) AS cor_id,
                 sf.meaning_id, CASE WHEN sf.pronunciation_audio IS NOT NULL THEN 1 ELSE 0 END AS has_pronunciation
-                FROM surface_forms sf WHERE sf.lexeme_id = ? AND sf.form = ? ORDER BY sf.id ASC""",
-                (lexeme_id, form),
+                FROM surface_forms sf
+                JOIN lexemes l ON l.id = sf.lexeme_id
+                WHERE sf.lexeme_id = ? AND l.owner_user_id = ? AND sf.form = ?
+                ORDER BY sf.id ASC""",
+                (lexeme_id, self._owner_user_id, form),
             ).fetchall()
         return [surface_form_from_row(row) for row in rows]
 
@@ -180,8 +192,10 @@ class WordbankReadRepository:
                 """SELECT sf.id,sf.lexeme_id,sf.form,sf.source,sf.pos_tag,sf.morphology,sfcv.cor_id,sf.meaning_id,
                 CASE WHEN sf.pronunciation_audio IS NOT NULL THEN 1 ELSE 0 END AS has_pronunciation
                 FROM surface_form_cor_variants sfcv JOIN surface_forms sf ON sf.id=sfcv.surface_form_id
-                WHERE sfcv.cor_id = ? ORDER BY sfcv.id ASC LIMIT 1""",
-                (cor_id,),
+                JOIN lexemes l ON l.id = sf.lexeme_id
+                WHERE sfcv.cor_id = ? AND l.owner_user_id = ?
+                ORDER BY sfcv.id ASC LIMIT 1""",
+                (cor_id, self._owner_user_id),
             ).fetchone()
         return surface_form_from_row(row) if row is not None else None
 
@@ -190,9 +204,12 @@ class WordbankReadRepository:
             self._db_path, read_only=True
         ) as conn:
             rows = conn.execute(
-                """SELECT id,meaning_key,cor_lemma_idx,dictionary_status,gloss,english_translation,pos_tag,morphology
-                FROM lexeme_meanings WHERE lexeme_id = ? ORDER BY id ASC""",
-                (lexeme_id,),
+                """SELECT lm.id,lm.meaning_key,lm.cor_lemma_idx,lm.dictionary_status,lm.gloss,lm.english_translation,lm.pos_tag,lm.morphology
+                FROM lexeme_meanings lm
+                JOIN lexemes l ON l.id = lm.lexeme_id
+                WHERE lm.lexeme_id = ? AND l.owner_user_id = ?
+                ORDER BY lm.id ASC""",
+                (lexeme_id, self._owner_user_id),
             ).fetchall()
         return [lexeme_meaning_from_row(row) for row in rows]
 
@@ -201,9 +218,12 @@ class WordbankReadRepository:
             self._db_path, read_only=True
         ) as conn:
             row = conn.execute(
-                """SELECT id,meaning_key,cor_lemma_idx,dictionary_status,gloss,english_translation,pos_tag,morphology
-                FROM lexeme_meanings WHERE id = ? LIMIT 1""",
-                (meaning_id,),
+                """SELECT lm.id,lm.meaning_key,lm.cor_lemma_idx,lm.dictionary_status,lm.gloss,lm.english_translation,lm.pos_tag,lm.morphology
+                FROM lexeme_meanings lm
+                JOIN lexemes l ON l.id = lm.lexeme_id
+                WHERE lm.id = ? AND l.owner_user_id = ?
+                LIMIT 1""",
+                (meaning_id, self._owner_user_id),
             ).fetchone()
         return lexeme_meaning_from_row(row) if row is not None else None
 
@@ -232,9 +252,14 @@ class WordbankReadRepository:
                     request_generation
                 FROM wordbank_verification_records
                 WHERE lexeme_id = ?
+                  AND EXISTS (
+                    SELECT 1 FROM lexemes l
+                    WHERE l.id = wordbank_verification_records.lexeme_id
+                      AND l.owner_user_id = ?
+                  )
                 ORDER BY meaning_id IS NULL DESC, meaning_id ASC, id ASC
                 """,
-                (lexeme_id,),
+                (lexeme_id, self._owner_user_id),
             ).fetchall()
         return [verification_record_from_row(row) for row in rows]
 
@@ -255,9 +280,14 @@ class WordbankReadRepository:
                     preferred_cor_id
                 FROM wordbank_related_words
                 WHERE owner_lexeme_id = ?
+                  AND EXISTS (
+                    SELECT 1 FROM lexemes l
+                    WHERE l.id = wordbank_related_words.owner_lexeme_id
+                      AND l.owner_user_id = ?
+                  )
                 ORDER BY sort_order ASC, id ASC
                 """,
-                (owner_lexeme_id,),
+                (owner_lexeme_id, self._owner_user_id),
             ).fetchall()
         return [related_word_from_row(row) for row in rows]
 
@@ -294,9 +324,10 @@ class WordbankReadRepository:
                   ON lm.lexeme_id = l.id
                  AND COALESCE(mc.meaning_count, 0) = 1
                 WHERE rw.related_lemma = ?
+                  AND l.owner_user_id = ?
                 ORDER BY l.lemma COLLATE NOCASE, rw.sort_order ASC, rw.id ASC
                 """,
-                (related_lemma,),
+                (related_lemma, self._owner_user_id),
             ).fetchall()
         return [related_word_from_row(row) for row in rows]
 
@@ -310,9 +341,14 @@ class WordbankReadRepository:
                     SELECT id, lexeme_id, meaning_id, english_translation, source
                     FROM wordbank_additional_translations
                     WHERE lexeme_id = ? AND meaning_id IS NULL
+                      AND EXISTS (
+                        SELECT 1 FROM lexemes l
+                        WHERE l.id = wordbank_additional_translations.lexeme_id
+                          AND l.owner_user_id = ?
+                      )
                     ORDER BY id ASC
                     """,
-                    (lexeme_id,),
+                    (lexeme_id, self._owner_user_id),
                 ).fetchall()
             else:
                 rows = conn.execute(
@@ -320,9 +356,14 @@ class WordbankReadRepository:
                     SELECT id, lexeme_id, meaning_id, english_translation, source
                     FROM wordbank_additional_translations
                     WHERE lexeme_id = ? AND meaning_id = ?
+                      AND EXISTS (
+                        SELECT 1 FROM lexemes l
+                        WHERE l.id = wordbank_additional_translations.lexeme_id
+                          AND l.owner_user_id = ?
+                      )
                     ORDER BY id ASC
                     """,
-                    (lexeme_id, meaning_id),
+                    (lexeme_id, meaning_id, self._owner_user_id),
                 ).fetchall()
         return [additional_translation_from_row(row) for row in rows]
 
@@ -334,10 +375,10 @@ class WordbankReadRepository:
                 """
                 SELECT l.lemma, NULL AS meaning_id
                 FROM lexemes l
-                WHERE l.lemma = ?
+                WHERE l.owner_user_id = ? AND l.lemma = ?
                 LIMIT 1
                 """,
-                (lemma,),
+                (self._owner_user_id, lemma),
             ).fetchone()
         return saved_wordbank_target_from_row(row) if row is not None else None
 
@@ -368,10 +409,10 @@ class WordbankReadRepository:
                 LEFT JOIN lexeme_meanings lm
                   ON lm.lexeme_id = l.id
                  AND COALESCE(mc.meaning_count, 0) = 1
-                WHERE l.lemma = ?
+                WHERE l.owner_user_id = ? AND l.lemma = ?
                 LIMIT 1
                 """,
-                (lemma,),
+                (self._owner_user_id, lemma),
             ).fetchone()
         return saved_translation_target_from_row(row) if row is not None else None
 
@@ -386,14 +427,14 @@ class WordbankReadRepository:
                     sf.meaning_id
                 FROM surface_forms sf
                 JOIN lexemes l ON l.id = sf.lexeme_id
-                WHERE sf.form = ?
+                WHERE l.owner_user_id = ? AND sf.form = ?
                 ORDER BY
                     CASE WHEN sf.meaning_id IS NULL THEN 1 ELSE 0 END,
                     COALESCE(sf.meaning_id, 0),
                     sf.id
                 LIMIT 1
                 """,
-                (form,),
+                (self._owner_user_id, form),
             ).fetchone()
         return saved_wordbank_target_from_row(row) if row is not None else None
 
@@ -414,14 +455,14 @@ class WordbankReadRepository:
                 FROM surface_forms sf
                 JOIN lexemes l ON l.id = sf.lexeme_id
                 LEFT JOIN lexeme_meanings lm ON lm.id = sf.meaning_id
-                WHERE sf.form = ?
+                WHERE l.owner_user_id = ? AND sf.form = ?
                 ORDER BY
                     CASE WHEN sf.meaning_id IS NULL THEN 1 ELSE 0 END,
                     COALESCE(sf.meaning_id, 0),
                     sf.id
                 LIMIT 1
                 """,
-                (form,),
+                (self._owner_user_id, form),
             ).fetchone()
         return saved_translation_target_from_row(row) if row is not None else None
 
@@ -457,9 +498,14 @@ class WordbankReadRepository:
                         request_generation
                     FROM wordbank_verification_records
                     WHERE lexeme_id = ? AND meaning_id IS NULL AND stored_surface_form IS NULL
+                      AND EXISTS (
+                        SELECT 1 FROM lexemes l
+                        WHERE l.id = wordbank_verification_records.lexeme_id
+                          AND l.owner_user_id = ?
+                      )
                     LIMIT 1
                     """,
-                    (lexeme_id,),
+                    (lexeme_id, self._owner_user_id),
                 ).fetchone()
             elif meaning_id is None:
                 row = conn.execute(
@@ -483,9 +529,14 @@ class WordbankReadRepository:
                         request_generation
                     FROM wordbank_verification_records
                     WHERE lexeme_id = ? AND meaning_id IS NULL AND stored_surface_form = ?
+                      AND EXISTS (
+                        SELECT 1 FROM lexemes l
+                        WHERE l.id = wordbank_verification_records.lexeme_id
+                          AND l.owner_user_id = ?
+                      )
                     LIMIT 1
                     """,
-                    (lexeme_id, stored_surface_form),
+                    (lexeme_id, stored_surface_form, self._owner_user_id),
                 ).fetchone()
             elif stored_surface_form is None:
                 row = conn.execute(
@@ -509,9 +560,14 @@ class WordbankReadRepository:
                         request_generation
                     FROM wordbank_verification_records
                     WHERE lexeme_id = ? AND meaning_id = ? AND stored_surface_form IS NULL
+                      AND EXISTS (
+                        SELECT 1 FROM lexemes l
+                        WHERE l.id = wordbank_verification_records.lexeme_id
+                          AND l.owner_user_id = ?
+                      )
                     LIMIT 1
                     """,
-                    (lexeme_id, meaning_id),
+                    (lexeme_id, meaning_id, self._owner_user_id),
                 ).fetchone()
             else:
                 row = conn.execute(
@@ -535,9 +591,14 @@ class WordbankReadRepository:
                         request_generation
                     FROM wordbank_verification_records
                     WHERE lexeme_id = ? AND meaning_id = ? AND stored_surface_form = ?
+                      AND EXISTS (
+                        SELECT 1 FROM lexemes l
+                        WHERE l.id = wordbank_verification_records.lexeme_id
+                          AND l.owner_user_id = ?
+                      )
                     LIMIT 1
                     """,
-                    (lexeme_id, meaning_id, stored_surface_form),
+                    (lexeme_id, meaning_id, stored_surface_form, self._owner_user_id),
                 ).fetchone()
         return verification_record_from_row(row) if row is not None else None
 
@@ -548,8 +609,10 @@ class WordbankReadRepository:
             row = conn.execute(
                 """SELECT 1 FROM surface_forms sf JOIN lexemes l ON l.id = sf.lexeme_id
                 WHERE sf.meaning_id IS NULL
+                  AND l.owner_user_id = ?
                   AND sf.form <> l.lemma COLLATE NOCASE
                   AND COALESCE(UPPER(l.pos_tag), '') NOT IN ('VERB', 'AUX')
-                LIMIT 1"""
+                LIMIT 1""",
+                (self._owner_user_id,),
             ).fetchone()
         return row is not None

@@ -15,6 +15,7 @@ from app.services.use_cases.wordbank.collaborators.verification import Verificat
 @dataclass(frozen=True, slots=True)
 class WordbankRuntime:
     db_path: Path
+    owner_user_id: int
     repository: WordbankRepository
     nlp: NLPCollaborator
     pronunciation: PronunciationCollaborator

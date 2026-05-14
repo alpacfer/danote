@@ -72,12 +72,13 @@ def build_change_log_before_json(
 def revert_fix_translation(
     *,
     db_path: Path,
+    owner_user_id: int = 1,
     stored_lemma: str,
     meaning_id: int | None,
     old_translation: str | None,
 ) -> None:
     """Restore the english_translation to its pre-apply value."""
-    repository = WordbankRepository(db_path)
+    repository = WordbankRepository(db_path, owner_user_id=owner_user_id)
     lexeme = repository.get_lexeme(stored_lemma)
     if lexeme is None:
         raise LookupError(f"Lemma '{stored_lemma}' not found")
@@ -97,12 +98,13 @@ def revert_fix_translation(
 def revert_fix_variations(
     *,
     db_path: Path,
+    owner_user_id: int = 1,
     stored_lemma: str,
     meaning_id: int | None,
     surface_forms_snapshot: list[dict[str, object]],
 ) -> None:
     """Restore surface forms to their pre-apply snapshot."""
-    repository = WordbankRepository(db_path)
+    repository = WordbankRepository(db_path, owner_user_id=owner_user_id)
     lexeme = repository.get_lexeme(stored_lemma)
     if lexeme is None:
         raise LookupError(f"Lemma '{stored_lemma}' not found")

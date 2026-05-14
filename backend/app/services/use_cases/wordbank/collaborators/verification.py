@@ -8,17 +8,19 @@ from app.api.schemas.v1.wordbank import (
     ApplyVerificationChangesResponse,
     GetVerificationChangesResponse,
     QueueVerificationResponse,
-    RevertVerificationChangeResponse,
     RethinkCategoriesResponse,
-    VerificationChangeEntry,
+    RevertVerificationChangeResponse,
     VerificationResult,
     VerifyWordResponse,
 )
 from app.db.repositories.wordbank import WordbankRepository
-from app.services.token_classifier import normalize_token
-from app.services.use_cases.wordbank.collaborators import verification_apply_flow
-from app.services.use_cases.wordbank.collaborators import verification_history_flow
-from app.services.use_cases.wordbank.collaborators import verification_review_flow
+from app.services.use_cases.wordbank.collaborators import (
+    verification_apply_flow,
+    verification_history_flow,
+    verification_review_flow,
+)
+from app.services.use_cases.wordbank.collaborators.cor import CorResolutionCollaborator
+from app.services.use_cases.wordbank.collaborators.nlp import NLPCollaborator
 from app.services.use_cases.wordbank.collaborators.verification_change_log_support import (
     append_gemini_change_log,
     verification_payload_hash,
@@ -28,36 +30,22 @@ from app.services.use_cases.wordbank.collaborators.verification_missing_translat
     supplement_missing_translation_actions,
     translation_fix_copy_for_actions,
 )
-from app.services.use_cases.wordbank.collaborators.cor import CorResolutionCollaborator
-from app.services.use_cases.wordbank.collaborators.nlp import NLPCollaborator
-from app.services.use_cases.wordbank.verification_change_log import (
-    query_surface_forms_snapshot,
-    revert_fix_translation,
-    revert_fix_variations,
-)
-from app.services.use_cases.wordbank.verification_input_builder import build_verification_input
-from app.services.use_cases.wordbank.verification_actions import apply_verification_action
-from app.services.use_cases.wordbank.verification_apply_resolution import (
-    update_persisted_verification_after_apply,
-)
 from app.services.use_cases.wordbank.verification_categories import (
     persist_category_labels_for_scope,
-)
-from app.services.use_cases.wordbank.verification_records import (
-    now_utc_iso,
-    persist_verification_result,
-)
-from app.services.use_cases.wordbank.verification_queue import (
-    load_verification_record,
-    persist_queued_verification,
-    process_queued_verification_if_current,
-    queued_verification_result,
 )
 from app.services.use_cases.wordbank.verification_helper_logic import (
     completion_review_actions,
     normalize_review_intent,
-    rethink_categories_message,
     verification_action_to_schema,
+)
+from app.services.use_cases.wordbank.verification_input_builder import build_verification_input
+from app.services.use_cases.wordbank.verification_queue import (
+    persist_queued_verification,
+    queued_verification_result,
+)
+from app.services.use_cases.wordbank.verification_records import (
+    now_utc_iso,
+    persist_verification_result,
 )
 from app.services.verification import (
     WordVerificationInput,
@@ -82,7 +70,8 @@ class VerificationCollaborator:
         gemini_changes_log_path: Path | None,
         nlp: NLPCollaborator,
         cor: CorResolutionCollaborator,
-        translation: "TranslationCollaborator",
+        translation: TranslationCollaborator,
+        owner_user_id: int = 1,
     ) -> None:
         self._verification_service = verification_service
         self._db_path = db_path
@@ -90,6 +79,7 @@ class VerificationCollaborator:
         self._nlp = nlp
         self._cor = cor
         self._translation = translation
+        self._owner_user_id = owner_user_id
 
     def verify_added_word(
         self,
@@ -264,6 +254,7 @@ class VerificationCollaborator:
             verification=verification,
             review_intent=normalize_review_intent(review_intent),
             latest_snapshot_hash=latest_snapshot_hash,
+            owner_user_id=self._owner_user_id,
         )
 
     def _append_gemini_change_log(self, payload: dict[str, object]) -> None:
@@ -294,6 +285,7 @@ class VerificationCollaborator:
             provider_name=provider_name,
             applied_at=applied_at,
             logger=logger,
+            owner_user_id=self._owner_user_id,
         )
 
     def _verification_metadata(
@@ -324,12 +316,14 @@ class VerificationCollaborator:
         stored_lemma: str,
         stored_surface_form: str | None,
         meaning_id: int | None,
+        owner_user_id: int | None = None,
         review_intent: str = "general",
     ):
         return build_verification_input(
             db_path=self._db_path,
             nlp=self._nlp,
             cor=self._cor,
+            owner_user_id=owner_user_id or self._owner_user_id,
             stored_lemma=stored_lemma,
             stored_surface_form=stored_surface_form,
             meaning_id=meaning_id,
@@ -520,7 +514,7 @@ class VerificationCollaborator:
         payload: WordVerificationInput,
         result: VerificationResult,
     ) -> None:
-        repository = WordbankRepository(self._db_path)
+        repository = WordbankRepository(self._db_path, owner_user_id=self._owner_user_id)
         lexeme = repository.get_lexeme(payload.stored_lemma)
         if lexeme is None:
             return
@@ -556,7 +550,7 @@ class VerificationCollaborator:
         latest_snapshot_hash: str | None = None,
         request_generation: int | None = None,
     ) -> None:
-        repository = WordbankRepository(self._db_path)
+        repository = WordbankRepository(self._db_path, owner_user_id=self._owner_user_id)
         lexeme = repository.get_lexeme(stored_lemma)
         if lexeme is None:
             return
@@ -618,7 +612,7 @@ class VerificationCollaborator:
         meaning_id: int | None,
         labels: list[str],
     ) -> list[str]:
-        repository = WordbankRepository(self._db_path)
+        repository = WordbankRepository(self._db_path, owner_user_id=self._owner_user_id)
         lexeme = repository.get_lexeme(stored_lemma)
         if lexeme is None:
             raise LookupError(f"Lemma '{stored_lemma}' was not found")
@@ -640,7 +634,7 @@ class VerificationCollaborator:
         meaning_id: int | None,
     ) -> None:
         """Auto-apply fix_translation and fix_variations actions after verification persists."""
-        repository = WordbankRepository(self._db_path)
+        repository = WordbankRepository(self._db_path, owner_user_id=self._owner_user_id)
         lexeme = repository.get_lexeme(stored_lemma)
         if lexeme is None:
             return

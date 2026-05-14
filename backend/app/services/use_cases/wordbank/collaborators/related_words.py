@@ -37,11 +37,12 @@ class RelatedWordsCollaborator:
         repository: WordbankRepository,
         db_path,
         translation: TranslationCollaborator | None = None,
+        owner_user_id: int = 1,
     ) -> None:
         self._related_words_service = related_words_service
         self._cor_local_lexicon_service = cor_local_lexicon_service
         self._repository = repository
-        self._jobs = WordbankBackgroundJobRepository(db_path)
+        self._jobs = WordbankBackgroundJobRepository(db_path, owner_user_id=owner_user_id)
         self._translation = translation
 
     def queue_resolution_request(self, *, stored_lemma: str) -> bool:

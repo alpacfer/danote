@@ -30,6 +30,7 @@ from app.services.use_cases.wordbank.verification_action_support import (
 def apply_verification_action(
     *,
     db_path: Path,
+    owner_user_id: int = 1,
     cor: CorResolutionCollaborator,
     stored_lemma: str,
     stored_surface_form: str | None,
@@ -53,7 +54,11 @@ def apply_verification_action(
         )
 
     with get_connection(db_path) as conn:
-        source_lexeme = fetch_lexeme_by_lemma(conn, normalized_lemma)
+        source_lexeme = fetch_lexeme_by_lemma(
+            conn,
+            normalized_lemma,
+            owner_user_id=owner_user_id,
+        )
         if source_lexeme is None:
             raise LookupError(f"Lemma '{normalized_lemma}' was not found")
         source_meaning = load_requested_meaning(
@@ -107,6 +112,7 @@ def apply_verification_action(
                 target_pos_tag=clean_str(action.get("target_pos_tag")),
                 target_morphology=clean_str(action.get("target_morphology")),
                 provider_name=provider_name,
+                owner_user_id=owner_user_id,
             )
         else:
             result = VerificationActionExecutionResult(
@@ -123,7 +129,11 @@ def apply_verification_action(
 
         after_lemma = result.target_lemma or normalized_lemma
         after_meaning = result.target_meaning_id
-        after_lexeme = fetch_lexeme_by_lemma(conn, after_lemma)
+        after_lexeme = fetch_lexeme_by_lemma(
+            conn,
+            after_lemma,
+            owner_user_id=owner_user_id,
+        )
         after_payload = build_after_snapshot(
             conn,
             target_lexeme=after_lexeme,
@@ -254,6 +264,7 @@ def _apply_move_to_lemma(
     target_pos_tag: str | None,
     target_morphology: str | None,
     provider_name: str,
+    owner_user_id: int,
 ) -> VerificationActionExecutionResult:
     normalized_target_lemma = normalize_token(target_lemma)
     if not normalized_target_lemma:
@@ -267,6 +278,7 @@ def _apply_move_to_lemma(
         provider_name=provider_name,
         pos_tag=target_pos_tag or (source_meaning["pos_tag"] if source_meaning is not None else source_lexeme["pos_tag"]),
         morphology=target_morphology or (source_meaning["morphology"] if source_meaning is not None else source_lexeme["morphology"]),
+        owner_user_id=owner_user_id,
     )
 
     if source_meaning is not None:

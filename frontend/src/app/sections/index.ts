@@ -1,3 +1,4 @@
+export * from "./account-section"
 export * from "./developer"
 export * from "./notes-section"
 export * from "./sentencebank-section"

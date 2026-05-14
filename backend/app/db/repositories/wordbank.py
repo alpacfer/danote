@@ -34,8 +34,9 @@ class WordbankRepository(
 ):
     """Stable public façade combining read/query and mutation/upsert repositories."""
 
-    def __init__(self, db_path: Path):
+    def __init__(self, db_path: Path, *, owner_user_id: int = 1):
         self._db_path = db_path
+        self._owner_user_id = owner_user_id
 
 
 __all__ = [

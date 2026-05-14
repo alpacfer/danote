@@ -111,6 +111,30 @@ def test_wordbank_repository_lists_and_searches_lemmas(tmp_path) -> None:
     assert [(item.form, item.meaning_id) for item in surface_forms] == [("bog", meaning_id), ("bogen", meaning_id)]
 
 
+def test_wordbank_repository_scopes_duplicate_lemmas_by_owner(tmp_path) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    apply_migrations(db_path)
+    first_user = WordbankRepository(db_path, owner_user_id=1)
+    second_user = WordbankRepository(db_path, owner_user_id=2)
+
+    from app.db.repositories.users import AppUserRepository
+
+    AppUserRepository(db_path).upsert_user(
+        auth_provider="clerk",
+        auth_subject="user-two",
+        email="two@example.com",
+        display_name="User Two",
+    )
+    first_id = _insert_unsectioned_lemma(first_user, lemma="bog", english_translation="book")
+    second_id = _insert_unsectioned_lemma(second_user, lemma="bog", english_translation="bookcase")
+
+    assert first_id != second_id
+    assert first_user.get_lexeme("bog").english_translation == "book"
+    assert second_user.get_lexeme("bog").english_translation == "bookcase"
+    assert [item.english_translation for item in first_user.list_lemmas()] == ["book"]
+    assert [item.english_translation for item in second_user.list_lemmas()] == ["bookcase"]
+
+
 def test_wordbank_search_prefers_exact_then_prefix_then_translation(tmp_path) -> None:
     db_path = tmp_path / "danote.sqlite3"
     apply_migrations(db_path)

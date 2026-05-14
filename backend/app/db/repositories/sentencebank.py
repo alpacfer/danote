@@ -54,8 +54,9 @@ class SentenceRecord:
 
 
 class SentencebankRepository:
-    def __init__(self, db_path: Path):
+    def __init__(self, db_path: Path, *, owner_user_id: int = 1):
         self._db_path = db_path
+        self._owner_user_id = owner_user_id
 
     def find_by_normalized_sentence(self, normalized_sentence: str) -> SentenceRecord | None:
         with timed_db_operation("sentencebank.find_by_normalized_sentence"), get_connection(
@@ -70,10 +71,10 @@ class SentencebankRepository:
                     created_at,
                     CASE WHEN pronunciation_audio IS NOT NULL THEN 1 ELSE 0 END AS has_pronunciation
                 FROM sentence_bank
-                WHERE normalized_sentence = ?
+                WHERE owner_user_id = ? AND normalized_sentence = ?
                 LIMIT 1
                 """,
-                (normalized_sentence,),
+                (self._owner_user_id, normalized_sentence),
             ).fetchone()
             if row is None:
                 return None
@@ -94,10 +95,10 @@ class SentencebankRepository:
                     created_at,
                     CASE WHEN pronunciation_audio IS NOT NULL THEN 1 ELSE 0 END AS has_pronunciation
                 FROM sentence_bank
-                WHERE id = ?
+                WHERE id = ? AND owner_user_id = ?
                 LIMIT 1
                 """,
-                (sentence_id,),
+                (sentence_id, self._owner_user_id),
             ).fetchone()
             if row is None:
                 return None
@@ -117,14 +118,16 @@ class SentencebankRepository:
             cursor = conn.execute(
                 """
                 INSERT INTO sentence_bank (
+                    owner_user_id,
                     source_sentence,
                     normalized_sentence,
                     english_translation,
                     translation_provider
                 )
-                VALUES (?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?)
                 """,
                 (
+                    self._owner_user_id,
                     source_text,
                     normalized_sentence,
                     english_translation,
@@ -141,12 +144,19 @@ class SentencebankRepository:
         tokens: list[SentenceTokenWriteRecord],
     ) -> None:
         with timed_db_operation("sentencebank.replace_sentence_tokens"), get_connection(self._db_path) as conn:
+            if not self._sentence_belongs_to_owner(conn, sentence_id):
+                raise LookupError("sentence was not found")
             conn.execute(
                 """
                 DELETE FROM sentence_bank_tokens
                 WHERE sentence_id = ?
+                  AND EXISTS (
+                    SELECT 1 FROM sentence_bank sb
+                    WHERE sb.id = sentence_bank_tokens.sentence_id
+                      AND sb.owner_user_id = ?
+                  )
                 """,
-                (sentence_id,),
+                (sentence_id, self._owner_user_id),
             )
             if not tokens:
                 return
@@ -200,13 +210,20 @@ class SentencebankRepository:
         token: SentenceTokenWriteRecord,
     ) -> None:
         with timed_db_operation("sentencebank.replace_sentence_token"), get_connection(self._db_path) as conn:
+            if not self._sentence_belongs_to_owner(conn, sentence_id):
+                raise LookupError("sentence was not found")
             conn.execute(
                 """
                 DELETE FROM sentence_bank_tokens
                 WHERE sentence_id = ?
                   AND token_index = ?
+                  AND EXISTS (
+                    SELECT 1 FROM sentence_bank sb
+                    WHERE sb.id = sentence_bank_tokens.sentence_id
+                      AND sb.owner_user_id = ?
+                  )
                 """,
-                (sentence_id, token.token_index),
+                (sentence_id, token.token_index, self._owner_user_id),
             )
             conn.execute(
                 """
@@ -259,8 +276,10 @@ class SentencebankRepository:
                     created_at,
                     CASE WHEN pronunciation_audio IS NOT NULL THEN 1 ELSE 0 END AS has_pronunciation
                 FROM sentence_bank
+                WHERE owner_user_id = ?
                 ORDER BY datetime(created_at) DESC, id DESC
-                """
+                """,
+                (self._owner_user_id,),
             ).fetchall()
             sentence_ids = [int(row["id"]) for row in rows]
             tokens_by_sentence = self._fetch_tokens_by_sentence(conn, sentence_ids)
@@ -279,7 +298,8 @@ class SentencebankRepository:
                     sb.created_at,
                     CASE WHEN sb.pronunciation_audio IS NOT NULL THEN 1 ELSE 0 END AS has_pronunciation
                 FROM sentence_bank sb
-                WHERE EXISTS (
+                WHERE sb.owner_user_id = ?
+                  AND EXISTS (
                     SELECT 1
                     FROM sentence_bank_tokens sbt
                     WHERE sbt.sentence_id = sb.id
@@ -287,7 +307,7 @@ class SentencebankRepository:
                 )
                 ORDER BY datetime(sb.created_at) DESC, sb.id DESC
                 """,
-                (stored_lemma,),
+                (self._owner_user_id, stored_lemma),
             ).fetchall()
             sentence_ids = [int(row["id"]) for row in rows]
             tokens_by_sentence = self._fetch_tokens_by_sentence(conn, sentence_ids)
@@ -328,9 +348,9 @@ class SentencebankRepository:
                     pronunciation_model = ?,
                     pronunciation_generated_at = CURRENT_TIMESTAMP,
                     updated_at = CURRENT_TIMESTAMP
-                WHERE id = ?
+                WHERE id = ? AND owner_user_id = ?
                 """,
-                (audio_bytes, mime_type, provider, model, sentence_id),
+                (audio_bytes, mime_type, provider, model, sentence_id, self._owner_user_id),
             )
         return cursor.rowcount == 1
 
@@ -384,6 +404,15 @@ class SentencebankRepository:
                 )
             )
         return grouped
+
+    def _sentence_belongs_to_owner(self, conn, sentence_id: int) -> bool:
+        return (
+            conn.execute(
+                "SELECT 1 FROM sentence_bank WHERE id = ? AND owner_user_id = ? LIMIT 1",
+                (sentence_id, self._owner_user_id),
+            ).fetchone()
+            is not None
+        )
 
     def _fetch_matched_token_indexes(
         self,

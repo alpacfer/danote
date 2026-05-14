@@ -31,6 +31,7 @@ Tracks baseline dev env and dependency locking for reproducibility.
   - `class-variance-authority 0.7.1`
   - `tailwind-merge 3.5.0`
   - `lucide-react 0.575.0`
+  - `@clerk/react 6.6.2` (hosted auth)
   - `vitest 4.0.18`
   - `@testing-library/react 16.3.2`
 
@@ -57,6 +58,7 @@ Tracks baseline dev env and dependency locking for reproducibility.
   - `uvicorn[standard] 0.35.0`
   - `pytest 8.4.2` (test)
   - `httpx 0.28.1` (test client transport)
+  - `PyJWT[crypto] 2.10.1` (Clerk JWT verification)
 - NLP stack:
   - No active default NLP implementation.
   - `DANOTE_NLP_ENABLED` defaults to `0`.

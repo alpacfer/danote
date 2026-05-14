@@ -39,6 +39,7 @@ def verify_added_word(
         stored_lemma=normalized_lemma,
         stored_surface_form=normalized_surface,
         meaning_id=meaning_id,
+        owner_user_id=collaborator._owner_user_id,
         review_intent=review_intent,
     )
     verification = collaborator._verify_added_word(payload)
@@ -102,6 +103,7 @@ def process_verification_if_current(
             stored_lemma=lemma,
             stored_surface_form=surface,
             meaning_id=current_meaning_id,
+            owner_user_id=collaborator._owner_user_id,
         ),
         verify_payload=collaborator._verify_added_word,
         persist_result=lambda lemma, current_meaning_id, surface, verification, current_review_intent, snapshot_hash, request_generation: collaborator._persist_verification_result(

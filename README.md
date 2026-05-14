@@ -13,6 +13,17 @@ Language-learning note-taking web app (Danish-first) with a browser frontend and
 ## Documentation Hub
 
 - Start here: [`docs/README.md`](docs/README.md) for the docs map and category index.
+- **Hosting**: [`HOSTING.md`](HOSTING.md) — deploy to a VPS with Docker + Caddy, with notes for Fly.io and Vercel + Render.
+
+## Accounts & sign-in
+
+danote requires sign-in (email/password or Google, via Clerk). Each account
+manages its own four API keys (Gemini, DeepL, Azure Translation, Azure TTS)
+from the **Account** page in the sidebar. The app is gated behind a
+"Configure your API keys" screen until all four are saved.
+
+For local development without auth, set `DANOTE_AUTH_ENABLED=0` in your
+`.env` to bypass the gate and use a fixed dev user.
 
 ## Run Instructions
 
@@ -81,6 +92,7 @@ user-locally when missing, provisions Python `3.11`, recreates stale backend vir
 platform-specific install commands and exits before partial startup.
 
 Configuration reference: [`docs/reference/configuration-reference.md`](docs/reference/configuration-reference.md).
+Hosted Render + Vercel deployment runbook: [`docs/deployment/render-vercel.md`](docs/deployment/render-vercel.md).
 
 ### Configuration precedence
 

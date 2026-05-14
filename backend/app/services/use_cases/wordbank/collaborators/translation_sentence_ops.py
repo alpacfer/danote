@@ -45,10 +45,10 @@ def generate_phrase_translation(collaborator, source_text: str) -> GeneratePhras
             """
             SELECT english_translation
             FROM phrase_translations
-            WHERE source_phrase = ?
+            WHERE owner_user_id = ? AND source_phrase = ?
             LIMIT 1
             """,
-            (normalized_source_text,),
+            (collaborator._owner_user_id, normalized_source_text),
         ).fetchone()
 
         if existing is not None:
@@ -70,13 +70,15 @@ def generate_phrase_translation(collaborator, source_text: str) -> GeneratePhras
         conn.execute(
             """
             INSERT INTO phrase_translations (
+                owner_user_id,
                 source_phrase,
                 english_translation,
                 translation_provider
             )
-            VALUES (?, ?, ?)
+            VALUES (?, ?, ?, ?)
             """,
             (
+                collaborator._owner_user_id,
                 normalized_source_text,
                 english_translation,
                 provider if english_translation else None,

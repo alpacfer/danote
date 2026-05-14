@@ -27,7 +27,12 @@ from app.services.use_cases.wordbank.shared import (
 logger = logging.getLogger(__name__)
 
 
-def find_saved_lemma(db_path: Path, candidates: list[str]) -> str | None:
+def find_saved_lemma(
+    db_path: Path,
+    candidates: list[str],
+    *,
+    owner_user_id: int = 1,
+) -> str | None:
     normalized_candidates = []
     seen: set[str] = set()
     for candidate in candidates:
@@ -45,10 +50,10 @@ def find_saved_lemma(db_path: Path, candidates: list[str]) -> str | None:
             f"""
             SELECT lemma
             FROM lexemes
-            WHERE lemma IN ({placeholders})
+            WHERE owner_user_id = ? AND lemma IN ({placeholders})
             ORDER BY lemma COLLATE NOCASE
             """,
-            tuple(normalized_candidates),
+            (owner_user_id, *normalized_candidates),
         ).fetchall()
     saved = {row["lemma"] for row in rows}
     for candidate in normalized_candidates:

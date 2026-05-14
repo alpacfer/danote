@@ -18,6 +18,7 @@ from app.db.sqlite import get_connection, timed_db_operation
 
 class WordbankMutationRepository:
     _db_path: Path
+    _owner_user_id: int
 
     def replace_lexeme_translation(
         self,
@@ -33,9 +34,9 @@ class WordbankMutationRepository:
                 SET english_translation = ?,
                     translation_provider = ?,
                     updated_at = CURRENT_TIMESTAMP
-                WHERE id = ?
+                WHERE id = ? AND owner_user_id = ?
                 """,
-                (english_translation, provider if english_translation else None, lexeme_id),
+                (english_translation, provider if english_translation else None, lexeme_id, self._owner_user_id),
             )
 
     def replace_lexeme_source(self, *, lexeme_id: int, source: str) -> None:
@@ -45,9 +46,9 @@ class WordbankMutationRepository:
                 UPDATE lexemes
                 SET source = ?,
                     updated_at = CURRENT_TIMESTAMP
-                WHERE id = ?
+                WHERE id = ? AND owner_user_id = ?
                 """,
-                (source, lexeme_id),
+                (source, lexeme_id, self._owner_user_id),
             )
 
     def replace_lexeme_meaning_translation(
@@ -63,8 +64,13 @@ class WordbankMutationRepository:
                 SET english_translation = ?,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE id = ?
+                  AND EXISTS (
+                    SELECT 1 FROM lexemes l
+                    WHERE l.id = lexeme_meanings.lexeme_id
+                      AND l.owner_user_id = ?
+                  )
                 """,
-                (english_translation, meaning_id),
+                (english_translation, meaning_id, self._owner_user_id),
             )
 
     def insert_additional_translation(
@@ -111,9 +117,9 @@ class WordbankMutationRepository:
                 UPDATE lexemes
                 SET pos_tag = COALESCE(pos_tag, ?),
                     morphology = COALESCE(morphology, ?)
-                WHERE id = ?
+                WHERE id = ? AND owner_user_id = ?
                 """,
-                (pos_tag, morphology, lexeme_id),
+                (pos_tag, morphology, lexeme_id, self._owner_user_id),
             )
 
     def replace_lexeme_metadata(self, *, lexeme_id: int, pos_tag: str | None, morphology: str | None) -> None:
@@ -123,9 +129,9 @@ class WordbankMutationRepository:
                 UPDATE lexemes
                 SET pos_tag = ?,
                     morphology = ?
-                WHERE id = ?
+                WHERE id = ? AND owner_user_id = ?
                 """,
-                (pos_tag, morphology, lexeme_id),
+                (pos_tag, morphology, lexeme_id, self._owner_user_id),
             )
 
     def update_surface_form_metadata(
@@ -142,8 +148,15 @@ class WordbankMutationRepository:
                 SET pos_tag = COALESCE(pos_tag, ?),
                     morphology = COALESCE(morphology, ?)
                 WHERE id = ?
+                  AND EXISTS (
+                    SELECT 1
+                    FROM lexemes l
+                    JOIN surface_forms sf ON sf.lexeme_id = l.id
+                    WHERE sf.id = surface_forms.id
+                      AND l.owner_user_id = ?
+                  )
                 """,
-                (pos_tag, morphology, surface_form_id),
+                (pos_tag, morphology, surface_form_id, self._owner_user_id),
             )
 
     def replace_lexeme_meaning_metadata(
@@ -161,8 +174,13 @@ class WordbankMutationRepository:
                     morphology = ?,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE id = ?
+                  AND EXISTS (
+                    SELECT 1 FROM lexemes l
+                    WHERE l.id = lexeme_meanings.lexeme_id
+                      AND l.owner_user_id = ?
+                  )
                 """,
-                (pos_tag, morphology, meaning_id),
+                (pos_tag, morphology, meaning_id, self._owner_user_id),
             )
 
     def insert_or_load_lexeme(
@@ -180,6 +198,7 @@ class WordbankMutationRepository:
             cursor = conn.execute(
                 """
                 INSERT OR IGNORE INTO lexemes (
+                    owner_user_id,
                     lemma,
                     source,
                     dictionary_status,
@@ -188,9 +207,10 @@ class WordbankMutationRepository:
                     pos_tag,
                     morphology
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
+                    self._owner_user_id,
                     stored_lemma,
                     source,
                     dictionary_status,
@@ -201,8 +221,8 @@ class WordbankMutationRepository:
                 ),
             )
             lexeme_row = conn.execute(
-                "SELECT id FROM lexemes WHERE lemma = ? LIMIT 1",
-                (stored_lemma,),
+                "SELECT id FROM lexemes WHERE owner_user_id = ? AND lemma = ? LIMIT 1",
+                (self._owner_user_id, stored_lemma),
             ).fetchone()
             if lexeme_row is None:
                 raise RuntimeError("Failed to create or load lexeme")
@@ -213,9 +233,9 @@ class WordbankMutationRepository:
                     UPDATE lexemes
                     SET english_translation = COALESCE(english_translation, ?),
                         translation_provider = COALESCE(translation_provider, ?)
-                    WHERE id = ?
+                    WHERE id = ? AND owner_user_id = ?
                     """,
-                    (translation, provider, lexeme_id),
+                    (translation, provider, lexeme_id, self._owner_user_id),
                 )
             conn.execute(
                 """
@@ -227,9 +247,9 @@ class WordbankMutationRepository:
                         WHEN dictionary_status = 'generated_non_cor' OR ? = 'generated_non_cor' THEN 'generated_non_cor'
                         ELSE 'unknown'
                     END
-                WHERE id = ?
+                WHERE id = ? AND owner_user_id = ?
                 """,
-                (pos_tag, morphology, dictionary_status, dictionary_status, lexeme_id),
+                (pos_tag, morphology, dictionary_status, dictionary_status, lexeme_id, self._owner_user_id),
             )
         return lexeme_id, cursor.rowcount == 1
 
@@ -366,6 +386,11 @@ class WordbankMutationRepository:
         morphology: str | None,
         ) -> tuple[LexemeMeaningRecord, bool]:
         with timed_db_operation("wordbank.upsert_lexeme_meaning"), get_connection(self._db_path) as conn:
+            if conn.execute(
+                "SELECT 1 FROM lexemes WHERE id = ? AND owner_user_id = ? LIMIT 1",
+                (lexeme_id, self._owner_user_id),
+            ).fetchone() is None:
+                raise LookupError("lexeme was not found")
             row = None
             if cor_lemma_idx is not None:
                 row = conn.execute(
@@ -381,9 +406,14 @@ class WordbankMutationRepository:
                         morphology
                     FROM lexeme_meanings
                     WHERE lexeme_id = ? AND cor_lemma_idx = ?
+                      AND EXISTS (
+                        SELECT 1 FROM lexemes l
+                        WHERE l.id = lexeme_meanings.lexeme_id
+                          AND l.owner_user_id = ?
+                      )
                     LIMIT 1
                     """,
-                    (lexeme_id, cor_lemma_idx),
+                    (lexeme_id, cor_lemma_idx, self._owner_user_id),
                 ).fetchone()
             if row is None and cor_lemma_idx is None:
                 row = conn.execute(
@@ -399,9 +429,14 @@ class WordbankMutationRepository:
                         morphology
                     FROM lexeme_meanings
                     WHERE lexeme_id = ? AND meaning_key = ?
+                      AND EXISTS (
+                        SELECT 1 FROM lexemes l
+                        WHERE l.id = lexeme_meanings.lexeme_id
+                          AND l.owner_user_id = ?
+                      )
                     LIMIT 1
                     """,
-                (lexeme_id, meaning_key),
+                (lexeme_id, meaning_key, self._owner_user_id),
             ).fetchone()
 
             inserted = False

@@ -249,7 +249,7 @@ wait_for_backend() {
     return
   fi
   for _ in {1..30}; do
-    if curl -fsS "$health_url" >/dev/null 2>&1; then
+    if curl -fsS --max-time 2 "$health_url" >/dev/null 2>&1; then
       bootstrap::log "backend health check passed: $health_url"
       return
     fi
@@ -283,11 +283,11 @@ start_frontend() {
 }
 
 backend_is_healthy() {
-  curl -fsS "http://$BACKEND_HOST:$BACKEND_PORT/api/health" >/dev/null 2>&1
+  curl -fsS --max-time 2 "http://$BACKEND_HOST:$BACKEND_PORT/api/health" >/dev/null 2>&1
 }
 
 frontend_is_reachable() {
-  curl -fsS "http://$FRONTEND_HOST:$FRONTEND_PORT" >/dev/null 2>&1
+  curl -fsS --max-time 2 "http://$FRONTEND_HOST:$FRONTEND_PORT" >/dev/null 2>&1
 }
 
 port_is_listening() {

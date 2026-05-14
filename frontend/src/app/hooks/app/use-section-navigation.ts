@@ -182,6 +182,10 @@ export function useSectionNavigation() {
     applyPush({ ...ROOT_ENTRY, section: "developer" })
   }, [applyPush])
 
+  const selectAccount = useCallback(() => {
+    applyPush({ ...ROOT_ENTRY, section: "account" })
+  }, [applyPush])
+
   const openWordbankLemma = useCallback((lemma: string) => {
     applyPush({
       section: "wordbank",
@@ -306,6 +310,7 @@ export function useSectionNavigation() {
     selectWordbank,
     selectSentencebank,
     selectDeveloper,
+    selectAccount,
     openWordbankLemma,
     openWordbankLemmaRaw,
     openWordbankPinnedTab,
@@ -331,6 +336,7 @@ export function useSectionNavigation() {
     selectWordbank,
     selectSentencebank,
     selectDeveloper,
+    selectAccount,
     openWordbankLemma,
     openWordbankLemmaRaw,
     openWordbankPinnedTab,

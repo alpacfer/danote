@@ -59,6 +59,7 @@ class WordbankUseCase:
     def __init__(
         self,
         db_path,
+        owner_user_id: int = 1,
         translation_service: TranslationService | None = None,
         gemini_word_translation_service: GeminiWordTranslationService | None = None,
         gemini_related_words_service: GeminiRelatedWordsService | None = None,
@@ -72,20 +73,22 @@ class WordbankUseCase:
         gemini_changes_log_path: Path | None = None,
     ):
         nlp = NLPCollaborator(nlp_adapter, cor_lexicon_service)
-        pronunciation = PronunciationCollaborator(tts_service, db_path)
+        pronunciation = PronunciationCollaborator(tts_service, db_path, owner_user_id=owner_user_id)
         translation = TranslationCollaborator(
             translation_service,
             gemini_word_translation_service,
             cor_local_lexicon_service,
             db_path,
+            owner_user_id=owner_user_id,
         )
-        repository = WordbankRepository(db_path)
+        repository = WordbankRepository(db_path, owner_user_id=owner_user_id)
         cor = CorResolutionCollaborator(
             cor_lexicon_service,
             cor_local_lexicon_service,
             db_path,
             translation,
             nlp,
+            owner_user_id=owner_user_id,
             en_local_lexicon_service=en_local_lexicon_service,
             en_gemini_translation_service=en_gemini_translation_service,
             translation_service=translation_service,
@@ -96,6 +99,7 @@ class WordbankUseCase:
             repository,
             db_path,
             translation=translation,
+            owner_user_id=owner_user_id,
         )
         verification = VerificationCollaborator(
             verification_service,
@@ -104,9 +108,11 @@ class WordbankUseCase:
             nlp,
             cor,
             translation,
+            owner_user_id=owner_user_id,
         )
         self._runtime = WordbankRuntime(
             db_path=db_path,
+            owner_user_id=owner_user_id,
             repository=repository,
             nlp=nlp,
             pronunciation=pronunciation,

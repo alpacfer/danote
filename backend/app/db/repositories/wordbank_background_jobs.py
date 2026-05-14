@@ -10,6 +10,7 @@ from app.db.sqlite import get_connection, timed_db_operation
 @dataclass(frozen=True, slots=True)
 class WordbankBackgroundJobRecord:
     id: int
+    owner_user_id: int
     job_type: str
     dedupe_key: str
     payload: dict[str, object]
@@ -22,8 +23,9 @@ class WordbankBackgroundJobRecord:
 
 
 class WordbankBackgroundJobRepository:
-    def __init__(self, db_path: Path) -> None:
+    def __init__(self, db_path: Path, *, owner_user_id: int = 1) -> None:
         self._db_path = db_path
+        self._owner_user_id = owner_user_id
 
     def enqueue(
         self,
@@ -39,23 +41,24 @@ class WordbankBackgroundJobRepository:
                 """
                 SELECT id, status
                 FROM wordbank_background_jobs
-                WHERE dedupe_key = ?
+                WHERE owner_user_id = ? AND dedupe_key = ?
                 LIMIT 1
                 """,
-                (dedupe_key,),
+                (self._owner_user_id, dedupe_key),
             ).fetchone()
             if existing is None:
                 cursor = conn.execute(
                     """
                     INSERT INTO wordbank_background_jobs (
+                        owner_user_id,
                         job_type,
                         dedupe_key,
                         payload_json,
                         max_attempts
                     )
-                    VALUES (?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?)
                     """,
-                    (job_type, dedupe_key, payload_json, max_attempts),
+                    (self._owner_user_id, job_type, dedupe_key, payload_json, max_attempts),
                 )
                 return cursor.rowcount == 1
 
@@ -110,10 +113,10 @@ class WordbankBackgroundJobRepository:
                 """
                 SELECT id, status, payload_json
                 FROM wordbank_background_jobs
-                WHERE dedupe_key = ?
+                WHERE owner_user_id = ? AND dedupe_key = ?
                 LIMIT 1
                 """,
-                (dedupe_key,),
+                (self._owner_user_id, dedupe_key),
             ).fetchone()
             payload = {
                 "stored_lemma": stored_lemma,
@@ -125,14 +128,15 @@ class WordbankBackgroundJobRepository:
                 cursor = conn.execute(
                     """
                     INSERT INTO wordbank_background_jobs (
+                        owner_user_id,
                         job_type,
                         dedupe_key,
                         payload_json,
                         max_attempts
                     )
-                    VALUES (?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?)
                     """,
-                    ("generate_pronunciation", dedupe_key, payload_json, max_attempts),
+                    (self._owner_user_id, "generate_pronunciation", dedupe_key, payload_json, max_attempts),
                 )
                 return cursor.rowcount == 1
 
@@ -195,6 +199,7 @@ class WordbankBackgroundJobRepository:
                 """
                 SELECT
                     id,
+                    owner_user_id,
                     job_type,
                     dedupe_key,
                     payload_json,
@@ -239,6 +244,7 @@ class WordbankBackgroundJobRepository:
                 """
                 SELECT
                     id,
+                    owner_user_id,
                     job_type,
                     dedupe_key,
                     payload_json,
@@ -249,10 +255,10 @@ class WordbankBackgroundJobRepository:
                     last_error,
                     completed_at
                 FROM wordbank_background_jobs
-                WHERE dedupe_key = ?
+                WHERE owner_user_id = ? AND dedupe_key = ?
                 LIMIT 1
                 """,
-                (dedupe_key,),
+                (self._owner_user_id, dedupe_key),
             ).fetchone()
         return _job_from_row(dict(row)) if row is not None else None
 
@@ -344,6 +350,7 @@ class WordbankBackgroundJobRepository:
 def _job_from_row(row: dict[str, object]) -> WordbankBackgroundJobRecord:
     return WordbankBackgroundJobRecord(
         id=_required_int(row, "id"),
+        owner_user_id=_required_int(row, "owner_user_id"),
         job_type=str(row["job_type"]),
         dedupe_key=str(row["dedupe_key"]),
         payload=json.loads(str(row["payload_json"])),

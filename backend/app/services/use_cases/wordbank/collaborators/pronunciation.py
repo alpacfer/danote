@@ -19,9 +19,10 @@ from app.services.use_cases.wordbank.shared import (
 class PronunciationCollaborator:
     """Handles TTS synthesis and pronunciation audio storage."""
 
-    def __init__(self, tts_service: TTSService | None, db_path: Path) -> None:
+    def __init__(self, tts_service: TTSService | None, db_path: Path, *, owner_user_id: int = 1) -> None:
         self._tts_service = tts_service
         self._db_path = db_path
+        self._owner_user_id = owner_user_id
 
     # ------------------------------------------------------------------
     # Public API
@@ -66,7 +67,7 @@ class PronunciationCollaborator:
                 force=force,
             )
         )
-        repository = WordbankRepository(self._db_path)
+        repository = WordbankRepository(self._db_path, owner_user_id=self._owner_user_id)
         lexeme = repository.get_lexeme(normalized_lemma)
         if lexeme is None:
             raise LookupError(f"Lemma '{normalized_lemma}' was not found")
@@ -99,7 +100,7 @@ class PronunciationCollaborator:
         if self._tts_service is None:
             return []
 
-        repository = WordbankRepository(self._db_path)
+        repository = WordbankRepository(self._db_path, owner_user_id=self._owner_user_id)
         lexeme = repository.get_lexeme(normalized_lemma)
         if lexeme is None:
             raise LookupError(f"Lemma '{normalized_lemma}' was not found")
@@ -239,7 +240,7 @@ class PronunciationCollaborator:
         form: str,
         force: bool = False,
     ) -> bool:
-        repository = WordbankRepository(self._db_path)
+        repository = WordbankRepository(self._db_path, owner_user_id=self._owner_user_id)
         existing_rows = repository.find_surface_forms(lexeme_id=lexeme_id, form=form)
         if not existing_rows and form == stored_lemma:
             repository.insert_or_update_surface_form(

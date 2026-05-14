@@ -18,6 +18,38 @@ Routes: `backend/app/api/routes/`. DTOs: `backend/app/api/schemas/v1/`.
 - **Response model:** `HealthResponse` (`backend/app/api/schemas/v1/root.py`).
 - **Notable status/error behavior:** `200` with `status: "ok"` or `"degraded"` per DB/NLP readiness.
 
+### GET `/api/me`
+- **Request model:** none.
+- **Response model:** `CurrentUserResponse` (`backend/app/api/schemas/v1/auth.py`).
+- **Notable status/error behavior:** `401` missing/invalid bearer token when auth is enabled. `403` authenticated user is outside the configured allowlist. With auth disabled, returns the local development user.
+
+Unless otherwise noted, non-health app data routes require an authenticated user when `DANOTE_AUTH_ENABLED=1` and scope persisted wordbank/sentencebank data to that user.
+
+## Account
+
+All `/api/account/*` endpoints require a valid `Authorization: Bearer <clerk-jwt>`
+header. Local dev (`DANOTE_AUTH_ENABLED=0`) bypasses verification and resolves
+to a fixed dev user.
+
+### GET `/api/account/me`
+- **Response model:** `AccountMeResponse` (`backend/app/api/schemas/v1/account.py`).
+- **Notable status/error behavior:** `401` missing/invalid token. `403` email not on allowlist (when `DANOTE_AUTH_ALLOWED_EMAILS` or `..._DOMAINS` is set). `503` when auth services failed to initialize.
+
+### GET `/api/account/status`
+- **Response model:** `AccountStatusResponse`.
+- **Notable status/error behavior:** Returns `keys_configured: true` only when all four providers (`gemini`, `deepl`, `azure_translation`, `azure_tts`) have a stored key. `last_four` is the last 4 chars of the saved value for UI preview.
+
+### PUT `/api/account/api-keys/{provider}`
+- **Request model:** `UpdateApiKeyRequest` (`{"value": "<api-key>"}`).
+- **Response model:** `UpdateApiKeyResponse`.
+- **Notable status/error behavior:** `400` unknown provider or empty value. `503` if `DANOTE_KEY_ENCRYPTION_SECRET` is not configured.
+
+### DELETE `/api/account/api-keys/{provider}`
+- **Response model:** `UpdateApiKeyResponse` with `is_set: false`.
+
+### POST `/api/account/api-keys/{provider}/test`
+- **Response model:** `TestApiKeyResponse`. Currently only structurally validates the stored key (length); real outbound probe arrives with Phase 1.5.
+
 ## Analyze
 
 ### POST `/api/analyze`

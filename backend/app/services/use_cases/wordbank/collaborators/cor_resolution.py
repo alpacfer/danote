@@ -41,6 +41,7 @@ def resolve_query(
     db_path: Path,
     translation: TranslationCollaborator,
     nlp: NLPCollaborator,
+    owner_user_id: int = 1,
     cor_entries_lookup,
     query_text: str,
     include_translations: bool = True,
@@ -131,6 +132,7 @@ def resolve_query(
     classifier = LemmaAwareClassifier(
         db_path,
         nlp_adapter=None,
+        owner_user_id=owner_user_id,
     )
     token = classifier.classify(normalized_query)
     cor_add_options = build_cor_add_options(
@@ -152,13 +154,21 @@ def resolve_query(
         query_lemma = cor_add_options[0].lemma
 
     if token.match_source == "none" and cor_add_options:
-        saved_lemma = find_saved_lemma(db_path, [option.lemma for option in cor_add_options])
+        saved_lemma = find_saved_lemma(
+            db_path,
+            [option.lemma for option in cor_add_options],
+            owner_user_id=owner_user_id,
+        )
         if saved_lemma:
             classification = "variation"
             matched_lemma = saved_lemma
             query_lemma = query_lemma or saved_lemma
 
-    matched_lemma_summary = load_matched_lemma_summary(db_path, matched_lemma)
+    matched_lemma_summary = load_matched_lemma_summary(
+        db_path,
+        matched_lemma,
+        owner_user_id=owner_user_id,
+    )
 
     resolved_surface = token.normalized_token or normalized_query
     resolved_lemma = query_lemma
@@ -399,6 +409,8 @@ def static_presaved_word_resolve_response(
 def load_matched_lemma_summary(
     db_path: Path,
     matched_lemma: str | None,
+    *,
+    owner_user_id: int = 1,
 ) -> ResolveQueryResponse.MatchedLemmaSummary | None:
     if not matched_lemma:
         return None
@@ -429,11 +441,11 @@ def load_matched_lemma_summary(
             LEFT JOIN surface_forms sf ON sf.lexeme_id = l.id
             LEFT JOIN meaning_counts mc ON mc.lexeme_id = l.id
             LEFT JOIN single_meanings sm ON sm.lexeme_id = l.id
-            WHERE l.lemma = ?
+            WHERE l.owner_user_id = ? AND l.lemma = ?
             GROUP BY l.id
             LIMIT 1
             """,
-            (matched_lemma,),
+            (owner_user_id, matched_lemma),
         ).fetchone()
     if lemma_row is None:
         return None

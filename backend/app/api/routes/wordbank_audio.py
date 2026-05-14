@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Query, Request, Response
 
+from app.api.auth import require_current_user
 from app.api.routes._runtime import get_services, get_settings, run_db_operation
 from app.api.routes._use_case_factories import build_wordbank_use_case
 from app.api.schemas.v1.wordbank import (
@@ -38,6 +39,7 @@ def get_pronunciation_audio(request: Request, form: str = Query(..., min_length=
 
 @router.get("/wordbank/numbers/pronunciation")
 def get_numbers_pronunciation_audio(request: Request, term: str = Query(..., min_length=1)) -> Response:
+    require_current_user(request)
     pronunciation = run_db_operation(
         request,
         lambda: _get_numbers_audio(term, get_settings(request).db_path),
@@ -52,6 +54,7 @@ def seed_numbers_pronunciation_audio(
     request: Request,
     force: bool = Query(False),
 ) -> SeedNumbersAudioResponse:
+    require_current_user(request)
     tts_service = get_services(request).tts_service
     db_path = get_settings(request).db_path
     result = run_db_operation(
@@ -70,6 +73,7 @@ def seed_numbers_pronunciation_audio(
 
 @router.get("/wordbank/presaved-words/pronunciation")
 def get_presaved_words_pronunciation_audio(request: Request, term: str = Query(..., min_length=1)) -> Response:
+    require_current_user(request)
     pronunciation = run_db_operation(
         request,
         lambda: _get_presaved_words_audio(term, get_settings(request).db_path),
@@ -84,6 +88,7 @@ def seed_presaved_words_pronunciation_audio(
     request: Request,
     force: bool = Query(False),
 ) -> SeedPresavedWordsAudioResponse:
+    require_current_user(request)
     tts_service = get_services(request).tts_service
     db_path = get_settings(request).db_path
     result = run_db_operation(
