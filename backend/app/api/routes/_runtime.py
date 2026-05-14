@@ -7,7 +7,12 @@ from typing import TypeVar
 
 from fastapi import HTTPException, Request
 
-from app.core.app_state import get_runtime_state, get_services, get_settings
+from app.core.app_state import (
+    get_runtime_state,
+    get_services,
+    get_settings,
+    resolve_services_for_user,
+)
 from app.core.errors import ConflictError
 
 logger = logging.getLogger(__name__)
@@ -63,6 +68,7 @@ __all__ = [
     "get_runtime_state",
     "get_services",
     "get_settings",
+    "resolve_services_for_user",
     "ConflictError",
     "require_db_ready",
     "require_nlp_ready",

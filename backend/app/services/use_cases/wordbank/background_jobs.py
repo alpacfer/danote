@@ -24,12 +24,14 @@ class WordbankBackgroundJobRunner:
         db_path: Path,
         services: Any,
         gemini_changes_log_path: Path | None,
+        user_service_resolver: Any = None,
         max_workers: int = 4,
         poll_interval_seconds: float = 0.25,
     ) -> None:
         self._db_path = db_path
         self._repository = WordbankBackgroundJobRepository(db_path)
         self._services = services
+        self._user_service_resolver = user_service_resolver
         self._gemini_changes_log_path = gemini_changes_log_path
         self._max_workers = max(1, int(max_workers))
         self._poll_interval_seconds = poll_interval_seconds
@@ -159,20 +161,27 @@ class WordbankBackgroundJobRunner:
         )
         self._collect_completed_jobs(in_flight)
 
+    def _resolve_services(self, owner_user_id: int) -> Any:
+        resolver = self._user_service_resolver
+        if resolver is None:
+            return self._services
+        return resolver.resolve(owner_user_id)
+
     def _handle_job(self, job_type: str, payload: dict[str, object], owner_user_id: int = 1) -> None:
+        services = self._resolve_services(owner_user_id)
         use_case = WordbankUseCase(
             self._db_path,
             owner_user_id=owner_user_id,
-            translation_service=self._services.translation_service,
-            gemini_word_translation_service=self._services.gemini_word_translation_service,
-            gemini_related_words_service=self._services.gemini_related_words_service,
-            nlp_adapter=self._services.nlp_adapter,
-            cor_lexicon_service=self._services.cor_lexicon_service,
-            cor_local_lexicon_service=self._services.cor_local_lexicon_service,
-            en_local_lexicon_service=self._services.en_local_lexicon_service,
-            en_gemini_translation_service=self._services.en_gemini_translation_service,
-            verification_service=self._services.word_verification_service,
-            tts_service=self._services.tts_service,
+            translation_service=services.translation_service,
+            gemini_word_translation_service=services.gemini_word_translation_service,
+            gemini_related_words_service=services.gemini_related_words_service,
+            nlp_adapter=services.nlp_adapter,
+            cor_lexicon_service=services.cor_lexicon_service,
+            cor_local_lexicon_service=services.cor_local_lexicon_service,
+            en_local_lexicon_service=services.en_local_lexicon_service,
+            en_gemini_translation_service=services.en_gemini_translation_service,
+            verification_service=services.word_verification_service,
+            tts_service=services.tts_service,
             gemini_changes_log_path=self._gemini_changes_log_path,
         )
         if job_type == "verify_word":
@@ -209,11 +218,11 @@ class WordbankBackgroundJobRunner:
             sentence_use_case = SentencebankUseCase(
                 db_path=self._db_path,
                 owner_user_id=owner_user_id,
-                translation_service=self._services.translation_service,
-                nlp_adapter=self._services.nlp_adapter,
+                translation_service=services.translation_service,
+                nlp_adapter=services.nlp_adapter,
                 wordbank_use_case=use_case,
-                sentence_verification_service=self._services.sentence_verification_service,
-                tts_service=self._services.tts_service,
+                sentence_verification_service=services.sentence_verification_service,
+                tts_service=services.tts_service,
             )
             sentence_use_case.process_queued_pronunciation(
                 _required_int_value(payload, "sentence_id"),
@@ -224,11 +233,11 @@ class WordbankBackgroundJobRunner:
             sentence_use_case = SentencebankUseCase(
                 db_path=self._db_path,
                 owner_user_id=owner_user_id,
-                translation_service=self._services.translation_service,
-                nlp_adapter=self._services.nlp_adapter,
+                translation_service=services.translation_service,
+                nlp_adapter=services.nlp_adapter,
                 wordbank_use_case=use_case,
-                sentence_verification_service=self._services.sentence_verification_service,
-                tts_service=self._services.tts_service,
+                sentence_verification_service=services.sentence_verification_service,
+                tts_service=services.tts_service,
             )
             sentence_use_case.process_queued_sentence_token_verification(
                 new_token_metadata=_metadata_list_value(payload, "new_token_metadata"),

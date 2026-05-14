@@ -17,6 +17,7 @@ def initialize_wordbank_background_jobs(app: FastAPI, settings: Settings) -> Non
     runner = WordbankBackgroundJobRunner(
         db_path=settings.db_path,
         services=runtime.services,
+        user_service_resolver=runtime.user_service_resolver,
         gemini_changes_log_path=settings.gemini_changes_log_path,
         max_workers=settings.wordbank_background_job_workers,
     )

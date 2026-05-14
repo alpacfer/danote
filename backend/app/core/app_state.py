@@ -33,6 +33,7 @@ class BackendRuntimeState:
     users_repository: Any = None
     user_api_keys_repository: Any = None
     clerk_jwks_client: Any = None
+    user_service_resolver: Any = None
     auth_error: str | None = None
     db_ready: bool = False
     db_error: str | None = None
@@ -67,6 +68,18 @@ def get_settings(target: FastAPI | Request) -> Settings:
 
 def get_services(target: FastAPI | Request) -> BackendServices:
     return get_runtime_state(target).services
+
+
+def get_user_service_resolver(target: FastAPI | Request) -> Any:
+    return get_runtime_state(target).user_service_resolver
+
+
+def resolve_services_for_user(target: FastAPI | Request, user_id: int) -> BackendServices:
+    """Return a per-user `BackendServices` bundle, falling back to host singletons."""
+    resolver = get_user_service_resolver(target)
+    if resolver is None:
+        return get_services(target)
+    return resolver.resolve(user_id)
 
 
 def set_runtime_field(app: FastAPI, field_name: str, value: Any) -> None:

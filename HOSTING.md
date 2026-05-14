@@ -4,19 +4,23 @@ This is a step-by-step guide for putting your danote instance online so other
 people can sign up. Most people will land on **VPS + Docker + Caddy** because
 it is the cheapest, simplest, and plays well with SQLite.
 
-> ⚠️ This release ships **Phase 1** of the multi-user model: sign-in with
-> email/password or Google works, each account stores its own four API keys
-> encrypted at rest, and the app is gated behind an "Set up your API keys"
-> screen. Two deferred follow-ups are tracked separately:
+> ⚠️ This release ships **Phase 1 + 1.5** of the multi-user model: sign-in
+> with email/password or Google works, each account stores its own four API
+> keys encrypted at rest, outbound calls to Gemini / DeepL / Azure are routed
+> through the signed-in user's stored key (with host env-var fallback), and
+> the app is gated behind an "Set up your API keys" screen.
 >
-> 1. **Per-request key resolution** — until this lands, outbound calls to
->    Gemini / DeepL / Azure still use the server-side env keys you set below.
->    Users save their own keys in the UI but the backend doesn't consume them
->    yet. Visible behaviour: sign-in + gating work perfectly; billing for
->    outbound API usage still hits the host's keys.
-> 2. **Per-user data isolation** — until this lands, all signed-in users share
->    the same wordbank / sentencebank. Run a private deployment (allowlist
->    your own email) if that is a problem for now.
+> One deferred follow-up is still tracked separately:
+>
+> 1. **Per-user data isolation** — until this lands, all signed-in users
+>    share the same wordbank / sentencebank. Run a private deployment
+>    (allowlist your own email) if that is a problem for now.
+>
+> Per-request key resolution covers both interactive routes and the
+> wordbank background job runner. If a user has not saved a key for a given
+> provider, that user's outbound calls fall back to the host-level env var
+> for that provider (the same one you configure in §7 below), so deployments
+> can choose to "subsidise" certain providers and require BYO for others.
 
 ---
 
@@ -66,8 +70,9 @@ backend's allowlist (§7) to do the same.
 
 ## 4. Get your external API keys
 
-You set these as the host. (In Phase 1.5 each user will provide their own,
-and these become only a fallback.)
+You set these as the host. With Phase 1.5 shipped, each user's stored keys
+are used for that user's outbound calls; the host-level keys below are the
+fallback when a user has not configured a given provider.
 
 | Provider | Where to get it |
 |---|---|
@@ -149,8 +154,8 @@ DANOTE_KEY_ENCRYPTION_SECRET=<paste-base64-32-bytes-here>
 # CORS — only the public hostnames the frontend will load from.
 DANOTE_CORS_ORIGINS=https://danote.example.com
 
-# Outbound API keys (Phase 1 fallback while per-request key resolution
-# is implemented). Sign up for each provider in §4.
+# Outbound API keys (fallback for users who have not configured their own
+# key for a given provider). Sign up for each provider in §4.
 DANOTE_GEMINI_API_KEY=...
 DANOTE_TRANSLATION_DEEPL_API_KEY=...
 DANOTE_TRANSLATION_AZURE_API_KEY=...
@@ -193,7 +198,8 @@ docker compose up -d --build
 docker compose logs -f app
 ```
 
-You should see migrations apply (including `027_users_and_api_keys.sql`) and
+You should see migrations apply (including `027_user_isolation.sql` and
+`028_user_api_keys.sql`) and
 the line `Uvicorn running on http://0.0.0.0:8000`. Caddy will negotiate a
 Let's Encrypt cert within ~30 seconds.
 
@@ -319,12 +325,13 @@ Works but more moving parts:
 
 ## 15. What to expect next
 
-Phase 1.5 (per-request key resolution) will switch outbound calls to use the
-key stored on the calling user's account. After that, the host-level
-`DANOTE_GEMINI_API_KEY` etc. become optional fallbacks rather than the
-working keys.
+Phase 1.5 (per-request key resolution) is shipped: outbound calls use the
+key stored on the calling user's account, with the host-level
+`DANOTE_GEMINI_API_KEY` etc. acting as optional fallbacks when a user has
+not configured a given provider.
 
-Phase 2 (data isolation) will add `owner_user_id` to every data table and
-update the wordbank / sentencebank queries to filter by it, so each user
-sees their own data. Until then, run a private deployment if you don't want
-shared content.
+Phase 2 (data isolation) is the remaining piece — `owner_user_id` columns
+exist on the data tables (migration `027_user_isolation.sql`) but the
+wordbank / sentencebank queries do not yet filter on them, so all
+signed-in users share the same content. Run a private deployment
+(allowlist via `DANOTE_AUTH_ALLOWED_EMAILS`) if that's not acceptable.
