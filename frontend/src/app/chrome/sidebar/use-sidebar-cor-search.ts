@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 
 import {
+  ApiRequestError,
   SEARCH_RESOLVE_DEBOUNCE_MS,
   isShortLetterWord,
   type CORSearchFormResponse,
@@ -9,6 +10,7 @@ import {
 import { getPronounCategory } from "@/app/sections/wordbank/pronouns/pronouns-data"
 import { getQuestionWordEntry } from "@/app/sections/wordbank/question-words/question-words-data"
 import { hasExactCorFormMatch } from "@/app/chrome/sidebar/sidebar-search-query"
+import { searchAttemptKey } from "@/app/chrome/sidebar/sidebar-search-types"
 import type { CorFormSearchResult, SidebarApiClient } from "@/app/chrome/sidebar/sidebar-search-types"
 
 export function useSidebarCorSearch({
@@ -16,11 +18,13 @@ export function useSidebarCorSearch({
   shouldSkipLookup,
   normalizedQuery,
   resetVersion,
+  onTrialLimitReached,
 }: {
   apiClient: SidebarApiClient
   shouldSkipLookup: boolean
   normalizedQuery: string
   resetVersion: string
+  onTrialLimitReached: (key: string) => void
 }) {
   const cacheRef = useRef<Map<string, CORSearchFormResponse>>(new Map())
   const [corDidYouMean, setCorDidYouMean] = useState<string | null>(null)
@@ -94,8 +98,12 @@ export function useSidebarCorSearch({
           const fullExact = hasExactCorFormMatch(fullPayload.groups ?? [], normalizedQuery)
           setCorDidYouMean(fullExact ? null : (fullPayload.did_you_mean ?? null))
         } catch (error) {
-          if (!cancelled && error instanceof Error) {
-            toast.error(error.message)
+          if (!cancelled) {
+            if (error instanceof ApiRequestError && error.status === 429) {
+              onTrialLimitReached(searchAttemptKey(resetVersion, normalizedQuery))
+            } else if (error instanceof Error) {
+              toast.error(error.message)
+            }
           }
         } finally {
           if (!cancelled) {
@@ -113,7 +121,7 @@ export function useSidebarCorSearch({
       setIsCorLookupLoading(false)
       setIsCorTranslationsLoading(false)
     }
-  }, [apiClient, normalizedQuery, resetVersion, shouldSkipLookup])
+  }, [apiClient, normalizedQuery, onTrialLimitReached, resetVersion, shouldSkipLookup])
 
   return { corDidYouMean, corFormSearchResult, isCorLookupLoading, isCorTranslationsLoading }
 }

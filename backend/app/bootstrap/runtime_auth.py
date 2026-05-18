@@ -8,6 +8,7 @@ from app.api.auth import build_jwks_client
 from app.core.app_state import set_runtime_field
 from app.core.config import Settings
 from app.db.repositories.user_api_keys import UserApiKeysRepository
+from app.db.repositories.user_trial import UserTrialRepository
 from app.db.repositories.users import AppUserRepository
 from app.services.key_encryption import KeyEncryptionConfigError, KeyEncryptionService
 
@@ -26,6 +27,12 @@ def initialize_auth(app: FastAPI, settings: Settings) -> None:
 
     users_repo = AppUserRepository(settings.db_path)
     set_runtime_field(app, "users_repository", users_repo)
+
+    set_runtime_field(
+        app,
+        "user_trial_repository",
+        UserTrialRepository(settings.db_path),
+    )
 
     encryption: KeyEncryptionService | None = None
     secret = settings.key_encryption_secret

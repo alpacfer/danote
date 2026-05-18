@@ -3,6 +3,8 @@ from app.api.schemas.v1.account import (
     AccountStatusResponse,
     ApiKeyStatus,
     TestApiKeyResponse,
+    TrialOptInResponse,
+    TrialStatus,
     UpdateApiKeyRequest,
     UpdateApiKeyResponse,
 )
@@ -56,6 +58,8 @@ __all__ = [
     "AccountStatusResponse",
     "ApiKeyStatus",
     "TestApiKeyResponse",
+    "TrialOptInResponse",
+    "TrialStatus",
     "UpdateApiKeyRequest",
     "UpdateApiKeyResponse",
     "AnalyzeRequest",

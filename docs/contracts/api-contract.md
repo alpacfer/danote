@@ -38,6 +38,11 @@ to a fixed dev user.
 ### GET `/api/account/status`
 - **Response model:** `AccountStatusResponse`.
 - **Notable status/error behavior:** Returns `keys_configured: true` only when all four providers (`gemini`, `deepl`, `azure_translation`, `azure_tts`) have a stored key. `last_four` is the last 4 chars of the saved value for UI preview.
+- **`trial` block (`TrialStatus`):** `enabled` (feature on for this deployment), `available` (host Gemini key present so the trial can run), `opted_in`, `keys_configured`, `limit`, `used`, `remaining`, `resets_on` (next reset date `YYYY-MM-DD` in `DANOTE_TRIAL_RESET_TIMEZONE`). `used`/`remaining` count distinct words searched today; only meaningful while `keys_configured` is false.
+
+### POST `/api/account/trial/opt-in`
+- **Response model:** `TrialOptInResponse` (`{ "trial": TrialStatus }`).
+- **Notable status/error behavior:** Idempotent — records trial opt-in for the current user (lets them past the API-keys gate). Returns the refreshed trial status. `401`/`403`/`503` as for other account endpoints.
 
 ### PUT `/api/account/api-keys/{provider}`
 - **Request model:** `UpdateApiKeyRequest` (`{"value": "<api-key>"}`).
@@ -317,10 +322,18 @@ to a fixed dev user.
 - **Notable status/error behavior:** `422` validation failures (empty query, limit out of range). `503` DB unavailable/locked. `503` runtime errors.
 - **Field invariants:** saved search rows keep lemma translation + gloss translation separate. `english_translation` = saved lemma translation only. `gloss_translation` = optional disambiguation context. Raw `gloss` not promoted into `english_translation`. Static presaved words may return saved-default rows even when not persisted as DB lexemes; those rows include lemma, translation, POS/morphology, `variation_count=1`, empty `query_cor_ids`, and optional `match_surface` for English matches. `did_you_mean`: non-null when query had no direct matches and a Levenshtein-close wordbank lemma was found; `items` then contains results for the corrected word.
 
+> **Free-trial metering:** `cor-form`, `cor-form-batch`, and `en-form` count one
+> distinct word per day against the free-trial cap for users who have not
+> configured all four API keys (auth enabled only). The whole fan-out of a
+> single user query collapses to one count via its query key (`en_query` when
+> present, else `form`); repeating an already-counted word that day is free.
+> Exceeding the cap returns `429` with detail `trial_daily_limit_reached`.
+> `cor-lemma/{lemma_idx}` (paradigm drill-in) is not metered.
+
 ### GET `/api/wordbank/search/cor-form`
 - **Request model:** none (`form`, `limit`, `include_translations`, optional `en_query`/`en_pos_ud` query params).
 - **Response model:** `CORSearchFormResponse`.
-- **Notable status/error behavior:** `422` validation failures. `503` DB unavailable/locked. `503` runtime errors.
+- **Notable status/error behavior:** `422` validation failures. `503` DB unavailable/locked. `503` runtime errors. `429 trial_daily_limit_reached` when the free-trial daily cap is exceeded.
 - **Field invariants:**
   - `lemma_translation` + `gloss_translation` separate; gloss text never promoted into `lemma_translation`.
   - `saveable_translation`: backend-authoritative search save value. Equals `lemma_translation` when usable; may carry gloss-derived fallback when `lemma_translation` is `null`.
@@ -338,13 +351,13 @@ to a fixed dev user.
 ### POST `/api/wordbank/search/cor-form-batch`
 - **Request model:** `CORSearchFormBatchRequest` (`items[]` of `form`, optional `en_query`, optional `en_pos_ud`; shared `limit` and `include_translations`).
 - **Response model:** `CORSearchFormBatchResponse`.
-- **Notable status/error behavior:** `422` validation failures. `503` DB unavailable/locked. `503` runtime errors.
+- **Notable status/error behavior:** `422` validation failures. `503` DB unavailable/locked. `503` runtime errors. `429 trial_daily_limit_reached` when the free-trial daily cap is exceeded (the batch counts once, keyed by the shared `en_query`).
 - **Field invariants:** equivalent to calling `GET /api/wordbank/search/cor-form` once per item and returning responses in request order. When `en_query` is present, the same Gemini sense-filter safety rule applies: if the filter returns no usable match or fails, that item keeps all COR groups.
 
 ### GET `/api/wordbank/search/en-form`
 - **Request model:** none (`form`, `include_translations` query params).
 - **Response model:** `ENSearchFormResponse`.
-- **Notable status/error behavior:** `422` validation failures. `503` DB unavailable/locked. `503` runtime errors.
+- **Notable status/error behavior:** `422` validation failures. `503` DB unavailable/locked. `503` runtime errors. `429 trial_daily_limit_reached` when the free-trial daily cap is exceeded.
 - **Field invariants:**
   - Uses only the local English dictionary plus optional EN→DA translation providers for group/sense translations.
   - Missing local dictionary or unmatched `form` returns `groups: []`.

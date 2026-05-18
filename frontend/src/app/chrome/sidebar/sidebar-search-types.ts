@@ -10,6 +10,11 @@ import {
 
 export type SidebarApiClient = ReturnType<typeof createApiClient>
 
+/** Identifies one search attempt so a trial-limit banner clears when the
+ *  query or the search/cache config changes. */
+export const searchAttemptKey = (resetVersion: string, normalizedQuery: string): string =>
+  `${resetVersion}:${normalizedQuery}`
+
 export type UseSidebarSearchParams = {
   wordbankCacheVersion: number
   searchTranslationConfigVersion: number

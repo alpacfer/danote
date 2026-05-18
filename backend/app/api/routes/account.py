@@ -5,11 +5,13 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from app.api.auth import CurrentUser, require_current_user
+from app.api.routes._use_case_factories import build_trial_use_case
 from app.api.schemas.v1 import (
     AccountMeResponse,
     AccountStatusResponse,
     ApiKeyStatus,
     TestApiKeyResponse,
+    TrialOptInResponse,
     UpdateApiKeyRequest,
     UpdateApiKeyResponse,
 )
@@ -57,11 +59,22 @@ def get_status(
         for name, meta in snapshot.items()
     }
     missing = [name for name, meta in snapshot.items() if not meta.is_set]
+    trial = build_trial_use_case(request).status(current_user.id)
     return AccountStatusResponse(
         keys_configured=not missing,
         providers=providers,
         missing=missing,
+        trial=trial,
     )
+
+
+@router.post("/trial/opt-in", response_model=TrialOptInResponse)
+def opt_in_trial(
+    request: Request,
+    current_user: CurrentUser = Depends(require_current_user),
+) -> TrialOptInResponse:
+    trial = build_trial_use_case(request).opt_in(current_user.id)
+    return TrialOptInResponse(trial=trial)
 
 
 def _ensure_supported(provider: str) -> None:

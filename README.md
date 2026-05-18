@@ -22,8 +22,24 @@ manages its own four API keys (Gemini, DeepL, Azure Translation, Azure TTS)
 from the **Account** page in the sidebar. The app is gated behind a
 "Configure your API keys" screen until all four are saved.
 
+### Free trial
+
+Instead of adding keys, a new user can start a **free trial** from that gate.
+The trial runs on the deployment's own host keys and is capped per user per
+day (distinct words; repeating a word the same day is free). Configuring all
+four keys removes the cap. The trial only works when the backend itself has
+host keys configured (`DANOTE_GEMINI_API_KEY` plus translation/TTS keys);
+otherwise the gate reports the trial as unavailable.
+
+| Env var | Default | Purpose |
+|---|---|---|
+| `DANOTE_TRIAL_ENABLED` | `1` | Master switch for the free trial. |
+| `DANOTE_TRIAL_DAILY_SEARCH_LIMIT` | `50` | Distinct word searches allowed per user per day. |
+| `DANOTE_TRIAL_RESET_TIMEZONE` | `Europe/Copenhagen` | Timezone whose local midnight resets the daily counter. |
+
 For local development without auth, set `DANOTE_AUTH_ENABLED=0` in your
-`.env` to bypass the gate and use a fixed dev user.
+`.env` to bypass the gate and use a fixed dev user. With auth disabled the
+trial is not metered.
 
 ## Run Instructions
 

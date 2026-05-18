@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 
 import {
+  ApiRequestError,
   SEARCH_RESOLVE_DEBOUNCE_MS,
   isShortLetterWord,
   normalizeSearchWord,
@@ -9,6 +10,7 @@ import {
   type ENSearchFormResponse,
 } from "@/app/core"
 import { buildEnTranslatedCorResults } from "@/app/chrome/sidebar/sidebar-search-query"
+import { searchAttemptKey } from "@/app/chrome/sidebar/sidebar-search-types"
 import type { EnResolveResult, SidebarApiClient } from "@/app/chrome/sidebar/sidebar-search-types"
 import { isEnglishPronounQuery } from "@/app/sections/wordbank/pronouns/pronouns-data"
 import { isEnglishQuestionWordQuery } from "@/app/sections/wordbank/question-words/question-words-data"
@@ -19,13 +21,24 @@ export function useSidebarEnSearch({
   isSentenceMode,
   normalizedQuery,
   resetVersion,
+  onTrialLimitReached,
 }: {
   apiClient: SidebarApiClient
   isEnglishSingleWordQuery: boolean
   isSentenceMode: boolean
   normalizedQuery: string
   resetVersion: string
+  onTrialLimitReached: (key: string) => void
 }) {
+  const reportSearchError = useCallback(
+    (error: unknown): null => {
+      if (error instanceof ApiRequestError && error.status === 429) {
+        onTrialLimitReached(searchAttemptKey(resetVersion, normalizedQuery))
+      }
+      return null
+    },
+    [normalizedQuery, onTrialLimitReached, resetVersion],
+  )
   const enResolveCacheRef = useRef<Map<string, EnResolveResult>>(new Map())
   const enTranslatedCorCacheRef = useRef<Map<string, CORSearchFormResponse>>(new Map())
   const [enResolveResult, setEnResolveResult] = useState<EnResolveResult | null>(null)
@@ -83,7 +96,7 @@ export function useSidebarEnSearch({
               `/api/wordbank/search/en-form?form=${encodeURIComponent(normalizedQuery)}`,
               "English search is unavailable.",
             )
-            .catch(() => null)
+            .catch(reportSearchError)
           if (cancelled || !payload) return
           const nextResult: EnResolveResult = {
             query: normalizedQuery,
@@ -102,7 +115,7 @@ export function useSidebarEnSearch({
       window.clearTimeout(timeoutId)
       setIsEnResolveLoading(false)
     }
-  }, [apiClient, isEnglishSingleWordQuery, isSentenceMode, normalizedQuery, resetVersion])
+  }, [apiClient, isEnglishSingleWordQuery, isSentenceMode, normalizedQuery, reportSearchError, resetVersion])
 
   const activeEnResolveResult = useMemo(() => {
     if (!enResolveResult || enResolveResult.query !== normalizedQuery) return null
@@ -168,7 +181,7 @@ export function useSidebarEnSearch({
               `/api/wordbank/search/cor-form?form=${encodeURIComponent(translationKey)}&limit=100&include_translations=false`,
               "Search translation is unavailable.",
             )
-            .catch(() => null)
+            .catch(reportSearchError)
           return payload ? { translationKey, payload } : null
         }),
       )
@@ -202,7 +215,7 @@ export function useSidebarEnSearch({
           },
           "Search translation is unavailable.",
         )
-        .catch(() => null)
+        .catch(reportSearchError)
       if (cancelled) {
         return
       }
@@ -225,7 +238,7 @@ export function useSidebarEnSearch({
       setIsEnTranslatedCorLoading(false)
       setEnTranslatedCorSkeletonCount(0)
     }
-  }, [activeEnResolveResult, apiClient, normalizedQuery])
+  }, [activeEnResolveResult, apiClient, normalizedQuery, reportSearchError])
 
   const activeEnTranslatedCorResults = useMemo(() => {
     const payloads = enTranslatedCorPayloads?.query === normalizedQuery

@@ -16,10 +16,26 @@ class ApiKeyStatus(BaseModel):
     last_four: str | None = None
 
 
+class TrialStatus(BaseModel):
+    enabled: bool
+    available: bool
+    opted_in: bool
+    keys_configured: bool
+    limit: int
+    used: int
+    remaining: int
+    resets_on: str
+
+
 class AccountStatusResponse(BaseModel):
     keys_configured: bool
     providers: dict[str, ApiKeyStatus]
     missing: list[str]
+    trial: TrialStatus
+
+
+class TrialOptInResponse(BaseModel):
+    trial: TrialStatus
 
 
 class UpdateApiKeyRequest(BaseModel):

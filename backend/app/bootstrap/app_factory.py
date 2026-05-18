@@ -1,9 +1,8 @@
 from __future__ import annotations
 
+import logging
 import time
 from collections.abc import Callable
-
-import logging
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware

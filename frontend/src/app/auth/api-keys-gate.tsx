@@ -56,7 +56,8 @@ export function ApiKeysGate({ enabled, children }: ApiKeysGateProps) {
       </main>
     )
   }
-  if (!state.data.keys_configured) {
+  const trialActive = state.data.trial.opted_in && !state.data.trial.keys_configured
+  if (!state.data.keys_configured && !trialActive) {
     return <ApiKeySetupScreen status={state.data} onChange={handleChanged} />
   }
   return <>{children}</>

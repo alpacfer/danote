@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
+from app.api.auth import require_current_user
 from app.api.routes._runtime import run_db_operation
-from app.api.routes._use_case_factories import build_wordbank_use_case
+from app.api.routes._use_case_factories import build_trial_use_case, build_wordbank_use_case
 from app.api.schemas.v1.wordbank import (
     CORLemmaParadigmResponse,
     CORSearchFormBatchRequest,
@@ -11,9 +12,36 @@ from app.api.schemas.v1.wordbank import (
     CORSearchFormResponse,
     ENSearchFormResponse,
 )
-from app.core.app_state import get_runtime_state
+from app.core.app_state import get_runtime_state, get_settings
 
 router = APIRouter()
+
+
+def _guard_trial(request: Request, query_key: str | None) -> None:
+    """Count one distinct word search against the free-trial daily cap.
+
+    No-op when auth is disabled (local dev: the key gate is transparent) or
+    when there is no query to meter. Raises 429 when a trial user (no own
+    keys) exceeds the daily limit with a not-yet-searched word.
+    """
+    if not query_key or not query_key.strip():
+        return
+    if not get_settings(request).auth_enabled:
+        return
+    current_user = require_current_user(request)
+    decision = build_trial_use_case(request).check_and_consume(current_user.id, query_key)
+    if not decision.allowed:
+        raise HTTPException(status_code=429, detail="trial_daily_limit_reached")
+
+
+def _batch_query_key(payload: CORSearchFormBatchRequest) -> str | None:
+    for item in payload.items:
+        if item.en_query and item.en_query.strip():
+            return item.en_query
+    for item in payload.items:
+        if item.form and item.form.strip():
+            return item.form
+    return None
 
 
 @router.get("/wordbank/search/cor-form", response_model=CORSearchFormResponse)
@@ -25,6 +53,7 @@ def search_cor_form(
     en_query: str | None = Query(None, min_length=1),
     en_pos_ud: str | None = Query(None, min_length=1),
 ) -> CORSearchFormResponse:
+    _guard_trial(request, en_query or form)
     return run_db_operation(
         request,
         lambda: build_wordbank_use_case(request).search_cor_form(
@@ -44,6 +73,7 @@ def search_cor_form_batch(
     payload: CORSearchFormBatchRequest,
     request: Request,
 ) -> CORSearchFormBatchResponse:
+    _guard_trial(request, _batch_query_key(payload))
     return run_db_operation(
         request,
         lambda: CORSearchFormBatchResponse(
@@ -64,6 +94,7 @@ def search_en_form(
     form: str = Query(..., min_length=1),
     include_translations: bool = Query(True),
 ) -> ENSearchFormResponse:
+    _guard_trial(request, form)
     return run_db_operation(
         request,
         lambda: build_wordbank_use_case(request).search_en_form(

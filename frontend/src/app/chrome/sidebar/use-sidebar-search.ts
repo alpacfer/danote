@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 
 import {
   BACKEND_URL,
@@ -9,6 +9,7 @@ import {
   isShortLetterWord,
   normalizeSearchWord,
 } from "@/app/core"
+import { searchAttemptKey } from "@/app/chrome/sidebar/sidebar-search-types"
 import type { UseSidebarSearchParams } from "@/app/chrome/sidebar/sidebar-search-types"
 import { useSidebarCorSearch } from "@/app/chrome/sidebar/use-sidebar-cor-search"
 import { useSidebarEnSearch } from "@/app/chrome/sidebar/use-sidebar-en-search"
@@ -39,6 +40,15 @@ export function useSidebarSearch({
     && !/\s/u.test(normalizedQuery)
     && !isShortLetterWord(normalizedQuery)
 
+  // Banner is keyed to the search attempt that hit the cap, so it clears
+  // automatically when the user edits the query (no reset effect needed).
+  const [trialLimitedKey, setTrialLimitedKey] = useState<string | null>(null)
+  const onTrialLimitReached = useCallback(
+    (key: string) => setTrialLimitedKey(key),
+    [],
+  )
+  const isTrialLimitReached = trialLimitedKey === searchAttemptKey(resetVersion, normalizedQuery)
+
   const { searchApiMatches, wordbankDidYouMean, isWordbankSearchLoading } = useSidebarWordbankSearch({
     apiClient,
     shouldSkipLookup: shouldSkipWordLookups,
@@ -50,6 +60,7 @@ export function useSidebarSearch({
     shouldSkipLookup: shouldSkipWordLookups,
     normalizedQuery,
     resetVersion,
+    onTrialLimitReached,
   })
   const {
     sentenceSearchPreview,
@@ -73,6 +84,7 @@ export function useSidebarSearch({
     isSentenceMode,
     normalizedQuery,
     resetVersion,
+    onTrialLimitReached,
   })
 
   const activeCorFormSearchResult = useMemo(() => {
@@ -86,6 +98,7 @@ export function useSidebarSearch({
     searchQuery,
     setSearchQuery,
     normalizedQuery,
+    isTrialLimitReached,
     isSentenceMode,
     sentenceSearchPreview,
     isSentenceSearchPreviewLoading,

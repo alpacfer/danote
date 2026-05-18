@@ -16,6 +16,9 @@ async function extractAccountErrorMessage(response: Response, fallback: string):
     if (payload.detail === "key_storage_not_initialized") {
       return "API key storage is not initialized on the backend."
     }
+    if (payload.detail === "trial_daily_limit_reached") {
+      return "You've reached today's free-trial search limit. Add your own API keys for unlimited access."
+    }
     if (typeof payload.detail === "string" && payload.detail.trim()) {
       return payload.detail
     }
@@ -36,10 +39,22 @@ export type ApiKeyStatus = {
   last_four: string | null
 }
 
+export type TrialStatus = {
+  enabled: boolean
+  available: boolean
+  opted_in: boolean
+  keys_configured: boolean
+  limit: number
+  used: number
+  remaining: number
+  resets_on: string
+}
+
 export type AccountStatus = {
   keys_configured: boolean
   providers: Record<string, ApiKeyStatus>
   missing: string[]
+  trial: TrialStatus
 }
 
 export type AccountMe = {
@@ -84,6 +99,14 @@ export function fetchAccountMe(): Promise<AccountMe> {
 
 export function fetchAccountStatus(): Promise<AccountStatus> {
   return apiClient.getJson<AccountStatus>("/api/account/status", "Could not load account status.")
+}
+
+export function optInTrial(): Promise<{ trial: TrialStatus }> {
+  return apiClient.postJson<{ trial: TrialStatus }>(
+    "/api/account/trial/opt-in",
+    {},
+    "Could not start the free trial.",
+  )
 }
 
 export function upsertApiKey(provider: ApiKeyProvider, value: string): Promise<UpdateApiKeyResult> {

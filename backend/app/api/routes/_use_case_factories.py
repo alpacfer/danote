@@ -3,8 +3,13 @@ from __future__ import annotations
 from fastapi import Request
 
 from app.api.auth import require_current_user
-from app.api.routes._runtime import get_settings, resolve_services_for_user
-from app.services.use_cases import WordbankUseCase
+from app.api.routes._runtime import (
+    get_runtime_state,
+    get_settings,
+    resolve_services_for_user,
+)
+from app.db.repositories.user_trial import UserTrialRepository
+from app.services.use_cases import TrialUseCase, WordbankUseCase
 
 
 def build_wordbank_use_case(request: Request) -> WordbankUseCase:
@@ -25,4 +30,15 @@ def build_wordbank_use_case(request: Request) -> WordbankUseCase:
         verification_service=services.word_verification_service,
         tts_service=services.tts_service,
         gemini_changes_log_path=settings.gemini_changes_log_path,
+    )
+
+
+def build_trial_use_case(request: Request) -> TrialUseCase:
+    runtime = get_runtime_state(request)
+    settings = runtime.settings
+    trial_repo = runtime.user_trial_repository or UserTrialRepository(settings.db_path)
+    return TrialUseCase(
+        settings=settings,
+        trial_repository=trial_repo,
+        api_keys_repository=runtime.user_api_keys_repository,
     )

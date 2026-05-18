@@ -65,6 +65,9 @@ class Settings:
     gemini_changes_log_path: Path = DATA_DIR / "gemini-applied-changes.jsonl"
     clerk_audience: str | None = None
     key_encryption_secret: str | None = None
+    trial_enabled: bool = True
+    trial_daily_search_limit: int = 50
+    trial_reset_timezone: str = "Europe/Copenhagen"
     serve_frontend: bool = False
     frontend_dist_path: Path = BASE_DIR / "static"
 
@@ -177,6 +180,14 @@ def load_settings(*, env_file: Path | None = None) -> Settings:
         ),
         clerk_audience=_optional_env("DANOTE_CLERK_AUDIENCE", env_values),
         key_encryption_secret=_optional_env("DANOTE_KEY_ENCRYPTION_SECRET", env_values),
+        trial_enabled=_required_env("DANOTE_TRIAL_ENABLED", env_values, "1").lower()
+        not in {"0", "false", "no"},
+        trial_daily_search_limit=int(
+            _required_env("DANOTE_TRIAL_DAILY_SEARCH_LIMIT", env_values, "50")
+        ),
+        trial_reset_timezone=_required_env(
+            "DANOTE_TRIAL_RESET_TIMEZONE", env_values, "Europe/Copenhagen"
+        ),
         serve_frontend=_required_env("DANOTE_SERVE_FRONTEND", env_values, "0").lower()
         not in {"0", "false", "no"},
         frontend_dist_path=_path_env(

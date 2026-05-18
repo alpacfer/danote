@@ -207,6 +207,20 @@ Sorted by best variant score per group:
 
 - Page → navigation handler + close.
 
+## Free-trial daily limit
+
+- When the backend rejects a search lookup with HTTP `429`
+  (`trial_daily_limit_reached`), the search dialog shows an amber banner above
+  results: the user has spent the day's free-trial searches.
+- The banner is keyed to the current search attempt (`searchAttemptKey` =
+  `resetVersion:normalizedQuery`); editing the query or a config/cache reset
+  clears it automatically — no manual dismissal.
+- The banner's "Add your API keys" action closes search and navigates to the
+  Account section. Words already searched earlier today still render (the
+  backend treats a repeated word as free).
+- Only the metered endpoints trigger this (`cor-form`, `cor-form-batch`,
+  `en-form`); the cor/en search hooks detect `ApiRequestError.status === 429`.
+
 ## Empty state and sections
 
 - "No results found." only when: query non-empty, no wordbank/page results, and no search lookup is still loading.
@@ -220,3 +234,4 @@ Sorted by best variant score per group:
 - Sentence preview / English-origin behavior: `frontend/src/test/app/app-shell-search-sentence-verification.test.tsx`
 - Wordbank/search contract: `backend/tests/api/test_wordbank_add_and_list_endpoint.py`, `backend/tests/use_cases/test_wordbank_add_and_list.py`, `frontend/src/test/app/wordbank-contract-fixtures.ts`
 - Ranking/order: `frontend/src/test/app/app-shell-search-ranking-order.test.tsx`, `app-shell-search-ranking-selection.test.tsx`, `app-shell-search-ranking-results.test.tsx`, `app-shell-search-ranking-state.test.tsx`
+- Free-trial limit (banner + opt-in gate): `frontend/src/test/app/use-sidebar-cor-search-trial.test.ts`, `frontend/src/test/app/api-keys-gate.test.tsx`; backend `backend/tests/db/test_user_trial.py`, `backend/tests/use_cases/test_trial.py`, `backend/tests/api/test_account_trial.py`

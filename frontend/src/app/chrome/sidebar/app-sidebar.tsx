@@ -87,6 +87,7 @@ export function AppSidebar({
     searchQuery,
     setSearchQuery,
     normalizedQuery,
+    isTrialLimitReached,
     isSentenceMode,
     sentenceSearchPreview,
     isSentenceSearchPreviewLoading,
@@ -309,6 +310,22 @@ export function AppSidebar({
             setCommandSelectionOverride("")
           }}
         />
+        {isTrialLimitReached ? (
+          <div className="mx-3 my-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
+            You&apos;ve used today&apos;s free-trial searches.{" "}
+            <button
+              type="button"
+              className="font-medium underline underline-offset-2"
+              onClick={() => {
+                closeSearch()
+                onSelectAccount()
+              }}
+            >
+              Add your API keys
+            </button>{" "}
+            in Account for unlimited access. Resets tomorrow.
+          </div>
+        ) : null}
         <SidebarSearchResults
           state={searchResultState}
           data={searchResultData}
