@@ -13,7 +13,7 @@ Language-learning note-taking web app (Danish-first) with a browser frontend and
 ## Documentation Hub
 
 - Start here: [`docs/README.md`](docs/README.md) for the docs map and category index.
-- **Hosting**: [`HOSTING.md`](HOSTING.md) — deploy to a VPS with Docker + Caddy, with notes for Fly.io and Vercel + Render.
+- **Hosting**: easiest path is the [Render single-service guide](docs/deployment/render-single-service.md). [`HOSTING.md`](HOSTING.md) and the [VPS private beta guide](docs/deployment/vps-private-beta.md) cover Docker + Caddy.
 
 ## Accounts & sign-in
 
@@ -84,6 +84,9 @@ Defaults are stable: backend `http://127.0.0.1:8000`, frontend `http://127.0.0.1
 If a healthy backend or frontend is already running on those ports, the script reuses it.
 If a port is occupied by something unhealthy, startup fails with a clear message instead of silently opening another port.
 It also auto-loads root-level `.env` and `.env.local` files when present.
+Those files use dotenv syntax, not shell syntax: one `KEY=value` assignment
+per line, optional quotes around values, blank lines and `#` comments allowed.
+Replace angle-bracket placeholders before startup.
 On macOS and Linux, the script now self-heals the backend bootstrap path: it installs `uv`
 user-locally when missing, provisions Python `3.11`, recreates stale backend virtualenvs, and installs
 `backend/requirements.lock.txt`. The previous DaCy/spaCy/Lemmy stack and
@@ -92,7 +95,11 @@ user-locally when missing, provisions Python `3.11`, recreates stale backend vir
 platform-specific install commands and exits before partial startup.
 
 Configuration reference: [`docs/reference/configuration-reference.md`](docs/reference/configuration-reference.md).
+Easiest hosted deployment guide: [`docs/deployment/render-single-service.md`](docs/deployment/render-single-service.md).
+VPS private beta deployment guide: [`docs/deployment/vps-private-beta.md`](docs/deployment/vps-private-beta.md).
 Hosted Render + Vercel deployment runbook: [`docs/deployment/render-vercel.md`](docs/deployment/render-vercel.md).
+VPS preflight: `make hosting-check` validates the current env file and Docker
+Compose config without printing secrets.
 
 ### Configuration precedence
 

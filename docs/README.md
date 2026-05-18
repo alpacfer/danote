@@ -9,7 +9,7 @@ Canonical docs are grouped by purpose under `docs/`. Durable references stay her
 - [`architecture/`](./architecture/engineering-boundaries.md): engineering rules, dependency policy, and ADRs
 - [`testing/`](./testing/test-plan.md): test strategy, CI coverage, and release checklists
 - [`reference/`](./reference/configuration-reference.md): configuration, environment versions, and operational guidance
-- [`deployment/`](./deployment/render-vercel.md): hosted deployment runbooks
+- [`deployment/`](./deployment/vps-private-beta.md): hosted deployment runbooks
 - [`research/`](./research/typo-detection-strategy-research-2026-02-26.md): background research worth keeping
 
 ## API and contracts
@@ -36,6 +36,8 @@ Canonical docs are grouped by purpose under `docs/`. Durable references stay her
 - [Backend dependency locking](./architecture/backend-dependency-locking.md)
 - [Configuration reference](./reference/configuration-reference.md)
 - [Versions and environment locking](./reference/versions.md)
+- [Render single-service deployment](./deployment/render-single-service.md)
+- [VPS private beta deployment](./deployment/vps-private-beta.md)
 - [Render + Vercel deployment](./deployment/render-vercel.md)
 - [ADR index](./architecture/adr/README.md)
 

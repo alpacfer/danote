@@ -91,14 +91,59 @@ configure_runtime
 [[ "$DANOTE_CORS_ORIGINS" == *"http://127.0.0.1:5173"* ]]
 [[ "$DANOTE_CORS_ORIGINS" == *"http://localhost:5173"* ]]
 
-# Case 7: a healthy existing backend is reused instead of starting another process.
+# Case 7: dotenv loading is safe, ordered, and does not source shell.
+cat > "$ROOT_DIR/.env" <<'ENV'
+# base values
+DANOTE_TEST_BASE=base
+DANOTE_TEST_OVERRIDE=from-env
+DANOTE_TEST_QUOTED="quoted value"
+ENV
+cat > "$ROOT_DIR/.env.local" <<'ENV'
+
+DANOTE_TEST_OVERRIDE=from-local
+DANOTE_TEST_SINGLE_QUOTED='single quoted'
+ENV
+load_env_files >/dev/null
+[[ "$DANOTE_TEST_BASE" == "base" ]]
+[[ "$DANOTE_TEST_OVERRIDE" == "from-local" ]]
+[[ "$DANOTE_TEST_QUOTED" == "quoted value" ]]
+[[ "$DANOTE_TEST_SINGLE_QUOTED" == "single quoted" ]]
+
+# Case 8: malformed dotenv lines report file and line.
+bad_env_root="$tmpdir/bad-env-repo"
+mkdir -p "$bad_env_root"
+cat > "$bad_env_root/.env.local" <<'ENV'
+DANOTE_OK=1
+not an assignment
+ENV
+bad_env_log="$tmpdir/bad-env.log"
+if bash -c "source '$RUN_PROJECT'; ROOT_DIR='$bad_env_root'; load_env_files" >"$bad_env_log" 2>&1; then
+  echo "expected malformed env file to fail"
+  exit 1
+fi
+grep -q ".env.local:2: invalid env assignment" "$bad_env_log"
+
+# Case 9: unreplaced angle-bracket placeholders fail before startup.
+placeholder_env_root="$tmpdir/placeholder-env-repo"
+mkdir -p "$placeholder_env_root"
+cat > "$placeholder_env_root/.env.local" <<'ENV'
+DANOTE_KEY_ENCRYPTION_SECRET=<output of: openssl rand -base64 32>
+ENV
+placeholder_env_log="$tmpdir/placeholder-env.log"
+if bash -c "source '$RUN_PROJECT'; ROOT_DIR='$placeholder_env_root'; load_env_files" >"$placeholder_env_log" 2>&1; then
+  echo "expected placeholder env file to fail"
+  exit 1
+fi
+grep -q "replace placeholder value for DANOTE_KEY_ENCRYPTION_SECRET" "$placeholder_env_log"
+
+# Case 10: a healthy existing backend is reused instead of starting another process.
 backend_is_healthy() { return 0; }
 port_is_listening() { return 1; }
 BACKEND_PID="sentinel"
 start_backend
 [[ -z "$BACKEND_PID" ]]
 
-# Case 8: frontend startup uses strictPort so Vite cannot silently hop ports.
+# Case 11: frontend startup uses strictPort so Vite cannot silently hop ports.
 npm_run_log="$tmpdir/npm-run.log"
 frontend_is_reachable() { return 1; }
 port_is_listening() { return 1; }

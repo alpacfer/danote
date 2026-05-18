@@ -1,8 +1,15 @@
 # Hosting danote
 
 This is a step-by-step guide for putting your danote instance online so other
-people can sign up. Most people will land on **VPS + Docker + Caddy** because
-it is the cheapest, simplest, and plays well with SQLite.
+people can sign up.
+
+If you want the simplest hosted path and do not care about a custom URL, start
+with **Render single-service Docker**: [`docs/deployment/render-single-service.md`](docs/deployment/render-single-service.md).
+Render gives you a public `onrender.com` URL, runs the repo-root Dockerfile,
+and can attach a persistent disk for SQLite.
+
+Use **VPS + Docker + Caddy** when you want the cheapest long-term setup or
+full server control. It plays well with SQLite but you own server maintenance.
 
 > ⚠️ This release ships **Phase 1 + 1.5** of the multi-user model: sign-in
 > with email/password or Google works, each account stores its own four API
@@ -10,11 +17,13 @@ it is the cheapest, simplest, and plays well with SQLite.
 > through the signed-in user's stored key (with host env-var fallback), and
 > the app is gated behind an "Set up your API keys" screen.
 >
-> One deferred follow-up is still tracked separately:
+> One follow-up still needs broader verification before public multi-user
+> hosting:
 >
-> 1. **Per-user data isolation** — until this lands, all signed-in users
->    share the same wordbank / sentencebank. Run a private deployment
->    (allowlist your own email) if that is a problem for now.
+> 1. **Per-user data isolation hardening** — owner columns and core route
+>    scoping are in place, but run the first deployment as a private beta
+>    until broader owner-isolation tests and a Docker smoke pass for your
+>    deployment.
 >
 > Per-request key resolution covers both interactive routes and the
 > wordbank background job runner. If a user has not saved a key for a given
@@ -28,12 +37,14 @@ it is the cheapest, simplest, and plays well with SQLite.
 
 | Option | Cost | Pros | Cons |
 |---|---|---|---|
+| **Render single service** | Paid web service + disk | Easiest; public `onrender.com` URL; deploys the existing Dockerfile | Needs paid persistent disk; less server control |
 | **VPS + Docker + Caddy** (Hetzner CX22, DigitalOcean) | ~$4–6/mo | Cheapest; persistent SQLite via Docker volume; one box for everything | You own the box (apt updates, backups) |
 | **Fly.io** | ~$5/mo | Persistent volumes built in; great DX; global anycast | Vendor-specific config (`fly.toml`); usage-based pricing can surprise |
 | **Vercel (frontend) + Render (backend)** | Free → $7+/mo | Familiar PaaS flow | SQLite is awkward on Render free (ephemeral disk); two deploys to keep in sync |
 
-The rest of this guide uses **VPS + Docker + Caddy**. The Fly.io and split
-options are sketched in §13.
+The rest of this guide uses **VPS + Docker + Caddy**. For the easier Render
+single-service path, use [`docs/deployment/render-single-service.md`](docs/deployment/render-single-service.md).
+The Fly.io and split options are sketched in §13.
 
 ---
 
@@ -143,8 +154,8 @@ DANOTE_AUTH_ENABLED=1
 DANOTE_CLERK_JWKS_URL=https://your-clerk-frontend-api/.well-known/jwks.json
 DANOTE_CLERK_ISSUER=https://your-clerk-frontend-api
 # Optional: keep deployment private during beta
-DANOTE_AUTH_ALLOWED_EMAILS=
-DANOTE_AUTH_ALLOWED_EMAIL_DOMAINS=
+DANOTE_ALLOWED_EMAILS=
+DANOTE_ALLOWED_EMAIL_DOMAINS=
 
 # Encryption of stored user API keys.
 # Generate ONCE: `openssl rand -base64 32`. DO NOT lose it — rotating
@@ -193,6 +204,19 @@ Edit `Caddyfile` and replace `danote.example.com` with your real domain.
 
 ## 9. Build and start
 
+Before starting the VPS deployment, run the secret-safe preflight:
+
+```bash
+make hosting-check
+```
+
+For a final deploy readiness check, use strict mode after replacing the
+example Caddy domain and configuring Clerk:
+
+```bash
+HOSTING_CHECK_STRICT=1 make hosting-check
+```
+
 ```bash
 docker compose up -d --build
 docker compose logs -f app
@@ -210,6 +234,15 @@ curl -sS https://danote.example.com/api/health | jq .
 ```
 
 Should return `{"status":"ok",...}`.
+
+For a local Docker private-beta smoke before deploying to the VPS, run:
+
+```bash
+./scripts/hosting-smoke.sh
+```
+
+It builds the image, starts the Compose stack, checks
+`http://127.0.0.1:8000/api/health`, and confirms the SPA root returns HTML.
 
 ---
 
@@ -330,8 +363,9 @@ key stored on the calling user's account, with the host-level
 `DANOTE_GEMINI_API_KEY` etc. acting as optional fallbacks when a user has
 not configured a given provider.
 
-Phase 2 (data isolation) is the remaining piece — `owner_user_id` columns
-exist on the data tables (migration `027_user_isolation.sql`) but the
-wordbank / sentencebank queries do not yet filter on them, so all
-signed-in users share the same content. Run a private deployment
-(allowlist via `DANOTE_AUTH_ALLOWED_EMAILS`) if that's not acceptable.
+Phase 2 (data isolation) is partially implemented: `owner_user_id` columns
+exist on the main data tables, and the core wordbank / sentencebank paths
+thread the current user through repositories. Treat the first hosted rollout
+as a private beta until broader owner-isolation tests and a Docker smoke have
+passed for your deployment. Use `DANOTE_ALLOWED_EMAILS` or
+`DANOTE_ALLOWED_EMAIL_DOMAINS` to restrict access during that beta.

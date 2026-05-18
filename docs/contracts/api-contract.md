@@ -33,7 +33,7 @@ to a fixed dev user.
 
 ### GET `/api/account/me`
 - **Response model:** `AccountMeResponse` (`backend/app/api/schemas/v1/account.py`).
-- **Notable status/error behavior:** `401` missing/invalid token. `403` email not on allowlist (when `DANOTE_AUTH_ALLOWED_EMAILS` or `..._DOMAINS` is set). `503` when auth services failed to initialize.
+- **Notable status/error behavior:** `401` missing/invalid token. `403` email not on allowlist (when `DANOTE_ALLOWED_EMAILS` or `DANOTE_ALLOWED_EMAIL_DOMAINS` is set). `503` when auth services failed to initialize.
 
 ### GET `/api/account/status`
 - **Response model:** `AccountStatusResponse`.
@@ -48,7 +48,7 @@ to a fixed dev user.
 - **Response model:** `UpdateApiKeyResponse` with `is_set: false`.
 
 ### POST `/api/account/api-keys/{provider}/test`
-- **Response model:** `TestApiKeyResponse`. Currently only structurally validates the stored key (length); real outbound probe arrives with Phase 1.5.
+- **Response model:** `TestApiKeyResponse`. Currently only structurally validates the stored key (length). Real outbound calls use the stored key at request time via the per-user service resolver.
 
 ## Analyze
 

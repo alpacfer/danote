@@ -10,6 +10,8 @@ log() {
 log "checking script syntax"
 bash -n "$ROOT_DIR/scripts/run-project.sh"
 bash -n "$ROOT_DIR/scripts/e2e-regression.sh"
+bash -n "$ROOT_DIR/scripts/hosting-check.sh"
+bash -n "$ROOT_DIR/scripts/hosting-smoke.sh"
 
 log "running bootstrap script tests"
 bash "$ROOT_DIR/scripts/tests/test-run-project-bootstrap.sh"

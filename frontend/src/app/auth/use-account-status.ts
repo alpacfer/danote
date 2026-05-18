@@ -24,11 +24,37 @@ export function useAccountStatus(enabled: boolean) {
 
   useEffect(() => {
     if (!enabled) {
-      setState({ status: "idle" })
       return
     }
-    void refetch()
-  }, [enabled, refetch])
 
-  return { state, refetch }
+    let cancelled = false
+
+    async function loadStatus() {
+      try {
+        const data = await fetchAccountStatus()
+        if (!cancelled) {
+          setState({ status: "ready", data })
+        }
+      } catch (err) {
+        if (!cancelled) {
+          const message = err instanceof Error ? err.message : "Could not load account status."
+          setState({ status: "error", message })
+        }
+      }
+    }
+
+    void loadStatus()
+
+    return () => {
+      cancelled = true
+    }
+  }, [enabled])
+
+  const visibleState: AccountStatusState = !enabled
+    ? { status: "idle" }
+    : state.status === "idle"
+      ? { status: "loading" }
+      : state
+
+  return { state: visibleState, refetch }
 }

@@ -33,12 +33,48 @@ load_env_files() {
   for env_file in "$ROOT_DIR/.env" "$ROOT_DIR/.env.local"; do
     if [[ -f "$env_file" ]]; then
       bootstrap::log "loading env file: ${env_file#$ROOT_DIR/}"
-      set -a
-      # shellcheck disable=SC1090
-      source "$env_file"
-      set +a
+      load_env_file "$env_file"
     fi
   done
+}
+
+load_env_file() {
+  local env_file="$1"
+  local line_number=0
+  local raw_line line key value first_char last_char
+  while IFS= read -r raw_line || [[ -n "$raw_line" ]]; do
+    line_number=$((line_number + 1))
+    line="${raw_line%$'\r'}"
+    line="$(trim "$line")"
+    if [[ -z "$line" || "${line:0:1}" == "#" ]]; then
+      continue
+    fi
+    if [[ "$line" != *=* ]]; then
+      bootstrap::die "${env_file#$ROOT_DIR/}:$line_number: invalid env assignment; expected KEY=value"
+    fi
+    key="$(trim "${line%%=*}")"
+    value="$(trim "${line#*=}")"
+    if [[ ! "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
+      bootstrap::die "${env_file#$ROOT_DIR/}:$line_number: invalid env key '$key'; expected letters, numbers, and underscores"
+    fi
+    if is_placeholder_value "$value"; then
+      bootstrap::die "${env_file#$ROOT_DIR/}:$line_number: replace placeholder value for $key before starting"
+    fi
+    if [[ ${#value} -ge 2 ]]; then
+      first_char="${value:0:1}"
+      last_char="${value: -1}"
+      if [[ "$first_char" == "$last_char" && ( "$first_char" == '"' || "$first_char" == "'" ) ]]; then
+        value="${value:1:${#value}-2}"
+      fi
+    fi
+    export "$key=$value"
+  done < "$env_file"
+}
+
+is_placeholder_value() {
+  local value
+  value="$(trim "$1")"
+  [[ "$value" == \<*\> ]]
 }
 
 cleanup() {

@@ -1,8 +1,9 @@
 # danote multi-user roadmap
 
 Three phases. Each one is independently shippable — you can host after Phase 1,
-even though it isn't the final shape. Phase 1.5 and Phase 2 are tracked
-separately so each can land without the other.
+even though it isn't the final shape. Phase 1.5 has shipped, and Phase 2 is
+partially implemented but still needs broader isolation verification before a
+public multi-user rollout.
 
 ---
 
@@ -14,7 +15,7 @@ commit and host.
 **Goal:** the app is reachable on the public internet, sign-in works, and
 each account stores its own encrypted API keys.
 
-**Achieved when:**
+**Done when:**
 - Visiting `https://your-domain` shows a sign-in screen for signed-out users
   (Google + email/password, both via Clerk).
 - A signed-in user with zero keys configured sees the **Configure your API
@@ -29,11 +30,10 @@ each account stores its own encrypted API keys.
 - `HOSTING.md` is the canonical recipe.
 
 **Out of scope for Phase 1 (handled later):**
-- Backend's outbound calls (Gemini etc.) still use the host's server-side
-  env keys. Saved user keys are stored but not yet consumed. This is
-  Phase 1.5.
-- All signed-in users share the same wordbank/sentencebank data. This is
-  Phase 2.
+- Backend outbound calls using the calling user's stored API keys. This
+  shipped in Phase 1.5.
+- Complete confidence in per-user wordbank/sentencebank isolation. Phase 2
+  is partially implemented and still needs broader isolation verification.
 
 **How this was reconciled with main's parallel work:**
 - Clerk SDK: kept main's `@clerk/react@^6.6.2`; removed `@clerk/clerk-react`.
@@ -62,39 +62,24 @@ each account stores its own encrypted API keys.
 
 ## Phase 1.5 — Outbound calls use the calling user's API keys
 
-**Status:** not started. This is the smaller of the two remaining phases.
+**Status:** shipped.
 
 **Goal:** when User A makes a translation request, the backend calls Gemini
 with User A's stored key — not the server-wide env key.
 
-**Why this is needed:** today the user-saved keys are inert. The host pays
-for all outbound usage. Once this lands, users bring their own billing.
+**Why this is needed:** saved user keys must affect outbound calls so hosted
+instances can support bring-your-own-provider billing instead of always using
+host-level keys.
 
 **Achieved when:**
-- The four service factories (`gemini_word_translation`, `translation`
-  (DeepL + Azure), `tts`, `word_verification`) accept a per-call API key
-  rather than binding it at startup.
-- Use-case orchestrators (`backend/app/services/use_cases/`) resolve the
-  current user's keys via a `RequestContext` and pass them to the factories.
-- A new helper module (proposed: `backend/app/core/request_context.py`)
-  carries `current_user` plus decrypted keys for the duration of a request.
-- The `DANOTE_*_API_KEY` env vars become a fallback (or are removed) so
-  that mis-configured users get a clear error rather than silently spending
-  the host's quota.
-- Tests cover: user A's key is used for user A's calls; missing key returns
-  a clear 400/422 rather than 500; decryption errors don't crash the
-  request.
-
-**Estimated size:** 1–2 days. The work is localized to the service layer
-and use-case orchestration — no DB schema changes.
-
-**Files most likely to touch:**
-- `backend/app/services/gemini_translation.py`
-- `backend/app/services/translation.py`
-- `backend/app/services/tts.py`
-- `backend/app/services/sentence_verification.py`
-- `backend/app/bootstrap/runtime_*.py` (the factories)
-- Use-case modules under `backend/app/services/use_cases/`
+- User API keys are stored encrypted in `user_api_keys`.
+- `UserServiceResolver` builds a per-request `BackendServices` bundle from
+  the calling user's stored keys.
+- Wordbank, sentencebank, and background job paths resolve services for the
+  current user before making Gemini / DeepL / Azure calls.
+- Host-level `DANOTE_*_API_KEY` values remain optional fallbacks when a user
+  has not configured a given provider.
+- Targeted tests cover user-key service swapping and fallback behavior.
 
 **Out of scope:** anything to do with which user *owns* which DB rows.
 That's Phase 2.
@@ -103,12 +88,12 @@ That's Phase 2.
 
 ## Phase 2 — Per-user data isolation
 
-**Status:** not started. This is the largest piece.
+**Status:** partially implemented; needs broader owner-isolation verification before public multi-user hosting.
 
 **Goal:** every user sees only their own wordbank and sentencebank.
 
-**Why this is needed:** today all signed-in users share data. The
-multi-tenant promise of "create an account" isn't complete without this.
+**Why this is needed:** the app should guarantee that each signed-in user sees
+only their own saved wordbank and sentencebank data.
 
 **Achieved when:**
 - Every user-owned data table has `owner_user_id INTEGER NOT NULL`:
@@ -125,16 +110,15 @@ multi-tenant promise of "create an account" isn't complete without this.
 - Every update/delete adds `AND owner_user_id = :user_id` to the WHERE.
 - Use-case orchestrators (`backend/app/services/use_cases/`) thread
   `current_user.id` from the route into the repos.
-- New tests in `backend/tests/db/test_owner_isolation.py` confirm:
-  two users adding the same Danish word get two distinct rows; user A
-  cannot read user B's rows through any read endpoint.
+- Owner-isolation tests confirm that two users adding the same Danish word get
+  distinct rows and that user A cannot read user B's rows through persisted
+  read endpoints.
 - Existing use-case and repo tests are updated to pass an explicit
   `user_id` parameter via the test helpers.
 - Read-only reference DBs (`cor.sqlite`, `english_wiki.sqlite`,
   `en_gemini.sqlite`) and the cross-user audio caches stay shared.
-- One-time data migration policy: existing rows in a deployed instance
-  get assigned to a designated "legacy owner" (`DANOTE_CLAIM_LEGACY_DATA_FOR_USER`)
-  on first run after the migration.
+- Existing rows in a deployed instance have a documented migration/ownership
+  policy before public multi-user access is enabled.
 
 **Pitfalls to plan for:**
 - `phrase_translations`, `lexemes`, and a few others have `UNIQUE(...)`
@@ -145,10 +129,10 @@ multi-tenant promise of "create an account" isn't complete without this.
 - The background jobs worker (`wordbank_background_jobs`) needs to know
   which user a queued job belongs to.
 
-**Estimated size:** 3–5 days of focused work. Largest risk area: a
-half-done isolation pass leaks data across users, which is worse than not
-starting. Land it behind a feature flag (`DANOTE_DATA_ISOLATION=1`) so the
-migration can be deployed before flipping enforcement on.
+**Estimated size:** 3–5 days of focused verification and cleanup. Largest
+risk area: a half-done isolation pass leaks data across users, which is worse
+than not starting. Keep hosted rollout private until owner-isolation checks
+cover the persisted routes.
 
 **What's already on main (started in `027_user_isolation.sql`):**
 - `app_users` table.
@@ -163,11 +147,11 @@ migration can be deployed before flipping enforcement on.
   updated to consume `current_user.id`.
 
 **Remaining for Phase 2:**
-- Finish threading `owner_user_id` through the rest of the repositories
-  and use-cases (the `git status` on main already shows many files in
-  progress).
-- Add `owner_user_id` to the FTS index used by wordbank search.
-- Cover with `backend/tests/db/test_owner_isolation.py` and update
-  existing use-case/repo tests.
+- Audit every persisted read/write route and repository for owner scoping,
+  including less-traveled verification, category, typo, and token-event paths.
+- Broaden tests from the current targeted repository coverage to
+  cross-endpoint owner-isolation scenarios.
+- Run a Docker smoke with two users before treating the deployment as public
+  multi-user ready.
 
 Then follow `HOSTING.md` for the actual deploy.

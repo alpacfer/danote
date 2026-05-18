@@ -14,6 +14,11 @@ Values loaded from: process env → `<repo-root>/.env.local` → hardcoded defau
 Notes:
 
 - `.env.local` optional; absent = process env + defaults only.
+- Env files use dotenv syntax, not shell syntax: `KEY=value`, optional
+  matching quotes around values, blank lines and `#` comments. They are parsed
+  without executing shell code.
+- Replace angle-bracket placeholders such as `<paste-value-here>` before
+  startup.
 - Boolean flags: `0`, `false`, `no` (case-insensitive) = disabled; any other non-empty = enabled.
 - `DANOTE_CORS_ORIGINS` comma-separated; empty/whitespace falls back to default local origins.
 - Filesystem path values may be absolute or relative; relative paths resolve from the repo root.
@@ -39,6 +44,7 @@ Notes:
 | `DANOTE_CLERK_PUBLIC_KEY` | unset (`None`) | PEM public key string | Optional networkless Clerk JWT verification path. |
 | `DANOTE_ALLOWED_EMAILS` | unset (`()`) | Comma-separated email addresses | If set, authenticated users must match an email or allowed domain. |
 | `DANOTE_ALLOWED_EMAIL_DOMAINS` | unset (`()`) | Comma-separated domains | If set, authenticated users must match an email or allowed domain. |
+| `DANOTE_KEY_ENCRYPTION_SECRET` | unset (`None`) | Base64-encoded 32-byte secret | Required for hosted auth/key storage. Used to encrypt stored per-user API keys; rotating it invalidates existing stored keys. |
 
 ## Database
 

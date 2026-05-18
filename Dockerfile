@@ -30,7 +30,8 @@ ENV PYTHONUNBUFFERED=1 \
     DANOTE_HOST=0.0.0.0 \
     DANOTE_PORT=8000 \
     DANOTE_DB_PATH=/data/danote.sqlite3 \
-    DANOTE_GEMINI_CHANGES_LOG_PATH=/data/gemini-applied-changes.jsonl
+    DANOTE_GEMINI_CHANGES_LOG_PATH=/data/gemini-applied-changes.jsonl \
+    DANOTE_SEARCH_GEMINI_CACHE_PATH=/data/cache/en_gemini.sqlite
 
 # System deps (libpython needs libffi; cryptography wheel is pure on slim).
 RUN apt-get update \
@@ -44,10 +45,10 @@ COPY backend/ /app/backend/
 COPY --from=frontend-builder /workspace/frontend/dist /app/backend/static
 
 WORKDIR /app/backend
-RUN mkdir -p /data
+RUN mkdir -p /data/cache
 
 EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD curl -fsS http://127.0.0.1:8000/api/health > /dev/null || exit 1
+  CMD curl -fsS "http://127.0.0.1:${PORT:-8000}/api/health" > /dev/null || exit 1
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
