@@ -35,7 +35,7 @@ describe("ApiKeysGate free trial", () => {
 
   beforeEach(() => {
     optedIn = false
-    global.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input)
       const method = (init?.method ?? "GET").toUpperCase()
       if (url.includes("/api/account/trial/opt-in") && method === "POST") {
