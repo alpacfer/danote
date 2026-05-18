@@ -1,7 +1,34 @@
 import { BACKEND_URL } from "@/app/core/constants"
 import { createApiClient } from "@/app/core/api-client"
 
-const apiClient = createApiClient({ backendUrl: BACKEND_URL })
+async function extractAccountErrorMessage(response: Response, fallback: string): Promise<string> {
+  try {
+    const payload = (await response.json()) as { detail?: string }
+    if (payload.detail === "email_not_allowed") {
+      return "This signed-in email is not allowed for this danote deployment."
+    }
+    if (payload.detail === "missing_bearer_token" || payload.detail === "invalid_token") {
+      return "Your sign-in session could not be verified. Sign out and sign in again."
+    }
+    if (payload.detail === "auth_not_initialized") {
+      return "Authentication is not initialized on the backend."
+    }
+    if (payload.detail === "key_storage_not_initialized") {
+      return "API key storage is not initialized on the backend."
+    }
+    if (typeof payload.detail === "string" && payload.detail.trim()) {
+      return payload.detail
+    }
+  } catch {
+    // Fall through to default message.
+  }
+  return fallback
+}
+
+const apiClient = createApiClient({
+  backendUrl: BACKEND_URL,
+  extractErrorMessage: extractAccountErrorMessage,
+})
 
 export type ApiKeyStatus = {
   provider: string

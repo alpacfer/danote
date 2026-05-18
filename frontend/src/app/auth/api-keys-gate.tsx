@@ -1,7 +1,9 @@
+import { SignOutButton } from "@clerk/react"
 import { useCallback, type ReactNode } from "react"
 
 import { ApiKeySetupScreen } from "@/app/auth/api-key-setup-screen"
 import { useAccountStatus } from "@/app/auth/use-account-status"
+import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 
 export type ApiKeysGateProps = {
@@ -36,9 +38,22 @@ export function ApiKeysGate({ enabled, children }: ApiKeysGateProps) {
   }
   if (state.status === "error") {
     return (
-      <div className="mx-auto max-w-md py-16 text-center text-sm text-muted-foreground">
-        {state.message}
-      </div>
+      <main className="flex min-h-screen items-center justify-center px-6">
+        <div className="flex w-full max-w-md flex-col items-center gap-4 text-center">
+          <div className="flex flex-col gap-2">
+            <h1 className="text-2xl font-semibold tracking-normal">Account setup needs attention</h1>
+            <p className="text-sm text-muted-foreground">{state.message}</p>
+          </div>
+          <div className="flex flex-wrap justify-center gap-2">
+            <Button type="button" variant="outline" onClick={() => void refetch()}>
+              Retry
+            </Button>
+            <SignOutButton>
+              <Button type="button">Sign out</Button>
+            </SignOutButton>
+          </div>
+        </div>
+      </main>
     )
   }
   if (!state.data.keys_configured) {
