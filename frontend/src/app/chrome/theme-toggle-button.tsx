@@ -12,13 +12,13 @@ export function ThemeToggleButton() {
       type="button"
       variant="ghost"
       size="icon"
-      className="self-start"
+      className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
       aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
       onClick={() => {
         setTheme(isDark ? "light" : "dark")
       }}
     >
-      {isDark ? <Sun className="size-4" /> : <Moon className="size-4" />}
+      {isDark ? <Sun /> : <Moon />}
     </Button>
   )
 }

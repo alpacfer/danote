@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react"
 
-import { ThemeToggleButton } from "@/app/chrome/theme-toggle-button"
+import { SidebarFooterActions } from "@/app/chrome/sidebar/sidebar-footer-actions"
 import { SidebarNavigation } from "@/app/chrome/sidebar/sidebar-navigation"
 import { useSidebarPageItems } from "@/app/chrome/sidebar/sidebar-page-items"
 import { SidebarSearchInput } from "@/app/chrome/sidebar/sidebar-search-input"
@@ -321,11 +321,10 @@ export function AppSidebar({
         onSelectWordbank={onSelectWordbank}
         onSelectSentencebank={onSelectSentencebank}
         onSelectDeveloper={onSelectDeveloper}
-        onSelectAccount={onSelectAccount}
         onOpenSearch={() => setIsSearchOpen(true)}
       />
       <SidebarFooter>
-        <ThemeToggleButton />
+        <SidebarFooterActions activeSection={activeSection} onSelectAccount={onSelectAccount} />
       </SidebarFooter>
     </Sidebar>
   )

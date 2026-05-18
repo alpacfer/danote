@@ -14,7 +14,7 @@ import { Kbd, KbdGroup } from "@/components/ui/kbd"
 
 type SidebarNavigationProps = Pick<
   SidebarNavigationActions,
-  "onSelectWordbank" | "onSelectSentencebank" | "onSelectDeveloper" | "onSelectAccount"
+  "onSelectWordbank" | "onSelectSentencebank" | "onSelectDeveloper"
 > & {
   activeSection: AppSection
   unreadWordbankNotificationCount: number
@@ -27,13 +27,11 @@ export function SidebarNavigation({
   onSelectWordbank,
   onSelectSentencebank,
   onSelectDeveloper,
-  onSelectAccount,
   onOpenSearch,
 }: SidebarNavigationProps) {
   const WordbankIcon = SIDEBAR_PAGE_DEFINITIONS.wordbank.icon
   const SentencebankIcon = SIDEBAR_PAGE_DEFINITIONS.sentencebank.icon
   const DeveloperIcon = SIDEBAR_PAGE_DEFINITIONS.developer.icon
-  const AccountIcon = SIDEBAR_PAGE_DEFINITIONS.account.icon
 
   return (
     <SidebarContent>
@@ -73,16 +71,6 @@ export function SidebarNavigation({
                 <KbdGroup aria-hidden="true" className="ml-auto">
                   <Kbd>Alt</Kbd>
                   <Kbd>S</Kbd>
-                </KbdGroup>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton type="button" isActive={activeSection === "account"} onClick={onSelectAccount}>
-                <AccountIcon />
-                <span>Account</span>
-                <KbdGroup aria-hidden="true" className="ml-auto">
-                  <Kbd>Alt</Kbd>
-                  <Kbd>A</Kbd>
                 </KbdGroup>
               </SidebarMenuButton>
             </SidebarMenuItem>

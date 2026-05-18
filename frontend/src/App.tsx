@@ -15,46 +15,101 @@ type AppProps = {
   requiresAuth?: boolean
 }
 
+type TokenState =
+  | { status: "loading"; slow: boolean }
+  | { status: "ready" }
+  | { status: "error"; message: string }
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms))
+}
+
+async function getTokenWithTimeout(
+  getToken: () => Promise<string | null>,
+  timeoutMs: number,
+): Promise<string | null> {
+  let timeoutId = 0
+  const timeout = new Promise<null>((resolve) => {
+    timeoutId = window.setTimeout(() => resolve(null), timeoutMs)
+  })
+  try {
+    return await Promise.race([getToken(), timeout])
+  } finally {
+    window.clearTimeout(timeoutId)
+  }
+}
+
 function AuthenticatedApp() {
   const { getToken, isLoaded, isSignedIn } = useAuth()
-  const [tokenState, setTokenState] = useState<"loading" | "ready" | "error">("loading")
+  const [tokenState, setTokenState] = useState<TokenState>({ status: "loading", slow: false })
+  const [tokenRetryKey, setTokenRetryKey] = useState(0)
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn) {
       setAuthTokenProvider(null)
-      return
+      const resetId = window.setTimeout(() => {
+        setTokenState({ status: "loading", slow: false })
+      }, 0)
+      return () => window.clearTimeout(resetId)
     }
 
     let cancelled = false
-    const loadingStateId = window.setTimeout(() => {
+    const loadingId = window.setTimeout(() => {
       if (!cancelled) {
-        setTokenState("loading")
+        setTokenState({ status: "loading", slow: false })
       }
     }, 0)
+    const slowId = window.setTimeout(() => {
+      if (!cancelled) {
+        setTokenState({ status: "loading", slow: true })
+      }
+    }, 2500)
+    const errorId = window.setTimeout(() => {
+      if (!cancelled) {
+        setAuthTokenProvider(null)
+        setTokenState({
+          status: "error",
+          message: "danote could not get a sign-in token from Clerk.",
+        })
+      }
+    }, 8000)
 
     async function waitForToken() {
-      for (let attempt = 0; attempt < 20; attempt += 1) {
+      for (let attempt = 0; attempt < 10; attempt += 1) {
         try {
-          const token = await getToken()
+          const token = await getTokenWithTimeout(getToken, 1000)
           if (cancelled) {
             return
           }
           if (token) {
+            window.clearTimeout(slowId)
+            window.clearTimeout(errorId)
             setAuthTokenProvider(() => getToken())
-            setTokenState("ready")
+            setTokenState({ status: "ready" })
             return
           }
         } catch {
           if (!cancelled) {
-            setTokenState("error")
+            window.clearTimeout(slowId)
+            window.clearTimeout(errorId)
+            setAuthTokenProvider(null)
+            setTokenState({
+              status: "error",
+              message: "Clerk returned an error while preparing your sign-in session.",
+            })
           }
           return
         }
-        await new Promise((resolve) => window.setTimeout(resolve, 150))
+        await wait(250)
       }
       if (!cancelled) {
+        window.clearTimeout(slowId)
+        window.clearTimeout(errorId)
         setAuthTokenProvider(null)
-        setTokenState("error")
+        setTokenState({
+          status: "error",
+          message: "danote could not get a sign-in token from Clerk.",
+        })
       }
     }
 
@@ -62,10 +117,12 @@ function AuthenticatedApp() {
 
     return () => {
       cancelled = true
-      window.clearTimeout(loadingStateId)
+      window.clearTimeout(loadingId)
+      window.clearTimeout(slowId)
+      window.clearTimeout(errorId)
       setAuthTokenProvider(null)
     }
-  }, [getToken, isLoaded, isSignedIn])
+  }, [getToken, isLoaded, isSignedIn, tokenRetryKey])
 
   if (!isLoaded) {
     return null
@@ -87,25 +144,27 @@ function AuthenticatedApp() {
     )
   }
 
-  if (tokenState === "loading") {
+  if (tokenState.status === "loading") {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <Spinner />
-      </div>
+      <SessionLoadingScreen
+        slow={tokenState.slow}
+        onRetry={() => {
+          setTokenState({ status: "loading", slow: false })
+          setTokenRetryKey((current) => current + 1)
+        }}
+      />
     )
   }
 
-  if (tokenState === "error") {
+  if (tokenState.status === "error") {
     return (
-      <main className="flex min-h-screen items-center justify-center px-6">
-        <div className="flex w-full max-w-sm flex-col items-center gap-4 text-center">
-          <h1 className="text-2xl font-semibold tracking-normal">Session unavailable</h1>
-          <p className="text-sm text-muted-foreground">danote could not get a sign-in token from Clerk.</p>
-          <SignOutButton>
-            <Button type="button">Sign out</Button>
-          </SignOutButton>
-        </div>
-      </main>
+      <SessionRecoveryScreen
+        message={tokenState.message}
+        onRetry={() => {
+          setTokenState({ status: "loading", slow: false })
+          setTokenRetryKey((current) => current + 1)
+        }}
+      />
     )
   }
 
@@ -113,6 +172,51 @@ function AuthenticatedApp() {
     <ApiKeysGate enabled>
       <AppShell showUserButton />
     </ApiKeysGate>
+  )
+}
+
+function SessionLoadingScreen({ slow, onRetry }: { slow: boolean; onRetry: () => void }) {
+  return (
+    <main className="flex min-h-screen items-center justify-center px-6">
+      <div className="flex w-full max-w-sm flex-col items-center gap-4 text-center">
+        <Spinner />
+        <div className="flex flex-col gap-1">
+          <h1 className="text-2xl font-semibold tracking-normal">Finishing sign in</h1>
+          <p className="text-sm text-muted-foreground">
+            {slow ? "This is taking longer than expected." : "Waiting for Clerk to prepare your session."}
+          </p>
+        </div>
+        <div className="flex flex-wrap justify-center gap-2">
+          <Button type="button" variant="outline" onClick={onRetry}>
+            Retry
+          </Button>
+          <SignOutButton>
+            <Button type="button">Sign out</Button>
+          </SignOutButton>
+        </div>
+      </div>
+    </main>
+  )
+}
+
+function SessionRecoveryScreen({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <main className="flex min-h-screen items-center justify-center px-6">
+      <div className="flex w-full max-w-sm flex-col items-center gap-4 text-center">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-2xl font-semibold tracking-normal">Session unavailable</h1>
+          <p className="text-sm text-muted-foreground">{message}</p>
+        </div>
+        <div className="flex flex-wrap justify-center gap-2">
+          <Button type="button" variant="outline" onClick={onRetry}>
+            Retry
+          </Button>
+          <SignOutButton>
+            <Button type="button">Sign out</Button>
+          </SignOutButton>
+        </div>
+      </div>
+    </main>
   )
 }
 

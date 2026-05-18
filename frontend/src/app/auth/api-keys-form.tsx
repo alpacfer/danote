@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { ExternalLink, KeyRound, Save, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 
 import {
@@ -12,9 +13,9 @@ import {
 } from "@/app/auth/account-api"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Separator } from "@/components/ui/separator"
 
 export type ApiKeysFormProps = {
   status: AccountStatus
@@ -23,7 +24,7 @@ export type ApiKeysFormProps = {
 
 export function ApiKeysForm({ status, onChange }: ApiKeysFormProps) {
   return (
-    <div className="flex flex-col gap-4">
+    <div className="grid gap-3 md:grid-cols-2">
       {API_KEY_PROVIDERS.map((provider) => (
         <ApiKeyRow
           key={provider}
@@ -81,37 +82,39 @@ function ApiKeyRow({ provider, isSet, lastFour, onChange }: ApiKeyRowProps) {
   }
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <CardTitle className="text-base">{label}</CardTitle>
-            <CardDescription>
-              <a
-                href={helpUrl}
-                target="_blank"
-                rel="noreferrer noopener"
-                className="text-sm text-muted-foreground underline-offset-2 hover:underline"
-              >
+    <div className="flex flex-col gap-4 rounded-lg border bg-background p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-start gap-3">
+          <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+            <KeyRound />
+          </span>
+          <div className="flex min-w-0 flex-col gap-1">
+            <h3 className="truncate text-base font-medium">{label}</h3>
+            <Button variant="link" size="sm" className="h-auto justify-start p-0" asChild>
+              <a href={helpUrl} target="_blank" rel="noreferrer noopener">
                 Get a key
+                <ExternalLink data-icon="inline-end" />
               </a>
-            </CardDescription>
+            </Button>
           </div>
-          {isSet ? (
-            <Badge variant="secondary" className="shrink-0">
-              Set{lastFour ? ` · ••••${lastFour}` : ""}
-            </Badge>
-          ) : (
-            <Badge variant="outline" className="shrink-0">
-              Not set
-            </Badge>
-          )}
         </div>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-3">
+        {isSet ? (
+          <Badge variant="secondary" className="shrink-0">
+            Set{lastFour ? ` ...${lastFour}` : ""}
+          </Badge>
+        ) : (
+          <Badge variant="outline" className="shrink-0">
+            Not set
+          </Badge>
+        )}
+      </div>
+
+      <Separator />
+
+      <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-2">
-          <Label htmlFor={`api-key-${provider}`} className="text-xs uppercase tracking-wide">
-            {isSet ? "Replace" : "Enter"} key
+          <Label htmlFor={`api-key-${provider}`} className="text-sm">
+            {isSet ? "Replace key" : "API key"}
           </Label>
           <Input
             id={`api-key-${provider}`}
@@ -119,21 +122,23 @@ function ApiKeyRow({ provider, isSet, lastFour, onChange }: ApiKeyRowProps) {
             autoComplete="off"
             value={value}
             onChange={(event) => setValue(event.target.value)}
-            placeholder={isSet ? "Paste a new key to replace…" : "Paste your API key"}
+            placeholder={isSet ? "Paste a new key to replace" : "Paste your API key"}
             disabled={busy}
           />
         </div>
         <div className="flex flex-wrap gap-2">
           <Button onClick={handleSave} disabled={busy || !value.trim()}>
+            <Save data-icon="inline-start" />
             {isSet ? "Replace" : "Save"} key
           </Button>
           {isSet ? (
             <Button variant="ghost" onClick={handleRemove} disabled={busy}>
+              <Trash2 data-icon="inline-start" />
               Remove
             </Button>
           ) : null}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   )
 }
