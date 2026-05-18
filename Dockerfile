@@ -42,9 +42,12 @@ COPY backend/requirements.lock.txt /tmp/requirements.lock.txt
 RUN pip install --no-cache-dir -r /tmp/requirements.lock.txt
 
 COPY backend/ /app/backend/
+WORKDIR /app/backend
+RUN PYTHONPATH=. python scripts/build_english_sqlite.py \
+    --input resources/dictionaries/english_wiki.jsonl \
+    --output resources/dictionaries/english_wiki.sqlite
 COPY --from=frontend-builder /workspace/frontend/dist /app/backend/static
 
-WORKDIR /app/backend
 RUN mkdir -p /data/cache
 
 EXPOSE 8000

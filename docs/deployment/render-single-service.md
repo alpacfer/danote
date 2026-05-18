@@ -53,6 +53,11 @@ The Docker image already stores the main SQLite database at
 `/data/gemini-applied-changes.jsonl`, and the English-search Gemini cache at
 `/data/cache/en_gemini.sqlite`.
 
+The English search dictionary is generated into the Docker image from the
+tracked `backend/resources/dictionaries/english_wiki.jsonl` file during build.
+If English searches only show Danish direct matches after a deploy, redeploy the
+current Dockerfile and check the Render build logs for `build_english_sqlite.py`.
+
 ## 4. Configure Clerk
 
 In Clerk:

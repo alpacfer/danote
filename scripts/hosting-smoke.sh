@@ -54,4 +54,26 @@ if ! curl -fsS --max-time 5 "$SPA_URL" | grep -qi '<html'; then
 fi
 log "SPA root: ok"
 
+log "checking bundled English lexicon"
+if ! docker compose exec -T app python - <<'PY'
+import sqlite3
+from pathlib import Path
+
+db_path = Path("/app/backend/resources/dictionaries/english_wiki.sqlite")
+if not db_path.exists():
+    raise SystemExit("English lexicon SQLite is missing")
+with sqlite3.connect(db_path) as conn:
+    count = conn.execute("SELECT COUNT(*) FROM en_forms").fetchone()[0]
+    has_book = conn.execute(
+        "SELECT 1 FROM en_forms WHERE form_lower = ? LIMIT 1",
+        ("book",),
+    ).fetchone()
+if count < 1000 or has_book is None:
+    raise SystemExit(f"English lexicon is incomplete: en_forms={count}")
+PY
+then
+  fail_with_logs "bundled English lexicon check failed"
+fi
+log "English lexicon: ok"
+
 log "hosting smoke passed"

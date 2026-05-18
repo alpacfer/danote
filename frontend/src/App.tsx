@@ -1,5 +1,5 @@
-import { SignInButton, UserButton, useAuth } from "@clerk/react"
-import { useEffect } from "react"
+import { SignInButton, SignOutButton, UserButton, useAuth } from "@clerk/react"
+import { useEffect, useState } from "react"
 
 import { ApiKeysGate } from "@/app/auth/api-keys-gate"
 import { AppSidebar } from "@/app/chrome"
@@ -7,7 +7,9 @@ import { setAuthTokenProvider } from "@/app/core"
 import { useAppController } from "@/app/hooks/app/use-app-controller"
 import { SectionContent } from "@/app/layout/section-content"
 import { GeneratedExampleDialog } from "@/app/sections/sentencebank/generated-example-dialog"
+import { Button } from "@/components/ui/button"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
+import { Spinner } from "@/components/ui/spinner"
 
 type AppProps = {
   requiresAuth?: boolean
@@ -15,14 +17,52 @@ type AppProps = {
 
 function AuthenticatedApp() {
   const { getToken, isLoaded, isSignedIn } = useAuth()
+  const [tokenState, setTokenState] = useState<"loading" | "ready" | "error">("loading")
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn) {
       setAuthTokenProvider(null)
       return
     }
-    setAuthTokenProvider(() => getToken())
+
+    let cancelled = false
+    const loadingStateId = window.setTimeout(() => {
+      if (!cancelled) {
+        setTokenState("loading")
+      }
+    }, 0)
+
+    async function waitForToken() {
+      for (let attempt = 0; attempt < 20; attempt += 1) {
+        try {
+          const token = await getToken()
+          if (cancelled) {
+            return
+          }
+          if (token) {
+            setAuthTokenProvider(() => getToken())
+            setTokenState("ready")
+            return
+          }
+        } catch {
+          if (!cancelled) {
+            setTokenState("error")
+          }
+          return
+        }
+        await new Promise((resolve) => window.setTimeout(resolve, 150))
+      }
+      if (!cancelled) {
+        setAuthTokenProvider(null)
+        setTokenState("error")
+      }
+    }
+
+    void waitForToken()
+
     return () => {
+      cancelled = true
+      window.clearTimeout(loadingStateId)
       setAuthTokenProvider(null)
     }
   }, [getToken, isLoaded, isSignedIn])
@@ -42,6 +82,28 @@ function AuthenticatedApp() {
               Sign in
             </button>
           </SignInButton>
+        </div>
+      </main>
+    )
+  }
+
+  if (tokenState === "loading") {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Spinner />
+      </div>
+    )
+  }
+
+  if (tokenState === "error") {
+    return (
+      <main className="flex min-h-screen items-center justify-center px-6">
+        <div className="flex w-full max-w-sm flex-col items-center gap-4 text-center">
+          <h1 className="text-2xl font-semibold tracking-normal">Session unavailable</h1>
+          <p className="text-sm text-muted-foreground">danote could not get a sign-in token from Clerk.</p>
+          <SignOutButton>
+            <Button type="button">Sign out</Button>
+          </SignOutButton>
         </div>
       </main>
     )
