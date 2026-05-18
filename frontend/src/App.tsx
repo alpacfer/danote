@@ -1,5 +1,5 @@
 import { SignInButton, SignOutButton, UserButton, useAuth } from "@clerk/react"
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 
 import { ApiKeysGate } from "@/app/auth/api-keys-gate"
 import { AppSidebar } from "@/app/chrome"
@@ -39,31 +39,55 @@ async function getTokenWithTimeout(
   }
 }
 
+function sameTokenState(a: TokenState, b: TokenState): boolean {
+  if (a.status !== b.status) {
+    return false
+  }
+  if (a.status === "loading" && b.status === "loading") {
+    return a.slow === b.slow
+  }
+  if (a.status === "error" && b.status === "error") {
+    return a.message === b.message
+  }
+  return true
+}
+
 function AuthenticatedApp() {
   const { getToken, isLoaded, isSignedIn } = useAuth()
-  const [tokenState, setTokenState] = useState<TokenState>({ status: "loading", slow: false })
+  const [tokenState, setTokenStateRaw] = useState<TokenState>({ status: "loading", slow: false })
   const [tokenRetryKey, setTokenRetryKey] = useState(0)
+  const tokenWaitStartRef = useRef<number | null>(null)
+  const lastRetryKeyRef = useRef(tokenRetryKey)
+
+  const setTokenState = useCallback((next: TokenState) => {
+    setTokenStateRaw((prev) => (sameTokenState(prev, next) ? prev : next))
+  }, [])
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn) {
       setAuthTokenProvider(null)
+      tokenWaitStartRef.current = null
       const resetId = window.setTimeout(() => {
         setTokenState({ status: "loading", slow: false })
       }, 0)
       return () => window.clearTimeout(resetId)
     }
 
+    if (lastRetryKeyRef.current !== tokenRetryKey) {
+      lastRetryKeyRef.current = tokenRetryKey
+      tokenWaitStartRef.current = null
+    }
+    if (tokenWaitStartRef.current === null) {
+      tokenWaitStartRef.current = Date.now()
+    }
+
     let cancelled = false
-    const loadingId = window.setTimeout(() => {
-      if (!cancelled) {
-        setTokenState({ status: "loading", slow: false })
-      }
-    }, 0)
+    const elapsed = Date.now() - tokenWaitStartRef.current
     const slowId = window.setTimeout(() => {
       if (!cancelled) {
         setTokenState({ status: "loading", slow: true })
       }
-    }, 2500)
+    }, Math.max(0, 2500 - elapsed))
     const errorId = window.setTimeout(() => {
       if (!cancelled) {
         setAuthTokenProvider(null)
@@ -72,7 +96,7 @@ function AuthenticatedApp() {
           message: "danote could not get a sign-in token from Clerk.",
         })
       }
-    }, 8000)
+    }, Math.max(0, 8000 - elapsed))
 
     async function waitForToken() {
       for (let attempt = 0; attempt < 10; attempt += 1) {
@@ -117,12 +141,11 @@ function AuthenticatedApp() {
 
     return () => {
       cancelled = true
-      window.clearTimeout(loadingId)
       window.clearTimeout(slowId)
       window.clearTimeout(errorId)
       setAuthTokenProvider(null)
     }
-  }, [getToken, isLoaded, isSignedIn, tokenRetryKey])
+  }, [getToken, isLoaded, isSignedIn, tokenRetryKey, setTokenState])
 
   if (!isLoaded) {
     return null
