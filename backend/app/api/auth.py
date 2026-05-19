@@ -29,6 +29,7 @@ class CurrentUser:
     display_name: str | None
     created_at: str
     last_seen_at: str
+    guest_browser_id_hash: str | None = None
 
 
 class _JWKSClient:
@@ -182,6 +183,30 @@ def _record_to_current_user(record: AppUserRecord) -> CurrentUser:
     )
 
 
+def _record_to_guest_current_user(record: AppUserRecord, browser_id_hash: str) -> CurrentUser:
+    return CurrentUser(
+        id=record.id,
+        email=record.email,
+        auth_provider=record.auth_provider,
+        auth_subject=record.auth_subject,
+        display_name=record.display_name,
+        created_at=record.created_at,
+        last_seen_at=record.last_seen_at,
+        guest_browser_id_hash=browser_id_hash,
+    )
+
+
+def _guest_user_from_token(runtime, token: str) -> CurrentUser | None:
+    repo = runtime.guest_session_repository
+    if repo is None:
+        return None
+    result = repo.get_by_token(token)
+    if result is None:
+        return None
+    record, browser_id_hash = result
+    return _record_to_guest_current_user(record, browser_id_hash)
+
+
 def require_current_user(request: Request) -> CurrentUser:
     settings = get_settings(request)
     runtime = get_runtime_state(request)
@@ -200,6 +225,12 @@ def require_current_user(request: Request) -> CurrentUser:
     token = _extract_bearer(request)
     if not token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="missing_bearer_token")
+
+    if token.startswith("guest_"):
+        guest_user = _guest_user_from_token(runtime, token)
+        if guest_user is None:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid_token")
+        return guest_user
 
     jwks_client: _JWKSClient | None = runtime.clerk_jwks_client
     if jwks_client is None:

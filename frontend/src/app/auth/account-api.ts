@@ -19,6 +19,9 @@ async function extractAccountErrorMessage(response: Response, fallback: string):
     if (payload.detail === "trial_daily_limit_reached") {
       return "You've reached today's free-trial search limit. Add your own API keys for unlimited access."
     }
+    if (payload.detail === "guest_api_keys_forbidden") {
+      return "Guest mode cannot save API keys. Sign in to manage your own keys."
+    }
     if (typeof payload.detail === "string" && payload.detail.trim()) {
       return payload.detail
     }

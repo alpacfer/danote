@@ -4,7 +4,7 @@ Use-case orchestrators. One file (or one subdir for large domains) per route or 
 
 ## Layout
 
-- `analyze.py`, `developer.py`, `health_status.py`, `numbers_pronunciation.py`, `presaved_words_pronunciation.py`, `static_hv_words.py`, `static_presaved_words.py`, `static_pronouns.py` — small, single-file use-cases.
+- `account.py`, `analyze.py`, `developer.py`, `health_status.py`, `numbers_pronunciation.py`, `presaved_words_pronunciation.py`, `static_hv_words.py`, `static_presaved_words.py`, `static_pronouns.py` — small, single-file use-cases.
 - `sentencebank*.py` — sentencebank flows (preview, examples, token resolution, pronunciation, persistence).
 - `wordbank/` — wordbank flows; large enough to warrant its own subdir with `collaborators/` for shared helpers.
 

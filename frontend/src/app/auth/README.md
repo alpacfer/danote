@@ -13,6 +13,9 @@ signed-in user and the app shell. Clerk provider wiring lives in
 | `api-keys-gate.tsx` | Gate: renders children only when keys are configured **or** the free trial is opted into; otherwise shows the setup screen. |
 | `api-key-setup-screen.tsx` | Pre-entry screen: the keys form plus the "Start free trial" CTA. |
 | `api-keys-form.tsx` | The four-provider key entry/save/delete form (reused on the Account page). |
+| `guest-entry-screen.tsx` | Signed-out guest CTA UI. |
+| `guest-session.ts` | Browser-id/session-token storage and `POST /api/guest/sessions` client. |
+| `guest-account-cards.tsx` | Guest profile and usage cards for the Account section. |
 
 ## Rules
 

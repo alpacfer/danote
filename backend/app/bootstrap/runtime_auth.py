@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from app.api.auth import build_jwks_client
 from app.core.app_state import set_runtime_field
 from app.core.config import Settings
+from app.db.repositories.guest_sessions import GuestSessionRepository
 from app.db.repositories.user_api_keys import UserApiKeysRepository
 from app.db.repositories.user_trial import UserTrialRepository
 from app.db.repositories.users import AppUserRepository
@@ -27,6 +28,11 @@ def initialize_auth(app: FastAPI, settings: Settings) -> None:
 
     users_repo = AppUserRepository(settings.db_path)
     set_runtime_field(app, "users_repository", users_repo)
+    set_runtime_field(
+        app,
+        "guest_session_repository",
+        GuestSessionRepository(settings.db_path, users_repo),
+    )
 
     set_runtime_field(
         app,

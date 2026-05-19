@@ -8,8 +8,8 @@ from app.api.routes._runtime import (
     get_settings,
     resolve_services_for_user,
 )
-from app.db.repositories.user_trial import UserTrialRepository
 from app.services.use_cases import TrialUseCase, WordbankUseCase
+from app.services.use_cases.account import AccountUseCase
 
 
 def build_wordbank_use_case(request: Request) -> WordbankUseCase:
@@ -36,9 +36,19 @@ def build_wordbank_use_case(request: Request) -> WordbankUseCase:
 def build_trial_use_case(request: Request) -> TrialUseCase:
     runtime = get_runtime_state(request)
     settings = runtime.settings
-    trial_repo = runtime.user_trial_repository or UserTrialRepository(settings.db_path)
+    trial_repo = runtime.user_trial_repository
+    if trial_repo is None:
+        raise RuntimeError("trial repository is not initialized")
     return TrialUseCase(
         settings=settings,
         trial_repository=trial_repo,
         api_keys_repository=runtime.user_api_keys_repository,
+    )
+
+
+def build_account_use_case(request: Request) -> AccountUseCase:
+    runtime = get_runtime_state(request)
+    return AccountUseCase(
+        api_keys_repository=runtime.user_api_keys_repository,
+        trial_use_case=build_trial_use_case(request),
     )

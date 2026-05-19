@@ -22,6 +22,11 @@ manages its own four API keys (Gemini, DeepL, Azure Translation, Azure TTS)
 from the **Account** page in the sidebar. The app is gated behind a
 "Configure your API keys" screen until all four are saved.
 
+Signed-out users can also choose **Continue as guest**. Guest mode uses the
+deployment's host keys, does not require email/password, and creates a fresh
+workspace for each guest session. Guest wordbank/sentencebank data is
+session-scoped and is not restored when guest mode is started again.
+
 ### Free trial
 
 Instead of adding keys, a new user can start a **free trial** from that gate.
@@ -35,6 +40,7 @@ otherwise the gate reports the trial as unavailable.
 |---|---|---|
 | `DANOTE_TRIAL_ENABLED` | `1` | Master switch for the free trial. |
 | `DANOTE_TRIAL_DAILY_SEARCH_LIMIT` | `50` | Distinct word searches allowed per user per day. |
+| `DANOTE_GUEST_DAILY_SEARCH_LIMIT` | `20` | Distinct word searches allowed per guest browser per day. |
 | `DANOTE_TRIAL_RESET_TIMEZONE` | `Europe/Copenhagen` | Timezone whose local midnight resets the daily counter. |
 
 For local development without auth, set `DANOTE_AUTH_ENABLED=0` in your

@@ -18,8 +18,9 @@ SQLite data access. One file per table or domain area, split by read/write where
 | `sentencebank.py` | Sentencebank read + write (single file; smaller domain). |
 | `numbers_audio.py`, `presaved_words_audio.py` | Audio cache lookups. |
 | `users.py` | Authenticated-user identity records (`app_users`). |
+| `guest_sessions.py` | Opaque guest bearer sessions and browser-id hashing helpers. |
 | `user_api_keys.py` | Per-user encrypted external API keys. |
-| `user_trial.py` | Free-trial opt-in + daily distinct-word search usage. |
+| `user_trial.py` | Free-trial opt-in + signed-in/guest daily distinct-word search usage. |
 
 ## Rules
 

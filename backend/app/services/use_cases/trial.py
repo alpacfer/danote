@@ -73,6 +73,10 @@ class TrialUseCase:
     def _limit(self) -> int:
         return max(0, int(self._settings.trial_daily_search_limit))
 
+    @property
+    def _guest_limit(self) -> int:
+        return max(0, int(self._settings.guest_daily_search_limit))
+
     def status(self, user_id: int) -> TrialStatus:
         enabled = bool(self._settings.trial_enabled)
         available = bool(self._settings.gemini_api_key)
@@ -98,6 +102,24 @@ class TrialUseCase:
         self._trial.opt_in(user_id=user_id)
         return self.status(user_id)
 
+    def guest_status(self, browser_id_hash: str) -> TrialStatus:
+        today = self._today()
+        limit = self._guest_limit
+        used = self._trial.count_guest_for_day(
+            browser_id_hash=browser_id_hash,
+            usage_date=today,
+        )
+        return TrialStatus(
+            enabled=bool(self._settings.trial_enabled),
+            available=bool(self._settings.gemini_api_key),
+            opted_in=True,
+            keys_configured=False,
+            limit=limit,
+            used=used,
+            remaining=max(0, limit - used),
+            resets_on=self._next_day(today),
+        )
+
     def check_and_consume(self, user_id: int, query_key: str) -> TrialDecision:
         limit = self._limit
         if not self._settings.trial_enabled or self._keys_configured(user_id):
@@ -107,6 +129,26 @@ class TrialUseCase:
             return TrialDecision(allowed=True, metered=False, used=0, limit=limit)
         reservation = self._trial.reserve(
             user_id=user_id,
+            usage_date=self._today(),
+            query_key=normalized,
+            limit=limit,
+        )
+        return TrialDecision(
+            allowed=reservation.allowed,
+            metered=True,
+            used=reservation.used,
+            limit=reservation.limit,
+        )
+
+    def check_and_consume_guest(self, browser_id_hash: str, query_key: str) -> TrialDecision:
+        limit = self._guest_limit
+        if not self._settings.trial_enabled:
+            return TrialDecision(allowed=True, metered=False, used=0, limit=limit)
+        normalized = normalize_query_key(query_key)
+        if not normalized:
+            return TrialDecision(allowed=True, metered=False, used=0, limit=limit)
+        reservation = self._trial.reserve_guest(
+            browser_id_hash=browser_id_hash,
             usage_date=self._today(),
             query_key=normalized,
             limit=limit,

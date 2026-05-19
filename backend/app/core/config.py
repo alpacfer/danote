@@ -67,6 +67,7 @@ class Settings:
     key_encryption_secret: str | None = None
     trial_enabled: bool = True
     trial_daily_search_limit: int = 50
+    guest_daily_search_limit: int = 20
     trial_reset_timezone: str = "Europe/Copenhagen"
     serve_frontend: bool = False
     frontend_dist_path: Path = BASE_DIR / "static"
@@ -184,6 +185,9 @@ def load_settings(*, env_file: Path | None = None) -> Settings:
         not in {"0", "false", "no"},
         trial_daily_search_limit=int(
             _required_env("DANOTE_TRIAL_DAILY_SEARCH_LIMIT", env_values, "50")
+        ),
+        guest_daily_search_limit=int(
+            _required_env("DANOTE_GUEST_DAILY_SEARCH_LIMIT", env_values, "20")
         ),
         trial_reset_timezone=_required_env(
             "DANOTE_TRIAL_RESET_TIMEZONE", env_values, "Europe/Copenhagen"

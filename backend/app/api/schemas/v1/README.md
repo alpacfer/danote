@@ -12,6 +12,7 @@ repository-layer dataclasses or domain objects directly.
 | `auth.py` | Current-user identity response. |
 | `analyze.py` | Note analysis request/response. |
 | `developer.py` | Developer-only runtime key/service probes. |
+| `guest.py` | Guest session creation request/response. |
 | `wordbank.py` | Wordbank CRUD + COR/EN search request/response models. |
 | `sentencebank.py` | Sentencebank request/response models. |
 | `root.py` | Health/root status payloads. |

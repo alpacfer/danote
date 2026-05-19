@@ -8,11 +8,25 @@ App-shell composition contract: section ownership, navigation state, sidebar/bre
 
 `App.tsx` owns:
 - Cross-section state/actions via `useAppController()`
+- Signed-in versus guest entry state: Clerk tokens for accounts, guest bearer
+  tokens from `POST /api/guest/sessions`
 - `SidebarProvider` + `SidebarInset` wrapper
 - Chrome: `AppSidebar`, mobile `SidebarTrigger`, `AppBreadcrumb`
 - Delegates section body to `SectionContent` with typed prop bundles
 
 Stays orchestration layer: state/side-effects in hooks, not component body.
+
+### Guest entry
+
+- Signed-out users see `Sign in` and `Continue as guest`.
+- Starting guest mode stores an anonymous browser id in `localStorage`, a guest
+  bearer token in `sessionStorage`, and renders the normal app shell without
+  the API-key gate.
+- Guest workspaces are scoped to a newly created backend guest user each time
+  guest mode is started; wordbank/sentencebank data is not restored across new
+  guest sessions.
+- The Account section shows guest status and remaining daily searches instead
+  of Clerk profile controls or API-key forms.
 
 ### Section layout switch (`frontend/src/app/layout/section-content.tsx`)
 

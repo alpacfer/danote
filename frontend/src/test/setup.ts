@@ -15,6 +15,7 @@ afterEach(() => {
   vi.useRealTimers()
   vi.restoreAllMocks()
   window.localStorage.clear()
+  window.sessionStorage.clear()
 })
 
 Object.defineProperty(window, "matchMedia", {

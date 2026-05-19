@@ -46,6 +46,10 @@ Notes:
 | `DANOTE_ALLOWED_EMAIL_DOMAINS` | unset (`()`) | Comma-separated domains | If set, authenticated users must match an email or allowed domain. |
 | `DANOTE_KEY_ENCRYPTION_SECRET` | unset (`None`) | Base64-encoded 32-byte secret | Required for hosted auth/key storage. Used to encrypt stored per-user API keys; rotating it invalidates existing stored keys. |
 
+Guest sessions are accepted as bearer tokens when auth is enabled. They are
+created by `POST /api/guest/sessions`, use host-level language-service keys,
+and do not require API-key storage.
+
 ## Database
 
 | Variable | Default | Accepted values | Interactions / fallbacks |
@@ -120,3 +124,12 @@ Notes:
 | `DANOTE_SEARCH_COR_BATCH` | `1` | Boolean-like (`1/0`, `true/false`, `yes/no`) | Enables the sidebar's single-request COR batch flow. The backend endpoint remains available for compatibility. |
 | `DANOTE_SEARCH_BATCHED_GEMINI` | `0` | Boolean-like (`1/0`, `true/false`, `yes/no`) | Experimental prompt batching for English translation and COR sense filtering; keep off unless benchmark quality diff passes. |
 | `DANOTE_SEARCH_ADMIN_ENABLED` | `0` | Boolean-like (`1/0`, `true/false`, `yes/no`) | Enables `POST /api/admin/clear-search-cache` for benchmark cold-cache runs. |
+
+## Trial and guest quota
+
+| Variable | Default | Accepted values | Interactions / fallbacks |
+| --- | --- | --- | --- |
+| `DANOTE_TRIAL_ENABLED` | `1` | Boolean-like (`1/0`, `true/false`, `yes/no`) | Enables hosted-key metering for signed-in users without keys and guest users. |
+| `DANOTE_TRIAL_DAILY_SEARCH_LIMIT` | `50` | Integer string parseable by Python `int()` | Distinct word searches per signed-in no-key user per reset day. |
+| `DANOTE_GUEST_DAILY_SEARCH_LIMIT` | `20` | Integer string parseable by Python `int()` | Distinct word searches per anonymous guest browser id per reset day. |
+| `DANOTE_TRIAL_RESET_TIMEZONE` | `Europe/Copenhagen` | IANA timezone string | Local date boundary used for signed-in trial and guest quota resets; invalid values fall back to UTC. |

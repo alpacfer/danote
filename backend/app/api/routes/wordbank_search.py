@@ -29,7 +29,13 @@ def _guard_trial(request: Request, query_key: str | None) -> None:
     if not get_settings(request).auth_enabled:
         return
     current_user = require_current_user(request)
-    decision = build_trial_use_case(request).check_and_consume(current_user.id, query_key)
+    if current_user.auth_provider == "guest":
+        decision = build_trial_use_case(request).check_and_consume_guest(
+            current_user.guest_browser_id_hash or "",
+            query_key,
+        )
+    else:
+        decision = build_trial_use_case(request).check_and_consume(current_user.id, query_key)
     if not decision.allowed:
         raise HTTPException(status_code=429, detail="trial_daily_limit_reached")
 

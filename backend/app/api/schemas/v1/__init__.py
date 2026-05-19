@@ -16,6 +16,7 @@ from app.api.schemas.v1.developer import (
     DeveloperServiceProbeResponse,
     GeminiProbeResponse,
 )
+from app.api.schemas.v1.guest import GuestSessionRequest, GuestSessionResponse
 from app.api.schemas.v1.root import ApiStatusEntry, HealthResponse
 from app.api.schemas.v1.sentencebank import (
     AddSentenceRequest,
@@ -68,6 +69,8 @@ __all__ = [
     "DeveloperApiKeysUpdateResponse",
     "DeveloperServiceProbeResponse",
     "GeminiProbeResponse",
+    "GuestSessionRequest",
+    "GuestSessionResponse",
     "AnalyzeResponse",
     "AnalyzedToken",
     "ApiStatusEntry",

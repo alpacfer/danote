@@ -33,6 +33,7 @@ class BackendRuntimeState:
     users_repository: Any = None
     user_api_keys_repository: Any = None
     user_trial_repository: Any = None
+    guest_session_repository: Any = None
     clerk_jwks_client: Any = None
     user_service_resolver: Any = None
     auth_error: str | None = None

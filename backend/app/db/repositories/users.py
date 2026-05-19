@@ -70,6 +70,27 @@ class AppUserRepository:
             raise RuntimeError("user upsert failed to return a row")
         return _row_to_record(row)
 
+    def create_guest_user(self, *, auth_subject: str, display_name: str | None = "Guest") -> AppUserRecord:
+        with get_connection(self._db_path) as conn:
+            conn.execute(
+                """
+                INSERT INTO app_users (auth_provider, auth_subject, email, display_name, last_seen_at)
+                VALUES ('guest', ?, NULL, ?, CURRENT_TIMESTAMP)
+                """,
+                (auth_subject, display_name),
+            )
+            row = conn.execute(
+                """
+                SELECT id, auth_provider, auth_subject, email, display_name, created_at, last_seen_at
+                FROM app_users
+                WHERE auth_provider = 'guest' AND auth_subject = ?
+                """,
+                (auth_subject,),
+            ).fetchone()
+        if row is None:
+            raise RuntimeError("guest user create failed to return a row")
+        return _row_to_record(row)
+
     def get_by_id(self, user_id: int) -> AppUserRecord | None:
         with get_connection(self._db_path) as conn:
             row = conn.execute(

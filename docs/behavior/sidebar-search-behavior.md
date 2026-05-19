@@ -211,7 +211,10 @@ Sorted by best variant score per group:
 
 - When the backend rejects a search lookup with HTTP `429`
   (`trial_daily_limit_reached`), the search dialog shows an amber banner above
-  results: the user has spent the day's free-trial searches.
+  results: the user has spent the day's hosted-key searches.
+- Signed-in free-trial users are capped per account. Guest users are capped per
+  anonymous browser id, defaulting to 20 distinct words per day, while each
+  guest session still gets a fresh empty wordbank/sentencebank workspace.
 - The banner is keyed to the current search attempt (`searchAttemptKey` =
   `resetVersion:normalizedQuery`); editing the query or a config/cache reset
   clears it automatically — no manual dismissal.

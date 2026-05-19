@@ -1,6 +1,9 @@
 import { UserButton, useUser } from "@clerk/react"
+import { useEffect, useState } from "react"
 
 import { ApiKeysForm } from "@/app/auth/api-keys-form"
+import { fetchAccountMe, type AccountMe } from "@/app/auth/account-api"
+import { GuestProfileCard, GuestUsageCard } from "@/app/auth/guest-account-cards"
 import { useAccountStatus } from "@/app/auth/use-account-status"
 import { CLERK_PUBLISHABLE_KEY } from "@/app/core"
 import { Badge } from "@/components/ui/badge"
@@ -12,6 +15,28 @@ import { Spinner } from "@/components/ui/spinner"
 const IS_CLERK_CONFIGURED = Boolean(CLERK_PUBLISHABLE_KEY)
 
 export function AccountSection() {
+  const [account, setAccount] = useState<AccountMe | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    void fetchAccountMe()
+      .then((next) => {
+        if (!cancelled) {
+          setAccount(next)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setAccount(null)
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const isGuest = account?.auth_provider === "guest"
+
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-6 md:px-8 md:py-8">
       <header className="flex flex-col gap-2">
@@ -21,8 +46,8 @@ export function AccountSection() {
           verification, and pronunciation.
         </p>
       </header>
-      {IS_CLERK_CONFIGURED ? <ClerkProfileCard /> : <LocalDevCard />}
-      <ApiKeysCard />
+      {isGuest ? <GuestProfileCard /> : IS_CLERK_CONFIGURED ? <ClerkProfileCard /> : <LocalDevCard />}
+      {isGuest ? <GuestUsageCard /> : <ApiKeysCard />}
     </div>
   )
 }
@@ -107,6 +132,7 @@ function ApiKeysCard() {
     </Card>
   )
 }
+
 
 function ApiKeysLoadingState() {
   return (

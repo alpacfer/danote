@@ -119,3 +119,26 @@ def test_opt_in_marks_opted_in(tmp_path) -> None:
 def test_status_available_false_without_host_key(tmp_path) -> None:
     uc = _use_case(tmp_path, gemini_api_key=None)
     assert uc.status(_USER).available is False
+
+
+def test_guest_quota_persists_by_browser_hash(tmp_path) -> None:
+    uc = _use_case(tmp_path, guest_daily_search_limit=2)
+    browser_hash = "browser-hash"
+
+    first = uc.check_and_consume_guest(browser_hash, "House")
+    assert first.allowed and first.used == 1
+
+    repeat = uc.check_and_consume_guest(browser_hash, " house ")
+    assert repeat.allowed and repeat.used == 1
+
+    second = uc.check_and_consume_guest(browser_hash, "car")
+    assert second.allowed and second.used == 2
+
+    blocked = uc.check_and_consume_guest(browser_hash, "tree")
+    assert blocked.allowed is False
+    assert blocked.used == 2
+
+    status = uc.guest_status(browser_hash)
+    assert status.limit == 2
+    assert status.used == 2
+    assert status.remaining == 0

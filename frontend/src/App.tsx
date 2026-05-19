@@ -1,7 +1,9 @@
-import { SignInButton, SignOutButton, useAuth } from "@clerk/react"
+import { SignOutButton, useAuth } from "@clerk/react"
 import { useCallback, useEffect, useRef, useState } from "react"
 
 import { ApiKeysGate } from "@/app/auth/api-keys-gate"
+import { GuestEntryScreen } from "@/app/auth/guest-entry-screen"
+import { clearGuestToken, createGuestSession, getStoredGuestToken } from "@/app/auth/guest-session"
 import { AppSidebar } from "@/app/chrome"
 import { setAuthTokenProvider } from "@/app/core"
 import { useAppController } from "@/app/hooks/app/use-app-controller"
@@ -54,6 +56,9 @@ function sameTokenState(a: TokenState, b: TokenState): boolean {
 
 function AuthenticatedApp() {
   const { getToken, isLoaded, isSignedIn } = useAuth()
+  const [guestToken, setGuestToken] = useState<string | null>(() => getStoredGuestToken())
+  const [isStartingGuest, setIsStartingGuest] = useState(false)
+  const [guestError, setGuestError] = useState<string | null>(null)
   const [tokenState, setTokenStateRaw] = useState<TokenState>({ status: "loading", slow: false })
   const [tokenRetryKey, setTokenRetryKey] = useState(0)
   const tokenWaitStartRef = useRef<number | null>(null)
@@ -64,6 +69,12 @@ function AuthenticatedApp() {
   }, [])
 
   useEffect(() => {
+    if (guestToken && !isSignedIn) {
+      setAuthTokenProvider(() => Promise.resolve(guestToken))
+      return () => {
+        setAuthTokenProvider(null)
+      }
+    }
     if (!isLoaded || !isSignedIn) {
       setAuthTokenProvider(null)
       tokenWaitStartRef.current = null
@@ -145,25 +156,42 @@ function AuthenticatedApp() {
       window.clearTimeout(errorId)
       setAuthTokenProvider(null)
     }
-  }, [getToken, isLoaded, isSignedIn, tokenRetryKey, setTokenState])
+  }, [getToken, guestToken, isLoaded, isSignedIn, tokenRetryKey, setTokenState])
+
+  useEffect(() => {
+    if (isSignedIn && guestToken) {
+      clearGuestToken()
+      const resetId = window.setTimeout(() => setGuestToken(null), 0)
+      return () => window.clearTimeout(resetId)
+    }
+  }, [guestToken, isSignedIn])
 
   if (!isLoaded) {
     return null
   }
 
+  if (!isSignedIn && guestToken) {
+    return <AppShell />
+  }
+
   if (!isSignedIn) {
     return (
-      <main className="flex min-h-screen items-center justify-center px-6">
-        <div className="flex w-full max-w-sm flex-col items-center gap-4 text-center">
-          <h1 className="text-2xl font-semibold tracking-normal">danote</h1>
-          <p className="text-sm text-muted-foreground">Sign in to use your Danish notes workspace.</p>
-          <SignInButton mode="modal">
-            <button className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow-xs transition-colors hover:bg-primary/90">
-              Sign in
-            </button>
-          </SignInButton>
-        </div>
-      </main>
+      <GuestEntryScreen
+        error={guestError}
+        isStartingGuest={isStartingGuest}
+        onStartGuest={() => {
+          setIsStartingGuest(true)
+          setGuestError(null)
+          void createGuestSession()
+            .then((token) => {
+              setGuestToken(token)
+            })
+            .catch((error: unknown) => {
+              setGuestError(error instanceof Error ? error.message : "Could not start guest mode.")
+            })
+            .finally(() => setIsStartingGuest(false))
+        }}
+      />
     )
   }
 
