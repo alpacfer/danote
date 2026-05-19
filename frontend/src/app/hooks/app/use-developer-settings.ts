@@ -103,7 +103,7 @@ export function useDeveloperSettings({
 
   async function resetDatabase() {
     const shouldReset = window.confirm(
-      "This will delete the database and clear all browser cache. Continue?",
+      "This will delete your saved words and sentences, and clear all browser cache. Your API keys will be kept. Continue?",
     )
     if (!shouldReset) {
       return

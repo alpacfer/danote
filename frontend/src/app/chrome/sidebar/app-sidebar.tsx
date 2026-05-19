@@ -121,7 +121,6 @@ export function AppSidebar({
     onToggleSearch: () => setIsSearchOpen((current) => !current),
     onSelectWordbank,
     onSelectSentencebank,
-    onSelectDeveloper,
     onSelectAccount,
   })
 
@@ -268,7 +267,6 @@ export function AppSidebar({
           unreadWordbankNotificationCount={unreadWordbankNotificationCount}
           onSelectWordbank={selectWordbankFromSidebar}
           onSelectSentencebank={selectSentencebankFromSidebar}
-          onSelectDeveloper={selectDeveloperFromSidebar}
           onOpenSearch={() => { openSearch(); closeMobileSidebar() }}
         />
         <SidebarFooter>

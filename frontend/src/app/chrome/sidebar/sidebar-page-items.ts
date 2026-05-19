@@ -34,10 +34,11 @@ export function useSidebarPageItems({
 }: Omit<SidebarNavigationActions, "onSelectAccount"> & { normalizedQuery: string }) {
   return useMemo(() => {
     const numericQuery = numberFromSearchQuery(normalizedQuery)
+    const isDeveloperUnlocked = normalizedQuery === "chochito"
     const pageItems: SidebarPageItem[] = [
       { ...SIDEBAR_PAGE_DEFINITIONS.wordbank, onSelect: onSelectWordbank },
       { ...SIDEBAR_PAGE_DEFINITIONS.sentencebank, onSelect: onSelectSentencebank },
-      { ...SIDEBAR_PAGE_DEFINITIONS.developer, onSelect: onSelectDeveloper },
+      ...(isDeveloperUnlocked ? [{ ...SIDEBAR_PAGE_DEFINITIONS.developer, onSelect: onSelectDeveloper }] : []),
     ]
     if (numericQuery !== null) {
       return [

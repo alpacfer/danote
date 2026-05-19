@@ -4,7 +4,6 @@ type UseSidebarHotkeysParams = {
   onToggleSearch: () => void
   onSelectWordbank: () => void
   onSelectSentencebank: () => void
-  onSelectDeveloper: () => void
   onSelectAccount: () => void
 }
 
@@ -12,7 +11,6 @@ export function useSidebarHotkeys({
   onToggleSearch,
   onSelectWordbank,
   onSelectSentencebank,
-  onSelectDeveloper,
   onSelectAccount,
 }: UseSidebarHotkeysParams) {
   useEffect(() => {
@@ -43,11 +41,6 @@ export function useSidebarHotkeys({
         onSelectSentencebank()
         return
       }
-      if (key === "d") {
-        event.preventDefault()
-        onSelectDeveloper()
-        return
-      }
       if (key === "a") {
         event.preventDefault()
         onSelectAccount()
@@ -58,5 +51,5 @@ export function useSidebarHotkeys({
     return () => {
       window.removeEventListener("keydown", handleKeyDown)
     }
-  }, [onSelectAccount, onSelectDeveloper, onSelectSentencebank, onSelectWordbank, onToggleSearch])
+  }, [onSelectAccount, onSelectSentencebank, onSelectWordbank, onToggleSearch])
 }
