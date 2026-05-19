@@ -56,7 +56,13 @@ function sameTokenState(a: TokenState, b: TokenState): boolean {
 
 function AuthenticatedApp() {
   const { getToken, isLoaded, isSignedIn } = useAuth()
-  const [guestToken, setGuestToken] = useState<string | null>(() => getStoredGuestToken())
+  const [guestToken, setGuestToken] = useState<string | null>(() => {
+    const token = getStoredGuestToken()
+    if (token) {
+      setAuthTokenProvider(() => Promise.resolve(token))
+    }
+    return token
+  })
   const [isStartingGuest, setIsStartingGuest] = useState(false)
   const [guestError, setGuestError] = useState<string | null>(null)
   const [tokenState, setTokenStateRaw] = useState<TokenState>({ status: "loading", slow: false })
@@ -184,6 +190,7 @@ function AuthenticatedApp() {
           setGuestError(null)
           void createGuestSession()
             .then((token) => {
+              setAuthTokenProvider(() => Promise.resolve(token))
               setGuestToken(token)
             })
             .catch((error: unknown) => {
