@@ -253,7 +253,7 @@ export function AppSidebar({
           <div className="flex h-11 items-center gap-2 px-1 pt-1 group-data-[collapsible=icon]:contents">
             <button
               type="button"
-              className="font-brand truncate rounded-sm text-left text-[1.25rem] leading-none font-normal tracking-normal italic outline-none hover:text-foreground/80 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 group-data-[collapsible=icon]:sr-only"
+              className="font-brand truncate rounded-sm text-left text-[1.25rem] leading-none font-normal tracking-normal not-italic outline-none hover:text-foreground/80 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 group-data-[collapsible=icon]:sr-only"
               onClick={selectWordbankFromSidebar}
             >
               danote

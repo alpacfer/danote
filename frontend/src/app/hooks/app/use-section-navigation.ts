@@ -111,6 +111,18 @@ export function useSectionNavigation() {
     writeBrowserNavIndex("push", newIndex)
   }, [])
 
+  const applyReplace = useCallback((entry: NavEntry) => {
+    const cur = historyRef.current
+    const currentEntry = cur.entries[cur.index] ?? ROOT_ENTRY
+    if (entriesEqual(currentEntry, entry)) return
+    const entries = [...cur.entries]
+    entries[cur.index] = entry
+    const next: HistoryState = { entries, index: cur.index }
+    historyRef.current = next
+    setHistory(next)
+    writeBrowserNavIndex("replace", cur.index)
+  }, [])
+
   const current = history.entries[history.index] ?? ROOT_ENTRY
   const previousEntry = history.index > 0 ? history.entries[history.index - 1] : null
   const nextEntry = history.index < history.entries.length - 1 ? history.entries[history.index + 1] : null
@@ -207,14 +219,14 @@ export function useSectionNavigation() {
   }, [applyPush])
 
   const openWordbankPinnedTab = useCallback((sentinel: string) => {
-    applyPush({
+    applyReplace({
       section: "wordbank",
       selectedLemma: sentinel,
       selectedMeaningId: null,
       selectedSentenceId: null,
       pendingSentence: null,
     })
-  }, [applyPush])
+  }, [applyReplace])
 
   const openWordbankMeaning = useCallback((lemma: string, meaningId: number) => {
     const nextLemma = builtinAwareLemma(lemma)
