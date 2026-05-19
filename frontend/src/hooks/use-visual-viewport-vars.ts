@@ -21,21 +21,45 @@ export function useVisualViewportVars(enabled: boolean) {
     }
 
     const root = document.documentElement
+    let frame = 0
+    let lastVh = -1
+    let lastInset = -1
+    // iOS reports fractional, fluctuating visualViewport metrics (resizes-visual);
+    // Android resizes the layout viewport (resizes-content) and reports integers.
+    // Round to whole px and skip no-op writes so both platforms stay jitter-free.
     const sync = () => {
-      const keyboardInset = Math.max(
+      frame = 0
+      const vh = Math.round(viewport.height)
+      const inset = Math.max(
         0,
-        window.innerHeight - viewport.height - viewport.offsetTop,
+        Math.round(window.innerHeight - viewport.height - viewport.offsetTop),
       )
-      root.style.setProperty(VISUAL_VH_VAR, `${viewport.height}px`)
-      root.style.setProperty(KEYBOARD_INSET_VAR, `${keyboardInset}px`)
+      if (vh !== lastVh) {
+        lastVh = vh
+        root.style.setProperty(VISUAL_VH_VAR, `${vh}px`)
+      }
+      if (inset !== lastInset) {
+        lastInset = inset
+        root.style.setProperty(KEYBOARD_INSET_VAR, `${inset}px`)
+      }
+    }
+    // Coalesce bursts of resize/scroll (iOS fires many per keyboard frame)
+    // into one write per frame so the panel tracks the keyboard without thrash.
+    const scheduleSync = () => {
+      if (frame === 0) {
+        frame = window.requestAnimationFrame(sync)
+      }
     }
 
     sync()
-    viewport.addEventListener("resize", sync)
-    viewport.addEventListener("scroll", sync)
+    viewport.addEventListener("resize", scheduleSync)
+    viewport.addEventListener("scroll", scheduleSync)
     return () => {
-      viewport.removeEventListener("resize", sync)
-      viewport.removeEventListener("scroll", sync)
+      if (frame !== 0) {
+        window.cancelAnimationFrame(frame)
+      }
+      viewport.removeEventListener("resize", scheduleSync)
+      viewport.removeEventListener("scroll", scheduleSync)
       root.style.removeProperty(VISUAL_VH_VAR)
       root.style.removeProperty(KEYBOARD_INSET_VAR)
     }
