@@ -77,7 +77,6 @@ export function AppSidebar({
   }
   const selectWordbankFromSidebar = sidebarAction(onSelectWordbank)
   const selectSentencebankFromSidebar = sidebarAction(onSelectSentencebank)
-  const selectDeveloperFromSidebar = sidebarAction(onSelectDeveloper)
   const selectAccountFromSidebar = sidebarAction(onSelectAccount)
 
   const {
