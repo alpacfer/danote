@@ -175,6 +175,7 @@ export function SidebarSearchInput({
         </Button>
       )}
       multiline
+      autoFocus
       maxLength={SENTENCE_VERIFY_MAX_CHARS}
     />
   )

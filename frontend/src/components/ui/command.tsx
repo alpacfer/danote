@@ -62,6 +62,11 @@ function CommandDialog({
       <DialogContent
         className={cn("overflow-hidden p-0 top-[40%]", className)}
         showCloseButton={showCloseButton}
+        onOpenAutoFocus={(event) => {
+          event.preventDefault()
+          const content = event.currentTarget as HTMLElement | null
+          content?.querySelector<HTMLElement>("[data-slot=command-input]")?.focus()
+        }}
       >
         <Command
           key={commandKey}
