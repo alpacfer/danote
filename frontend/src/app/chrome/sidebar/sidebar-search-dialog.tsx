@@ -48,7 +48,7 @@ export function SidebarSearchDialog({
   onSaveSentenceFromSearch,
   onOpenChange,
 }: SidebarSearchDialogProps) {
-  useVisualViewportVars(isOpen)
+  useVisualViewportVars(true)
 
   return (
     <CommandDialog
@@ -58,8 +58,8 @@ export function SidebarSearchDialog({
       commandValue={commandSelectionValue}
       onCommandValueChange={setCommandSelectionOverride}
       showCloseButton={false}
-      className="rounded-xl max-md:top-auto max-md:bottom-[var(--app-keyboard-inset,0px)] max-md:left-0 max-md:h-[var(--app-visual-vh,100dvh)] max-md:w-screen max-md:max-w-none max-md:translate-x-0 max-md:translate-y-0 max-md:rounded-none max-md:border-x-0 max-md:border-b-0"
-      commandClassName="max-md:flex-col-reverse max-md:rounded-none max-md:pb-[env(safe-area-inset-bottom)] max-md:[&_[cmdk-group-heading]]:text-sm max-md:[&_[data-slot=command-input-wrapper]]:m-3 max-md:[&_[data-slot=command-input-wrapper]]:min-h-12 max-md:[&_[data-slot=command-input-wrapper]]:shrink-0 max-md:[&_[data-slot=command-input-wrapper]>svg]:mt-0 max-md:[&_[data-slot=command-input-wrapper]>svg]:self-center max-md:[&_[data-slot=command-input-wrapper]_svg]:h-5 max-md:[&_[data-slot=command-input-wrapper]_svg]:w-5 max-md:[&_[data-slot=command-input]]:!h-auto max-md:[&_[data-slot=command-input]]:text-base max-md:[&_[cmdk-item]]:py-3 max-md:[&_[cmdk-item]]:text-base max-md:[&_[cmdk-item]_svg]:h-5 max-md:[&_[cmdk-item]_svg]:w-5 max-md:[&_[data-slot=command-list]]:max-h-none max-md:[&_[data-slot=command-list]]:min-h-0 max-md:[&_[data-slot=command-list]]:flex-1 max-md:[&_[data-slot=command-list]]:pb-2"
+      className="rounded-xl max-md:top-auto max-md:bottom-[var(--app-keyboard-inset,0px)] max-md:left-0 max-md:h-[var(--app-visual-vh,100dvh)] max-md:w-screen max-md:max-w-none max-md:translate-x-0 max-md:translate-y-0 max-md:rounded-none max-md:border-x-0 max-md:border-b-0 max-md:transition-[height,bottom] max-md:duration-200"
+      commandClassName="max-md:flex-col-reverse max-md:rounded-none max-md:pb-[env(safe-area-inset-bottom)] max-md:[&_[cmdk-group-heading]]:text-sm max-md:[&_[data-slot=command-input-wrapper]]:mx-4 max-md:[&_[data-slot=command-input-wrapper]]:my-3 max-md:[&_[data-slot=command-input-wrapper]]:min-h-12 max-md:[&_[data-slot=command-input-wrapper]]:shrink-0 max-md:[&_[data-slot=command-input-wrapper]>svg]:mt-0 max-md:[&_[data-slot=command-input-wrapper]>svg]:self-center max-md:[&_[data-slot=command-input-wrapper]_svg]:h-5 max-md:[&_[data-slot=command-input-wrapper]_svg]:w-5 max-md:[&_[data-slot=command-input]]:!h-auto max-md:[&_[data-slot=command-input]]:text-base max-md:[&_[cmdk-item]]:py-3 max-md:[&_[cmdk-item]]:text-base max-md:[&_[cmdk-item]_svg]:h-5 max-md:[&_[cmdk-item]_svg]:w-5 max-md:[&_[data-slot=command-list]]:max-h-none max-md:[&_[data-slot=command-list]]:min-h-0 max-md:[&_[data-slot=command-list]]:flex-1 max-md:[&_[data-slot=command-list]]:pb-2"
       title="Search wordbank"
       description="Search saved words and local COR analyses."
     >
