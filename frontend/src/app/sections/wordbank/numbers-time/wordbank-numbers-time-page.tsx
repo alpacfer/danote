@@ -22,7 +22,6 @@ import {
   type PinnedWordEntry,
   hiddenBadgesForPinnedTab,
   sentinelForPinnedPageTab,
-  usePinnedPageAudio,
 } from "@/app/sections/wordbank/_shared"
 
 type Props = {
@@ -32,8 +31,6 @@ type Props = {
 }
 
 export function WordbankNumbersTimePage({ defaultTab, onOpenWord, onOpenTab }: Props) {
-  const audio = usePinnedPageAudio()
-
   return (
     <PinnedPageLayout title="Numbers & Time">
       <Tabs value={defaultTab} onValueChange={(value) => onOpenTab(sentinelForPinnedPageTab("numbers_time", value as PinnedPageTabId))}>
@@ -46,12 +43,12 @@ export function WordbankNumbersTimePage({ defaultTab, onOpenWord, onOpenTab }: P
             <TabsTrigger value="seasons">Seasons</TabsTrigger>
             <TabsTrigger value="time_words">Time Words</TabsTrigger>
           </TabsList>
-          <PinnedTab value="cardinal_numbers" entries={cardinalEntries()} audio={audio} onOpenWord={onOpenWord} />
-          <PinnedTab value="ordinal_numbers" entries={ordinalEntries()} audio={audio} onOpenWord={onOpenWord} />
-          <PinnedTab value="days" entries={calendarEntries(DAYS_OF_WEEK)} audio={audio} onOpenWord={onOpenWord} />
-          <PinnedTab value="months" entries={calendarEntries(MONTHS)} audio={audio} onOpenWord={onOpenWord} />
-          <PinnedTab value="seasons" entries={calendarEntries(SEASONS)} audio={audio} onOpenWord={onOpenWord} />
-          <PinnedTab value="time_words" entries={timeWordEntries()} audio={audio} onOpenWord={onOpenWord} />
+          <PinnedTab value="cardinal_numbers" entries={cardinalEntries()} onOpenWord={onOpenWord} />
+          <PinnedTab value="ordinal_numbers" entries={ordinalEntries()} onOpenWord={onOpenWord} />
+          <PinnedTab value="days" entries={calendarEntries(DAYS_OF_WEEK)} onOpenWord={onOpenWord} />
+          <PinnedTab value="months" entries={calendarEntries(MONTHS)} onOpenWord={onOpenWord} />
+          <PinnedTab value="seasons" entries={calendarEntries(SEASONS)} onOpenWord={onOpenWord} />
+          <PinnedTab value="time_words" entries={timeWordEntries()} onOpenWord={onOpenWord} />
         </div>
       </Tabs>
     </PinnedPageLayout>
@@ -61,20 +58,16 @@ export function WordbankNumbersTimePage({ defaultTab, onOpenWord, onOpenTab }: P
 function PinnedTab({
   value,
   entries,
-  audio,
   onOpenWord,
 }: {
   value: PinnedPageTabId
   entries: PinnedWordEntry[]
-  audio: ReturnType<typeof usePinnedPageAudio>
   onOpenWord: (lemma: string) => void
 }) {
   return (
     <TabsContent value={value}>
       <PinnedWordGrid
         entries={entries}
-        pronunciationLoadingByForm={audio.loadingByForm}
-        onPlayPronunciation={audio.playForm}
         onOpenWord={onOpenWord}
         hiddenBadges={hiddenBadgesForPinnedTab("numbers_time", value)}
       />

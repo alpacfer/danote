@@ -2,16 +2,12 @@ import { PinnedWordCard, type PinnedWordEntry } from "@/app/sections/wordbank/_s
 
 type PinnedWordGridProps = {
   entries: PinnedWordEntry[]
-  pronunciationLoadingByForm: Record<string, boolean>
-  onPlayPronunciation: (form: string) => void
   onOpenWord: (lemma: string) => void
   hiddenBadges?: readonly string[]
 }
 
 export function PinnedWordGrid({
   entries,
-  pronunciationLoadingByForm,
-  onPlayPronunciation,
   onOpenWord,
   hiddenBadges,
 }: PinnedWordGridProps) {
@@ -22,8 +18,6 @@ export function PinnedWordGrid({
         <PinnedWordCard
           key={`${entry.lemma}-${index}`}
           entry={entry}
-          pronunciationLoadingByForm={pronunciationLoadingByForm}
-          onPlayPronunciation={onPlayPronunciation}
           onOpenWord={onOpenWord}
           hiddenBadges={hiddenBadges}
         />

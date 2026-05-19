@@ -12,7 +12,6 @@ import {
   type PinnedWordEntry,
   hiddenBadgesForPinnedTab,
   sentinelForPinnedPageTab,
-  usePinnedPageAudio,
 } from "@/app/sections/wordbank/_shared"
 
 type Props = {
@@ -22,8 +21,6 @@ type Props = {
 }
 
 export function WordbankFunctionWordsPage({ defaultTab, onOpenWord, onOpenTab }: Props) {
-  const audio = usePinnedPageAudio()
-
   return (
     <PinnedPageLayout title="Function Words">
       <Tabs value={defaultTab} onValueChange={(value) => onOpenTab(sentinelForPinnedPageTab("function_words", value as PinnedPageTabId))}>
@@ -33,9 +30,9 @@ export function WordbankFunctionWordsPage({ defaultTab, onOpenWord, onOpenTab }:
             <TabsTrigger value="prepositions">Prepositions</TabsTrigger>
             <TabsTrigger value="conjunctions">Conjunctions</TabsTrigger>
           </TabsList>
-          <PinnedTab value="articles" entries={articleEntries()} audio={audio} onOpenWord={onOpenWord} />
-          <PinnedTab value="prepositions" entries={prepositionEntries()} audio={audio} onOpenWord={onOpenWord} />
-          <PinnedTab value="conjunctions" entries={conjunctionEntries()} audio={audio} onOpenWord={onOpenWord} />
+          <PinnedTab value="articles" entries={articleEntries()} onOpenWord={onOpenWord} />
+          <PinnedTab value="prepositions" entries={prepositionEntries()} onOpenWord={onOpenWord} />
+          <PinnedTab value="conjunctions" entries={conjunctionEntries()} onOpenWord={onOpenWord} />
         </div>
       </Tabs>
     </PinnedPageLayout>
@@ -45,20 +42,16 @@ export function WordbankFunctionWordsPage({ defaultTab, onOpenWord, onOpenTab }:
 function PinnedTab({
   value,
   entries,
-  audio,
   onOpenWord,
 }: {
   value: PinnedPageTabId
   entries: PinnedWordEntry[]
-  audio: ReturnType<typeof usePinnedPageAudio>
   onOpenWord: (lemma: string) => void
 }) {
   return (
     <TabsContent value={value}>
       <PinnedWordGrid
         entries={entries}
-        pronunciationLoadingByForm={audio.loadingByForm}
-        onPlayPronunciation={audio.playForm}
         onOpenWord={onOpenWord}
         hiddenBadges={hiddenBadgesForPinnedTab("function_words", value)}
       />

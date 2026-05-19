@@ -11,7 +11,18 @@ import {
   ContextMenuSubTrigger,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu"
-import { Languages, Loader2, MessageSquareQuote, RefreshCw, Sparkles, TableProperties } from "lucide-react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Button } from "@/components/ui/button"
+import { Languages, Loader2, MessageSquareQuote, MoreHorizontal, RefreshCw, Sparkles, TableProperties } from "lucide-react"
 
 const VERB_TENSES: VerbFormLabel[] = ["Infinitive", "Present", "Past", "Past participle", "Imperative"]
 
@@ -50,7 +61,83 @@ export function WordbankScopeContextMenu({
 }: WordbankScopeContextMenuProps) {
   return (
     <ContextMenu>
-      <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
+      <ContextMenuTrigger asChild>
+        <div className="group relative">
+          {children}
+          <div className="absolute top-2 right-2 z-10">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="More options"
+                  className="h-7 w-7 opacity-0 transition-opacity group-hover:opacity-100 data-[state=open]:opacity-100"
+                >
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                <DropdownMenuItem
+                  disabled={isRerunningVerification}
+                  onSelect={onRerunVerification}
+                >
+                  {isRerunningVerification ? <Loader2 className="animate-spin" /> : <RefreshCw />}
+                  {isRerunningVerification ? "Rerunning verification..." : "Rerun verification"}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={isFindingAlternativeTranslations}
+                  onSelect={onFindAlternativeTranslations}
+                >
+                  {isFindingAlternativeTranslations ? <Loader2 className="animate-spin" /> : <Languages />}
+                  {isFindingAlternativeTranslations ? "Finding alternative translations..." : "Find alternative translations"}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={isRethinkingCategories}
+                  onSelect={onRethinkCategories}
+                >
+                  {isRethinkingCategories ? <Loader2 className="animate-spin" /> : <Sparkles />}
+                  {isRethinkingCategories ? "Rethinking categories..." : "Rethink categories"}
+                </DropdownMenuItem>
+                {onGenerateExample && isVerb ? (
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger disabled={isGeneratingExample} className="gap-2">
+                      {isGeneratingExample ? <Loader2 className="animate-spin" /> : <MessageSquareQuote />}
+                      {isGeneratingExample ? "Generating example..." : "Generate example"}
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent>
+                      {VERB_TENSES.map((tense) => (
+                        <DropdownMenuItem key={tense} onSelect={() => onGenerateExample(tense)}>
+                          {tense}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
+                ) : onGenerateExample ? (
+                  <DropdownMenuItem
+                    disabled={isGeneratingExample}
+                    onSelect={() => onGenerateExample()}
+                  >
+                    {isGeneratingExample ? <Loader2 className="animate-spin" /> : <MessageSquareQuote />}
+                    {isGeneratingExample ? "Generating example..." : "Generate example"}
+                  </DropdownMenuItem>
+                ) : null}
+                {onCompleteVariations ? (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      disabled={isCompletingVariations || !canCompleteVariations}
+                      onSelect={onCompleteVariations}
+                    >
+                      {isCompletingVariations ? <Loader2 className="animate-spin" /> : <TableProperties />}
+                      {isCompletingVariations ? "Completing variations..." : completeVariationsLabel}
+                    </DropdownMenuItem>
+                  </>
+                ) : null}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+      </ContextMenuTrigger>
       <ContextMenuContent>
         <ContextMenuItem
           disabled={isRerunningVerification}

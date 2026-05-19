@@ -680,7 +680,7 @@ describe("App wordbank", () => {
     })
 
     await waitFor(() => {
-      expect(screen.getByTestId("wordbank-meaning-category-badges-1")).toHaveTextContent("Community")
+      expect(screen.getByTestId("wordbank-meaning-badges-1")).toHaveTextContent("Community")
     })
   })
 

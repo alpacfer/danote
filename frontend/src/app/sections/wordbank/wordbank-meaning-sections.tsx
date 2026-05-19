@@ -169,20 +169,14 @@ export function WordbankMeaningSections({
               className="py-5"
             >
               <CardContent className="flex flex-col gap-3">
-                {/* Line 1: Lemma (sectioned only — root lemma sits in the top page header) + translation | Category badges */}
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
-                      <span data-testid={isRootSection ? "wordbank-lemma-card-lemma" : `wordbank-meaning-card-lemma-${section.id}`} className="text-lg leading-tight font-bold">
-                        {meaningLemma}
-                      </span>
-                      {sectionTranslation ? (
-                        <span className="text-muted-foreground text-sm italic">{sectionTranslation}</span>
-                      ) : null}
-                    </div>
-                    {/* Line 2: POS + morphology badges */}
-                    {sectionBadges.length > 0 ? (
-                      <div data-testid={isRootSection ? "wordbank-lemma-header-badges" : `wordbank-meaning-badges-${section.id}`} className="mt-1.5 flex flex-wrap gap-1.5">
+                {/* Row 1: Lemma + all badges (POS + morphology + category) together */}
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span data-testid={isRootSection ? "wordbank-lemma-card-lemma" : `wordbank-meaning-card-lemma-${section.id}`} className="text-lg leading-tight font-bold">
+                      {meaningLemma}
+                    </span>
+                    {(sectionBadges.length > 0 || isGeneratedNonCor || (section.categories?.length ?? 0) > 0) ? (
+                      <div data-testid={isRootSection ? "wordbank-lemma-header-badges" : `wordbank-meaning-badges-${section.id}`} className="flex flex-wrap gap-1.5">
                         {isGeneratedNonCor ? (
                           <Badge
                             variant="outline"
@@ -200,33 +194,21 @@ export function WordbankMeaningSections({
                             {badge.label}
                           </Badge>
                         ))}
-                      </div>
-                    ) : isGeneratedNonCor ? (
-                      <div className="mt-1.5 flex flex-wrap gap-1.5">
-                        <Badge
-                          variant="outline"
-                          className="text-xs border-amber-300 bg-amber-50 text-amber-800"
-                        >
-                          Not in COR
-                        </Badge>
+                        {section.categories?.map((category) => (
+                          <Badge
+                            key={`meaning-section-${section.id}-category-${category}`}
+                            variant="outline"
+                            className={`text-xs ${semanticCategoryBadgeClass(category)}`.trim()}
+                          >
+                            {category}
+                          </Badge>
+                        ))}
                       </div>
                     ) : null}
                   </div>
-                  {section.categories && section.categories.length > 0 ? (
-                    <div
-                      data-testid={isRootSection ? "wordbank-lemma-category-badges" : `wordbank-meaning-category-badges-${section.id}`}
-                      className="flex flex-wrap justify-end gap-1.5 sm:max-w-[45%]"
-                    >
-                      {section.categories.map((category) => (
-                        <Badge
-                          key={`meaning-section-${section.id}-category-${category}`}
-                          variant="outline"
-                          className={`text-xs ${semanticCategoryBadgeClass(category)}`.trim()}
-                        >
-                          {category}
-                        </Badge>
-                      ))}
-                    </div>
+                  {/* Row 2: Translation below the word */}
+                  {sectionTranslation ? (
+                    <span className="text-muted-foreground text-sm italic">{sectionTranslation}</span>
                   ) : null}
                 </div>
 

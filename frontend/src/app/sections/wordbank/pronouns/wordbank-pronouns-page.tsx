@@ -15,7 +15,6 @@ import {
   type PinnedWordEntry,
   hiddenBadgesForPinnedTab,
   sentinelForPinnedPageTab,
-  usePinnedPageAudio,
 } from "@/app/sections/wordbank/_shared"
 
 type Props = {
@@ -25,8 +24,6 @@ type Props = {
 }
 
 export function WordbankPronounsPage({ defaultTab, onOpenWord, onOpenTab }: Props) {
-  const audio = usePinnedPageAudio()
-
   return (
     <PinnedPageLayout title="Pronouns">
       <Tabs value={defaultTab} onValueChange={(value) => onOpenTab(sentinelForPinnedPageTab("pronouns", value as PinnedPageTabId))}>
@@ -39,12 +36,12 @@ export function WordbankPronounsPage({ defaultTab, onOpenWord, onOpenTab }: Prop
             <TabsTrigger value="indefinite">Indefinite</TabsTrigger>
             <TabsTrigger value="question_words">Question Words</TabsTrigger>
           </TabsList>
-          <PinnedTab value="personal" entries={personalEntries()} audio={audio} onOpenWord={onOpenWord} />
-          <PinnedTab value="possessive" entries={possessiveEntries()} audio={audio} onOpenWord={onOpenWord} />
-          <PinnedTab value="demonstrative" entries={demonstrativeEntries()} audio={audio} onOpenWord={onOpenWord} />
-          <PinnedTab value="relative" entries={relativeEntries()} audio={audio} onOpenWord={onOpenWord} />
-          <PinnedTab value="indefinite" entries={indefiniteEntries()} audio={audio} onOpenWord={onOpenWord} />
-          <PinnedTab value="question_words" entries={questionWordEntries()} audio={audio} onOpenWord={onOpenWord} />
+          <PinnedTab value="personal" entries={personalEntries()} onOpenWord={onOpenWord} />
+          <PinnedTab value="possessive" entries={possessiveEntries()} onOpenWord={onOpenWord} />
+          <PinnedTab value="demonstrative" entries={demonstrativeEntries()} onOpenWord={onOpenWord} />
+          <PinnedTab value="relative" entries={relativeEntries()} onOpenWord={onOpenWord} />
+          <PinnedTab value="indefinite" entries={indefiniteEntries()} onOpenWord={onOpenWord} />
+          <PinnedTab value="question_words" entries={questionWordEntries()} onOpenWord={onOpenWord} />
         </div>
       </Tabs>
     </PinnedPageLayout>
@@ -54,20 +51,16 @@ export function WordbankPronounsPage({ defaultTab, onOpenWord, onOpenTab }: Prop
 function PinnedTab({
   value,
   entries,
-  audio,
   onOpenWord,
 }: {
   value: PinnedPageTabId
   entries: PinnedWordEntry[]
-  audio: ReturnType<typeof usePinnedPageAudio>
   onOpenWord: (lemma: string) => void
 }) {
   return (
     <TabsContent value={value}>
       <PinnedWordGrid
         entries={entries}
-        pronunciationLoadingByForm={audio.loadingByForm}
-        onPlayPronunciation={audio.playForm}
         onOpenWord={onOpenWord}
         hiddenBadges={hiddenBadgesForPinnedTab("pronouns", value)}
       />
