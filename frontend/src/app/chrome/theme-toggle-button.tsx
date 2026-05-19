@@ -12,7 +12,7 @@ export function ThemeToggleButton() {
       type="button"
       variant="ghost"
       size="icon"
-      className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+      className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground max-md:size-10 max-md:[&_svg:not([class*='size-'])]:size-5"
       aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
       onClick={() => {
         setTheme(isDark ? "light" : "dark")

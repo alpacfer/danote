@@ -1,11 +1,11 @@
 import { useMemo, useState } from "react"
 
+import { MobileSearchButton } from "@/app/chrome/sidebar/mobile-search-button"
 import { SidebarFooterActions } from "@/app/chrome/sidebar/sidebar-footer-actions"
 import { SidebarNavigation } from "@/app/chrome/sidebar/sidebar-navigation"
 import { useSidebarPageItems } from "@/app/chrome/sidebar/sidebar-page-items"
-import { SidebarSearchInput } from "@/app/chrome/sidebar/sidebar-search-input"
+import { SidebarSearchDialog } from "@/app/chrome/sidebar/sidebar-search-dialog"
 import {
-  SidebarSearchResults,
   type SidebarSearchResultsActions,
   type SidebarSearchResultsData,
   type SidebarSearchResultsState,
@@ -16,22 +16,8 @@ import { useSidebarLemmas } from "@/app/chrome/sidebar/use-sidebar-lemmas"
 import { useSidebarSearch } from "@/app/chrome/sidebar/use-sidebar-search"
 import { useSidebarSearchRanking } from "@/app/chrome/sidebar/use-sidebar-search-ranking"
 import { savedWordbankResultKey } from "@/app/chrome/sidebar/use-sidebar-search-ranking"
-import {
-  type AppSection,
-  type CORSearchVariant,
-  type SearchSaveSeed,
-  type SearchFeedbackContext,
-  type SentencebankSentence,
-  type WordbankLemma,
-  type WordbankSearchItem,
-} from "@/app/core"
-import { CommandDialog } from "@/components/ui/command"
-import {
-  Sidebar,
-  SidebarFooter,
-  SidebarHeader,
-  SidebarTrigger,
-} from "@/components/ui/sidebar"
+import { type AppSection, type CORSearchVariant, type SearchSaveSeed, type SearchFeedbackContext, type SentencebankSentence, type WordbankLemma, type WordbankSearchItem } from "@/app/core"
+import { Sidebar, SidebarFooter, SidebarHeader, SidebarTrigger, useSidebar } from "@/components/ui/sidebar"
 
 export type AppSidebarProps = {
   activeSection: AppSection
@@ -82,6 +68,17 @@ export function AppSidebar({
 }: AppSidebarProps) {
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [commandSelectionOverride, setCommandSelectionOverride] = useState("")
+  const { isMobile, setOpenMobile } = useSidebar()
+
+  const closeMobileSidebar = () => { if (isMobile) setOpenMobile(false) }
+  const sidebarAction = (action: () => void) => () => {
+    action()
+    closeMobileSidebar()
+  }
+  const selectWordbankFromSidebar = sidebarAction(onSelectWordbank)
+  const selectSentencebankFromSidebar = sidebarAction(onSelectSentencebank)
+  const selectDeveloperFromSidebar = sidebarAction(onSelectDeveloper)
+  const selectAccountFromSidebar = sidebarAction(onSelectAccount)
 
   const {
     searchQuery,
@@ -150,7 +147,6 @@ export function AppSidebar({
     onSelectWordbank,
     onSelectSentencebank,
     onSelectDeveloper,
-    onSelectAccount,
     onOpenWordbankLemma,
   })
 
@@ -250,22 +246,42 @@ export function AppSidebar({
     onCloseSearch: closeSearch,
   }
 
+  const openSearch = () => setIsSearchOpen(true)
+
   return (
-    <Sidebar variant="inset" collapsible="icon">
-      <SidebarHeader>
-        <div className="flex h-8 items-center gap-2 group-data-[collapsible=icon]:contents">
-          <button
-            type="button"
-            className="truncate text-left text-base font-semibold hover:text-foreground/80 focus-visible:ring-ring rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-offset-2 group-data-[collapsible=icon]:sr-only"
-            onClick={onSelectWordbank}
-          >
-            danote
-          </button>
-          <SidebarTrigger className="ml-auto size-8 cursor-ew-resize group-data-[collapsible=icon]:ml-0" />
-        </div>
-      </SidebarHeader>
-      <CommandDialog
-        open={isSearchOpen}
+    <>
+      <Sidebar variant="inset" collapsible="icon">
+        <SidebarHeader>
+          <div className="flex h-11 items-center gap-2 px-1 pt-1 group-data-[collapsible=icon]:contents">
+            <button
+              type="button"
+              className="font-brand truncate rounded-sm text-left text-[1.25rem] leading-none font-normal tracking-normal italic outline-none hover:text-foreground/80 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 group-data-[collapsible=icon]:sr-only"
+              onClick={selectWordbankFromSidebar}
+            >
+              danote
+            </button>
+            <SidebarTrigger className="ml-auto size-8 cursor-ew-resize group-data-[collapsible=icon]:ml-0 max-md:size-10 max-md:[&_svg:not([class*='size-'])]:size-5" />
+          </div>
+        </SidebarHeader>
+        <SidebarNavigation
+          activeSection={activeSection}
+          unreadWordbankNotificationCount={unreadWordbankNotificationCount}
+          onSelectWordbank={selectWordbankFromSidebar}
+          onSelectSentencebank={selectSentencebankFromSidebar}
+          onSelectDeveloper={selectDeveloperFromSidebar}
+          onOpenSearch={() => { openSearch(); closeMobileSidebar() }}
+        />
+        <SidebarFooter>
+          <SidebarFooterActions activeSection={activeSection} onSelectAccount={selectAccountFromSidebar} />
+        </SidebarFooter>
+      </Sidebar>
+      <SidebarSearchDialog
+        isOpen={isSearchOpen} commandSelectionValue={commandSelectionValue} searchQuery={searchQuery}
+        sentenceSearchPreview={sentenceSearchPreview} isSentenceMode={isSentenceMode}
+        isSentenceSearchPreviewLoading={isSentenceSearchPreviewLoading} isTrialLimitReached={isTrialLimitReached}
+        searchResultState={searchResultState} searchResultData={searchResultData} searchResultActions={searchResultActions}
+        setSearchQuery={setSearchQuery} setCommandSelectionOverride={setCommandSelectionOverride}
+        onCloseSearch={closeSearch} onSelectAccount={onSelectAccount} onSaveSentenceFromSearch={saveSentenceFromSearch}
         onOpenChange={(open) => {
           setIsSearchOpen(open)
           if (!open) {
@@ -275,74 +291,8 @@ export function AppSidebar({
             }, 200)
           }
         }}
-        commandShouldFilter={false}
-        commandValue={commandSelectionValue}
-        onCommandValueChange={setCommandSelectionOverride}
-        showCloseButton={false}
-        className="rounded-xl"
-        title="Search wordbank"
-        description="Search saved words and local COR analyses."
-      >
-        <SidebarSearchInput
-          value={searchQuery}
-          sentenceSearchPreview={sentenceSearchPreview}
-          onKeyDown={(event) => {
-            if (
-              event.key !== "Enter"
-              || !isSentenceMode
-              || !sentenceSearchPreview
-              || isSentenceSearchPreviewLoading
-              || sentenceSearchPreview.source_text === null
-              || sentenceSearchPreview.status === "blocked"
-            ) {
-              return
-            }
-
-            event.preventDefault()
-            event.stopPropagation()
-            saveSentenceFromSearch(
-              sentenceSearchPreview.source_text,
-              sentenceSearchPreview.english_translation ?? null,
-            )
-          }}
-          onValueChange={(value) => {
-            setSearchQuery(value)
-            setCommandSelectionOverride("")
-          }}
-        />
-        {isTrialLimitReached ? (
-          <div className="mx-3 my-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
-            You&apos;ve used today&apos;s free-trial searches.{" "}
-            <button
-              type="button"
-              className="font-medium underline underline-offset-2"
-              onClick={() => {
-                closeSearch()
-                onSelectAccount()
-              }}
-            >
-              Add your API keys
-            </button>{" "}
-            in Account for unlimited access. Resets tomorrow.
-          </div>
-        ) : null}
-        <SidebarSearchResults
-          state={searchResultState}
-          data={searchResultData}
-          actions={searchResultActions}
-        />
-      </CommandDialog>
-      <SidebarNavigation
-        activeSection={activeSection}
-        unreadWordbankNotificationCount={unreadWordbankNotificationCount}
-        onSelectWordbank={onSelectWordbank}
-        onSelectSentencebank={onSelectSentencebank}
-        onSelectDeveloper={onSelectDeveloper}
-        onOpenSearch={() => setIsSearchOpen(true)}
       />
-      <SidebarFooter>
-        <SidebarFooterActions activeSection={activeSection} onSelectAccount={onSelectAccount} />
-      </SidebarFooter>
-    </Sidebar>
+      <MobileSearchButton isSearchOpen={isSearchOpen} onOpenSearch={openSearch} />
+    </>
   )
 }

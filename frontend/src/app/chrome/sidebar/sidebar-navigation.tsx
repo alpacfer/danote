@@ -1,7 +1,7 @@
 import { Search } from "lucide-react"
 
-import type { AppSection } from "@/app/core"
 import { SIDEBAR_PAGE_DEFINITIONS, type SidebarNavigationActions } from "@/app/chrome/sidebar/sidebar-page-items"
+import type { AppSection } from "@/app/core"
 import {
   SidebarContent,
   SidebarGroup,
@@ -39,17 +39,22 @@ export function SidebarNavigation({
         <SidebarGroupContent>
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton type="button" onClick={onOpenSearch}>
+              <SidebarMenuButton type="button" onClick={onOpenSearch} className="max-md:h-12 max-md:text-base max-md:[&>svg]:size-5">
                 <Search />
                 <span>Search</span>
-                <KbdGroup aria-hidden="true" className="ml-auto">
+                <KbdGroup aria-hidden="true" className="ml-auto hidden md:flex">
                   <Kbd>⌘</Kbd>
                   <Kbd>K</Kbd>
                 </KbdGroup>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton type="button" isActive={activeSection === "wordbank"} onClick={onSelectWordbank}>
+              <SidebarMenuButton
+                type="button"
+                isActive={activeSection === "wordbank"}
+                onClick={onSelectWordbank}
+                className="max-md:h-12 max-md:text-base max-md:[&>svg]:size-5"
+              >
                 <WordbankIcon />
                 <span>Wordbank</span>
                 {unreadWordbankNotificationCount > 0 ? (
@@ -57,7 +62,7 @@ export function SidebarNavigation({
                     {unreadWordbankNotificationCount}
                   </span>
                 ) : (
-                  <KbdGroup aria-hidden="true" className="ml-auto">
+                  <KbdGroup aria-hidden="true" className="ml-auto hidden md:flex">
                     <Kbd>Alt</Kbd>
                     <Kbd>W</Kbd>
                   </KbdGroup>
@@ -65,20 +70,30 @@ export function SidebarNavigation({
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton type="button" isActive={activeSection === "sentencebank"} onClick={onSelectSentencebank}>
+              <SidebarMenuButton
+                type="button"
+                isActive={activeSection === "sentencebank"}
+                onClick={onSelectSentencebank}
+                className="max-md:h-12 max-md:text-base max-md:[&>svg]:size-5"
+              >
                 <SentencebankIcon />
                 <span>Sentencebank</span>
-                <KbdGroup aria-hidden="true" className="ml-auto">
+                <KbdGroup aria-hidden="true" className="ml-auto hidden md:flex">
                   <Kbd>Alt</Kbd>
                   <Kbd>S</Kbd>
                 </KbdGroup>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton type="button" isActive={activeSection === "developer"} onClick={onSelectDeveloper}>
+              <SidebarMenuButton
+                type="button"
+                isActive={activeSection === "developer"}
+                onClick={onSelectDeveloper}
+                className="max-md:h-12 max-md:text-base max-md:[&>svg]:size-5"
+              >
                 <DeveloperIcon />
                 <span>Developer</span>
-                <KbdGroup aria-hidden="true" className="ml-auto">
+                <KbdGroup aria-hidden="true" className="ml-auto hidden md:flex">
                   <Kbd>Alt</Kbd>
                   <Kbd>D</Kbd>
                 </KbdGroup>

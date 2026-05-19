@@ -36,6 +36,7 @@ function CommandDialog({
   children,
   className,
   showCloseButton = true,
+  commandClassName,
   commandKey,
   commandValue,
   onCommandValueChange,
@@ -46,6 +47,7 @@ function CommandDialog({
   description?: string
   className?: string
   showCloseButton?: boolean
+  commandClassName?: string
   commandKey?: string
   commandValue?: string
   onCommandValueChange?: (value: string) => void
@@ -66,7 +68,10 @@ function CommandDialog({
           value={commandValue}
           onValueChange={onCommandValueChange}
           shouldFilter={commandShouldFilter}
-          className="[&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group]]:px-2 [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-input-wrapper]_svg]:h-4 [&_[cmdk-input-wrapper]_svg]:w-4 [&_[cmdk-input]]:!h-9 [&_[cmdk-input]]:!py-0 [&_[cmdk-item]]:px-3 [&_[cmdk-item]]:py-2 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5"
+          className={cn(
+            "[&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group]]:px-2 [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-input-wrapper]_svg]:h-4 [&_[cmdk-input-wrapper]_svg]:w-4 [&_[cmdk-input]]:!h-9 [&_[cmdk-input]]:!py-0 [&_[cmdk-item]]:px-3 [&_[cmdk-item]]:py-2 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5",
+            commandClassName,
+          )}
         >
           {children}
         </Command>
@@ -122,8 +127,9 @@ function CommandInput({
             autoComplete="off"
             spellCheck={false}
             autoCapitalize="none"
-            className={cn(
+              className={cn(
               "placeholder:text-muted-foreground field-sizing-content block w-full resize-none bg-transparent py-0 text-sm outline-hidden disabled:cursor-not-allowed disabled:opacity-50",
+              suffix ? "pr-10" : "",
               concealValue ? "relative z-10 text-transparent caret-foreground" : "",
               className
             )}
@@ -135,6 +141,11 @@ function CommandInput({
             tabIndex={-1}
             aria-hidden="true"
           />
+          {suffix ? (
+            <div className="absolute inset-y-0 right-0 flex min-w-8 items-center justify-end">
+              {suffix}
+            </div>
+          ) : null}
         </div>
       </div>
     )
@@ -177,7 +188,7 @@ function CommandInput({
           {...restProps}
         />
         {suffix ? (
-          <div className="pointer-events-none absolute inset-y-0 right-0 flex min-w-10 items-center justify-end">
+          <div className="absolute inset-y-0 right-0 flex min-w-10 items-center justify-end">
             {suffix}
           </div>
         ) : null}

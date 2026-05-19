@@ -339,7 +339,7 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
               >
                 <Icon />
                 <span>{item.label}</span>
-                <span className="ml-auto">{renderShortcut(item.shortcut)}</span>
+                <span className="ml-auto hidden md:inline-flex">{renderShortcut(item.shortcut)}</span>
               </CommandItem>
             )
           })}

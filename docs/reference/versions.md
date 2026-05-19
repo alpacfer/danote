@@ -21,12 +21,13 @@ Tracks baseline dev env and dependency locking for reproducibility.
 - shadcn style: `new-york` (default deprecated upstream)
 - Aliases: `@/* -> src/*`, `@/components`, `@/lib`, `@/components/ui`
 - shadcn config: `frontend/components.json` (used for CLI `add`)
-- Font: `Source Sans 3` via `@fontsource/source-sans-3`
+- Fonts: `Source Sans 3` via `@fontsource/source-sans-3`; sidebar brand uses `Playwrite GB J` via `@fontsource/playwrite-gb-j`
 - Key libraries:
   - `shadcn 3.8.5`
   - `tailwindcss 4.2.1`
   - `@tailwindcss/vite 4.2.1`
   - `@fontsource/source-sans-3 5.2.9`
+  - `@fontsource/playwrite-gb-j 5.2.7`
   - `radix-ui 1.4.3`
   - `class-variance-authority 0.7.1`
   - `tailwind-merge 3.5.0`

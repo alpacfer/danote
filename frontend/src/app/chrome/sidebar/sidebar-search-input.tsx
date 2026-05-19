@@ -1,3 +1,4 @@
+import { X } from "lucide-react"
 import { useMemo, type KeyboardEventHandler } from "react"
 
 import {
@@ -5,6 +6,7 @@ import {
   type SentenceSearchPreviewResponse,
   type SentenceVerificationErrorItem,
 } from "@/app/core"
+import { Button } from "@/components/ui/button"
 import { CommandInput } from "@/components/ui/command"
 
 type TextSegment = {
@@ -112,6 +114,7 @@ type SidebarSearchInputProps = {
   value: string
   sentenceSearchPreview: SentenceSearchPreviewResponse | null
   onValueChange: (value: string) => void
+  onCancelSearch: () => void
   onKeyDown?: KeyboardEventHandler<HTMLElement>
 }
 
@@ -119,6 +122,7 @@ export function SidebarSearchInput({
   value,
   sentenceSearchPreview,
   onValueChange,
+  onCancelSearch,
   onKeyDown,
 }: SidebarSearchInputProps) {
   const rawErrors = useMemo(
@@ -158,6 +162,18 @@ export function SidebarSearchInput({
       aria-label="command search"
       overlay={overlay}
       concealValue={Boolean(overlay)}
+      suffix={(
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Cancel search"
+          className="rounded-full"
+          onClick={onCancelSearch}
+        >
+          <X />
+        </Button>
+      )}
       multiline
       maxLength={SENTENCE_VERIFY_MAX_CHARS}
     />

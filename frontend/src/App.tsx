@@ -1,4 +1,4 @@
-import { SignInButton, SignOutButton, UserButton, useAuth } from "@clerk/react"
+import { SignInButton, SignOutButton, useAuth } from "@clerk/react"
 import { useCallback, useEffect, useRef, useState } from "react"
 
 import { ApiKeysGate } from "@/app/auth/api-keys-gate"
@@ -193,7 +193,7 @@ function AuthenticatedApp() {
 
   return (
     <ApiKeysGate enabled>
-      <AppShell showUserButton />
+      <AppShell />
     </ApiKeysGate>
   )
 }
@@ -243,7 +243,7 @@ function SessionRecoveryScreen({ message, onRetry }: { message: string; onRetry:
   )
 }
 
-function AppShell({ showUserButton = false }: { showUserButton?: boolean }) {
+function AppShell() {
   const {
     activeSection,
     status,
@@ -293,8 +293,7 @@ function AppShell({ showUserButton = false }: { showUserButton?: boolean }) {
       />
       <SidebarInset>
         <header className="flex h-12 items-center gap-2 px-4 md:hidden">
-          <SidebarTrigger />
-          {showUserButton ? <div className="ml-auto"><UserButton /></div> : null}
+          <SidebarTrigger className="size-10 [&_svg:not([class*='size-'])]:size-5" />
         </header>
         <main className="flex min-h-0 w-full flex-1 flex-col px-[var(--danote-shell-gutter-x)] pt-[var(--danote-shell-gutter-y)] pb-[var(--danote-shell-gutter-y-compact)]">
           <span className="sr-only" aria-label="backend-connection-status">{status}</span>
