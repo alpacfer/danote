@@ -9,7 +9,6 @@ import {
 } from "@/app/chrome/sidebar/sidebar-search-results"
 import { type SentenceSearchPreviewResponse } from "@/app/core"
 import { CommandDialog } from "@/components/ui/command"
-import { useVisualViewportVars } from "@/hooks/use-visual-viewport-vars"
 
 type SidebarSearchDialogProps = {
   isOpen: boolean
@@ -48,8 +47,6 @@ export function SidebarSearchDialog({
   onSaveSentenceFromSearch,
   onOpenChange,
 }: SidebarSearchDialogProps) {
-  useVisualViewportVars(true)
-
   return (
     <CommandDialog
       open={isOpen}
@@ -58,7 +55,7 @@ export function SidebarSearchDialog({
       commandValue={commandSelectionValue}
       onCommandValueChange={setCommandSelectionOverride}
       showCloseButton={false}
-      className="rounded-xl max-md:top-auto max-md:bottom-[var(--app-keyboard-inset,0px)] max-md:left-0 max-md:h-[var(--app-visual-vh,100dvh)] max-md:w-screen max-md:max-w-none max-md:translate-x-0 max-md:translate-y-0 max-md:rounded-none max-md:border-x-0 max-md:border-b-0 max-md:slide-in-from-bottom max-md:slide-out-to-bottom max-md:data-[state=open]:[--tw-enter-scale:1] max-md:data-[state=closed]:[--tw-exit-scale:1]"
+      className="rounded-xl max-md:top-0 max-md:left-0 max-md:h-dvh max-md:w-screen max-md:max-w-none max-md:translate-x-0 max-md:translate-y-0 max-md:rounded-none max-md:border-0 max-md:duration-0"
       commandClassName="max-md:flex-col-reverse max-md:rounded-none max-md:pb-[env(safe-area-inset-bottom)] max-md:[&_[cmdk-group-heading]]:text-sm max-md:[&_[data-slot=command-input-wrapper]]:mx-4 max-md:[&_[data-slot=command-input-wrapper]]:my-3 max-md:[&_[data-slot=command-input-wrapper]]:min-h-12 max-md:[&_[data-slot=command-input-wrapper]]:shrink-0 max-md:[&_[data-slot=command-input-wrapper]>svg]:mt-0 max-md:[&_[data-slot=command-input-wrapper]>svg]:self-center max-md:[&_[data-slot=command-input-wrapper]_svg]:h-5 max-md:[&_[data-slot=command-input-wrapper]_svg]:w-5 max-md:[&_[data-slot=command-input]]:!h-auto max-md:[&_[data-slot=command-input]]:text-base max-md:[&_[cmdk-item]]:py-3 max-md:[&_[cmdk-item]]:text-base max-md:[&_[cmdk-item]_svg]:h-5 max-md:[&_[cmdk-item]_svg]:w-5 max-md:[&_[data-slot=command-list]]:max-h-none max-md:[&_[data-slot=command-list]]:min-h-0 max-md:[&_[data-slot=command-list]]:flex-1 max-md:[&_[data-slot=command-list]]:pb-2"
       title="Search wordbank"
       description="Search saved words and local COR analyses."
