@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 
 from app.api.schemas.v1 import (
+    AccountFreshStartResponse,
     AccountStatusResponse,
     ApiKeyStatus,
     TestApiKeyResponse,
@@ -15,6 +17,7 @@ from app.db.repositories.user_api_keys import (
     UserApiKeysRepository,
 )
 from app.services.use_cases.trial import TrialUseCase
+from app.services.use_cases.user_data_reset import clear_user_learning_data
 
 
 class GuestApiKeysForbiddenError(Exception):
@@ -31,6 +34,7 @@ class UnsupportedApiKeyProviderError(Exception):
 
 @dataclass(frozen=True)
 class AccountUseCase:
+    db_path: Path
     api_keys_repository: UserApiKeysRepository | None
     trial_use_case: TrialUseCase
 
@@ -93,6 +97,13 @@ class AccountUseCase:
                 trial=self.trial_use_case.guest_status(guest_browser_id_hash or "")
             )
         return TrialOptInResponse(trial=self.trial_use_case.opt_in(user_id))
+
+    def fresh_start(self, *, user_id: int) -> AccountFreshStartResponse:
+        clear_user_learning_data(self.db_path, user_id, include_search_usage=False)
+        return AccountFreshStartResponse(
+            status="reset",
+            message="Your saved words and sentences have been deleted.",
+        )
 
     def upsert_api_key(self, *, user_id: int, auth_provider: str, provider: str, value: str) -> UpdateApiKeyResponse:
         if self._is_guest(auth_provider):

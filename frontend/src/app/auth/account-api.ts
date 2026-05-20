@@ -73,6 +73,11 @@ export type UpdateApiKeyResult = {
   last_four: string | null
 }
 
+export type AccountFreshStartResult = {
+  status: "reset"
+  message: string
+}
+
 export const API_KEY_PROVIDERS = [
   "gemini",
   "deepl",
@@ -124,5 +129,12 @@ export function deleteApiKey(provider: ApiKeyProvider): Promise<UpdateApiKeyResu
   return apiClient.deleteJson<UpdateApiKeyResult>(
     `/api/account/api-keys/${provider}`,
     `Could not delete ${PROVIDER_LABELS[provider]} key.`,
+  )
+}
+
+export function deleteAccountLearningData(): Promise<AccountFreshStartResult> {
+  return apiClient.deleteJson<AccountFreshStartResult>(
+    "/api/account/data",
+    "Could not delete saved words and sentences.",
   )
 }

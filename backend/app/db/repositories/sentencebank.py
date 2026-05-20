@@ -454,3 +454,42 @@ class SentencebankRepository:
             has_pronunciation=bool(row["has_pronunciation"]),
             tokens=tuple(tokens_by_sentence.get(sentence_id, ())),
         )
+
+    def delete_sentence(self, sentence_id: int) -> None:
+        """Delete a sentence. Associated sentence tokens are removed by cascade."""
+        with timed_db_operation("sentencebank.delete_sentence"), get_connection(self._db_path) as conn:
+            if not self._sentence_belongs_to_owner(conn, sentence_id):
+                raise LookupError("sentence was not found")
+            conn.execute(
+                "DELETE FROM sentence_bank WHERE id = ?",
+                (sentence_id,),
+            )
+
+    def list_meaning_ids_exclusive_to_sentence(self, sentence_id: int) -> list[int]:
+        """Return meaning IDs used by this sentence and no other owner-scoped sentence."""
+        with timed_db_operation("sentencebank.list_meaning_ids_exclusive_to_sentence"), get_connection(
+            self._db_path,
+            read_only=True,
+        ) as conn:
+            if not self._sentence_belongs_to_owner(conn, sentence_id):
+                raise LookupError("sentence was not found")
+            rows = conn.execute(
+                """
+                SELECT DISTINCT current_tokens.meaning_id
+                FROM sentence_bank_tokens current_tokens
+                WHERE current_tokens.sentence_id = ?
+                  AND current_tokens.meaning_id IS NOT NULL
+                  AND NOT EXISTS (
+                    SELECT 1
+                    FROM sentence_bank_tokens other_tokens
+                    JOIN sentence_bank other_sentence
+                      ON other_sentence.id = other_tokens.sentence_id
+                    WHERE other_tokens.meaning_id = current_tokens.meaning_id
+                      AND other_tokens.sentence_id <> ?
+                      AND other_sentence.owner_user_id = ?
+                  )
+                ORDER BY current_tokens.meaning_id
+                """,
+                (sentence_id, sentence_id, self._owner_user_id),
+            ).fetchall()
+            return [int(row["meaning_id"]) for row in rows]

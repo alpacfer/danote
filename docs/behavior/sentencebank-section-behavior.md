@@ -60,6 +60,10 @@ Each row renders:
 - `source_text` primary line
 - `english_translation` secondary line, rendered with sentence-style capitalization (`No translation available.` fallback)
 - token-card grid in sentence order when `tokens.length > 0`
+- right-click opens a destructive `Delete sentence` action. The confirmation
+  dialog shows the Danish sentence and English translation, then lets the user
+  either delete only the sentence or delete the sentence plus wordbank meanings
+  linked exclusively from that sentence.
 
 Sentence detail page header:
 - wraps the rendered sentence line in the shared pronunciation trigger used on word pages
@@ -108,7 +112,7 @@ including built-in words that also belong to pinned reference collections.
 
 ## 5) Refresh / invalidation
 
-`useLexiconData` handles fetching. Sentence loader effect depends on `[apiClient, sentencebankRefreshTick]`. Tick change → set loading true, clear error, fetch `/api/sentencebank/sentences`, store `payload.items ?? []` on success / empty list + error on failure, set loading false. `addSentenceToSentencebank` increments tick after successful save → triggers re-fetch.
+`useLexiconData` handles fetching. Sentence loader effect depends on `[apiClient, sentencebankRefreshTick]`. Tick change → set loading true, clear error, fetch `/api/sentencebank/sentences`, store `payload.items ?? []` on success / empty list + error on failure, set loading false. `addSentenceToSentencebank` increments tick after successful save → triggers re-fetch. Sentence deletion removes the row optimistically and increments the sentencebank refresh tick; deletion with meanings also increments the wordbank refresh tick.
 
 ## 6) Test map
 

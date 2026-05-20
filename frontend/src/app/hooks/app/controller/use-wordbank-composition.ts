@@ -32,6 +32,7 @@ export function useWordbankComposition({ foundation, onSentenceSaved }: UseWordb
     openSentence: navigation.openSentence,
     replaceCurrentSentence: navigation.replaceCurrentSentence,
     openWordbankTarget: navigation.openWordbankTarget,
+    goBack: navigation.goBack,
     trackQueuedPronunciationForms: lexiconData.trackQueuedPronunciationForms,
     postTokenFeedback: async (payload) => {
       await postTokenFeedback(backendUrl, payload)

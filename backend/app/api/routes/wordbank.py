@@ -17,6 +17,8 @@ from app.api.schemas.v1.wordbank import (
     CompleteVariationsResponse,
     DetectWordLanguageRequest,
     DetectWordLanguageResponse,
+    DeleteMeaningResponse,
+    DeleteLemmaResponse,
     FindAlternativeTranslationsRequest,
     FindAlternativeTranslationsResponse,
     GeneratePhraseTranslationRequest,
@@ -301,3 +303,33 @@ def reset_database(request: Request) -> ResetDatabaseResponse:
     except OSError as exc:
         logger.exception("wordbank_db_reset_os_error")
         raise HTTPException(status_code=503, detail=f"Database reset failed: {exc}") from exc
+
+
+@router.delete("/wordbank/meanings/{meaning_id}", response_model=DeleteMeaningResponse)
+def delete_meaning(meaning_id: int, request: Request) -> DeleteMeaningResponse:
+    was_lemma_deleted = run_db_operation(
+        request,
+        lambda: build_wordbank_use_case(request).delete_meaning(meaning_id),
+        include_lookup_error=True,
+        include_runtime_error=True,
+        error_log_name="wordbank_db_operational_error",
+    )
+    return DeleteMeaningResponse(
+        was_lemma_deleted=was_lemma_deleted,
+        message="Meaning deleted successfully" if not was_lemma_deleted else "Meaning and lemma deleted successfully"
+    )
+
+
+@router.delete("/wordbank/lemmas/{lemma}", response_model=DeleteLemmaResponse)
+def delete_lemma(lemma: str, request: Request) -> DeleteLemmaResponse:
+    run_db_operation(
+        request,
+        lambda: build_wordbank_use_case(request).delete_lemma(lemma),
+        include_lookup_error=True,
+        include_runtime_error=True,
+        error_log_name="wordbank_db_operational_error",
+    )
+    return DeleteLemmaResponse(
+        status="deleted",
+        message=f"Lemma '{lemma}' and all meanings deleted successfully"
+    )

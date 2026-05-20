@@ -23,3 +23,5 @@ signed-in user and the app shell. Clerk provider wiring lives in
 - Trial state is server-authoritative — read it from `AccountStatus.trial`;
   do not infer trial eligibility client-side.
 - Keep network/types in `account-api.ts`; components stay presentational.
+- Account start-fresh uses `DELETE /api/account/data`; it clears saved learning
+  data but must not clear API keys, trial state, or daily search usage.

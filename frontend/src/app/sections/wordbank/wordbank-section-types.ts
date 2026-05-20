@@ -32,6 +32,8 @@ export type WordbankSectionProps = {
   onRethinkCategories: (meaningId: number | null) => void
   isCompletingMeaningVariations: boolean
   onCompleteMeaningVariations: (meaningId: number | null) => void
+  onDeleteMeaning: (meaningId: number) => void
+  onDeleteLemma: (lemma: string) => void
   generatingExampleByMeaningId: Record<number, boolean>
   onGenerateExample: (meaningId: number, tense?: import("@/app/core/morphology").VerbFormLabel) => void
   generatingStaticExampleByLemma: Record<string, boolean>

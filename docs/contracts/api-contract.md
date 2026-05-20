@@ -51,6 +51,11 @@ or `Authorization: Bearer <guest-token>` header. Local dev
 - **Response model:** `TrialOptInResponse` (`{ "trial": TrialStatus }`).
 - **Notable status/error behavior:** Idempotent — records trial opt-in for the current user (lets them past the API-keys gate). Returns the refreshed trial status. `401`/`403`/`503` as for other account endpoints.
 
+### DELETE `/api/account/data`
+- **Response model:** `AccountFreshStartResponse` (`status: "reset"`, `message`).
+- **Notable status/error behavior:** `401`/`403`/`503` as for other account endpoints.
+- **Field invariants:** Clears the current user's learning workspace data: wordbank rows, sentencebank rows, phrase translations, ignored tokens, wordbank background jobs, token feedback, typo feedback, and verification change logs. It does not delete API keys, account identity, guest session records, trial opt-in state, or daily search usage.
+
 ### PUT `/api/account/api-keys/{provider}`
 - **Request model:** `UpdateApiKeyRequest` (`{"value": "<api-key>"}`).
 - **Response model:** `UpdateApiKeyResponse`.
@@ -123,6 +128,12 @@ or `Authorization: Bearer <guest-token>` header. Local dev
 - **Notable status/error behavior:** `503` DB unavailable/locked.
 - **Field invariants:** each item includes nested `tokens[]` using the same sentence-token card contract as `POST`, plus `has_pronunciation` derived from persisted sentence audio.
 
+### DELETE `/api/sentencebank/sentences/{sentence_id}`
+- **Request model:** path `sentence_id`; query `delete_meanings: bool = false`.
+- **Response model:** `DeleteSentenceResponse` (`status: "deleted"`, `message`).
+- **Notable status/error behavior:** `404` sentence not found. `503` DB unavailable/locked.
+- **Field invariants:** deleting the sentence removes its sentence tokens by DB cascade. With `delete_meanings=true`, only meanings linked by this sentence and not linked by any other saved sentence for the same user are deleted. When those meaning deletes touch saved sentence tokens elsewhere, the wordbank delete safeguard sets those tokens to `save_status = "unsaved"` and clears `lexeme_id`, `meaning_id`, `stored_lemma`, and `cor_id` before deleting wordbank rows.
+
 ### POST `/api/sentencebank/sentences/{sentence_id}/tokens/{token_index}/save`
 - **Request model:** path params only.
 - **Response model:** `SaveSentenceTokenResponse` (`SentenceSummary` fields, `saved_token`, `message`).
@@ -171,6 +182,18 @@ or `Authorization: Bearer <guest-token>` header. Local dev
   - `queued_verification_targets`: backend-queued targets using `meaning_id` + `stored_surface_form`.
   - Search-seed saves: empty/missing `search_seed.english_translation` allowed; persisted with blank translation.
   - Low-confidence glossless verb seeds whose translation collapses to lemma (e.g. `to bile` for `bile`): backend drops translation, saves with blank `english_translation`.
+
+### DELETE `/api/wordbank/meanings/{meaning_id}`
+- **Request model:** path `meaning_id`.
+- **Response model:** `DeleteMeaningResponse` (`was_lemma_deleted`, `message`).
+- **Notable status/error behavior:** `404` meaning not found. `503` DB unavailable/locked.
+- **Field invariants:** before deleting a meaning, any owner-scoped sentence tokens referencing that meaning are converted to unsaved tokens by setting `save_status = "unsaved"` and clearing `lexeme_id`, `meaning_id`, `stored_lemma`, and `cor_id`. If the meaning is the last meaning for its lemma, the endpoint deletes the whole lemma and returns `was_lemma_deleted: true`; otherwise it deletes only the meaning and its surface forms.
+
+### DELETE `/api/wordbank/lemmas/{lemma}`
+- **Request model:** path `lemma`.
+- **Response model:** `DeleteLemmaResponse` (`status: "deleted"`, `message`).
+- **Notable status/error behavior:** `404` lemma not found. `503` DB unavailable/locked.
+- **Field invariants:** before deleting the lemma and all cascaded wordbank records, any owner-scoped sentence tokens referencing the lemma are converted to unsaved tokens by setting `save_status = "unsaved"` and clearing `lexeme_id`, `meaning_id`, `stored_lemma`, and `cor_id`.
 
 ### POST `/api/wordbank/lexemes/verify`
 - **Request model:** `VerifyWordRequest`.

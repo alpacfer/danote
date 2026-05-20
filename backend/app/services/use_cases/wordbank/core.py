@@ -419,3 +419,16 @@ class WordbankUseCase:
             source_word,
             cor_entries_lookup=self._runtime.cor.cor_entries_for_surface,
         )
+
+    def delete_meaning(self, meaning_id: int) -> bool:
+        """
+        Deletes a meaning by ID. Returns True if the lemma itself was deleted
+        (because this was the last meaning).
+        """
+        return self._runtime.repository.delete_lexeme_meaning(meaning_id)
+
+    def delete_lemma(self, lemma: str) -> None:
+        """
+        Deletes a lemma by string, which wipes out all meanings under it.
+        """
+        self._runtime.repository.delete_lexeme_by_lemma(lemma)

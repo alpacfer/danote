@@ -1,20 +1,32 @@
 import { UserButton, useUser } from "@clerk/react"
 import { useEffect, useState } from "react"
+import { Trash2 } from "lucide-react"
+import { toast } from "sonner"
 
 import { ApiKeysForm } from "@/app/auth/api-keys-form"
-import { fetchAccountMe, type AccountMe } from "@/app/auth/account-api"
+import { deleteAccountLearningData, fetchAccountMe, type AccountMe } from "@/app/auth/account-api"
 import { GuestProfileCard, GuestUsageCard } from "@/app/auth/guest-account-cards"
 import { useAccountStatus } from "@/app/auth/use-account-status"
 import { CLERK_PUBLISHABLE_KEY } from "@/app/core"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
 
 const IS_CLERK_CONFIGURED = Boolean(CLERK_PUBLISHABLE_KEY)
 
-export function AccountSection() {
+export function AccountSection({ onFreshStart }: { onFreshStart?: () => void }) {
   const [account, setAccount] = useState<AccountMe | null>(null)
 
   useEffect(() => {
@@ -47,6 +59,7 @@ export function AccountSection() {
         </p>
       </header>
       {isGuest ? <GuestProfileCard /> : IS_CLERK_CONFIGURED ? <ClerkProfileCard /> : <LocalDevCard />}
+      <FreshStartCard onFreshStart={onFreshStart} />
       {isGuest ? <GuestUsageCard /> : <ApiKeysCard />}
     </div>
   )
@@ -133,6 +146,71 @@ function ApiKeysCard() {
   )
 }
 
+function FreshStartCard({ onFreshStart }: { onFreshStart?: () => void }) {
+  const [open, setOpen] = useState(false)
+  const [busy, setBusy] = useState(false)
+
+  async function handleFreshStart() {
+    setBusy(true)
+    try {
+      const payload = await deleteAccountLearningData()
+      toast.success(payload.message)
+      onFreshStart?.()
+      setOpen(false)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not delete saved words and sentences.")
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Start fresh</CardTitle>
+        <CardDescription>
+          Delete your saved words and sentences while keeping your account and service credentials.
+        </CardDescription>
+        <CardAction>
+          <Button type="button" variant="destructive" size="sm" onClick={() => setOpen(true)}>
+            <Trash2 data-icon="inline-start" />
+            Delete data
+          </Button>
+        </CardAction>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        <Separator />
+        <p className="text-sm text-muted-foreground">
+          This clears wordbank entries, sentencebank entries, related generated cache, and pending word jobs for this account only.
+        </p>
+      </CardContent>
+      <Dialog open={open} onOpenChange={(nextOpen) => {
+        if (!busy) setOpen(nextOpen)
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete all words and sentences?</DialogTitle>
+            <DialogDescription>
+              This gives your account a clean slate. Service credentials, sign-in, and trial status are not changed.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
+            Saved wordbank entries, sentencebank entries, generated word jobs, and related word cache will be permanently deleted.
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button type="button" variant="outline" disabled={busy}>Cancel</Button>
+            </DialogClose>
+            <Button type="button" variant="destructive" disabled={busy} onClick={() => void handleFreshStart()}>
+              <Trash2 data-icon="inline-start" />
+              {busy ? "Deleting..." : "Delete all words and sentences"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </Card>
+  )
+}
 
 function ApiKeysLoadingState() {
   return (

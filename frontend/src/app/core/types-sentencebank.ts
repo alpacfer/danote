@@ -79,3 +79,8 @@ export type GenerateSentencePronunciationResponse = {
   sentence_id: number
   source_text: string
 }
+
+export type DeleteSentenceResponse = {
+  status: "deleted"
+  message: string
+}

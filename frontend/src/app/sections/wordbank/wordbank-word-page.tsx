@@ -1,4 +1,4 @@
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 
 import { normalizeSearchWord } from "@/app/core"
 import type { WordbankSectionProps } from "@/app/sections/wordbank/wordbank-section-types"
@@ -6,6 +6,7 @@ import { WordbankDetailsLoadingSkeleton, WordbankLemmaHeader } from "@/app/secti
 import { WordbankLinkedSentences } from "@/app/sections/wordbank/wordbank-linked-sentences"
 import { WordbankMeaningSections } from "@/app/sections/wordbank/wordbank-meaning-sections"
 import { WordbankRelatedWords } from "@/app/sections/wordbank/wordbank-related-words"
+import { MeaningDeletionDialog, type MeaningDeleteTarget } from "@/app/sections/wordbank/wordbank-deletion-dialogs"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
 type WordbankWordPageProps = Pick<
@@ -26,6 +27,7 @@ type WordbankWordPageProps = Pick<
   | "onRethinkCategories"
   | "isCompletingMeaningVariations"
   | "onCompleteMeaningVariations"
+  | "onDeleteMeaning"
   | "generatingExampleByMeaningId"
   | "onGenerateExample"
   | "verificationOverview"
@@ -63,6 +65,7 @@ export function WordbankWordPage({
   onRethinkCategories,
   isCompletingMeaningVariations,
   onCompleteMeaningVariations,
+  onDeleteMeaning,
   generatingExampleByMeaningId,
   onGenerateExample,
   verificationOverview,
@@ -82,6 +85,7 @@ export function WordbankWordPage({
   onOpenSentence,
   onOpenPinnedTab,
 }: WordbankWordPageProps) {
+  const [meaningToDelete, setMeaningToDelete] = useState<MeaningDeleteTarget | null>(null)
   const normalizedRequestedLemma = normalizeSearchWord(selectedLemma ?? "")
   const normalizedLoadedLemma = normalizeSearchWord(lemmaDetails?.lemma ?? "")
   const hasMatchingLemmaDetails = !normalizedRequestedLemma || normalizedRequestedLemma === normalizedLoadedLemma
@@ -185,6 +189,7 @@ export function WordbankWordPage({
             onRethinkCategories={onRethinkCategories}
             isCompletingMeaningVariations={isCompletingMeaningVariations}
             onCompleteMeaningVariations={onCompleteMeaningVariations}
+            onRequestDeleteMeaning={setMeaningToDelete}
             generatingExampleByMeaningId={generatingExampleByMeaningId}
             onGenerateExample={onGenerateExample}
             rerunningMeaningVerificationById={rerunningMeaningVerificationById}
@@ -202,6 +207,16 @@ export function WordbankWordPage({
           />
         </div>
       </ScrollArea>
+      <MeaningDeletionDialog
+        meaning={meaningToDelete}
+        onOpenChange={(open) => {
+          if (!open) setMeaningToDelete(null)
+        }}
+        onConfirm={(meaningId) => {
+          onDeleteMeaning(meaningId)
+          setMeaningToDelete(null)
+        }}
+      />
     </div>
   )
 }

@@ -1,4 +1,5 @@
 from app.api.schemas.v1.account import (
+    AccountFreshStartResponse,
     AccountMeResponse,
     AccountStatusResponse,
     ApiKeyStatus,
@@ -21,6 +22,7 @@ from app.api.schemas.v1.root import ApiStatusEntry, HealthResponse
 from app.api.schemas.v1.sentencebank import (
     AddSentenceRequest,
     AddSentenceResponse,
+    DeleteSentenceResponse,
     GenerateSentencePronunciationRequest,
     GenerateSentencePronunciationResponse,
     SentenceListResponse,
@@ -37,6 +39,8 @@ from app.api.schemas.v1.wordbank import (
     CORSearchVariant,
     DetectWordLanguageRequest,
     DetectWordLanguageResponse,
+    DeleteLemmaResponse,
+    DeleteMeaningResponse,
     GeneratePhraseTranslationRequest,
     GeneratePhraseTranslationResponse,
     GenerateReverseTranslationRequest,
@@ -56,6 +60,7 @@ from app.api.schemas.v1.wordbank import (
 
 __all__ = [
     "AccountMeResponse",
+    "AccountFreshStartResponse",
     "AccountStatusResponse",
     "ApiKeyStatus",
     "TestApiKeyResponse",
@@ -85,12 +90,15 @@ __all__ = [
     "CORLemmaParadigmResponse",
     "DetectWordLanguageRequest",
     "DetectWordLanguageResponse",
+    "DeleteLemmaResponse",
+    "DeleteMeaningResponse",
     "GeneratePhraseTranslationRequest",
     "GeneratePhraseTranslationResponse",
     "GenerateReverseTranslationRequest",
     "GenerateReverseTranslationResponse",
     "AddSentenceRequest",
     "AddSentenceResponse",
+    "DeleteSentenceResponse",
     "GenerateSentencePronunciationRequest",
     "GenerateSentencePronunciationResponse",
     "SentenceSummary",

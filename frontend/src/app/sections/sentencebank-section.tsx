@@ -18,6 +18,7 @@ export type SentencebankSectionProps = {
   onPlayPronunciationSlowly: (sentenceId: number) => void
   onRegeneratePronunciation: (sentenceId: number) => void
   onAddUnsavedToken: (sentenceId: number, token: SentenceTokenCard) => void
+  onDeleteSentence: (sentenceId: number, deleteMeanings: boolean) => void
 }
 
 export function SentencebankSection({
@@ -35,6 +36,7 @@ export function SentencebankSection({
   onPlayPronunciationSlowly,
   onRegeneratePronunciation,
   onAddUnsavedToken,
+  onDeleteSentence,
 }: SentencebankSectionProps) {
   if (pendingSentence !== null && selectedSentenceId === null) {
     const sentenceShell: SentencebankSentence = {
@@ -82,6 +84,7 @@ export function SentencebankSection({
       isSentencebankLoading={isSentencebankLoading}
       sentences={sentences}
       onOpenSentence={onOpenSentence}
+      onDeleteSentence={onDeleteSentence}
     />
   )
 }

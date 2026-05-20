@@ -6,6 +6,7 @@ import {
   normalizePhraseKey,
   normalizeSearchWord,
   type AddSentenceResponse,
+  type DeleteSentenceResponse,
   type GenerateExamplePreviewResponse,
   type SentencebankSentence,
   type SentenceTokenCard,
@@ -255,6 +256,24 @@ export function useSentencebankSaveWorkflow({
     }
   }
 
+  async function deleteSentenceFromSentencebank(sentenceId: number, deleteMeanings: boolean): Promise<void> {
+    try {
+      const payload = await apiClient.deleteJson<DeleteSentenceResponse>(
+        `/api/sentencebank/sentences/${sentenceId}?delete_meanings=${deleteMeanings ? "true" : "false"}`,
+        "Could not delete sentence.",
+      )
+      toast.success(payload.message)
+      setSentences((current) => current.filter((sentence) => sentence.id !== sentenceId))
+      setSentencebankRefreshTick((current) => current + 1)
+      if (deleteMeanings) {
+        setWordbankRefreshTick((current) => current + 1)
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not delete sentence. Try again."
+      toast.error(message)
+    }
+  }
+
   return {
     isSavingSentence,
     generatedExamplePreview,
@@ -267,5 +286,6 @@ export function useSentencebankSaveWorkflow({
     discardGeneratedExample,
     regenerateExample,
     saveSentenceTokenToWordbank,
+    deleteSentenceFromSentencebank,
   }
 }

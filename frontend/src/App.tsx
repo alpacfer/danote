@@ -338,6 +338,7 @@ function AppShell() {
               wordbankProps={sectionProps.wordbankSectionProps}
               sentencebankProps={sectionProps.sentencebankSectionProps}
               developerProps={sectionProps.developerSectionProps}
+              accountProps={sectionProps.accountSectionProps}
             />
             <GeneratedExampleDialog
               preview={generatedExamplePreview}

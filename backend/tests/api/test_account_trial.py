@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 from app.api.auth import CurrentUser
 from app.api.routes import wordbank_search
 from app.core.config import Settings
-from app.db.migrations import apply_migrations
+from app.db.migrations import apply_migrations, get_connection
 from app.main import create_app
 
 _TEST_ENCRYPTION_SECRET = base64.b64encode(bytes(32)).decode()
@@ -60,6 +60,42 @@ def test_opt_in_marks_opted_in(tmp_path, stub_nlp_adapter_factory) -> None:
 
         status = client.get("/api/account/status")
         assert status.json()["trial"]["opted_in"] is True
+
+
+def test_fresh_start_clears_learning_data_but_keeps_keys_and_usage(tmp_path, stub_nlp_adapter_factory) -> None:
+    settings = _settings(tmp_path, key_encryption_secret=_TEST_ENCRYPTION_SECRET)
+    app = create_app(settings=settings, nlp_adapter_factory=stub_nlp_adapter_factory)
+
+    with TestClient(app) as client:
+        client.put("/api/account/api-keys/gemini", json={"value": "test-gemini-key"})
+        client.post("/api/wordbank/lexemes", json={"surface_token": "bogen", "lemma_candidate": "bog"})
+        client.post(
+            "/api/sentencebank/sentences",
+            json={"source_text": "bogen er her", "english_translation": "the book is here"},
+        )
+        with get_connection(settings.db_path) as conn:
+            conn.execute(
+                """
+                INSERT INTO user_search_usage (owner_user_id, usage_date, query_key)
+                VALUES (1, '2026-05-20', 'bog')
+                """,
+            )
+
+        response = client.delete("/api/account/data")
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "reset"
+
+    with get_connection(settings.db_path) as conn:
+        lexemes = conn.execute("SELECT COUNT(*) AS count FROM lexemes").fetchone()
+        sentences = conn.execute("SELECT COUNT(*) AS count FROM sentence_bank").fetchone()
+        keys = conn.execute("SELECT COUNT(*) AS count FROM user_api_keys").fetchone()
+        usage = conn.execute("SELECT COUNT(*) AS count FROM user_search_usage").fetchone()
+
+    assert lexemes["count"] == 0
+    assert sentences["count"] == 0
+    assert keys["count"] == 1
+    assert usage["count"] == 1
 
 
 def test_search_returns_429_when_trial_limit_exceeded(

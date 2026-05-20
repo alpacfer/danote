@@ -1,15 +1,25 @@
-import { ChevronRight } from "lucide-react"
+import { useState } from "react"
+
+import { ChevronRight, Trash2 } from "lucide-react"
 
 import { PINNED_PAGES, type PinnedPageMeta } from "@/app/sections/wordbank/_shared/pinned-pages-registry"
+import { LemmaDeletionDialog } from "@/app/sections/wordbank/wordbank-deletion-dialogs"
 import type { WordbankSectionProps } from "@/app/sections/wordbank/wordbank-section-types"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 
 type WordbankListViewProps = Pick<
   WordbankSectionProps,
   "wordbankError" | "isWordbankLoading" | "lemmas" | "groupedWordbankLemmas" | "unreadWordbankLemmaCounts" | "onSelectLemma"
+  | "onDeleteLemma"
 >
 
 export function WordbankListView({
@@ -19,7 +29,10 @@ export function WordbankListView({
   groupedWordbankLemmas,
   unreadWordbankLemmaCounts,
   onSelectLemma,
+  onDeleteLemma,
 }: WordbankListViewProps) {
+  const [lemmaToDelete, setLemmaToDelete] = useState<{ lemma: string; displayWord: string } | null>(null)
+
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
       {wordbankError ? (
@@ -69,28 +82,40 @@ export function WordbankListView({
                     const displayWord = lemma.display_lemma?.trim() || lemma.lemma
                     const unreadCount = unreadWordbankLemmaCounts.get(lemma.lemma) ?? 0
                     return (
-                      <Button
-                        key={lemma.lemma}
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="relative w-auto pr-3"
-                        onClick={() => onSelectLemma(lemma.lemma)}
-                      >
-                        {displayWord}
-                        {unreadCount > 0 ? (
-                          unreadCount > 1 ? (
-                            <span className="bg-primary text-primary-foreground ml-2 inline-flex min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] leading-5">
-                              {unreadCount}
-                            </span>
-                          ) : (
-                            <span
-                              aria-label={`Pending verification for ${displayWord}`}
-                              className="bg-primary ml-2 inline-flex size-2.5 rounded-full"
-                            />
-                          )
-                        ) : null}
-                      </Button>
+                      <ContextMenu key={lemma.lemma}>
+                        <ContextMenuTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="relative w-auto pr-3"
+                            onClick={() => onSelectLemma(lemma.lemma)}
+                          >
+                            {displayWord}
+                            {unreadCount > 0 ? (
+                              unreadCount > 1 ? (
+                                <span className="bg-primary text-primary-foreground ml-2 inline-flex min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] leading-5">
+                                  {unreadCount}
+                                </span>
+                              ) : (
+                                <span
+                                  aria-label={`Pending verification for ${displayWord}`}
+                                  className="bg-primary ml-2 inline-flex size-2.5 rounded-full"
+                                />
+                              )
+                            ) : null}
+                          </Button>
+                        </ContextMenuTrigger>
+                        <ContextMenuContent>
+                          <ContextMenuItem
+                            variant="destructive"
+                            onSelect={() => setLemmaToDelete({ lemma: lemma.lemma, displayWord })}
+                          >
+                            <Trash2 />
+                            Delete whole lemma
+                          </ContextMenuItem>
+                        </ContextMenuContent>
+                      </ContextMenu>
                     )
                   })}
                 </div>
@@ -99,6 +124,16 @@ export function WordbankListView({
           </div>
         </ScrollArea>
       )}
+      <LemmaDeletionDialog
+        lemma={lemmaToDelete}
+        onOpenChange={(open) => {
+          if (!open) setLemmaToDelete(null)
+        }}
+        onConfirm={(lemma) => {
+          onDeleteLemma(lemma)
+          setLemmaToDelete(null)
+        }}
+      />
     </div>
   )
 }

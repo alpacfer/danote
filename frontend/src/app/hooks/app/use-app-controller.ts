@@ -61,6 +61,8 @@ export function useAppController() {
       rethinkCategories: wordbank.rethinkCategories,
       isCompletingMeaningVariations: wordbank.isCompletingMeaningVariations,
       completeMeaningVariations: wordbank.completeMeaningVariations,
+      deleteMeaning: wordbank.deleteMeaning,
+      deleteLemma: wordbank.deleteLemma,
       generatingExampleByMeaningId: wordbank.generatingExampleByMeaningId,
       generateExampleForMeaning: wordbank.generateExampleForMeaning,
       generatingStaticExampleByLemma: wordbank.generatingStaticExampleByLemma,
@@ -97,7 +99,17 @@ export function useAppController() {
       playPronunciationSlowly: wordbank.playSentencePronunciationSlowly,
       regeneratePronunciation: wordbank.regenerateSentencePronunciation,
       saveSentenceTokenToWordbank: wordbank.saveSentenceTokenToWordbank,
+      deleteSentenceFromSentencebank: wordbank.deleteSentenceFromSentencebank,
     }),
+    accountSectionProps: {
+      onFreshStart: () => {
+        lexiconData.setLemmas([])
+        lexiconData.setSentences([])
+        lexiconData.setLemmaDetails(null)
+        foundation.setWordbankRefreshTick((current) => current + 1)
+        foundation.setSentencebankRefreshTick((current) => current + 1)
+      },
+    },
     developerSectionProps: buildDeveloperSectionProps({
       status: health.status,
       backendUrl: foundation.backendUrl,

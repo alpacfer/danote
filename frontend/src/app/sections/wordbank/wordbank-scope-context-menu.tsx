@@ -22,7 +22,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
-import { Languages, Loader2, MessageSquareQuote, MoreHorizontal, RefreshCw, Sparkles, TableProperties } from "lucide-react"
+import { Languages, Loader2, MessageSquareQuote, MoreHorizontal, RefreshCw, Sparkles, TableProperties, Trash2 } from "lucide-react"
 
 const VERB_TENSES: VerbFormLabel[] = ["Infinitive", "Present", "Past", "Past participle", "Imperative"]
 
@@ -41,6 +41,7 @@ type WordbankScopeContextMenuProps = {
   completeVariationsLabel?: string
   isCompletingVariations?: boolean
   onCompleteVariations?: () => void
+  onDeleteMeaning?: () => void
 }
 
 export function WordbankScopeContextMenu({
@@ -58,6 +59,7 @@ export function WordbankScopeContextMenu({
   completeVariationsLabel = "Complete variations",
   isCompletingVariations = false,
   onCompleteVariations,
+  onDeleteMeaning,
 }: WordbankScopeContextMenuProps) {
   return (
     <ContextMenu>
@@ -133,6 +135,15 @@ export function WordbankScopeContextMenu({
                     </DropdownMenuItem>
                   </>
                 ) : null}
+                {onDeleteMeaning ? (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem variant="destructive" onSelect={onDeleteMeaning}>
+                      <Trash2 />
+                      Delete meaning
+                    </DropdownMenuItem>
+                  </>
+                ) : null}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -192,6 +203,15 @@ export function WordbankScopeContextMenu({
             >
               {isCompletingVariations ? <Loader2 className="animate-spin" /> : <TableProperties />}
               {isCompletingVariations ? "Completing variations..." : completeVariationsLabel}
+            </ContextMenuItem>
+          </>
+        ) : null}
+        {onDeleteMeaning ? (
+          <>
+            <ContextMenuSeparator />
+            <ContextMenuItem variant="destructive" onSelect={onDeleteMeaning}>
+              <Trash2 />
+              Delete meaning
             </ContextMenuItem>
           </>
         ) : null}

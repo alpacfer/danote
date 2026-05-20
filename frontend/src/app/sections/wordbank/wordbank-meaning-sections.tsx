@@ -42,6 +42,7 @@ type WordbankMeaningSectionsProps = {
   onRethinkCategories: (meaningId: number | null) => void
   isCompletingMeaningVariations: boolean
   onCompleteMeaningVariations: (meaningId: number | null) => void
+  onRequestDeleteMeaning: (meaning: { id: number; label: string; translation: string | null }) => void
   generatingExampleByMeaningId: Record<number, boolean>
   onGenerateExample: (meaningId: number, tense?: import("@/app/core/morphology").VerbFormLabel) => void
   rerunningMeaningVerificationById: Record<number, boolean>
@@ -64,6 +65,7 @@ export function WordbankMeaningSections({
   onRethinkCategories,
   isCompletingMeaningVariations,
   onCompleteMeaningVariations,
+  onRequestDeleteMeaning,
   generatingExampleByMeaningId,
   onGenerateExample,
   rerunningMeaningVerificationById,
@@ -160,6 +162,11 @@ export function WordbankMeaningSections({
             completeVariationsLabel={completionGate.label}
             isCompletingVariations={isCompletingMeaningVariations}
             onCompleteVariations={canCompleteParadigm ? () => onCompleteMeaningVariations(actionMeaningId) : undefined}
+            onDeleteMeaning={actionMeaningId === null ? undefined : () => onRequestDeleteMeaning({
+              id: actionMeaningId,
+              label: meaningLemma,
+              translation: sectionTranslation,
+            })}
           >
             <Card
               id={`wordbank-meaning-${section.id}`}

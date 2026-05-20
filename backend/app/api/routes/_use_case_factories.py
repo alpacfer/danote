@@ -49,6 +49,7 @@ def build_trial_use_case(request: Request) -> TrialUseCase:
 def build_account_use_case(request: Request) -> AccountUseCase:
     runtime = get_runtime_state(request)
     return AccountUseCase(
+        db_path=runtime.settings.db_path,
         api_keys_repository=runtime.user_api_keys_repository,
         trial_use_case=build_trial_use_case(request),
     )

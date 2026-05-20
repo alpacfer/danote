@@ -18,6 +18,7 @@ import { useSentencebankSaveWorkflow } from "./sentencebank/use-sentencebank-sav
 import { useAlternativeTranslationsWorkflow } from "./wordbank/use-alternative-translations-workflow"
 import { useCategoryRethinkingWorkflow } from "./wordbank/use-category-rethinking-workflow"
 import { useCompleteVariationsWorkflow } from "./wordbank/use-complete-variations-workflow"
+import { useWordbankDeletionWorkflow } from "./wordbank/use-wordbank-deletion-workflow"
 import { usePronunciationWorkflow } from "./wordbank/use-pronunciation-workflow"
 import { useVerificationWorkflow } from "./wordbank/use-verification-workflow"
 
@@ -41,6 +42,7 @@ type UseWordbankWorkflowsParams = {
   openSentence: (id: number) => void
   replaceCurrentSentence: (id: number) => void
   openWordbankTarget: (lemma: string, meaningId: number | null) => void
+  goBack: () => void
   postTokenFeedback: (payload: TokenFeedbackPayload) => Promise<void>
   onSentenceSaved?: () => void
   pushNotification: (
@@ -80,6 +82,7 @@ export function useWordbankWorkflows({
   openSentence,
   replaceCurrentSentence,
   openWordbankTarget,
+  goBack,
   postTokenFeedback,
   onSentenceSaved,
   pushNotification,
@@ -192,6 +195,15 @@ export function useWordbankWorkflows({
     openWordbankTarget,
     trackQueuedPronunciationForms,
     onSentenceSaved,
+  })
+
+  const wordbankDeletionWorkflow = useWordbankDeletionWorkflow({
+    apiClient,
+    selectedLemma,
+    goBack,
+    setLemmaDetails,
+    setWordbankRefreshTick,
+    setSentencebankRefreshTick,
   })
 
   async function addWordToWordbank(
@@ -312,6 +324,7 @@ export function useWordbankWorkflows({
     addWordFromSearch,
     saveRelatedWordFromSearchSeed,
     saveSentenceTokenToWordbank: sentencebankWorkflow.saveSentenceTokenToWordbank,
+    deleteSentenceFromSentencebank: sentencebankWorkflow.deleteSentenceFromSentencebank,
     addSentenceToSentencebank: sentencebankWorkflow.addSentenceToSentencebank,
     generateExampleForMeaning: sentencebankWorkflow.generateExampleForMeaning,
     generateStaticExampleForLemma: sentencebankWorkflow.generateStaticExampleForLemma,
@@ -331,6 +344,8 @@ export function useWordbankWorkflows({
     rerunMeaningVerification,
     revertVerificationChange: revertChange,
     clearVerificationErrors,
+    deleteMeaning: wordbankDeletionWorkflow.deleteMeaning,
+    deleteLemma: wordbankDeletionWorkflow.deleteLemma,
     openRelatedWordTarget: openWordbankTarget,
   }
 }

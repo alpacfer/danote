@@ -117,3 +117,8 @@ class GenerateSentencePronunciationResponse(BaseModel):
     status: Literal["generated", "unavailable", "skipped"]
     sentence_id: int
     source_text: str
+
+
+class DeleteSentenceResponse(BaseModel):
+    status: Literal["deleted"] = "deleted"
+    message: str

@@ -13,6 +13,7 @@ type SectionContentProps = {
   wordbankProps: ComponentProps<typeof WordbankSection>
   sentencebankProps: ComponentProps<typeof SentencebankSection>
   developerProps: ComponentProps<typeof DeveloperSection>
+  accountProps: ComponentProps<typeof AccountSection>
 }
 
 export function SectionContent({
@@ -20,6 +21,7 @@ export function SectionContent({
   wordbankProps,
   sentencebankProps,
   developerProps,
+  accountProps,
 }: SectionContentProps) {
   if (activeSection === "wordbank") {
     return <WordbankSection {...wordbankProps} />
@@ -28,7 +30,7 @@ export function SectionContent({
     return <SentencebankSection {...sentencebankProps} />
   }
   if (activeSection === "account") {
-    return <AccountSection />
+    return <AccountSection {...accountProps} />
   }
   return <DeveloperSection {...developerProps} />
 }

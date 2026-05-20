@@ -34,6 +34,11 @@ class AccountStatusResponse(BaseModel):
     trial: TrialStatus
 
 
+class AccountFreshStartResponse(BaseModel):
+    status: str = "reset"
+    message: str
+
+
 class TrialOptInResponse(BaseModel):
     trial: TrialStatus
 

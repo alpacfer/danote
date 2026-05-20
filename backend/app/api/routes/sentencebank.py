@@ -25,6 +25,7 @@ from app.api.schemas.v1.sentencebank import (
     SentenceSearchPreviewResponse,
     VerifySentenceRequest,
     VerifySentenceResponse,
+    DeleteSentenceResponse,
 )
 from app.services.use_cases import SentencebankUseCase
 
@@ -176,3 +177,22 @@ def get_sentence_pronunciation_audio(
         error_log_name="sentencebank_db_operational_error",
     )
     return Response(content=pronunciation.audio_bytes, media_type=pronunciation.mime_type)
+
+
+@router.delete("/sentencebank/sentences/{sentence_id}", response_model=DeleteSentenceResponse)
+def delete_sentence(
+    sentence_id: int,
+    request: Request,
+    delete_meanings: bool = Query(False),
+) -> DeleteSentenceResponse:
+    run_db_operation(
+        request,
+        lambda: _sentencebank_use_case(request).delete_sentence(sentence_id, delete_meanings=delete_meanings),
+        include_lookup_error=True,
+        include_runtime_error=True,
+        error_log_name="sentencebank_db_operational_error",
+    )
+    return DeleteSentenceResponse(
+        status="deleted",
+        message="Sentence deleted successfully" if not delete_meanings else "Sentence and associated meanings deleted successfully"
+    )

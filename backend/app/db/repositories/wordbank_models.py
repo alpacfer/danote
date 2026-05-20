@@ -50,6 +50,7 @@ class LexemeMeaningRecord:
     english_translation: str | None
     pos_tag: str | None
     morphology: str | None
+    lexeme_id: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -171,6 +172,7 @@ def lexeme_meaning_from_row(row) -> LexemeMeaningRecord:
         english_translation=row["english_translation"],
         pos_tag=row["pos_tag"],
         morphology=row["morphology"],
+        lexeme_id=int(row["lexeme_id"]),
     )
 
 

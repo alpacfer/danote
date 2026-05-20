@@ -88,6 +88,16 @@ export type LemmaDetailsResponse = {
   }>
 }
 
+export type DeleteMeaningResponse = {
+  was_lemma_deleted: boolean
+  message: string
+}
+
+export type DeleteLemmaResponse = {
+  status: "deleted"
+  message: string
+}
+
 export type ResolveQueryResponse = {
   query_surface: string
   query_lemma: string | null

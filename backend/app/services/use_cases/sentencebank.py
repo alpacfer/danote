@@ -308,6 +308,19 @@ class SentencebankUseCase:
     def get_pronunciation_audio(self, sentence_id: int) -> PronunciationAudio:
         return self._pronunciation.get_pronunciation_audio(sentence_id)
 
+    def delete_sentence(self, sentence_id: int, delete_meanings: bool = False) -> None:
+        """Delete a sentence and, optionally, meanings only used by that sentence."""
+        if delete_meanings and self._wordbank_use_case is not None:
+            meaning_ids = self._repository.list_meaning_ids_exclusive_to_sentence(sentence_id)
+            for meaning_id in meaning_ids:
+                try:
+                    self._wordbank_use_case.delete_meaning(meaning_id)
+                except LookupError:
+                    pass
+
+        self._repository.delete_sentence(sentence_id)
+
+
 
 def _verification_metadata_payload(
     metadata_items: list[dict[str, object]],

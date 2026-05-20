@@ -1,16 +1,25 @@
 import { useEffect, useRef, useState } from "react"
 
 import { formatSentenceTranslation, type SentencebankSentence } from "@/app/core"
+import { SentenceDeletionDialog } from "@/app/sections/sentencebank/sentencebank-deletion-dialog"
 import { Card, CardContent } from "@/components/ui/card"
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { Trash2 } from "lucide-react"
 
 type SentencebankListViewProps = {
   sentencebankError: string | null
   isSentencebankLoading: boolean
   sentences: SentencebankSentence[]
   onOpenSentence: (id: number) => void
+  onDeleteSentence: (id: number, deleteMeanings: boolean) => void
 }
 
 export function SentencebankListView({
@@ -18,7 +27,10 @@ export function SentencebankListView({
   isSentencebankLoading,
   sentences,
   onOpenSentence,
+  onDeleteSentence,
 }: SentencebankListViewProps) {
+  const [sentenceToDelete, setSentenceToDelete] = useState<SentencebankSentence | null>(null)
+
   if (sentencebankError) {
     return (
       <p className="text-destructive text-sm" role="alert">
@@ -58,9 +70,21 @@ export function SentencebankListView({
             key={sentence.id}
             sentence={sentence}
             onOpen={() => onOpenSentence(sentence.id)}
+            onRequestDelete={() => setSentenceToDelete(sentence)}
           />
         ))}
       </div>
+      <SentenceDeletionDialog
+        sentence={sentenceToDelete}
+        onOpenChange={(open) => {
+          if (!open) setSentenceToDelete(null)
+        }}
+        onConfirm={(deleteMeanings) => {
+          if (!sentenceToDelete) return
+          onDeleteSentence(sentenceToDelete.id, deleteMeanings)
+          setSentenceToDelete(null)
+        }}
+      />
     </ScrollArea>
   )
 }
@@ -68,9 +92,10 @@ export function SentencebankListView({
 type SentenceCardProps = {
   sentence: SentencebankSentence
   onOpen: () => void
+  onRequestDelete: () => void
 }
 
-function SentenceCard({ sentence, onOpen }: SentenceCardProps) {
+function SentenceCard({ sentence, onOpen, onRequestDelete }: SentenceCardProps) {
   const sourceRef = useRef<HTMLParagraphElement>(null)
   const translationRef = useRef<HTMLParagraphElement>(null)
   const [isTruncated, setIsTruncated] = useState(false)
@@ -94,25 +119,37 @@ function SentenceCard({ sentence, onOpen }: SentenceCardProps) {
   const translation = formatSentenceTranslation(sentence.english_translation) || "No translation available."
 
   return (
-    <Tooltip open={isTruncated ? undefined : false}>
-      <TooltipTrigger asChild>
-        <button
-          type="button"
-          className="text-left"
-          onClick={onOpen}
-        >
-          <Card className="hover:bg-accent/40 transition-colors cursor-pointer max-w-sm">
-            <CardContent className="space-y-1.5">
-              <p ref={sourceRef} className="text-base font-medium leading-snug truncate">{sentence.source_text}</p>
-              <p ref={translationRef} className="text-muted-foreground text-sm truncate">{translation}</p>
-            </CardContent>
-          </Card>
-        </button>
-      </TooltipTrigger>
-      <TooltipContent side="bottom" className="max-w-xs">
-        <p className="font-medium">{sentence.source_text}</p>
-        <p className="text-muted-foreground mt-0.5">{translation}</p>
-      </TooltipContent>
-    </Tooltip>
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <div>
+          <Tooltip open={isTruncated ? undefined : false}>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                className="text-left"
+                onClick={onOpen}
+              >
+                <Card className="hover:bg-accent/40 transition-colors cursor-pointer max-w-sm">
+                  <CardContent className="space-y-1.5">
+                    <p ref={sourceRef} className="text-base font-medium leading-snug truncate">{sentence.source_text}</p>
+                    <p ref={translationRef} className="text-muted-foreground text-sm truncate">{translation}</p>
+                  </CardContent>
+                </Card>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-xs">
+              <p className="font-medium">{sentence.source_text}</p>
+              <p className="text-muted-foreground mt-0.5">{translation}</p>
+            </TooltipContent>
+          </Tooltip>
+        </div>
+      </ContextMenuTrigger>
+      <ContextMenuContent>
+        <ContextMenuItem variant="destructive" onSelect={onRequestDelete}>
+          <Trash2 />
+          Delete sentence
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   )
 }

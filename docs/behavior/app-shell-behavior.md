@@ -27,6 +27,10 @@ Stays orchestration layer: state/side-effects in hooks, not component body.
   guest sessions.
 - The Account section shows guest status and remaining daily searches instead
   of Clerk profile controls or API-key forms.
+- The Account section includes a destructive start-fresh action for every
+  account type. It deletes the current user's saved words and sentences while
+  keeping sign-in, guest session, API keys, trial status, and daily usage
+  counters intact.
 
 ### Section layout switch (`frontend/src/app/layout/section-content.tsx`)
 
@@ -150,6 +154,8 @@ State: `useNotificationCenter()`; surface: sidebar/header notification controls.
 
 - Adding word from search → increments analysis + wordbank refresh ticks
 - Saving sentence to sentencebank → increments sentencebank refresh tick → refreshes lists
+- Account start-fresh action → clears local wordbank/sentencebank state and
+  increments both refresh ticks
 - Pronunciation regeneration + verification workflows → may bump wordbank refresh tick
 - `useLexiconData()` receives `activeSection`, `selectedLemma`, both refresh ticks → background fetch responds to navigation + mutation side effects
 

@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from app.api.auth import CurrentUser, require_current_user
 from app.api.routes._use_case_factories import build_account_use_case
 from app.api.schemas.v1 import (
+    AccountFreshStartResponse,
     AccountMeResponse,
     AccountStatusResponse,
     TestApiKeyResponse,
@@ -77,6 +78,17 @@ def opt_in_trial(
             auth_provider=current_user.auth_provider,
             guest_browser_id_hash=current_user.guest_browser_id_hash,
         )
+    except Exception as exc:
+        raise _map_account_error(exc) from None
+
+
+@router.delete("/data", response_model=AccountFreshStartResponse)
+def fresh_start(
+    request: Request,
+    current_user: CurrentUser = CURRENT_USER_DEP,
+) -> AccountFreshStartResponse:
+    try:
+        return build_account_use_case(request).fresh_start(user_id=current_user.id)
     except Exception as exc:
         raise _map_account_error(exc) from None
 

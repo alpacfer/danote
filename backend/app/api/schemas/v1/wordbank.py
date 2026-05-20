@@ -565,5 +565,15 @@ class SeedPresavedWordsAudioResponse(BaseModel):
     message: str
 
 
+class DeleteMeaningResponse(BaseModel):
+    was_lemma_deleted: bool
+    message: str
+
+
+class DeleteLemmaResponse(BaseModel):
+    status: Literal["deleted"] = "deleted"
+    message: str
+
+
 AddWordResponse.model_rebuild()
 LemmaDetailsResponse.model_rebuild()

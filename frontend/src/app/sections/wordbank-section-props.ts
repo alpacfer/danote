@@ -27,6 +27,8 @@ export type WordbankSectionAdapterArgs = {
   rethinkCategories: (meaningId: number | null) => Promise<void>
   isCompletingMeaningVariations: boolean
   completeMeaningVariations: (meaningId: number | null) => Promise<void>
+  deleteMeaning: (meaningId: number) => Promise<void>
+  deleteLemma: (lemma: string) => Promise<void>
   generatingExampleByMeaningId: Record<number, boolean>
   generateExampleForMeaning: (storedLemma: string, meaningId: number, tenseLabel?: string) => Promise<void>
   generatingStaticExampleByLemma: Record<string, boolean>
@@ -95,6 +97,12 @@ export function buildWordbankSectionProps(
     isCompletingMeaningVariations: args.isCompletingMeaningVariations,
     onCompleteMeaningVariations: (meaningId: number | null) => {
       void args.completeMeaningVariations(meaningId)
+    },
+    onDeleteMeaning: (meaningId: number) => {
+      void args.deleteMeaning(meaningId)
+    },
+    onDeleteLemma: (lemma: string) => {
+      void args.deleteLemma(lemma)
     },
     generatingExampleByMeaningId: args.generatingExampleByMeaningId,
     onGenerateExample: (meaningId: number, tense?: import("@/app/core/morphology").VerbFormLabel) => {

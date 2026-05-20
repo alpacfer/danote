@@ -58,6 +58,9 @@ Per-chip:
   - unread `1` → dot indicator
   - unread `>1` → numeric badge pill
 - Click → `onSelectLemma(lemma)` → opens word page
+- Right-click → destructive `Delete whole lemma` action. The confirmation
+  dialog explains that all meanings under the lemma are removed and linked
+  sentence tokens become unsaved instead of disappearing.
 
 Three built-in reference cards are pinned at the top of the wordbank list and
 shown even when there are no saved lemmas: **Pronouns**, **Function Words**,
@@ -177,7 +180,7 @@ Meaning auto-scroll:
 - Pronunciation words are direct click targets; no click-to-listen tooltip is shown
 - Sectioned pages:
   - header lemma word → `Regenerate audio`
-  - each meaning card → context-menu trigger exposing `Rerun verification`, `Find alternative translations`; noun/adj/verb cards also expose `Rethink categories`, `Complete variations`; other POS cards expose only `Find alternative translations` + `Rethink categories`
+  - each meaning card → context-menu trigger exposing `Rerun verification`, `Find alternative translations`, and destructive `Delete meaning`; noun/adj/verb cards also expose `Rethink categories`, `Complete variations`; other POS cards expose only `Find alternative translations` + `Rethink categories` plus deletion
   - each surface-form word in meaning card → `Regenerate audio`
 - Non-sectioned pages:
   - lemma word → `Regenerate audio`, `Find alternative translations`, `Rethink categories`
@@ -188,6 +191,10 @@ Meaning auto-scroll:
   - valid distinct alternates → persisted into `additional_translations`
 - `Rethink categories`: immediate backend recategorization, refreshes lemma details; no confirmation flow; same Gemini flow as initial verification but user-triggered
 - `Rerun verification`: requeues `general` Gemini review for meaning + saved non-lemma variations; existing word-page polling/popover surfaces changes
+- `Delete meaning`: opens a confirmation dialog. Deleting a meaning preserves
+  saved sentence text while converting linked tokens to unsaved. If the meaning
+  was the last saved meaning for that lemma, the backend deletes the whole lemma
+  and the frontend navigates back.
 - `Complete variations`: meaning-only v1 for noun, adjective, verb sections
   - noun: fills missing singular-definite, plural-indefinite, plural-definite
   - adjective: fills missing singular-indefinite `t-word`, singular-definite, shared plural (persisted once, rendered into both plural cells)
