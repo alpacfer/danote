@@ -7,6 +7,7 @@
 @theme inline {
     --font-sans: "Source Sans 3", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     --font-brand: "Playwrite GB J", var(--font-sans);
+    --font-section-title: "Comic Neue", var(--font-sans);
     --radius-sm: calc(var(--radius) - 4px);
     --radius-md: calc(var(--radius) - 2px);
     --radius-lg: var(--radius);

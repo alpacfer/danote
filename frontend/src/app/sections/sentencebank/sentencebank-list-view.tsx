@@ -31,39 +31,54 @@ export function SentencebankListView({
 }: SentencebankListViewProps) {
   const [sentenceToDelete, setSentenceToDelete] = useState<SentencebankSentence | null>(null)
 
+  const title = <h1 className="font-section-title text-2xl leading-none font-normal tracking-normal">Sentencebank</h1>
+
   if (sentencebankError) {
     return (
-      <p className="text-destructive text-sm" role="alert">
-        {sentencebankError}
-      </p>
+      <div className="flex min-h-0 flex-1 flex-col gap-4">
+        {title}
+        <p className="text-destructive text-sm" role="alert">
+          {sentencebankError}
+        </p>
+      </div>
     )
   }
 
   if (isSentencebankLoading && sentences.length === 0) {
     return (
-      <div className="space-y-3">
-        <Card>
-          <CardContent className="space-y-2">
-            <Skeleton className="h-5 w-48" />
-            <Skeleton className="h-4 w-32" />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="space-y-2">
-            <Skeleton className="h-5 w-56" />
-            <Skeleton className="h-4 w-36" />
-          </CardContent>
-        </Card>
+      <div className="flex min-h-0 flex-1 flex-col gap-4">
+        {title}
+        <div className="space-y-3">
+          <Card>
+            <CardContent className="space-y-2">
+              <Skeleton className="h-5 w-48" />
+              <Skeleton className="h-4 w-32" />
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="space-y-2">
+              <Skeleton className="h-5 w-56" />
+              <Skeleton className="h-4 w-36" />
+            </CardContent>
+          </Card>
+        </div>
       </div>
     )
   }
 
   if (sentences.length === 0) {
-    return <p className="text-muted-foreground text-sm">No saved sentences yet.</p>
+    return (
+      <div className="flex min-h-0 flex-1 flex-col gap-4">
+        {title}
+        <p className="text-muted-foreground text-sm">No saved sentences yet.</p>
+      </div>
+    )
   }
 
   return (
-    <ScrollArea className="min-h-0 flex-1">
+    <div className="flex min-h-0 flex-1 flex-col gap-4">
+      {title}
+      <ScrollArea className="min-h-0 flex-1">
       <div className="flex flex-wrap gap-3 items-start pr-1">
         {sentences.map((sentence) => (
           <SentenceCard
@@ -85,7 +100,8 @@ export function SentencebankListView({
           setSentenceToDelete(null)
         }}
       />
-    </ScrollArea>
+      </ScrollArea>
+    </div>
   )
 }
 
