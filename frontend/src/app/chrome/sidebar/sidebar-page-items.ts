@@ -54,6 +54,9 @@ export function useSidebarPageItems({
     if (!normalizedQuery) {
       return pageItems
     }
+    if (isDeveloperUnlocked) {
+      return pageItems
+    }
     return pageItems.filter((item) => item.label.toLocaleLowerCase("da-DK").includes(normalizedQuery))
   }, [
     normalizedQuery,

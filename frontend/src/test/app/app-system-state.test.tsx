@@ -1,6 +1,17 @@
 import { act, fireEvent, mockFetchImplementation, renderApp, responseOf, screen, toast, vi, waitFor, within } from "@/test/app-test-helpers"
 import userEvent from "@testing-library/user-event"
 
+async function openDeveloperSection(user = userEvent.setup()) {
+  fireEvent.click(screen.getByRole("button", { name: /search/i }))
+  const commandDialog = await screen.findByRole("dialog")
+  const searchInput = within(commandDialog).getByRole("textbox", { name: /command search/i })
+  await user.type(searchInput, "chochito")
+  fireEvent.click(await within(commandDialog).findByText(/^Developer$/))
+  await waitFor(() => {
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+  })
+}
+
 describe("App system state", () => {
   it("renders offline status when health check fails", async () => {
     mockFetchImplementation({ healthOk: false })
@@ -39,7 +50,7 @@ describe("App system state", () => {
     renderApp()
     await screen.findByLabelText("backend-connection-status")
 
-    fireEvent.click(screen.getByRole("button", { name: /developer/i }))
+    await openDeveloperSection()
 
     expect(screen.queryByRole("combobox", { name: /nlp model picker/i })).not.toBeInTheDocument()
     expect(screen.queryByText(/backend default remains/i)).not.toBeInTheDocument()
@@ -78,7 +89,7 @@ describe("App system state", () => {
     renderApp()
     await screen.findByLabelText("backend-connection-status")
 
-    fireEvent.click(screen.getByRole("button", { name: /developer/i }))
+    await openDeveloperSection(user)
     await user.click(screen.getByRole("tab", { name: /probes/i }))
     fireEvent.click(await screen.findByRole("button", { name: /test gemini/i }))
 
@@ -125,7 +136,7 @@ describe("App system state", () => {
     renderApp()
     await screen.findByLabelText("backend-connection-status")
 
-    fireEvent.click(screen.getByRole("button", { name: /developer/i }))
+    await openDeveloperSection(user)
     await user.click(screen.getByRole("tab", { name: /probes/i }))
     fireEvent.click(await screen.findByRole("button", { name: /test deepl/i }))
     fireEvent.click(screen.getByRole("button", { name: /test azure speech/i }))
@@ -157,7 +168,7 @@ describe("App system state", () => {
     renderApp()
     await screen.findByLabelText("backend-connection-status")
 
-    fireEvent.click(screen.getByRole("button", { name: /developer/i }))
+    await openDeveloperSection(user)
     await user.click(screen.getByRole("tab", { name: /database/i }))
     fireEvent.click(await screen.findByRole("button", { name: /delete db \+ clear cache/i }))
 
@@ -189,7 +200,7 @@ describe("App system state", () => {
     renderApp()
     await screen.findByLabelText("backend-connection-status")
 
-    fireEvent.click(screen.getByRole("button", { name: /developer/i }))
+    await openDeveloperSection(user)
 
     expect(screen.getByLabelText("api-status-list")).toBeInTheDocument()
     expect(screen.queryByRole("button", { name: /apply runtime api keys/i })).not.toBeInTheDocument()
@@ -325,14 +336,20 @@ describe("App system state", () => {
     await waitFor(() => {
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
     })
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 250))
+    })
 
-    fireEvent.click(screen.getByRole("button", { name: /developer/i }))
+    await openDeveloperSection(user)
     await user.click(screen.getByRole("tab", { name: /api keys/i }))
     fireEvent.change(await screen.findByLabelText(/gemini api key/i), { target: { value: "updated-gemini-key" } })
     fireEvent.click(screen.getByRole("button", { name: /apply runtime api keys/i }))
 
     await waitFor(() => {
       expect(vi.mocked(toast.success)).toHaveBeenCalledWith("Runtime API keys updated.")
+    })
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 250))
     })
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))

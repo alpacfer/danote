@@ -39,7 +39,7 @@ describe("App wordbank pinned pages", () => {
 
     await user.click(screen.getByRole("tab", { name: /question words/i }))
     const hvorCard = await screen.findByRole("button", { name: /open hvor in wordbank/i })
-    expect(within(hvorCard).getByRole("button", { name: /listen to hvor/i })).toBeInTheDocument()
+    expect(within(hvorCard).queryByRole("button", { name: /listen to hvor/i })).not.toBeInTheDocument()
     expect(within(hvorCard).getByText(/^where$/i)).toBeInTheDocument()
     expect(within(hvorCard).getByText(/^Adverb$/i)).toBeInTheDocument()
     expect(within(hvorCard).queryByText(/^Interrogative$/i)).not.toBeInTheDocument()
@@ -170,7 +170,7 @@ describe("App wordbank pinned pages", () => {
     })
   })
 
-  it("restores pinned tab state with browser back and forward", async () => {
+  it("replaces pinned tab state instead of adding tab-level history entries", async () => {
     const user = userEvent.setup()
     mockFetchImplementation({
       lemmasResponse: {
@@ -189,8 +189,9 @@ describe("App wordbank pinned pages", () => {
 
     window.history.back()
     await waitFor(() => {
-      expect(screen.getByRole("tab", { name: /possessive/i })).toHaveAttribute("data-state", "active")
+      expect(screen.queryByRole("heading", { name: /^pronouns$/i })).not.toBeInTheDocument()
     })
+    expect(await screen.findByRole("button", { name: /open pronouns reference/i })).toBeInTheDocument()
 
     window.history.forward()
     await waitFor(() => {

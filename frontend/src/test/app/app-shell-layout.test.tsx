@@ -1,4 +1,5 @@
 import { afterEach } from "vitest"
+import userEvent from "@testing-library/user-event"
 
 import { fireEvent, mockFetchImplementation, renderApp, screen, waitFor, within } from "@/test/app-test-helpers"
 
@@ -91,7 +92,8 @@ describe("App shell layout normalization", () => {
     })
   })
 
-  it("removes account from command page results", async () => {
+  it("removes account and hides developer from default command page results", async () => {
+    const user = userEvent.setup()
     mockFetchImplementation()
 
     renderApp()
@@ -102,7 +104,11 @@ describe("App shell layout normalization", () => {
 
     expect(within(commandDialog).getByText(/^Wordbank$/)).toBeInTheDocument()
     expect(within(commandDialog).getByText(/^Sentencebank$/)).toBeInTheDocument()
-    expect(within(commandDialog).getByText(/^Developer$/)).toBeInTheDocument()
+    expect(within(commandDialog).queryByText(/^Developer$/)).not.toBeInTheDocument()
+    expect(within(commandDialog).queryByText(/^Account$/)).not.toBeInTheDocument()
+
+    await user.type(within(commandDialog).getByRole("textbox", { name: /command search/i }), "chochito")
+    expect(await within(commandDialog).findByText(/^Developer$/)).toBeInTheDocument()
     expect(within(commandDialog).queryByText(/^Account$/)).not.toBeInTheDocument()
   })
 

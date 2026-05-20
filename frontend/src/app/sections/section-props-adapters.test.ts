@@ -25,6 +25,7 @@ describe("section prop adapters", () => {
     const playPronunciationSlowly = vi.fn(async () => undefined)
     const regeneratePronunciation = vi.fn(async () => undefined)
     const saveSentenceTokenToWordbank = vi.fn(async () => undefined)
+    const deleteSentenceFromSentencebank = vi.fn(async () => undefined)
 
     const result = buildSentencebankSectionProps({
       sentencebankError: null,
@@ -41,6 +42,7 @@ describe("section prop adapters", () => {
       playPronunciationSlowly,
       regeneratePronunciation,
       saveSentenceTokenToWordbank,
+      deleteSentenceFromSentencebank,
     })
 
     expect(result.sentencebankError).toBeNull()
@@ -57,6 +59,7 @@ describe("section prop adapters", () => {
     result.onPlayPronunciation(41)
     result.onPlayPronunciationSlowly(41)
     result.onRegeneratePronunciation(41)
+    result.onDeleteSentence(41, true)
 
     expect(openSentence).toHaveBeenCalledWith(41)
 
@@ -64,6 +67,7 @@ describe("section prop adapters", () => {
       expect(playPronunciation).toHaveBeenCalledWith(41)
       expect(playPronunciationSlowly).toHaveBeenCalledWith(41)
       expect(regeneratePronunciation).toHaveBeenCalledWith(41)
+      expect(deleteSentenceFromSentencebank).toHaveBeenCalledWith(41, true)
     })
   })
 
@@ -82,6 +86,8 @@ describe("section prop adapters", () => {
     const saveRelatedWordFromSearchSeed = vi.fn(async () => null)
     const openRelatedWordTarget = vi.fn()
     const openSentence = vi.fn()
+    const deleteMeaning = vi.fn(async () => undefined)
+    const deleteLemma = vi.fn(async () => undefined)
     const markVisibleVerificationNotificationsAsRead = vi.fn()
 
     const result = buildWordbankSectionProps({
@@ -109,6 +115,8 @@ describe("section prop adapters", () => {
       rethinkCategories,
       isCompletingMeaningVariations: false,
       completeMeaningVariations,
+      deleteMeaning,
+      deleteLemma,
       generatingExampleByMeaningId: {},
       generateExampleForMeaning,
       generatingStaticExampleByLemma: {},
@@ -148,6 +156,8 @@ describe("section prop adapters", () => {
     result.onRerunMeaningVerification(12)
     result.onRevertVerificationChange(4)
     result.onGenerateStaticExample("hvor")
+    result.onDeleteMeaning?.(12)
+    result.onDeleteLemma?.("bog")
 
     await Promise.resolve()
 
@@ -162,6 +172,8 @@ describe("section prop adapters", () => {
     expect(rerun).toHaveBeenCalledWith(12)
     expect(revertChange).toHaveBeenCalledWith(4)
     expect(generateStaticExampleForLemma).toHaveBeenCalledWith("hvor")
+    expect(deleteMeaning).toHaveBeenCalledWith(12)
+    expect(deleteLemma).toHaveBeenCalledWith("bog")
     result.onOpenSentence?.(41)
     expect(openSentence).toHaveBeenCalledWith(41)
     expect(result.selectedMeaningId).toBe(12)
