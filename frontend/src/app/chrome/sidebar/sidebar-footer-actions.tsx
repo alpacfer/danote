@@ -12,11 +12,11 @@ type SidebarFooterActionsProps = {
 
 export function SidebarFooterActions({ activeSection, onSelectAccount }: SidebarFooterActionsProps) {
   return (
-    <div className="flex items-center gap-1 group-data-[collapsible=icon]:justify-center">
+    <div className="flex items-center gap-1 group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:items-start group-data-[collapsible=icon]:justify-center">
       <Button
         type="button"
         variant="ghost"
-        size="icon"
+        size="icon-sm"
         aria-label="Open account"
         aria-current={activeSection === "account" ? "page" : undefined}
         className={cn(
