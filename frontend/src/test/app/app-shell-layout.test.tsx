@@ -26,7 +26,8 @@ describe("App shell layout normalization", () => {
     expect(main).not.toBeNull()
     expect(main).toHaveClass("px-[var(--danote-shell-gutter-x)]")
     expect(main).toHaveClass("pt-[var(--danote-shell-gutter-y)]")
-    expect(main).toHaveClass("pb-[var(--danote-shell-gutter-y-compact)]")
+    expect(main).toHaveClass("pb-[calc(5.5rem+env(safe-area-inset-bottom))]")
+    expect(main).toHaveClass("md:pb-[var(--danote-shell-gutter-y-compact)]")
   })
 
   it("keeps account access in the sidebar footer", async () => {

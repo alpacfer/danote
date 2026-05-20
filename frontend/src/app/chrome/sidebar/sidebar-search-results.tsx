@@ -332,6 +332,7 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
               <CommandItem
                 key={item.key}
                 value={item.key}
+                className="max-md:h-12 max-md:text-base max-md:[&_svg:not([class*='size-'])]:size-5"
                 onSelect={() => {
                   item.onSelect()
                   actions.onCloseSearch()

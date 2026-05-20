@@ -10,7 +10,7 @@ import { useAppController } from "@/app/hooks/app/use-app-controller"
 import { SectionContent } from "@/app/layout/section-content"
 import { GeneratedExampleDialog } from "@/app/sections/sentencebank/generated-example-dialog"
 import { Button } from "@/components/ui/button"
-import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { Spinner } from "@/components/ui/spinner"
 
 type AppProps = {
@@ -327,10 +327,7 @@ function AppShell() {
         onAddWordFromSearch={addWordFromSearch}
       />
       <SidebarInset>
-        <header className="flex h-12 items-center gap-2 px-4 md:hidden">
-          <SidebarTrigger className="size-10 [&_svg:not([class*='size-'])]:size-5" />
-        </header>
-        <main className="flex min-h-0 w-full flex-1 flex-col px-[var(--danote-shell-gutter-x)] pt-[var(--danote-shell-gutter-y)] pb-[var(--danote-shell-gutter-y-compact)]">
+        <main className="flex min-h-0 w-full flex-1 flex-col px-[var(--danote-shell-gutter-x)] pt-[var(--danote-shell-gutter-y)] pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-[var(--danote-shell-gutter-y-compact)]">
           <span className="sr-only" aria-label="backend-connection-status">{status}</span>
           <div className="mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col">
             <SectionContent

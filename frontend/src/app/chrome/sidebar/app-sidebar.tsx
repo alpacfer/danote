@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react"
 
 import { MobileSearchButton } from "@/app/chrome/sidebar/mobile-search-button"
+import { MobileSidebarButton } from "@/app/chrome/sidebar/mobile-sidebar-button"
 import { SidebarFooterActions } from "@/app/chrome/sidebar/sidebar-footer-actions"
 import { SidebarNavigation } from "@/app/chrome/sidebar/sidebar-navigation"
 import { useSidebarPageItems } from "@/app/chrome/sidebar/sidebar-page-items"
@@ -289,6 +290,7 @@ export function AppSidebar({
           }
         }}
       />
+      <MobileSidebarButton />
       <MobileSearchButton isSearchOpen={isSearchOpen} onOpenSearch={openSearch} />
     </>
   )
