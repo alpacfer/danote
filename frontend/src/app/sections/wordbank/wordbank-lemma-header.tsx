@@ -228,14 +228,14 @@ export function WordbankDetailsLoadingSkeleton({ layout = "root" }: WordbankDeta
           {layout === "sectioned" ? (
             <>
               {header}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                 {[0, 1].map((item) => (
                   <WordbankMeaningCardLoadingSkeleton key={`wordbank-details-loading-card-${item}`} />
                 ))}
               </div>
             </>
           ) : (
-            <Card data-testid="wordbank-details-loading-card" className="w-1/2 py-5 border-border/70">
+            <Card data-testid="wordbank-details-loading-card" className="w-full py-5 border-border/70 md:w-1/2">
               <CardContent className="space-y-3">
                 {header}
                 <WordbankParadigmLoadingSkeleton />
