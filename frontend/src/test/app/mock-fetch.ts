@@ -661,6 +661,11 @@ export function mockFetchImplementation(options?: {
       status: "queued" | "skipped"
       sentence_id: number
     } | null
+    queued_verification_targets?: Array<{
+      stored_lemma: string
+      meaning_id?: number | null
+      stored_surface_form?: string | null
+    }>
   }
   addSentenceHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
   saveSentenceTokenResponse?: {
@@ -698,6 +703,11 @@ export function mockFetchImplementation(options?: {
       gloss_translation?: string | null
     }
     message: string
+    queued_verification_targets?: Array<{
+      stored_lemma: string
+      meaning_id?: number | null
+      stored_surface_form?: string | null
+    }>
   }
   saveSentenceTokenHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
   examplePreviewResponse?: {
