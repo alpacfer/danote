@@ -1,4 +1,4 @@
-import { fireEvent, mockFetchImplementation, renderApp, responseOf, screen, waitFor, within } from "@/test/app-test-helpers"
+import { act, fireEvent, mockFetchImplementation, renderApp, responseOf, screen, waitFor, within } from "@/test/app-test-helpers"
 import { bogVariationGlossWordPageContractFixture, cloneContractFixture } from "@/test/app/wordbank-contract-fixtures"
 
 describe("App shell and search", () => {
@@ -106,6 +106,26 @@ describe("App shell and search", () => {
 
     expect(screen.queryByRole("textbox", { name: /lesson notes/i })).not.toBeInTheDocument()
   }, 10_000)
+
+  it("closes the search page on browser back without moving app sections", async () => {
+    mockFetchImplementation()
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+    fireEvent.click(screen.getByRole("button", { name: /sentencebank/i }))
+    expect(await screen.findByText(/no saved sentences yet/i)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    expect(await screen.findByRole("dialog")).toBeInTheDocument()
+
+    await act(async () => {
+      window.history.back()
+      await new Promise(resolve => setTimeout(resolve, 50))
+    })
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    expect(screen.getByText(/no saved sentences yet/i)).toBeInTheDocument()
+  })
 
   it("command search shows saved lemma as top action with eye icon", async () => {
     mockFetchImplementation({

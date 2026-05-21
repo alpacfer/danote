@@ -1,5 +1,4 @@
-import { SignInButton } from "@clerk/react"
-
+import { AuthSignInButton } from "@/app/auth/auth-sign-in-button"
 import { useAccountStatus } from "@/app/auth/use-account-status"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -26,9 +25,9 @@ export function GuestProfileCard() {
           Guest notes are session-scoped and are not restored when you start guest mode again.
         </p>
         <div className="flex flex-wrap gap-2">
-          <SignInButton mode="modal">
+          <AuthSignInButton>
             <Button type="button" size="sm">Sign in to save notes</Button>
-          </SignInButton>
+          </AuthSignInButton>
         </div>
       </CardContent>
     </Card>

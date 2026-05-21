@@ -9,6 +9,7 @@ signed-in user and the app shell. Clerk provider wiring lives in
 | File | Role |
 |---|---|
 | `account-api.ts` | Typed client + types for `/api/account/*` (status, keys, trial opt-in) and the account error-message map. |
+| `auth-sign-in-button.tsx` | Shared Clerk sign-in trigger with post-confirmation redirects back to the app root. |
 | `use-account-status.ts` | Hook that fetches/refetches `AccountStatus` (keys + trial). |
 | `api-keys-gate.tsx` | Gate: renders children only when keys are configured **or** the free trial is opted into; otherwise shows the setup screen. |
 | `api-key-setup-screen.tsx` | Pre-entry screen: the keys form plus the "Start free trial" CTA. |

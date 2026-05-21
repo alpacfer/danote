@@ -14,40 +14,15 @@ import {
 import { useSidebarCommandSelection } from "@/app/chrome/sidebar/use-sidebar-command-selection"
 import { useSidebarHotkeys } from "@/app/chrome/sidebar/use-sidebar-hotkeys"
 import { useSidebarLemmas } from "@/app/chrome/sidebar/use-sidebar-lemmas"
+import { useSidebarSearchHistory } from "@/app/chrome/sidebar/use-sidebar-search-history"
 import { useSidebarSearch } from "@/app/chrome/sidebar/use-sidebar-search"
 import { useSidebarSearchRanking } from "@/app/chrome/sidebar/use-sidebar-search-ranking"
 import { savedWordbankResultKey } from "@/app/chrome/sidebar/use-sidebar-search-ranking"
-import { type AppSection, type CORSearchVariant, type SearchSaveSeed, type SearchFeedbackContext, type SentencebankSentence, type WordbankLemma, type WordbankSearchItem } from "@/app/core"
+import { type AppSidebarProps } from "@/app/chrome/sidebar/app-sidebar-types"
+import { type CORSearchVariant, type WordbankSearchItem } from "@/app/core"
 import { Sidebar, SidebarFooter, SidebarHeader, SidebarTrigger, useSidebar } from "@/components/ui/sidebar"
 
-export type AppSidebarProps = {
-  activeSection: AppSection
-  lemmas: WordbankLemma[]
-  sentences: SentencebankSentence[]
-  wordbankCacheVersion: number
-  searchTranslationConfigVersion: number
-  unreadWordbankNotificationCount: number
-  onSelectWordbank: () => void
-  onSelectSentencebank: () => void
-  onSelectDeveloper: () => void
-  onSelectAccount: () => void
-  onOpenWordbankLemma: (lemma: string) => void
-  onOpenWordbankLemmaRaw: (lemma: string) => void
-  onOpenWordbankMeaning: (lemma: string, meaningId: number) => void
-  onOpenSentence: (id: number) => void
-  onAddSentenceToSentencebank: (sourceText: string, englishTranslation?: string | null) => Promise<void>
-  onAddWordFromSearch: (
-    surfaceToken: string,
-    lemmaCandidate: string | null,
-    feedbackContext?: SearchFeedbackContext,
-    metadata?: {
-      posTag?: string | null
-      morphology?: string | null
-      corId?: string | null
-    },
-    searchSeed?: SearchSaveSeed | null,
-  ) => Promise<string | null>
-}
+export type { AppSidebarProps } from "@/app/chrome/sidebar/app-sidebar-types"
 
 export function AppSidebar({
   activeSection,
@@ -103,6 +78,16 @@ export function AppSidebar({
     wordbankCacheVersion,
     searchTranslationConfigVersion,
   })
+  const searchHistory = useSidebarSearchHistory({
+    isSearchOpen,
+    onCloseFromHistory: () => {
+      setIsSearchOpen(false)
+      setTimeout(() => {
+        setSearchQuery("")
+        setCommandSelectionOverride("")
+      }, 200)
+    },
+  })
   const searchLemmas = useSidebarLemmas(lemmas, isSearchOpen)
 
   const matchedSavedSentences = useMemo(() => {
@@ -116,13 +101,6 @@ export function AppSidebar({
       )
       .slice(0, 6)
   }, [sentences, normalizedQuery])
-
-  useSidebarHotkeys({
-    onToggleSearch: () => setIsSearchOpen((current) => !current),
-    onSelectWordbank,
-    onSelectSentencebank,
-    onSelectAccount,
-  })
 
   const {
     variationCandidateCorIdSet,
@@ -183,6 +161,7 @@ export function AppSidebar({
   })
 
   const closeSearch = () => {
+    searchHistory.clear()
     setIsSearchOpen(false)
     setTimeout(() => {
       setSearchQuery("")
@@ -245,7 +224,20 @@ export function AppSidebar({
     onCloseSearch: closeSearch,
   }
 
-  const openSearch = () => setIsSearchOpen(true)
+  const openSearch = () => {
+    searchHistory.push()
+    setIsSearchOpen(true)
+  }
+
+  useSidebarHotkeys({
+    onToggleSearch: () => {
+      if (isSearchOpen) closeSearch()
+      else openSearch()
+    },
+    onSelectWordbank,
+    onSelectSentencebank,
+    onSelectAccount,
+  })
 
   return (
     <>
@@ -281,13 +273,8 @@ export function AppSidebar({
         setSearchQuery={setSearchQuery} setCommandSelectionOverride={setCommandSelectionOverride}
         onCloseSearch={closeSearch} onSelectAccount={onSelectAccount} onSaveSentenceFromSearch={saveSentenceFromSearch}
         onOpenChange={(open) => {
-          setIsSearchOpen(open)
-          if (!open) {
-            setTimeout(() => {
-              setSearchQuery("")
-              setCommandSelectionOverride("")
-            }, 200)
-          }
+          if (open) openSearch()
+          else closeSearch()
         }}
       />
       <MobileSidebarButton />

@@ -1,5 +1,4 @@
-import { SignInButton } from "@clerk/react"
-
+import { AuthSignInButton } from "@/app/auth/auth-sign-in-button"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 
@@ -17,9 +16,9 @@ export function GuestEntryScreen({ error, isStartingGuest, onStartGuest }: Guest
         <p className="text-sm text-muted-foreground">Sign in to use your Danish notes workspace.</p>
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
         <div className="flex flex-wrap justify-center gap-2">
-          <SignInButton mode="modal">
+          <AuthSignInButton>
             <Button type="button">Sign in</Button>
-          </SignInButton>
+          </AuthSignInButton>
           <Button type="button" variant="outline" disabled={isStartingGuest} onClick={onStartGuest}>
             {isStartingGuest ? <Spinner /> : null}
             Continue as guest

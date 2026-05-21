@@ -107,8 +107,17 @@ Via shadcn sidebar primitives:
   - saved wordbank meaning rows → `openWordbankMeaning`
   - sentence-token saved word clicks → raw word-page navigation
   - built-in collection links → sentinel-aware `openWordbankLemma`
+- Mobile command search writes a transient browser-history entry while open;
+  browser Back closes the full-screen search page and restores the page that was
+  visible before search instead of stepping through app section history.
 - Breadcrumb renders from same controller state (`activeSection`, `selectedLemma`) → nav + breadcrumb synchronized by construction
 - Lemma detail: clicking breadcrumb `Wordbank` → `openWordbankRoot()`, resets lemma/meaning
+
+### Sign-in return behavior
+
+- Clerk sign-in triggers force successful sign-in and sign-up confirmation flows
+  back to the app root so browser Back does not return users to the account
+  confirmation step after entry.
 
 ## 4. Notification center semantics
 
