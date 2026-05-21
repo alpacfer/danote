@@ -26,6 +26,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { ScrollableBadgeRow } from "@/components/ui/scrollable-badge-row"
 
 type WordbankMeaningSectionsProps = {
   lemma: string
@@ -176,18 +177,28 @@ export function WordbankMeaningSections({
               className="py-5"
             >
               <CardContent className="flex flex-col gap-3">
-                {/* Row 1: Lemma + all badges (POS + morphology + category) together */}
+                {/* Row 1: Lemma + inline badges. Badges scroll horizontally when
+                    they overflow the available width. Right padding reserves
+                    space for the meatball menu (always visible on mobile, on
+                    hover on desktop). */}
                 <div className="flex flex-col gap-1.5">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span data-testid={isRootSection ? "wordbank-lemma-card-lemma" : `wordbank-meaning-card-lemma-${section.id}`} className="text-lg leading-tight font-bold">
+                  <div className="flex items-center gap-2 pr-9">
+                    <span
+                      data-testid={isRootSection ? "wordbank-lemma-card-lemma" : `wordbank-meaning-card-lemma-${section.id}`}
+                      className="shrink-0 text-lg leading-tight font-bold"
+                    >
                       {meaningLemma}
                     </span>
                     {(sectionBadges.length > 0 || isGeneratedNonCor || (section.categories?.length ?? 0) > 0) ? (
-                      <div data-testid={isRootSection ? "wordbank-lemma-header-badges" : `wordbank-meaning-badges-${section.id}`} className="flex flex-wrap gap-1.5">
+                      <ScrollableBadgeRow
+                        className="flex-1"
+                        fadeFromClass="from-card"
+                        testId={isRootSection ? "wordbank-lemma-header-badges" : `wordbank-meaning-badges-${section.id}`}
+                      >
                         {isGeneratedNonCor ? (
                           <Badge
                             variant="outline"
-                            className="text-xs border-amber-300 bg-amber-50 text-amber-800"
+                            className="shrink-0 text-xs border-amber-300 bg-amber-50 text-amber-800"
                           >
                             Not in COR
                           </Badge>
@@ -196,7 +207,7 @@ export function WordbankMeaningSections({
                           <Badge
                             key={`meaning-section-${section.id}-badge-${badge.label}`}
                             variant={badge.tone === "primary" ? "default" : "secondary"}
-                            className={`text-xs ${badge.tone === "primary" ? `border ${posBadgeClass(section.pos_tag ?? null)}` : `border ${corSecondaryBadgeClass(badge.label)}`}`.trim()}
+                            className={`shrink-0 text-xs ${badge.tone === "primary" ? `border ${posBadgeClass(section.pos_tag ?? null)}` : `border ${corSecondaryBadgeClass(badge.label)}`}`.trim()}
                           >
                             {badge.label}
                           </Badge>
@@ -205,15 +216,15 @@ export function WordbankMeaningSections({
                           <Badge
                             key={`meaning-section-${section.id}-category-${category}`}
                             variant="outline"
-                            className={`text-xs ${semanticCategoryBadgeClass(category)}`.trim()}
+                            className={`shrink-0 text-xs ${semanticCategoryBadgeClass(category)}`.trim()}
                           >
                             {category}
                           </Badge>
                         ))}
-                      </div>
+                      </ScrollableBadgeRow>
                     ) : null}
                   </div>
-                  {/* Row 2: Translation below the word */}
+                  {/* Row 2: Translation directly below the lemma */}
                   {sectionTranslation ? (
                     <span className="text-muted-foreground text-sm italic">{sectionTranslation}</span>
                   ) : null}

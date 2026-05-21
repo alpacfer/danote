@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { ScrollableBadgeRow } from "@/components/ui/scrollable-badge-row"
 import { Skeleton } from "@/components/ui/skeleton"
 import { AudioLines, Languages, Loader2, Sparkles } from "lucide-react"
 
@@ -170,17 +171,21 @@ export function WordbankLemmaHeader({
 
       {/* POS + morphology badges */}
       {headerBadges.length > 0 ? (
-        <div data-testid="wordbank-lemma-header-badges" className="mt-1.5 flex flex-wrap gap-1.5">
+        <ScrollableBadgeRow
+          className="mt-1.5"
+          fadeFromClass="from-background"
+          testId="wordbank-lemma-header-badges"
+        >
           {headerBadges.map((badge) => (
             <Badge
               key={`lemma-badge-${badge.label}`}
               variant={badge.tone === "primary" ? "default" : "secondary"}
-              className={`text-xs ${badge.tone === "primary" ? `border ${posBadgeClass(headerPosTag)}` : `border ${corSecondaryBadgeClass(badge.label)}`}`.trim()}
+              className={`shrink-0 text-xs ${badge.tone === "primary" ? `border ${posBadgeClass(headerPosTag)}` : `border ${corSecondaryBadgeClass(badge.label)}`}`.trim()}
             >
               {badge.label}
             </Badge>
           ))}
-        </div>
+        </ScrollableBadgeRow>
       ) : null}
 
       {/* Translation */}

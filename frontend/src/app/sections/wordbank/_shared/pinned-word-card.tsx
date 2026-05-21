@@ -5,6 +5,7 @@ import { metadataForPinnedWord } from "@/app/sections/wordbank/_shared/pinned-wo
 import { wordPageBadgesForSavedForm } from "@/app/sections/wordbank/wordbank-card-badges"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardHeader, CardTitle } from "@/components/ui/card"
+import { ScrollableBadgeRow } from "@/components/ui/scrollable-badge-row"
 
 export type PinnedWordEntry = {
   lemma: string
@@ -54,20 +55,20 @@ export function PinnedWordCard({
     >
       <CardHeader className="gap-2">
         <div className="flex flex-col gap-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <CardTitle className="text-lg font-semibold">{entry.lemma}</CardTitle>
+          <div className="flex items-center gap-2">
+            <CardTitle className="shrink-0 text-lg font-semibold">{entry.lemma}</CardTitle>
             {badges.length > 0 ? (
-              <div className="flex flex-wrap gap-1.5">
+              <ScrollableBadgeRow className="flex-1" fadeFromClass="from-card">
                 {badges.map((badge) => (
                   <Badge
                     key={`pinned-word-${entry.lemma}-${badge.label}`}
                     variant={badge.tone === "primary" ? "default" : "secondary"}
-                    className={`text-xs ${badge.tone === "primary" ? `border ${posBadgeClass(posTag)}` : `border ${corSecondaryBadgeClass(badge.label)}`}`.trim()}
+                    className={`shrink-0 text-xs ${badge.tone === "primary" ? `border ${posBadgeClass(posTag)}` : `border ${corSecondaryBadgeClass(badge.label)}`}`.trim()}
                   >
                     {badge.label}
                   </Badge>
                 ))}
-              </div>
+              </ScrollableBadgeRow>
             ) : null}
           </div>
           <p className="text-muted-foreground text-sm">{entry.translation}</p>
