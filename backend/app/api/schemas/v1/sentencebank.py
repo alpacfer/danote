@@ -46,10 +46,17 @@ class QueuedSentencePronunciationTask(BaseModel):
     sentence_id: int
 
 
+class QueuedSentenceVerificationTarget(BaseModel):
+    stored_lemma: str
+    meaning_id: int | None = None
+    stored_surface_form: str | None = None
+
+
 class AddSentenceResponse(SentenceSummary):
     status: Literal["inserted", "exists"]
     message: str
     pronunciation: QueuedSentencePronunciationTask | None = None
+    queued_verification_targets: list[QueuedSentenceVerificationTarget] = Field(default_factory=list)
 
 
 class SentenceListResponse(BaseModel):
@@ -59,6 +66,7 @@ class SentenceListResponse(BaseModel):
 class SaveSentenceTokenResponse(SentenceSummary):
     saved_token: SentenceTokenCard
     message: str
+    queued_verification_targets: list[QueuedSentenceVerificationTarget] = Field(default_factory=list)
 
 
 class GenerateExamplePreviewRequest(BaseModel):

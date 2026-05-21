@@ -20,7 +20,6 @@ def verification_context(payload: WordVerificationInput) -> dict[str, object]:
             "meaning_id": payload.meaning_id,
             "meaning_key": payload.meaning_key,
             "gloss": payload.meaning_gloss,
-            "meaning_gloss_translation": payload.meaning_gloss_translation,
             "selected_translation": payload.selected_translation,
             "selected_translation_scope": payload.selected_translation_scope,
             "lexeme_source": payload.lexeme_source,

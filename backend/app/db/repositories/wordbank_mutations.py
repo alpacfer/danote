@@ -38,6 +38,25 @@ class WordbankMutationRepository:
                 """,
                 (english_translation, provider if english_translation else None, lexeme_id, self._owner_user_id),
             )
+            # Propagate to denormalized sentence_bank_tokens.english_translation so
+            # every saved sentence containing this lemma (with no meaning scope) reflects
+            # the new translation immediately.
+            conn.execute(
+                """
+                UPDATE sentence_bank_tokens
+                SET english_translation = ?
+                WHERE lexeme_id = ?
+                  AND meaning_id IS NULL
+                  AND save_status = 'saved'
+                  AND EXISTS (
+                    SELECT 1
+                    FROM sentence_bank sb
+                    WHERE sb.id = sentence_bank_tokens.sentence_id
+                      AND sb.owner_user_id = ?
+                  )
+                """,
+                (english_translation, lexeme_id, self._owner_user_id),
+            )
 
     def replace_lexeme_source(self, *, lexeme_id: int, source: str) -> None:
         with timed_db_operation("wordbank.replace_lexeme_source"), get_connection(self._db_path) as conn:
@@ -68,6 +87,24 @@ class WordbankMutationRepository:
                     SELECT 1 FROM lexemes l
                     WHERE l.id = lexeme_meanings.lexeme_id
                       AND l.owner_user_id = ?
+                  )
+                """,
+                (english_translation, meaning_id, self._owner_user_id),
+            )
+            # Propagate to denormalized sentence_bank_tokens.english_translation so
+            # every saved sentence whose token references this meaning reflects the new
+            # translation immediately (sentence page + sentence search dialog).
+            conn.execute(
+                """
+                UPDATE sentence_bank_tokens
+                SET english_translation = ?
+                WHERE meaning_id = ?
+                  AND save_status = 'saved'
+                  AND EXISTS (
+                    SELECT 1
+                    FROM sentence_bank sb
+                    WHERE sb.id = sentence_bank_tokens.sentence_id
+                      AND sb.owner_user_id = ?
                   )
                 """,
                 (english_translation, meaning_id, self._owner_user_id),

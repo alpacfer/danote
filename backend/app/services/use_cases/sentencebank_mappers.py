@@ -5,6 +5,7 @@ from typing import Literal
 from app.api.schemas.v1.sentencebank import (
     AddSentenceResponse,
     QueuedSentencePronunciationTask,
+    QueuedSentenceVerificationTarget,
     SentenceSummary,
     SentenceTokenCard,
 )
@@ -45,6 +46,7 @@ def sentence_response(
     status: Literal["inserted", "exists"],
     message: str,
     pronunciation: QueuedSentencePronunciationTask | None = None,
+    queued_verification_targets: list[QueuedSentenceVerificationTarget] | None = None,
 ) -> AddSentenceResponse:
     return AddSentenceResponse(
         id=row.id,
@@ -56,4 +58,5 @@ def sentence_response(
         status=status,
         message=message,
         pronunciation=pronunciation,
+        queued_verification_targets=queued_verification_targets or [],
     )

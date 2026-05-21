@@ -5,8 +5,8 @@ from typing import Literal
 from app.db.migrations import get_connection
 from app.db.repositories.wordbank import WordbankRepository
 from app.services.use_cases.wordbank.collaborators.cor import CorResolutionCollaborator
-from app.services.use_cases.wordbank.gloss_translations import is_likely_english_gloss
 from app.services.use_cases.wordbank.collaborators.nlp import NLPCollaborator
+from app.services.use_cases.wordbank.gloss_translations import is_likely_english_gloss
 from app.services.use_cases.wordbank.verification_categories import (
     persisted_category_labels_for_scope,
 )

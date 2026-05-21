@@ -1073,6 +1073,7 @@ def test_sentencebank_add_sentence_triggers_batch_verification(tmp_path: Path) -
     inserted = sentencebank_use_case.add_sentence("Huset er stort")
 
     assert inserted.status == "inserted"
+    assert {target.stored_lemma for target in inserted.queued_verification_targets} >= {"hus", "være", "stor"}
     assert verification_service.batch_calls == []
     with sqlite3.connect(db_path) as conn:
         queued_batch_jobs = conn.execute(
@@ -1082,7 +1083,15 @@ def test_sentencebank_add_sentence_triggers_batch_verification(tmp_path: Path) -
             WHERE job_type = 'verify_sentence_tokens' AND status = 'pending'
             """
         ).fetchone()[0]
+        queued_verification_records_before_job = conn.execute(
+            """
+            SELECT COUNT(*)
+            FROM wordbank_verification_records
+            WHERE status = 'queued'
+            """
+        ).fetchone()[0]
     assert queued_batch_jobs == 1
+    assert queued_verification_records_before_job == len(inserted.queued_verification_targets)
 
     _run_pending_sentence_token_verifications(
         db_path,

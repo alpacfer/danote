@@ -38,6 +38,7 @@ type UseTrackedVerificationTargetsParams = {
     },
   ) => void
   onOpenLemmaVerificationCompleted?: (payload: LemmaDetailsResponse) => void
+  onAnyVerificationCompleted?: () => void
   selectedLemma: string | null
   verificationOverview: VerificationOverview
 }
@@ -56,6 +57,7 @@ export function useTrackedVerificationTargets({
   markWordVerificationNotificationsAsRead,
   pushNotification,
   onOpenLemmaVerificationCompleted,
+  onAnyVerificationCompleted,
   selectedLemma,
   verificationOverview,
 }: UseTrackedVerificationTargetsParams) {
@@ -212,6 +214,9 @@ export function useTrackedVerificationTargets({
         if (refreshedOpenLemmaPayload) {
           onOpenLemmaVerificationCompleted?.(refreshedOpenLemmaPayload)
         }
+        if (completedKeys.length > 0) {
+          onAnyVerificationCompleted?.()
+        }
       } finally {
         polling = false
       }
@@ -229,6 +234,7 @@ export function useTrackedVerificationTargets({
     activeSection,
     apiClient,
     notifyVerificationTarget,
+    onAnyVerificationCompleted,
     onOpenLemmaVerificationCompleted,
     removeTrackedVerificationKeys,
     selectedLemma,

@@ -35,6 +35,10 @@ type UseSentencebankSaveWorkflowParams = {
   replaceCurrentSentence: (id: number) => void
   openWordbankTarget: (lemma: string, meaningId: number | null) => void
   trackQueuedPronunciationForms: (lemma: string, forms: string[]) => void
+  trackQueuedVerificationTargets: (
+    storedLemma: string,
+    queuedTargets: Array<{ meaning_id: number | null; stored_surface_form: string | null }>,
+  ) => void
   onSentenceSaved?: () => void
 }
 
@@ -49,6 +53,7 @@ export function useSentencebankSaveWorkflow({
   replaceCurrentSentence,
   openWordbankTarget,
   trackQueuedPronunciationForms,
+  trackQueuedVerificationTargets,
   onSentenceSaved,
 }: UseSentencebankSaveWorkflowParams) {
   const [isSavingSentence, setIsSavingSentence] = useState(false)
@@ -116,6 +121,7 @@ export function useSentencebankSaveWorkflow({
       )
       toast.success(payload.message)
       upsertSentence(payload)
+      trackQueuedSentenceVerificationTargets(payload.queued_verification_targets ?? [], trackQueuedVerificationTargets)
       setSentencebankRefreshTick((current) => current + 1)
       if (payload.status === "inserted") {
         setWordbankRefreshTick((current) => current + 1)
@@ -232,6 +238,7 @@ export function useSentencebankSaveWorkflow({
         "Could not save sentence word.",
       )
       toast.success(payload.message)
+      trackQueuedSentenceVerificationTargets(payload.queued_verification_targets ?? [], trackQueuedVerificationTargets)
       setSentences((current) => current.map((sentence) => (
         sentence.id === payload.id
           ? {
@@ -287,5 +294,30 @@ export function useSentencebankSaveWorkflow({
     regenerateExample,
     saveSentenceTokenToWordbank,
     deleteSentenceFromSentencebank,
+  }
+}
+
+function trackQueuedSentenceVerificationTargets(
+  targets: NonNullable<AddSentenceResponse["queued_verification_targets"]>,
+  trackQueuedVerificationTargets: (
+    storedLemma: string,
+    queuedTargets: Array<{ meaning_id: number | null; stored_surface_form: string | null }>,
+  ) => void,
+) {
+  const byLemma = new Map<string, Array<{ meaning_id: number | null; stored_surface_form: string | null }>>()
+  for (const target of targets) {
+    const lemma = normalizeSearchWord(target.stored_lemma)
+    if (!lemma) {
+      continue
+    }
+    const items = byLemma.get(lemma) ?? []
+    items.push({
+      meaning_id: target.meaning_id ?? null,
+      stored_surface_form: target.stored_surface_form ?? null,
+    })
+    byLemma.set(lemma, items)
+  }
+  for (const [lemma, queuedTargets] of byLemma) {
+    trackQueuedVerificationTargets(lemma, queuedTargets)
   }
 }

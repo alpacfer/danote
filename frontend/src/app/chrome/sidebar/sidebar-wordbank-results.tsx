@@ -8,7 +8,6 @@ import {
   corSecondaryBadgeClass,
   glossDisplayForVariant,
   lemmaDisplayForVariant,
-  lemmaTranslationForVariant,
   lemmaTranslationWithGloss,
   normalizeSearchWord,
   posBadgeClass,
@@ -146,11 +145,6 @@ export function SidebarWordbankResults({
                   result.english_translation ?? null,
                   result.gloss_translation ?? null,
                 )
-                const linkedLemmaTranslation = displayVariant
-                  ? (lemmaTranslationForVariant(displayVariant) ?? savedTranslationLine)
-                  : (showMatchedSurface || showExactSavedLink)
-                    ? savedTranslationLine
-                    : null
                 const linkedVariation = addVariationBySavedResult.get(resultKey)
                 const variationAddBlockedReason = linkedVariation
                   ? (
@@ -160,9 +154,9 @@ export function SidebarWordbankResults({
                     )
                   : null
                 const detailLine = displayVariant
-                  ? glossDisplayForVariant(displayVariant)
+                  ? (savedTranslationLine ?? glossDisplayForVariant(displayVariant))
                   : (showMatchedSurface || showExactSavedLink)
-                    ? null
+                    ? savedTranslationLine
                     : savedTranslationLine
                 const badges = displayVariant
                   ? badgesFromGramRaw(displayVariant.gram_raw)
@@ -178,7 +172,6 @@ export function SidebarWordbankResults({
                       {linkedLemmaDisplay ? (
                         <span className="text-muted-foreground text-xs">
                           {" "}from <em>{linkedLemmaDisplay}</em>
-                          {linkedLemmaTranslation ? ` (${linkedLemmaTranslation})` : ""}
                         </span>
                       ) : null}
                     </span>

@@ -143,8 +143,11 @@ Sorted by best variant score per group:
 
 - Primary title precedence: (1) linked display variant form, (2) exact matched surface form, (3) `display_lemma`, (4) `lemma`.
 - "from \<lemma\>" hint when linked lemma context exists.
-- Translation text: `english_translation` alone, or `english_translation, gloss_translation` when both exist and differ. Raw `gloss` never appended.
-- Second line hidden for exact saved-surface links without gloss.
+- Translation text renders on its own secondary line below the title/source hint:
+  `english_translation` alone, or `english_translation, gloss_translation` when
+  both exist and differ. Raw `gloss` never appended.
+- Exact saved-surface links still show the saved translation line when one exists;
+  the `from <lemma>` source hint never carries a parenthesized translation.
 - Badges: linked variant `gram_raw` when display variant used, else `pos_tag`/`morphology`.
 - Right icon: `Eye` (open existing), `variation + Plus` (add-variation).
 - Add-variation candidate but COR translation loading/no `saveable_translation` → falls back to opening saved entry, shows `Eye` + inline `Translation required before saving.` when final payload has no `saveable_translation`.

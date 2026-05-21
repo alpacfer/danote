@@ -15,6 +15,7 @@ type UseVerificationChangesParams = {
   extractErrorMessage: (response: Response, fallback: string) => Promise<string>
   selectedLemma: string | null
   setWordbankRefreshTick: (updater: (prev: number) => number) => void
+  setSentencebankRefreshTick: (updater: (prev: number) => number) => void
 }
 
 export function useVerificationChanges({
@@ -22,6 +23,7 @@ export function useVerificationChanges({
   extractErrorMessage,
   selectedLemma,
   setWordbankRefreshTick,
+  setSentencebankRefreshTick,
 }: UseVerificationChangesParams) {
   const [changes, setChanges] = useState<VerificationChangeEntry[]>([])
   const [isLoadingChanges, setIsLoadingChanges] = useState(false)
@@ -77,6 +79,7 @@ export function useVerificationChanges({
       if (payload.status === "reverted") {
         toast.success("Change reverted.")
         setWordbankRefreshTick((current) => current + 1)
+        setSentencebankRefreshTick((current) => current + 1)
         await refreshChanges()
         return
       }
@@ -92,7 +95,7 @@ export function useVerificationChanges({
     } finally {
       setIsRevertingChange(false)
     }
-  }, [apiClient, lemmaKey, refreshChanges, setWordbankRefreshTick])
+  }, [apiClient, lemmaKey, refreshChanges, setSentencebankRefreshTick, setWordbankRefreshTick])
 
   return {
     changes,

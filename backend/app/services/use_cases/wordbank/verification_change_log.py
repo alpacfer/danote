@@ -88,10 +88,41 @@ def revert_fix_translation(
                 "UPDATE lexeme_meanings SET english_translation = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
                 (old_translation, meaning_id),
             )
+            conn.execute(
+                """
+                UPDATE sentence_bank_tokens
+                SET english_translation = ?
+                WHERE meaning_id = ?
+                  AND save_status = 'saved'
+                  AND EXISTS (
+                    SELECT 1
+                    FROM sentence_bank sb
+                    WHERE sb.id = sentence_bank_tokens.sentence_id
+                      AND sb.owner_user_id = ?
+                  )
+                """,
+                (old_translation, meaning_id, owner_user_id),
+            )
         else:
             conn.execute(
                 "UPDATE lexemes SET english_translation = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
                 (old_translation, lexeme.id),
+            )
+            conn.execute(
+                """
+                UPDATE sentence_bank_tokens
+                SET english_translation = ?
+                WHERE lexeme_id = ?
+                  AND meaning_id IS NULL
+                  AND save_status = 'saved'
+                  AND EXISTS (
+                    SELECT 1
+                    FROM sentence_bank sb
+                    WHERE sb.id = sentence_bank_tokens.sentence_id
+                      AND sb.owner_user_id = ?
+                  )
+                """,
+                (old_translation, lexeme.id, owner_user_id),
             )
 
 

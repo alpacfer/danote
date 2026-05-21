@@ -25,6 +25,7 @@ type UseVerificationWorkflowParams = {
   lemmaDetails: LemmaDetailsResponse | null
   setLemmaDetails: Dispatch<SetStateAction<LemmaDetailsResponse | null>>
   setWordbankRefreshTick: Dispatch<SetStateAction<number>>
+  setSentencebankRefreshTick: Dispatch<SetStateAction<number>>
   pushNotification: (
     message: string,
     options?: {
@@ -51,6 +52,7 @@ export function useVerificationWorkflow({
   lemmaDetails,
   setLemmaDetails,
   setWordbankRefreshTick,
+  setSentencebankRefreshTick,
   pushNotification,
   markWordVerificationNotificationsAsRead,
   clearWordVerificationNotification,
@@ -74,6 +76,7 @@ export function useVerificationWorkflow({
     extractErrorMessage,
     selectedLemma,
     setWordbankRefreshTick,
+    setSentencebankRefreshTick,
   })
 
   const verificationOverview = useMemo(
@@ -96,7 +99,12 @@ export function useVerificationWorkflow({
     onOpenLemmaVerificationCompleted: (payload) => {
       setLemmaDetails(payload)
       setWordbankRefreshTick((current) => current + 1)
+      setSentencebankRefreshTick((current) => current + 1)
       void refreshChanges()
+    },
+    onAnyVerificationCompleted: () => {
+      setWordbankRefreshTick((current) => current + 1)
+      setSentencebankRefreshTick((current) => current + 1)
     },
     pushNotification,
     selectedLemma,
@@ -131,6 +139,7 @@ export function useVerificationWorkflow({
 
       toast.success(buildActionToastMessage(action.action_type, target.label))
       setWordbankRefreshTick((current) => current + 1)
+      setSentencebankRefreshTick((current) => current + 1)
       await refreshChanges()
       onOpenWordbankTarget(payload.target_lemma ?? lemma, payload.target_meaning_id ?? target.meaningId ?? null)
     } catch (error) {

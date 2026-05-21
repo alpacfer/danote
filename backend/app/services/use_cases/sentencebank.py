@@ -4,6 +4,7 @@ from app.api.schemas.v1.sentencebank import (
     AddSentenceResponse,
     GenerateExamplePreviewResponse,
     GenerateSentencePronunciationResponse,
+    QueuedSentenceVerificationTarget,
     SaveSentenceTokenResponse,
     SentenceListResponse,
     SentenceSearchPreviewResponse,
@@ -136,7 +137,7 @@ class SentencebankUseCase:
             translation_provider=provider if normalized_english_translation else None,
         )
         self._repository.replace_sentence_tokens(sentence_id=sentence_id, tokens=token_records)
-        self._queue_new_token_verification(
+        queued_verification_targets = self._queue_new_token_verification(
             sentence_id=sentence_id,
             scope="add",
             new_token_metadata=new_token_metadata,
@@ -157,6 +158,7 @@ class SentencebankUseCase:
             status="inserted",
             message=f'Added "{normalized_source_text}" to sentencebank.',
             pronunciation=queued_pronunciation,
+            queued_verification_targets=queued_verification_targets,
         )
 
     def _queue_new_token_verification(
@@ -166,12 +168,13 @@ class SentencebankUseCase:
         scope: str,
         new_token_metadata: list[dict[str, object]],
         sentence_context: str,
-    ) -> None:
+    ) -> list[QueuedSentenceVerificationTarget]:
         if not new_token_metadata or self._wordbank_use_case is None:
-            return
+            return []
         payload_metadata = _verification_metadata_payload(new_token_metadata)
         if not payload_metadata:
-            return
+            return []
+        queued_targets = self._persist_sentence_token_verification_records(payload_metadata)
         self._background_jobs.enqueue(
             job_type="verify_sentence_tokens",
             dedupe_key=f"verify_sentence_tokens::{sentence_id}::{scope}",
@@ -181,6 +184,55 @@ class SentencebankUseCase:
                 "new_token_metadata": payload_metadata,
             },
         )
+        return queued_targets
+
+    def _persist_sentence_token_verification_records(
+        self,
+        payload_metadata: list[dict[str, object]],
+    ) -> list[QueuedSentenceVerificationTarget]:
+        if self._wordbank_use_case is None:
+            return []
+        runtime = self._wordbank_use_case.runtime
+        queued_targets: list[QueuedSentenceVerificationTarget] = []
+        seen: set[tuple[str, int | None, str | None]] = set()
+        for meta in payload_metadata:
+            stored_lemma = normalize_token(str(meta.get("stored_lemma", "")))
+            if not stored_lemma:
+                continue
+            raw_surface = meta.get("stored_surface_form")
+            stored_surface_form = normalize_token(str(raw_surface)) if raw_surface else None
+            raw_meaning_id = meta.get("meaning_id")
+            meaning_id = int(raw_meaning_id) if isinstance(raw_meaning_id, int) and raw_meaning_id else None
+            key = (stored_lemma, meaning_id, stored_surface_form)
+            if key in seen:
+                continue
+            seen.add(key)
+            verification = runtime.verification.queued_verification_result(
+                stored_surface_form=stored_surface_form,
+            )
+            snapshot_hash = runtime.verification.build_verification_snapshot_hash(
+                stored_lemma=stored_lemma,
+                stored_surface_form=stored_surface_form,
+                meaning_id=meaning_id,
+                review_intent="general",
+            )
+            runtime.verification.persist_queued_verification(
+                stored_lemma=stored_lemma,
+                stored_surface_form=stored_surface_form,
+                meaning_id=meaning_id,
+                verification=verification,
+                review_intent="general",
+                latest_snapshot_hash=snapshot_hash,
+            )
+            if verification.status == "queued":
+                queued_targets.append(
+                    QueuedSentenceVerificationTarget(
+                        stored_lemma=stored_lemma,
+                        meaning_id=meaning_id,
+                        stored_surface_form=stored_surface_form,
+                    )
+                )
+        return queued_targets
 
     def process_queued_sentence_token_verification(
         self,
@@ -229,7 +281,7 @@ class SentencebankUseCase:
             wordbank_use_case=self._wordbank_use_case,
         )
         self._repository.replace_sentence_token(sentence_id=sentence.id, token=saved_token)
-        self._queue_new_token_verification(
+        queued_verification_targets = self._queue_new_token_verification(
             sentence_id=sentence.id,
             scope=f"token::{token_index}",
             new_token_metadata=new_token_metadata,
@@ -243,6 +295,7 @@ class SentencebankUseCase:
             **sentence_summary(updated).model_dump(),
             saved_token=sentence_token_card(updated_token),
             message=f'Added "{saved_token.surface_form}" to wordbank.',
+            queued_verification_targets=queued_verification_targets,
         )
 
     def generate_example_preview(self, stored_lemma: str, meaning_id: int, *, tense_label: str | None = None) -> GenerateExamplePreviewResponse:

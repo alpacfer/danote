@@ -97,9 +97,14 @@ its own lemma page.
 
 New wordbank entries created during a sentence save are available to the
 sentence response immediately, but Gemini word verification for those entries
-runs through the shared background job queue. The queued job preserves the
-sentence-context batch verification path, so save latency is not blocked by the
-extra verification request.
+runs through the shared background job queue. The save response includes the
+queued word-verification targets, and the frontend tracks them with the same
+polling path used by word saves. When Gemini auto-applies a translation fix, the
+wordbank refresh tick and sentencebank refresh tick both advance, so sentence
+token cards and sidebar saved-word search results refetch the updated
+translation. The queued job still preserves the sentence-context batch
+verification path, so save latency is not blocked by the extra verification
+request.
 
 Known Danish pronouns, question words, prepositions, conjunctions, numerals,
 articles, and calendar terms (days, months, seasons) use the backend static

@@ -62,11 +62,21 @@ export type AddSentenceResponse = {
     status: "queued" | "skipped"
     sentence_id: number
   } | null
+  queued_verification_targets?: Array<{
+    stored_lemma: string
+    meaning_id: number | null
+    stored_surface_form: string | null
+  }>
 }
 
 export type SaveSentenceTokenResponse = SentencebankSentence & {
   saved_token: SentenceTokenCard
   message: string
+  queued_verification_targets?: Array<{
+    stored_lemma: string
+    meaning_id: number | null
+    stored_surface_form: string | null
+  }>
 }
 
 export type GenerateExamplePreviewResponse = {

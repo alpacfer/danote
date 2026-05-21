@@ -108,7 +108,7 @@ or `Authorization: Bearer <guest-token>` header. Local dev
 - **Response model:** `AddSentenceResponse`.
 - **Notable status/error behavior:** `503` DB unavailable/locked. `400` value errors. body `status`: `inserted` or `exists`.
 - **Request details:** `english_translation` may be provided by trusted generated-example previews and is persisted without retranslation. `token_persistence_mode` defaults to `auto_save_all`; `link_existing_only` requires `target: {stored_lemma, meaning_id}` and is reserved for generated examples.
-- **Field invariants:** response now includes hydrated sentence details (`id`, `created_at`, `tokens[]`, `has_pronunciation`). `tokens[]` carries `token_index`, `surface_form`, `save_status`, nullable `lemma_candidate`, nullable `stored_lemma`, nullable `lexeme_id`, nullable `meaning_id`, POS/morphology, optional gloss, and translation fields. Insert responses may also include `pronunciation` with `status: queued|skipped` plus `sentence_id` when background sentence audio generation is considered. In `link_existing_only` mode, only the requested saved target word is linked; other wordlike tokens are returned and persisted as `save_status = "unsaved"` cards with NLP lemma/POS/morphology metadata for later manual saving.
+- **Field invariants:** response now includes hydrated sentence details (`id`, `created_at`, `tokens[]`, `has_pronunciation`). `tokens[]` carries `token_index`, `surface_form`, `save_status`, nullable `lemma_candidate`, nullable `stored_lemma`, nullable `lexeme_id`, nullable `meaning_id`, POS/morphology, optional gloss, and translation fields. Insert responses may also include `pronunciation` with `status: queued|skipped` plus `sentence_id` when background sentence audio generation is considered. Insert responses may include `queued_verification_targets[]` with `stored_lemma`, nullable `meaning_id`, and nullable `stored_surface_form` for sentence-token Gemini verification records the client should track for refresh. In `link_existing_only` mode, only the requested saved target word is linked; other wordlike tokens are returned and persisted as `save_status = "unsaved"` cards with NLP lemma/POS/morphology metadata for later manual saving.
 
 ### POST `/api/sentencebank/example-preview`
 - **Request model:** `GenerateExamplePreviewRequest` (`stored_lemma`, `meaning_id`).
@@ -136,9 +136,9 @@ or `Authorization: Bearer <guest-token>` header. Local dev
 
 ### POST `/api/sentencebank/sentences/{sentence_id}/tokens/{token_index}/save`
 - **Request model:** path params only.
-- **Response model:** `SaveSentenceTokenResponse` (`SentenceSummary` fields, `saved_token`, `message`).
+- **Response model:** `SaveSentenceTokenResponse` (`SentenceSummary` fields, `saved_token`, `message`, `queued_verification_targets`).
 - **Notable status/error behavior:** `404` sentence or token not found. `503` DB unavailable/locked or token save runtime unavailable.
-- **Field invariants:** reserved for `save_status = "unsaved"` sentence token cards. The backend resolves only the requested token through the same sentence-token COR/Gemini resolver used by normal `auto_save_all` sentence saves, replaces that token with a saved token, and leaves other unsaved generated-example tokens untouched.
+- **Field invariants:** reserved for `save_status = "unsaved"` sentence token cards. The backend resolves only the requested token through the same sentence-token COR/Gemini resolver used by normal `auto_save_all` sentence saves, replaces that token with a saved token, and leaves other unsaved generated-example tokens untouched. When the save queues sentence-context Gemini verification, `queued_verification_targets[]` uses the same shape as sentence insert responses.
 
 ### POST `/api/sentencebank/sentences/pronunciation`
 - **Request model:** `GenerateSentencePronunciationRequest` (`sentence_id`, `force: bool = False`).

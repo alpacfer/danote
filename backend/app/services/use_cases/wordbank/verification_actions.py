@@ -6,9 +6,8 @@ from pathlib import Path
 from app.db.migrations import get_connection
 from app.services.token_classifier import normalize_token
 from app.services.use_cases.wordbank.collaborators.cor import CorResolutionCollaborator
-from app.services.use_cases.wordbank.verification_action_models import VerificationActionExecutionResult
-from app.services.use_cases.wordbank.verification_fix_variations import (
-    apply_fix_variations as _apply_fix_variations,
+from app.services.use_cases.wordbank.verification_action_models import (
+    VerificationActionExecutionResult,
 )
 from app.services.use_cases.wordbank.verification_action_support import (
     build_after_snapshot,
@@ -26,6 +25,10 @@ from app.services.use_cases.wordbank.verification_action_support import (
     required_int,
     required_str,
 )
+from app.services.use_cases.wordbank.verification_fix_variations import (
+    apply_fix_variations as _apply_fix_variations,
+)
+
 
 def apply_verification_action(
     *,
@@ -82,6 +85,7 @@ def apply_verification_action(
                 english_translation=required_str(action.get("english_translation"), "english_translation"),
                 provider_name=provider_name,
                 stored_surface_form=normalized_surface,
+                owner_user_id=owner_user_id,
             )
         elif action_type == "fix_variations":
             result = _apply_fix_variations(
@@ -163,6 +167,7 @@ def _apply_fix_translation(
     english_translation: str,
     provider_name: str,
     stored_surface_form: str | None,
+    owner_user_id: int,
 ) -> VerificationActionExecutionResult:
     if source_meaning is not None:
         conn.execute(
@@ -174,6 +179,13 @@ def _apply_fix_translation(
             (english_translation, int(source_meaning["id"])),
         )
         target_meaning_id = int(source_meaning["id"])
+        _propagate_fix_translation_to_sentence_tokens(
+            conn,
+            english_translation=english_translation,
+            meaning_id=target_meaning_id,
+            lexeme_id=None,
+            owner_user_id=owner_user_id,
+        )
     else:
         conn.execute(
             """
@@ -184,6 +196,13 @@ def _apply_fix_translation(
             (english_translation, provider_name, int(source_lexeme["id"])),
         )
         target_meaning_id = None
+        _propagate_fix_translation_to_sentence_tokens(
+            conn,
+            english_translation=english_translation,
+            meaning_id=None,
+            lexeme_id=int(source_lexeme["id"]),
+            owner_user_id=owner_user_id,
+        )
     lemma = str(source_lexeme["lemma"])
     return VerificationActionExecutionResult(
         status="applied",
@@ -198,6 +217,59 @@ def _apply_fix_translation(
         },
         invalidate_targets=((lemma, stored_surface_form),),
     )
+
+
+def _propagate_fix_translation_to_sentence_tokens(
+    conn: sqlite3.Connection,
+    *,
+    english_translation: str,
+    meaning_id: int | None,
+    lexeme_id: int | None,
+    owner_user_id: int,
+) -> None:
+    """Refresh denormalized english_translation on saved sentence tokens.
+
+    sentence_bank_tokens stores english_translation per token. When a meaning- or
+    lemma-scoped fix_translation lands, every saved token that references that scope
+    must reflect the new translation so sentence pages and the sentence search
+    preview don't show the stale value.
+    """
+    if meaning_id is not None:
+        conn.execute(
+            """
+            UPDATE sentence_bank_tokens
+            SET english_translation = ?
+            WHERE meaning_id = ?
+              AND save_status = 'saved'
+              AND EXISTS (
+                SELECT 1
+                FROM sentence_bank sb
+                WHERE sb.id = sentence_bank_tokens.sentence_id
+                  AND sb.owner_user_id = ?
+              )
+            """,
+            (english_translation, meaning_id, owner_user_id),
+        )
+        return
+    if lexeme_id is not None:
+        conn.execute(
+            """
+            UPDATE sentence_bank_tokens
+            SET english_translation = ?
+            WHERE lexeme_id = ?
+              AND meaning_id IS NULL
+              AND save_status = 'saved'
+              AND EXISTS (
+                SELECT 1
+                FROM sentence_bank sb
+                WHERE sb.id = sentence_bank_tokens.sentence_id
+                  AND sb.owner_user_id = ?
+              )
+            """,
+            (english_translation, lexeme_id, owner_user_id),
+        )
+
+
 def _apply_move_to_meaning_section(
     conn: sqlite3.Connection,
     *,

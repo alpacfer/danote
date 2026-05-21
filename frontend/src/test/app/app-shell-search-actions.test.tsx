@@ -228,8 +228,16 @@ describe("App shell and search", () => {
 
   it("request-shape: multi-word search switches to sentence mode, hides other groups, and saving refreshes both sentencebank and wordbank", async () => {
     let hasSavedSentence = false
+    let lemmaDetailsRequestCount = 0
     const fetchSpy = mockFetchImplementation({
       lemmasResponse: { items: [] },
+      lemmaDetailsHandler: async () => {
+        lemmaDetailsRequestCount += 1
+        if (lemmaDetailsRequestCount === 1) {
+          return responseOf(cloneContractFixture(teacherQueuedWordPageContractFixture))
+        }
+        return responseOf(cloneContractFixture(teacherVerifiedWordPageContractFixture))
+      },
       sentencebankHandler: async () => responseOf({
         items: hasSavedSentence ? [
           {
@@ -284,6 +292,9 @@ describe("App shell and search", () => {
           },
         ],
         message: 'Added "jeg elsker dansk" to sentencebank.',
+        queued_verification_targets: [
+          { stored_lemma: "lærer", meaning_id: 1, stored_surface_form: null },
+        ],
       },
     })
     hasSavedSentence = false
@@ -332,6 +343,11 @@ describe("App shell and search", () => {
       expect(fetchSpy.mock.calls.filter(
         ([input, init]) => String(input).endsWith("/api/wordbank/lemmas") && !init?.method,
       ).length).toBeGreaterThan(initialWordbankGetCount)
+    })
+    await waitFor(() => {
+      expect(
+        fetchSpy.mock.calls.some(([input]) => String(input).endsWith("/api/wordbank/lemmas/l%C3%A6rer")),
+      ).toBe(true)
     })
 
     expect((await screen.findAllByText(/^jeg elsker dansk$/i)).length).toBeGreaterThan(0)

@@ -40,7 +40,7 @@ describe("App shell and search", () => {
     })
   })
 
-  it("shows saved-word rows as parenthesized translation plus gloss translation without raw gloss fallback", async () => {
+  it("shows saved-word translations below the title without raw gloss fallback", async () => {
     mockFetchImplementation({
       lemmasResponse: { items: [] },
       searchWordbankResponse: {
@@ -78,6 +78,68 @@ describe("App shell and search", () => {
 
     expect(await within(commandDialog).findByText(/^mother \(soil layer\)$/i)).toBeInTheDocument()
     expect(within(commandDialog).queryByText(/^mother, jordlag$/i)).not.toBeInTheDocument()
+  })
+
+  it("uses the saved verified translation below exact saved-variation rows", async () => {
+    mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      searchWordbankResponse: {
+        items: [
+          {
+            lemma: "rejse",
+            display_lemma: "at rejse",
+            variation_count: 2,
+            english_translation: "to travel",
+            match_surface: "rejse",
+            query_cor_ids: ["COR.REJSE.VERB.01"],
+            pos_tag: "VERB",
+            morphology: "VerbForm=Inf|Voice=Act",
+          },
+        ],
+      },
+      corSearchFormResponse: {
+        form: "rejse",
+        groups: [
+          {
+            lemma: "rejse",
+            gloss: "travel",
+            pos_tag: "VERB",
+            variants: [
+              {
+                cor_id: "COR.REJSE.VERB.01",
+                form: "rejse",
+                lemma: "rejse",
+                gloss: "travel",
+                lemma_translation: "to traveling",
+                gram_raw: "vb.inf.akt",
+                norm: "V",
+                lemma_idx: 12345,
+                gram_code: 200,
+                variation: 1,
+                pos_tag: "VERB",
+                morphology: "VerbForm=Inf|Voice=Act",
+                features: { VerbForm: "Inf", Voice: "Act" },
+                extra_tags: [],
+              },
+            ],
+          },
+        ],
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    const commandDialog = await screen.findByRole("dialog")
+    const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
+    fireEvent.change(searchInput, { target: { value: "rejse" } })
+
+    const option = (await within(commandDialog).findByTestId("search-open-icon")).closest("[cmdk-item]") as HTMLElement
+    expect(within(option).getByText(/^to travel$/i)).toBeInTheDocument()
+    expect(within(option).getByText(/^at rejse$/i, { selector: "em" })).toBeInTheDocument()
+    expect(within(option).queryByText(/to traveling/i)).not.toBeInTheDocument()
+    expect(within(option).getByText(/\bfrom\b/i)).toBeInTheDocument()
   })
 
   it("shows Danish COR rows as translation plus gloss translation on one line", async () => {

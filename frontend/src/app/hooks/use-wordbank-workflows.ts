@@ -163,6 +163,7 @@ export function useWordbankWorkflows({
     lemmaDetails,
     setLemmaDetails,
     setWordbankRefreshTick,
+    setSentencebankRefreshTick,
     pushNotification,
     markWordVerificationNotificationsAsRead,
     clearWordVerificationNotification,
@@ -194,6 +195,7 @@ export function useWordbankWorkflows({
     replaceCurrentSentence,
     openWordbankTarget,
     trackQueuedPronunciationForms,
+    trackQueuedVerificationTargets,
     onSentenceSaved,
   })
 
