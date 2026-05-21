@@ -17,6 +17,9 @@ from app.services.use_cases.static_presaved_words import (
     static_presaved_word_for_token,
 )
 from app.services.use_cases.static_pronouns import StaticPronoun, static_pronoun_for_token
+from app.services.use_cases.wordbank.collaborators.cor_generated_non_cor import (
+    generated_non_cor_response,
+)
 from app.services.use_cases.wordbank.collaborators.cor_local_batch_filter import (
     filter_cor_form_responses_by_en_query_batch as filter_cor_form_responses_by_en_query_batch_with_runner,
 )
@@ -67,6 +70,13 @@ def search_cor_form(
 
     did_you_mean: str | None = None
     if not entries:
+        if include_translations:
+            generated_response = generated_non_cor_response(
+                translation,
+                normalized_form,
+            )
+            if generated_response is not None:
+                return generated_response
         suggestions = fuzzy_suggest(normalized_form, cor_local_lexicon_service.unique_lemmas)
         if suggestions:
             did_you_mean = suggestions[0]

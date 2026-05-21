@@ -5,6 +5,7 @@ import { CommandItem } from "@/components/ui/command"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   badgesFromGramRaw,
+  badgesForSavedForm,
   corSecondaryBadgeClass,
   glossDisplayForVariant,
   lemmaDisplayForVariant,
@@ -87,6 +88,10 @@ export function SidebarCorResults({
               const shouldShowSource = Boolean(sourceDisplay)
                 && (showSourceWhenSameLemma || sourceDisplay !== variant.form)
               const hasGloss = Boolean(variant.gloss?.trim())
+              const isGeneratedNonCor = variant.dictionary_status === "generated_non_cor"
+              const metadataBadges = isGeneratedNonCor
+                ? badgesForSavedForm({ pos_tag: variant.pos_tag, morphology: variant.morphology })
+                : badgesFromGramRaw(variant.gram_raw)
               const isSaveBlocked = isTranslationsLoading || !saveableTranslation
               const saveBlockedReason = !isTranslationsLoading && !saveableTranslation
                 ? "Translation required before saving."
@@ -112,13 +117,14 @@ export function SidebarCorResults({
                         {
                           posTag: variant.pos_tag ?? null,
                           morphology: variant.morphology ?? null,
-                          corId: variant.cor_id,
+                          corId: isGeneratedNonCor ? null : variant.cor_id,
                         },
                         {
                           lemma: variant.lemma,
                           surface: variant.form,
-                          cor_id: variant.cor_id,
-                          cor_lemma_idx: variant.lemma_idx,
+                          dictionary_status: isGeneratedNonCor ? "generated_non_cor" : "cor",
+                          cor_id: isGeneratedNonCor ? null : variant.cor_id,
+                          cor_lemma_idx: isGeneratedNonCor ? null : variant.lemma_idx,
                           meaning_key: group.gloss ?? variant.lemma,
                           gloss: group.gloss ?? variant.gloss ?? null,
                           english_translation: saveableTranslation,
@@ -159,9 +165,9 @@ export function SidebarCorResults({
                     {saveBlockedReason ? (
                       <span className="text-muted-foreground text-xs leading-4">{saveBlockedReason}</span>
                     ) : null}
-                    {badgesFromGramRaw(variant.gram_raw).length > 0 ? (
+                    {metadataBadges.length > 0 ? (
                       <div className="mt-1 flex flex-wrap gap-1.5">
-                        {badgesFromGramRaw(variant.gram_raw).map((badge) => (
+                        {metadataBadges.map((badge) => (
                           <Badge
                             key={`cor-variant-${variant.cor_id}-gram-${badge.label}`}
                             variant={badge.tone === "primary" ? "default" : "secondary"}

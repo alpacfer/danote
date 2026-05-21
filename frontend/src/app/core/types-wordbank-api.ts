@@ -200,6 +200,7 @@ export type CORSearchVariant = {
   cor_id: string
   form: string
   lemma: string
+  dictionary_status?: "cor" | "generated_non_cor" | "unknown"
   gloss?: string | null
   gloss_translation?: string | null
   english_source_description?: string | null

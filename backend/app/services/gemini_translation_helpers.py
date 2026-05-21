@@ -296,7 +296,8 @@ _UD_MORPHOLOGY_RULES = (
 def build_non_cor_word_generation_prompt(payload: NonCORWordGenerationInput) -> str:
     return (
         "You are creating one Danish dictionary-style entry for a real Danish word that is missing from the source dictionary.\n"
-        "Return JSON only with this exact shape: "
+        "If the surface form is not a valid Danish word, return JSON null.\n"
+        "Otherwise return JSON only with this exact shape: "
         "{\"lemma\":\"...\",\"english_translation\":\"...\",\"meaning_key\":\"...\",\"gloss\":\"...\","
         "\"pos_tag\":\"NOUN|VERB|ADJ|ADV|AUX|PRON|DET|ADP|CCONJ|SCONJ|PART|INTJ|NUM|X\","
         "\"morphology\":\"...\",\"surface_pos_tag\":\"...\",\"surface_morphology\":\"...\"}\n"
@@ -307,6 +308,7 @@ def build_non_cor_word_generation_prompt(payload: NonCORWordGenerationInput) -> 
         "- gloss should be a short lowercased English gloss for the exact sense.\n"
         + _UD_MORPHOLOGY_RULES +
         "- Use sentence_context to disambiguate the intended meaning and form.\n"
+        "- With no sentence_context, validate the surface form as a standalone Danish word before creating an entry.\n"
         "- Do not invent extra senses.\n"
         "- Do not explain your reasoning.\n"
         f"Context:\n{json.dumps(asdict(payload), ensure_ascii=False)}"
@@ -323,12 +325,14 @@ def build_batch_non_cor_word_generation_prompt(items: list[dict[str, object]]) -
         "Rules:\n"
         "- Return exactly one item for every input id.\n"
         "- Copy each id exactly.\n"
+        "- If a surface form is not a valid Danish word, return that item with null lemma and null translation fields.\n"
         "- lemma must be the canonical lowercased Danish lemma.\n"
         "- english_translation must be the best short English translation for the intended sense.\n"
         "- meaning_key should be a stable lowercased key for this sense.\n"
         "- gloss should be a short lowercased English gloss for the exact sense.\n"
         + _UD_MORPHOLOGY_RULES +
         "- Use sentence_context to disambiguate the intended meaning and form.\n"
+        "- With no sentence_context, validate the surface form as a standalone Danish word before creating an entry.\n"
         "- Do not explain your reasoning.\n"
         f"Items:\n{json.dumps(items, ensure_ascii=False)}"
     )

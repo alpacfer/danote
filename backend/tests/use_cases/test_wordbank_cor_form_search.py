@@ -7,6 +7,7 @@ from app.services.use_cases.wordbank import WordbankUseCase
 from tests.helpers.factories import _db_path
 from tests.helpers.fakes import (
     FakeCORLocalLexiconService,
+    FakeGeminiWordTranslationService,
     FakeTranslationService,
 )
 
@@ -219,6 +220,97 @@ def test_wordbank_search_cor_form_consolidates_same_entry_with_multiple_grams(tm
     assert len(response.groups) == 1
     assert len(response.groups[0].variants) == 1
     assert response.groups[0].variants[0].gram_raw == "sb.itk.sg.ubest | sb.itk.pl.ubest"
+
+
+def test_wordbank_search_cor_form_generates_non_cor_result_for_sikkerhedszone(tmp_path: Path) -> None:
+    local_cor = FakeCORLocalLexiconService(by_form={"sikkerhedszone": []})
+    gemini = FakeGeminiWordTranslationService(
+        {},
+        non_cor_generation_overrides={
+            ("sikkerhedszone", "sikkerhedszone", None): {
+                "lemma": "sikkerhedszone",
+                "english_translation": "security zone",
+                "meaning_key": "security zone",
+                "gloss": "security zone",
+                "pos_tag": "NOUN",
+                "morphology": "Gender=Com|Number=Sing|Definite=Ind",
+                "surface_pos_tag": "NOUN",
+                "surface_morphology": "Gender=Com|Number=Sing|Definite=Ind",
+            },
+        },
+    )
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_local_lexicon_service=local_cor,
+        gemini_word_translation_service=gemini,
+    )
+
+    response = use_case.search_cor_form("sikkerhedszone", limit=100)
+
+    assert gemini.non_cor_generation_calls == [("sikkerhedszone", "sikkerhedszone", None)]
+    assert response.did_you_mean is None
+    assert response.groups[0].lemma == "sikkerhedszone"
+    variant = response.groups[0].variants[0]
+    assert variant.dictionary_status == "generated_non_cor"
+    assert variant.cor_id == "GENERATED.NON_COR.SIKKERHEDSZONE"
+    assert variant.form == "sikkerhedszone"
+    assert variant.lemma_translation == "security zone"
+    assert variant.saveable_translation == "security zone"
+    assert variant.pos_tag == "NOUN"
+    assert variant.morphology == "Gender=Com|Number=Sing|Definite=Ind"
+
+
+def test_wordbank_search_cor_form_generates_non_cor_result_for_noedaabning(tmp_path: Path) -> None:
+    local_cor = FakeCORLocalLexiconService(by_form={"nødåbning": []})
+    gemini = FakeGeminiWordTranslationService(
+        {},
+        non_cor_generation_overrides={
+            ("nødåbning", "nødåbning", None): {
+                "lemma": "nødåbning",
+                "english_translation": "emergency opening",
+                "meaning_key": "emergency opening",
+                "gloss": "emergency opening",
+                "pos_tag": "NOUN",
+                "morphology": "Gender=Com|Number=Sing|Definite=Ind",
+                "surface_pos_tag": "NOUN",
+                "surface_morphology": "Gender=Com|Number=Sing|Definite=Ind",
+            },
+        },
+    )
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_local_lexicon_service=local_cor,
+        gemini_word_translation_service=gemini,
+    )
+
+    response = use_case.search_cor_form("nødåbning", limit=100)
+
+    assert response.groups[0].lemma == "nødåbning"
+    assert response.groups[0].variants[0].dictionary_status == "generated_non_cor"
+    assert response.groups[0].variants[0].saveable_translation == "emergency opening"
+
+
+def test_wordbank_search_cor_form_skips_non_cor_generation_for_fast_lookup(tmp_path: Path) -> None:
+    local_cor = FakeCORLocalLexiconService(by_form={"sikkerhedszone": []})
+    gemini = FakeGeminiWordTranslationService(
+        {},
+        non_cor_generation_overrides={
+            ("sikkerhedszone", "sikkerhedszone", None): {
+                "lemma": "sikkerhedszone",
+                "english_translation": "security zone",
+            },
+        },
+    )
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_local_lexicon_service=local_cor,
+        gemini_word_translation_service=gemini,
+    )
+
+    response = use_case.search_cor_form("sikkerhedszone", limit=100, include_translations=False)
+
+    assert response.groups == []
+    assert gemini.non_cor_generation_calls == []
 
 class _StubENGeminiForMatchFilter:
     def __init__(self, decisions: dict[str, bool]) -> None:

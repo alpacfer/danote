@@ -370,6 +370,7 @@ or `Authorization: Bearer <guest-token>` header. Local dev
   - `lemma_translation_provider`: which provider supplied displayed lemma translation.
   - `lemma_translation_status`: `provider`, `gemini`, `gloss_fallback`, or `missing`.
   - `lemma_translation_reason`: final decision reason (`provider_ok`, `provider_self_translation`, `gemini_ok`, `gemini_missing`, `gemini_self_translation`, `gloss_fallback_used`).
+  - Valid Danish words missing from COR may return a synthetic `generated_non_cor` group after Gemini validation. These rows use `dictionary_status = "generated_non_cor"`, have no saveable COR id, and persist through the generated non-COR wordbank flow.
   - DeepL/Azure COR search: same fallback via shared primary-provider contract.
   - Primary framed translation collapses to Danish lemma/form (e.g. `at bile -> to bile`): treated as invalid, prefers Gemini contextual translation.
   - Gloss not required for Gemini fallback; glossless entries send Danish lemma + POS/morphology; verbs framed as infinitives (e.g. `at bile`).

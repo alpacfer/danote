@@ -374,6 +374,7 @@ class CORSearchVariant(BaseModel):
     cor_id: str
     form: str
     lemma: str
+    dictionary_status: Literal["cor", "generated_non_cor", "unknown"] = "cor"
     gloss: str | None = None
     gloss_translation: str | None = None
     gram_raw: str

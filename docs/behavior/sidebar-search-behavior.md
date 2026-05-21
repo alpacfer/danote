@@ -197,6 +197,7 @@ Sorted by best variant score per group:
 - Search-seed saves skip direct `/api/wordbank/lexemes/verify` + `/api/wordbank/lexemes/pronunciation`: backend background jobs do work, word page picks up.
 - `queued_pronunciation_forms` in response → word page polls until pronunciation playable or timeout.
 - Backend enforces translation gate: save blocked while translation loading, sidebar submits only when `saveable_translation` present.
+- Single-word COR misses that Gemini validates as real Danish words stay in word search, render as normal addable rows, and save with `search_seed.dictionary_status = "generated_non_cor"` and no COR id.
 
 ### Selecting English fallback row
 

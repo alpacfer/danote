@@ -226,6 +226,109 @@ describe("App shell and search", () => {
     ).toBe(false)
   })
 
+  it("request-shape: generated non-COR search row saves without synthetic COR metadata", async () => {
+    const fetchSpy = mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      searchWordbankResponse: { items: [] },
+      corSearchFormHandler: async (input) => {
+        const url = new URL(String(input), "http://localhost")
+        if (url.searchParams.get("include_translations") === "false") {
+          return responseOf({ form: "sikkerhedszone", groups: [] })
+        }
+        return responseOf({
+          form: "sikkerhedszone",
+          groups: [
+            {
+              lemma: "sikkerhedszone",
+              gloss: "security zone",
+              pos_tag: "NOUN",
+              variants: [
+                {
+                  cor_id: "GENERATED.NON_COR.SIKKERHEDSZONE",
+                  form: "sikkerhedszone",
+                  lemma: "sikkerhedszone",
+                  dictionary_status: "generated_non_cor",
+                  gloss: "security zone",
+                  gloss_translation: "security zone",
+                  lemma_translation: "security zone",
+                  saveable_translation: "security zone",
+                  lemma_translation_provider: "gemini_word_translation",
+                  lemma_translation_status: "gemini",
+                  lemma_translation_reason: "generated_non_cor",
+                  gram_raw: "noun.Gender=Com|Number=Sing|Definite=Ind",
+                  norm: "N",
+                  lemma_idx: 0,
+                  gram_code: 0,
+                  variation: 0,
+                  pos_tag: "NOUN",
+                  morphology: "Gender=Com|Number=Sing|Definite=Ind",
+                  features: {},
+                  extra_tags: ["not in COR"],
+                },
+              ],
+            },
+          ],
+        })
+      },
+      addWordResponse: {
+        status: "inserted",
+        stored_lemma: "sikkerhedszone",
+        stored_surface_form: "sikkerhedszone",
+        source: "manual",
+        message: "Added 'sikkerhedszone' to wordbank.",
+        verification: {
+          status: "queued",
+          provider: "gemini",
+          reviewer_role: "Professional Danish Language Expert",
+          message: "Queued",
+          composed_word_count: null,
+        },
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    const commandDialog = await screen.findByRole("dialog")
+    const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
+    fireEvent.change(searchInput, { target: { value: "sikkerhedszone" } })
+
+    expect(await within(commandDialog).findByText(/^sikkerhedszone$/i)).toBeInTheDocument()
+    expect(await within(commandDialog).findByText(/^Noun$/i)).toBeInTheDocument()
+    expect(within(commandDialog).queryByText(/^Save sentence$/i)).not.toBeInTheDocument()
+    fireEvent.click(await findCommandOptionByValue(commandDialog, "cor-variant-GENERATED.NON_COR.SIKKERHEDSZONE"))
+
+    await waitFor(() => {
+      expect(
+        fetchSpy.mock.calls.some(([input, init]) => {
+          if (!String(input).endsWith("/api/wordbank/lexemes")) {
+            return false
+          }
+          const body = JSON.parse(String(init?.body ?? "{}")) as {
+            cor_id?: string | null
+            search_seed?: {
+              dictionary_status?: string
+              cor_id?: string | null
+              cor_lemma_idx?: number | null
+              english_translation?: string | null
+            }
+          }
+          return (
+            body.cor_id == null
+            && body.search_seed?.dictionary_status === "generated_non_cor"
+            && body.search_seed?.cor_id == null
+            && body.search_seed?.cor_lemma_idx === null
+            && body.search_seed?.english_translation === "security zone"
+          )
+        }),
+      ).toBe(true)
+    })
+    expect(
+      fetchSpy.mock.calls.some(([input]) => String(input).endsWith("/api/sentencebank/search-preview")),
+    ).toBe(false)
+  })
+
   it("request-shape: multi-word search switches to sentence mode, hides other groups, and saving refreshes both sentencebank and wordbank", async () => {
     let hasSavedSentence = false
     let lemmaDetailsRequestCount = 0
