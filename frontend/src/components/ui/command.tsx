@@ -37,6 +37,7 @@ function CommandDialog({
   className,
   showCloseButton = true,
   commandClassName,
+  overlayClassName,
   commandKey,
   commandValue,
   onCommandValueChange,
@@ -48,6 +49,7 @@ function CommandDialog({
   className?: string
   showCloseButton?: boolean
   commandClassName?: string
+  overlayClassName?: string
   commandKey?: string
   commandValue?: string
   onCommandValueChange?: (value: string) => void
@@ -61,6 +63,7 @@ function CommandDialog({
       </DialogHeader>
       <DialogContent
         className={cn("overflow-hidden p-0 top-[40%]", className)}
+        overlayClassName={overlayClassName}
         showCloseButton={showCloseButton}
         onOpenAutoFocus={(event) => {
           event.preventDefault()
