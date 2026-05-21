@@ -1,4 +1,4 @@
-import { X } from "lucide-react"
+import { X, ChevronDown } from "lucide-react"
 import { useMemo, type KeyboardEventHandler } from "react"
 
 import {
@@ -8,6 +8,7 @@ import {
 } from "@/app/core"
 import { Button } from "@/components/ui/button"
 import { CommandInput } from "@/components/ui/command"
+import { cn } from "@/lib/utils"
 
 type TextSegment = {
   text: string
@@ -114,7 +115,7 @@ type SidebarSearchInputProps = {
   value: string
   sentenceSearchPreview: SentenceSearchPreviewResponse | null
   onValueChange: (value: string) => void
-  onCancelSearch: () => void
+  onCloseSearch: () => void
   onKeyDown?: KeyboardEventHandler<HTMLElement>
 }
 
@@ -122,7 +123,7 @@ export function SidebarSearchInput({
   value,
   sentenceSearchPreview,
   onValueChange,
-  onCancelSearch,
+  onCloseSearch,
   onKeyDown,
 }: SidebarSearchInputProps) {
   const rawErrors = useMemo(
@@ -153,30 +154,45 @@ export function SidebarSearchInput({
     </div>
   ) : null
 
+  const hasValue = value.length > 0
   return (
-    <CommandInput
-      placeholder="Search words..."
-      value={value}
-      onValueChange={onValueChange}
-      onKeyDown={onKeyDown as KeyboardEventHandler<HTMLInputElement>}
-      aria-label="command search"
-      overlay={overlay}
-      concealValue={Boolean(overlay)}
-      suffix={(
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          aria-label="Cancel search"
-          className="rounded-full"
-          onClick={onCancelSearch}
-        >
-          <X />
-        </Button>
-      )}
-      multiline
-      autoFocus
-      maxLength={SENTENCE_VERIFY_MAX_CHARS}
-    />
+    <div data-slot="sidebar-search-input-row" className="flex items-stretch">
+      <div className="min-w-0 flex-1">
+        <CommandInput
+          placeholder="Search words..."
+          value={value}
+          onValueChange={onValueChange}
+          onKeyDown={onKeyDown as KeyboardEventHandler<HTMLInputElement>}
+          aria-label="command search"
+          overlay={overlay}
+          concealValue={Boolean(overlay)}
+          suffix={(
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Clear search"
+              className={cn("rounded-full", hasValue ? "" : "invisible pointer-events-none")}
+              onClick={() => onValueChange("")}
+            >
+              <X />
+            </Button>
+          )}
+          multiline
+          autoFocus
+          maxLength={SENTENCE_VERIFY_MAX_CHARS}
+        />
+      </div>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        aria-label="Close search"
+        className="hidden max-md:flex max-md:ml-1 max-md:mr-2 max-md:size-10 max-md:shrink-0 max-md:self-center max-md:rounded-full"
+        onClick={onCloseSearch}
+      >
+        <ChevronDown className="size-5" />
+      </Button>
+    </div>
   )
 }

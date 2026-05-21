@@ -136,7 +136,7 @@ function CommandInput({
             spellCheck={false}
             autoCapitalize="none"
               className={cn(
-              "placeholder:text-muted-foreground field-sizing-content block w-full resize-none bg-transparent py-0 text-sm outline-hidden disabled:cursor-not-allowed disabled:opacity-50",
+              "placeholder:text-muted-foreground field-sizing-content block max-h-[40vh] w-full resize-none overflow-y-auto bg-transparent py-0 text-sm outline-hidden disabled:cursor-not-allowed disabled:opacity-50",
               suffix ? "pr-10" : "",
               concealValue ? "relative z-10 text-transparent caret-foreground" : "",
               className
@@ -150,7 +150,10 @@ function CommandInput({
             aria-hidden="true"
           />
           {suffix ? (
-            <div className="absolute inset-y-0 right-0 flex min-w-8 items-center justify-end">
+            <div
+              data-slot="command-input-suffix"
+              className="absolute top-0 right-0 flex min-w-8 items-start justify-end pt-0.5"
+            >
               {suffix}
             </div>
           ) : null}
