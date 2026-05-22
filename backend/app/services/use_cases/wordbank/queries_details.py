@@ -125,8 +125,6 @@ def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsRespo
         meaning = meaning_by_id.get(row.meaning_id)
         if meaning is None:
             continue
-        if normalize_token(row.form) == normalized_lemma:
-            continue
         section_forms[row.meaning_id].append(
             _surface_form_details(
                 runtime,

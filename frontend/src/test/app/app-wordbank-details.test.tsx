@@ -803,6 +803,87 @@ describe("App wordbank", () => {
     expect(within(meaningCard).getAllByText(/^kom$/i).length).toBeGreaterThanOrEqual(2)
   })
 
+  it("renderer-only: sectioned verb pages do not duplicate the infinitive when surface_forms repeats the lemma", async () => {
+    mockFetchImplementation({
+      lemmasResponse: {
+        items: [{ lemma: "stige", variation_count: 4 }],
+      },
+      lemmaDetailsResponse: {
+        lemma: "stige",
+        is_sectioned: true,
+        meaning_sections: [
+          {
+            id: 1,
+            meaning_key: "rise",
+            gloss: "rise",
+            english_translation: "to rise",
+            pos_tag: "VERB",
+            morphology: "VerbForm=Inf|Voice=Act",
+            surface_forms: [
+              { form: "stige", pos_tag: "VERB", morphology: "VerbForm=Inf|Voice=Act" },
+              { form: "stiger", pos_tag: "VERB", morphology: "Tense=Pres|VerbForm=Fin|Voice=Act" },
+              { form: "steg", pos_tag: "VERB", morphology: "Tense=Past|VerbForm=Fin|Voice=Act" },
+              { form: "steget", pos_tag: "VERB", morphology: "VerbForm=Part|Voice=Act" },
+            ],
+          },
+        ],
+        surface_forms: [],
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+    fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /stige/i }))
+
+    const meaningCard = await screen.findByTestId("wordbank-meaning-card-1")
+    const table = within(meaningCard).getByRole("table")
+    expect(within(table).getByRole("row", { name: /^Infinitive stige$/i })).toBeInTheDocument()
+    expect(within(table).getByRole("row", { name: /^Present stiger$/i })).toBeInTheDocument()
+    expect(within(table).getByRole("row", { name: /^Past steg$/i })).toBeInTheDocument()
+    expect(within(table).getByRole("row", { name: /^Past participle steget$/i })).toBeInTheDocument()
+  })
+
+  it("renderer-only: sectioned verb pages keep same-spelling lemma and past forms in separate rows", async () => {
+    mockFetchImplementation({
+      lemmasResponse: {
+        items: [{ lemma: "ville", variation_count: 2 }],
+      },
+      lemmaDetailsResponse: {
+        lemma: "ville",
+        is_sectioned: true,
+        meaning_sections: [
+          {
+            id: 1,
+            meaning_key: "want",
+            gloss: "want",
+            english_translation: "to want to",
+            pos_tag: "VERB",
+            morphology: "Tense=Pres|VerbForm=Fin|Voice=Act",
+            surface_forms: [
+              { form: "vil", pos_tag: "VERB", morphology: "Tense=Pres|VerbForm=Fin|Voice=Act" },
+              { form: "ville", pos_tag: "VERB", morphology: "Tense=Past|VerbForm=Fin|Voice=Act" },
+              { form: "villet", pos_tag: "VERB", morphology: "VerbForm=Part|Voice=Act" },
+            ],
+          },
+        ],
+        surface_forms: [],
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+    fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /ville/i }))
+
+    const meaningCard = await screen.findByTestId("wordbank-meaning-card-1")
+    const table = within(meaningCard).getByRole("table")
+    expect(within(table).getByRole("row", { name: /^Infinitive ville$/i })).toBeInTheDocument()
+    expect(within(table).getByRole("row", { name: /^Present vil$/i })).toBeInTheDocument()
+    expect(within(table).getByRole("row", { name: /^Past ville$/i })).toBeInTheDocument()
+    expect(within(table).getByRole("row", { name: /^Past participle villet$/i })).toBeInTheDocument()
+  })
+
   it("renderer-only: sectioned adjective word pages render the paradigm table from the initial saved slot", async () => {
     mockFetchImplementation({
       lemmasResponse: {

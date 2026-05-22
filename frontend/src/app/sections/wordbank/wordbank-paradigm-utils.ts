@@ -56,7 +56,7 @@ export function buildNounParadigm(surfaceForms: SurfaceForm[]): ParadigmTableDat
     const number = numberFromMorphology(form.morphology)
     const definiteness = definitenessFromMorphology(form.morphology)
     if (number && definiteness) {
-      findCell(cells, number, definiteness)?.entries.push({ form })
+      pushUniqueEntry(findCell(cells, number, definiteness), { form })
       continue
     }
     otherForms.push(form)
@@ -91,14 +91,14 @@ export function buildAdjectiveParadigm(surfaceForms: SurfaceForm[]): ParadigmTab
     for (const slot of slots) {
       assigned = true
       if (slot === "singular_indefinite_n_word") {
-        findCell(cells, "Singular", "Indefinite")?.entries.push({ form, label: "n-word" })
+        pushUniqueEntry(findCell(cells, "Singular", "Indefinite"), { form, label: "n-word" })
       } else if (slot === "singular_indefinite_t_word") {
-        findCell(cells, "Singular", "Indefinite")?.entries.push({ form, label: "t-word" })
+        pushUniqueEntry(findCell(cells, "Singular", "Indefinite"), { form, label: "t-word" })
       } else if (slot === "singular_definite") {
-        findCell(cells, "Singular", "Definite")?.entries.push({ form })
+        pushUniqueEntry(findCell(cells, "Singular", "Definite"), { form })
       } else if (slot === "plural_shared") {
-        findCell(cells, "Plural", "Indefinite")?.entries.push({ form })
-        findCell(cells, "Plural", "Definite")?.entries.push({ form })
+        pushUniqueEntry(findCell(cells, "Plural", "Indefinite"), { form })
+        pushUniqueEntry(findCell(cells, "Plural", "Definite"), { form })
       }
     }
     if (!assigned) {
@@ -129,7 +129,7 @@ export function buildVerbParadigm(surfaceForms: SurfaceForm[]): ParadigmTableDat
       continue
     }
     for (const slot of slots) {
-      findCell(cells, slot, "Form")?.entries.push({ form })
+      pushUniqueEntry(findCell(cells, slot, "Form"), { form })
     }
   }
 
@@ -178,6 +178,18 @@ function createEmptyCells(): ParadigmCell[] {
 
 function findCell(cells: ParadigmCell[], row: string, column: string): ParadigmCell | undefined {
   return cells.find((cell) => cell.row === row && cell.column === column)
+}
+
+function pushUniqueEntry(cell: ParadigmCell | undefined, entry: ParadigmCellEntry): void {
+  if (!cell) return
+  const formKey = entry.form.form.trim().toLocaleLowerCase("da-DK")
+  const exists = cell.entries.some(
+    (existing) =>
+      existing.label === entry.label &&
+      existing.form.form.trim().toLocaleLowerCase("da-DK") === formKey,
+  )
+  if (exists) return
+  cell.entries.push(entry)
 }
 
 function filledCellCount(cells: ParadigmCell[]): number {
@@ -249,12 +261,11 @@ function verbSlotsForForm(form: SurfaceForm): string[] {
       slots.add("Past")
     }
   }
-  if (slots.size > 0) {
-    return [...slots]
-  }
-
   const label = verbFormFromMorphology(form.morphology)
-  return label ? [label] : []
+  if (label) {
+    return label === "Past" && slots.has("Imperative") ? ["Past", "Imperative"] : [label]
+  }
+  return slots.size > 0 ? [...slots] : []
 }
 
 function splitGramRaw(gramRaw: string | null | undefined): string[] {

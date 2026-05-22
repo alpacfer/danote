@@ -1304,6 +1304,7 @@ def test_wordbank_use_case_applies_fix_variations_action_for_completion_review(t
     details = use_case.get_lemma_details("mor")
     assert sorted(form.form for form in details.meaning_sections[0].surface_forms) == [
         "moder",
+        "mor",
         "moren",
         "mødre",
         "mødrene",
@@ -1642,7 +1643,12 @@ def test_wordbank_use_case_applies_fix_variations_action_for_verb_completion_rev
 
     assert response.status == "applied"
     details = use_case.get_lemma_details("komme")
-    assert sorted(form.form for form in details.meaning_sections[0].surface_forms) == ["kom", "kommer", "kommet"]
+    assert sorted(form.form for form in details.meaning_sections[0].surface_forms) == [
+        "kom",
+        "komme",
+        "kommer",
+        "kommet",
+    ]
 
 
 def test_wordbank_use_case_applies_fix_variations_with_singular_indefinite_aliases(tmp_path: Path) -> None:
@@ -1762,7 +1768,13 @@ def test_wordbank_use_case_applies_fix_variations_with_singular_indefinite_alias
 
     assert response.status == "applied"
     details = use_case.get_lemma_details("fader")
-    assert [form.form for form in details.meaning_sections[0].surface_forms] == ["far", "faderen", "fædre", "fædrene"]
+    assert [form.form for form in details.meaning_sections[0].surface_forms] == [
+        "fader",
+        "far",
+        "faderen",
+        "fædre",
+        "fædrene",
+    ]
 
 
 def test_wordbank_use_case_rejects_fix_variations_apply_without_structured_slots(tmp_path: Path) -> None:

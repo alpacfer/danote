@@ -561,7 +561,7 @@ def test_gemini_verification_prompt_matches_wordbank_translation_model() -> None
     assert "Use the reviewed target, relevant surface forms, and sibling meanings only as needed" in prompt
     assert "If canonical_lemma is present and differs from lemma" in prompt
     assert "idiomatic English" in prompt
-    assert "meaning_gloss_translation" in prompt
+    assert "translation_hint" in prompt
     assert "gloss_translation" in prompt
     assert "available_categories" not in prompt
     assert "current_categories" not in prompt
@@ -574,6 +574,10 @@ def test_gemini_verification_prompt_matches_wordbank_translation_model() -> None
     assert "new_categories" not in prompt
     assert "Do not require missing paradigm forms" in prompt
     assert "Variation completeness is handled only by the Complete variations workflow" in prompt
+    assert "NOUN as a noun phrase" in prompt
+    assert "VERB as a verb phrase" in prompt
+    assert "ADJECTIVE as an adjective phrase" in prompt
+    assert "Never translate a NOUN as a verb/adjective" in prompt
     assert "fix_variations" not in prompt
     assert "Do not suggest translation fixes for this scope" in prompt
     assert "Homographs are common" in prompt

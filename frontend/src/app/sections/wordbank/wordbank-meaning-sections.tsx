@@ -73,8 +73,6 @@ export function WordbankMeaningSections({
   onRerunMeaningVerification,
   onOpenPinnedTab,
 }: WordbankMeaningSectionsProps) {
-  const normalizedLemma = lemma.trim().toLocaleLowerCase("da-DK")
-
   if (!meaningSections || meaningSections.length === 0) {
     return <p className="text-muted-foreground text-sm">No saved meanings for this lemma.</p>
   }
@@ -126,13 +124,11 @@ export function WordbankMeaningSections({
         const lemmaSyntheticForm = {
           form: lemma,
           pos_tag: section.pos_tag ?? null,
-          morphology: section.morphology ?? null,
-          gram_raw: section.gram_raw ?? null,
+          morphology: isVerb ? "VerbForm=Inf" : section.morphology ?? null,
+          gram_raw: isVerb ? null : section.gram_raw ?? null,
           has_pronunciation: lemmaHasPronunciation,
         }
-        const formsWithLemma = [lemmaSyntheticForm, ...resolvedSectionSurfaceForms.filter(
-          (f) => f.form.trim().toLocaleLowerCase("da-DK") !== normalizedLemma,
-        )]
+        const formsWithLemma = [lemmaSyntheticForm, ...resolvedSectionSurfaceForms]
         const nounParadigm = isNoun ? buildNounParadigm(formsWithLemma) : null
         const adjectiveParadigm = posTag === "ADJ" ? buildAdjectiveParadigm(formsWithLemma) : null
         const verbParadigm = isVerb ? buildVerbParadigm(formsWithLemma) : null

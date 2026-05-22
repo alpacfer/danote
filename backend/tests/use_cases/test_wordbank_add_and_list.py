@@ -26,6 +26,37 @@ def _verify_meaning_targets(use_case: WordbankUseCase, *, lemma: str, meaning_id
         use_case.verify_added_word(lemma, surface, meaning_id=meaning_id)
 
 
+def _variation_gemini(
+    lemma: str,
+    pos_tag: str,
+    gloss: str,
+    forms: list[dict[str, str]],
+) -> FakeGeminiWordTranslationService:
+    return FakeGeminiWordTranslationService(
+        {},
+        non_cor_variation_overrides={(lemma, pos_tag, gloss): forms},
+    )
+
+
+_BOG_BOOK_FORMS = [
+    {"form": "bogen", "pos_tag": "NOUN", "morphology": "Gender=Com|Number=Sing|Definite=Def"},
+    {"form": "bøger", "pos_tag": "NOUN", "morphology": "Gender=Com|Number=Plur|Definite=Ind"},
+    {"form": "bøgerne", "pos_tag": "NOUN", "morphology": "Gender=Com|Number=Plur|Definite=Def"},
+]
+_STOR_LARGE_FORMS = [
+    {"form": "store", "pos_tag": "ADJ", "morphology": "Degree=Pos|Number=Plur|Definite=Def"},
+]
+_LAERE_FORMS = [
+    {"form": "lærte", "pos_tag": "VERB", "morphology": "Tense=Past|VerbForm=Fin|Voice=Act"},
+    {"form": "lær", "pos_tag": "VERB", "morphology": "Mood=Imp|VerbForm=Fin"},
+    {"form": "lært", "pos_tag": "VERB", "morphology": "VerbForm=Part|Voice=Act"},
+]
+_VILLE_FORMS = [
+    {"form": "ville", "pos_tag": "VERB", "morphology": "Tense=Past|VerbForm=Fin|Voice=Act"},
+    {"form": "villet", "pos_tag": "VERB", "morphology": "VerbForm=Part|Voice=Act"},
+]
+
+
 def _bog_complete_paradigm_cor_local() -> FakeCORLocalLexiconService:
     book_entries = [
         _cor_local_entry(
@@ -629,6 +660,7 @@ def test_complete_meaning_variations_backfills_missing_noun_slots_for_search_see
     use_case = WordbankUseCase(
         db_path,
         cor_local_lexicon_service=_bog_complete_paradigm_cor_local(),
+        gemini_word_translation_service=_variation_gemini("bog", "NOUN", "book", _BOG_BOOK_FORMS),
         verification_service=FakeVerificationService(),
         tts_service=FakeTTSService({}),
     )
@@ -654,10 +686,7 @@ def test_complete_meaning_variations_backfills_missing_noun_slots_for_search_see
     response = use_case.complete_meaning_variations("bog", meaning_id=added.meaning.id)
 
     assert response.status == "updated"
-    assert [
-        (target.meaning_id, target.stored_surface_form)
-        for target in response.queued_verification_targets
-    ] == [(added.meaning.id, None)]
+    assert response.queued_verification_targets == []
     assert response.added_surface_forms == ["bogen", "bøgerne"]
     assert response.queued_pronunciation_forms == ["bog", "bogen", "bøgerne"]
 
@@ -686,6 +715,7 @@ def test_complete_meaning_variations_uses_selected_homograph_meaning_only(tmp_pa
     use_case = WordbankUseCase(
         _db_path(tmp_path),
         cor_local_lexicon_service=_bog_complete_paradigm_cor_local(),
+        gemini_word_translation_service=_variation_gemini("bog", "NOUN", "book", _BOG_BOOK_FORMS),
         verification_service=FakeVerificationService(),
     )
 
@@ -737,6 +767,7 @@ def test_complete_meaning_variations_backfills_missing_adjective_slots_for_searc
     use_case = WordbankUseCase(
         db_path,
         cor_local_lexicon_service=_stor_complete_paradigm_cor_local(),
+        gemini_word_translation_service=_variation_gemini("stor", "ADJ", "large", _STOR_LARGE_FORMS),
         verification_service=FakeVerificationService(),
         tts_service=FakeTTSService({}),
     )
@@ -764,9 +795,7 @@ def test_complete_meaning_variations_backfills_missing_adjective_slots_for_searc
     assert response.status == "updated"
     assert response.added_surface_forms == ["store"]
     assert response.queued_pronunciation_forms == ["stor", "store"]
-    assert [(target.meaning_id, target.stored_surface_form) for target in response.queued_verification_targets] == [
-        (added.meaning.id, None),
-    ]
+    assert response.queued_verification_targets == []
 
     details = use_case.get_lemma_details("stor")
     assert sorted(form.form for form in details.meaning_sections[0].surface_forms) == ["store", "stort"]
@@ -776,6 +805,7 @@ def test_complete_meaning_variations_skips_when_adjective_slots_are_already_cove
     use_case = WordbankUseCase(
         _db_path(tmp_path),
         cor_local_lexicon_service=_orange_complete_paradigm_cor_local(),
+        gemini_word_translation_service=_variation_gemini("orange", "ADJ", "orange", []),
         verification_service=FakeVerificationService(),
     )
 
@@ -808,6 +838,7 @@ def test_complete_meaning_variations_uses_selected_adjective_meaning_only(tmp_pa
     use_case = WordbankUseCase(
         _db_path(tmp_path),
         cor_local_lexicon_service=_stor_complete_paradigm_cor_local(),
+        gemini_word_translation_service=_variation_gemini("stor", "ADJ", "large", _STOR_LARGE_FORMS),
         verification_service=FakeVerificationService(),
     )
 
@@ -859,6 +890,7 @@ def test_complete_meaning_variations_backfills_missing_verb_slots_for_search_see
     use_case = WordbankUseCase(
         db_path,
         cor_local_lexicon_service=_laere_complete_paradigm_cor_local(),
+        gemini_word_translation_service=_variation_gemini("lære", "VERB", "learn", _LAERE_FORMS),
         verification_service=FakeVerificationService(),
         tts_service=FakeTTSService({}),
     )
@@ -886,18 +918,60 @@ def test_complete_meaning_variations_backfills_missing_verb_slots_for_search_see
     assert response.status == "updated"
     assert response.added_surface_forms == ["lærte", "lær", "lært"]
     assert response.queued_pronunciation_forms == ["lære", "lærte", "lær", "lært"]
-    assert [(target.meaning_id, target.stored_surface_form) for target in response.queued_verification_targets] == [
-        (added.meaning.id, None),
-    ]
+    assert response.queued_verification_targets == []
 
     details = use_case.get_lemma_details("lære")
     assert sorted(form.form for form in details.meaning_sections[0].surface_forms) == ["lær", "lærer", "lært", "lærte"]
+
+
+def test_complete_meaning_variations_persists_same_spelling_verb_slots(tmp_path: Path) -> None:
+    db_path = _db_path(tmp_path)
+    use_case = WordbankUseCase(
+        db_path,
+        gemini_word_translation_service=_variation_gemini("ville", "VERB", "want", _VILLE_FORMS),
+        verification_service=FakeVerificationService(),
+        tts_service=FakeTTSService({}),
+    )
+
+    added = use_case.add_word(
+        "vil",
+        "ville",
+        search_seed={
+            "lemma": "ville",
+            "surface": "vil",
+            "cor_id": "COR.VILLE.PRES",
+            "cor_lemma_idx": 930,
+            "meaning_key": "want",
+            "gloss": "want",
+            "english_translation": "to want to",
+            "pos_tag": "VERB",
+            "morphology": "Tense=Pres|VerbForm=Fin|Voice=Act",
+        },
+    )
+    assert added.meaning is not None
+    _verify_meaning_targets(use_case, lemma="ville", meaning_id=added.meaning.id, surfaces=["vil"])
+
+    response = use_case.complete_meaning_variations("ville", meaning_id=added.meaning.id)
+
+    assert response.status == "updated"
+    assert response.added_surface_forms == ["ville", "villet"]
+    assert response.queued_pronunciation_forms == ["ville", "villet"]
+    assert response.queued_verification_targets == []
+
+    details = use_case.get_lemma_details("ville")
+    surface_forms = details.meaning_sections[0].surface_forms
+    assert details.meaning_sections[0].gloss_translation is None
+    assert sorted(form.form for form in surface_forms) == ["vil", "ville", "villet"]
+    assert any(
+        form.form == "ville" and form.morphology == "Tense=Past|VerbForm=Fin|Voice=Act" for form in surface_forms
+    )
 
 
 def test_complete_meaning_variations_skips_when_verb_slots_are_already_covered(tmp_path: Path) -> None:
     use_case = WordbankUseCase(
         _db_path(tmp_path),
         cor_local_lexicon_service=_laere_complete_paradigm_cor_local(),
+        gemini_word_translation_service=_variation_gemini("lære", "VERB", "learn", _LAERE_FORMS),
         verification_service=FakeVerificationService(),
     )
 
@@ -936,6 +1010,7 @@ def test_get_lemma_details_orders_standard_noun_variations_in_slot_order(tmp_pat
     use_case = WordbankUseCase(
         _db_path(tmp_path),
         cor_local_lexicon_service=_bog_complete_paradigm_cor_local(),
+        gemini_word_translation_service=_variation_gemini("bog", "NOUN", "book", _BOG_BOOK_FORMS),
         verification_service=FakeVerificationService(),
     )
 
@@ -1002,6 +1077,7 @@ def test_complete_meaning_variations_skips_when_already_complete_or_cor_identity
     use_case = WordbankUseCase(
         _db_path(tmp_path),
         cor_local_lexicon_service=_bog_complete_paradigm_cor_local(),
+        gemini_word_translation_service=_variation_gemini("bog", "NOUN", "book", _BOG_BOOK_FORMS),
         verification_service=FakeVerificationService(),
     )
 
@@ -1054,14 +1130,15 @@ def test_complete_meaning_variations_skips_when_already_complete_or_cor_identity
     missing_identity = manual_use_case.complete_meaning_variations("bog", meaning_id=manual.meaning.id)
 
     assert missing_identity.status == "skipped"
-    assert "COR identity" in missing_identity.message
+    assert "Gemini" in missing_identity.message
 
 
-def test_complete_meaning_variations_requeues_single_meaning_verification_review(tmp_path: Path) -> None:
+def test_complete_meaning_variations_does_not_requeue_verification_review(tmp_path: Path) -> None:
     db_path = _db_path(tmp_path)
     use_case = WordbankUseCase(
         db_path,
         cor_local_lexicon_service=_bog_complete_paradigm_cor_local(),
+        gemini_word_translation_service=_variation_gemini("bog", "NOUN", "book", _BOG_BOOK_FORMS),
         verification_service=FakeVerificationService(),
     )
 
@@ -1114,26 +1191,16 @@ def test_complete_meaning_variations_requeues_single_meaning_verification_review
             """
         ).fetchall()
 
-    assert len(after_rows) == len(before_rows) + 1
-    new_job = after_rows[-1]
-    new_payload = json.loads(str(new_job["payload_json"]))
-    assert "complete_variations" in str(new_job["dedupe_key"])
-    assert new_payload == {
-        "meaning_id": added.meaning.id,
-        "request_generation": new_payload["request_generation"],
-        "review_intent": "complete_variations",
-        "snapshot_hash": new_payload["snapshot_hash"],
-        "stored_lemma": "bog",
-        "stored_surface_form": None,
-    }
+    assert after_rows == before_rows
     assert [(row["meaning_id"], row["stored_surface_form"], row["status"]) for row in verification_rows] == [
-        (added.meaning.id, None, "queued")
+        (added.meaning.id, None, "verified"),
+        (added.meaning.id, "bøger", "verified"),
     ]
 
     details = use_case.get_lemma_details("bog")
     assert details.meaning_sections[0].verification is not None
-    assert details.meaning_sections[0].verification.status == "queued"
-    assert all(form.verification is None for form in details.meaning_sections[0].surface_forms)
+    assert details.meaning_sections[0].verification.status == "verified"
+    assert any(form.verification is not None for form in details.meaning_sections[0].surface_forms)
 
 
 @pytest.mark.parametrize("provider", ["azure_translator", "deepl_translator"])
@@ -1886,15 +1953,17 @@ def test_complete_variations_uses_gemini_for_generated_non_cor_meanings(tmp_path
     completed = use_case.complete_meaning_variations("superstor", meaning_id=added.meaning.id)
 
     assert completed.status == "updated"
-    assert completed.added_surface_forms == ["superstore"]
-    assert [(target.meaning_id, target.stored_surface_form) for target in completed.queued_verification_targets] == [
-        (added.meaning.id, None)
-    ]
+    assert completed.added_surface_forms == ["superstor", "superstore"]
+    assert completed.queued_verification_targets == []
     details = use_case.get_lemma_details("superstor")
-    assert {item.form for item in details.meaning_sections[0].surface_forms} == {"superstort", "superstore"}
+    assert {item.form for item in details.meaning_sections[0].surface_forms} == {
+        "superstor",
+        "superstort",
+        "superstore",
+    }
 
 
-def test_complete_variations_rejects_non_cor_adjective_comparison_forms(tmp_path: Path) -> None:
+def test_complete_variations_trusts_gemini_variation_resolution(tmp_path: Path) -> None:
     db_path = _db_path(tmp_path)
     gemini_service = FakeGeminiWordTranslationService(
         {},
@@ -1961,11 +2030,19 @@ def test_complete_variations_rejects_non_cor_adjective_comparison_forms(tmp_path
     completed = use_case.complete_meaning_variations("ukomfortabel", meaning_id=added.meaning.id)
 
     assert completed.status == "updated"
-    assert completed.added_surface_forms == ["ukomfortabelt", "ukomfortable"]
-    details = use_case.get_lemma_details("ukomfortabel")
-    assert {item.form for item in details.meaning_sections[0].surface_forms} == {
+    assert completed.added_surface_forms == [
         "ukomfortabelt",
         "ukomfortable",
+        "mere ukomfortabel",
+        "mest ukomfortabel",
+    ]
+    details = use_case.get_lemma_details("ukomfortabel")
+    assert {item.form for item in details.meaning_sections[0].surface_forms} == {
+        "ukomfortabel",
+        "ukomfortabelt",
+        "ukomfortable",
+        "mere ukomfortabel",
+        "mest ukomfortabel",
     }
 
 

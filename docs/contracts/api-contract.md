@@ -108,7 +108,7 @@ or `Authorization: Bearer <guest-token>` header. Local dev
 - **Response model:** `AddSentenceResponse`.
 - **Notable status/error behavior:** `503` DB unavailable/locked. `400` value errors. body `status`: `inserted` or `exists`.
 - **Request details:** `english_translation` may be provided by trusted generated-example previews and is persisted without retranslation. `token_persistence_mode` defaults to `auto_save_all`; `link_existing_only` requires `target: {stored_lemma, meaning_id}` and is reserved for generated examples.
-- **Field invariants:** response now includes hydrated sentence details (`id`, `created_at`, `tokens[]`, `has_pronunciation`). `tokens[]` carries `token_index`, `surface_form`, `save_status`, nullable `lemma_candidate`, nullable `stored_lemma`, nullable `lexeme_id`, nullable `meaning_id`, POS/morphology, optional gloss, and translation fields. Insert responses may also include `pronunciation` with `status: queued|skipped` plus `sentence_id` when background sentence audio generation is considered. Insert responses may include `queued_verification_targets[]` with `stored_lemma`, nullable `meaning_id`, and nullable `stored_surface_form` for sentence-token Gemini verification records the client should track for refresh. In `link_existing_only` mode, only the requested saved target word is linked; other wordlike tokens are returned and persisted as `save_status = "unsaved"` cards with NLP lemma/POS/morphology metadata for later manual saving.
+- **Field invariants:** response now includes hydrated sentence details (`id`, `created_at`, `tokens[]`, `has_pronunciation`). `tokens[]` carries `token_index`, `surface_form`, `save_status`, nullable `lemma_candidate`, nullable `stored_lemma`, nullable `lexeme_id`, nullable `meaning_id`, POS/morphology, optional gloss, and translation fields. Insert responses may also include `pronunciation` with `status: queued|skipped` plus `sentence_id` when background sentence audio generation is considered. Sentence-created wordbank entries are verified through one sentence-context Gemini batch prompt during save; `queued_verification_targets[]` remains for response compatibility but is empty for this inline sentence verification path. In `link_existing_only` mode, only the requested saved target word is linked; other wordlike tokens are returned and persisted as `save_status = "unsaved"` cards with NLP lemma/POS/morphology metadata for later manual saving.
 
 ### POST `/api/sentencebank/example-preview`
 - **Request model:** `GenerateExamplePreviewRequest` (`stored_lemma`, `meaning_id`).
@@ -138,7 +138,7 @@ or `Authorization: Bearer <guest-token>` header. Local dev
 - **Request model:** path params only.
 - **Response model:** `SaveSentenceTokenResponse` (`SentenceSummary` fields, `saved_token`, `message`, `queued_verification_targets`).
 - **Notable status/error behavior:** `404` sentence or token not found. `503` DB unavailable/locked or token save runtime unavailable.
-- **Field invariants:** reserved for `save_status = "unsaved"` sentence token cards. The backend resolves only the requested token through the same sentence-token COR/Gemini resolver used by normal `auto_save_all` sentence saves, replaces that token with a saved token, and leaves other unsaved generated-example tokens untouched. When the save queues sentence-context Gemini verification, `queued_verification_targets[]` uses the same shape as sentence insert responses.
+- **Field invariants:** reserved for `save_status = "unsaved"` sentence token cards. The backend resolves only the requested token through the same sentence-token COR/Gemini resolver used by normal `auto_save_all` sentence saves, replaces that token with a saved token, and leaves other unsaved generated-example tokens untouched. New wordbank entries created by this token save are verified through the same inline sentence-context Gemini batch path as sentence inserts; `queued_verification_targets[]` remains for response compatibility but is empty for this path.
 
 ### POST `/api/sentencebank/sentences/pronunciation`
 - **Request model:** `GenerateSentencePronunciationRequest` (`sentence_id`, `force: bool = False`).
@@ -250,15 +250,11 @@ or `Authorization: Bearer <guest-token>` header. Local dev
 - **Notable status/error behavior:** `503` DB unavailable/locked. `404` target not found. `400` invalid inputs. body `status`: `updated` or `skipped`.
 - **Field invariants:**
   - v1 is meaning-scoped for noun, adjective, verb meanings; other POS returns `skipped`.
-  - Uses saved meaning's `cor_lemma_idx` to resolve COR paradigms; generated non-COR meanings use Gemini slot completion instead.
+  - Requires Gemini and uses one Gemini variation-resolution call for COR, generated non-COR, and unknown meanings.
   - Gated by verification state: returns `skipped` until meaning target + all saved variations are `verified`. `queued`/`error`/`flagged` states return explicit skip messages.
-  - Noun: adds missing non-lemma variations among singular-definite, plural-indefinite, plural-definite.
-  - Adjective: adds missing agreement forms: singular-indefinite `t-word`, singular-definite, shared plurals. Shared plural persisted once.
-  - Generated non-COR adjective completion accepts only positive-degree agreement slots; comparative/superlative forms such as `mere ...`/`mest ...` are discarded.
-  - Verb: adds missing forms: present, past, imperative, past participle. Infinitive row is lemma/default, not duplicated.
+  - The Gemini response is the authoritative variation set; backend persists returned missing forms directly after normalization/dedupe and does not run a follow-up completion verification review. Same-spelling forms are allowed when Gemini returns them for distinct morphology, including forms that match the lemma.
   - `added_surface_forms`: forms inserted. `queued_pronunciation_forms`: forms queued for background pronunciation (lemma-scoped, merged by `stored_lemma`; may include lemma itself).
-  - `queued_verification_targets`: meaning-level completion-review targets for polling.
-  - Requeues one meaning-level verification review; becomes active source of truth until settled. Completion review is narrow: may only emit/apply `fix_variations`.
+  - `queued_verification_targets`: empty for this Gemini-resolved completion path; retained for response compatibility.
 
 ### POST `/api/wordbank/lexemes/pronunciation`
 - **Request model:** `GeneratePronunciationRequest`.
@@ -271,8 +267,8 @@ or `Authorization: Bearer <guest-token>` header. Local dev
 - **Notable request/behavior details:**
   - `action.action_type`: `fix_translation`, `fix_variations`, `move_to_meaning_section`, `move_to_lemma`.
   - `fix_translation`: valid only for lemma/meaning-scoped targets with `stored_surface_form = null`; rejected for surface-scoped.
-  - Completion-review records expose meaning-level `fix_variations` reconciling whole variation set. `fix_variations` reserved for completion follow-up; normal save verification never emits it.
-  - Generated non-COR meanings can apply structured `fix_variations` without COR identity; apply uses the provided slot forms and removes generated off-slot adjective/verb rows.
+  - Legacy completion-review records may expose meaning-level `fix_variations`; current Complete variations requests resolve and persist variations directly through Gemini and do not create new completion-review records.
+  - Generated non-COR meanings can apply legacy structured `fix_variations` without COR identity; apply uses the provided slot forms and removes generated off-slot adjective/verb rows.
   - When persisted `review_intent = "complete_variations"`: backend rejects any apply whose `action_type != fix_variations`.
   - `fix_variations` slot fields (provided by Gemini, used directly, not re-derived from COR):
     - Noun: `singular_indefinite_forms`, `singular_definite_forms`, `plural_indefinite_forms`, `plural_definite_forms`
@@ -350,7 +346,7 @@ or `Authorization: Bearer <guest-token>` header. Local dev
 - **Request model:** none (`query`, `limit` query params).
 - **Response model:** `WordbankSearchResponse`.
 - **Notable status/error behavior:** `422` validation failures (empty query, limit out of range). `503` DB unavailable/locked. `503` runtime errors.
-- **Field invariants:** saved search rows keep lemma translation + gloss translation separate. `english_translation` = saved lemma translation only. `gloss_translation` = optional disambiguation context. Raw `gloss` not promoted into `english_translation`. Static presaved words may return saved-default rows even when not persisted as DB lexemes; those rows include lemma, translation, POS/morphology, `variation_count=1`, empty `query_cor_ids`, and optional `match_surface` for English matches. `did_you_mean`: non-null when query had no direct matches and a Levenshtein-close wordbank lemma was found; `items` then contains results for the corrected word.
+- **Field invariants:** saved search rows keep lemma translation + gloss translation separate. `english_translation` = saved lemma translation only. `gloss_translation` = optional disambiguation context and is omitted when redundant with the lemma translation, including verb glosses already covered by an infinitive translation. Raw `gloss` not promoted into `english_translation`. Static presaved words may return saved-default rows even when not persisted as DB lexemes; those rows include lemma, translation, POS/morphology, `variation_count=1`, empty `query_cor_ids`, and optional `match_surface` for English matches. `did_you_mean`: non-null when query had no direct matches and a Levenshtein-close wordbank lemma was found; `items` then contains results for the corrected word.
 
 > **Hosted-key metering:** `cor-form`, `cor-form-batch`, and `en-form` count one
 > distinct word per day against the free-trial cap for signed-in users who have

@@ -1027,8 +1027,10 @@ class FakeVerificationService:
 
     def __init__(self, *, categories: tuple[str, ...] = ()) -> None:
         self._categories = categories
+        self.individual_calls = []
 
     def verify_word_entry(self, payload):
+        self.individual_calls.append(payload)
         return WordVerificationResult(
             verdict="verified", message="OK", composed_word_count=1,
         )
@@ -1073,8 +1075,12 @@ def test_sentencebank_add_sentence_triggers_batch_verification(tmp_path: Path) -
     inserted = sentencebank_use_case.add_sentence("Huset er stort")
 
     assert inserted.status == "inserted"
-    assert {target.stored_lemma for target in inserted.queued_verification_targets} >= {"hus", "være", "stor"}
-    assert verification_service.batch_calls == []
+    assert inserted.queued_verification_targets == []
+    assert verification_service.individual_calls == []
+    assert len(verification_service.batch_calls) == 1
+    batch_payloads, batch_context = verification_service.batch_calls[0]
+    assert batch_context == "Huset er stort"
+    assert len(batch_payloads) >= 1
     with sqlite3.connect(db_path) as conn:
         queued_batch_jobs = conn.execute(
             """
@@ -1087,24 +1093,9 @@ def test_sentencebank_add_sentence_triggers_batch_verification(tmp_path: Path) -
             """
             SELECT COUNT(*)
             FROM wordbank_verification_records
-            WHERE status = 'queued'
+                WHERE status = 'queued'
             """
         ).fetchone()[0]
-    assert queued_batch_jobs == 1
-    assert queued_verification_records_before_job == len(inserted.queued_verification_targets)
-
-    _run_pending_sentence_token_verifications(
-        db_path,
-        translation_service=translation_service,
-        nlp_adapter=nlp_adapter,
-        verification_service=verification_service,
-    )
-
-    assert len(verification_service.batch_calls) == 1
-    batch_payloads, batch_context = verification_service.batch_calls[0]
-    assert batch_context == "Huset er stort"
-    assert len(batch_payloads) >= 1
-    with sqlite3.connect(db_path) as conn:
         queued_verify_jobs = conn.execute(
             """
             SELECT COUNT(*)
@@ -1112,15 +1103,17 @@ def test_sentencebank_add_sentence_triggers_batch_verification(tmp_path: Path) -
             WHERE job_type = 'verify_word' AND status = 'pending'
             """
         ).fetchone()[0]
-        queued_verification_records = conn.execute(
+        verified_records = conn.execute(
             """
             SELECT COUNT(*)
             FROM wordbank_verification_records
-            WHERE status = 'queued'
+            WHERE status = 'verified'
             """
         ).fetchone()[0]
+    assert queued_batch_jobs == 0
     assert queued_verify_jobs == 0
-    assert queued_verification_records == 0
+    assert queued_verification_records_before_job == 0
+    assert verified_records >= 1
 
 
 class FakeSentenceVerificationService:
@@ -1466,11 +1459,6 @@ def test_sentencebank_batch_verification_persists_root_and_surface_targets_for_i
     )
 
     sentencebank_use_case.add_sentence("er")
-    _run_pending_sentence_token_verifications(
-        db_path,
-        nlp_adapter=nlp_adapter,
-        verification_service=verification_service,
-    )
 
     assert len(verification_service.batch_calls) == 1
     batch_payloads, batch_context = verification_service.batch_calls[0]
@@ -1513,11 +1501,6 @@ def test_sentencebank_batch_verification_assigns_categories_to_new_words(tmp_pat
     )
 
     sentencebank_use_case.add_sentence("er")
-    _run_pending_sentence_token_verifications(
-        db_path,
-        nlp_adapter=nlp_adapter,
-        verification_service=verification_service,
-    )
 
     details = wordbank_use_case.get_lemma_details("være")
     assert details.categories == ["Actions", "Grammar"]
@@ -1574,15 +1557,6 @@ def test_sentencebank_batch_verification_persists_meaning_and_surface_targets_fo
     )
 
     sentencebank_use_case.add_sentence("elsker")
-    _run_pending_sentence_token_verifications(
-        db_path,
-        nlp_adapter=nlp_adapter,
-        cor_local_lexicon_service=FakeCORLocalLexiconService(
-            by_form={"elsker": [verb_entry]},
-            by_lemma_idx={62001: [lemma_entry, verb_entry]},
-        ),
-        verification_service=verification_service,
-    )
 
     assert len(verification_service.batch_calls) == 1
     batch_payloads, batch_context = verification_service.batch_calls[0]
@@ -1648,13 +1622,6 @@ def test_sentencebank_add_sentence_falls_back_on_batch_failure(tmp_path: Path) -
     inserted = sentencebank_use_case.add_sentence("Huset er stort")
 
     assert inserted.status == "inserted"
-    assert not verification_service.batch_called
-    _run_pending_sentence_token_verifications(
-        db_path,
-        translation_service=translation_service,
-        nlp_adapter=nlp_adapter,
-        verification_service=verification_service,
-    )
     assert verification_service.batch_called
     with sqlite3.connect(db_path) as conn:
         queued_verify_jobs = conn.execute(
@@ -1671,8 +1638,8 @@ def test_sentencebank_add_sentence_falls_back_on_batch_failure(tmp_path: Path) -
             WHERE status = 'queued'
             """
         ).fetchone()[0]
-    assert queued_verify_jobs >= 1
-    assert queued_verification_records >= 1
+    assert queued_verify_jobs == 0
+    assert queued_verification_records == 0
 
 
 def test_sentencebank_example_preview_uses_saved_meaning_context(tmp_path: Path) -> None:

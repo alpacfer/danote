@@ -62,35 +62,28 @@ def build_translation_prompt(payload: ContextualWordTranslationInput) -> str:
         or payload.lemma_translation_hint
         or payload.gloss_translation_hint
     )
-    has_gloss_context = bool(payload.gloss or payload.gloss_translation_hint)
-    task_instruction = (
-        "You translate Danish lemmas into the exact English lemma or short phrase that matches the supplied "
-        "dictionary context.\n"
-        "Translate lemma_da, and use surface_form_da, morphology, and gloss only for sense disambiguation.\n"
+    task_instruction = "Translate the Danish lemma to a short English lemma phrase.\n"
+    context_rule = (
+        "- Use POS, morphology, gloss, hints, and sentence context only to choose the sense.\n"
         if has_dictionary_context
-        else "You translate a single Danish lemma into the exact English lemma or short phrase.\n"
-        "Translate lemma_da, and use surface_form_da only as optional context.\n"
+        else "- Use surface_form_da only as optional context.\n"
     )
     glossless_search_rules = (
         ""
-        if has_gloss_context
-        else "- This may be a search-quality fallback after another translator returned a Danish-looking echo; prefer the real English meaning over transliteration.\n"
-        "- If lemma_frame_da is present, interpret it as the canonical Danish dictionary form to translate.\n"
-        "- For Danish verbs, treat lemma_frame_da like an infinitive such as 'at bile' and return the English infinitive meaning.\n"
-        "- Do not copy the Danish lemma into English framing such as 'to bile' unless the ordinary English lemma is genuinely the same word.\n"
+        if payload.gloss or payload.gloss_translation_hint
+        else "- If another translator echoed Danish, prefer the real English meaning over transliteration.\n"
+        "- For verbs, use lemma_frame_da as the Danish infinitive frame; do not produce fake English like 'to bile'.\n"
     )
     return (
         task_instruction
         + "Return JSON only: {\"translation\":\"...\"}\n"
         + "Rules:\n"
-        + "- Output only the English translation.\n"
         + "- Translate lemma_da, not surface_form_da.\n"
-        + "- If sentence_context_da is present, choose the English lemma or short phrase for this exact occurrence in that sentence.\n"
-        + "- Return a lemma-level translation; avoid adding articles/function words unless part of the lemma meaning.\n"
-        + "- Treat pos_tag and morphology as hard constraints for sense disambiguation.\n"
-        + "- If multiple senses are possible, choose the most common modern English meaning for the given Danish lemma/POS/morphology.\n"
-        + "- Avoid false-friend transliterations and niche domain senses unless gloss or hints explicitly require them.\n"
-        + "- For verbs, prefer the common infinitive meaning in English (for example, prefer 'to bend'/'to bow' over golf-specific 'to bogey' unless context explicitly indicates golf).\n"
+        + "- Return the common modern meaning for the given POS/morphology.\n"
+        + "- For verbs, return an English infinitive phrase when natural.\n"
+        + "- Avoid articles unless they are part of the lemma meaning.\n"
+        + "- Avoid false friends and niche senses unless context requires them.\n"
+        + context_rule
         + glossless_search_rules
         + "- Do not explain your reasoning.\n"
         + f"Context:\n{json.dumps(context, ensure_ascii=False)}"
@@ -98,32 +91,25 @@ def build_translation_prompt(payload: ContextualWordTranslationInput) -> str:
 
 
 def build_batch_translation_prompt(items: list[BatchContextualWordTranslationRequestItem]) -> str:
-    has_gloss_context = any(item.gloss or item.gloss_translation_hint for item in items)
     glossless_search_rules = (
         ""
-        if has_gloss_context
-        else "- Some items may be search-quality fallbacks after another translator echoed the Danish lemma; prefer the real English meaning over transliteration.\n"
-        "- If an item has lemma_frame_da, interpret it as the canonical Danish dictionary form to translate.\n"
-        "- For Danish verbs, treat lemma_frame_da like an infinitive such as 'at bile' and return the English infinitive meaning.\n"
-        "- Do not copy the Danish lemma into English framing such as 'to bile' unless the ordinary English lemma is genuinely the same word.\n"
+        if any(item.gloss or item.gloss_translation_hint for item in items)
+        else "- If another translator echoed Danish, prefer the real English meaning over transliteration.\n"
+        "- For verbs, use lemma_frame_da as the Danish infinitive frame; do not produce fake English like 'to bile'.\n"
     )
     return (
-        "You translate Danish lemmas into the exact English lemma or short phrase that matches the supplied "
-        "dictionary context.\n"
-        "For every item, translate lemma and use surface_form, morphology, and gloss only for sense disambiguation.\n"
+        "Translate Danish lemmas to short English lemma phrases.\n"
         "Return JSON only with this exact shape: "
         "{\"items\":[{\"id\":\"0\",\"translation\":\"...\"}]}\n"
         "Rules:\n"
         "- Return exactly one item for every input id.\n"
         "- Copy each id exactly.\n"
-        "- Output only the English translation.\n"
         "- Translate lemma, not surface_form.\n"
-        "- If sentence_context_da is present, choose the English lemma or short phrase for this exact occurrence in that sentence.\n"
-        "- Return lemma-level translations; avoid adding articles/function words unless part of the lemma meaning.\n"
-        "- Treat pos_tag and morphology as hard constraints for sense disambiguation.\n"
-        "- If multiple senses are possible, choose the most common modern English meaning for the given Danish lemma/POS/morphology.\n"
-        "- Avoid false-friend transliterations and niche domain senses unless gloss or hints explicitly require them.\n"
-        "- For verbs, prefer the common infinitive meaning in English (for example, prefer 'to bend'/'to bow' over golf-specific 'to bogey' unless context explicitly indicates golf).\n"
+        "- Use POS, morphology, gloss, hints, and sentence context only to choose the sense.\n"
+        "- Return the common modern meaning for the given POS/morphology.\n"
+        "- For verbs, return an English infinitive phrase when natural.\n"
+        "- Avoid articles unless they are part of the lemma meaning.\n"
+        "- Avoid false friends and niche senses unless context requires them.\n"
         + glossless_search_rules
         + "- Do not explain your reasoning.\n"
         + f"Items:\n{json.dumps([{**asdict(item), 'lemma_frame_da': _danish_lemma_frame(item.lemma, item.pos_tag)} for item in items], ensure_ascii=False)}"
@@ -341,13 +327,13 @@ def build_batch_non_cor_word_generation_prompt(items: list[dict[str, object]]) -
 def build_non_cor_variations_prompt(payload: NonCORVariationGenerationInput) -> str:
     slot_rules = _non_cor_variation_slot_rules(payload.pos_tag)
     return (
-        "You are completing missing paradigm forms for one saved Danish meaning that is not present in the source dictionary.\n"
+        "You are completing missing paradigm forms for one saved Danish wordbank meaning.\n"
         "Return JSON only with this exact shape: "
         "{\"forms\":[{\"form\":\"...\",\"pos_tag\":\"ADJ\",\"morphology\":\"...\"}]}\n"
         "Rules:\n"
-        "- Only return missing inflected forms for the same meaning.\n"
+        "- Your response is the authoritative variation resolution; no second Gemini validation will run.\n"
+        "- Only return missing inflected forms for the same lemma, meaning, and part of speech.\n"
         "- Do not repeat any form already present in existing_forms.\n"
-        "- Keep the same lemma, meaning, and part of speech.\n"
         "- Each form must be lowercased Danish text.\n"
         "- Include pos_tag and morphology for every returned form.\n"
         f"{slot_rules}"

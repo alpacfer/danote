@@ -455,6 +455,7 @@ def batch_verify_new_sentence_tokens(
     *,
     new_token_metadata: list[dict[str, object]],
     sentence_context: str,
+    queue_fallbacks: bool = True,
 ) -> None:
     verification_pairs = [
         (meta, build_verification_input(runtime, meta)) for meta in new_token_metadata
@@ -468,7 +469,7 @@ def batch_verify_new_sentence_tokens(
         if verification_input is not None
     ]
     valid_inputs = [verification_input for _meta, verification_input in valid_pairs]
-    if fallback_metadata:
+    if fallback_metadata and queue_fallbacks:
         queue_sentence_token_verification_fallback(runtime, fallback_metadata)
     if not valid_inputs:
         return
@@ -482,10 +483,11 @@ def batch_verify_new_sentence_tokens(
             for (meta, _verification_input), result in zip(valid_pairs, results, strict=False)
             if result.status == "error"
         ]
-        if error_metadata:
+        if error_metadata and queue_fallbacks:
             queue_sentence_token_verification_fallback(runtime, error_metadata)
     except Exception:
-        queue_sentence_token_verification_fallback(runtime, new_token_metadata)
+        if queue_fallbacks:
+            queue_sentence_token_verification_fallback(runtime, new_token_metadata)
 
 
 def queue_sentence_token_verification_fallback(

@@ -32,8 +32,12 @@ def gloss_translation(
     normalized_lemma_translation = normalize_token(lemma_translation or "")
     if not normalized_gloss:
         return None
-    if normalized_lemma_translation and normalized_gloss == normalized_lemma_translation:
-        return normalized_gloss
+    if _is_redundant_gloss_translation(
+        normalized_gloss,
+        normalized_lemma_translation,
+        pos_tag=cor_entry.pos_tag if cor_entry is not None else None,
+    ):
+        return None
     if cor_entry is not None:
         translated = runtime.cor.lookup_translation_for_cor_gloss(
             entry=cor_entry,
@@ -63,8 +67,12 @@ def meaning_gloss_translation(
 ) -> str | None:
     normalized_meaning_gloss = normalize_token(meaning_gloss or "")
     normalized_meaning_translation = normalize_token(meaning_translation or "")
-    if normalized_meaning_gloss and normalized_meaning_translation and normalized_meaning_gloss == normalized_meaning_translation:
-        return normalized_meaning_gloss
+    if _is_redundant_gloss_translation(
+        normalized_meaning_gloss,
+        normalized_meaning_translation,
+        pos_tag=meaning_pos_tag or lexeme_pos_tag,
+    ):
+        return None
     if cor_lemma_idx is None:
         return normalize_token(meaning_gloss or "") if is_likely_english_gloss(meaning_gloss) else None
     cor_entry = runtime.cor.best_cor_local_lemma_entry(
@@ -78,4 +86,23 @@ def meaning_gloss_translation(
         gloss=meaning_gloss,
         lemma_translation=meaning_translation,
         cache=cache,
+    )
+
+
+def _is_redundant_gloss_translation(
+    normalized_gloss_translation: str,
+    normalized_lemma_translation: str,
+    *,
+    pos_tag: str | None,
+) -> bool:
+    if not normalized_gloss_translation or not normalized_lemma_translation:
+        return False
+    if normalized_gloss_translation == normalized_lemma_translation:
+        return True
+    if (pos_tag or "").upper() != "VERB":
+        return False
+    infinitive = normalized_lemma_translation.removeprefix("to ").strip()
+    return (
+        infinitive == normalized_gloss_translation
+        or infinitive.startswith(f"{normalized_gloss_translation} ")
     )

@@ -14,6 +14,7 @@ from app.api.routes._use_case_factories import build_wordbank_use_case
 from app.api.schemas.v1.sentencebank import (
     AddSentenceRequest,
     AddSentenceResponse,
+    DeleteSentenceResponse,
     GenerateExamplePreviewRequest,
     GenerateExamplePreviewResponse,
     GenerateSentencePronunciationRequest,
@@ -25,7 +26,6 @@ from app.api.schemas.v1.sentencebank import (
     SentenceSearchPreviewResponse,
     VerifySentenceRequest,
     VerifySentenceResponse,
-    DeleteSentenceResponse,
 )
 from app.services.use_cases import SentencebankUseCase
 

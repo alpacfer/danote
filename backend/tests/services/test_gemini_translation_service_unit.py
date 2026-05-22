@@ -97,7 +97,7 @@ def test_gemini_word_translation_service_supports_minimal_non_gloss_prompt(monke
 
     assert translated == "more"
     prompt = fake_client.models.calls[0]["contents"]
-    assert "single Danish lemma" in str(prompt)
+    assert "Translate the Danish lemma to a short English lemma phrase." in str(prompt)
     assert "Translate lemma_da, not surface_form_da." in str(prompt)
 
 
@@ -118,8 +118,8 @@ def test_gemini_word_translation_service_glossless_verb_prompt_uses_danish_infin
     assert translated == "to drive"
     prompt = str(fake_client.models.calls[0]["contents"])
     assert '"lemma_frame_da": "at bile"' in prompt
-    assert "search-quality fallback after another translator returned a Danish-looking echo" in prompt
-    assert "Do not copy the Danish lemma into English framing such as 'to bile'" in prompt
+    assert "If another translator echoed Danish" in prompt
+    assert "do not produce fake English like 'to bile'" in prompt
 
 
 def test_gemini_word_translation_service_prompt_prioritizes_common_morphology_sense(monkeypatch) -> None:
@@ -138,9 +138,9 @@ def test_gemini_word_translation_service_prompt_prioritizes_common_morphology_se
 
     assert translated == "to bend"
     prompt = str(fake_client.models.calls[0]["contents"])
-    assert "Treat pos_tag and morphology as hard constraints for sense disambiguation." in prompt
-    assert "choose the most common modern English meaning" in prompt
-    assert "prefer 'to bend'/'to bow' over golf-specific 'to bogey'" in prompt
+    assert "Use POS, morphology, gloss, hints, and sentence context only to choose the sense." in prompt
+    assert "Return the common modern meaning" in prompt
+    assert "Avoid false friends and niche senses unless context requires them." in prompt
 
 
 def test_gemini_word_translation_service_parses_structured_batch_response(monkeypatch) -> None:
@@ -196,9 +196,9 @@ def test_gemini_word_translation_service_batch_prompt_prioritizes_common_morphol
 
     assert translated == ["to bend"]
     prompt = str(fake_client.models.calls[0]["contents"])
-    assert "Treat pos_tag and morphology as hard constraints for sense disambiguation." in prompt
-    assert "choose the most common modern English meaning" in prompt
-    assert "prefer 'to bend'/'to bow' over golf-specific 'to bogey'" in prompt
+    assert "Use POS, morphology, gloss, hints, and sentence context only to choose the sense." in prompt
+    assert "Return the common modern meaning" in prompt
+    assert "Avoid false friends and niche senses unless context requires them." in prompt
 
 
 def test_gemini_word_translation_service_glossless_batch_prompt_uses_danish_infinitive_frame(monkeypatch) -> None:
@@ -227,8 +227,8 @@ def test_gemini_word_translation_service_glossless_batch_prompt_uses_danish_infi
     assert translated == ["to drive"]
     prompt = str(fake_client.models.calls[0]["contents"])
     assert '"lemma_frame_da": "at bile"' in prompt
-    assert "search-quality fallbacks after another translator echoed the Danish lemma" in prompt
-    assert "Do not copy the Danish lemma into English framing such as 'to bile'" in prompt
+    assert "If another translator echoed Danish" in prompt
+    assert "do not produce fake English like 'to bile'" in prompt
 
 
 def test_gemini_word_translation_service_selects_existing_meaning_section(monkeypatch) -> None:

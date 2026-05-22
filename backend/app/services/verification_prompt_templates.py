@@ -120,7 +120,7 @@ def build_word_verification_prompt(
         "- Keep change_to_implement to one short imperative sentence.\n"
         "- gloss is the raw COR sense label for the current entry (may be in Danish or a short phrase). Use it only as a hint about which sense is being verified — do not treat it as an English translation or as a POS signal.\n"
         "- When section gloss_translation is present in available_meaning_sections, use it to distinguish sibling meanings from the current entry.\n"
-        "- selected_meaning_pos_tag is the authoritative part of speech for the current entry. When fix_translation is proposed, english_translation must match this POS — translate VERB as a verb phrase (e.g. 'to …'), NOUN as a noun, ADJECTIVE as an adjective. Never translate a VERB entry as a noun or vice versa, even when the same Danish word has a homograph in another part of speech.\n"
+        "- selected_meaning_pos_tag is the authoritative part of speech for the current entry. When fix_translation is proposed, english_translation must match this POS — translate VERB as a verb phrase (e.g. 'to …'), NOUN as a noun phrase, ADJECTIVE as an adjective phrase, and ADVERB as an adverb phrase. Never translate a NOUN as a verb/adjective, a VERB as a noun/adjective, or an ADJECTIVE as a noun/verb, even when the same Danish word has a homograph in another part of speech.\n"
         f"{surface_scope_rule}"
         f"{variation_scope_rule}"
         f"{canonical_rule}"
@@ -165,7 +165,7 @@ def build_batch_verification_prompt(
         "- Keep change_to_implement to one short imperative sentence.\n"
         "- gloss is the raw COR sense label for the current entry (may be in Danish or a short phrase). Use it only as a hint about which sense is being verified — do not treat it as an English translation or as a POS signal.\n"
         "- When section gloss_translation is present in available_meaning_sections, use it to distinguish sibling meanings from the current entry.\n"
-        "- selected_meaning_pos_tag is the authoritative part of speech for the current entry. When fix_translation is proposed, english_translation must match this POS — translate VERB as a verb phrase (e.g. 'to …'), NOUN as a noun, ADJECTIVE as an adjective. Never translate a VERB entry as a noun or vice versa, even when the same Danish word has a homograph in another part of speech.\n"
+        "- selected_meaning_pos_tag is the authoritative part of speech for the current entry. When fix_translation is proposed, english_translation must match this POS — translate VERB as a verb phrase (e.g. 'to …'), NOUN as a noun phrase, ADJECTIVE as an adjective phrase, and ADVERB as an adverb phrase. Never translate a NOUN as a verb/adjective, a VERB as a noun/adjective, or an ADJECTIVE as a noun/verb, even when the same Danish word has a homograph in another part of speech.\n"
         "- If canonical_lemma is present and differs from lemma, treat the saved lemma as incorrect and suggest move_to_lemma to canonical_lemma unless the entry already belongs under another provided lemma.\n"
         "- When gram_raw or paradigm_slot_surface_forms identify a valid paradigm slot for the saved surface form, do not move that form to a different lemma just because the spelling is also a noun or another homograph elsewhere.\n"
         '- Keep message short: use "OK" or "Review needed".\n'

@@ -170,7 +170,7 @@ Meaning auto-scroll:
   - meaning review with no saved translation or low-confidence verb self-translation + backend gloss hint → stays `Needs review` with `Fix translation` even if Gemini returns `OK`
   - COR/translated glosses → reference context only; popover never asks user to rewrite gloss
   - `Fix translation` → backend normalizes to translation-only wording (no verbatim Gemini gloss critique)
-  - completion-review meaning cards: exactly one `Fix variations` action (rewrites whole saved noun variation set in one apply); can describe reviewed noun-slot sets including multiple spellings per slot (e.g. `Singular indefinite: fader, far`); never expose `Move to lemma`, `Move to different meaning`, or translation-fix
+  - legacy completion-review meaning cards may show one `Fix variations` action; current Complete variations requests no longer create these reviews
   - no-record → neutral empty state ("verification details will appear here once Gemini runs")
   - action buttons + `Retry verification` → disabled while request in progress
 
@@ -196,18 +196,12 @@ Meaning auto-scroll:
   was the last saved meaning for that lemma, the backend deletes the whole lemma
   and the frontend navigates back.
 - `Complete variations`: meaning-only v1 for noun, adjective, verb sections
-  - noun: fills missing singular-definite, plural-indefinite, plural-definite
-  - adjective: fills missing singular-indefinite `t-word`, singular-definite, shared plural (persisted once, rendered into both plural cells)
-  - generated non-COR adjective completion asks for and persists only positive agreement slots; comparative/superlative forms such as `mere ...`/`mest ...` are discarded
-  - verb: fills missing present, past, imperative, past participle; infinitive from canonical lemma metadata unless distinct saved row exists
+  - uses one Gemini variation-resolution call for COR, generated non-COR, and unknown meanings
+  - Gemini receives the saved lemma, meaning/gloss/translation/POS, and existing saved forms; its returned forms are persisted directly after normalization/dedupe
   - gated by verification state: enabled only when meaning target + all saved variations are `verified`
   - gated labels: `Waiting for verification...` (any queued), `Retry verification first` (any error), `Resolve verification review first` (any flagged), `Complete variations unavailable` (other non-verified)
   - queues pronunciation only for newly added forms
-  - after completion: one meaning-scoped re-verification (not per-variation)
-  - response includes `queued_verification_targets` → frontend registers with background tracking → spinner/notifications persist off-page
-  - completion review keeps saved lemma fixed; checks if completed forms fit lemma/meaning; canonical-lemma mismatch → question variation set, not suggest moving lemma
-  - flagged completion → one meaning-level `Fix variations` apply action (no per-variation/relocation)
-  - existing per-surface records cleared before completion review requeued
+  - no follow-up completion verification is queued; `queued_verification_targets` is empty for this path
   - insufficient COR identity → skipped with user-facing message, except generated non-COR meanings, which use Gemini slot completion
 
 ## Body mode A: sectioned meanings (WordbankMeaningSections)
@@ -219,7 +213,7 @@ Meaning auto-scroll:
   - verb cards: lemma in infinitive form `at <lemma>`
   - section `gram_raw` → badge set from COR grammar (e.g. invariant `orange` keeps merged badges)
   - right semantic category badges from `meaning_sections[].categories`; right-aligned wide, wrap narrow
-  - optional combined translation line: `translation, gloss translation` format (gloss is supplemental, not replacement)
+  - optional combined translation line: `translation, gloss translation` format (gloss is supplemental, not replacement); redundant gloss translations are omitted, including English verb glosses already covered by an infinitive translation
   - optional `reference_links` render as compact buttons inside the same card
 - Surface forms per meaning:
   - divided list, each row uses `WordbankPronunciationWord`
@@ -301,27 +295,19 @@ Shared by header + section rows + variation rows.
 - After successful add → backend queues verification for each visible target on current word page
 - Manual retries → `POST /api/wordbank/lexemes/queue-verification` (one exact target by `(stored_lemma, meaning_id, stored_surface_form, review_intent)`)
 - `Complete variations` → one meaning-level request (not per-variation)
-- Only completion-specific follow-up may question/rewrite generated variation set; initial verification cannot suggest paradigm completion
-- Completion follow-up = strict `fix_variations`: prompt examples advertise only `fix_variations`, backend drops other action types, apply rejects non-`fix_variations` for `review_intent = "complete_variations"`
+- Complete variations itself owns variation generation through Gemini; normal save verification cannot suggest paradigm completion
 - Target discovery:
   - non-sectioned: one lemma/root target + one per non-lemma variation
   - sectioned: one per meaning section + one per saved variation in that meaning
   - no synthetic root target for sectioned pages unless root-level saved record exists
 - Results persisted by `(lemma, meaning_id, stored_surface_form)`, returned through lemma-detail fetches
 - Queue dedupe: stable per target, not per snapshot hash
-- Completion follow-up records meaning-scoped only; replace stale per-surface records for that meaning (no coexistence); repeated edits/retries update queued request generation
 - Newest-request-wins: stale in-flight run discarded at persist time; latest request stays pending
 - Verification evaluates current persisted structure: lemma → meanings → surface forms
 - Normal post-save verification: checks placement correctness only; doesn't fail for missing paradigm members, doesn't suggest variation completion
 - Prompt payloads: target-scoped, token-lean (target + relevant forms + minimal sibling context + canonical lemma identity)
 - Payloads include saved lemma + best COR-backed canonical lemma identity
 - COR indicates inflected form (e.g. `mor` vs `moder`) → Gemini flags, suggests `move_to_lemma`
-- Exception: completion review keeps saved lemma fixed; canonical mismatch → question variation set, not rewrite lemma
-- Completion review remediation: single meaning-level `fix_variations` action rewriting saved noun/adj/verb variations in one apply
-- `fix_variations` carries reviewed slot form lists: noun (`singular_indefinite_forms`, `singular_definite_forms`, `plural_indefinite_forms`, `plural_definite_forms`) or adjective (`singular_indefinite_n_word_forms`, `singular_indefinite_t_word_forms`, `singular_definite_forms`, `plural_indefinite_forms`, `plural_definite_forms`); apply treats lists as exact slot sets, removes stale aliases
-- Generated non-COR `fix_variations` apply does not require COR identity; it rewrites from structured slots and removes off-slot generated adjective/verb rows
-- `singular_indefinite_forms` may include lemma + alternatives
-- `fix_variations` structured-only: no slot lists → review stays flagged, no applyable prose fallback
 - Translation context from lemma/meaning only (surface forms have no independent translations)
 - Meaning glosses: immutable COR disambiguators; Gemini uses for sense identification, never proposes gloss edits
 - Meaning-section verification: reviewed section sent as current scope, not duplicated in sibling list
@@ -350,10 +336,8 @@ Shared by header + section rows + variation rows.
 - Accepting popover action → apply endpoint with target + action payload
 - Always includes scope: `stored_lemma`, `meaning_id`, `stored_surface_form`
 - `fix_translation`: only for lemma/meaning-scoped (`stored_surface_form` is `null`)
-- Completion-review fixes: `action_type=fix_variations` with `stored_surface_form=null`; reconciles whole saved noun variation set
-- `fix_variations` preference: reviewed slot form lists → legacy scalar fields → forms recovered from text → COR slot metadata
-- Eligible Gemini `fix_translation` and `fix_variations` suggestions may auto-apply immediately after verification persistence
-- Persisted `fix_translation`/`fix_variations` applies are stored in a per-lemma verification change log
+- Eligible Gemini `fix_translation` suggestions may auto-apply immediately after verification persistence
+- Persisted `fix_translation` applies are stored in a per-lemma verification change log
 - Applied: success toast (text varies by action type); backend prunes action; last suggestion applied → target flips to `verified`; increment `wordbankRefreshTick`; navigate to returned target
 - No visible variation change → backend returns `status=skipped`, review stays pending
 - Failure → error toast
@@ -405,7 +389,7 @@ The previous token-popover add path from Playground is retired while Playground 
 ## Complete variations follow-up
 
 - `POST /api/wordbank/lexemes/complete-variations`
-- Success: missing paradigm members inserted; pronunciation queueing merged via one lemma-scoped background job (`stored_lemma`); `queued_pronunciation_forms` = forms still missing audio (may include lemma itself); word page polls bounded window until `has_pronunciation=true` or timeout
+- Success: Gemini-resolved missing paradigm members inserted; same-spelling forms are kept when they represent distinct morphology (for example verb past matching the lemma); pronunciation queueing merged via one lemma-scoped background job (`stored_lemma`); `queued_pronunciation_forms` = forms still missing audio (may include lemma itself); word page polls bounded window until `has_pronunciation=true` or timeout
 
 ## Behavioral test coverage map
 
