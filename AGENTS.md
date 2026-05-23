@@ -37,6 +37,7 @@ Search debugging against the live dev server:
 scripts/dev-app.py health                    # JSON live-API smoke check
 scripts/dev-app.py wordbank details <lemma>  # inspect app-visible word state
 scripts/dev-app.py search trace <english-query>  # JSON EN → DA → COR trace
+scripts/dev-app.py search all <query>            # consolidated saved+COR+EN+resolver results with typo suggestions
 scripts/dev-search-debug.py <english-query>      # full EN → DA → COR trace, with filter diff
 scripts/dev-search-debug.py --da <danish-form>   # direct Danish COR lookup
 scripts/dev-search-debug.py --host H --port P <q>  # override auto-detection

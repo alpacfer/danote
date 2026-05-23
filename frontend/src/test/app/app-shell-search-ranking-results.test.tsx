@@ -773,4 +773,70 @@ describe("App shell and search", () => {
       expect(within(commandDialog).getAllByRole("option")).toHaveLength(2)
     })
   })
+
+  it("does not render a duplicate add card for static presaved words whose saved row carries no query_cor_ids", async () => {
+    mockFetchImplementation({
+      lemmasResponse: {
+        items: [{ lemma: "ved", variation_count: 1, english_translation: "by / next to" }],
+      },
+      searchWordbankResponse: {
+        items: [
+          {
+            lemma: "ved",
+            display_lemma: "ved",
+            variation_count: 1,
+            english_translation: "by / next to",
+            cor_lemma_idx: null,
+            meaning_id: null,
+            match_surface: null,
+            query_cor_ids: [],
+            pos_tag: "ADP",
+          },
+        ],
+      },
+      corSearchFormResponse: {
+        form: "ved",
+        groups: [
+          {
+            lemma: "ved",
+            gloss: null,
+            pos_tag: "ADP",
+            variants: [
+              {
+                cor_id: "STATIC.PRESAVED.VED",
+                form: "ved",
+                lemma: "ved",
+                gloss: null,
+                lemma_translation: "by / next to",
+                saveable_translation: "by / next to",
+                gram_raw: "",
+                norm: "N",
+                lemma_idx: 0,
+                gram_code: 0,
+                variation: 0,
+                pos_tag: "ADP",
+                morphology: null,
+                features: {},
+                extra_tags: [],
+              },
+            ],
+          },
+        ],
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    const commandDialog = await screen.findByRole("dialog")
+    const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
+    fireEvent.change(searchInput, { target: { value: "ved" } })
+
+    expect(await within(commandDialog).findByTestId("search-open-icon")).toBeInTheDocument()
+    await waitFor(() => {
+      expect(within(commandDialog).queryAllByTestId("search-add-icon")).toHaveLength(0)
+      expect(within(commandDialog).getAllByRole("option")).toHaveLength(1)
+    })
+  })
 })

@@ -173,6 +173,14 @@ def _add_search_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentP
     trace.add_argument("query")
     _set_handler(trace, ["search", "trace"], handle_search_trace)
 
+    all_results = child.add_parser(
+        "all",
+        help="List every search result for a query plus typo suggestions.",
+    )
+    all_results.add_argument("query")
+    all_results.add_argument("--limit", type=int, default=8, help="Wordbank result limit.")
+    _set_handler(all_results, ["search", "all"], handle_search_all)
+
 
 def _add_wordbank_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     parser = subparsers.add_parser("wordbank", help="Wordbank commands.")
@@ -332,6 +340,99 @@ def handle_developer_probe(args: argparse.Namespace, client: ApiClient) -> Any:
 
 def handle_search_cor(args: argparse.Namespace, client: ApiClient) -> Any:
     return run_single(client, RequestSpec("GET", "/api/wordbank/search/cor-form", cor_params(args)))
+
+
+def handle_search_all(args: argparse.Namespace, client: ApiClient) -> dict[str, Any]:
+    query = args.query
+    wordbank = client.request(
+        RequestSpec("GET", "/api/wordbank/search", {"query": query, "limit": args.limit})
+    )
+    cor_form = client.request(
+        RequestSpec(
+            "GET",
+            "/api/wordbank/search/cor-form",
+            {"form": query, "limit": 100, "include_translations": True},
+        )
+    )
+    en_form = client.request(
+        RequestSpec(
+            "GET",
+            "/api/wordbank/search/en-form",
+            {"form": query, "include_translations": True},
+        )
+    )
+    resolve = client.request(
+        RequestSpec("POST", "/api/wordbank/resolve-query", body={"query_text": query})
+    )
+
+    saved_results = [
+        {
+            "lemma": item.get("lemma"),
+            "display_lemma": item.get("display_lemma"),
+            "meaning_id": item.get("meaning_id"),
+            "meaning_key": item.get("meaning_key"),
+            "match_surface": item.get("match_surface"),
+            "english_translation": item.get("english_translation"),
+            "pos_tag": item.get("pos_tag"),
+            "cor_lemma_idx": item.get("cor_lemma_idx"),
+            "query_cor_ids": item.get("query_cor_ids") or [],
+            "variation_count": item.get("variation_count"),
+        }
+        for item in (wordbank.get("items") or [])
+    ]
+    cor_results = [
+        {
+            "cor_id": variant.get("cor_id"),
+            "form": variant.get("form"),
+            "lemma": variant.get("lemma"),
+            "lemma_idx": variant.get("lemma_idx"),
+            "pos_tag": variant.get("pos_tag") or group.get("pos_tag"),
+            "gloss": variant.get("gloss") or group.get("gloss"),
+            "lemma_translation": variant.get("lemma_translation"),
+            "saveable_translation": variant.get("saveable_translation"),
+            "gram_raw": variant.get("gram_raw"),
+            "dictionary_status": variant.get("dictionary_status"),
+        }
+        for group in (cor_form.get("groups") or [])
+        for variant in (group.get("variants") or [])
+    ]
+    en_results = [
+        {
+            "lemma": group.get("lemma"),
+            "form": group.get("form"),
+            "pos_ud": group.get("pos_ud"),
+            "pos_raw": group.get("pos_raw"),
+            "danish_translation": group.get("danish_translation"),
+            "meaning_description": group.get("meaning_description"),
+            "sense_count": len(group.get("senses") or []),
+        }
+        for group in (en_form.get("groups") or [])
+    ]
+    word_actions = resolve.get("word_actions") or []
+
+    return {
+        "query": query,
+        "summary": {
+            "saved_wordbank": len(saved_results),
+            "cor_variants": len(cor_results),
+            "en_results": len(en_results),
+            "word_actions": len(word_actions),
+        },
+        "typo_suggestions": {
+            "wordbank": wordbank.get("did_you_mean"),
+            "cor_form": cor_form.get("did_you_mean"),
+        },
+        "saved_wordbank_results": saved_results,
+        "cor_results": cor_results,
+        "en_results": en_results,
+        "resolver": {
+            "classification": resolve.get("classification"),
+            "query_language": resolve.get("query_language"),
+            "resolved_lemma": resolve.get("resolved_lemma"),
+            "matched_lemma": resolve.get("matched_lemma"),
+            "word_actions": word_actions,
+        },
+    }
 
 
 def handle_search_trace(args: argparse.Namespace, client: ApiClient) -> dict[str, Any]:

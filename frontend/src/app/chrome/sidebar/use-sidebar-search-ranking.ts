@@ -204,6 +204,17 @@ export function useSidebarSearchRanking({
     [addVariationBySavedResult],
   )
 
+  // Variants whose form equals the saved lemma (query == lemma) are the saved
+  // word itself, not a new addable variation. They must be filtered from the
+  // CoR "add" cards even when the saved row carries no query_cor_ids — e.g.
+  // static presaved words, pronouns, hv-words, and builtins all return an
+  // empty query_cor_ids list, so the savedQueryCorIdSet check alone leaks
+  // them through as duplicates.
+  const displaySavedCorIdSet = useMemo(
+    () => new Set([...displayVariantBySavedResult.values()].map((candidate) => candidate.variant.cor_id)),
+    [displayVariantBySavedResult],
+  )
+
   const orderedWordbankResults = useMemo(() => {
     return [...wordbankResults].sort((left, right) => {
       const leftKey = savedWordbankResultKey(left)
@@ -245,9 +256,12 @@ export function useSidebarSearchRanking({
         if (addVariationCorIdSet.has(candidate.variant.cor_id)) {
           return false
         }
+        if (displaySavedCorIdSet.has(candidate.variant.cor_id)) {
+          return false
+        }
         return true
       }),
-    [addVariationCorIdSet, corSearchVariants, savedQueryCorIdSet],
+    [addVariationCorIdSet, corSearchVariants, displaySavedCorIdSet, savedQueryCorIdSet],
   )
 
   const orderedCorSearchGroups = useMemo(

@@ -73,6 +73,7 @@ cd <repo-root>
 scripts/dev-app.py health
 scripts/dev-app.py wordbank details <lemma>
 scripts/dev-app.py search trace <english-query>
+scripts/dev-app.py search all <query>
 ```
 
 `scripts/dev-app.py` is the **Danote Terminal Controller** (**DTC**). It
