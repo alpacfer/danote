@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import logging
+import sqlite3
+
 from app.api.schemas.v1.wordbank import CORSearchVariant, LemmaDetailsResponse
 from app.db.repositories import (
     RelatedWordWriteRecord,
@@ -9,6 +12,8 @@ from app.db.repositories import (
 from app.services.cor_local import CORLocalEntry, CORLocalLexiconService
 from app.services.related_words import GeminiRelatedWordsService, GlossVariantCandidate
 from app.services.token_classifier import normalize_token
+
+logger = logging.getLogger(__name__)
 from app.services.use_cases.wordbank.collaborators.cor_local import (
     consolidate_cor_local_entries,
     cor_local_variant,
@@ -107,7 +112,15 @@ class RelatedWordsCollaborator:
         if job is not None and job.status in {"pending", "running"}:
             self._jobs.mark_completed(job.id)
 
-    def write_mwe_component_related_words(self, *, stored_lemma: str) -> None:
+    def seed_mwe_component_related_words(self, *, stored_lemma: str) -> None:
+        """Write an immediate seed of MWE component words for the UI.
+
+        Does NOT mark the queued Gemini related-words job complete — the worker is
+        expected to run and replace these rows with Gemini's richer answer (which
+        includes component words + near-synonym compounds). This function only
+        provides a synchronous placeholder so the user sees *something* in the
+        Related Words section while the background job runs.
+        """
         normalized_lemma = normalize_token(stored_lemma)
         if not normalized_lemma or " " not in normalized_lemma:
             return
@@ -135,16 +148,17 @@ class RelatedWordsCollaborator:
             owner_lexeme_id=lexeme.id,
             items=rows,
         )
-        job = self._jobs.get_by_dedupe_key(related_words_dedupe_key(normalized_lemma))
-        if job is not None and job.status in {"pending", "running"}:
-            self._jobs.mark_completed(job.id)
 
     def _infer_component_pos_tag(self, component: str) -> str | None:
         if self._cor_local_lexicon_service is None:
             return None
         try:
             entries = self._cor_local_lexicon_service.lookup_form(component, limit=50)
-        except FileNotFoundError:
+        except (FileNotFoundError, sqlite3.OperationalError) as exc:
+            logger.warning(
+                "mwe_component_pos_lookup_failed",
+                extra={"component": component, "error": str(exc)},
+            )
             return None
         for entry in entries:
             if normalize_token(entry.lemma) == component and entry.pos_tag:

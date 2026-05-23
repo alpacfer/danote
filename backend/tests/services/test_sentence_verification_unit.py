@@ -3,6 +3,7 @@ from __future__ import annotations
 from app.services.sentence_verification import (
     SentenceVerificationErrorSpan,
     SentenceMWESpan,
+    _normalize_mwe_pos_tag,
     _parse_result,
 )
 
@@ -250,3 +251,88 @@ def test_parse_result_mwe_spans_alignment_guards() -> None:
     assert span.surface == "kigger efter"
     assert span.lemma == "se efter"
 
+
+
+# --- _normalize_mwe_pos_tag --------------------------------------------------
+
+
+def test_normalize_mwe_pos_tag_uppercases_and_strips() -> None:
+    assert _normalize_mwe_pos_tag("verb") == "VERB"
+    assert _normalize_mwe_pos_tag("  Verb ") == "VERB"
+    assert _normalize_mwe_pos_tag("NOUN") == "NOUN"
+
+
+def test_normalize_mwe_pos_tag_maps_legacy_aliases_to_ud_tags() -> None:
+    """Even if Gemini disregards the prompt and emits the old vocabulary,
+    `phrasal_verb`/`idiom`/`mwe` get coerced to the underlying UD tag."""
+    assert _normalize_mwe_pos_tag("phrasal_verb") == "VERB"
+    assert _normalize_mwe_pos_tag("phrasal verb") == "VERB"
+    assert _normalize_mwe_pos_tag("Phrasal-Verb") == "VERB"
+    assert _normalize_mwe_pos_tag("idiom") == "VERB"
+    assert _normalize_mwe_pos_tag("MWE") == "VERB"
+
+
+def test_normalize_mwe_pos_tag_passes_through_unknown_tags() -> None:
+    """Unknown tags are kept as-is (uppercased) so we don't silently drop
+    a tag we don't yet have an alias for."""
+    assert _normalize_mwe_pos_tag("ADV") == "ADV"
+    assert _normalize_mwe_pos_tag("WHATEVER") == "WHATEVER"
+
+
+def test_normalize_mwe_pos_tag_returns_none_for_empty_or_non_string() -> None:
+    assert _normalize_mwe_pos_tag(None) is None
+    assert _normalize_mwe_pos_tag("") is None
+    assert _normalize_mwe_pos_tag("   ") is None
+    assert _normalize_mwe_pos_tag(123) is None
+
+
+# --- merge_mwe_spans edge cases ----------------------------------------------
+
+
+def test_merge_mwe_spans_drops_empty_lemma_spans() -> None:
+    """Spans with empty/whitespace-only lemma are dropped before merge."""
+    from app.nlp.adapter import NLPToken
+    from app.services.use_cases.sentencebank_mwe import MWEToken, merge_mwe_spans
+
+    tokens = [
+        NLPToken(text="Han", lemma="han", pos="PRON", morphology=None, is_punctuation=False),
+        NLPToken(text="løb", lemma="løbe", pos="VERB", morphology=None, is_punctuation=False),
+    ]
+    result = merge_mwe_spans(
+        tokens,
+        "Han løb",
+        [SentenceMWESpan(start=0, end=7, surface="Han løb", lemma="   ")],
+    )
+    assert result == tokens, "empty-lemma spans must not produce MWE tokens"
+    assert not any(isinstance(t, MWEToken) for t in result)
+
+
+def test_merge_mwe_spans_drops_single_word_lemma_spans() -> None:
+    """Gemini occasionally tags a single word as an MWE. Don't merge those — the
+    result would be a 1-token "MWE" identical to the input but with confusing metadata.
+    """
+    from app.nlp.adapter import NLPToken
+    from app.services.use_cases.sentencebank_mwe import MWEToken, merge_mwe_spans
+
+    tokens = [
+        NLPToken(text="Han", lemma="han", pos="PRON", morphology=None, is_punctuation=False),
+        NLPToken(text="løb", lemma="løbe", pos="VERB", morphology=None, is_punctuation=False),
+    ]
+    result = merge_mwe_spans(
+        tokens,
+        "Han løb",
+        [SentenceMWESpan(start=4, end=7, surface="løb", lemma="løbe", pos_tag="VERB")],
+    )
+    assert result == tokens
+    assert not any(isinstance(t, MWEToken) for t in result)
+
+
+def test_merge_mwe_spans_returns_input_unchanged_when_no_spans() -> None:
+    from app.nlp.adapter import NLPToken
+    from app.services.use_cases.sentencebank_mwe import merge_mwe_spans
+
+    tokens = [
+        NLPToken(text="Hej", lemma="hej", pos="INTJ", morphology=None, is_punctuation=False),
+    ]
+    assert merge_mwe_spans(tokens, "Hej", None) == tokens
+    assert merge_mwe_spans(tokens, "Hej", []) == tokens

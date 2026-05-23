@@ -371,6 +371,7 @@ def save_root_level_sentence_token(
     queue_verification: bool = True,
     lexeme_translation: str | None = None,
     lexeme_translation_provider: str | None = None,
+    dictionary_status: str = "unknown",
 ) -> SentenceTokenWriteRecord:
     lexeme_id, _inserted_lexeme = runtime.repository.insert_or_load_lexeme(
         stored_lemma=lemma,
@@ -379,6 +380,7 @@ def save_root_level_sentence_token(
         pos_tag=pos_tag,
         morphology=morphology,
         source="search",
+        dictionary_status=dictionary_status,
     )
 
     surface_form, _inserted_surface_form = runtime.repository.insert_or_update_surface_form(

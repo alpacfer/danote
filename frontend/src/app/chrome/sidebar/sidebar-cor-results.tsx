@@ -84,7 +84,7 @@ export function SidebarCorResults({
                 || (translationLineCoversGloss ? null : glossLine)
               const saveableTranslation = saveableTranslationForVariant(variant)
               const sourceDisplay = sourceLabel?.trim() || lemmaDisplay
-              const shouldShowSource = Boolean(sourceDisplay)
+              const shouldShowSource = !!sourceDisplay
                 && sourceDisplay.trim().toLowerCase() !== variant.form.trim().toLowerCase()
               const hasGloss = Boolean(variant.gloss?.trim())
               const isGeneratedNonCor = variant.dictionary_status === "generated_non_cor"

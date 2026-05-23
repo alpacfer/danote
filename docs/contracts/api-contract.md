@@ -415,6 +415,8 @@ or `Authorization: Bearer <guest-token>` header. Local dev
   - `reference_links[]` rows contain `page_id`, `page_title`, `tab_id`, `tab_title`, and `sentinel`; clients render these as word-card links to pinned reference tabs without deriving homes from lemma-only matching.
   - Each `surface_forms[]` may include `verification`, `gram_raw`.
   - Sectioned lemmas: top-level `surface_forms[]` may include saved lemma form for pronunciation/metadata binding. Sectioned meaning `surface_forms[]` exclude lemma-matching rows (available via top-level only).
+  - Non-sectioned lemmas: `surface_forms[]` includes the lemma form when it carries pronunciation (`has_pronunciation: true`), so clients can wire the Infinitive/Singular-Indefinite play button to the lemma's audio. When the lemma form has no audio AND there is ≤1 non-lemma form, it is still omitted to avoid duplicating the header text in variation cards.
+  - MWE lemmas (e.g. `passe på`) save through the standard sectioned pipeline: `is_sectioned: true`, one `meaning_sections[]` entry with `pos_tag: "VERB"`, surface forms linked to the meaning, and `related_words.items[]` populated with constituent words (immediate seed) plus near-synonym MWEs once the Gemini job completes.
   - Noun `surface_forms[]` ordered: non-slot/irregular first, then singular-definite, plural-indefinite, plural-definite.
   - Verification objects use same additive fields as add/verify responses.
   - Root `related_words`: `status` = `queued` (running) | `ready` (has `items[]`) | `empty` (no components survive filtering) | `error` (job failed).

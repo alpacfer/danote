@@ -133,6 +133,33 @@ Meaning auto-scroll:
   2. first available pronunciation form from combined list
   3. no icon/action when none exist
 - Sectioned lemmas: backend may keep lemma form in top-level `surface_forms` while meaning sections show only non-lemma variations → preserves exact lemma playback without duplicating lemma row per section
+- Non-sectioned lemmas: `map_lemma_details_response` keeps the lemma form in `surface_forms` whenever it carries pronunciation. This ensures the frontend's pronunciation-availability map sees the lemma's audio so the synthetic Infinitive / Singular-Indefinite row renders a play button (critical for MWE verbs like `passe på` where the lemma form IS the audio carrier). The variation card filter excludes lemma forms by name, so this never causes the lemma to show twice.
+
+### Multi-word expression (MWE) word pages
+
+MWE lemmas (e.g. `passe på`) save through the same wordbank pipeline as
+single-word lemmas. The MWE branch in `sentencebank_token_resolution.py`:
+
+- Creates a `lexeme_meanings` row via `ensure_mwe_meaning_section`
+  (`backend/app/services/use_cases/sentencebank_mwe.py`) so the page renders
+  sectioned and "Complete variations" is gated by the same verified-status
+  logic used for any other word.
+- Tags `dictionary_status="cor"` when `runtime.cor.lookup_mwe_lemma(lemma)`
+  finds a match (links to the COR lemma index), otherwise `generated_non_cor`.
+- Saves the encountered surface form (e.g. `pas på`) with morphology inferred
+  from the head verb's COR entry (`pas` → `Mood=Imp|VerbForm=Fin`) via
+  `infer_mwe_surface_morphology`, so the form slots into the Imperative row of
+  the verb paradigm instead of "Other forms".
+- Writes a synchronous related-words seed (`seed_mwe_component_related_words`
+  on `RelatedWordsCollaborator`) with the constituent words. The existing
+  Gemini related-words background job still runs for MWE lemmas — its prompt
+  has an MWE branch (see `_prompt` in `services/related_words.py`) that asks
+  for constituents in reading order plus up to 3 near-synonym MWEs — and
+  replaces the seed when it completes.
+
+Variations (Present / Past / Past participle for an MWE verb) are not
+auto-populated; the user fills them in via the same "Complete variations"
+flow as for any other verb.
 
 ## Header metadata and translation
 

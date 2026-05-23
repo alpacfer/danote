@@ -112,6 +112,32 @@ adverbial "there" and `der` as relative pronoun open different word-page cards.
 Clicking a saved sentence token opens the normal word page for that lemma,
 including built-in words that also belong to pinned reference collections.
 
+### Multi-word expression handling
+
+The sentence-verification Gemini call doubles as the MWE detector. Its prompt
+asks for `mwe_spans` alongside the typo/grammar fields, so the search/preview
+endpoint already returns enough information to render an "is an idiom / phrasal
+verb" hint before the user commits. The prompt is deliberately kept narrow —
+typos + MWE detection only — to keep search-as-you-type latency low.
+
+During save, `resolve_sentence_tokens` calls `merge_mwe_spans` (in
+`backend/app/services/use_cases/sentencebank_mwe.py`) to coalesce Gemini's
+spans against the NLP-tokenized sentence. Intervening fillers (`ikke`,
+`selv`, `om`, `aldrig`, …) are extracted and emitted as their own tokens, so
+`Han gav ikke op, selv om det var svært.` yields tokens
+`[Han, gav op (MWE), ikke, selv, om, det, var, svært]` — one MWE card plus the
+filler tokens, not three separate cards. The MWE token is saved as a
+`VERB`-tagged lexeme with a `lexeme_meanings` row attached, so the word page
+renders as a normal sectioned lemma with verification and Complete Variations
+gated by the same flow used for any other word. Surface morphology is inferred
+from the head verb's COR entry (`pas` → `Mood=Imp|VerbForm=Fin`) so the
+encountered form slots into the right paradigm row instead of "Other forms".
+
+The Related Words section gets a synchronous seed of the constituent words
+(e.g. `passe` + `på`) so the UI has something immediately; the existing
+Gemini related-words background job still runs for the MWE lemma and replaces
+the seed with the richer Gemini result (constituents + near-synonym MWEs).
+
 ## 5) Refresh / invalidation
 
 `useLexiconData` handles fetching. Sentence loader effect depends on `[apiClient, sentencebankRefreshTick]`. Tick change → set loading true, clear error, fetch `/api/sentencebank/sentences`, store `payload.items ?? []` on success / empty list + error on failure, set loading false. `addSentenceToSentencebank` increments tick after successful save → triggers re-fetch. Sentence deletion removes the row optimistically and increments the sentencebank refresh tick; deletion with meanings also increments the wordbank refresh tick.

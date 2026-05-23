@@ -166,6 +166,30 @@ class GeminiCompoundRelatedWordsService:
         )
 
     def _prompt(self, lemma: str) -> str:
+        is_mwe = " " in lemma.strip()
+        if is_mwe:
+            # Multi-word expression (phrasal verb / idiom): the lemma has whitespace
+            # (e.g. "passe på", "tage af sted", "skyde papegøjen"). Return the
+            # constituent words AND any close-meaning near-synonym MWEs in reading
+            # order. The schema is unchanged so the worker can persist either shape.
+            return (
+                "You are a Danish linguist.\n"
+                "Analyze one Danish multi-word expression (phrasal verb or idiom).\n"
+                "Return JSON only.\n"
+                "{"
+                '"is_compound":true,'
+                '"items":[{"lemma":"...","english_translation":"...","pos_tag":"NOUN|VERB|ADJ|ADV|ADP|CCONJ|SCONJ|PART"}]'
+                "}\n"
+                "Rules:\n"
+                "- Always set is_compound=true; the lemma is a multi-word expression.\n"
+                "- items must include EVERY constituent word in reading order first (e.g. for \"passe på\" return [\"passe\", \"på\"]).\n"
+                "- After the constituents, you MAY append up to 3 close-meaning near-synonym MWEs (e.g. \"holde øje med\" for \"passe på\") in order of semantic closeness.\n"
+                "- Each item lemma must be the canonical Danish lemma, lowercased.\n"
+                "- english_translation must be a short idiomatic English gloss.\n"
+                "- pos_tag must be the standard UD tag for that constituent (ADP for prepositions like \"på\", VERB for the head verb, etc.).\n"
+                "- Do not include explanations or uncertainty text.\n"
+                f"Lemma:\n{json.dumps({'lemma': lemma}, ensure_ascii=False)}"
+            )
         return (
             "You are a Danish linguist.\n"
             "Analyze one Danish lemma.\n"
@@ -267,6 +291,16 @@ class GeminiCompoundRelatedWordsService:
         if not isinstance(raw_items, list):
             raise RelatedWordsError("Gemini related-word response items must be a list.")
 
+        # For MWE lemmas (multi-word: "passe på", "tage af sted") the constituents
+        # may be prepositions, conjunctions, or particles — broaden the allowed
+        # POS set in that case. Single-word compound decomposition stays strict.
+        is_mwe_lemma = " " in lemma.strip()
+        allowed_pos = (
+            {"ADJ", "ADV", "NOUN", "VERB", "ADP", "CCONJ", "SCONJ", "PART"}
+            if is_mwe_lemma
+            else {"ADJ", "ADV", "NOUN", "VERB"}
+        )
+
         items: list[RelatedWordItem] = []
         seen: set[tuple[str, str]] = set()
         for raw_item in raw_items:
@@ -279,7 +313,7 @@ class GeminiCompoundRelatedWordsService:
                 not item_lemma
                 or item_lemma == lemma
                 or not english_translation
-                or pos_tag not in {"ADJ", "ADV", "NOUN", "VERB"}
+                or pos_tag not in allowed_pos
             ):
                 continue
             key = (item_lemma, pos_tag)

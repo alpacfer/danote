@@ -58,6 +58,18 @@ class SentenceVerificationService(Protocol):
 
 
 def _build_prompt(source_text: str) -> str:
+    """Sentence-verification prompt used by BOTH the search/preview path and the save path.
+
+    Latency invariant: this is the *first* Gemini call the user incurs while typing in
+    the search box, so its scope is deliberately narrow. It must only do:
+      1. typo / grammar check (errors + corrected_text + language)
+      2. Multi-Word Expression detection (is_multi_word_expression, mwe_lemma, mwe_spans)
+
+    Do NOT extend this prompt to also produce related-words, paradigm completions,
+    full translations, or any other enrichment — those belong in dedicated background
+    Gemini calls (see app.services.related_words, verification_*). Each new
+    responsibility added here directly slows down search-as-you-type for every user.
+    """
     return (
         "You are a Danish language expert.\n"
         f'Check this text for typos and grammatical errors: "{source_text}"\n\n'

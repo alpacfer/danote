@@ -85,6 +85,20 @@ class FakeCORLocalLexiconService:
     def lookup_lemma(self, lemma_idx: int, limit: int = 1000) -> list[CORLocalEntry]:
         return list(self._by_lemma_idx.get(lemma_idx, []))[:limit]
 
+    def lookup_mwe_lemma(self, lemma: str) -> CORLocalEntry | None:
+        """Return the first MWE entry whose lemma matches (case-insensitive), or None.
+
+        MWE lemmas (multi-word, e.g. "passe på") are typically stored in COR with
+        their lemma == form. The fake just delegates to the `by_form` map so tests
+        can wire either a hit (multi-word entry indexed by its lemma string) or
+        a miss (no entry → falls back to generated_non_cor).
+        """
+        normalized = " ".join(lemma.strip().split()).lower()
+        for entry in self._by_form.get(normalized, []):
+            if entry.lemma.strip().lower() == normalized:
+                return entry
+        return None
+
     def lookup_cor_id(self, cor_id: str) -> CORLocalEntry | None:
         normalized = cor_id.strip()
         if not normalized:

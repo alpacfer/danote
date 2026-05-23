@@ -738,6 +738,15 @@ export function mockFetchImplementation(options?: {
     is_valid: boolean
     errors: Array<{ start: number; end: number; message: string }>
     message: string | null
+    // MWE fields are optional — preview returns them when Gemini detects a
+    // multi-word expression in the user's search input. See backend
+    // SentenceSearchPreviewResponse in app/api/schemas/v1/sentencebank.py.
+    is_multi_word_expression?: boolean
+    mwe_lemma?: string | null
+    mwe_pos_tag?: string | null
+    mwe_gloss?: string | null
+    mwe_english_translation?: string | null
+    mwe_cor_match?: unknown
   }
   sentenceSearchPreviewFastResponse?: {
     status: "ready" | "blocked" | "preview"
@@ -747,6 +756,12 @@ export function mockFetchImplementation(options?: {
     is_valid: boolean
     errors: Array<{ start: number; end: number; message: string }>
     message: string | null
+    is_multi_word_expression?: boolean
+    mwe_lemma?: string | null
+    mwe_pos_tag?: string | null
+    mwe_gloss?: string | null
+    mwe_english_translation?: string | null
+    mwe_cor_match?: unknown
   }
   sentenceSearchPreviewOk?: boolean
   sentenceSearchPreviewHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
