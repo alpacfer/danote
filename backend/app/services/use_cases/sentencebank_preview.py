@@ -192,14 +192,42 @@ def build_sentence_search_preview(
                 errors=[],
                 message="Could not translate this English sentence to Danish.",
             )
+
+        # Run verification on the translated Danish to check for MWE status
+        danish_verification = verify_sentence_result(
+            source_text=translated_danish,
+            sentence_verification_service=sentence_verification_service,
+        )
+
+        final_danish_text = danish_verification.corrected_text or translated_danish
+
+        mwe_meanings_variants: list[CORSearchVariant] = []
+        mwe_cor_match: CORSearchVariant | None = None
+        if wordbank_use_case is not None and danish_verification.is_multi_word_expression and danish_verification.mwe_lemma:
+            mwe_meanings_variants = _build_mwe_meaning_variants(
+                wordbank_use_case=wordbank_use_case,
+                verification=danish_verification,
+            )
+            mwe_cor_match = mwe_meanings_variants[0] if mwe_meanings_variants else None
+
         return SentenceSearchPreviewResponse(
             status="ready",
             query_language="en",
-            source_text=translated_danish,
+            source_text=final_danish_text,
             english_translation=english_for_translation,
-            is_valid=True,
-            errors=[],
+            is_valid=danish_verification.is_valid,
+            errors=[
+                SentenceVerificationErrorItem(start=error.start, end=error.end, message=error.message)
+                for error in danish_verification.errors
+            ],
             message=None,
+            is_multi_word_expression=danish_verification.is_multi_word_expression,
+            mwe_lemma=danish_verification.mwe_lemma,
+            mwe_pos_tag=danish_verification.mwe_pos_tag,
+            mwe_gloss=danish_verification.mwe_gloss,
+            mwe_english_translation=danish_verification.mwe_english_translation,
+            mwe_cor_match=mwe_cor_match,
+            mwe_meanings=mwe_meanings_variants,
         )
 
     final_source_text = initial_verification.corrected_text or normalized_query

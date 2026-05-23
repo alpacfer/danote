@@ -1274,6 +1274,56 @@ def test_sentencebank_preview_sentence_search_blocks_on_missing_english_translat
     assert preview.errors == []
 
 
+def test_sentencebank_preview_sentence_search_mwe_from_english_query(tmp_path: Path) -> None:
+    verification_service = FakeSentenceVerificationService(
+        results={
+            "look after": SentenceVerificationResult(
+                is_valid=True,
+                errors=[],
+                corrected_text=None,
+                language="en",
+            ),
+            "se efter": SentenceVerificationResult(
+                is_valid=True,
+                errors=[],
+                corrected_text=None,
+                language="da",
+                is_multi_word_expression=True,
+                mwe_lemma="se efter",
+                mwe_pos_tag="VERB",
+                mwe_gloss="undersøge",
+                mwe_english_translation="look after",
+            ),
+        }
+    )
+    wordbank_use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        translation_service=FakeTranslationService({"se efter": "look after"}),
+        nlp_adapter=MappingNLPAdapter({}),
+    )
+    use_case = SentencebankUseCase(
+        _db_path(tmp_path),
+        translation_service=FakeTranslationService(
+            {"look after": "se efter"},
+            detected_languages={"look after": "EN"},
+        ),
+        sentence_verification_service=verification_service,
+        wordbank_use_case=wordbank_use_case,
+    )
+
+    preview = use_case.preview_sentence_search("look after")
+
+    assert preview.status == "ready"
+    assert preview.query_language == "en"
+    assert preview.source_text == "se efter"
+    assert preview.english_translation == "look after"
+    assert preview.is_multi_word_expression is True
+    assert preview.mwe_lemma == "se efter"
+    assert len(preview.mwe_meanings) == 1
+    assert preview.mwe_meanings[0].lemma == "se efter"
+    assert preview.mwe_meanings[0].saveable_translation == "look after"
+
+
 def test_sentencebank_preview_sentence_search_degrades_when_verification_unavailable(tmp_path: Path) -> None:
     use_case = SentencebankUseCase(
         _db_path(tmp_path),
