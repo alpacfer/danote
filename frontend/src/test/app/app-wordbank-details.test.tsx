@@ -393,7 +393,7 @@ describe("App wordbank", () => {
 
     expect(await screen.findByRole("heading", { name: /^lærer$/i })).toBeInTheDocument()
     const categoryContainer = screen.getByTestId("wordbank-meaning-badges-1")
-    expect(categoryContainer).toHaveTextContent("People")
+    expect(categoryContainer).toHaveTextContent("Person")
     expect(categoryContainer).toHaveTextContent("School")
     expect(categoryContainer).toHaveTextContent("Work")
   })
@@ -715,7 +715,7 @@ describe("App wordbank", () => {
     expect(await screen.findByRole("heading", { name: /^bog$/i })).toBeInTheDocument()
     const categoryContainer = screen.getByTestId("wordbank-lemma-header-badges")
     expect(categoryContainer).toHaveTextContent("Food")
-    expect(categoryContainer).toHaveTextContent("Household Objects")
+    expect(categoryContainer).toHaveTextContent("Furniture")
     expect(screen.queryByText(/^book's$/i)).not.toBeInTheDocument()
   })
 

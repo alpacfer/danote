@@ -10,7 +10,7 @@ export const bogVariationGlossWordPageContractFixture: LemmaDetailsResponse = {
   pos_tag: "NOUN",
   morphology: "Gender=Com|Number=Sing|Definite=Ind",
   is_sectioned: false,
-  categories: ["Food", "Household Objects"],
+  categories: ["Food", "Furniture"],
   surface_forms: [
     {
       form: "bogen",
@@ -40,7 +40,7 @@ export const bogHomographWordPageContractFixture: LemmaDetailsResponse = {
       gloss_translation: "for reading",
       pos_tag: "NOUN",
       morphology: "Gender=Com|Number=Sing|Definite=Ind",
-      categories: ["Household Objects"],
+      categories: ["Furniture"],
       surface_forms: [],
     },
     {
@@ -51,7 +51,7 @@ export const bogHomographWordPageContractFixture: LemmaDetailsResponse = {
       gloss_translation: "fruit from a beech tree",
       pos_tag: "NOUN",
       morphology: "Gender=Neut|Number=Sing|Definite=Ind",
-      categories: ["Food", "Plants"],
+      categories: ["Food", "Plant"],
       surface_forms: [],
     },
   ],
@@ -73,7 +73,7 @@ export const morHomographWordPageContractFixture: LemmaDetailsResponse = {
       gloss_translation: "person",
       pos_tag: "NOUN",
       morphology: "Gender=Com|Number=Sing|Definite=Ind",
-      categories: ["Family", "People"],
+      categories: ["Family", "Relationship"],
       surface_forms: [],
     },
     {
@@ -105,7 +105,7 @@ export const teacherSectionedWordPageContractFixture: LemmaDetailsResponse = {
       english_translation: "teacher",
       pos_tag: "NOUN",
       morphology: "Gender=Com|Number=Sing|Definite=Ind",
-      categories: ["People", "School", "Work"],
+      categories: ["Person", "School", "Work"],
       surface_forms: [
         {
           form: "lærere",

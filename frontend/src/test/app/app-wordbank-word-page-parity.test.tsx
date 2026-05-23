@@ -16,7 +16,7 @@ describe("App wordbank word-page parity", () => {
       pos_tag: "NOUN",
       morphology: "Gender=Com|Number=Sing|Definite=Ind",
       is_sectioned: false,
-      categories: ["Household Objects"],
+      categories: ["Furniture"],
       surface_forms: [
         { form: "bog", has_pronunciation: true, pos_tag: "NOUN", morphology: "Gender=Com|Number=Sing|Definite=Ind" },
       ],

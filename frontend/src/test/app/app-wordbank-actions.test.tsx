@@ -133,7 +133,7 @@ describe("App wordbank", () => {
           stored_lemma: "bog",
           stored_surface_form: null,
           meaning_id: null,
-          applied_categories: ["Food", "Household Objects"],
+          applied_categories: ["Food", "Furniture"],
           message: "Updated categories for 'bog'.",
         })
       },
@@ -639,7 +639,7 @@ describe("App wordbank", () => {
           meaning_sections: [
             {
               ...lemmaDetails.meaning_sections![0],
-              categories: ["People", "School", "Work", "Education", "Culture", "Community"],
+              categories: ["Person", "School", "Work", "Education", "Culture", "Community"],
             },
           ],
         }
@@ -648,7 +648,7 @@ describe("App wordbank", () => {
           stored_lemma: "lærer",
           stored_surface_form: null,
           meaning_id: 1,
-          applied_categories: ["People", "School", "Work", "Education", "Culture", "Community"],
+          applied_categories: ["Person", "School", "Work", "Education", "Culture", "Community"],
           message: "Updated categories for 'lærer'.",
         })
       },

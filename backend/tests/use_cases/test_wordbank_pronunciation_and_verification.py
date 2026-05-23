@@ -102,7 +102,7 @@ def test_wordbank_use_case_runs_verification_task_and_returns_result(tmp_path: P
     verification_service = FakeVerificationService(
         verdict="verified",
         message="Lemma, surface form, and translations are coherent.",
-        categories=("Food", "Household Objects"),
+        categories=("Food", "Furniture"),
     )
     use_case = WordbankUseCase(
         _db_path(tmp_path),
@@ -125,14 +125,14 @@ def test_wordbank_use_case_runs_verification_task_and_returns_result(tmp_path: P
 
     verified = use_case.verify_added_word("bog", "bogen", meaning_id=added.meaning.id if added.meaning else None)
     assert verified.verification.status == "verified"
-    assert verified.applied_categories == ["Food", "Household Objects"]
+    assert verified.applied_categories == ["Food", "Furniture"]
     assert "coherent" in verified.verification.message.lower()
     assert verified.verification.requested_at is not None
     assert verified.verification.completed_at is not None
     assert len(verification_service.calls) == 1
 
     details_after_verify = use_case.get_lemma_details("bog")
-    assert details_after_verify.meaning_sections[0].categories == ["Food", "Household Objects"]
+    assert details_after_verify.meaning_sections[0].categories == ["Food", "Furniture"]
     assert details_after_verify.meaning_sections[0].verification is not None
     assert details_after_verify.meaning_sections[0].verification.status == "queued"
     verified_surface = next(item for item in details_after_verify.meaning_sections[0].surface_forms if item.form == "bogen")
@@ -144,7 +144,7 @@ def test_wordbank_use_case_replaces_meaning_categories_on_reverify(tmp_path: Pat
     verification_service = FakeVerificationService(
         verdict="verified",
         message="Entry is consistent.",
-        categories=("Food", "Plants"),
+        categories=("Food", "Plant"),
     )
     use_case = WordbankUseCase(
         _db_path(tmp_path),
@@ -154,14 +154,14 @@ def test_wordbank_use_case_replaces_meaning_categories_on_reverify(tmp_path: Pat
 
     added = use_case.add_word("Bogen", "bog")
     first = use_case.verify_added_word("bog", "bogen", meaning_id=added.meaning.id if added.meaning else None)
-    assert first.applied_categories == ["Food", "Plants"]
+    assert first.applied_categories == ["Food", "Plant"]
 
-    verification_service._categories = ("Household Objects",)
+    verification_service._categories = ("Furniture",)
     second = use_case.verify_added_word("bog", "bogen", meaning_id=added.meaning.id if added.meaning else None)
 
-    assert second.applied_categories == ["Household Objects"]
+    assert second.applied_categories == ["Furniture"]
     details = use_case.get_lemma_details("bog")
-    assert details.meaning_sections[0].categories == ["Household Objects"]
+    assert details.meaning_sections[0].categories == ["Furniture"]
 
 
 def test_wordbank_use_case_rethinks_categories_without_changing_verification_state(tmp_path: Path) -> None:
@@ -232,7 +232,31 @@ def test_wordbank_use_case_keeps_existing_categories_when_verification_errors(tm
     second = use_case.verify_added_word("bog", "bogen", meaning_id=added.meaning.id if added.meaning else None)
 
     assert second.verification.status == "error"
-    assert second.applied_categories == []
+    assert second.applied_categories == ["Food"]
+    details = use_case.get_lemma_details("bog")
+    assert details.meaning_sections[0].categories == ["Food"]
+
+
+def test_wordbank_use_case_keeps_existing_categories_when_auto_classification_is_empty(tmp_path: Path) -> None:
+    verification_service = FakeVerificationService(
+        verdict="verified",
+        message="Entry is consistent.",
+        categories=("Food",),
+    )
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        translation_service=FakeTranslationService({"bog": "book", "bogen": "the book"}),
+        verification_service=verification_service,
+    )
+
+    added = use_case.add_word("Bogen", "bog")
+    first = use_case.verify_added_word("bog", "bogen", meaning_id=added.meaning.id if added.meaning else None)
+    assert first.applied_categories == ["Food"]
+
+    verification_service._categories = ()
+    second = use_case.verify_added_word("bog", "bogen", meaning_id=added.meaning.id if added.meaning else None)
+
+    assert second.applied_categories == ["Food"]
     details = use_case.get_lemma_details("bog")
     assert details.meaning_sections[0].categories == ["Food"]
 
@@ -241,7 +265,7 @@ def test_word_verification_payload_uses_saved_and_canonical_metadata_for_search_
     verification_service = FakeVerificationService(
         verdict="verified",
         message="Entry is consistent.",
-        categories=("Actions", "School"),
+        categories=("Learning", "School"),
     )
     use_case = WordbankUseCase(
         _db_path(tmp_path),
@@ -294,7 +318,7 @@ def test_word_verification_payload_uses_saved_and_canonical_metadata_for_search_
     verified = use_case.verify_added_word("lære", "lærer", meaning_id=added.meaning.id)
 
     payload = verification_service.calls[0]
-    assert verified.applied_categories == ["Actions", "School"]
+    assert verified.applied_categories == ["Learning", "School"]
     assert payload.selected_translation == "learn"
     assert payload.selected_translation_scope == "meaning_section"
     assert payload.available_categories
@@ -304,7 +328,7 @@ def test_word_verification_payload_uses_saved_and_canonical_metadata_for_search_
     assert payload.selected_surface_pos_tag == "VERB"
     assert payload.selected_surface_morphology == "Tense=Pres|VerbForm=Fin|Voice=Act"
     details = use_case.get_lemma_details("lære")
-    assert details.meaning_sections[0].categories == ["Actions", "School"]
+    assert details.meaning_sections[0].categories == ["Learning", "School"]
 
 
 def test_complete_variations_verification_payload_preserves_merged_gram_raw_for_shared_adjective_forms(

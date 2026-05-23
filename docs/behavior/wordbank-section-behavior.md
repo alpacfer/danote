@@ -344,9 +344,9 @@ Shared by header + section rows + variation rows.
 - Meaning-section verification: reviewed section sent as current scope, not duplicated in sibling list
 - Translated gloss hints sent for reviewed meaning, siblings, scoped surface forms (disambiguate homographs like `mor`)
 - Canonical lemma metadata evaluated separately from saved surface-form metadata
-- Post-verification (`verified`/`flagged`): category classification runs as separate Gemini step
-  - receives shared category list + scope's assigned categories + saved-word context
-  - prefers existing categories; may mint <=1 new broad category
+- Post-verification: category classification runs as separate Gemini step after completed verification attempts when the category service is available
+  - receives shared category list + scope's assigned categories + saved-word context, including word, translation/gloss, and POS metadata
+  - prefers existing concise English categories; may apply or mint multiple 1-3 word Title Case semantic labels
   - auto-applied, no confirmation; visible through later lemma-detail fetches
 - Backend-driven via shared wordbank background-job runner; bounded parallel worker pool
 - Queued payloads carry target snapshot hash; stale job skipped (doesn't overwrite newer result)
@@ -358,7 +358,7 @@ Shared by header + section rows + variation rows.
 
 - `POST /api/wordbank/lexemes/rethink-categories`: reruns Gemini category classification for root/meaning scope
 - Triggered manually from context menu; uses standalone category payload
-- May reuse existing categories + mint <=1 new broad category
+- May reuse existing categories + mint multiple concise semantic categories
 - Success → replaces full persisted category assignment for scope
 - Does not overwrite/re-review verification records
 

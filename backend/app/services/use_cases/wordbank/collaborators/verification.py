@@ -32,6 +32,7 @@ from app.services.use_cases.wordbank.collaborators.verification_missing_translat
 )
 from app.services.use_cases.wordbank.verification_categories import (
     persist_category_labels_for_scope,
+    persisted_category_labels_for_scope,
 )
 from app.services.use_cases.wordbank.verification_helper_logic import (
     completion_review_actions,
@@ -588,7 +589,7 @@ class VerificationCollaborator:
         verification: VerificationResult,
         payload: WordVerificationInput,
     ) -> list[str]:
-        if verification.status not in {"verified", "flagged"}:
+        if verification.status in {"queued", "skipped"}:
             return []
         if self._verification_service is None:
             return []
@@ -603,6 +604,7 @@ class VerificationCollaborator:
             stored_lemma=stored_lemma,
             meaning_id=meaning_id,
             labels=list(getattr(classification, "categories", ()) or ()),
+            replace_empty=False,
         )
 
     def _persist_categories_for_scope(
@@ -611,11 +613,18 @@ class VerificationCollaborator:
         stored_lemma: str,
         meaning_id: int | None,
         labels: list[str],
+        replace_empty: bool = True,
     ) -> list[str]:
         repository = WordbankRepository(self._db_path, owner_user_id=self._owner_user_id)
         lexeme = repository.get_lexeme(stored_lemma)
         if lexeme is None:
             raise LookupError(f"Lemma '{stored_lemma}' was not found")
+        if not labels and not replace_empty:
+            return persisted_category_labels_for_scope(
+                repository,
+                lexeme_id=lexeme.id,
+                meaning_id=meaning_id,
+            )
         return persist_category_labels_for_scope(
             repository,
             lexeme_id=lexeme.id,

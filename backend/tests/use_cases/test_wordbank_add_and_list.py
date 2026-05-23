@@ -470,15 +470,21 @@ def test_wordbank_starter_categories_are_seeded_once(tmp_path: Path) -> None:
 
     with get_connection(db_path) as conn:
         count_before = conn.execute("SELECT COUNT(*) AS count FROM wordbank_categories").fetchone()
+        labels_before = [
+            row["label"]
+            for row in conn.execute("SELECT label FROM wordbank_categories ORDER BY normalized_label").fetchall()
+        ]
     assert count_before is not None
-    assert count_before["count"] == 20
+    assert count_before["count"] == 67
+    assert "Actions" not in labels_before
+    assert {"Furniture", "Emotion", "Plant", "Communication", "Learning", "Grammar"}.issubset(labels_before)
 
     _ = WordbankUseCase(db_path)
 
     with get_connection(db_path) as conn:
         count_after = conn.execute("SELECT COUNT(*) AS count FROM wordbank_categories").fetchone()
     assert count_after is not None
-    assert count_after["count"] == 20
+    assert count_after["count"] == 67
 
 def test_wordbank_use_case_facade_delegates_across_extracted_workflows(tmp_path: Path) -> None:
     use_case = WordbankUseCase(

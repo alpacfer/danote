@@ -220,7 +220,7 @@ or `Authorization: Bearer <guest-token>` header. Local dev
   - COR/translated glosses used as sense-disambiguation context only; persisted review prose restricted to translation/placement feedback. Backend suppresses gloss-only critique; rewrites translation-fix copy so user never sees gloss-change suggestions.
   - `verification.suggested_actions`: sole apply contract. Backend apply does NOT recover actions from prose.
   - `applied_categories`: semantic categories persisted for reviewed root/meaning scope.
-  - After verification persistence for `verified`/`flagged`, category classification runs as separate follow-up. Prefers existing categories; mints at most 1 new broad category.
+  - After completed verification persistence, category classification runs as a separate follow-up when the category service is available. It prefers existing concise English semantic labels, may apply multiple matching labels, and may mint multiple 1-3 word Title Case labels.
   - When saved COR identity resolves to different canonical lemma, that canonical identity included in Gemini context for lemma-correction targeting.
 
 ### POST `/api/wordbank/lexemes/queue-verification`
@@ -237,7 +237,7 @@ or `Authorization: Bearer <guest-token>` header. Local dev
 - **Notable status/error behavior:** `503` DB unavailable/locked. `404` target not found. `400` invalid inputs. body `status`: `updated`, `skipped`, or `error`.
 - **Field invariants:**
   - Replaces persisted category set for requested root/meaning scope without mutating verification records.
-  - Runs standalone category-classification Gemini flow. Prefers existing labels; mints at most 1 new broad category.
+  - Runs standalone category-classification Gemini flow. Prefers existing labels and may return multiple concise 1-3 word Title Case semantic labels.
   - `applied_categories`: normalized persisted labels after rethink.
 
 ### POST `/api/wordbank/lexemes/find-alternative-translations`
@@ -442,7 +442,7 @@ or `Authorization: Bearer <guest-token>` header. Local dev
       "pos_tag": "VERB",
       "morphology": "Tense=Pres|VerbForm=Fin|Voice=Act",
       "is_sectioned": false,
-      "categories": ["Actions", "School"],
+      "categories": ["Learning", "School"],
       "verification": {
         "status": "queued",
         "provider": "gemini",
@@ -493,7 +493,7 @@ or `Authorization: Bearer <guest-token>` header. Local dev
           "pos_tag": "NOUN",
           "morphology": "Gender=Com|Number=Sing|Definite=Def",
           "gram_raw": "sb. fk. sg. best",
-          "categories": ["Household Objects"],
+          "categories": ["Furniture"],
           "verification": {
             "status": "verified",
             "provider": "gemini",

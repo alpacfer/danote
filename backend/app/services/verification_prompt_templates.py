@@ -178,8 +178,9 @@ def build_batch_verification_prompt(
 def build_word_category_prompt(*, entry: dict[str, object]) -> str:
     return (
         "You are a Professional Danish Language Expert.\n"
-        "Classify one saved wordbank scope into broad semantic categories.\n"
-        "Prefer matching existing categories whenever they fit.\n"
+        "Classify one saved Danish wordbank scope into meaningful semantic categories.\n"
+        "Use the Danish word, English translation or gloss, part of speech, and relevant surface forms.\n"
+        "Prefer matching existing categories whenever they fit, and apply every meaningful category.\n"
         "Return JSON only.\n"
         "{"
         '"existing_categories":["..."],'
@@ -188,8 +189,11 @@ def build_word_category_prompt(*, entry: dict[str, object]) -> str:
         "Rules:\n"
         "- existing_categories must be chosen from available_categories.\n"
         "- existing_categories may include multiple items, but never duplicates.\n"
-        "- Return at most 1 new_categories item, and only when no existing category fits.\n"
-        "- New categories must be broad, reusable, and user-facing. Never return morphology, part-of-speech, or overly narrow labels.\n"
+        "- Return all useful new_categories when available_categories does not cover the scope.\n"
+        "- Category labels must be English, Title Case, concise, and 1 to 3 words.\n"
+        "- Prefer specific semantic labels like Furniture, Emotion, Plant, Communication, or Learning.\n"
+        "- Never return generic labels like Actions, Things, Objects, Other, or General.\n"
+        "- Never return morphology, part-of-speech, inflection, or grammar-form labels.\n"
         "- If existing categories fully cover the scope, return new_categories as [] or omit it.\n"
         f"Entry:\n{json.dumps(entry, ensure_ascii=False)}"
     )

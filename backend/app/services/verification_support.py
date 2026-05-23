@@ -57,19 +57,36 @@ def is_valid_new_category(label: str) -> bool:
     normalized = " ".join(label.strip().split())
     if not normalized:
         return False
-    if len(normalized) > 32:
+    if len(normalized) > 40:
         return False
     words = normalized.split(" ")
     if len(words) > 3:
         return False
     blocked = {
+        "action",
+        "actions",
+        "thing",
+        "things",
+        "object",
+        "objects",
+        "misc",
+        "miscellaneous",
+        "other",
+        "general",
         "noun",
+        "nouns",
         "verb",
+        "verbs",
         "adjective",
+        "adjectives",
         "adverb",
+        "adverbs",
         "pronoun",
+        "pronouns",
         "preposition",
+        "prepositions",
         "conjunction",
+        "conjunctions",
         "singular",
         "plural",
         "definite",

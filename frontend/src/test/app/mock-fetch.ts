@@ -864,7 +864,7 @@ export function mockFetchImplementation(options?: {
     stored_lemma: addWordResponse.stored_lemma,
     stored_surface_form: null,
     meaning_id: null,
-    applied_categories: ["Animals"],
+    applied_categories: ["Animal"],
     message: `Updated categories for '${addWordResponse.stored_lemma}'.`,
   }
   const findAlternativeTranslationsResponse = options?.findAlternativeTranslationsResponse ?? {

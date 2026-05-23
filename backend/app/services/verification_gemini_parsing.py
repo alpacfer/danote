@@ -99,11 +99,13 @@ def parse_categories(parsed: dict[str, object], available_categories: tuple[str,
             matched = available_lookup.get(normalized)
             if matched is None:
                 continue
+            if not is_valid_new_category(matched):
+                continue
             seen.add(normalized)
             categories.append(matched)
     raw_new_categories = parsed.get("new_categories")
     if isinstance(raw_new_categories, list):
-        for item in raw_new_categories[:1]:
+        for item in raw_new_categories:
             if not isinstance(item, str):
                 continue
             normalized_new = " ".join(item.strip().split())
@@ -115,7 +117,7 @@ def parse_categories(parsed: dict[str, object], available_categories: tuple[str,
             ):
                 continue
             seen.add(normalized_key)
-            categories.append(normalized_new)
+            categories.append(_title_case_category(normalized_new))
     elif isinstance(parsed.get("new_category"), str):
         normalized_new = " ".join(str(parsed["new_category"]).strip().split())
         normalized_key = normalized_new.casefold()
@@ -125,8 +127,12 @@ def parse_categories(parsed: dict[str, object], available_categories: tuple[str,
             and normalized_key not in available_lookup
         ):
             seen.add(normalized_key)
-            categories.append(normalized_new)
+            categories.append(_title_case_category(normalized_new))
     return categories
+
+
+def _title_case_category(label: str) -> str:
+    return " ".join(word[:1].upper() + word[1:].lower() for word in label.split(" ") if word)
 
 
 def parse_suggested_actions(

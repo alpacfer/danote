@@ -1487,7 +1487,7 @@ def test_sentencebank_batch_verification_assigns_categories_to_new_words(tmp_pat
             ],
         }
     )
-    verification_service = FakeVerificationService(categories=("Actions", "Grammar"))
+    verification_service = FakeVerificationService(categories=("Grammar",))
     verification_service.batch_calls = []
     wordbank_use_case = WordbankUseCase(
         db_path,
@@ -1503,7 +1503,7 @@ def test_sentencebank_batch_verification_assigns_categories_to_new_words(tmp_pat
     sentencebank_use_case.add_sentence("er")
 
     details = wordbank_use_case.get_lemma_details("være")
-    assert details.categories == ["Actions", "Grammar"]
+    assert details.categories == ["Grammar"]
     surface_form = next((item for item in details.surface_forms if item.form == "er"), None)
     assert surface_form is not None
 

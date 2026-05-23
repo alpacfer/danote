@@ -116,7 +116,7 @@ def test_add_word_includes_verification_result_when_service_is_available(tmp_pat
 
         def classify_word_categories(self, _payload):
             class Result:
-                categories = ("Food", "Household Objects")
+                categories = ("Food", "Furniture")
 
             return Result()
 
@@ -148,7 +148,7 @@ def test_add_word_includes_verification_result_when_service_is_available(tmp_pat
     assert verify_response.status_code == 200
     verify_payload = verify_response.json()
     assert verify_payload["verification"]["status"] == "verified"
-    assert verify_payload["applied_categories"] == ["Food", "Household Objects"]
+    assert verify_payload["applied_categories"] == ["Food", "Furniture"]
     assert verify_payload["verification"]["requested_at"] is not None
     assert verify_payload["verification"]["completed_at"] is not None
 
@@ -166,7 +166,7 @@ def test_add_word_includes_verification_result_when_service_is_available(tmp_pat
         )
         surface_verification = variation_row.get("verification") if variation_row is not None else None
         if (
-            candidate["meaning_sections"][0]["categories"] == ["Food", "Household Objects"]
+            candidate["meaning_sections"][0]["categories"] == ["Food", "Furniture"]
             and meaning_verification is not None
             and meaning_verification["status"] in {"queued", "verified"}
             and surface_verification is not None
@@ -177,7 +177,7 @@ def test_add_word_includes_verification_result_when_service_is_available(tmp_pat
         time.sleep(0.05)
 
     assert details_payload is not None
-    assert details_payload["meaning_sections"][0]["categories"] == ["Food", "Household Objects"]
+    assert details_payload["meaning_sections"][0]["categories"] == ["Food", "Furniture"]
     assert details_payload["meaning_sections"][0]["verification"]["status"] in {"queued", "verified"}
     verified_surface = next(
         item for item in details_payload["meaning_sections"][0]["surface_forms"] if item["form"] == "bogen"
@@ -365,7 +365,10 @@ def test_complete_variations_endpoint_adds_missing_forms_and_enqueues_jobs(tmp_p
         provider = "gemini_word_translation"
 
         def complete_non_cor_meaning_variations(self, payload):
-            from app.services.gemini_translation import NonCORVariationGenerationResult, NonCORVariationCandidate
+            from app.services.gemini_translation import (
+                NonCORVariationCandidate,
+                NonCORVariationGenerationResult,
+            )
             return NonCORVariationGenerationResult(
                 forms=[
                     NonCORVariationCandidate(
@@ -473,7 +476,10 @@ def test_complete_variations_endpoint_scopes_to_selected_homograph_meaning(tmp_p
         provider = "gemini_word_translation"
 
         def complete_non_cor_meaning_variations(self, payload):
-            from app.services.gemini_translation import NonCORVariationGenerationResult, NonCORVariationCandidate
+            from app.services.gemini_translation import (
+                NonCORVariationCandidate,
+                NonCORVariationGenerationResult,
+            )
             return NonCORVariationGenerationResult(
                 forms=[
                     NonCORVariationCandidate(

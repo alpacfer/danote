@@ -30,8 +30,8 @@ def _payload() -> WordVerificationInput:
         selected_meaning_morphology="Gender=Com|Number=Sing",
         selected_surface_pos_tag="NOUN",
         selected_surface_morphology="Definite=Def|Number=Sing",
-        current_categories=("Household Objects",),
-        available_categories=("Animals", "Food", "Household Objects", "Plants"),
+        current_categories=("Furniture",),
+        available_categories=("Animal", "Food", "Furniture", "Plant", "Reading"),
         sibling_meaning_sections=(
             WordVerificationMeaningSection(
                 id=1,
@@ -585,6 +585,9 @@ def test_gemini_verification_prompt_matches_wordbank_translation_model() -> None
     assert "available_categories" in category_prompt
     assert "current_categories" in category_prompt
     assert "relevant_surface_forms" in category_prompt
+    assert "Use the Danish word, English translation or gloss, part of speech" in category_prompt
+    assert "English, Title Case, concise, and 1 to 3 words" in category_prompt
+    assert "Never return generic labels like Actions" in category_prompt
 
 
 def test_gemini_meaning_review_prompt_keeps_translation_actions_available() -> None:
@@ -810,37 +813,37 @@ def test_gemini_general_verification_ignores_fix_variations_only_reviews(monkeyp
     assert result.suggested_actions == ()
 
 
-def test_gemini_category_classification_prefers_existing_and_one_new_category(monkeypatch) -> None:
+def test_gemini_category_classification_prefers_existing_and_multiple_new_categories(monkeypatch) -> None:
     service = GeminiWordVerificationService(api_key="test-key")
     monkeypatch.setattr(
         service,
         "_generate_text",
         lambda prompt: (
-            '{"existing_categories":["Household Objects","Food","Unknown"],'
-            '"new_categories":["Reading Material","Culture","Education","Ignored"]'
+            '{"existing_categories":["Furniture","Food","Unknown"],'
+            '"new_categories":["reading material","Culture","Education"]'
             '}'
         ),
     )
 
     result = service.classify_word_categories(_payload())
 
-    assert result.categories == ("Household Objects", "Food", "Reading Material")
+    assert result.categories == ("Furniture", "Food", "Reading Material", "Culture", "Education")
 
 
-def test_gemini_category_classification_reuses_existing_and_new_categories(monkeypatch) -> None:
+def test_gemini_category_classification_rejects_generic_pos_and_overlong_categories(monkeypatch) -> None:
     service = GeminiWordVerificationService(api_key="test-key")
     monkeypatch.setattr(
         service,
         "_generate_text",
         lambda prompt: (
-            '{"existing_categories":["Household Objects"],'
-            '"new_categories":["Reading Material","Education","Culture"]}'
+            '{"existing_categories":["Furniture","Furniture"],'
+            '"new_categories":["Actions","Verb","Very Long Category Label","Communication"]}'
         ),
     )
 
     result = service.classify_word_categories(_payload())
 
-    assert result.categories == ("Household Objects", "Reading Material")
+    assert result.categories == ("Furniture", "Communication")
 
 
 def test_ensure_client_passes_timeout_to_http_options() -> None:
