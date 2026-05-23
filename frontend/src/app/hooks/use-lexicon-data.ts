@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 
 import {
-  type AppSection,
   createApiClient,
   hasQueuedVerificationTargets,
   normalizeSearchWord,
@@ -13,17 +12,17 @@ import {
 } from "@/app/core"
 import { isPinnedPageSentinel } from "@/app/sections/wordbank/_shared/pinned-pages-registry"
 
-const PRONUNCIATION_POLL_WINDOW_MS = 15_000
+import {
+  hasQueuedRelatedWords,
+  lemmaDetailsHasPronunciation,
+  mergeQueuedPronunciationTracking,
+  normalizeQueuedPronunciationForms,
+  type PendingPronunciationFormsByLemma,
+  shouldPollPronunciations,
+  type UseLexiconDataParams,
+} from "./use-lexicon-data-helpers"
 
-type UseLexiconDataParams = {
-  backendUrl: string
-  extractErrorMessage: (response: Response, fallback: string) => Promise<string>
-  activeSection: AppSection
-  selectedLemma: string | null
-  selectedMeaningId: number | null
-  wordbankRefreshTick: number
-  sentencebankRefreshTick: number
-}
+const PRONUNCIATION_POLL_WINDOW_MS = 15_000
 
 export function useLexiconData({
   backendUrl,
@@ -46,12 +45,13 @@ export function useLexiconData({
   const [showLemmaDetailsLoadingSkeleton, setShowLemmaDetailsLoadingSkeleton] = useState(false)
   const [hasLoadedWordbank, setHasLoadedWordbank] = useState(false)
   const [lemmaDetailsPollTick, setLemmaDetailsPollTick] = useState(0)
-  const [pendingPronunciationFormsByLemma, setPendingPronunciationFormsByLemma] = useState<
-    Record<string, { forms: string[]; expiresAt: number }>
-  >({})
+  const [wordbankAutoRefreshTick, setWordbankAutoRefreshTick] = useState(0)
+  const [pendingPronunciationFormsByLemma, setPendingPronunciationFormsByLemma] =
+    useState<PendingPronunciationFormsByLemma>({})
 
   const lemmaDetailsLoadingDelayTimeoutRef = useRef<number | null>(null)
-  const lastLoadedWordbankTickRef = useRef<number | null>(null)
+  const lastLoadedWordbankTickRef = useRef<string | null>(null)
+  const lemmaDetailsRef = useRef<LemmaDetailsResponse | null>(null)
   const apiClient = useMemo(
     () => createApiClient({ backendUrl, extractErrorMessage }),
     [backendUrl, extractErrorMessage],
@@ -59,11 +59,16 @@ export function useLexiconData({
   const normalizedSelectedLemma = normalizeSearchWord(selectedLemma ?? "")
   const normalizedLoadedLemma = normalizeSearchWord(lemmaDetails?.lemma ?? "")
   const selectedBuiltInReference = isPinnedPageSentinel(selectedLemma)
+  const wordbankLoadKey = `${wordbankRefreshTick}:${wordbankAutoRefreshTick}`
+
+  useEffect(() => {
+    lemmaDetailsRef.current = lemmaDetails
+  }, [lemmaDetails])
 
   useEffect(() => {
     const shouldLoadWordbank = activeSection === "wordbank" || Boolean(selectedLemma) || hasLoadedWordbank
     const alreadyLoadedCurrentTick =
-      hasLoadedWordbank && lastLoadedWordbankTickRef.current === wordbankRefreshTick
+      hasLoadedWordbank && lastLoadedWordbankTickRef.current === wordbankLoadKey
     if (!shouldLoadWordbank || alreadyLoadedCurrentTick) {
       setIsWordbankLoading(false)
       return
@@ -82,7 +87,7 @@ export function useLexiconData({
         if (!cancelled) {
           setLemmas(payload.items ?? [])
           setHasLoadedWordbank(true)
-          lastLoadedWordbankTickRef.current = wordbankRefreshTick
+          lastLoadedWordbankTickRef.current = wordbankLoadKey
         }
       } catch (error) {
         if (!cancelled) {
@@ -100,7 +105,7 @@ export function useLexiconData({
     return () => {
       cancelled = true
     }
-  }, [activeSection, apiClient, hasLoadedWordbank, selectedLemma, wordbankRefreshTick])
+  }, [activeSection, apiClient, hasLoadedWordbank, selectedLemma, wordbankLoadKey])
 
   useEffect(() => {
     let cancelled = false
@@ -163,11 +168,17 @@ export function useLexiconData({
 
     void (async () => {
       try {
+        const previousDetails = lemmaDetailsRef.current
+        const hadQueuedVerification = hasQueuedVerificationTargets(previousDetails)
         const payload = await apiClient.getJson<LemmaDetailsResponse>(
           `/api/wordbank/lemmas/${encodeURIComponent(selectedLemma)}`,
           "Could not load lemma details.",
         )
         if (!cancelled) {
+          if (hadQueuedVerification && !hasQueuedVerificationTargets(payload)) {
+            setWordbankAutoRefreshTick((current) => current + 1)
+          }
+          lemmaDetailsRef.current = payload
           setLemmaDetails(payload)
         }
       } catch (error) {
@@ -232,18 +243,12 @@ export function useLexiconData({
     if (activeSection !== "wordbank" || !selectedLemma) {
       return
     }
-    const activePronunciationTracking = normalizedSelectedLemma
-      ? pendingPronunciationFormsByLemma[normalizedSelectedLemma]
-      : undefined
-    const shouldPollPronunciations = Boolean(
-      activePronunciationTracking
-      && activePronunciationTracking.expiresAt > Date.now()
-      && (
-        lemmaDetails === null
-        || activePronunciationTracking.forms.some((form) => !lemmaDetailsHasPronunciation(lemmaDetails, form))
-      ),
-    )
-    if (!hasQueuedVerificationTargets(lemmaDetails) && !shouldPollPronunciations && !hasQueuedRelatedWords(lemmaDetails)) {
+    const pollPronunciations = shouldPollPronunciations({
+      lemmaDetails,
+      normalizedSelectedLemma,
+      pendingPronunciationFormsByLemma,
+    })
+    if (!hasQueuedVerificationTargets(lemmaDetails) && !pollPronunciations && !hasQueuedRelatedWords(lemmaDetails)) {
       return
     }
     const timeoutId = window.setTimeout(() => {
@@ -261,17 +266,12 @@ export function useLexiconData({
       return
     }
     setPendingPronunciationFormsByLemma((current) => {
-      const existing = current[normalizedLemma]
-      return {
-        ...current,
-        [normalizedLemma]: {
-          forms: normalizeQueuedPronunciationForms([
-            ...(existing?.forms ?? []),
-            ...normalizedForms,
-          ]),
-          expiresAt: Date.now() + PRONUNCIATION_POLL_WINDOW_MS,
-        },
-      }
+      return mergeQueuedPronunciationTracking(
+        current,
+        normalizedLemma,
+        normalizedForms,
+        Date.now() + PRONUNCIATION_POLL_WINDOW_MS,
+      )
     })
   }
 
@@ -296,37 +296,4 @@ export function useLexiconData({
     setShowLemmaDetailsLoadingSkeleton,
     trackQueuedPronunciationForms,
   }
-}
-
-function hasQueuedRelatedWords(lemmaDetails: LemmaDetailsResponse | null): boolean {
-  return lemmaDetails?.related_words?.status === "queued"
-}
-
-function normalizeQueuedPronunciationForms(forms: string[]): string[] {
-  const ordered: string[] = []
-  const seen = new Set<string>()
-  for (const form of forms) {
-    const normalizedForm = normalizeSearchWord(form)
-    if (!normalizedForm || seen.has(normalizedForm)) {
-      continue
-    }
-    seen.add(normalizedForm)
-    ordered.push(normalizedForm)
-  }
-  return ordered
-}
-
-function lemmaDetailsHasPronunciation(lemmaDetails: LemmaDetailsResponse, form: string): boolean {
-  const normalizedTarget = normalizeSearchWord(form)
-  if (!normalizedTarget) {
-    return false
-  }
-  const candidates = [
-    ...(lemmaDetails.surface_forms ?? []),
-    ...((lemmaDetails.meaning_sections ?? []).flatMap((section) => section.surface_forms ?? [])),
-  ]
-  return candidates.some((candidate) => {
-    const normalizedForm = normalizeSearchWord(candidate.form)
-    return normalizedForm === normalizedTarget && Boolean(candidate.has_pronunciation)
-  })
 }

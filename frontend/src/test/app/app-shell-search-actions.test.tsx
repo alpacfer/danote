@@ -1009,6 +1009,82 @@ describe("App shell and search", () => {
     }, { timeout: 6_000 })
   }, 15_000)
 
+  it("request-shape: refreshes wordbank categories when detail polling observes verification completion", async () => {
+    let lemmaDetailsRequestCount = 0
+    let detailsReturnedVerified = false
+    let lemmasAfterVerified = 0
+    const staleSavedSnapshot = cloneContractFixture(teacherQueuedWordPageContractFixture)
+    staleSavedSnapshot.meaning_sections![0].categories = []
+    const verifiedWordPage = cloneContractFixture(teacherVerifiedWordPageContractFixture)
+    verifiedWordPage.meaning_sections![0].categories = ["Person", "School", "Work"]
+
+    mockFetchImplementation({
+      lemmasHandler: async () => {
+        if (detailsReturnedVerified) {
+          lemmasAfterVerified += 1
+        }
+        return responseOf({ items: [] })
+      },
+      searchWordbankResponse: { items: [] },
+      corSearchFormResponse: {
+        form: "lærere",
+        groups: [
+          {
+            lemma: "lærer",
+            gloss: "teacher",
+            pos_tag: "NOUN",
+            variants: [
+              {
+                cor_id: "COR.49032.112.01",
+                form: "lærere",
+                lemma: "lærer",
+                gloss: "teacher",
+                lemma_translation: "teacher",
+                gram_raw: "sb.fk.pl.ubest",
+                norm: "N",
+                lemma_idx: 49032,
+                gram_code: 112,
+                variation: 1,
+                pos_tag: "NOUN",
+                morphology: "Gender=Com|Number=Plur|Definite=Ind",
+                features: { Gender: "Com", Number: "Plur", Definite: "Ind" },
+                extra_tags: [],
+              },
+            ],
+          },
+        ],
+      },
+      addWordResponse: {
+        ...cloneContractFixture(teacherQueuedSearchAddResponseContractFixture),
+        queued_verification_targets: [],
+        saved_snapshot: staleSavedSnapshot,
+      },
+      lemmaDetailsHandler: async () => {
+        lemmaDetailsRequestCount += 1
+        if (lemmaDetailsRequestCount === 1) {
+          return responseOf(cloneContractFixture(staleSavedSnapshot))
+        }
+        detailsReturnedVerified = true
+        return responseOf(cloneContractFixture(verifiedWordPage))
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    const commandDialog = await screen.findByRole("dialog")
+    const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
+    fireEvent.change(searchInput, { target: { value: "lærere" } })
+    fireEvent.click(await findCommandOptionByValue(commandDialog, "cor-variant-COR.49032.112.01"))
+
+    expect(await screen.findByRole("heading", { name: /^lærer$/i })).toBeInTheDocument()
+
+    await waitFor(() => {
+      expect(lemmasAfterVerified).toBeGreaterThan(0)
+    }, { timeout: 6_000 })
+  }, 15_000)
+
   it("request-shape: keeps polling through Gemini auto-apply settling and updates the open word page without navigation", async () => {
     let lemmaDetailsRequestCount = 0
     const staleSavedSnapshot = cloneContractFixture(teacherSectionedWordPageContractFixture)
