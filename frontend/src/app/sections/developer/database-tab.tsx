@@ -55,8 +55,9 @@ export function DatabaseTab({
       <div className="space-y-4">
         <p className="text-sm font-medium">Reset database and cache</p>
         <p className="text-muted-foreground text-xs">
-          Deletes your saved words and sentences, and clears all browser storage (localStorage,
-          sessionStorage, service workers, Cache API). API keys are preserved. This cannot be undone.
+          Deletes your saved words, sentences, and custom categories, then restores the standard
+          categories. Browser storage (localStorage, sessionStorage, service workers, Cache API)
+          is also cleared. API keys are preserved. This cannot be undone.
         </p>
         <Button
           type="button"

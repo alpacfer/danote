@@ -54,7 +54,7 @@ or `Authorization: Bearer <guest-token>` header. Local dev
 ### DELETE `/api/account/data`
 - **Response model:** `AccountFreshStartResponse` (`status: "reset"`, `message`).
 - **Notable status/error behavior:** `401`/`403`/`503` as for other account endpoints.
-- **Field invariants:** Clears the current user's learning workspace data: wordbank rows, sentencebank rows, phrase translations, ignored tokens, wordbank background jobs, token feedback, typo feedback, and verification change logs. It does not delete API keys, account identity, guest session records, trial opt-in state, or daily search usage.
+- **Field invariants:** Clears the current user's learning workspace data: wordbank rows, sentencebank rows, phrase translations, ignored tokens, wordbank background jobs, token feedback, typo feedback, and verification change logs. It also prunes custom wordbank categories that are left unassigned by the reset and re-ensures the standard starter category set. It does not delete API keys, account identity, guest session records, trial opt-in state, or daily search usage.
 
 ### PUT `/api/account/api-keys/{provider}`
 - **Request model:** `UpdateApiKeyRequest` (`{"value": "<api-key>"}`).
@@ -655,3 +655,4 @@ or `Authorization: Bearer <guest-token>` header. Local dev
 - **Request model:** none.
 - **Response model:** `ResetDatabaseResponse`.
 - **Notable status/error behavior:** `503` DB unavailable/locked. `503` with `Database reset failed: ...` for filesystem/OS failures.
+- **Field invariants:** Clears the current user's learning workspace and daily search usage, prunes custom wordbank categories that are left unassigned, and re-ensures the standard starter category set.

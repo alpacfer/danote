@@ -29,8 +29,9 @@ Stays orchestration layer: state/side-effects in hooks, not component body.
   of Clerk profile controls or API-key forms.
 - The Account section includes a destructive start-fresh action for every
   account type. It deletes the current user's saved words and sentences while
-  keeping sign-in, guest session, API keys, trial status, and daily usage
-  counters intact.
+  pruning custom categories left unassigned by the reset, restoring the
+  standard starter categories, and keeping sign-in, guest session, API keys,
+  trial status, and daily usage counters intact.
 
 ### Section layout switch (`frontend/src/app/layout/section-content.tsx`)
 

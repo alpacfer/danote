@@ -80,6 +80,25 @@ def test_fresh_start_clears_learning_data_but_keeps_keys_and_usage(tmp_path, stu
                 VALUES (1, '2026-05-20', 'bog')
                 """,
             )
+            lexeme = conn.execute("SELECT id FROM lexemes WHERE lemma = ?", ("bog",)).fetchone()
+            assert lexeme is not None
+            conn.execute(
+                """
+                INSERT INTO wordbank_categories (label, normalized_label)
+                VALUES ('Pirate Lore', 'pirate lore')
+                """
+            )
+            category = conn.execute(
+                "SELECT id FROM wordbank_categories WHERE normalized_label = 'pirate lore'"
+            ).fetchone()
+            assert category is not None
+            conn.execute(
+                """
+                INSERT INTO wordbank_category_assignments (lexeme_id, meaning_id, category_id)
+                VALUES (?, NULL, ?)
+                """,
+                (int(lexeme["id"]), int(category["id"])),
+            )
 
         response = client.delete("/api/account/data")
 
@@ -91,11 +110,21 @@ def test_fresh_start_clears_learning_data_but_keeps_keys_and_usage(tmp_path, stu
         sentences = conn.execute("SELECT COUNT(*) AS count FROM sentence_bank").fetchone()
         keys = conn.execute("SELECT COUNT(*) AS count FROM user_api_keys").fetchone()
         usage = conn.execute("SELECT COUNT(*) AS count FROM user_search_usage").fetchone()
+        custom_categories = conn.execute(
+            """
+            SELECT COUNT(*) AS count
+            FROM wordbank_categories
+            WHERE normalized_label = 'pirate lore'
+            """
+        ).fetchone()
+        starter_categories = conn.execute("SELECT COUNT(*) AS count FROM wordbank_categories").fetchone()
 
     assert lexemes["count"] == 0
     assert sentences["count"] == 0
     assert keys["count"] == 1
     assert usage["count"] == 1
+    assert custom_categories["count"] == 0
+    assert starter_categories["count"] == 67
 
 
 def test_search_returns_429_when_trial_limit_exceeded(

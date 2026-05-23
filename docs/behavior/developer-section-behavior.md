@@ -80,7 +80,7 @@ Trigger: `Apply runtime API keys` → `saveDeveloperApiKeys()`. Request: `POST /
 
 ## 7) Database reset
 
-Trigger: `Delete complete DB` → `resetDatabase()`. Guardrail: confirmation dialog must return true. Request: `DELETE /api/wordbank/database`. In-flight: button disabled (`isResettingDatabase === true`), label `Deleting...`. Success → toast with backend message, invoke `onDatabaseReset()`. Failure → error toast with extracted message/fallback. Post-reset transitions delegated to `onDatabaseReset()` in composition layer.
+Trigger: `Delete complete DB` → `resetDatabase()`. Guardrail: confirmation dialog must return true. Request: `DELETE /api/wordbank/database`. In-flight: button disabled (`isResettingDatabase === true`), label `Deleting...`. Success → toast with backend message, invoke `onDatabaseReset()`. The backend also prunes custom categories left unassigned by the reset and restores the standard starter category set. Failure → error toast with extracted message/fallback. Post-reset transitions delegated to `onDatabaseReset()` in composition layer.
 
 ## 8) Pinned audio generation
 

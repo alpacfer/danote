@@ -169,7 +169,7 @@ function FreshStartCard({ onFreshStart }: { onFreshStart?: () => void }) {
       <CardHeader>
         <CardTitle>Start fresh</CardTitle>
         <CardDescription>
-          Delete your saved words and sentences while keeping your account and service credentials.
+          Delete your saved words, sentences, and custom categories while keeping your account and service credentials.
         </CardDescription>
         <CardAction>
           <Button type="button" variant="destructive" size="sm" onClick={() => setOpen(true)}>
@@ -181,7 +181,7 @@ function FreshStartCard({ onFreshStart }: { onFreshStart?: () => void }) {
       <CardContent className="flex flex-col gap-4">
         <Separator />
         <p className="text-sm text-muted-foreground">
-          This clears wordbank entries, sentencebank entries, related generated cache, and pending word jobs for this account only.
+          This clears wordbank entries, sentencebank entries, custom categories, related generated cache, and pending word jobs for this account only.
         </p>
       </CardContent>
       <Dialog open={open} onOpenChange={(nextOpen) => {
@@ -191,11 +191,11 @@ function FreshStartCard({ onFreshStart }: { onFreshStart?: () => void }) {
           <DialogHeader>
             <DialogTitle>Delete all words and sentences?</DialogTitle>
             <DialogDescription>
-              This gives your account a clean slate. Service credentials, sign-in, and trial status are not changed.
+              This gives your account a clean slate with the standard categories. Service credentials, sign-in, and trial status are not changed.
             </DialogDescription>
           </DialogHeader>
           <div className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
-            Saved wordbank entries, sentencebank entries, generated word jobs, and related word cache will be permanently deleted.
+            Saved wordbank entries, sentencebank entries, custom categories, generated word jobs, and related word cache will be permanently deleted.
           </div>
           <DialogFooter>
             <DialogClose asChild>
