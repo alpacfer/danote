@@ -12,9 +12,11 @@ bash -n "$ROOT_DIR/scripts/run-project.sh"
 bash -n "$ROOT_DIR/scripts/e2e-regression.sh"
 bash -n "$ROOT_DIR/scripts/hosting-check.sh"
 bash -n "$ROOT_DIR/scripts/hosting-smoke.sh"
+python3 -m py_compile "$ROOT_DIR/scripts/dev-app.py"
 
 log "running bootstrap script tests"
 bash "$ROOT_DIR/scripts/tests/test-run-project-bootstrap.sh"
+python3 "$ROOT_DIR/scripts/tests/test-dev-app.py"
 
 log "running frontend lint"
 (

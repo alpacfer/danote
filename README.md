@@ -66,6 +66,22 @@ cd <repo-root>
 make docs-smoke
 ```
 
+For live API debugging and terminal-level feature verification:
+
+```bash
+cd <repo-root>
+scripts/dev-app.py health
+scripts/dev-app.py wordbank details <lemma>
+scripts/dev-app.py search trace <english-query>
+```
+
+`scripts/dev-app.py` is the **Danote Terminal Controller** (**DTC**). It
+auto-detects the local backend, calls the same API routes as the frontend, and
+emits JSON only. After implementing a feature that is reachable through the app
+API, run at least one relevant DTC command as an extra acceptance check
+alongside the normal targeted test set. The older `scripts/dev-search-debug.py`
+remains available for human-readable search traces.
+
 Backend pytest sessions automatically restore the tracked Gemini audit log
 `backend/data/gemini-applied-changes.jsonl` at session end so test runs do not
 leave that file dirty.

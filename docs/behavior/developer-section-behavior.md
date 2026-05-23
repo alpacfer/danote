@@ -90,7 +90,21 @@ calls both `POST /api/wordbank/numbers/pronunciation/seed` and
 the same endpoints with `force=true`. The UI treats the two backend stores as
 one developer setting because pinned cards use a shared audio playback hook.
 
-## 9) Test map
+## 9) Danote Terminal Controller
+
+`scripts/dev-app.py` is the **Danote Terminal Controller** (**DTC**), the
+JSON-only terminal controller for live app debugging. It auto-detects the local
+backend and calls the same API routes as the frontend for health, developer
+probes, search, wordbank, verification, and sentencebank workflows. References
+to "DTC" mean this script.
+
+After implementing user-facing or backend behavior that is reachable through
+the app API, run at least one relevant DTC command as an extra terminal
+acceptance check. This check supplements pytest, Vitest, lint, and docs smoke
+verification; it does not replace them. Destructive controller commands
+intentionally do not prompt.
+
+## 10) Test map
 
 Primary: `frontend/src/test/app/app-system-state.test.tsx`
 - Connection status: offline on health failure, degraded on degraded report

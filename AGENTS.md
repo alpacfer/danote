@@ -34,16 +34,20 @@ bash ./scripts/pytest-backend.sh -q tests/use_cases
 Search debugging against the live dev server:
 
 ```bash
+scripts/dev-app.py health                    # JSON live-API smoke check
+scripts/dev-app.py wordbank details <lemma>  # inspect app-visible word state
+scripts/dev-app.py search trace <english-query>  # JSON EN → DA → COR trace
 scripts/dev-search-debug.py <english-query>      # full EN → DA → COR trace, with filter diff
 scripts/dev-search-debug.py --da <danish-form>   # direct Danish COR lookup
 scripts/dev-search-debug.py --host H --port P <q>  # override auto-detection
 ```
 
-Auto-locates the running uvicorn (no port argument needed) and walks the same
-pipeline the sidebar performs: EN resolve → per-translation-key COR lookup →
-shows the Gemini sense filter's before/after with each variant marked ✓ kept
-or ✗ dropped. Use this to diagnose missing or surplus search rows without
-having to poke individual endpoints by hand.
+`dev-app.py` is the **Danote Terminal Controller** (**DTC**). It auto-locates
+the running uvicorn (no port argument needed) and calls the same live API routes
+the frontend uses. It is JSON-only so agents can read, compare, and archive
+results. `dev-search-debug.py` remains available for human-readable search
+traces. When a user asks to "run DTC" or use the "Danote Terminal Controller",
+use `scripts/dev-app.py`.
 
 ## Architecture
 
@@ -89,6 +93,12 @@ Disambiguating duplicate filenames:
 - Add or modify API request/response models in `api/schemas/v1/` first.
 - Prefer adding or expanding tests over silently changing expectations.
 - Use the smallest verification set that proves the changed behavior.
+- For any user-facing/backend feature reachable through the app API, run at
+  least one relevant **Danote Terminal Controller** (**DTC**,
+  `scripts/dev-app.py ...`) command after implementation as an extra terminal
+  acceptance check. This supplements, but does not replace, pytest/Vitest/lint
+  checks. In the final summary, include `Terminal verification: <command>` or
+  explain why it was not applicable.
 - Escalate to `make lint`, `make test`, and `make docs-smoke` for broad, risky, build, workflow, dependency, or cross-cutting changes.
 - For backend orchestration or API schema changes, run `bash ./scripts/pytest-backend.sh -q tests/use_cases`.
 - Before code, config, API, schema, or workflow changes, read the related docs in `README.md` and/or `docs/`.
