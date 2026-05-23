@@ -44,6 +44,9 @@ export function SentencebankTokenButton({
   const badges = badgesForSavedForm({
     pos_tag: token.pos_tag,
     morphology: token.morphology,
+    // Pass the stored lemma so MWE tokens ("gav op", "Pas på") render the
+    // "Phrasal verb" badge on the sentence breakdown card instead of "Verb".
+    lemma: token.stored_lemma,
   })
   const isSaved = token.save_status !== "unsaved" && typeof token.stored_lemma === "string" && token.stored_lemma.length > 0
 

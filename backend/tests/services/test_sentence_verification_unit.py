@@ -336,3 +336,91 @@ def test_merge_mwe_spans_returns_input_unchanged_when_no_spans() -> None:
     ]
     assert merge_mwe_spans(tokens, "Hej", None) == tokens
     assert merge_mwe_spans(tokens, "Hej", []) == tokens
+
+
+# --- mwe_meanings parsing ---------------------------------------------------
+
+
+def test_parse_result_populates_mwe_meanings_for_polysemous_lemma() -> None:
+    """Polysemous phrasal verbs like "tage på" return one entry per distinct sense."""
+    raw = (
+        '{"is_valid": true, "errors": [], "corrected_text": null, "language": "da", '
+        '"is_multi_word_expression": true, "mwe_lemma": "tage på", "mwe_pos_tag": "VERB", '
+        '"mwe_gloss": null, "mwe_english_translation": null, '
+        '"mwe_meanings": ['
+        '  {"gloss": "iføre sig tøj", "english_translation": "to put on (clothes)", "pos_tag": "VERB", "meaning_key": "iføre sig tøj"},'
+        '  {"gloss": "forøge sin kropsvægt", "english_translation": "to gain weight", "pos_tag": "VERB", "meaning_key": "tage på i vægt"},'
+        '  {"gloss": "tage afsted", "english_translation": "to go somewhere", "pos_tag": "VERB", "meaning_key": "tage afsted"}'
+        ']}'
+    )
+    result = _parse_result(raw, "tage på")
+    assert result.is_multi_word_expression is True
+    assert result.mwe_lemma == "tage på"
+    assert len(result.mwe_meanings) == 3
+    assert result.mwe_meanings[0].gloss == "iføre sig tøj"
+    assert result.mwe_meanings[0].english_translation == "to put on (clothes)"
+    assert result.mwe_meanings[0].pos_tag == "VERB"
+    assert result.mwe_meanings[1].english_translation == "to gain weight"
+    assert result.mwe_meanings[2].meaning_key == "tage afsted"
+    # Back-compat: when Gemini didn't populate the single mwe_* fields, the first
+    # meaning supplies them.
+    assert result.mwe_gloss == "iføre sig tøj"
+    assert result.mwe_english_translation == "to put on (clothes)"
+
+
+def test_parse_result_synthesizes_meanings_from_legacy_single_fields() -> None:
+    """Forward-compat: older Gemini responses that only set mwe_gloss / english_translation
+    get a one-element mwe_meanings synthesized so frontend code can iterate uniformly."""
+    raw = (
+        '{"is_valid": true, "errors": [], "corrected_text": null, "language": "da", '
+        '"is_multi_word_expression": true, "mwe_lemma": "se efter", "mwe_pos_tag": "VERB", '
+        '"mwe_gloss": "undersøge", "mwe_english_translation": "look after", "mwe_meanings": []}'
+    )
+    result = _parse_result(raw, "se efter")
+    assert len(result.mwe_meanings) == 1
+    assert result.mwe_meanings[0].gloss == "undersøge"
+    assert result.mwe_meanings[0].english_translation == "look after"
+    assert result.mwe_meanings[0].pos_tag == "VERB"
+
+
+def test_parse_result_drops_mwe_meanings_when_not_an_mwe() -> None:
+    """If the input isn't an MWE, the meanings list must be empty even if Gemini hallucinates entries."""
+    raw = (
+        '{"is_valid": true, "errors": [], "corrected_text": null, "language": "da", '
+        '"is_multi_word_expression": false, "mwe_lemma": null, "mwe_pos_tag": null, '
+        '"mwe_gloss": null, "mwe_english_translation": null, '
+        '"mwe_meanings": [{"gloss": "X", "english_translation": "Y", "pos_tag": "VERB"}]}'
+    )
+    result = _parse_result(raw, "hello")
+    assert result.is_multi_word_expression is False
+    assert result.mwe_meanings == []
+
+
+def test_parse_result_dedupes_mwe_meanings_by_key() -> None:
+    raw = (
+        '{"is_valid": true, "errors": [], "corrected_text": null, "language": "da", '
+        '"is_multi_word_expression": true, "mwe_lemma": "tage på", "mwe_pos_tag": "VERB", '
+        '"mwe_gloss": null, "mwe_english_translation": null, '
+        '"mwe_meanings": ['
+        '  {"gloss": "a", "english_translation": "X", "meaning_key": "K"},'
+        '  {"gloss": "b", "english_translation": "X2", "meaning_key": "K"}'
+        ']}'
+    )
+    result = _parse_result(raw, "tage på")
+    assert len(result.mwe_meanings) == 1
+    assert result.mwe_meanings[0].english_translation == "X"
+
+
+def test_parse_result_drops_mwe_meanings_with_no_content() -> None:
+    raw = (
+        '{"is_valid": true, "errors": [], "corrected_text": null, "language": "da", '
+        '"is_multi_word_expression": true, "mwe_lemma": "tage på", "mwe_pos_tag": "VERB", '
+        '"mwe_gloss": null, "mwe_english_translation": null, '
+        '"mwe_meanings": ['
+        '  {"gloss": null, "english_translation": null, "meaning_key": "empty"},'
+        '  {"gloss": "ok", "english_translation": null, "meaning_key": "kept"}'
+        ']}'
+    )
+    result = _parse_result(raw, "tage på")
+    assert len(result.mwe_meanings) == 1
+    assert result.mwe_meanings[0].meaning_key == "kept"

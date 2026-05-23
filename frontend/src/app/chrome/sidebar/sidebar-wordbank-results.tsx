@@ -4,7 +4,6 @@ import { Badge } from "@/components/ui/badge"
 import { CommandItem } from "@/components/ui/command"
 import {
   badgesForSavedForm,
-  badgesFromGramRaw,
   corSecondaryBadgeClass,
   glossDisplayForVariant,
   lemmaDisplayForVariant,
@@ -159,10 +158,19 @@ export function SidebarWordbankResults({
                     ? savedTranslationLine
                     : savedTranslationLine
                 const badges = displayVariant
-                  ? badgesFromGramRaw(displayVariant.gram_raw)
+                  // For CoR matches, fold the MWE label in on top of the gram-derived
+                  // badges. `badgesForSavedForm` handles the MWE injection when given
+                  // the lemma.
+                  ? badgesForSavedForm({
+                    pos_tag: displayVariant.pos_tag ?? result.pos_tag ?? null,
+                    morphology: displayVariant.morphology ?? result.morphology ?? null,
+                    gram_raw: displayVariant.gram_raw,
+                    lemma: result.lemma,
+                  })
                   : badgesForSavedForm({
                     pos_tag: result.pos_tag ?? null,
                     morphology: result.morphology ?? null,
+                    lemma: result.lemma,
                   })
 
                 return (

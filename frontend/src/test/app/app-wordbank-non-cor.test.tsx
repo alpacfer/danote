@@ -72,7 +72,7 @@ describe("App wordbank non-COR entries", () => {
     expect(badges.length).toBeGreaterThan(0)
   })
 
-  it("renderer-only: renders related decomposition items even when they have no COR variants", async () => {
+  it("renderer-only: renders composition (decomposition) items even when they have no COR variants", async () => {
     mockFetchImplementation({
       lemmasResponse: {
         items: [{ lemma: "superstor", variation_count: 1 }],
@@ -86,12 +86,12 @@ describe("App wordbank non-COR entries", () => {
     fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
     fireEvent.click(await screen.findByRole("button", { name: /superstor/i }))
 
-    const relatedHeading = await screen.findByRole("heading", { name: /^related$/i })
-    const relatedSection = relatedHeading.parentElement
-    expect(relatedSection).not.toBeNull()
-    const relatedScope = within(relatedSection as HTMLElement)
-    expect(relatedScope.getAllByText(/^super$/i).length).toBeGreaterThan(0)
-    expect(relatedScope.getByText(/^stor$/i)).toBeInTheDocument()
-    expect(relatedScope.getByText(/^large$/i)).toBeInTheDocument()
+    const compositionHeading = await screen.findByRole("heading", { name: /^composition$/i })
+    const compositionSection = compositionHeading.parentElement
+    expect(compositionSection).not.toBeNull()
+    const compositionScope = within(compositionSection as HTMLElement)
+    expect(compositionScope.getAllByText(/^super$/i).length).toBeGreaterThan(0)
+    expect(compositionScope.getByText(/^stor$/i)).toBeInTheDocument()
+    expect(compositionScope.getByText(/^large$/i)).toBeInTheDocument()
   })
 })

@@ -1,8 +1,11 @@
 """Smoke tests for the Gemini related-words prompt.
 
-The prompt is structurally different for single-word lemmas (compound
-decomposition) versus multi-word expressions (constituent words + near-synonym
-MWEs). The lemma-aware branch is the change made during the MWE feature review.
+The prompt branches by lemma shape: single-word lemmas ask for compound
+decomposition (NOUN/VERB/ADJ/ADV components), multi-word lemmas ask for
+constituent decomposition with a broader POS allowlist (ADP/CCONJ for
+prepositions and particles). Both branches are strictly decomposition —
+neither prompt asks for near-synonyms / related expressions / alternative
+phrasings; the wordbank UI labels this section "Composition".
 """
 
 from __future__ import annotations
@@ -25,7 +28,11 @@ def test_prompt_for_single_word_lemma_asks_for_compound_decomposition_only() -> 
     assert "constituent" not in prompt
 
 
-def test_prompt_for_multi_word_lemma_asks_for_constituents_and_near_synonyms() -> None:
+def test_prompt_for_multi_word_lemma_asks_for_constituents_only() -> None:
+    """MWE prompt must ask ONLY for the constituent decomposition. Near-synonyms /
+    related expressions are not a feature yet — the wordbank UI labels this
+    section "Composition" and would render synonyms as if they were components.
+    """
     svc = _make_service()
     prompt = svc._prompt("passe på")
 
@@ -33,11 +40,13 @@ def test_prompt_for_multi_word_lemma_asks_for_constituents_and_near_synonyms() -
     assert "multi-word expression" in prompt
     assert "constituent" in prompt
     assert "reading order" in prompt
-    assert "near-synonym" in prompt
     # The example demonstrates the expected decomposition shape.
     assert "passe" in prompt
     # ADP must be in the allowed POS list so prepositions like "på" survive parsing.
     assert "ADP" in prompt
+    # Explicit guardrails against synonyms / related expressions.
+    assert "near-synonym" not in prompt or "Do NOT include near-synonyms" in prompt
+    assert "Do NOT include near-synonyms" in prompt
 
 
 def test_parse_response_accepts_adp_for_mwe_lemma() -> None:

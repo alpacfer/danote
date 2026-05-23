@@ -83,7 +83,10 @@ def persist_search_seed_surface_form(
     *,
     seed: SearchSeedInputs,
 ) -> SearchSeedPersistResult:
-    ensure_wordbank_meaning_compatibility(runtime)
+    # Scope the legacy-compat check to the lemma being persisted; same reasoning
+    # as in `add_word_from_search_seed`: a global check would spuriously block
+    # this save when an unrelated orphan exists elsewhere in the DB.
+    ensure_wordbank_meaning_compatibility(runtime, lemma=seed.lemma)
     metadata = _resolve_search_seed_metadata(runtime, seed=seed)
     stored_translation = _sanitize_search_seed_translation(seed=seed, metadata=metadata)
     lexeme_id, inserted_lexeme = runtime.repository.insert_or_load_lexeme(
@@ -171,6 +174,35 @@ def _resolve_meaning_assignment(
         raise ValueError(f"Meaning '{seed.target_meaning_id}' was not found for lemma '{seed.lemma}'")
 
     meaning_key = seed.meaning_key or seed.gloss or seed.lemma
+
+    # MWE dedupe: when an MWE lemma already has the sentence-auto-created meaning
+    # (meaning_key == lemma) AND nothing else, the user's first explicit search
+    # save should *replace* the auto descriptor instead of creating a duplicate
+    # row. The auto meaning was a placeholder so the word page could render
+    # something + so "Complete variations" could open; user-chosen sense info is
+    # always more accurate than the in-sentence-context auto descriptor.
+    auto_meaning = _find_sentence_auto_mwe_meaning(runtime, lexeme_id=lexeme_id, lemma=seed.lemma)
+    if auto_meaning is not None and meaning_key != auto_meaning.meaning_key:
+        runtime.repository.overwrite_lexeme_meaning_descriptor(
+            meaning_id=auto_meaning.id,
+            meaning_key=meaning_key,
+            gloss=seed.gloss,
+            english_translation=english_translation,
+        )
+        # Refresh the row so callers see the updated descriptor.
+        for refreshed in runtime.repository.list_lexeme_meanings(lexeme_id):
+            if refreshed.id == auto_meaning.id:
+                return (
+                    MeaningAssignment(
+                        id=refreshed.id,
+                        meaning_key=refreshed.meaning_key,
+                        gloss=refreshed.gloss,
+                        english_translation=refreshed.english_translation,
+                    ),
+                    refreshed,
+                    False,
+                )
+
     record, inserted = runtime.repository.upsert_lexeme_meaning(
         lexeme_id=lexeme_id,
         meaning_key=meaning_key,
@@ -191,6 +223,36 @@ def _resolve_meaning_assignment(
         record,
         inserted,
     )
+
+
+def _find_sentence_auto_mwe_meaning(
+    runtime: WordbankRuntime,
+    *,
+    lexeme_id: int,
+    lemma: str,
+) -> LexemeMeaningRecord | None:
+    """Return the meaning row when it looks like a sentence-auto-created MWE placeholder.
+
+    The MWE branch in ``sentencebank_token_resolution.ensure_mwe_meaning_section``
+    creates a meaning with ``meaning_key == normalize_token(lemma)`` so the word
+    page can render before the user explicitly picks a sense. This helper detects
+    that placeholder shape so the search-save dedupe can replace it cleanly.
+
+    Returns ``None`` unless:
+      - the lemma is multi-word (so it's actually an MWE)
+      - the lexeme has exactly ONE meaning row (otherwise we'd be guessing which
+        of multiple meanings is the placeholder)
+      - that single meaning's key matches the lemma exactly
+    """
+    if " " not in lemma.strip():
+        return None
+    meanings = runtime.repository.list_lexeme_meanings(lexeme_id)
+    if len(meanings) != 1:
+        return None
+    only = meanings[0]
+    if normalize_token(only.meaning_key) != normalize_token(lemma):
+        return None
+    return only
 
 
 def _sanitize_search_seed_translation(

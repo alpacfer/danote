@@ -42,20 +42,27 @@ export function WordbankRelatedWords({
   const [openCardIds, setOpenCardIds] = useState<Record<number, boolean>>({})
   const [savingByKey, setSavingByKey] = useState<Record<string, boolean>>({})
 
-  if (!relatedWords || relatedWords.status !== "ready" || (relatedWords.items?.length ?? 0) === 0) {
+  // "Composition" only shows constituent components (compound_component). Reverse
+  // links (`compound_host` — "this lemma is part of these other saved compounds")
+  // are a related-words concept and are hidden until a real Related/Synonyms
+  // feature exists. See bug fix discussion in the MWE feature review.
+  const compositionItems = (relatedWords?.items ?? []).filter(
+    (item) => item.relation_type === "compound_component",
+  )
+  if (!relatedWords || relatedWords.status !== "ready" || compositionItems.length === 0) {
     return null
   }
 
   return (
-    <section className="space-y-4 pt-2" aria-labelledby="wordbank-related-heading">
+    <section className="space-y-4 pt-2" aria-labelledby="wordbank-composition-heading">
       <h2
-        id="wordbank-related-heading"
+        id="wordbank-composition-heading"
         className="text-muted-foreground text-[11px] font-semibold uppercase tracking-wide"
       >
-        Related
+        Composition
       </h2>
       <div className="grid gap-3 sm:grid-cols-2">
-        {(relatedWords.items ?? []).map((item) => {
+        {compositionItems.map((item) => {
           const uniqueVariant = item.display_variant ?? null
           const candidateVariants = item.candidate_variants ?? []
           const isSaved = item.saved_match.status !== "unsaved"
@@ -79,7 +86,7 @@ export function WordbankRelatedWords({
                         type="button"
                         variant="ghost"
                         className="hover:bg-accent/60 h-auto w-full items-center justify-between rounded-none px-4 py-4 text-left"
-                        aria-label={`Choose related word match for ${item.lemma}`}
+                        aria-label={`Choose composition match for ${item.lemma}`}
                       >
                         <RelatedWordCardBody item={item} uniqueVariant={uniqueVariant} isAmbiguous={isAmbiguous} />
                         <Plus className="text-muted-foreground size-4 shrink-0 self-center" />
@@ -102,7 +109,7 @@ export function WordbankRelatedWords({
                       variant="ghost"
                       disabled={isActionLoading}
                       className="hover:bg-accent/60 h-auto w-full items-center justify-between rounded-none px-4 py-4 text-left"
-                      aria-label={`Add related word ${item.lemma}`}
+                      aria-label={`Add composition component ${item.lemma}`}
                       onClick={() => {
                         void saveVariant({
                           item,

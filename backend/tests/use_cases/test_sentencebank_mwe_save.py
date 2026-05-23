@@ -307,3 +307,300 @@ def test_mwe_save_infers_surface_morphology_for_multi_particle_verb(tmp_path: Pa
     assert "Tense=Past" in (tog_rows[0].morphology or ""), (
         f"expected Tense=Past in inferred morphology, got {tog_rows[0].morphology!r}"
     )
+
+
+def test_search_preview_returns_one_variant_per_mwe_meaning(tmp_path: Path) -> None:
+    """Polysemous MWE lemmas like "tage på" come back with one CORSearchVariant per
+    distinct sense in `mwe_meanings`. Each variant has a distinct cor_id and its own
+    gloss / saveable_translation so the frontend can render and save each card
+    independently (saves land as distinct lexeme_meanings rows under the same MWE
+    lexeme via the existing `add_word_from_search_seed` flow).
+    """
+    from app.services.sentence_verification import SentenceMWEMeaning
+
+    db_path = _db_path(tmp_path)
+    wordbank_use_case = WordbankUseCase(
+        db_path,
+        translation_service=FakeTranslationService({"tage på": "to put on"}),
+        nlp_adapter=MappingNLPAdapter({}),
+    )
+    sb = SentencebankUseCase(
+        db_path,
+        translation_service=FakeTranslationService({"tage på": "to put on"}),
+        nlp_adapter=MappingNLPAdapter({}),
+        wordbank_use_case=wordbank_use_case,
+        sentence_verification_service=FakeSentenceVerificationService(results={
+            "tage på": SentenceVerificationResult(
+                is_valid=True,
+                errors=[],
+                corrected_text=None,
+                language="da",
+                is_multi_word_expression=True,
+                mwe_lemma="tage på",
+                mwe_pos_tag="VERB",
+                mwe_gloss="iføre sig tøj",
+                mwe_english_translation="to put on (clothes)",
+                mwe_meanings=[
+                    SentenceMWEMeaning(
+                        gloss="iføre sig tøj",
+                        english_translation="to put on (clothes)",
+                        pos_tag="VERB",
+                        meaning_key="iføre sig tøj",
+                    ),
+                    SentenceMWEMeaning(
+                        gloss="forøge sin kropsvægt",
+                        english_translation="to gain weight",
+                        pos_tag="VERB",
+                        meaning_key="tage på i vægt",
+                    ),
+                    SentenceMWEMeaning(
+                        gloss="tage afsted",
+                        english_translation="to go somewhere",
+                        pos_tag="VERB",
+                        meaning_key="tage afsted",
+                    ),
+                ],
+            ),
+        }),
+    )
+
+    preview = sb.preview_sentence_search("tage på")
+
+    assert preview.is_multi_word_expression is True
+    assert preview.mwe_lemma == "tage på"
+    # One variant per meaning.
+    assert len(preview.mwe_meanings) == 3
+    # Distinct cor_ids — required so the frontend treats each as a distinct save target.
+    cor_ids = [variant.cor_id for variant in preview.mwe_meanings]
+    assert len(set(cor_ids)) == 3
+    # Each card carries the SENSE-specific gloss + translation.
+    glosses = {variant.gloss for variant in preview.mwe_meanings}
+    translations = {variant.saveable_translation for variant in preview.mwe_meanings}
+    assert glosses == {"iføre sig tøj", "forøge sin kropsvægt", "tage afsted"}
+    assert translations == {"to put on (clothes)", "to gain weight", "to go somewhere"}
+    # Back-compat: mwe_cor_match is the first meaning.
+    assert preview.mwe_cor_match is not None
+    assert preview.mwe_cor_match.saveable_translation == "to put on (clothes)"
+
+
+def test_search_preview_falls_back_to_single_match_when_meanings_absent(tmp_path: Path) -> None:
+    """Older Gemini responses without mwe_meanings still synthesize a one-element
+    list (parser-level forward-compat), so the preview always exposes the saveable
+    variant via mwe_meanings as well as mwe_cor_match."""
+    db_path = _db_path(tmp_path)
+    wordbank_use_case = WordbankUseCase(
+        db_path,
+        translation_service=FakeTranslationService({"se efter": "look after"}),
+        nlp_adapter=MappingNLPAdapter({}),
+    )
+    sb = SentencebankUseCase(
+        db_path,
+        translation_service=FakeTranslationService({"se efter": "look after"}),
+        nlp_adapter=MappingNLPAdapter({}),
+        wordbank_use_case=wordbank_use_case,
+        sentence_verification_service=FakeSentenceVerificationService(results={
+            "se efter": SentenceVerificationResult(
+                is_valid=True,
+                errors=[],
+                corrected_text=None,
+                language="da",
+                is_multi_word_expression=True,
+                mwe_lemma="se efter",
+                mwe_pos_tag="VERB",
+                mwe_gloss="undersøge",
+                mwe_english_translation="look after",
+                mwe_meanings=[],  # Older response shape, parser-level synthesis takes over.
+            ),
+        }),
+    )
+
+    preview = sb.preview_sentence_search("se efter")
+
+    assert preview.is_multi_word_expression is True
+    assert preview.mwe_cor_match is not None
+    # Even with no explicit mwe_meanings, the preview returns one variant for rendering.
+    assert len(preview.mwe_meanings) == 1
+    assert preview.mwe_meanings[0].lemma == "se efter"
+    assert preview.mwe_meanings[0].saveable_translation == "look after"
+
+
+def test_mwe_search_save_after_sentence_save_replaces_auto_meaning(tmp_path: Path) -> None:
+    """The sentence-save flow auto-creates an MWE meaning (meaning_key == lemma) so
+    the word page renders and "Complete variations" can open. When the user later
+    opens search and explicitly saves a specific sense, that explicit save must
+    *replace* the auto placeholder rather than add a duplicate row — otherwise
+    every MWE the user touched via sentence-save and then search would end up
+    with two meaning sections covering the same lemma.
+    """
+    db_path = _db_path(tmp_path)
+    sb, wb, _ = _make_use_cases(
+        db_path,
+        nlp_map={
+            "Pas på bilen!": [
+                NLPToken(text="Pas", lemma="passe", pos="VERB", morphology=None, is_punctuation=False),
+                NLPToken(text="på", lemma="på", pos="ADP", morphology=None, is_punctuation=False),
+                NLPToken(text="bilen", lemma="bil", pos="NOUN", morphology=None, is_punctuation=False),
+                NLPToken(text="!", lemma="!", pos="PUNCT", morphology=None, is_punctuation=True),
+            ],
+        },
+        translations={"Pas på bilen!": "Watch out for the car!", "bilen": "the car"},
+        verification={
+            "Pas på bilen!": SentenceVerificationResult(
+                is_valid=True, errors=[], corrected_text=None, language="da",
+                mwe_spans=[SentenceMWESpan(
+                    start=0, end=6, surface="Pas på", lemma="passe på",
+                    pos_tag="VERB",
+                    gloss="være opmærksom på",
+                    english_translation="to watch out for",
+                )],
+            )
+        },
+    )
+    sb.add_sentence("Pas på bilen!")
+
+    # Sentinel: the sentence save created the auto MWE meaning (meaning_key == lemma).
+    lexeme = wb.runtime.repository.get_lexeme("passe på")
+    assert lexeme is not None
+    before = wb.runtime.repository.list_lexeme_meanings(lexeme.id)
+    assert len(before) == 1
+    assert before[0].meaning_key == "passe på"
+    auto_meaning_id = before[0].id
+
+    # User now opens search, sees the MWE card with a more specific Gemini sense,
+    # and saves it. The save seed carries a different meaning_key and gloss than
+    # the auto row's placeholder values.
+    wb.add_word(
+        "passe på",
+        "passe på",
+        search_seed={
+            "lemma": "passe på",
+            "surface": "passe på",
+            "dictionary_status": "generated_non_cor",
+            "cor_id": None,
+            "cor_lemma_idx": None,
+            "meaning_key": "være forsigtig",
+            "gloss": "være opmærksom eller forsigtig",
+            "english_translation": "to watch out, to be careful",
+            "pos_tag": "VERB",
+            "morphology": None,
+            "target_meaning_id": None,
+        },
+    )
+
+    # Still exactly one meaning row, but its descriptor has been replaced.
+    after = wb.runtime.repository.list_lexeme_meanings(lexeme.id)
+    assert len(after) == 1, f"expected dedupe to keep one row, got {[m.meaning_key for m in after]}"
+    assert after[0].id == auto_meaning_id
+    assert after[0].meaning_key == "være forsigtig"
+    assert after[0].gloss == "være opmærksom eller forsigtig"
+    assert after[0].english_translation == "to watch out, to be careful"
+
+
+def test_mwe_search_save_with_distinct_meaning_keys_creates_two_meaning_rows(tmp_path: Path) -> None:
+    """Polysemous MWE (e.g. "tage på" → put on / gain weight) saves from two cards
+    must create two distinct meaning rows. The dedupe only collapses the
+    placeholder-shaped auto meaning; second + subsequent explicit saves with new
+    meaning_keys always insert.
+    """
+    db_path = _db_path(tmp_path)
+    sb, wb, _ = _make_use_cases(
+        db_path,
+        nlp_map={},
+        translations={},
+        verification={},
+    )
+    # Manually create the MWE lexeme + no auto meaning (search-only path).
+    lex_id, _ = wb.runtime.repository.insert_or_load_lexeme(
+        stored_lemma="tage på",
+        translation=None,
+        provider=None,
+        pos_tag="VERB",
+        morphology=None,
+        source="search",
+        dictionary_status="generated_non_cor",
+    )
+
+    # First explicit search save → meaning A.
+    wb.add_word(
+        "tage på",
+        "tage på",
+        search_seed={
+            "lemma": "tage på", "surface": "tage på",
+            "dictionary_status": "generated_non_cor",
+            "cor_id": None, "cor_lemma_idx": None,
+            "meaning_key": "iføre sig tøj",
+            "gloss": "iføre sig tøj",
+            "english_translation": "to put on (clothes)",
+            "pos_tag": "VERB", "morphology": None, "target_meaning_id": None,
+        },
+    )
+    # Second explicit save with different sense → meaning B.
+    wb.add_word(
+        "tage på",
+        "tage på",
+        search_seed={
+            "lemma": "tage på", "surface": "tage på",
+            "dictionary_status": "generated_non_cor",
+            "cor_id": None, "cor_lemma_idx": None,
+            "meaning_key": "tage på i vægt",
+            "gloss": "forøge sin kropsvægt",
+            "english_translation": "to gain weight",
+            "pos_tag": "VERB", "morphology": None, "target_meaning_id": None,
+        },
+    )
+
+    meanings = wb.runtime.repository.list_lexeme_meanings(lex_id)
+    assert len(meanings) == 2
+    keys = {m.meaning_key for m in meanings}
+    assert keys == {"iføre sig tøj", "tage på i vægt"}
+    translations = {m.english_translation for m in meanings}
+    assert translations == {"to put on (clothes)", "to gain weight"}
+
+
+def test_mwe_search_save_after_sentence_save_with_matching_key_reuses_via_upsert(tmp_path: Path) -> None:
+    """When the user's explicit save happens to produce the same meaning_key as
+    the sentence-auto placeholder ("passe på" == lemma), the underlying upsert
+    matches it without going through the dedupe-replace path. Result is still a
+    single meaning row."""
+    db_path = _db_path(tmp_path)
+    sb, wb, _ = _make_use_cases(
+        db_path,
+        nlp_map={
+            "Pas på bilen!": [
+                NLPToken(text="Pas", lemma="passe", pos="VERB", morphology=None, is_punctuation=False),
+                NLPToken(text="på", lemma="på", pos="ADP", morphology=None, is_punctuation=False),
+                NLPToken(text="bilen", lemma="bil", pos="NOUN", morphology=None, is_punctuation=False),
+                NLPToken(text="!", lemma="!", pos="PUNCT", morphology=None, is_punctuation=True),
+            ],
+        },
+        translations={"Pas på bilen!": "Watch out for the car!", "bilen": "the car"},
+        verification={
+            "Pas på bilen!": SentenceVerificationResult(
+                is_valid=True, errors=[], corrected_text=None, language="da",
+                mwe_spans=[SentenceMWESpan(
+                    start=0, end=6, surface="Pas på", lemma="passe på",
+                    pos_tag="VERB", gloss=None, english_translation="to watch out for",
+                )],
+            )
+        },
+    )
+    sb.add_sentence("Pas på bilen!")
+
+    wb.add_word(
+        "passe på",
+        "passe på",
+        search_seed={
+            "lemma": "passe på", "surface": "passe på",
+            "dictionary_status": "generated_non_cor",
+            "cor_id": None, "cor_lemma_idx": None,
+            "meaning_key": "passe på",  # Matches the auto meaning's key — plain upsert path.
+            "gloss": None,
+            "english_translation": "to watch out for",
+            "pos_tag": "VERB", "morphology": None, "target_meaning_id": None,
+        },
+    )
+
+    lexeme = wb.runtime.repository.get_lexeme("passe på")
+    assert lexeme is not None
+    meanings = wb.runtime.repository.list_lexeme_meanings(lexeme.id)
+    assert len(meanings) == 1

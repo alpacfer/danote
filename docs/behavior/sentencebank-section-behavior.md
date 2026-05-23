@@ -112,6 +112,17 @@ adverbial "there" and `der` as relative pronoun open different word-page cards.
 Clicking a saved sentence token opens the normal word page for that lemma,
 including built-in words that also belong to pinned reference collections.
 
+### Polysemous MWE search results
+
+For polysemous MWE lemmas (e.g. `tage på` → put on / gain weight / go somewhere) the
+search-preview response carries `mwe_meanings`: one `CORSearchVariant` per distinct
+sense, each with its own gloss + English translation and a distinct `cor_id` suffix
+derived from the meaning_key. The sidebar renders one save card per entry — saving
+two cards lands them as two `meaning_sections` rows under the same MWE lexeme on the
+word page, mirroring how polysemous single-word lemmas behave. Monosemous MWEs come
+back with a one-element `mwe_meanings` and a single card (identical to
+`mwe_cor_match` for back-compat).
+
 ### Multi-word expression handling
 
 The sentence-verification Gemini call doubles as the MWE detector. Its prompt
@@ -133,10 +144,12 @@ gated by the same flow used for any other word. Surface morphology is inferred
 from the head verb's COR entry (`pas` → `Mood=Imp|VerbForm=Fin`) so the
 encountered form slots into the right paradigm row instead of "Other forms".
 
-The Related Words section gets a synchronous seed of the constituent words
-(e.g. `passe` + `på`) so the UI has something immediately; the existing
-Gemini related-words background job still runs for the MWE lemma and replaces
-the seed with the richer Gemini result (constituents + near-synonym MWEs).
+The "Composition" section (formerly "Related") gets a synchronous seed of the
+constituent words (e.g. `passe` + `på`) so the UI has something immediately;
+the existing Gemini related-words background job still runs for the MWE lemma
+and replaces the seed with Gemini's refined constituent decomposition. Synonyms
+and related expressions are not a feature — both the prompt and the UI are
+scoped to literal composition only.
 
 ## 5) Refresh / invalidation
 

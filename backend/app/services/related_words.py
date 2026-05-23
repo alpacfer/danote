@@ -169,12 +169,15 @@ class GeminiCompoundRelatedWordsService:
         is_mwe = " " in lemma.strip()
         if is_mwe:
             # Multi-word expression (phrasal verb / idiom): the lemma has whitespace
-            # (e.g. "passe på", "tage af sted", "skyde papegøjen"). Return the
-            # constituent words AND any close-meaning near-synonym MWEs in reading
-            # order. The schema is unchanged so the worker can persist either shape.
+            # (e.g. "passe på", "tage af sted", "skyde papegøjen"). Return ONLY the
+            # constituent words — same shape as single-word compound decomposition.
+            # Synonyms / related expressions are deliberately out of scope: the
+            # wordbank UI labels this section "Composition" and only shows the parts
+            # that make up the lemma, never near-synonyms.
             return (
                 "You are a Danish linguist.\n"
                 "Analyze one Danish multi-word expression (phrasal verb or idiom).\n"
+                "This task is ONLY for compound decomposition.\n"
                 "Return JSON only.\n"
                 "{"
                 '"is_compound":true,'
@@ -182,8 +185,8 @@ class GeminiCompoundRelatedWordsService:
                 "}\n"
                 "Rules:\n"
                 "- Always set is_compound=true; the lemma is a multi-word expression.\n"
-                "- items must include EVERY constituent word in reading order first (e.g. for \"passe på\" return [\"passe\", \"på\"]).\n"
-                "- After the constituents, you MAY append up to 3 close-meaning near-synonym MWEs (e.g. \"holde øje med\" for \"passe på\") in order of semantic closeness.\n"
+                "- items must contain EVERY constituent word in reading order (e.g. for \"passe på\" return [\"passe\", \"på\"]).\n"
+                "- Do NOT include near-synonyms, related expressions, or alternative phrasings — only the literal constituent words.\n"
                 "- Each item lemma must be the canonical Danish lemma, lowercased.\n"
                 "- english_translation must be a short idiomatic English gloss.\n"
                 "- pos_tag must be the standard UD tag for that constituent (ADP for prepositions like \"på\", VERB for the head verb, etc.).\n"

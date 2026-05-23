@@ -29,6 +29,10 @@ export function wordPageBadgesForSavedForm(form: {
   pos_tag?: string | null
   morphology?: string | null
   gram_raw?: string | null
+  /** Optional lemma. When provided AND multi-word, the primary badge renders as
+   * "Phrasal verb" / "Idiom" so word cards distinguish MWEs from regular VERB
+   * entries. See `primaryPosLabelForLemma` in @/app/core. */
+  lemma?: string | null
 }): CorSearchBadge[] {
   const posTag = form.pos_tag?.toUpperCase() ?? null
   const badges = badgesForSavedForm(form)

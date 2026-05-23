@@ -8,12 +8,13 @@ import {
   badgesForSavedForm,
   corSecondaryBadgeClass,
   glossDisplayForVariant,
+  isMultiWordLemma,
   lemmaDisplayForVariant,
   lemmaTranslationForVariant,
   lemmaTranslationWithGlossComma,
   saveableTranslationForVariant,
   posBadgeClass,
-  primaryPosLabel,
+  primaryPosLabelForLemma,
   type SearchSaveSeed,
   type CORSearchGroup,
   type CORSearchVariant,
@@ -88,14 +89,17 @@ export function SidebarCorResults({
                 && sourceDisplay.trim().toLowerCase() !== variant.form.trim().toLowerCase()
               const hasGloss = Boolean(variant.gloss?.trim())
               const isGeneratedNonCor = variant.dictionary_status === "generated_non_cor"
-              const isMweType = variant.pos_tag?.toLowerCase() === "phrasal_verb" || variant.pos_tag?.toLowerCase() === "idiom"
+              // MWE detection: the backend normalizes phrasal-verb / idiom pos_tag → UD
+              // ("VERB" for verbal MWEs, "NOUN" for nominal idioms), so the distinction
+              // is carried by the lemma being multi-word.
+              const isMweType = isMultiWordLemma(variant.lemma)
               let metadataBadges = isGeneratedNonCor
-                ? badgesForSavedForm({ pos_tag: variant.pos_tag, morphology: variant.morphology })
+                ? badgesForSavedForm({ pos_tag: variant.pos_tag, morphology: variant.morphology, lemma: variant.lemma })
                 : badgesFromGramRaw(variant.gram_raw)
 
-              if (isMweType && variant.pos_tag) {
-                const mweLabel = primaryPosLabel(variant.pos_tag) ?? variant.pos_tag
-                if (!metadataBadges.some(b => b.label === mweLabel)) {
+              if (isMweType) {
+                const mweLabel = primaryPosLabelForLemma(variant.pos_tag ?? null, variant.lemma)
+                if (mweLabel && !metadataBadges.some(b => b.label === mweLabel)) {
                   const filtered = metadataBadges.filter(b => b.tone !== "primary")
                   metadataBadges = [{ label: mweLabel, tone: "primary" }, ...filtered]
                 }
@@ -133,8 +137,12 @@ export function SidebarCorResults({
                           dictionary_status: isGeneratedNonCor ? "generated_non_cor" : "cor",
                           cor_id: isGeneratedNonCor ? null : variant.cor_id,
                           cor_lemma_idx: isGeneratedNonCor ? null : variant.lemma_idx,
-                          meaning_key: group.gloss ?? variant.lemma,
-                          gloss: group.gloss ?? variant.gloss ?? null,
+                          // Each variant represents a distinct sense (especially for
+                          // polysemous MWEs like "tage på"). Use the variant's own
+                          // gloss as the meaning_key so two cards land in two meaning
+                          // rows. Falling back to group.gloss would collide.
+                          meaning_key: variant.gloss ?? group.gloss ?? variant.lemma,
+                          gloss: variant.gloss ?? group.gloss ?? null,
                           english_translation: saveableTranslation,
                           pos_tag: variant.pos_tag ?? group.pos_tag ?? null,
                           morphology: variant.morphology ?? null,

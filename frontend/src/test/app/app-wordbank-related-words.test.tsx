@@ -1,4 +1,4 @@
-import { fireEvent, mockFetchImplementation, renderApp, responseOf, screen, waitFor, within } from "@/test/app-test-helpers"
+import { fireEvent, mockFetchImplementation, renderApp, responseOf, screen, waitFor } from "@/test/app-test-helpers"
 
 function expectToAppearBefore(first: HTMLElement, second: HTMLElement) {
   expect(first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
@@ -78,7 +78,7 @@ function buildOwnerDetails(args: {
 }
 
 describe("App wordbank related words", () => {
-  it("renderer-only: renders the Related section after meaning cards and polls queued related words until they are ready", async () => {
+  it("renderer-only: renders the Composition section after meaning cards and polls queued related words until they are ready", async () => {
     let detailRequests = 0
     let releaseReadyResponse: (() => void) | null = null
 
@@ -134,7 +134,7 @@ describe("App wordbank related words", () => {
     fireEvent.click(await screen.findByRole("button", { name: /legeplads/i }))
 
     const meaningCard = await screen.findByTestId("wordbank-meaning-card-1")
-    expect(screen.queryByRole("heading", { name: /^related$/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole("heading", { name: /^composition$/i })).not.toBeInTheDocument()
     expect(screen.queryByText(/finding related compound words/i)).not.toBeInTheDocument()
 
     expect(releaseReadyResponse).not.toBeNull()
@@ -142,7 +142,7 @@ describe("App wordbank related words", () => {
 
     await waitFor(() => {
       expect(detailRequests).toBeGreaterThanOrEqual(2)
-      const relatedHeading = screen.getByRole("heading", { name: /^related$/i })
+      const relatedHeading = screen.getByRole("heading", { name: /^composition$/i })
       const header = document.getElementById("wordbank-lemma-header")
       expectToAppearBefore(meaningCard, relatedHeading)
       expect(header?.querySelector('[data-slot="separator"]')).toBeNull()
@@ -213,7 +213,7 @@ describe("App wordbank related words", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
     fireEvent.click(await screen.findByRole("button", { name: /legeplads/i }))
-    fireEvent.click(await screen.findByRole("button", { name: /add related word lege/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /add composition component lege/i }))
 
     await waitFor(() => {
       expect(capturedBody).toEqual({
@@ -303,7 +303,7 @@ describe("App wordbank related words", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
     fireEvent.click(await screen.findByRole("button", { name: /legeplads/i }))
-    fireEvent.click(await screen.findByRole("button", { name: /choose related word match for plads/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /choose composition match for plads/i }))
 
     const squareButton = screen.getByText(/^square$/i).closest("button")
     expect(squareButton).not.toBeNull()
@@ -408,7 +408,12 @@ describe("App wordbank related words", () => {
     expect(screen.getByTestId("wordbank-meaning-card-2")).toBeInTheDocument()
   })
 
-  it("renderer-only: component word pages show reverse compound hosts as related", async () => {
+  it("renderer-only: compound_host reverse links are hidden — Composition only shows decomposition", async () => {
+    // "Composition" is decomposition-only. compound_host links ("this lemma is a
+    // constituent of these other saved compounds") are conceptually "related" /
+    // "synonyms-adjacent" and are intentionally hidden until a real Related
+    // surface exists. See the wordbank bug fix that renamed the section to
+    // Composition.
     mockFetchImplementation({
       lemmasResponse: {
         items: [{ lemma: "lege", variation_count: 0 }],
@@ -447,9 +452,10 @@ describe("App wordbank related words", () => {
     fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
     fireEvent.click(await screen.findByRole("button", { name: /^lege$/i }))
 
-    expect(await screen.findByRole("heading", { name: /^related$/i })).toBeInTheDocument()
-    const openHostButton = screen.getByRole("button", { name: /open legeplads in wordbank/i })
-    expect(openHostButton).toBeInTheDocument()
-    expect(within(openHostButton).getByText(/^legeplads$/i)).toBeInTheDocument()
+    // The page must render (the heading below must exist), but with only a
+    // compound_host item the Composition section has no decomposition rows.
+    expect(await screen.findByRole("heading", { name: /^lege$/i })).toBeInTheDocument()
+    expect(screen.queryByRole("heading", { name: /^composition$/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /open legeplads in wordbank/i })).not.toBeInTheDocument()
   })
 })

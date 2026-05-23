@@ -33,6 +33,21 @@ class SentenceMWESpan:
 
 
 @dataclass(frozen=True, slots=True)
+class SentenceMWEMeaning:
+    """One distinct sense of a Multi-Word Expression.
+
+    Polysemous phrasal verbs like "tage på" carry multiple meanings (put on
+    clothes / gain weight / go somewhere); each row here represents one. The
+    frontend renders one search card per meaning, and saving each card creates
+    a separate lexeme_meanings row under the same MWE lexeme.
+    """
+    gloss: str | None = None
+    english_translation: str | None = None
+    pos_tag: str | None = None
+    meaning_key: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class SentenceVerificationResult:
     is_valid: bool
     errors: list[SentenceVerificationErrorSpan]
@@ -40,9 +55,13 @@ class SentenceVerificationResult:
     language: Literal["da", "en", "unknown"]
     is_multi_word_expression: bool = False
     mwe_lemma: str | None = None
+    # Single-meaning back-compat fields. When the lemma is polysemous, these
+    # mirror the FIRST meaning in `mwe_meanings`; callers preferring per-sense
+    # behavior should read `mwe_meanings` directly.
     mwe_pos_tag: str | None = None
     mwe_gloss: str | None = None
     mwe_english_translation: str | None = None
+    mwe_meanings: list[SentenceMWEMeaning] = field(default_factory=list)
     mwe_spans: list[SentenceMWESpan] = field(default_factory=list)
 
 
@@ -86,8 +105,14 @@ def _build_prompt(source_text: str) -> str:
         '- "is_multi_word_expression": true if the ENTIRE input is exactly one multi-word expression (e.g. "se efter"), false otherwise\n'
         '- "mwe_lemma": the canonical infinitive/dictionary form of the MWE if the entire input is an MWE, null otherwise (e.g., "se efter" if input is "ser efter")\n'
         '- "mwe_pos_tag": the syntactic part-of-speech of the MWE using STANDARD Universal Dependencies tags ("VERB" for phrasal verbs/verbal idioms, "NOUN" for nominal idioms, "ADJ", "ADV", etc.). Do NOT use "phrasal_verb" or "idiom" — return the underlying syntactic role. Null if the entire input is not an MWE.\n'
-        '- "mwe_gloss": a brief Danish explanation/gloss of the MWE if the entire input is an MWE, null otherwise\n'
-        '- "mwe_english_translation": English translation of the MWE if the entire input is an MWE, null otherwise\n'
+        '- "mwe_gloss": a brief Danish explanation/gloss of the MWE\'s MOST COMMON meaning if the entire input is an MWE, null otherwise. (Duplicates the first entry of mwe_meanings — kept for back-compat.)\n'
+        '- "mwe_english_translation": English translation of the MWE\'s MOST COMMON meaning if the entire input is an MWE, null otherwise.\n'
+        '- "mwe_meanings": when is_multi_word_expression is true, an array of DISTINCT senses for the lemma, ordered from most common to least. Even monosemous MWEs return a one-element array. Polysemous phrasal verbs like "tage på" (put on / gain weight / go somewhere) must return one entry per distinct sense. Each entry has fields:\n'
+        '  - "gloss": brief Danish explanation/gloss of THIS specific sense\n'
+        '  - "english_translation": English translation of THIS specific sense (e.g. "to put on (clothes)" vs "to gain weight")\n'
+        '  - "pos_tag": standard UD POS tag for this sense (usually matches mwe_pos_tag)\n'
+        '  - "meaning_key": a short stable identifier for this sense, normalized lowercase and unique within the array (e.g. "iføre sig tøj", "tage til vægt", "tage afsted")\n'
+        '  Empty array if not an MWE. Cap at 6 entries — only return clearly distinct, commonly-used senses; do not invent rare meanings.\n'
         '- "mwe_spans": list of MWE spans detected within the sentence if the input is a sentence. Each span has the fields:\n'
         '  - "start": 0-indexed character offset of the start of the MWE span (inclusive)\n'
         '  - "end": 0-indexed character offset of the end of the MWE span (exclusive)\n'
@@ -395,6 +420,45 @@ def _find_best_substring_match(source_text: str, surface: str, estimated_start: 
     return None
 
 
+def _parse_mwe_meanings(raw_meanings: object) -> list[SentenceMWEMeaning]:
+    """Parse Gemini's `mwe_meanings` array into typed entries.
+
+    Drops items missing both `gloss` and `english_translation` (a sense with no
+    distinguishing content can't be rendered or saved meaningfully). Dedupes by
+    meaning_key — Gemini occasionally repeats senses with minor wording variants.
+    """
+    if not isinstance(raw_meanings, list):
+        return []
+    parsed: list[SentenceMWEMeaning] = []
+    seen_keys: set[str] = set()
+    for item in raw_meanings:
+        if not isinstance(item, dict):
+            continue
+        gloss = item.get("gloss") or None
+        english_translation = item.get("english_translation") or None
+        if not gloss and not english_translation:
+            continue
+        meaning_key_raw = item.get("meaning_key")
+        meaning_key = (
+            str(meaning_key_raw).strip().lower()
+            if isinstance(meaning_key_raw, str) and meaning_key_raw.strip()
+            else None
+        )
+        # Fall back to the English translation (then gloss) as the dedupe key so
+        # we don't drop entries Gemini gave without a meaning_key.
+        dedupe_key = meaning_key or (english_translation or "").strip().lower() or (gloss or "").strip().lower()
+        if dedupe_key in seen_keys:
+            continue
+        seen_keys.add(dedupe_key)
+        parsed.append(SentenceMWEMeaning(
+            gloss=gloss,
+            english_translation=english_translation,
+            pos_tag=_normalize_mwe_pos_tag(item.get("pos_tag")),
+            meaning_key=meaning_key,
+        ))
+    return parsed
+
+
 def _parse_result(raw: str | None, source_text: str) -> SentenceVerificationResult:
     if not raw:
         return SentenceVerificationResult(
@@ -407,6 +471,7 @@ def _parse_result(raw: str | None, source_text: str) -> SentenceVerificationResu
             mwe_pos_tag=None,
             mwe_gloss=None,
             mwe_english_translation=None,
+            mwe_meanings=[],
             mwe_spans=[],
         )
     try:
@@ -422,6 +487,7 @@ def _parse_result(raw: str | None, source_text: str) -> SentenceVerificationResu
             mwe_pos_tag=None,
             mwe_gloss=None,
             mwe_english_translation=None,
+            mwe_meanings=[],
             mwe_spans=[],
         )
 
@@ -439,6 +505,7 @@ def _parse_result(raw: str | None, source_text: str) -> SentenceVerificationResu
     raw_mwe_pos_tag = _normalize_mwe_pos_tag(data.get("mwe_pos_tag"))
     raw_mwe_gloss = data.get("mwe_gloss") or None
     raw_mwe_english_translation = data.get("mwe_english_translation") or None
+    mwe_meanings = _parse_mwe_meanings(data.get("mwe_meanings"))
 
     is_mwe = False
     if raw_is_mwe and raw_mwe_lemma:
@@ -450,6 +517,29 @@ def _parse_result(raw: str | None, source_text: str) -> SentenceVerificationResu
         raw_mwe_pos_tag = None
         raw_mwe_gloss = None
         raw_mwe_english_translation = None
+        mwe_meanings = []
+    else:
+        # Back-compat: if Gemini returned mwe_meanings but no top-level
+        # mwe_gloss/translation/pos_tag, mirror the first meaning so older
+        # callers still get a populated single-meaning view.
+        if mwe_meanings:
+            first = mwe_meanings[0]
+            if not raw_mwe_gloss:
+                raw_mwe_gloss = first.gloss
+            if not raw_mwe_english_translation:
+                raw_mwe_english_translation = first.english_translation
+            if not raw_mwe_pos_tag:
+                raw_mwe_pos_tag = first.pos_tag
+        # Forward-compat: if Gemini only returned the single-meaning fields and
+        # no mwe_meanings array, synthesize a one-element array so frontend code
+        # can rely on a single iteration path.
+        elif raw_mwe_gloss or raw_mwe_english_translation:
+            mwe_meanings = [SentenceMWEMeaning(
+                gloss=raw_mwe_gloss,
+                english_translation=raw_mwe_english_translation,
+                pos_tag=raw_mwe_pos_tag,
+                meaning_key=None,
+            )]
 
     raw_mwe_spans = data.get("mwe_spans") or []
     mwe_spans: list[SentenceMWESpan] = []
@@ -495,6 +585,7 @@ def _parse_result(raw: str | None, source_text: str) -> SentenceVerificationResu
             mwe_pos_tag=raw_mwe_pos_tag,
             mwe_gloss=raw_mwe_gloss,
             mwe_english_translation=raw_mwe_english_translation,
+            mwe_meanings=mwe_meanings,
             mwe_spans=mwe_spans,
         )
     filtered_corrected_reference = raw_corrected_text
@@ -526,6 +617,7 @@ def _parse_result(raw: str | None, source_text: str) -> SentenceVerificationResu
             mwe_pos_tag=raw_mwe_pos_tag,
             mwe_gloss=raw_mwe_gloss,
             mwe_english_translation=raw_mwe_english_translation,
+            mwe_meanings=mwe_meanings,
             mwe_spans=mwe_spans,
         )
     filtered_errors = [
@@ -552,6 +644,7 @@ def _parse_result(raw: str | None, source_text: str) -> SentenceVerificationResu
         mwe_pos_tag=raw_mwe_pos_tag,
         mwe_gloss=raw_mwe_gloss,
         mwe_english_translation=raw_mwe_english_translation,
+        mwe_meanings=mwe_meanings,
         mwe_spans=mwe_spans,
     )
 
@@ -636,6 +729,18 @@ class GeminiSentenceVerificationService:
                     "mwe_pos_tag": {"type": "STRING", "nullable": True},
                     "mwe_gloss": {"type": "STRING", "nullable": True},
                     "mwe_english_translation": {"type": "STRING", "nullable": True},
+                    "mwe_meanings": {
+                        "type": "ARRAY",
+                        "items": {
+                            "type": "OBJECT",
+                            "properties": {
+                                "gloss": {"type": "STRING", "nullable": True},
+                                "english_translation": {"type": "STRING", "nullable": True},
+                                "pos_tag": {"type": "STRING", "nullable": True},
+                                "meaning_key": {"type": "STRING", "nullable": True},
+                            },
+                        },
+                    },
                     "mwe_spans": {
                         "type": "ARRAY",
                         "items": {
@@ -663,6 +768,7 @@ class GeminiSentenceVerificationService:
                     "mwe_pos_tag",
                     "mwe_gloss",
                     "mwe_english_translation",
+                    "mwe_meanings",
                     "mwe_spans",
                 ],
             },

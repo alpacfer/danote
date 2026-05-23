@@ -150,12 +150,16 @@ single-word lemmas. The MWE branch in `sentencebank_token_resolution.py`:
   from the head verb's COR entry (`pas` → `Mood=Imp|VerbForm=Fin`) via
   `infer_mwe_surface_morphology`, so the form slots into the Imperative row of
   the verb paradigm instead of "Other forms".
-- Writes a synchronous related-words seed (`seed_mwe_component_related_words`
+- Writes a synchronous "Composition" seed (`seed_mwe_component_related_words`
   on `RelatedWordsCollaborator`) with the constituent words. The existing
   Gemini related-words background job still runs for MWE lemmas — its prompt
   has an MWE branch (see `_prompt` in `services/related_words.py`) that asks
-  for constituents in reading order plus up to 3 near-synonym MWEs — and
-  replaces the seed when it completes.
+  for the constituent words in reading order (decomposition only — near-synonyms
+  / related expressions are not a feature yet) — and replaces the seed when it
+  completes. The frontend renders this data under the "Composition" heading and
+  filters to `relation_type=compound_component`; `compound_host` reverse-links
+  ("this lemma is part of these other saved compounds") are intentionally hidden
+  until a real Related/Synonyms surface exists.
 
 Variations (Present / Past / Past participle for an MWE verb) are not
 auto-populated; the user fills them in via the same "Complete variations"

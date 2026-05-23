@@ -84,6 +84,9 @@ export function WordbankMeaningSections({
           pos_tag: section.pos_tag ?? null,
           morphology: section.morphology ?? null,
           gram_raw: section.gram_raw ?? null,
+          // Pass the page-level lemma so MWE meaning cards render "Phrasal verb"
+          // instead of "Verb". The section itself does not carry the lemma.
+          lemma: lemma,
         })
         const isGeneratedNonCor = section.dictionary_status === "generated_non_cor"
         const sectionTranslationBase = additionalTranslationsDisplay(

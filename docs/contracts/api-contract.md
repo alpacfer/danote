@@ -157,7 +157,8 @@ or `Authorization: Bearer <guest-token>` header. Local dev
 
 ### POST `/api/sentencebank/search-preview`
 - **Request model:** `SentenceSearchPreviewRequest` (`source_text: str`, max 100 chars, `fast: bool = False`).
-- **Response model:** `SentenceSearchPreviewResponse` (`status: "ready" | "blocked" | "preview"`, `query_language`, `source_text`, `english_translation`, `is_valid`, `errors`, `message`, `is_multi_word_expression`, `mwe_lemma`, `mwe_pos_tag`, `mwe_gloss`, `mwe_english_translation`, `mwe_cor_match`).
+- **Response model:** `SentenceSearchPreviewResponse` (`status: "ready" | "blocked" | "preview"`, `query_language`, `source_text`, `english_translation`, `is_valid`, `errors`, `message`, `is_multi_word_expression`, `mwe_lemma`, `mwe_pos_tag`, `mwe_gloss`, `mwe_english_translation`, `mwe_cor_match`, `mwe_meanings`).
+  - `mwe_meanings: CORSearchVariant[]` — one entry per distinct sense for polysemous MWE lemmas (e.g. `tage på` → put on / gain weight / go somewhere). Monosemous MWEs return a one-element list mirroring `mwe_cor_match`. Each entry has a distinct `cor_id` (suffixed with the meaning_key) so the frontend can render one save card per sense; saving each creates a separate `lexeme_meanings` row under the same MWE lexeme. Empty when the input is not an MWE.
 - **Notable status/error behavior:** `422` empty or >100 char text. `503` DB unavailable.
 - **Field invariants:**
   - `source_text`: finalized Danish sentence candidate for sidebar display and save. `null` only when preview is blocked.
@@ -416,7 +417,8 @@ or `Authorization: Bearer <guest-token>` header. Local dev
   - Each `surface_forms[]` may include `verification`, `gram_raw`.
   - Sectioned lemmas: top-level `surface_forms[]` may include saved lemma form for pronunciation/metadata binding. Sectioned meaning `surface_forms[]` exclude lemma-matching rows (available via top-level only).
   - Non-sectioned lemmas: `surface_forms[]` includes the lemma form when it carries pronunciation (`has_pronunciation: true`), so clients can wire the Infinitive/Singular-Indefinite play button to the lemma's audio. When the lemma form has no audio AND there is ≤1 non-lemma form, it is still omitted to avoid duplicating the header text in variation cards.
-  - MWE lemmas (e.g. `passe på`) save through the standard sectioned pipeline: `is_sectioned: true`, one `meaning_sections[]` entry with `pos_tag: "VERB"`, surface forms linked to the meaning, and `related_words.items[]` populated with constituent words (immediate seed) plus near-synonym MWEs once the Gemini job completes.
+  - MWE lemmas (e.g. `passe på`) save through the standard sectioned pipeline: `is_sectioned: true`, one `meaning_sections[]` entry with `pos_tag: "VERB"`, surface forms linked to the meaning, and `related_words.items[]` populated with the constituent words (immediate seed, then refined by Gemini). Constituent items use `relation_type: "compound_component"`; the frontend renders these under a "Composition" heading. `compound_host` reverse-link items are returned for completeness but are not surfaced in the current UI.
+  - Polysemous MWE lemmas (e.g. `tage på` → put on / gain weight / go somewhere) saved one-meaning-at-a-time from search build up multiple `meaning_sections[]` entries under the same lexeme — exactly like polysemous single-word lemmas.
   - Noun `surface_forms[]` ordered: non-slot/irregular first, then singular-definite, plural-indefinite, plural-definite.
   - Verification objects use same additive fields as add/verify responses.
   - Root `related_words`: `status` = `queued` (running) | `ready` (has `items[]`) | `empty` (no components survive filtering) | `error` (job failed).

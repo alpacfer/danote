@@ -70,6 +70,56 @@ class WordbankMutationRepository:
                 (source, lexeme_id, self._owner_user_id),
             )
 
+    def overwrite_lexeme_meaning_descriptor(
+        self,
+        *,
+        meaning_id: int,
+        meaning_key: str,
+        gloss: str | None,
+        english_translation: str | None,
+    ) -> None:
+        """Overwrite (NOT COALESCE) the meaning_key / gloss / english_translation
+        for a meaning row. Used by the MWE dedupe path in
+        ``add_word_from_search_seed`` to replace the sentence-auto-created
+        meaning's tentative descriptor with the user's first explicit save.
+        Other fields are left untouched.
+        """
+        with timed_db_operation("wordbank.overwrite_lexeme_meaning_descriptor"), get_connection(self._db_path) as conn:
+            conn.execute(
+                """
+                UPDATE lexeme_meanings
+                SET meaning_key = ?,
+                    gloss = ?,
+                    english_translation = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                  AND EXISTS (
+                    SELECT 1 FROM lexemes l
+                    WHERE l.id = lexeme_meanings.lexeme_id
+                      AND l.owner_user_id = ?
+                  )
+                """,
+                (meaning_key, gloss, english_translation, meaning_id, self._owner_user_id),
+            )
+            # Propagate to denormalized sentence_bank_tokens.english_translation so
+            # every saved sentence whose token references this meaning reflects
+            # the user's chosen English translation immediately.
+            conn.execute(
+                """
+                UPDATE sentence_bank_tokens
+                SET english_translation = ?
+                WHERE meaning_id = ?
+                  AND save_status = 'saved'
+                  AND EXISTS (
+                    SELECT 1
+                    FROM sentence_bank sb
+                    WHERE sb.id = sentence_bank_tokens.sentence_id
+                      AND sb.owner_user_id = ?
+                  )
+                """,
+                (english_translation, meaning_id, self._owner_user_id),
+            )
+
     def replace_lexeme_meaning_translation(
         self,
         *,

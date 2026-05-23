@@ -26,7 +26,6 @@ def add_word_from_search_seed(
     search_seed: dict[str, object],
     queue_verification: bool = True,
 ) -> AddWordResponse:
-    ensure_wordbank_meaning_compatibility(runtime)
     seed = normalize_search_seed(search_seed)
     normalized_surface = normalize_token(surface_token)
     normalized_lemma = normalize_token(lemma_candidate or "") or normalized_surface
@@ -34,6 +33,12 @@ def add_word_from_search_seed(
         raise ValueError("search_seed.surface must match surface_token")
     if normalized_lemma != seed.lemma:
         raise ValueError("search_seed.lemma must match lemma_candidate")
+    # Scope the legacy-compat check to the lemma being added. A global check would
+    # spuriously fire when an unrelated orphan exists in the DB (e.g. a noun left
+    # without a meaning from an earlier sentence-save in a test fixture with no
+    # COR resolver), blocking legitimate saves. The `get_lemma_details` query is
+    # already lemma-scoped for the same reason.
+    ensure_wordbank_meaning_compatibility(runtime, lemma=seed.lemma)
 
     if seed.dictionary_status == "generated_non_cor" and seed.morphology is None:
         seed = _enrich_non_cor_seed_morphology(runtime, seed)

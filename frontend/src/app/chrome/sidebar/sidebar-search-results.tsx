@@ -119,22 +119,32 @@ function isSelfTranslatedCorVariant(variant: CORSearchVariant, normalizedQuery: 
 export function SidebarSearchResults({ state, data, actions }: SidebarSearchResultsProps) {
   if (state.isSentenceMode) {
     if (state.isMweMode && data.sentenceSearchPreview && data.sentenceSearchPreview.mwe_cor_match) {
-      const mweVariant = {
-        ...data.sentenceSearchPreview.mwe_cor_match,
-        pos_tag: data.sentenceSearchPreview.mwe_pos_tag ?? "phrasal_verb",
-      }
+      // The backend normalizes mwe_pos_tag → UD ("VERB" for phrasal verbs and verbal
+      // idioms). The frontend derives the "Phrasal verb" / "Idiom" badge from the
+      // multi-word lemma (see primaryPosLabelForLemma in @/app/core), so fall back
+      // to "VERB" rather than the retired "phrasal_verb" string when missing.
+      const mwePosTag = data.sentenceSearchPreview.mwe_pos_tag ?? "VERB"
+      // Polysemous MWE lemmas (e.g. "tage på" → put on / gain weight / go) come
+      // back as `mwe_meanings` with one variant per sense. Monosemous MWEs may
+      // either populate `mwe_meanings` with a single entry or just `mwe_cor_match`
+      // (older API responses). Fall back to the single match when the list is empty.
+      const meaningVariants = (data.sentenceSearchPreview.mwe_meanings?.length ?? 0) > 0
+        ? data.sentenceSearchPreview.mwe_meanings!
+        : [data.sentenceSearchPreview.mwe_cor_match]
+      const mweVariants = meaningVariants.map((variant) => ({
+        ...variant,
+        pos_tag: variant.pos_tag ?? mwePosTag,
+      }))
       const mweGroup: CORSearchGroup = {
-        lemma: data.sentenceSearchPreview.mwe_lemma ?? mweVariant.lemma,
+        lemma: data.sentenceSearchPreview.mwe_lemma ?? mweVariants[0].lemma,
         gloss: data.sentenceSearchPreview.mwe_gloss,
-        pos_tag: data.sentenceSearchPreview.mwe_pos_tag ?? "phrasal_verb",
-        variants: [mweVariant],
+        pos_tag: mwePosTag,
+        variants: mweVariants,
       }
-      const mweVariantsToRender = [
-        {
-          group: mweGroup,
-          variant: mweVariant,
-        },
-      ]
+      const mweVariantsToRender = mweVariants.map((variant) => ({
+        group: mweGroup,
+        variant,
+      }))
 
       return (
         <CommandList>

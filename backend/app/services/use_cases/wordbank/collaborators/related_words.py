@@ -117,9 +117,10 @@ class RelatedWordsCollaborator:
 
         Does NOT mark the queued Gemini related-words job complete — the worker is
         expected to run and replace these rows with Gemini's richer answer (which
-        includes component words + near-synonym compounds). This function only
-        provides a synchronous placeholder so the user sees *something* in the
-        Related Words section while the background job runs.
+        may correct POS tags or English glosses for the constituents). The Gemini
+        prompt for MWE lemmas is strictly decomposition; near-synonyms / related
+        expressions are out of scope. The wordbank UI surfaces this data under
+        the "Composition" section.
         """
         normalized_lemma = normalize_token(stored_lemma)
         if not normalized_lemma or " " not in normalized_lemma:

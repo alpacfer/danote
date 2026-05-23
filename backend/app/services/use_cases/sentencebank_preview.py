@@ -22,6 +22,112 @@ from app.services.use_cases.sentencebank_text import (
 from app.services.use_cases.wordbank import WordbankUseCase
 
 
+def _build_mwe_meaning_variants(
+    *,
+    wordbank_use_case: WordbankUseCase,
+    verification: SentenceVerificationResult,
+) -> list[CORSearchVariant]:
+    """Build one CORSearchVariant per distinct sense of an MWE lemma.
+
+    - Always returns at least one variant when the verification flags an MWE (the
+      single mwe_* fields supply the fallback).
+    - For COR-known MWE lemmas we use the local entry as the template and clone it
+      per sense, varying only gloss / english_translation / cor_id so saving each
+      card creates a separate `lexeme_meanings` row keyed by gloss.
+    - For non-COR MWEs we synthesize a `GENERATED_MWE:` cor_id per sense, scoped
+      by meaning_key (or the english_translation) so the frontend treats them as
+      distinct save targets.
+    """
+    lemma = verification.mwe_lemma
+    if not lemma:
+        return []
+
+    # Synthesize a single back-compat meaning when Gemini didn't enumerate.
+    meanings = list(verification.mwe_meanings)
+    if not meanings and (verification.mwe_gloss or verification.mwe_english_translation):
+        from app.services.sentence_verification import SentenceMWEMeaning  # local import to avoid cycle
+        meanings = [SentenceMWEMeaning(
+            gloss=verification.mwe_gloss,
+            english_translation=verification.mwe_english_translation,
+            pos_tag=verification.mwe_pos_tag,
+            meaning_key=None,
+        )]
+    if not meanings:
+        return []
+
+    local_entry = wordbank_use_case.runtime.cor.lookup_mwe_lemma(lemma)
+    variants: list[CORSearchVariant] = []
+    for index, meaning in enumerate(meanings):
+        pos_tag = meaning.pos_tag or verification.mwe_pos_tag
+        translation = meaning.english_translation or verification.mwe_english_translation
+        gloss = meaning.gloss
+        sense_suffix = _meaning_id_suffix(meaning, fallback_index=index)
+        if local_entry is not None:
+            variants.append(CORSearchVariant(
+                # Disambiguate per-sense cor_id so each card is a distinct save target.
+                # The first sense keeps the bare COR id for back-compat with single-meaning callers.
+                cor_id=local_entry.cor_id if index == 0 else f"{local_entry.cor_id}::{sense_suffix}",
+                form=local_entry.form,
+                lemma=local_entry.lemma,
+                gloss=gloss or local_entry.gloss,
+                gloss_translation=None,
+                gram_raw=local_entry.gram_raw,
+                norm=local_entry.norm or "N",
+                lemma_idx=local_entry.lemma_idx,
+                gram_code=local_entry.gram_code,
+                variation=local_entry.variation,
+                pos_tag=pos_tag or local_entry.pos_tag,
+                morphology=local_entry.morphology,
+                features=local_entry.features,
+                extra_tags=local_entry.extra_tags,
+                lemma_translation=translation,
+                saveable_translation=translation,
+                lemma_translation_provider="gemini",
+                lemma_translation_status="gemini",
+                lemma_translation_reason=None,
+            ))
+        else:
+            variants.append(CORSearchVariant(
+                cor_id=f"GENERATED_MWE:{lemma.upper()}::{sense_suffix}",
+                form=lemma,
+                lemma=lemma,
+                gloss=gloss,
+                gloss_translation=None,
+                gram_raw="",
+                norm="N",
+                lemma_idx=0,
+                gram_code=0,
+                variation=0,
+                pos_tag=pos_tag or "VERB",
+                morphology=None,
+                features={},
+                extra_tags=[],
+                lemma_translation=translation,
+                saveable_translation=translation,
+                lemma_translation_provider="gemini",
+                lemma_translation_status="gemini",
+                lemma_translation_reason=None,
+                dictionary_status="generated_non_cor",
+            ))
+    return variants
+
+
+def _meaning_id_suffix(meaning, *, fallback_index: int) -> str:
+    """Pick a stable suffix for the synthesized cor_id of an MWE meaning.
+
+    Prefer Gemini's meaning_key; fall back to the english_translation (snake);
+    last resort is the position. Always normalized to uppercase ASCII-safe form
+    so it slots into a cor_id-like string.
+    """
+    candidate = (meaning.meaning_key or meaning.english_translation or meaning.gloss or "").strip()
+    if not candidate:
+        return f"SENSE_{fallback_index}"
+    # Compact + safe for use inside a cor_id-like identifier.
+    normalized = "_".join(candidate.upper().split())
+    safe = "".join(ch for ch in normalized if ch.isalnum() or ch in {"_", "-"})
+    return safe or f"SENSE_{fallback_index}"
+
+
 def build_verify_sentence_response(
     *,
     normalized_text: str,
@@ -97,55 +203,16 @@ def build_sentence_search_preview(
         )
 
     final_source_text = initial_verification.corrected_text or normalized_query
-    
-    mwe_cor_match = None
+
+    mwe_meanings_variants: list[CORSearchVariant] = []
+    mwe_cor_match: CORSearchVariant | None = None
     if wordbank_use_case is not None and initial_verification.is_multi_word_expression and initial_verification.mwe_lemma:
-        local_entry = wordbank_use_case.runtime.cor.lookup_mwe_lemma(initial_verification.mwe_lemma)
-        if local_entry is not None:
-            mwe_cor_match = CORSearchVariant(
-                cor_id=local_entry.cor_id,
-                form=local_entry.form,
-                lemma=local_entry.lemma,
-                gloss=local_entry.gloss,
-                gloss_translation=None,
-                gram_raw=local_entry.gram_raw,
-                norm=local_entry.norm or "N",
-                lemma_idx=local_entry.lemma_idx,
-                gram_code=local_entry.gram_code,
-                variation=local_entry.variation,
-                pos_tag=initial_verification.mwe_pos_tag or local_entry.pos_tag,
-                morphology=local_entry.morphology,
-                features=local_entry.features,
-                extra_tags=local_entry.extra_tags,
-                lemma_translation=initial_verification.mwe_english_translation,
-                saveable_translation=initial_verification.mwe_english_translation,
-                lemma_translation_provider="gemini",
-                lemma_translation_status="gemini",
-                lemma_translation_reason=None,
-            )
-        else:
-            mwe_cor_match = CORSearchVariant(
-                cor_id=f"GENERATED_MWE:{initial_verification.mwe_lemma.upper()}",
-                form=initial_verification.mwe_lemma,
-                lemma=initial_verification.mwe_lemma,
-                gloss=initial_verification.mwe_gloss,
-                gloss_translation=None,
-                gram_raw="",
-                norm="N",
-                lemma_idx=0,
-                gram_code=0,
-                variation=0,
-                pos_tag=initial_verification.mwe_pos_tag or "phrasal_verb",
-                morphology=None,
-                features={},
-                extra_tags=[],
-                lemma_translation=initial_verification.mwe_english_translation,
-                saveable_translation=initial_verification.mwe_english_translation,
-                lemma_translation_provider="gemini",
-                lemma_translation_status="gemini",
-                lemma_translation_reason=None,
-                dictionary_status="generated_non_cor",
-            )
+        mwe_meanings_variants = _build_mwe_meaning_variants(
+            wordbank_use_case=wordbank_use_case,
+            verification=initial_verification,
+        )
+        # Back-compat: the first meaning doubles as the single mwe_cor_match.
+        mwe_cor_match = mwe_meanings_variants[0] if mwe_meanings_variants else None
 
     return SentenceSearchPreviewResponse(
         status="ready",
@@ -168,6 +235,7 @@ def build_sentence_search_preview(
         mwe_gloss=initial_verification.mwe_gloss,
         mwe_english_translation=initial_verification.mwe_english_translation,
         mwe_cor_match=mwe_cor_match,
+        mwe_meanings=mwe_meanings_variants,
     )
 
 

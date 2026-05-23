@@ -121,7 +121,15 @@ class SentenceSearchPreviewResponse(BaseModel):
     mwe_pos_tag: str | None = None
     mwe_gloss: str | None = None
     mwe_english_translation: str | None = None
+    # Single best-match for back-compat. When the lemma is polysemous (e.g.
+    # "tage på"), this is the first / most common meaning; the frontend should
+    # prefer `mwe_meanings` and fall back to this only if the list is empty.
     mwe_cor_match: CORSearchVariant | None = None
+    # Distinct senses of the MWE lemma. Monosemous MWEs return a one-element
+    # list (mirroring `mwe_cor_match`); polysemous MWEs return one entry per
+    # sense. The frontend renders one search card per entry; saving each card
+    # creates a separate `lexeme_meanings` row under the same MWE lexeme.
+    mwe_meanings: list[CORSearchVariant] = Field(default_factory=list)
 
 
 class GenerateSentencePronunciationRequest(BaseModel):

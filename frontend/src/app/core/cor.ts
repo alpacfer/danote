@@ -117,6 +117,42 @@ export const UD_POS_PRIMARY_LABELS: Record<string, string> = {
   IDIOM: "Idiom",
 }
 
+/**
+ * Multi-word expression detection.
+ *
+ * The backend normalizes MWE pos_tag → standard UD ("VERB" for phrasal verbs and
+ * verbal idioms, "NOUN" for nominal idioms, etc.). The phrasal-verb-vs-regular-verb
+ * distinction is then carried purely by the lemma being multi-word. Helpers below
+ * derive the user-visible "Phrasal verb" / "Idiom" label from that signal.
+ */
+export function isMultiWordLemma(lemma: string | null | undefined): boolean {
+  return typeof lemma === "string" && lemma.trim().includes(" ")
+}
+
+/**
+ * Returns the MWE-aware primary POS label for a lemma. Multi-word VERB lemmas
+ * (phrasal verbs like "se ud", "passe på") render as "Phrasal verb". Multi-word
+ * non-VERB lemmas (nominal/adjectival idioms) render as "Idiom". Falls back to
+ * `primaryPosLabel(posTag)` for single-word lemmas.
+ */
+export function primaryPosLabelForLemma(
+  posTag: string | null,
+  lemma: string | null | undefined,
+): string | null {
+  if (isMultiWordLemma(lemma)) {
+    const upper = (posTag ?? "").toUpperCase().replace(/[\s-]/g, "_")
+    // Verbal MWEs render as "Phrasal verb". The backend normalizes
+    // phrasal_verb / idiom → UD VERB, but accept the legacy strings too in case
+    // older saved rows or tests still carry them.
+    if (upper === "VERB" || upper === "AUX" || upper === "PHRASAL_VERB" || upper === "MWE") {
+      return "Phrasal verb"
+    }
+    // Explicit "IDIOM" pos_tag or non-VERB multi-word lemma → "Idiom".
+    return "Idiom"
+  }
+  return primaryPosLabel(posTag)
+}
+
 export function primaryPosLabel(posTag: string | null): string | null {
   if (!posTag) {
     return null
@@ -310,12 +346,25 @@ export function badgesForSavedForm(form: {
   pos_tag?: string | null
   morphology?: string | null
   gram_raw?: string | null
+  /** Optional. When provided AND the lemma is multi-word, the primary badge
+   * becomes "Phrasal verb" / "Idiom" instead of the bare POS label. */
+  lemma?: string | null
 }): CorSearchBadge[] {
+  const primaryLabel = form.lemma !== undefined
+    ? primaryPosLabelForLemma(form.pos_tag ?? null, form.lemma)
+    : primaryPosLabel(form.pos_tag ?? null)
   if (form.gram_raw?.trim()) {
-    return badgesFromGramRaw(form.gram_raw)
+    const fromGram = badgesFromGramRaw(form.gram_raw)
+    if (!primaryLabel || !isMultiWordLemma(form.lemma)) {
+      return fromGram
+    }
+    // For MWE lemmas, replace the primary gram-derived badge with the MWE label
+    // so the user sees "Phrasal verb" rather than "Verb" for "se ud" / "passe på".
+    const withoutPrimary = fromGram.filter((badge) => badge.tone !== "primary")
+    return [{ label: primaryLabel, tone: "primary" as const }, ...withoutPrimary]
   }
   return [
-    ...(form.pos_tag ? [{ label: primaryPosLabel(form.pos_tag) ?? form.pos_tag, tone: "primary" as const }] : []),
+    ...(primaryLabel ? [{ label: primaryLabel, tone: "primary" as const }] : []),
     ...savedSecondaryTagsForPos(form.pos_tag ?? null, form.morphology ?? null).map((tag) => ({
       label: tag,
       tone: "secondary" as const,

@@ -27,6 +27,11 @@ export type SentenceSearchPreviewResponse = {
   mwe_gloss?: string | null
   mwe_english_translation?: string | null
   mwe_cor_match?: CORSearchVariant | null
+  /** Distinct senses for polysemous MWE lemmas (e.g. "tage på" → put on / gain
+   * weight / go somewhere). Monosemous MWEs have a one-element list. The
+   * frontend renders one search card per entry; saving each creates a separate
+   * meaning row under the same MWE lexeme. Empty when not an MWE. */
+  mwe_meanings?: CORSearchVariant[]
 }
 
 export type SentenceTokenCard = {

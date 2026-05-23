@@ -98,6 +98,9 @@ export function WordbankLemmaHeader({
         pos_tag: headerPosTag ?? null,
         morphology: headerMorphology ?? null,
         gram_raw: selectedMeaningSection?.gram_raw ?? lemmaSurfaceDetails?.gram_raw ?? null,
+        // Pass the lemma so multi-word entries ("se ud", "passe på") render the
+        // "Phrasal verb" badge instead of "Verb" in the page header.
+        lemma: lemmaDetails.lemma,
       })
     : []
   const pinnedHomes = pinnedHomesForLemma(lemmaDetails.lemma)
