@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import difflib
 import json
+import re
 from typing import Literal
 
 from app.services.sentence_verification import (
@@ -263,6 +264,38 @@ _MWE_POS_TAG_ALIASES = {
     "MWE": "VERB",
 }
 
+_DANISH_CHARS = frozenset("æøåÆØÅ")
+_DANISH_INFINITIVE_RE = re.compile(r"^at\s+\w", re.IGNORECASE)
+
+
+def _strip_danish_parenthetical(value: str | None) -> str | None:
+    """Remove parenthetical blocks containing Danish text from an English translation.
+
+    Gemini occasionally appends a Danish gloss in parentheses, e.g.:
+        "to run away (at flygte eller forlade et sted hurtigt)"
+
+    Detection heuristics (either triggers removal):
+      1. The parenthetical contains at least one Danish letter (æ, ø, å).
+      2. The parenthetical starts with the Danish infinitive marker "at " and
+         contains 4+ words total — a strong signal of a Danish gloss clause.
+
+    Pure-English disambiguators like "(clothes)" or "(figurative)" are left
+    intact.
+    """
+    if not value:
+        return None
+    def _is_danish_paren(m: re.Match) -> str:  # type: ignore[type-arg]
+        inner = m.group(1)
+        if any(ch in _DANISH_CHARS for ch in inner):
+            return ""
+        inner_stripped = inner.strip()
+        if _DANISH_INFINITIVE_RE.match(inner_stripped) and len(inner_stripped.split()) >= 4:
+            return ""
+        return m.group(0)
+    cleaned = re.sub(r"\(([^)]+)\)", _is_danish_paren, value)
+    return " ".join(cleaned.split()) or None
+
+
 
 def _normalize_mwe_pos_tag(value: object) -> str | None:
     if not isinstance(value, str):
@@ -323,7 +356,7 @@ def _parse_mwe_meanings(raw_meanings: object) -> list[SentenceMWEMeaning]:
         if not isinstance(item, dict):
             continue
         gloss = item.get("gloss") or None
-        english_translation = item.get("english_translation") or None
+        english_translation = _strip_danish_parenthetical(item.get("english_translation") or None)
         if not gloss and not english_translation:
             continue
         meaning_key_raw = item.get("meaning_key")
@@ -343,6 +376,7 @@ def _parse_mwe_meanings(raw_meanings: object) -> list[SentenceMWEMeaning]:
             meaning_key=meaning_key,
         ))
     return parsed
+
 
 
 def parse_sentence_verification_result(raw: str | None, source_text: str) -> SentenceVerificationResult:
@@ -390,8 +424,9 @@ def parse_sentence_verification_result(raw: str | None, source_text: str) -> Sen
     raw_mwe_lemma = data.get("mwe_lemma") or None
     raw_mwe_pos_tag = _normalize_mwe_pos_tag(data.get("mwe_pos_tag"))
     raw_mwe_gloss = data.get("mwe_gloss") or None
-    raw_mwe_english_translation = data.get("mwe_english_translation") or None
+    raw_mwe_english_translation = _strip_danish_parenthetical(data.get("mwe_english_translation") or None)
     mwe_meanings = _parse_mwe_meanings(data.get("mwe_meanings"))
+
 
     is_mwe = False
     if raw_is_mwe and raw_mwe_lemma:

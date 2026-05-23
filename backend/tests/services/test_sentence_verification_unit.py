@@ -6,6 +6,7 @@ from app.services.sentence_verification import (
 )
 from app.services.sentence_verification_parser import (
     _normalize_mwe_pos_tag,
+    _strip_danish_parenthetical,
     parse_sentence_verification_result as _parse_result,
 )
 
@@ -426,3 +427,51 @@ def test_parse_result_drops_mwe_meanings_with_no_content() -> None:
     result = _parse_result(raw, "tage på")
     assert len(result.mwe_meanings) == 1
     assert result.mwe_meanings[0].meaning_key == "kept"
+
+
+# --- _strip_danish_parenthetical -------------------------------------------
+
+
+def test_strip_danish_parenthetical_removes_danish_gloss() -> None:
+    """The exact 'run away' bug: Gemini appends a Danish gloss in parens."""
+    result = _strip_danish_parenthetical(
+        "to run away (at flygte eller forlade et sted hurtigt)"
+    )
+    assert result == "to run away"
+
+
+def test_strip_danish_parenthetical_preserves_english_disambiguator() -> None:
+    """A parenthetical with only English characters (no æ/ø/å) must be left intact."""
+    assert _strip_danish_parenthetical("to put on (clothes)") == "to put on (clothes)"
+    assert _strip_danish_parenthetical("to run (figurative)") == "to run (figurative)"
+
+
+def test_strip_danish_parenthetical_handles_none_and_empty() -> None:
+    assert _strip_danish_parenthetical(None) is None
+    assert _strip_danish_parenthetical("") is None
+
+
+def test_strip_danish_parenthetical_removes_multiple_danish_parens() -> None:
+    """Multiple parenthetical blocks are each evaluated independently."""
+    result = _strip_danish_parenthetical(
+        "to look after (at passe på) or search (figurative)"
+    )
+    assert result == "to look after or search (figurative)"
+
+
+def test_parse_result_strips_danish_parenthetical_from_mwe_english_translation() -> None:
+    """Regression test: Gemini Danish gloss in mwe_english_translation must be stripped."""
+    raw = (
+        '{"is_valid": true, "errors": [], "corrected_text": null, "language": "da", '
+        '"is_multi_word_expression": true, "mwe_lemma": "løbe fra", "mwe_pos_tag": "VERB", '
+        '"mwe_gloss": "forlade et sted hurtigt", '
+        '"mwe_english_translation": "to run away (at flygte eller forlade et sted hurtigt)", '
+        '"mwe_meanings": [{'
+        '  "gloss": "forlade et sted hurtigt", '
+        '  "english_translation": "to run away (at flygte eller forlade et sted hurtigt)", '
+        '  "pos_tag": "VERB", "meaning_key": "løbe fra"}'
+        ']}'
+    )
+    result = _parse_result(raw, "løbe fra")
+    assert result.mwe_english_translation == "to run away"
+    assert result.mwe_meanings[0].english_translation == "to run away"

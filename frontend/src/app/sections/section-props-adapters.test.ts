@@ -93,6 +93,9 @@ describe("section prop adapters", () => {
     const result = buildWordbankSectionProps({
       selectedLemma: "bog",
       selectedMeaningId: 12,
+      filters: { posTags: [], categories: [] },
+      onFiltersChange: vi.fn(),
+      onApplyFilterAndNavigateBack: vi.fn(),
       wordbankError: null,
       isWordbankLoading: false,
       lemmas: [],
