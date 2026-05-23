@@ -20,8 +20,8 @@ def is_verb_like_pos_tag(pos_tag: str | None) -> bool:
     return (pos_tag or "").upper() in {"VERB", "AUX"}
 
 
-def ensure_wordbank_meaning_compatibility(runtime: WordbankRuntime) -> None:
-    if runtime.repository.has_non_verb_forms_without_meaning():
+def ensure_wordbank_meaning_compatibility(runtime: WordbankRuntime, *, lemma: str | None = None) -> None:
+    if runtime.repository.has_non_verb_forms_without_meaning(lemma=lemma):
         raise RuntimeError(LEGACY_WORDBANK_RESET_REQUIRED_MESSAGE)
 
 

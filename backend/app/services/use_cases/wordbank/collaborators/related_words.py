@@ -107,6 +107,59 @@ class RelatedWordsCollaborator:
         if job is not None and job.status in {"pending", "running"}:
             self._jobs.mark_completed(job.id)
 
+    def write_mwe_component_related_words(self, *, stored_lemma: str) -> None:
+        normalized_lemma = normalize_token(stored_lemma)
+        if not normalized_lemma or " " not in normalized_lemma:
+            return
+        lexeme = self._repository.get_lexeme(normalized_lemma)
+        if lexeme is None:
+            return
+        components = [token for token in normalized_lemma.split() if token]
+        if not components:
+            return
+        rows: list[RelatedWordWriteRecord] = []
+        for index, component in enumerate(components):
+            pos_tag = self._infer_component_pos_tag(component)
+            translation = self._infer_component_translation(component, pos_tag)
+            rows.append(
+                RelatedWordWriteRecord(
+                    relation_type=_RELATED_WORDS_RELATION_TYPE,
+                    sort_order=index,
+                    related_lemma=component,
+                    english_translation=translation,
+                    pos_tag=pos_tag,
+                    preferred_cor_id=None,
+                )
+            )
+        self._repository.replace_related_words(
+            owner_lexeme_id=lexeme.id,
+            items=rows,
+        )
+        job = self._jobs.get_by_dedupe_key(related_words_dedupe_key(normalized_lemma))
+        if job is not None and job.status in {"pending", "running"}:
+            self._jobs.mark_completed(job.id)
+
+    def _infer_component_pos_tag(self, component: str) -> str | None:
+        if self._cor_local_lexicon_service is None:
+            return None
+        try:
+            entries = self._cor_local_lexicon_service.lookup_form(component, limit=50)
+        except FileNotFoundError:
+            return None
+        for entry in entries:
+            if normalize_token(entry.lemma) == component and entry.pos_tag:
+                return entry.pos_tag
+        return entries[0].pos_tag if entries else None
+
+    def _infer_component_translation(self, component: str, pos_tag: str | None) -> str | None:
+        target = self._repository.find_saved_lemma_translation_target(component)
+        if target is not None and target.english_translation:
+            return _normalize_related_translation(
+                english_translation=target.english_translation,
+                pos_tag=pos_tag,
+            )
+        return None
+
     def build_related_words_section(
         self,
         *,

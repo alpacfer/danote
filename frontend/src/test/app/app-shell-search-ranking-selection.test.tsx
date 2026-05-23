@@ -172,10 +172,9 @@ describe("App shell and search", () => {
     const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
     fireEvent.change(searchInput, { target: { value: "lærer" } })
 
-    const verbLemma = await within(commandDialog).findByText(/^at lære$/i, { selector: "em" })
-    const nounLemma = await within(commandDialog).findByText(/^lærer$/i, { selector: "em" })
-    const verbItem = verbLemma.closest("[cmdk-item]")
-    const nounItem = nounLemma.closest("[cmdk-item]")
+    const options = await within(commandDialog).findAllByRole("option")
+    const verbItem = options.find((el) => el.textContent?.includes("at lære"))
+    const nounItem = options.find((el) => !el.textContent?.includes("at lære"))
 
     expect(verbItem).toBeTruthy()
     expect(nounItem).toBeTruthy()

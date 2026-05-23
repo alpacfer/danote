@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from app.services.sentence_verification import (
     SentenceVerificationErrorSpan,
+    SentenceMWESpan,
     _parse_result,
 )
 
@@ -178,3 +179,74 @@ def test_parse_result_allows_word_split_correction_without_treating_it_as_autoco
     assert result.is_valid is False
     assert result.errors == [SentenceVerificationErrorSpan(start=0, end=4, message="spelling")]
     assert result.corrected_text == "i dag"
+
+
+def test_parse_result_whole_input_mwe_success() -> None:
+    raw = (
+        '{"is_valid": true, "errors": [], "corrected_text": null, "language": "da", '
+        '"is_multi_word_expression": true, "mwe_lemma": "se efter", "mwe_pos_tag": "phrasal_verb", '
+        '"mwe_gloss": "undersøge", "mwe_english_translation": "look after", "mwe_spans": []}'
+    )
+    result = _parse_result(raw, "se efter")
+    assert result.is_multi_word_expression is True
+    assert result.mwe_lemma == "se efter"
+    assert result.mwe_pos_tag == "VERB"
+    assert result.mwe_gloss == "undersøge"
+    assert result.mwe_english_translation == "look after"
+
+
+def test_parse_result_whole_input_mwe_ignored_if_no_space() -> None:
+    raw = (
+        '{"is_valid": true, "errors": [], "corrected_text": null, "language": "da", '
+        '"is_multi_word_expression": true, "mwe_lemma": "kigge", "mwe_pos_tag": "verb", '
+        '"mwe_gloss": "se", "mwe_english_translation": "look", "mwe_spans": []}'
+    )
+    # Input has no space, so whole-input MWE is ignored
+    result = _parse_result(raw, "kigge")
+    assert result.is_multi_word_expression is False
+    assert result.mwe_lemma is None
+    assert result.mwe_pos_tag is None
+
+
+def test_parse_result_mwe_spans_success() -> None:
+    raw = (
+        '{"is_valid": true, "errors": [], "corrected_text": null, "language": "da", '
+        '"is_multi_word_expression": false, "mwe_lemma": null, "mwe_pos_tag": null, '
+        '"mwe_gloss": null, "mwe_english_translation": null, '
+        '"mwe_spans": [{'
+        '  "start": 4, "end": 16, "surface": "kigger efter", "lemma": "se efter", '
+        '  "pos_tag": "phrasal_verb", "gloss": "passe på", "english_translation": "look after"'
+        '}]}'
+    )
+    result = _parse_result(raw, "Jeg kigger efter min kat")
+    assert result.is_multi_word_expression is False
+    assert len(result.mwe_spans) == 1
+    span = result.mwe_spans[0]
+    assert span.start == 4
+    assert span.end == 16
+    assert span.surface == "kigger efter"
+    assert span.lemma == "se efter"
+    assert span.pos_tag == "VERB"
+    assert span.gloss == "passe på"
+    assert span.english_translation == "look after"
+
+
+def test_parse_result_mwe_spans_alignment_guards() -> None:
+    raw = (
+        '{"is_valid": true, "errors": [], "corrected_text": null, "language": "da", '
+        '"is_multi_word_expression": false, "mwe_lemma": null, "mwe_pos_tag": null, '
+        '"mwe_gloss": null, "mwe_english_translation": null, '
+        '"mwe_spans": ['
+        '  {"start": 5, "end": 16, "surface": "igger efter", "lemma": "se efter"},'  # bad start alignment
+        '  {"start": 4, "end": 15, "surface": "kigger efte", "lemma": "se efter"},'  # bad end alignment
+        '  {"start": 4, "end": 16, "surface": "kigger efter", "lemma": "se efter"}'   # good alignment
+        ']}'
+    )
+    result = _parse_result(raw, "Jeg kigger efter min kat")
+    assert len(result.mwe_spans) == 1
+    span = result.mwe_spans[0]
+    assert span.start == 4
+    assert span.end == 16
+    assert span.surface == "kigger efter"
+    assert span.lemma == "se efter"
+

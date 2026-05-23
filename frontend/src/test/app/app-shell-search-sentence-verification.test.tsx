@@ -741,4 +741,89 @@ it("underlines the typo in the input and shows only the correction plus correcte
     expect(option).toHaveAttribute("aria-disabled", "true")
     expect(within(option).getByText("Could not translate this English sentence to Danish.")).toBeInTheDocument()
   })
+
+  it("renders a word card and saves the MWE word when is_multi_word_expression is true", async () => {
+    const fetchSpy = mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      sentenceSearchPreviewResponse: {
+        status: "ready",
+        query_language: "da",
+        source_text: "se efter",
+        english_translation: "look after",
+        is_valid: true,
+        errors: [],
+        message: null,
+        is_multi_word_expression: true,
+        mwe_lemma: "se efter",
+        mwe_pos_tag: "phrasal_verb",
+        mwe_gloss: "look after",
+        mwe_english_translation: "look after",
+        mwe_cor_match: {
+          cor_id: "GENERATED_MWE:SE EFTER",
+          form: "se efter",
+          lemma: "se efter",
+          dictionary_status: "generated_non_cor",
+          gloss: "look after",
+          pos_tag: "phrasal_verb",
+          gram_raw: "",
+          norm: "N",
+          lemma_idx: 0,
+          gram_code: 0,
+          variation: 0,
+          morphology: null,
+          features: {},
+          extra_tags: [],
+          lemma_translation: "look after",
+          saveable_translation: "look after",
+          lemma_translation_provider: "gemini",
+          lemma_translation_status: "gemini",
+          lemma_translation_reason: null,
+        },
+      },
+      addWordResponse: {
+        status: "inserted",
+        stored_lemma: "se efter",
+        stored_surface_form: "se efter",
+        source: "manual",
+        message: "Added 'se efter' to wordbank.",
+        meaning: {
+          id: 123,
+          meaning_key: "look after",
+          gloss: "look after",
+          english_translation: "look after",
+        },
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    const dialog = await openSearch()
+    typeInSearch(dialog, "se efter")
+
+    await waitFor(() => {
+      const option = within(dialog).getByRole("option", { name: /se efter/i })
+      expect(option).toBeInTheDocument()
+      expect(within(option).getByText("look after")).toBeInTheDocument()
+      expect(within(option).getByText("Phrasal verb")).toBeInTheDocument()
+      expect(within(option).queryByText(/from/i)).not.toBeInTheDocument()
+    })
+
+    const option = within(dialog).getByRole("option", { name: /se efter/i })
+    fireEvent.click(option)
+
+    await waitFor(() => {
+      expect(
+        fetchSpy.mock.calls.some(([input, init]) => {
+          if (!String(input).endsWith("/api/wordbank/lexemes") || init?.method !== "POST") {
+            return false
+          }
+          const body = JSON.parse(String(init.body ?? "{}")) as { lemma_candidate?: string }
+          return body.lemma_candidate === "se efter"
+        }),
+      ).toBe(true)
+    })
+  })
 })
+
+

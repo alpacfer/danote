@@ -7,6 +7,7 @@ from app.api.schemas.v1.sentencebank import (
     SentenceVerificationErrorItem,
     VerifySentenceResponse,
 )
+from app.api.schemas.v1.wordbank import CORSearchVariant
 from app.services.sentence_verification import (
     SentenceVerificationResult,
     SentenceVerificationService,
@@ -96,6 +97,56 @@ def build_sentence_search_preview(
         )
 
     final_source_text = initial_verification.corrected_text or normalized_query
+    
+    mwe_cor_match = None
+    if wordbank_use_case is not None and initial_verification.is_multi_word_expression and initial_verification.mwe_lemma:
+        local_entry = wordbank_use_case.runtime.cor.lookup_mwe_lemma(initial_verification.mwe_lemma)
+        if local_entry is not None:
+            mwe_cor_match = CORSearchVariant(
+                cor_id=local_entry.cor_id,
+                form=local_entry.form,
+                lemma=local_entry.lemma,
+                gloss=local_entry.gloss,
+                gloss_translation=None,
+                gram_raw=local_entry.gram_raw,
+                norm=local_entry.norm or "N",
+                lemma_idx=local_entry.lemma_idx,
+                gram_code=local_entry.gram_code,
+                variation=local_entry.variation,
+                pos_tag=initial_verification.mwe_pos_tag or local_entry.pos_tag,
+                morphology=local_entry.morphology,
+                features=local_entry.features,
+                extra_tags=local_entry.extra_tags,
+                lemma_translation=initial_verification.mwe_english_translation,
+                saveable_translation=initial_verification.mwe_english_translation,
+                lemma_translation_provider="gemini",
+                lemma_translation_status="gemini",
+                lemma_translation_reason=None,
+            )
+        else:
+            mwe_cor_match = CORSearchVariant(
+                cor_id=f"GENERATED_MWE:{initial_verification.mwe_lemma.upper()}",
+                form=initial_verification.mwe_lemma,
+                lemma=initial_verification.mwe_lemma,
+                gloss=initial_verification.mwe_gloss,
+                gloss_translation=None,
+                gram_raw="",
+                norm="N",
+                lemma_idx=0,
+                gram_code=0,
+                variation=0,
+                pos_tag=initial_verification.mwe_pos_tag or "phrasal_verb",
+                morphology=None,
+                features={},
+                extra_tags=[],
+                lemma_translation=initial_verification.mwe_english_translation,
+                saveable_translation=initial_verification.mwe_english_translation,
+                lemma_translation_provider="gemini",
+                lemma_translation_status="gemini",
+                lemma_translation_reason=None,
+                dictionary_status="generated_non_cor",
+            )
+
     return SentenceSearchPreviewResponse(
         status="ready",
         query_language=query_language,
@@ -111,6 +162,12 @@ def build_sentence_search_preview(
             for error in initial_verification.errors
         ],
         message=None,
+        is_multi_word_expression=initial_verification.is_multi_word_expression,
+        mwe_lemma=initial_verification.mwe_lemma,
+        mwe_pos_tag=initial_verification.mwe_pos_tag,
+        mwe_gloss=initial_verification.mwe_gloss,
+        mwe_english_translation=initial_verification.mwe_english_translation,
+        mwe_cor_match=mwe_cor_match,
     )
 
 

@@ -152,7 +152,7 @@ function CommandInput({
           {suffix ? (
             <div
               data-slot="command-input-suffix"
-              className="absolute top-0 right-0 flex min-w-8 items-start justify-end pt-0.5"
+              className="absolute inset-y-0 right-0 flex min-w-8 items-center justify-end"
             >
               {suffix}
             </div>

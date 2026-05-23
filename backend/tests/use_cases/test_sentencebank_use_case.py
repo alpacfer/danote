@@ -1880,3 +1880,248 @@ def test_generated_example_duplicate_is_idempotent(tmp_path: Path) -> None:
     assert first.status == "inserted"
     assert second.status == "exists"
     assert second.id == first.id
+
+
+def test_sentencebank_save_merges_mwe_spans_and_creates_wordbank_entry(tmp_path: Path) -> None:
+    from app.services.sentence_verification import SentenceMWESpan
+
+    db_path = _db_path(tmp_path)
+    nlp_adapter = MappingNLPAdapter(
+        {
+            "jeg kigger efter min bog": [
+                NLPToken(text="jeg", lemma="jeg", pos="PRON", morphology=None, is_punctuation=False),
+                NLPToken(text="kigger", lemma="kigge", pos="VERB", morphology=None, is_punctuation=False),
+                NLPToken(text="efter", lemma="efter", pos="ADP", morphology=None, is_punctuation=False),
+                NLPToken(text="min", lemma="min", pos="PRON", morphology=None, is_punctuation=False),
+                NLPToken(text="bog", lemma="bog", pos="NOUN", morphology=None, is_punctuation=False),
+            ],
+        }
+    )
+    translation_service = FakeTranslationService(
+        {
+            "jeg kigger efter min bog": "i look for my book",
+            "jeg": "i",
+            "min": "my",
+            "bog": "book",
+        }
+    )
+    verification_service = FakeSentenceVerificationService(
+        results={
+            "jeg kigger efter min bog": SentenceVerificationResult(
+                is_valid=True,
+                errors=[],
+                corrected_text=None,
+                language="da",
+                mwe_spans=[
+                    SentenceMWESpan(
+                        start=4,
+                        end=16,
+                        surface="kigger efter",
+                        lemma="se efter",
+                        pos_tag="VERB",
+                        gloss="look for",
+                        english_translation="look for",
+                    )
+                ],
+            )
+        }
+    )
+
+    wordbank_use_case = WordbankUseCase(
+        db_path,
+        translation_service=translation_service,
+        nlp_adapter=nlp_adapter,
+    )
+    sentencebank_use_case = SentencebankUseCase(
+        db_path,
+        translation_service=translation_service,
+        nlp_adapter=nlp_adapter,
+        wordbank_use_case=wordbank_use_case,
+        sentence_verification_service=verification_service,
+    )
+
+    inserted = sentencebank_use_case.add_sentence("jeg kigger efter min bog")
+
+    assert inserted.status == "inserted"
+    assert inserted.source_text == "jeg kigger efter min bog"
+    
+    # We should have 4 tokens: "jeg", "kigger efter" (MWE), "min", "bog"
+    tokens = inserted.tokens
+    assert len(tokens) == 4
+    
+    # Token 0: "jeg"
+    assert tokens[0].surface_form == "jeg"
+    
+    # Token 1: "kigger efter" (MWE)
+    mwe_token = tokens[1]
+    assert mwe_token.surface_form == "kigger efter"
+    assert mwe_token.stored_lemma == "se efter"
+    assert mwe_token.pos_tag == "VERB"
+    assert mwe_token.gloss == "look for"
+    assert mwe_token.english_translation == "look for"
+    
+    # Verify MWE lexeme was persisted in wordbank
+    lexeme = wordbank_use_case.runtime.repository.get_lexeme("se efter")
+    assert lexeme is not None
+    assert lexeme.pos_tag == "VERB"
+
+
+def test_sentencebank_save_merges_split_phrasal_verb_gav_ikke_op(tmp_path: Path) -> None:
+    from app.services.sentence_verification import SentenceMWESpan
+
+    db_path = _db_path(tmp_path)
+    nlp_adapter = MappingNLPAdapter(
+        {
+            "Han gav ikke op, selv om det var svært.": [
+                NLPToken(text="Han", lemma="han", pos="PRON", morphology=None, is_punctuation=False),
+                NLPToken(text="gav", lemma="give", pos="VERB", morphology=None, is_punctuation=False),
+                NLPToken(text="ikke", lemma="ikke", pos="ADV", morphology=None, is_punctuation=False),
+                NLPToken(text="op", lemma="op", pos="ADP", morphology=None, is_punctuation=False),
+                NLPToken(text=",", lemma=",", pos="PUNCT", morphology=None, is_punctuation=True),
+                NLPToken(text="selv", lemma="selv", pos="ADV", morphology=None, is_punctuation=False),
+                NLPToken(text="om", lemma="om", pos="SCONJ", morphology=None, is_punctuation=False),
+                NLPToken(text="det", lemma="det", pos="PRON", morphology=None, is_punctuation=False),
+                NLPToken(text="var", lemma="være", pos="VERB", morphology=None, is_punctuation=False),
+                NLPToken(text="svært", lemma="svær", pos="ADJ", morphology=None, is_punctuation=False),
+                NLPToken(text=".", lemma=".", pos="PUNCT", morphology=None, is_punctuation=True),
+            ],
+        }
+    )
+    translation_service = FakeTranslationService(
+        {
+            "Han gav ikke op, selv om det var svært.": "He did not give up, even though it was difficult.",
+            "Han": "he",
+            "ikke": "not",
+            "selv": "even",
+            "om": "if",
+            "det": "it",
+            "var": "was",
+            "svært": "difficult",
+        }
+    )
+    verification_service = FakeSentenceVerificationService(
+        results={
+            "Han gav ikke op, selv om det var svært.": SentenceVerificationResult(
+                is_valid=True,
+                errors=[],
+                corrected_text=None,
+                language="da",
+                mwe_spans=[
+                    SentenceMWESpan(
+                        start=4,
+                        end=15,
+                        surface="gav ikke op",
+                        lemma="give op",
+                        pos_tag="VERB",
+                        gloss="give up",
+                        english_translation="give up",
+                    )
+                ],
+            )
+        }
+    )
+
+    wordbank_use_case = WordbankUseCase(
+        db_path,
+        translation_service=translation_service,
+        nlp_adapter=nlp_adapter,
+    )
+    sentencebank_use_case = SentencebankUseCase(
+        db_path,
+        translation_service=translation_service,
+        nlp_adapter=nlp_adapter,
+        wordbank_use_case=wordbank_use_case,
+        sentence_verification_service=verification_service,
+    )
+
+    inserted = sentencebank_use_case.add_sentence("Han gav ikke op, selv om det var svært.")
+
+    assert inserted.status == "inserted"
+    
+    # Check tokens list
+    tokens = inserted.tokens
+    # Word-like tokens should be: "Han", "gav op" (MWE), "ikke", "selv", "om", "det", "var", "svært"
+    # Punctuation ("," and ".") are ignored in wordbank tokens.
+    assert [t.surface_form for t in tokens] == ["Han", "gav op", "ikke", "selv", "om", "det", "var", "svært"]
+    
+    mwe_token = tokens[1]
+    assert mwe_token.surface_form == "gav op"
+    assert mwe_token.stored_lemma == "give op"
+    assert mwe_token.pos_tag == "VERB"
+    assert mwe_token.gloss == "give up"
+    
+    # "ikke" should be right next to it
+    ikke_token = tokens[2]
+    assert ikke_token.surface_form == "ikke"
+
+
+def test_sentencebank_save_merges_contiguous_phrasal_verb_pas_paa(tmp_path: Path) -> None:
+    from app.services.sentence_verification import SentenceMWESpan
+
+    db_path = _db_path(tmp_path)
+    nlp_adapter = MappingNLPAdapter(
+        {
+            "Pas på bilen!": [
+                NLPToken(text="Pas", lemma="passe", pos="VERB", morphology=None, is_punctuation=False),
+                NLPToken(text="på", lemma="på", pos="ADP", morphology=None, is_punctuation=False),
+                NLPToken(text="bilen", lemma="bil", pos="NOUN", morphology=None, is_punctuation=False),
+                NLPToken(text="!", lemma="!", pos="PUNCT", morphology=None, is_punctuation=True),
+            ],
+        }
+    )
+    translation_service = FakeTranslationService(
+        {
+            "Pas på bilen!": "Watch out for the car!",
+            "bilen": "the car",
+        }
+    )
+    verification_service = FakeSentenceVerificationService(
+        results={
+            "Pas på bilen!": SentenceVerificationResult(
+                is_valid=True,
+                errors=[],
+                corrected_text=None,
+                language="da",
+                mwe_spans=[
+                    SentenceMWESpan(
+                        start=0,
+                        end=6,
+                        surface="Pas på",
+                        lemma="passe på",
+                        pos_tag="VERB",
+                        gloss="watch out for",
+                        english_translation="watch out for",
+                    )
+                ],
+            )
+        }
+    )
+
+    wordbank_use_case = WordbankUseCase(
+        db_path,
+        translation_service=translation_service,
+        nlp_adapter=nlp_adapter,
+    )
+    sentencebank_use_case = SentencebankUseCase(
+        db_path,
+        translation_service=translation_service,
+        nlp_adapter=nlp_adapter,
+        wordbank_use_case=wordbank_use_case,
+        sentence_verification_service=verification_service,
+    )
+
+    inserted = sentencebank_use_case.add_sentence("Pas på bilen!")
+
+    assert inserted.status == "inserted"
+    
+    # Check tokens list
+    tokens = inserted.tokens
+    # Word-like tokens should be: "Pas på" (MWE), "bilen"
+    # Punctuation ("!") is ignored.
+    assert [t.surface_form for t in tokens] == ["Pas på", "bilen"]
+    
+    mwe_token = tokens[0]
+    assert mwe_token.surface_form == "Pas på"
+    assert mwe_token.stored_lemma == "passe på"
+    assert mwe_token.pos_tag == "VERB"
+

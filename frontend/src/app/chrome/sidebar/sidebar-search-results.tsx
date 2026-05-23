@@ -39,6 +39,7 @@ type PageItem = {
 export type SidebarSearchResultsState = {
   normalizedQuery: string
   isSentenceMode: boolean
+  isMweMode?: boolean
   hasAnyResults: boolean
   hasWordbankSectionResults: boolean
   hasWordbankActions: boolean
@@ -117,6 +118,51 @@ function isSelfTranslatedCorVariant(variant: CORSearchVariant, normalizedQuery: 
 
 export function SidebarSearchResults({ state, data, actions }: SidebarSearchResultsProps) {
   if (state.isSentenceMode) {
+    if (state.isMweMode && data.sentenceSearchPreview && data.sentenceSearchPreview.mwe_cor_match) {
+      const mweVariant = {
+        ...data.sentenceSearchPreview.mwe_cor_match,
+        pos_tag: data.sentenceSearchPreview.mwe_pos_tag ?? "phrasal_verb",
+      }
+      const mweGroup: CORSearchGroup = {
+        lemma: data.sentenceSearchPreview.mwe_lemma ?? mweVariant.lemma,
+        gloss: data.sentenceSearchPreview.mwe_gloss,
+        pos_tag: data.sentenceSearchPreview.mwe_pos_tag ?? "phrasal_verb",
+        variants: [mweVariant],
+      }
+      const mweVariantsToRender = [
+        {
+          group: mweGroup,
+          variant: mweVariant,
+        },
+      ]
+
+      return (
+        <CommandList>
+          <CommandGroup heading="Wordbank">
+            <SidebarCorResults
+              orderedCorSearchGroups={[mweGroup]}
+              corSearchVariantsToRender={mweVariantsToRender}
+              variationCandidateCorIdSet={new Set<string>()}
+              normalizedQuery={state.normalizedQuery}
+              corVariantItemValue={data.corVariantItemValue}
+              isTranslationsLoading={false}
+              onAddWordFromSearch={actions.onAddWordFromSearch}
+              onCloseSearch={actions.onCloseSearch}
+            />
+          </CommandGroup>
+          {data.matchedSavedSentences.length > 0 ? (
+            <>
+              <CommandSeparator />
+              <SavedSentencesGroup
+                sentences={data.matchedSavedSentences}
+                onOpen={(id) => { actions.onOpenSentence(id); actions.onCloseSearch() }}
+              />
+            </>
+          ) : null}
+        </CommandList>
+      )
+    }
+
     return (
       <CommandList>
         <SidebarSentenceResult
@@ -284,7 +330,6 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
                 corSearchVariantsToRender={data.translatedEnCorVariantsToRender}
                 variationCandidateCorIdSet={new Set<string>()}
                 normalizedQuery={state.normalizedQuery}
-                showSourceWhenSameLemma={false}
                 showTranslationLine={false}
                 corVariantItemValue={data.translatedEnCorVariantItemValue}
                 isTranslationsLoading={data.isEnResolveLoading}

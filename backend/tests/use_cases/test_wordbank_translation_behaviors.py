@@ -109,7 +109,7 @@ def test_wordbank_sectioned_add_prefers_cor_lemma_translation_and_skips_variatio
         lemma="lærer",
         lemma_translation="teacher",
         gloss="teacher",
-        gloss_translation="teacher",
+        gloss_translation=None,
         gram_raw="sb.fk.pl.ubest",
     )
     assert translation_service.calls == calls_after_add

@@ -13,6 +13,7 @@ import {
   lemmaTranslationWithGlossComma,
   saveableTranslationForVariant,
   posBadgeClass,
+  primaryPosLabel,
   type SearchSaveSeed,
   type CORSearchGroup,
   type CORSearchVariant,
@@ -30,7 +31,6 @@ type SidebarCorResultsProps = {
   variationCandidateCorIdSet: Set<string>
   normalizedQuery: string
   sourceLabel?: string
-  showSourceWhenSameLemma?: boolean
   showTranslationLine?: boolean
   corVariantItemValue: (variant: CORSearchVariant) => string
   isTranslationsLoading: boolean
@@ -56,7 +56,6 @@ export function SidebarCorResults({
   variationCandidateCorIdSet,
   normalizedQuery,
   sourceLabel,
-  showSourceWhenSameLemma = true,
   showTranslationLine = true,
   corVariantItemValue,
   isTranslationsLoading,
@@ -86,12 +85,21 @@ export function SidebarCorResults({
               const saveableTranslation = saveableTranslationForVariant(variant)
               const sourceDisplay = sourceLabel?.trim() || lemmaDisplay
               const shouldShowSource = Boolean(sourceDisplay)
-                && (showSourceWhenSameLemma || sourceDisplay !== variant.form)
+                && sourceDisplay.trim().toLowerCase() !== variant.form.trim().toLowerCase()
               const hasGloss = Boolean(variant.gloss?.trim())
               const isGeneratedNonCor = variant.dictionary_status === "generated_non_cor"
-              const metadataBadges = isGeneratedNonCor
+              const isMweType = variant.pos_tag?.toLowerCase() === "phrasal_verb" || variant.pos_tag?.toLowerCase() === "idiom"
+              let metadataBadges = isGeneratedNonCor
                 ? badgesForSavedForm({ pos_tag: variant.pos_tag, morphology: variant.morphology })
                 : badgesFromGramRaw(variant.gram_raw)
+
+              if (isMweType && variant.pos_tag) {
+                const mweLabel = primaryPosLabel(variant.pos_tag) ?? variant.pos_tag
+                if (!metadataBadges.some(b => b.label === mweLabel)) {
+                  const filtered = metadataBadges.filter(b => b.tone !== "primary")
+                  metadataBadges = [{ label: mweLabel, tone: "primary" }, ...filtered]
+                }
+              }
               const isSaveBlocked = isTranslationsLoading || !saveableTranslation
               const saveBlockedReason = !isTranslationsLoading && !saveableTranslation
                 ? "Translation required before saving."

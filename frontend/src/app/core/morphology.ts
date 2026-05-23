@@ -121,6 +121,7 @@ export function reflexiveFromMorphology(morphology: string | null): ReflexiveLab
 
 export function posBadgeClass(posTag: string | null): string {
   if (!posTag) return ""
+  const upperTag = posTag.toUpperCase()
   const colorByPos: Record<string, string> = {
     ADJ: "bg-pink-100 text-pink-800 dark:bg-pink-900/40 dark:text-pink-200 border-transparent",
     ADP: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900/40 dark:text-cyan-200 border-transparent",
@@ -139,8 +140,10 @@ export function posBadgeClass(posTag: string | null): string {
     SYM: "bg-stone-100 text-stone-800 dark:bg-stone-800 dark:text-stone-200 border-transparent",
     VERB: "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200 border-transparent",
     X: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200 border-transparent",
+    PHRASAL_VERB: "bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-200 border-transparent",
+    IDIOM: "bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-200 border-transparent",
   }
-  return colorByPos[posTag] ?? "bg-muted text-muted-foreground border-transparent"
+  return colorByPos[upperTag] ?? colorByPos[posTag] ?? "bg-muted text-muted-foreground border-transparent"
 }
 
 export function secondaryTagsForPos(posTag: string | null, morphology: string | null): string[] {

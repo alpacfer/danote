@@ -8,6 +8,7 @@ from app.nlp.adapter import NLPToken
 from app.nlp.token_filter import is_wordlike_token
 from app.services.concurrency import run_in_parallel
 from app.services.gemini_translation import NonCORWordGenerationInput, NonCORWordGenerationResult
+from app.services.sentence_verification import SentenceMWESpan
 from app.services.token_classifier import normalize_token
 from app.services.use_cases.sentencebank_candidates import (
     SentenceMeaningCandidate,
@@ -28,6 +29,85 @@ from app.services.use_cases.sentencebank_token_persistence import (
     verification_metadata_for_new_sentence_token,
 )
 from app.services.use_cases.wordbank.runtime import WordbankRuntime
+
+
+def _ensure_mwe_meaning_section(
+    runtime: WordbankRuntime,
+    *,
+    lemma: str,
+    pos_tag: str | None,
+    gloss: str | None,
+    english_translation: str | None,
+) -> None:
+    from app.services.use_cases.wordbank.verification_targets import (
+        discover_word_page_verification_targets,
+        queue_verification_targets,
+    )
+
+    lexeme = runtime.repository.get_lexeme(lemma)
+    if lexeme is None:
+        return
+    try:
+        meaning_record, _inserted = runtime.repository.upsert_lexeme_meaning(
+            lexeme_id=lexeme.id,
+            meaning_key=normalize_token(lemma) or lemma,
+            cor_lemma_idx=None,
+            dictionary_status="generated_non_cor",
+            gloss=gloss,
+            english_translation=english_translation,
+            pos_tag=pos_tag,
+            morphology=None,
+        )
+    except LookupError:
+        return
+    runtime.repository.assign_orphan_surface_forms_to_meaning(
+        lexeme_id=lexeme.id,
+        meaning_id=meaning_record.id,
+    )
+    queue_verification_targets(
+        runtime,
+        stored_lemma=lemma,
+        targets=discover_word_page_verification_targets(runtime, stored_lemma=lemma),
+    )
+
+
+def _infer_mwe_surface_morphology(
+    runtime: WordbankRuntime,
+    *,
+    surface: str,
+    lemma: str,
+    pos_tag: str | None,
+) -> str | None:
+    if (pos_tag or "").upper() != "VERB":
+        return None
+    surface_parts = [part for part in surface.split() if part]
+    lemma_parts = [part for part in lemma.split() if part]
+    if not surface_parts or not lemma_parts:
+        return None
+    head_surface = surface_parts[0]
+    head_lemma = lemma_parts[0]
+    if not head_surface or not head_lemma:
+        return None
+    try:
+        entries = runtime.cor.lookup_form(head_surface)
+    except Exception:
+        return None
+    for entry in entries:
+        if entry.pos_tag != "VERB" or entry.norm != "N":
+            continue
+        if normalize_token(entry.lemma) != head_lemma:
+            continue
+        if entry.morphology:
+            return entry.morphology
+    return None
+
+
+@dataclass(frozen=True)
+class MWEToken(NLPToken):
+    pos_tag: str | None = None
+    gloss: str | None = None
+    english_translation: str | None = None
+
 
 
 @dataclass(frozen=True, slots=True)
@@ -53,12 +133,146 @@ class PendingGeneratedSentenceToken:
     sentence_context: str
 
 
+def align_tokens_to_source(sentence_tokens: list[NLPToken], source_text: str) -> list[tuple[NLPToken, int, int]]:
+    aligned = []
+    current_idx = 0
+    for token in sentence_tokens:
+        pos = source_text.find(token.text, current_idx)
+        if pos == -1:
+            pos = source_text.find(token.text, 0)
+        if pos != -1:
+            start = pos
+            end = pos + len(token.text)
+            aligned.append((token, start, end))
+            current_idx = end
+        else:
+            aligned.append((token, current_idx, current_idx + len(token.text)))
+            current_idx += len(token.text)
+    return aligned
+
+
+def merge_mwe_spans(
+    sentence_tokens: list[NLPToken],
+    source_text: str,
+    mwe_spans: list[SentenceMWESpan] | None,
+    runtime: WordbankRuntime | None = None,
+) -> list[NLPToken]:
+    if not mwe_spans:
+        return sentence_tokens
+
+    aligned = align_tokens_to_source(sentence_tokens, source_text)
+    
+    # Coalesce close spans pointing to the same normalized lemma and pos_tag
+    coalesced_spans: list[SentenceMWESpan] = []
+    spans_sorted = sorted(mwe_spans, key=lambda s: s.start)
+    for span in spans_sorted:
+        merged = False
+        norm_lemma = normalize_token(span.lemma)
+        norm_pos = (span.pos_tag or "").upper()
+        
+        for i, existing in enumerate(coalesced_spans):
+            exist_lemma = normalize_token(existing.lemma)
+            exist_pos = (existing.pos_tag or "").upper()
+            
+            if exist_lemma == norm_lemma and exist_pos == norm_pos:
+                dist = span.start - existing.end
+                if 0 <= dist <= 40:
+                    coalesced_spans[i] = SentenceMWESpan(
+                        start=min(existing.start, span.start),
+                        end=max(existing.end, span.end),
+                        surface=source_text[min(existing.start, span.start):max(existing.end, span.end)],
+                        lemma=existing.lemma,
+                        pos_tag=existing.pos_tag,
+                        gloss=existing.gloss or span.gloss,
+                        english_translation=existing.english_translation or span.english_translation,
+                    )
+                    merged = True
+                    break
+        if not merged:
+            coalesced_spans.append(span)
+
+    sorted_spans = sorted(coalesced_spans, key=lambda s: s.start, reverse=True)
+    
+    for span in sorted_spans:
+        overlapping_indices = []
+        for idx, (token, start, end) in enumerate(aligned):
+            # Non-zero overlap check
+            if max(start, span.start) < min(end, span.end):
+                overlapping_indices.append(idx)
+        
+        if not overlapping_indices:
+            continue
+        
+        lemma_words = {normalize_token(w) for w in span.lemma.split() if w}
+        constituent_indices = []
+        extra_indices = []
+        
+        # Words commonly inserted as intermediate elements in split phrasal verbs
+        EXCLUDE_WORDS = {"ikke", "aldrig", "måske", "vist", "sgu", "da", "jo", "nok", "vel", "kun", "og", "eller", "men", "selv", "om"}
+        
+        for idx in overlapping_indices:
+            token, start, end = aligned[idx]
+            candidate_lemmas = {normalize_token(token.lemma), normalize_token(token.text)}
+            
+            if runtime is not None and hasattr(runtime, "cor") and runtime.cor is not None:
+                try:
+                    entries = runtime.cor.lookup_form(token.text)
+                    for entry in entries:
+                        candidate_lemmas.add(normalize_token(entry.lemma))
+                except Exception:
+                    pass
+            
+            is_constituent = any(lem in lemma_words for lem in candidate_lemmas if lem)
+            
+            if not is_constituent:
+                tok_text_norm = normalize_token(token.text)
+                if tok_text_norm not in EXCLUDE_WORDS and not token.is_punctuation:
+                    is_constituent = True
+                
+            if is_constituent:
+                constituent_indices.append(idx)
+            else:
+                extra_indices.append(idx)
+        
+        if not constituent_indices:
+            continue
+            
+        constituent_tokens_sorted = sorted([aligned[i] for i in constituent_indices], key=lambda x: x[1])
+        extra_tokens_sorted = sorted([aligned[i] for i in extra_indices], key=lambda x: x[1])
+        
+        merged_surface = " ".join(t[0].text for t in constituent_tokens_sorted)
+        
+        mwe_pos = span.pos_tag or "VERB"
+        mwe_token = MWEToken(
+            text=merged_surface,
+            lemma=span.lemma,
+            pos=mwe_pos,
+            morphology=None,
+            is_punctuation=False,
+            pos_tag=mwe_pos,
+            gloss=span.gloss,
+            english_translation=span.english_translation,
+        )
+        
+        first_idx = overlapping_indices[0]
+        last_idx = overlapping_indices[-1]
+        
+        replacement = [(mwe_token, span.start, span.end)]
+        for extra_tok, ext_start, ext_end in extra_tokens_sorted:
+            replacement.append((extra_tok, ext_start, ext_end))
+            
+        aligned[first_idx : last_idx + 1] = replacement
+        
+    return [t[0] for t in aligned]
+
+
 def resolve_sentence_tokens(
     runtime: WordbankRuntime | None,
     *,
     source_text: str,
     nlp_adapter,
     wordbank_use_case,
+    mwe_spans: list[SentenceMWESpan] | None = None,
 ) -> tuple[list[SentenceTokenWriteRecord], list[dict[str, object]]]:
     if runtime is None or wordbank_use_case is None:
         return [], []
@@ -68,6 +282,9 @@ def resolve_sentence_tokens(
         if nlp_adapter is not None
         else fallback_sentence_tokens(source_text)
     )
+    if mwe_spans:
+        sentence_tokens = merge_mwe_spans(sentence_tokens, source_text, mwe_spans, runtime)
+
     pending_selection_results: dict[int, SentenceMeaningCandidate | None] = {}
     pending_selections: list[PendingSentenceTokenSelection] = []
     pending_generation_results: dict[int, NonCORWordGenerationResult | None] = {}
@@ -77,6 +294,94 @@ def resolve_sentence_tokens(
     ] = []
     new_tokens: list[dict[str, object]] = []
     for nlp_token in sentence_tokens:
+        if isinstance(nlp_token, MWEToken):
+            surface_form = nlp_token.text.strip()
+            normalized_surface = normalize_token(surface_form)
+            lemma_candidate = normalize_token(nlp_token.lemma or "") or normalized_surface
+            
+            existing = existing_saved_token(
+                runtime,
+                display_surface=surface_form,
+                normalized_surface=normalized_surface,
+                lemma_candidate=lemma_candidate,
+                token_index=len(planned_tokens),
+                pos_tag=nlp_token.pos_tag,
+                sentence_context=source_text,
+            )
+            mwe_pos_tag = (nlp_token.pos_tag or "VERB").upper()
+            surface_morphology = _infer_mwe_surface_morphology(
+                runtime,
+                surface=normalized_surface,
+                lemma=lemma_candidate,
+                pos_tag=mwe_pos_tag,
+            )
+            if existing is not None:
+                runtime.related_words.write_mwe_component_related_words(
+                    stored_lemma=lemma_candidate,
+                )
+                if surface_morphology:
+                    lexeme = runtime.repository.get_lexeme(lemma_candidate)
+                    if lexeme is not None:
+                        runtime.repository.insert_or_update_surface_form(
+                            lexeme_id=lexeme.id,
+                            meaning_id=None,
+                            form=normalized_surface,
+                            pos_tag=mwe_pos_tag,
+                            morphology=surface_morphology,
+                            source="search",
+                        )
+                _ensure_mwe_meaning_section(
+                    runtime,
+                    lemma=lemma_candidate,
+                    pos_tag=mwe_pos_tag,
+                    gloss=nlp_token.gloss,
+                    english_translation=nlp_token.english_translation,
+                )
+                planned_tokens.append((existing, False))
+                continue
+
+            cor_entry = runtime.cor.lookup_mwe_lemma(lemma_candidate)
+            cor_id = cor_entry.cor_id if cor_entry is not None else None
+
+            mwe_record = save_root_level_sentence_token(
+                runtime,
+                token_index=len(planned_tokens),
+                display_surface=surface_form,
+                normalized_surface=normalized_surface,
+                lemma=lemma_candidate,
+                pos_tag=mwe_pos_tag,
+                morphology=None,
+                cor_id=cor_id,
+                gloss=nlp_token.gloss,
+                english_translation=nlp_token.english_translation,
+                gloss_translation=None,
+                lexeme_translation=nlp_token.english_translation,
+                lexeme_translation_provider="gemini",
+            )
+            if surface_morphology:
+                lexeme = runtime.repository.get_lexeme(lemma_candidate)
+                if lexeme is not None:
+                    runtime.repository.insert_or_update_surface_form(
+                        lexeme_id=lexeme.id,
+                        meaning_id=None,
+                        form=normalized_surface,
+                        pos_tag=mwe_pos_tag,
+                        morphology=surface_morphology,
+                        source="search",
+                    )
+            runtime.related_words.write_mwe_component_related_words(
+                stored_lemma=lemma_candidate,
+            )
+            _ensure_mwe_meaning_section(
+                runtime,
+                lemma=lemma_candidate,
+                pos_tag=mwe_pos_tag,
+                gloss=nlp_token.gloss,
+                english_translation=nlp_token.english_translation,
+            )
+            planned_tokens.append((mwe_record, False))
+            continue
+
         surface_form = nlp_token.text.strip()
         if not surface_form or nlp_token.is_punctuation:
             continue
@@ -116,6 +421,7 @@ def resolve_sentence_tokens(
             planned_tokens.append(resolved_token)
             continue
         planned_tokens.append(resolved_token)
+
 
     if pending_selections and pending_generations:
         selected_candidates, generated_candidates = run_in_parallel(

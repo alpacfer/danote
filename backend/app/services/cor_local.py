@@ -260,3 +260,21 @@ class CORLocalLexiconService:
             features=features,
             extra_tags=extra_tags,
         )
+
+    def lookup_mwe_lemma(self, lemma: str) -> CORLocalEntry | None:
+        normalized = _normalize_space(lemma).lower()
+        if not normalized:
+            return None
+        rows = self._query_rows(
+            """
+            SELECT
+                cor_id, lemma, gloss, gram, form, norm, lemma_idx, gram_code, variation
+            FROM cor_entries
+            WHERE lower(lemma) = ? AND norm = 'N'
+            LIMIT 1
+            """,
+            (normalized,),
+        )
+        if not rows:
+            return None
+        return self._row_to_entry(rows[0])

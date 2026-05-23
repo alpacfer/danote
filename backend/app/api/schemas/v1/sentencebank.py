@@ -4,6 +4,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from app.api.schemas.v1.wordbank import CORSearchVariant
+
 
 class AddSentenceRequest(BaseModel):
     source_text: str = Field(..., min_length=1)
@@ -114,6 +116,12 @@ class SentenceSearchPreviewResponse(BaseModel):
     is_valid: bool
     errors: list[SentenceVerificationErrorItem] = Field(default_factory=list)
     message: str | None = None
+    is_multi_word_expression: bool = False
+    mwe_lemma: str | None = None
+    mwe_pos_tag: str | None = None
+    mwe_gloss: str | None = None
+    mwe_english_translation: str | None = None
+    mwe_cor_match: CORSearchVariant | None = None
 
 
 class GenerateSentencePronunciationRequest(BaseModel):

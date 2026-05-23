@@ -25,10 +25,10 @@ from app.services.use_cases.wordbank.verification_records import verification_re
 
 
 def get_lemma_details(runtime: WordbankRuntime, lemma: str) -> LemmaDetailsResponse:
-    ensure_wordbank_meaning_compatibility(runtime)
     normalized_lemma = normalize_token(lemma)
     if not normalized_lemma:
         raise ValueError("lemma is required")
+    ensure_wordbank_meaning_compatibility(runtime, lemma=normalized_lemma)
 
     lexeme = runtime.repository.get_lexeme(normalized_lemma)
     if lexeme is None:
@@ -438,7 +438,12 @@ def _surface_form_details(
         lemma=lemma,
         lemma_translation=lemma_translation,
         gloss=gloss,
-        gloss_translation=None,
+        gloss_translation=_gloss_translation(
+            runtime,
+            cor_entry=cor_entry,
+            gloss=gloss,
+            lemma_translation=lemma_translation,
+        ),
         gram_raw=cor_entry.gram_raw if cor_entry is not None else None,
         has_pronunciation=has_pronunciation,
         verification=verification,

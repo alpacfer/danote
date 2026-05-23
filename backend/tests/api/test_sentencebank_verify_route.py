@@ -124,15 +124,14 @@ def test_sentence_search_preview_returns_danish_preview(tmp_path, stub_nlp_adapt
         response = client.post("/api/sentencebank/search-preview", json={"source_text": "jeg er glat"})
 
     assert response.status_code == 200
-    assert response.json() == {
-        "status": "ready",
-        "query_language": "da",
-        "source_text": "jeg er glad",
-        "english_translation": "i am happy",
-        "is_valid": False,
-        "errors": [{"start": 7, "end": 11, "message": "typo"}],
-        "message": None,
-    }
+    data = response.json()
+    assert data["status"] == "ready"
+    assert data["query_language"] == "da"
+    assert data["source_text"] == "jeg er glad"
+    assert data["english_translation"] == "i am happy"
+    assert data["is_valid"] is False
+    assert data["errors"] == [{"start": 7, "end": 11, "message": "typo"}]
+    assert data["message"] is None
 
 
 def test_sentence_search_preview_translates_english_to_danish(tmp_path, stub_nlp_adapter_factory) -> None:
@@ -156,15 +155,14 @@ def test_sentence_search_preview_translates_english_to_danish(tmp_path, stub_nlp
         response = client.post("/api/sentencebank/search-preview", json={"source_text": "I am happy"})
 
     assert response.status_code == 200
-    assert response.json() == {
-        "status": "ready",
-        "query_language": "en",
-        "source_text": "jeg er glad",
-        "english_translation": "I am happy",
-        "is_valid": True,
-        "errors": [],
-        "message": None,
-    }
+    data = response.json()
+    assert data["status"] == "ready"
+    assert data["query_language"] == "en"
+    assert data["source_text"] == "jeg er glad"
+    assert data["english_translation"] == "I am happy"
+    assert data["is_valid"] is True
+    assert data["errors"] == []
+    assert data["message"] is None
 
 
 def test_sentence_search_preview_fast_mode_returns_preview_status(tmp_path, stub_nlp_adapter_factory) -> None:
@@ -191,15 +189,14 @@ def test_sentence_search_preview_fast_mode_returns_preview_status(tmp_path, stub
         )
 
     assert response.status_code == 200
-    assert response.json() == {
-        "status": "preview",
-        "query_language": "da",
-        "source_text": "jeg er glad",
-        "english_translation": "i am happy",
-        "is_valid": True,
-        "errors": [],
-        "message": None,
-    }
+    data = response.json()
+    assert data["status"] == "preview"
+    assert data["query_language"] == "da"
+    assert data["source_text"] == "jeg er glad"
+    assert data["english_translation"] == "i am happy"
+    assert data["is_valid"] is True
+    assert data["errors"] == []
+    assert data["message"] is None
 
 
 def test_sentence_search_preview_blocks_when_english_cannot_translate(tmp_path, stub_nlp_adapter_factory) -> None:
@@ -223,12 +220,11 @@ def test_sentence_search_preview_blocks_when_english_cannot_translate(tmp_path, 
         response = client.post("/api/sentencebank/search-preview", json={"source_text": "I am happy"})
 
     assert response.status_code == 200
-    assert response.json() == {
-        "status": "blocked",
-        "query_language": "en",
-        "source_text": None,
-        "english_translation": None,
-        "is_valid": False,
-        "errors": [],
-        "message": "Could not translate this English sentence to Danish.",
-    }
+    data = response.json()
+    assert data["status"] == "blocked"
+    assert data["query_language"] == "en"
+    assert data["source_text"] is None
+    assert data["english_translation"] is None
+    assert data["is_valid"] is False
+    assert data["errors"] == []
+    assert data["message"] == "Could not translate this English sentence to Danish."

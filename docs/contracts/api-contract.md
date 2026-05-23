@@ -157,7 +157,7 @@ or `Authorization: Bearer <guest-token>` header. Local dev
 
 ### POST `/api/sentencebank/search-preview`
 - **Request model:** `SentenceSearchPreviewRequest` (`source_text: str`, max 100 chars, `fast: bool = False`).
-- **Response model:** `SentenceSearchPreviewResponse` (`status: "ready" | "blocked" | "preview"`, `query_language`, `source_text`, `english_translation`, `is_valid`, `errors`, `message`).
+- **Response model:** `SentenceSearchPreviewResponse` (`status: "ready" | "blocked" | "preview"`, `query_language`, `source_text`, `english_translation`, `is_valid`, `errors`, `message`, `is_multi_word_expression`, `mwe_lemma`, `mwe_pos_tag`, `mwe_gloss`, `mwe_english_translation`, `mwe_cor_match`).
 - **Notable status/error behavior:** `422` empty or >100 char text. `503` DB unavailable.
 - **Field invariants:**
   - `source_text`: finalized Danish sentence candidate for sidebar display and save. `null` only when preview is blocked.
@@ -166,6 +166,12 @@ or `Authorization: Bearer <guest-token>` header. Local dev
   - `status = "preview"`: fast preview path. Skips sentence verification, uses heuristic language detection plus the configured translation service, and is intended for immediate sidebar feedback while the full result is still pending.
   - `status = "ready"`: save may proceed when `source_text` is non-null.
   - `status = "blocked"`: sidebar disables save and surfaces `message`.
+  - `is_multi_word_expression`: true if the entire query is exactly one multi-word expression (e.g. phrasal verb or idiom).
+  - `mwe_lemma`: dictionary form of the MWE if applicable.
+  - `mwe_pos_tag`: part of speech of the MWE (e.g., `phrasal_verb` or `idiom`).
+  - `mwe_gloss`: brief Danish definition of the MWE.
+  - `mwe_english_translation`: English translation of the MWE.
+  - `mwe_cor_match`: matched `CORSearchVariant` for the MWE if found in COR, or a synthetically populated one if it is generated.
   - Explicit English queries translate the corrected or normalized English sentence into Danish and do not perform a second Danish verification pass. Unknown-language queries do not auto-switch into English flow.
 
 ## Wordbank

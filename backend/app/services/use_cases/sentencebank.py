@@ -119,11 +119,21 @@ class SentencebankUseCase:
                     meaning_id=int(getattr(target, "meaning_id", 0)),
                 )
                 return tokens, []
+            
+            mwe_spans = None
+            if self._sentence_verification_service is not None:
+                try:
+                    verification = self._sentence_verification_service.verify_sentence(normalized_source_text)
+                    mwe_spans = verification.mwe_spans
+                except Exception:
+                    pass
+
             return resolve_sentence_tokens(
                 self._wordbank_use_case.runtime if self._wordbank_use_case is not None else None,
                 source_text=normalized_source_text,
                 nlp_adapter=self._nlp_adapter,
                 wordbank_use_case=self._wordbank_use_case,
+                mwe_spans=mwe_spans,
             )
 
         normalized_english_translation, (token_records, new_token_metadata) = run_in_parallel(

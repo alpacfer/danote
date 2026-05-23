@@ -361,9 +361,30 @@ def test_complete_variations_endpoint_adds_missing_forms_and_enqueues_jobs(tmp_p
 
             return PronunciationAudio(audio_bytes=f"{text}-wav".encode(), mime_type="audio/wav")
 
+    class StubGeminiWordTranslationService:
+        provider = "gemini_word_translation"
+
+        def complete_non_cor_meaning_variations(self, payload):
+            from app.services.gemini_translation import NonCORVariationGenerationResult, NonCORVariationCandidate
+            return NonCORVariationGenerationResult(
+                forms=[
+                    NonCORVariationCandidate(
+                        form="bogen",
+                        pos_tag="NOUN",
+                        morphology="Gender=Com|Number=Sing|Definite=Def",
+                    ),
+                    NonCORVariationCandidate(
+                        form="bøgerne",
+                        pos_tag="NOUN",
+                        morphology="Gender=Com|Number=Plur|Definite=Def",
+                    ),
+                ]
+            )
+
     with TestClient(app) as client:
         set_service_field(client.app, "word_verification_service", StubVerificationService())
         set_service_field(client.app, "tts_service", StubTTSService())
+        set_service_field(client.app, "gemini_word_translation_service", StubGeminiWordTranslationService())
         added = client.post(
             "/api/wordbank/lexemes",
             json={
@@ -448,8 +469,29 @@ def test_complete_variations_endpoint_scopes_to_selected_homograph_meaning(tmp_p
 
             return Result()
 
+    class StubGeminiWordTranslationService:
+        provider = "gemini_word_translation"
+
+        def complete_non_cor_meaning_variations(self, payload):
+            from app.services.gemini_translation import NonCORVariationGenerationResult, NonCORVariationCandidate
+            return NonCORVariationGenerationResult(
+                forms=[
+                    NonCORVariationCandidate(
+                        form="bøger",
+                        pos_tag="NOUN",
+                        morphology="Gender=Com|Number=Plur|Definite=Ind",
+                    ),
+                    NonCORVariationCandidate(
+                        form="bøgerne",
+                        pos_tag="NOUN",
+                        morphology="Gender=Com|Number=Plur|Definite=Def",
+                    ),
+                ]
+            )
+
     with TestClient(app) as client:
         set_service_field(client.app, "word_verification_service", StubVerificationService())
+        set_service_field(client.app, "gemini_word_translation_service", StubGeminiWordTranslationService())
         first = client.post(
             "/api/wordbank/lexemes",
             json={
@@ -524,7 +566,26 @@ def test_complete_variations_endpoint_skips_without_cor_identity_and_404s_for_in
         nlp_adapter_factory=stub_nlp_adapter_factory,
     )
 
+    class StubVerificationService:
+        provider = "gemini"
+        reviewer_role = "Professional Danish Language Expert"
+
+        def verify_word_entry(self, _payload):
+            class Result:
+                verdict = "verified"
+                message = "Looks good."
+
+            return Result()
+
+    class StubGeminiWordTranslationService:
+        provider = "gemini_word_translation"
+
+        def complete_non_cor_meaning_variations(self, payload):
+            raise RuntimeError("missing_cor_identity")
+
     with TestClient(app) as client:
+        set_service_field(client.app, "word_verification_service", StubVerificationService())
+        set_service_field(client.app, "gemini_word_translation_service", StubGeminiWordTranslationService())
         manual = client.post(
             "/api/wordbank/lexemes",
             json={
@@ -542,11 +603,20 @@ def test_complete_variations_endpoint_skips_without_cor_identity_and_404s_for_in
                 },
             },
         )
+        meaning_id = manual.json()["meaning"]["id"]
+        client.post(
+            "/api/wordbank/lexemes/verify",
+            json={"stored_lemma": "bog", "stored_surface_form": None, "meaning_id": meaning_id},
+        )
+        client.post(
+            "/api/wordbank/lexemes/verify",
+            json={"stored_lemma": "bog", "stored_surface_form": "bogen", "meaning_id": meaning_id},
+        )
         skipped = client.post(
             "/api/wordbank/lexemes/complete-variations",
             json={
                 "stored_lemma": "bog",
-                "meaning_id": manual.json()["meaning"]["id"],
+                "meaning_id": meaning_id,
             },
         )
         missing = client.post(

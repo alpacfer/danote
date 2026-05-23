@@ -61,6 +61,7 @@ export function AppSidebar({
     normalizedQuery,
     isTrialLimitReached,
     isSentenceMode,
+    isMweMode,
     sentenceSearchPreview,
     isSentenceSearchPreviewLoading,
     searchApiMatches,
@@ -177,6 +178,7 @@ export function AppSidebar({
   const searchResultState: SidebarSearchResultsState = {
     normalizedQuery,
     isSentenceMode,
+    isMweMode,
     hasAnyResults,
     hasWordbankSectionResults,
     hasWordbankActions,

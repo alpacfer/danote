@@ -61,6 +61,9 @@ export function useSidebarCommandSelection({
     const hasEnCommandResults = activeEnTranslatedCorResults.corSearchVariantsToRender.length > 0
       || activeEnTranslatedCorResults.fallbackEnPosGroups.length > 0
     if (isSentenceMode && sentenceSearchPreview) {
+      if (sentenceSearchPreview.is_multi_word_expression && sentenceSearchPreview.mwe_cor_match) {
+        return [`cor-variant-${sentenceSearchPreview.mwe_cor_match.cor_id}`]
+      }
       return ["sentence-translation-result"]
     }
     const numericPage = matchingPageItems.find((page) => page.key === "page-numbers")

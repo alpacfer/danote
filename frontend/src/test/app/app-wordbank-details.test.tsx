@@ -564,7 +564,7 @@ describe("App wordbank", () => {
     )
     const loadingCards = screen.getAllByTestId("wordbank-details-loading-card")
     expect(loadingCards).toHaveLength(1)
-    expect(loadingCards[0]).toHaveClass("w-1/2")
+    expect(loadingCards[0]).toHaveClass("md:w-1/2")
   })
 
   it("renderer-only: word page loading uses the final sectioned skeleton layout for direct meaning opens", async () => {
@@ -604,13 +604,13 @@ describe("App wordbank", () => {
 
     await waitFor(
       () => {
-        expect(screen.getByTestId("wordbank-details-loading-skeleton")).toBeInTheDocument()
+         expect(screen.getByTestId("wordbank-details-loading-skeleton")).toBeInTheDocument()
       },
       { timeout: 1000 },
     )
     const loadingCards = screen.getAllByTestId("wordbank-details-loading-card")
     expect(loadingCards).toHaveLength(2)
-    expect(loadingCards[0]).not.toHaveClass("w-1/2")
+    expect(loadingCards[0]).not.toHaveClass("md:w-1/2")
   })
 
   it("contract-backed: word page renders translation with gloss translation when the backend supplies both", async () => {

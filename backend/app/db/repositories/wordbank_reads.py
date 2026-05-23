@@ -602,17 +602,23 @@ class WordbankReadRepository:
                 ).fetchone()
         return verification_record_from_row(row) if row is not None else None
 
-    def has_non_verb_forms_without_meaning(self) -> bool:
+    def has_non_verb_forms_without_meaning(self, *, lemma: str | None = None) -> bool:
         with timed_db_operation("wordbank.has_non_verb_forms_without_meaning"), get_connection(
             self._db_path, read_only=True
         ) as conn:
+            params: tuple = (self._owner_user_id,)
+            lemma_clause = ""
+            if lemma is not None:
+                lemma_clause = " AND l.lemma = ? COLLATE NOCASE"
+                params = (self._owner_user_id, lemma)
             row = conn.execute(
-                """SELECT 1 FROM surface_forms sf JOIN lexemes l ON l.id = sf.lexeme_id
+                f"""SELECT 1 FROM surface_forms sf JOIN lexemes l ON l.id = sf.lexeme_id
                 WHERE sf.meaning_id IS NULL
                   AND l.owner_user_id = ?
                   AND sf.form <> l.lemma COLLATE NOCASE
-                  AND COALESCE(UPPER(l.pos_tag), '') NOT IN ('VERB', 'AUX')
+                  AND COALESCE(UPPER(l.pos_tag), '') NOT IN ('VERB', 'AUX', 'PHRASAL_VERB', 'IDIOM', 'MWE')
+                  AND instr(l.lemma, ' ') = 0{lemma_clause}
                 LIMIT 1""",
-                (self._owner_user_id,),
+                params,
             ).fetchone()
         return row is not None

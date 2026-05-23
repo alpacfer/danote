@@ -72,6 +72,7 @@ export function useSidebarSearch({
     sentenceQuery,
     resetVersion,
   })
+  const isMweMode = isSentenceMode && sentenceSearchPreview?.is_multi_word_expression === true
   const {
     activeEnResolveResult,
     isEnResolveLoading,
@@ -100,6 +101,7 @@ export function useSidebarSearch({
     normalizedQuery,
     isTrialLimitReached,
     isSentenceMode,
+    isMweMode,
     sentenceSearchPreview,
     isSentenceSearchPreviewLoading,
     searchApiMatches,

@@ -121,7 +121,11 @@ def map_lemma_details_response(response: LemmaDetailsResponse) -> LemmaDetailsRe
     non_lemma_form_count = sum(1 for form in response.surface_forms if form.form != response.lemma)
     surface_forms: list[LemmaDetailsResponse.SurfaceFormDetails] = []
     for form in response.surface_forms:
-        if form.form == response.lemma and non_lemma_form_count <= 1:
+        if (
+            form.form == response.lemma
+            and non_lemma_form_count <= 1
+            and not form.has_pronunciation
+        ):
             continue
         surface_forms.append(
             LemmaDetailsResponse.SurfaceFormDetails(

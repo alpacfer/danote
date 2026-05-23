@@ -380,6 +380,7 @@ def test_search_cor_form_falls_back_to_gloss_translation_when_gemini_has_no_bett
                     "cor_id": "COR.36439.209.01",
                     "form": "bil",
                     "lemma": "bile",
+                    "dictionary_status": "cor",
                     "gloss": "køre i bil",
                     "gloss_translation": "go by car",
                     "lemma_translation": None,

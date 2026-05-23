@@ -171,6 +171,29 @@ class WordbankMutationRepository:
                 (pos_tag, morphology, lexeme_id, self._owner_user_id),
             )
 
+    def assign_orphan_surface_forms_to_meaning(
+        self,
+        *,
+        lexeme_id: int,
+        meaning_id: int,
+    ) -> int:
+        with timed_db_operation("wordbank.assign_orphan_surface_forms_to_meaning"), get_connection(self._db_path) as conn:
+            cursor = conn.execute(
+                """
+                UPDATE surface_forms
+                SET meaning_id = ?
+                WHERE lexeme_id = ?
+                  AND meaning_id IS NULL
+                  AND EXISTS (
+                    SELECT 1 FROM lexemes l
+                    WHERE l.id = surface_forms.lexeme_id
+                      AND l.owner_user_id = ?
+                  )
+                """,
+                (meaning_id, lexeme_id, self._owner_user_id),
+            )
+            return cursor.rowcount
+
     def update_surface_form_metadata(
         self,
         *,

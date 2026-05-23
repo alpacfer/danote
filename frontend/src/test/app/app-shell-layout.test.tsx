@@ -67,7 +67,7 @@ describe("App shell layout normalization", () => {
     fireEvent.click(await screen.findByRole("button", { name: /open search/i }))
     expect(await screen.findByRole("dialog")).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole("button", { name: /cancel search/i }))
+    fireEvent.click(screen.getByRole("button", { name: /close search/i }))
 
     await waitFor(() => {
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument()

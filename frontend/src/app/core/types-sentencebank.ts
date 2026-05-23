@@ -1,3 +1,5 @@
+import type { CORSearchVariant } from "./types-wordbank-api"
+
 export interface SentenceVerificationErrorItem {
   start: number
   end: number
@@ -19,6 +21,12 @@ export type SentenceSearchPreviewResponse = {
   is_valid: boolean
   errors: SentenceVerificationErrorItem[]
   message: string | null
+  is_multi_word_expression?: boolean
+  mwe_lemma?: string | null
+  mwe_pos_tag?: string | null
+  mwe_gloss?: string | null
+  mwe_english_translation?: string | null
+  mwe_cor_match?: CORSearchVariant | null
 }
 
 export type SentenceTokenCard = {

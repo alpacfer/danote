@@ -369,11 +369,13 @@ def save_root_level_sentence_token(
     english_translation: str | None,
     gloss_translation: str | None,
     queue_verification: bool = True,
+    lexeme_translation: str | None = None,
+    lexeme_translation_provider: str | None = None,
 ) -> SentenceTokenWriteRecord:
     lexeme_id, _inserted_lexeme = runtime.repository.insert_or_load_lexeme(
         stored_lemma=lemma,
-        translation=None,
-        provider=None,
+        translation=lexeme_translation,
+        provider=lexeme_translation_provider if lexeme_translation else None,
         pos_tag=pos_tag,
         morphology=morphology,
         source="search",

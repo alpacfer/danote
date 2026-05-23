@@ -287,3 +287,13 @@ class CorResolutionCollaborator:
             lemma_translation=lemma_translation,
             cache=cache,
         )
+
+    def lookup_mwe_lemma(self, lemma: str) -> CORLocalEntry | None:
+        if self._cor_local_lexicon_service is None:
+            return None
+        return self._cor_local_lexicon_service.lookup_mwe_lemma(lemma)
+
+    def lookup_form(self, value: str, limit: int = 100) -> list[CORLocalEntry]:
+        if self._cor_local_lexicon_service is None:
+            return []
+        return self._cor_local_lexicon_service.lookup_form(value, limit=limit)

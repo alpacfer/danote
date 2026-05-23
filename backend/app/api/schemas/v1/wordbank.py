@@ -4,8 +4,6 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, model_serializer
 
-from app.api.schemas.v1.sentencebank import SentenceTokenCard
-
 
 class AddWordRequest(BaseModel):
     class SearchSeed(BaseModel):
@@ -575,6 +573,8 @@ class DeleteLemmaResponse(BaseModel):
     status: Literal["deleted"] = "deleted"
     message: str
 
+
+from app.api.schemas.v1.sentencebank import SentenceTokenCard
 
 AddWordResponse.model_rebuild()
 LemmaDetailsResponse.model_rebuild()

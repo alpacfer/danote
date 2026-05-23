@@ -22,11 +22,28 @@ class SentenceVerificationErrorSpan:
 
 
 @dataclass(frozen=True, slots=True)
+class SentenceMWESpan:
+    start: int
+    end: int
+    surface: str
+    lemma: str
+    pos_tag: str | None = None
+    gloss: str | None = None
+    english_translation: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class SentenceVerificationResult:
     is_valid: bool
     errors: list[SentenceVerificationErrorSpan]
     corrected_text: str | None
     language: Literal["da", "en", "unknown"]
+    is_multi_word_expression: bool = False
+    mwe_lemma: str | None = None
+    mwe_pos_tag: str | None = None
+    mwe_gloss: str | None = None
+    mwe_english_translation: str | None = None
+    mwe_spans: list[SentenceMWESpan] = field(default_factory=list)
 
 
 @dataclass(frozen=True, slots=True)
@@ -44,11 +61,29 @@ def _build_prompt(source_text: str) -> str:
     return (
         "You are a Danish language expert.\n"
         f'Check this text for typos and grammatical errors: "{source_text}"\n\n'
+        "Additionally, detect any Multi-Word Expressions (MWEs) present in the text.\n"
+        "Multi-Word Expressions are combinations of words that act as a single semantic unit, including:\n"
+        "- Danish phrasal verbs or verb-particle constructions (e.g., 'se efter', 'kigge efter', 'slukke for', 'tage af sted')\n"
+        "- Fixed idiomatic expressions (e.g., 'skyde papegøjen', 'bide i det sure æble')\n"
+        "Do NOT classify regular noun phrases, free word combinations (e.g., 'spise æble'), or separable verbs acting compositional as MWEs.\n\n"
         "Return JSON only:\n"
         '- "is_valid": true if no errors, false otherwise\n'
         '- "errors": array of {start, end, message} with 0-indexed char offsets for each error; empty if valid\n'
         '- "corrected_text": fully corrected sentence string if is_valid is false, null if is_valid is true\n'
         '- "language": "da" if Danish, "en" if English, "unknown" otherwise\n'
+        '- "is_multi_word_expression": true if the ENTIRE input is exactly one multi-word expression (e.g. "se efter"), false otherwise\n'
+        '- "mwe_lemma": the canonical infinitive/dictionary form of the MWE if the entire input is an MWE, null otherwise (e.g., "se efter" if input is "ser efter")\n'
+        '- "mwe_pos_tag": the syntactic part-of-speech of the MWE using STANDARD Universal Dependencies tags ("VERB" for phrasal verbs/verbal idioms, "NOUN" for nominal idioms, "ADJ", "ADV", etc.). Do NOT use "phrasal_verb" or "idiom" — return the underlying syntactic role. Null if the entire input is not an MWE.\n'
+        '- "mwe_gloss": a brief Danish explanation/gloss of the MWE if the entire input is an MWE, null otherwise\n'
+        '- "mwe_english_translation": English translation of the MWE if the entire input is an MWE, null otherwise\n'
+        '- "mwe_spans": list of MWE spans detected within the sentence if the input is a sentence. Each span has the fields:\n'
+        '  - "start": 0-indexed character offset of the start of the MWE span (inclusive)\n'
+        '  - "end": 0-indexed character offset of the end of the MWE span (exclusive)\n'
+        '  - "surface": the exact substring of the MWE in the sentence (e.g. "kigger efter")\n'
+        '  - "lemma": the canonical dictionary form (e.g. "se efter")\n'
+        '  - "pos_tag": STANDARD Universal Dependencies POS tag ("VERB" for phrasal verbs/verbal idioms, "NOUN" for nominal idioms, "ADJ", "ADV", etc.). Do NOT use "phrasal_verb" or "idiom".\n'
+        '  - "gloss": Danish gloss/definition of this expression\n'
+        '  - "english_translation": English translation of this expression\n\n'
         "Keep the same capitalization style at the start of the sentence as the source text.\n"
         "Do not flag sentence-initial capitalization by itself as an error.\n"
         "Only correct text that already appears in the source text.\n"
@@ -289,13 +324,94 @@ def _normalize_error_spans(
     return errors
 
 
+_MWE_POS_TAG_ALIASES = {
+    "PHRASAL_VERB": "VERB",
+    "PHRASALVERB": "VERB",
+    "PHRASAL-VERB": "VERB",
+    "IDIOM": "VERB",
+    "MWE": "VERB",
+}
+
+
+def _normalize_mwe_pos_tag(value: object) -> str | None:
+    if not isinstance(value, str):
+        return None
+    stripped = value.strip()
+    if not stripped:
+        return None
+    upper = stripped.upper().replace(" ", "_")
+    return _MWE_POS_TAG_ALIASES.get(upper, upper)
+
+
+def _find_best_substring_match(source_text: str, surface: str, estimated_start: int) -> tuple[int, int] | None:
+    surface_stripped = surface.strip()
+    if not surface_stripped:
+        return None
+    surface_len = len(surface_stripped)
+    best_start = -1
+    best_dist = float("inf")
+    
+    # Try exact match first
+    idx = 0
+    while True:
+        pos = source_text.find(surface_stripped, idx)
+        if pos == -1:
+            break
+        dist = abs(pos - estimated_start)
+        if dist < best_dist:
+            best_dist = dist
+            best_start = pos
+        idx = pos + 1
+        
+    # Try case-insensitive match
+    if best_start == -1:
+        source_lower = source_text.lower()
+        surface_lower = surface_stripped.lower()
+        idx = 0
+        while True:
+            pos = source_lower.find(surface_lower, idx)
+            if pos == -1:
+                break
+            dist = abs(pos - estimated_start)
+            if dist < best_dist:
+                best_dist = dist
+                best_start = pos
+            idx = pos + 1
+            
+    if best_start != -1:
+        return best_start, best_start + surface_len
+    return None
+
+
 def _parse_result(raw: str | None, source_text: str) -> SentenceVerificationResult:
     if not raw:
-        return SentenceVerificationResult(is_valid=True, errors=[], corrected_text=None, language="unknown")
+        return SentenceVerificationResult(
+            is_valid=True,
+            errors=[],
+            corrected_text=None,
+            language="unknown",
+            is_multi_word_expression=False,
+            mwe_lemma=None,
+            mwe_pos_tag=None,
+            mwe_gloss=None,
+            mwe_english_translation=None,
+            mwe_spans=[],
+        )
     try:
         data = json.loads(raw)
     except (json.JSONDecodeError, TypeError):
-        return SentenceVerificationResult(is_valid=True, errors=[], corrected_text=None, language="unknown")
+        return SentenceVerificationResult(
+            is_valid=True,
+            errors=[],
+            corrected_text=None,
+            language="unknown",
+            is_multi_word_expression=False,
+            mwe_lemma=None,
+            mwe_pos_tag=None,
+            mwe_gloss=None,
+            mwe_english_translation=None,
+            mwe_spans=[],
+        )
 
     is_valid = bool(data.get("is_valid", True))
     raw_language = data.get("language", "unknown")
@@ -305,12 +421,69 @@ def _parse_result(raw: str | None, source_text: str) -> SentenceVerificationResu
         source_text,
         _preserve_leading_letter_case(source_text, raw_corrected_text),
     )
+    
+    raw_is_mwe = bool(data.get("is_multi_word_expression", False))
+    raw_mwe_lemma = data.get("mwe_lemma") or None
+    raw_mwe_pos_tag = _normalize_mwe_pos_tag(data.get("mwe_pos_tag"))
+    raw_mwe_gloss = data.get("mwe_gloss") or None
+    raw_mwe_english_translation = data.get("mwe_english_translation") or None
+
+    is_mwe = False
+    if raw_is_mwe and raw_mwe_lemma:
+        if " " in source_text.strip():
+            is_mwe = True
+
+    if not is_mwe:
+        raw_mwe_lemma = None
+        raw_mwe_pos_tag = None
+        raw_mwe_gloss = None
+        raw_mwe_english_translation = None
+
+    raw_mwe_spans = data.get("mwe_spans") or []
+    mwe_spans: list[SentenceMWESpan] = []
+    for span in raw_mwe_spans:
+        if not isinstance(span, dict):
+            continue
+        start = span.get("start")
+        end = span.get("end")
+        surface = span.get("surface")
+        lemma = span.get("lemma")
+        if not isinstance(start, int) or not isinstance(end, int) or not isinstance(surface, str) or not isinstance(lemma, str):
+            continue
+        
+        # Align with substring to prevent byte/decomposition offset errors
+        matched_bounds = _find_best_substring_match(source_text, surface, start)
+        if matched_bounds is not None:
+            start, end = matched_bounds
+        
+        # Guard: check bounds to verify alignment with whitespace-delimited tokens
+        if start > 0 and source_text[start - 1].isalnum():
+            continue
+        if end < len(source_text) and source_text[end].isalnum():
+            continue
+
+        mwe_spans.append(SentenceMWESpan(
+            start=start,
+            end=end,
+            surface=source_text[start:end],
+            lemma=lemma,
+            pos_tag=_normalize_mwe_pos_tag(span.get("pos_tag")),
+            gloss=span.get("gloss") or None,
+            english_translation=span.get("english_translation") or None,
+        ))
+
     if _is_autocomplete_only_response(source_text, corrected_text):
         return SentenceVerificationResult(
             is_valid=True,
             errors=[],
             corrected_text=None,
             language=language,
+            is_multi_word_expression=is_mwe,
+            mwe_lemma=raw_mwe_lemma,
+            mwe_pos_tag=raw_mwe_pos_tag,
+            mwe_gloss=raw_mwe_gloss,
+            mwe_english_translation=raw_mwe_english_translation,
+            mwe_spans=mwe_spans,
         )
     filtered_corrected_reference = raw_corrected_text
     if _introduces_new_word_content(source_text, corrected_text):
@@ -336,6 +509,12 @@ def _parse_result(raw: str | None, source_text: str) -> SentenceVerificationResu
             errors=[],
             corrected_text=None,
             language=language,
+            is_multi_word_expression=is_mwe,
+            mwe_lemma=raw_mwe_lemma,
+            mwe_pos_tag=raw_mwe_pos_tag,
+            mwe_gloss=raw_mwe_gloss,
+            mwe_english_translation=raw_mwe_english_translation,
+            mwe_spans=mwe_spans,
         )
     filtered_errors = [
         error for error in errors
@@ -356,6 +535,12 @@ def _parse_result(raw: str | None, source_text: str) -> SentenceVerificationResu
         errors=normalized_errors,
         corrected_text=normalized_corrected_text,
         language=language,
+        is_multi_word_expression=is_mwe,
+        mwe_lemma=raw_mwe_lemma,
+        mwe_pos_tag=raw_mwe_pos_tag,
+        mwe_gloss=raw_mwe_gloss,
+        mwe_english_translation=raw_mwe_english_translation,
+        mwe_spans=mwe_spans,
     )
 
 
@@ -434,11 +619,43 @@ class GeminiSentenceVerificationService:
                         "type": "STRING",
                         "enum": ["da", "en", "unknown"],
                     },
+                    "is_multi_word_expression": {"type": "BOOLEAN"},
+                    "mwe_lemma": {"type": "STRING", "nullable": True},
+                    "mwe_pos_tag": {"type": "STRING", "nullable": True},
+                    "mwe_gloss": {"type": "STRING", "nullable": True},
+                    "mwe_english_translation": {"type": "STRING", "nullable": True},
+                    "mwe_spans": {
+                        "type": "ARRAY",
+                        "items": {
+                            "type": "OBJECT",
+                            "properties": {
+                                "start": {"type": "INTEGER"},
+                                "end": {"type": "INTEGER"},
+                                "surface": {"type": "STRING"},
+                                "lemma": {"type": "STRING"},
+                                "pos_tag": {"type": "STRING", "nullable": True},
+                                "gloss": {"type": "STRING", "nullable": True},
+                                "english_translation": {"type": "STRING", "nullable": True},
+                            },
+                            "required": ["start", "end", "surface", "lemma"],
+                        },
+                    },
                 },
-                "required": ["is_valid", "errors", "corrected_text", "language"],
+                "required": [
+                    "is_valid",
+                    "errors",
+                    "corrected_text",
+                    "language",
+                    "is_multi_word_expression",
+                    "mwe_lemma",
+                    "mwe_pos_tag",
+                    "mwe_gloss",
+                    "mwe_english_translation",
+                    "mwe_spans",
+                ],
             },
             temperature=0,
-            max_output_tokens=256,
+            max_output_tokens=512,
             thinking_config=genai_types.ThinkingConfig(thinking_budget=0),
         )
 

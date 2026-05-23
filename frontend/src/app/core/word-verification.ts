@@ -299,8 +299,13 @@ export function getMeaningVerificationGate(
     return { isLocked: true, label: "Complete variations unavailable" }
   }
 
+  const normalizedLemma = normalizeSearchWord(lemmaDetails.lemma)
   const statuses: Array<string | null> = [section.verification?.status ?? null]
   for (const form of section.surface_forms) {
+    const normalizedSurface = normalizeSearchWord(form.form)
+    if (!normalizedSurface || normalizedSurface === normalizedLemma) {
+      continue
+    }
     statuses.push(form.verification?.status ?? null)
   }
 

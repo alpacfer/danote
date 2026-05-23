@@ -70,6 +70,7 @@ export function SidebarSearchDialog({
             event.key !== "Enter"
             || !isSentenceMode
             || !sentenceSearchPreview
+            || sentenceSearchPreview.is_multi_word_expression
             || isSentenceSearchPreviewLoading
             || sentenceSearchPreview.source_text === null
             || sentenceSearchPreview.status === "blocked"

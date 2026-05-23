@@ -113,13 +113,16 @@ export const UD_POS_PRIMARY_LABELS: Record<string, string> = {
   SYM: "Symbol",
   VERB: "Verb",
   X: "Other",
+  PHRASAL_VERB: "Phrasal verb",
+  IDIOM: "Idiom",
 }
 
 export function primaryPosLabel(posTag: string | null): string | null {
   if (!posTag) {
     return null
   }
-  return UD_POS_PRIMARY_LABELS[posTag] ?? posTag
+  const upper = posTag.toUpperCase()
+  return UD_POS_PRIMARY_LABELS[upper] ?? UD_POS_PRIMARY_LABELS[posTag] ?? posTag
 }
 
 export function badgesFromGramRaw(gramRaw: string): CorSearchBadge[] {
