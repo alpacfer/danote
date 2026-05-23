@@ -58,6 +58,41 @@ class WordbankReadRepository:
                     FROM surface_forms sf
                     JOIN lexemes l ON l.id = sf.lexeme_id
                     GROUP BY sf.lexeme_id
+                ),
+                pos_tag_values AS (
+                    SELECT id AS lexeme_id, UPPER(TRIM(pos_tag)) AS pos_tag
+                    FROM lexemes
+                    WHERE pos_tag IS NOT NULL AND TRIM(pos_tag) <> ''
+                    UNION
+                    SELECT lexeme_id, UPPER(TRIM(pos_tag)) AS pos_tag
+                    FROM lexeme_meanings
+                    WHERE pos_tag IS NOT NULL AND TRIM(pos_tag) <> ''
+                    UNION
+                    SELECT lexeme_id, UPPER(TRIM(pos_tag)) AS pos_tag
+                    FROM surface_forms
+                    WHERE pos_tag IS NOT NULL AND TRIM(pos_tag) <> ''
+                ),
+                pos_tag_rollups AS (
+                    SELECT lexeme_id, GROUP_CONCAT(pos_tag) AS pos_tags
+                    FROM (
+                        SELECT DISTINCT lexeme_id, pos_tag
+                        FROM pos_tag_values
+                        ORDER BY pos_tag COLLATE NOCASE
+                    )
+                    GROUP BY lexeme_id
+                ),
+                category_rollups AS (
+                    SELECT lexeme_id, GROUP_CONCAT(label, CHAR(31)) AS categories
+                    FROM (
+                        SELECT DISTINCT
+                            wca.lexeme_id,
+                            wc.label,
+                            wc.normalized_label
+                        FROM wordbank_category_assignments wca
+                        JOIN wordbank_categories wc ON wc.id = wca.category_id
+                        ORDER BY wc.normalized_label COLLATE NOCASE
+                    )
+                    GROUP BY lexeme_id
                 )
                 SELECT
                     l.lemma,
@@ -71,11 +106,15 @@ class WordbankReadRepository:
                         WHEN mc.meaning_count = 1 THEN COALESCE(sm.pos_tag, l.pos_tag)
                         ELSE NULL
                     END AS pos_tag,
+                    COALESCE(ptr.pos_tags, '') AS pos_tags,
+                    COALESCE(cr.categories, '') AS categories,
                     COALESCE(sc.variation_count, 0) AS variation_count
                 FROM lexemes l
                 LEFT JOIN meaning_counts mc ON mc.lexeme_id = l.id
                 LEFT JOIN single_meanings sm ON sm.lexeme_id = l.id
                 LEFT JOIN surface_counts sc ON sc.lexeme_id = l.id
+                LEFT JOIN pos_tag_rollups ptr ON ptr.lexeme_id = l.id
+                LEFT JOIN category_rollups cr ON cr.lexeme_id = l.id
                 WHERE l.owner_user_id = ?
                 ORDER BY l.lemma COLLATE NOCASE
                 """,
@@ -87,6 +126,8 @@ class WordbankReadRepository:
                 lemma=str(row["lemma"]),
                 english_translation=row["english_translation"],
                 pos_tag=row["pos_tag"],
+                pos_tags=tuple(_split_list_field(row["pos_tags"], ",")),
+                categories=tuple(_split_list_field(row["categories"], "\x1f")),
                 variation_count=int(row["variation_count"]),
             )
             for row in rows
@@ -622,3 +663,9 @@ class WordbankReadRepository:
                 params,
             ).fetchone()
         return row is not None
+
+
+def _split_list_field(value: str | None, separator: str) -> list[str]:
+    if not value:
+        return []
+    return [part.strip() for part in str(value).split(separator) if part.strip()]

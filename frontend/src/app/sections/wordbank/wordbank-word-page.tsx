@@ -46,7 +46,9 @@ type WordbankWordPageProps = Pick<
   | "onOpenRelatedWordTarget"
   | "onOpenSentence"
   | "onOpenPinnedTab"
->
+> & {
+  onApplyFilterAndNavigateBack?: (type: "pos" | "category", value: string) => void
+}
 
 export function WordbankWordPage({
   selectedLemma,
@@ -84,6 +86,7 @@ export function WordbankWordPage({
   onOpenRelatedWordTarget,
   onOpenSentence,
   onOpenPinnedTab,
+  onApplyFilterAndNavigateBack,
 }: WordbankWordPageProps) {
   const [meaningToDelete, setMeaningToDelete] = useState<MeaningDeleteTarget | null>(null)
   const normalizedRequestedLemma = normalizeSearchWord(selectedLemma ?? "")
@@ -161,6 +164,7 @@ export function WordbankWordPage({
       onRevertVerificationChange={onRevertVerificationChange}
       showSupplementaryMetadata={false}
       onOpenPinnedTab={onOpenPinnedTab}
+      onApplyFilterAndNavigateBack={onApplyFilterAndNavigateBack}
     />
   )
 
@@ -195,6 +199,7 @@ export function WordbankWordPage({
             rerunningMeaningVerificationById={rerunningMeaningVerificationById}
             onRerunMeaningVerification={onRerunMeaningVerification}
             onOpenPinnedTab={onOpenPinnedTab}
+            onApplyFilterAndNavigateBack={onApplyFilterAndNavigateBack}
           />
           <WordbankRelatedWords
             relatedWords={activeLemmaDetails.related_words}

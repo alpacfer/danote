@@ -49,6 +49,7 @@ type WordbankMeaningSectionsProps = {
   rerunningMeaningVerificationById: Record<number, boolean>
   onRerunMeaningVerification: (meaningId: number) => void
   onOpenPinnedTab?: (sentinel: string) => void
+  onApplyFilterAndNavigateBack?: (type: "pos" | "category", value: string) => void
 }
 
 export function WordbankMeaningSections({
@@ -72,6 +73,7 @@ export function WordbankMeaningSections({
   rerunningMeaningVerificationById,
   onRerunMeaningVerification,
   onOpenPinnedTab,
+  onApplyFilterAndNavigateBack,
 }: WordbankMeaningSectionsProps) {
   if (!meaningSections || meaningSections.length === 0) {
     return <p className="text-muted-foreground text-sm">No saved meanings for this lemma.</p>
@@ -202,24 +204,45 @@ export function WordbankMeaningSections({
                             Not in COR
                           </Badge>
                         ) : null}
-                        {sectionBadges.map((badge) => (
-                          <Badge
-                            key={`meaning-section-${section.id}-badge-${badge.label}`}
-                            variant={badge.tone === "primary" ? "default" : "secondary"}
-                            className={`shrink-0 text-xs ${badge.tone === "primary" ? `border ${posBadgeClass(section.pos_tag ?? null)}` : `border ${corSecondaryBadgeClass(badge.label)}`}`.trim()}
-                          >
-                            {badge.label}
-                          </Badge>
-                        ))}
-                        {section.categories?.map((category) => (
-                          <Badge
-                            key={`meaning-section-${section.id}-category-${category}`}
-                            variant="outline"
-                            className={`shrink-0 text-xs ${semanticCategoryBadgeClass(category)}`.trim()}
-                          >
-                            {category}
-                          </Badge>
-                        ))}
+                        {sectionBadges.map((badge) => {
+                          const isWordType = badge.tone === "primary"
+                          const isClickable = Boolean(onApplyFilterAndNavigateBack && isWordType)
+                          const handleClick = isClickable
+                            ? () => onApplyFilterAndNavigateBack!("pos", section.pos_tag ?? "")
+                            : undefined
+
+                          return (
+                            <Badge
+                              key={`meaning-section-${section.id}-badge-${badge.label}`}
+                              variant={badge.tone === "primary" ? "default" : "secondary"}
+                              className={`shrink-0 text-xs ${badge.tone === "primary" ? `border ${posBadgeClass(section.pos_tag ?? null)}` : `border ${corSecondaryBadgeClass(badge.label)}`} ${
+                                isClickable ? "cursor-pointer hover:scale-105 transition-transform" : ""
+                              }`.trim()}
+                              onClick={handleClick}
+                            >
+                              {badge.label}
+                            </Badge>
+                          )
+                        })}
+                        {section.categories?.map((category) => {
+                          const isClickable = Boolean(onApplyFilterAndNavigateBack)
+                          const handleClick = isClickable
+                            ? () => onApplyFilterAndNavigateBack!("category", category)
+                            : undefined
+
+                          return (
+                            <Badge
+                              key={`meaning-section-${section.id}-category-${category}`}
+                              variant="outline"
+                              className={`shrink-0 text-xs ${semanticCategoryBadgeClass(category)} ${
+                                isClickable ? "cursor-pointer hover:scale-105 transition-transform" : ""
+                              }`.trim()}
+                              onClick={handleClick}
+                            >
+                              {category}
+                            </Badge>
+                          )
+                        })}
                       </ScrollableBadgeRow>
                     ) : null}
                   </div>

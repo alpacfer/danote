@@ -11,6 +11,8 @@ class LemmaListRow:
     lemma: str
     english_translation: str | None
     pos_tag: str | None
+    pos_tags: tuple[str, ...]
+    categories: tuple[str, ...]
     variation_count: int
 
 

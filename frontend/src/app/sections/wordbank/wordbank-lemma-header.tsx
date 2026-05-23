@@ -36,6 +36,7 @@ type WordbankLemmaHeaderProps = {
   onRevertVerificationChange: (changeId: number) => void
   showSupplementaryMetadata: boolean
   onOpenPinnedTab: (sentinel: string) => void
+  onApplyFilterAndNavigateBack?: (type: "pos" | "category", value: string) => void
 }
 
 export function WordbankLemmaHeader({
@@ -62,6 +63,7 @@ export function WordbankLemmaHeader({
   onRevertVerificationChange,
   showSupplementaryMetadata,
   onOpenPinnedTab,
+  onApplyFilterAndNavigateBack,
 }: WordbankLemmaHeaderProps) {
   const normalizedSelectedLemma = (lemmaDetails.lemma ?? selectedLemma).trim().toLocaleLowerCase("da-DK")
   const selectedMeaningSection = (lemmaDetails.meaning_sections ?? []).find((section) => section.id === selectedMeaningId) ?? null
@@ -179,15 +181,26 @@ export function WordbankLemmaHeader({
           fadeFromClass="from-background"
           testId="wordbank-lemma-header-badges"
         >
-          {headerBadges.map((badge) => (
-            <Badge
-              key={`lemma-badge-${badge.label}`}
-              variant={badge.tone === "primary" ? "default" : "secondary"}
-              className={`shrink-0 text-xs ${badge.tone === "primary" ? `border ${posBadgeClass(headerPosTag)}` : `border ${corSecondaryBadgeClass(badge.label)}`}`.trim()}
-            >
-              {badge.label}
-            </Badge>
-          ))}
+          {headerBadges.map((badge) => {
+            const isWordType = badge.tone === "primary"
+            const isClickable = Boolean(onApplyFilterAndNavigateBack && isWordType)
+            const handleClick = isClickable
+              ? () => onApplyFilterAndNavigateBack!("pos", headerPosTag ?? "")
+              : undefined
+
+            return (
+              <Badge
+                key={`lemma-badge-${badge.label}`}
+                variant={badge.tone === "primary" ? "default" : "secondary"}
+                className={`shrink-0 text-xs ${badge.tone === "primary" ? `border ${posBadgeClass(headerPosTag)}` : `border ${corSecondaryBadgeClass(badge.label)}`} ${
+                  isClickable ? "cursor-pointer hover:scale-105 transition-transform" : ""
+                }`.trim()}
+                onClick={handleClick}
+              >
+                {badge.label}
+              </Badge>
+            )
+          })}
         </ScrollableBadgeRow>
       ) : null}
 

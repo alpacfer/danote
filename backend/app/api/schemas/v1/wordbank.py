@@ -340,6 +340,8 @@ class LemmaSummary(BaseModel):
     lemma: str
     display_lemma: str
     english_translation: str | None
+    pos_tags: list[str] = Field(default_factory=list)
+    categories: list[str] = Field(default_factory=list)
     variation_count: int
 
 

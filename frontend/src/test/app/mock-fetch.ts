@@ -281,6 +281,8 @@ export function mockFetchImplementation(options?: {
       lemma: string
       variation_count: number
       english_translation?: string | null
+      pos_tags?: string[]
+      categories?: string[]
     }>
   }
   searchWordbankResponse?: {

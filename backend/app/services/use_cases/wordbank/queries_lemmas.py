@@ -45,6 +45,8 @@ def list_lemmas(runtime: WordbankRuntime) -> LemmaListResponse:
                 lemma=row.lemma,
                 display_lemma=_display_lemma_for_list(runtime, row.lemma, row.pos_tag),
                 english_translation=row.english_translation,
+                pos_tags=list(row.pos_tags),
+                categories=list(row.categories),
                 variation_count=row.variation_count,
             )
             for row in rows

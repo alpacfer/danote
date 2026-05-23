@@ -842,8 +842,22 @@ def test_list_lemmas_returns_sorted_lemmas_with_variation_counts(tmp_path, stub_
 
     assert response.status_code == 200
     assert response.json()["items"] == [
-        {"lemma": "bog", "display_lemma": "bog", "english_translation": None, "variation_count": 2},
-        {"lemma": "hus", "display_lemma": "hus", "english_translation": None, "variation_count": 1},
+        {
+            "lemma": "bog",
+            "display_lemma": "bog",
+            "english_translation": None,
+            "pos_tags": [],
+            "categories": [],
+            "variation_count": 2,
+        },
+        {
+            "lemma": "hus",
+            "display_lemma": "hus",
+            "english_translation": None,
+            "pos_tags": [],
+            "categories": [],
+            "variation_count": 1,
+        },
     ]
 
 

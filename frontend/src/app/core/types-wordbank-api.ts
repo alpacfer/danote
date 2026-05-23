@@ -166,6 +166,8 @@ export type WordbankLemma = {
   lemma: string
   display_lemma?: string | null
   english_translation: string | null
+  pos_tags?: string[]
+  categories?: string[]
   variation_count: number
   pos_tag?: string | null
   morphology?: string | null

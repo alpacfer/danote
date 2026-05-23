@@ -99,6 +99,8 @@ def test_wordbank_repository_lists_and_searches_lemmas(tmp_path) -> None:
             lemma="bog",
             english_translation="book",
             pos_tag="NOUN",
+            pos_tags=("NOUN",),
+            categories=(),
             variation_count=1,
         )
     ]

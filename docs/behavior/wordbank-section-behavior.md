@@ -31,6 +31,8 @@ Switch: `selectedLemma` absent => `WordbankListView`, present => `WordbankWordPa
 - Skips re-fetch if `wordbankRefreshTick` already loaded
 - Success → update `lemmas`, set lazy-load marker, record tick
 - Failure → set `wordbankError`, clear list
+- List items include aggregate `pos_tags` and `categories` arrays used only for
+  local filtering. A multi-meaning lemma remains represented once in the list.
 
 ## Lemma details loading (`/api/wordbank/lemmas/{lemma}`)
 
@@ -47,8 +49,18 @@ Switch: `selectedLemma` absent => `WordbankListView`, present => `WordbankWordPa
 Priority:
 1. `wordbankError` → error alert
 2. Loading + `lemmas.length === 0` → grouped skeleton
-3. No lemmas → `No saved lemmas yet.`
-4. Otherwise → grouped lemma chips with letter headings
+3. No active filter matches → pinned cards plus an empty state
+4. Otherwise → pinned cards plus grouped lemma chips with letter headings
+
+Filters:
+- Filter bar sits below the heading and auto-applies local filters.
+- Word type filter is a multi-select popover; a lemma matches if any selected
+  POS appears anywhere under that lemma.
+- Category filter is a searchable multi-select popover; a lemma matches only
+  when all selected categories appear somewhere under that lemma.
+- Word type and category filters combine with AND.
+- Clear filters resets both dimensions. Pinned reference cards stay visible
+  regardless of saved-lemma filters.
 
 Per-chip:
 - Label: `display_lemma` fallback `lemma`

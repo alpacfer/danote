@@ -178,7 +178,10 @@ def _add_wordbank_parser(subparsers: argparse._SubParsersAction[argparse.Argumen
     parser = subparsers.add_parser("wordbank", help="Wordbank commands.")
     child = parser.add_subparsers(dest="wordbank_command", required=True)
 
-    _set_handler(child.add_parser("list", help="List saved lemmas."), ["wordbank", "list"], lambda _args, client: run_single(client, RequestSpec("GET", "/api/wordbank/lemmas")))
+    list_parser = child.add_parser("list", help="List saved lemmas.")
+    list_parser.add_argument("--pos-tag", "--pos", help="Filter lemmas by word type / POS tag (case-insensitive).")
+    list_parser.add_argument("--category", "--cat", help="Filter lemmas by semantic category (case-insensitive).")
+    _set_handler(list_parser, ["wordbank", "list"], handle_wordbank_list)
 
     details = child.add_parser("details", help="Read lemma details.")
     details.add_argument("lemma")
@@ -354,6 +357,86 @@ def handle_search_trace(args: argparse.Namespace, client: ApiClient) -> dict[str
             }
         )
     return {"query": args.query, "en": en_payload, "cor_traces": trace_items}
+
+
+UD_POS_PRIMARY_LABELS = {
+    "ADJ": "Adjective",
+    "ADP": "Preposition",
+    "ADV": "Adverb",
+    "AUX": "Auxiliary",
+    "CCONJ": "Conjunction",
+    "DET": "Determiner",
+    "INTJ": "Interjection",
+    "NOUN": "Noun",
+    "NUM": "Numeral",
+    "PART": "Particle",
+    "PRON": "Pronoun",
+    "PROPN": "Proper noun",
+    "PUNCT": "Punctuation",
+    "SCONJ": "Subordinating conjunction",
+    "SYM": "Symbol",
+    "VERB": "Verb",
+    "X": "Other",
+    "PHRASAL_VERB": "Phrasal verb",
+    "IDIOM": "Idiom",
+}
+
+
+def is_multi_word_lemma(lemma: str | None) -> bool:
+    return bool(lemma and " " in lemma.strip())
+
+
+def primary_pos_label_for_lemma(pos_tag: str | None, lemma: str | None) -> str | None:
+    if is_multi_word_lemma(lemma):
+        upper = (pos_tag or "").strip().upper().replace(" ", "_").replace("-", "_")
+        if upper in {"VERB", "AUX", "PHRASAL_VERB", "MWE"}:
+            return "Phrasal verb"
+        return "Idiom"
+    return primary_pos_label(pos_tag)
+
+
+def primary_pos_label(pos_tag: str | None) -> str | None:
+    if not pos_tag:
+        return None
+    upper = pos_tag.strip().upper()
+    return UD_POS_PRIMARY_LABELS.get(upper, pos_tag)
+
+
+def handle_wordbank_list(args: argparse.Namespace, client: ApiClient) -> Any:
+    payload = client.request(RequestSpec("GET", "/api/wordbank/lemmas"))
+    items = payload.get("items") or []
+
+    if args.pos_tag:
+        target_pos = args.pos_tag.strip().lower()
+        filtered_items = []
+        for item in items:
+            pos_tags = item.get("pos_tags") or []
+            lemma = item.get("lemma")
+            matched = False
+            for pos in pos_tags:
+                pos = pos.strip()
+                # Match either the raw POS tag (e.g. 'verb') OR the friendly / MWE POS label (e.g. 'phrasal verb')
+                if pos.lower() == target_pos:
+                    matched = True
+                    break
+                label = primary_pos_label_for_lemma(pos, lemma)
+                if label and label.lower() == target_pos:
+                    matched = True
+                    break
+            if matched:
+                filtered_items.append(item)
+        items = filtered_items
+
+    if args.category:
+        target_cat = args.category.strip().lower()
+        items = [
+            item for item in items
+            if any(cat.strip().lower() == target_cat for cat in (item.get("categories") or []))
+        ]
+
+    payload["items"] = items
+    return payload
+
 
 
 def handle_wordbank_add(args: argparse.Namespace, client: ApiClient) -> Any:
