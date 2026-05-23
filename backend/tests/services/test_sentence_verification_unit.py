@@ -3,8 +3,10 @@ from __future__ import annotations
 from app.services.sentence_verification import (
     SentenceVerificationErrorSpan,
     SentenceMWESpan,
+)
+from app.services.sentence_verification_parser import (
     _normalize_mwe_pos_tag,
-    _parse_result,
+    parse_sentence_verification_result as _parse_result,
 )
 
 

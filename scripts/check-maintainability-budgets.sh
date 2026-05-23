@@ -48,7 +48,7 @@ scan_budget \
   450 \
   "ts/tsx soft limit >300" \
   "ts/tsx hard limit >450" \
-  < <(rg --files frontend/src | rg -v '(/test/|\.test\.|\.spec\.|/__tests__/)' | rg '\.(ts|tsx)$')
+  < <(find frontend/src -type f 2>/dev/null | grep -E '\.(ts|tsx)$' | grep -v -E '(/test/|\.test\.|\.spec\.|/__tests__/)' || true)
 
 scan_budget \
   "frontend tsx components" \
@@ -56,7 +56,7 @@ scan_budget \
   999999 \
   "tsx component target >200" \
   "unused" \
-  < <(rg --files frontend/src | rg -v '(/test/|\.test\.|\.spec\.|/__tests__/)' | rg '\.tsx$')
+  < <(find frontend/src -type f 2>/dev/null | grep -E '\.tsx$' | grep -v -E '(/test/|\.test\.|\.spec\.|/__tests__/)' || true)
 
 scan_budget \
   "backend use-cases" \
@@ -64,7 +64,7 @@ scan_budget \
   700 \
   "backend use-case soft limit >350" \
   "backend use-case hard limit >700" \
-  < <(rg --files backend/app/services/use_cases | rg -v '(/tests?/|\.test\.|\.spec\.|/__tests__/)' | rg '\.py$')
+  < <(find backend/app/services/use_cases -type f 2>/dev/null | grep -E '\.py$' | grep -v -E '(/tests?/|\.test\.|\.spec\.|/__tests__/)' || true)
 
 scan_budget \
   "backend services" \
@@ -72,7 +72,7 @@ scan_budget \
   600 \
   "backend service soft limit >300" \
   "backend service hard limit >600" \
-  < <(rg --files backend/app/services | rg -v '(/use_cases/|/tests?/|\.test\.|\.spec\.|/__tests__/)' | rg '\.py$')
+  < <(find backend/app/services -type f 2>/dev/null | grep -E '\.py$' | grep -v -E '(/use_cases/|/tests?/|\.test\.|\.spec\.|/__tests__/)' || true)
 
 scan_budget \
   "backend repositories" \
@@ -80,7 +80,7 @@ scan_budget \
   800 \
   "backend repository soft limit >300" \
   "backend repository hard limit >800" \
-  < <(rg --files backend/app/db/repositories | rg -v '(/tests?/|\.test\.|\.spec\.|/__tests__/)' | rg '\.py$')
+  < <(find backend/app/db/repositories -type f 2>/dev/null | grep -E '\.py$' | grep -v -E '(/tests?/|\.test\.|\.spec\.|/__tests__/)' || true)
 
 scan_budget \
   "backend app boundary" \
@@ -88,18 +88,18 @@ scan_budget \
   350 \
   "backend app boundary soft limit >250" \
   "backend app boundary hard limit >350" \
-  < <(rg --files backend/app/api/routes backend/app/bootstrap backend/app/core | rg '\.py$')
+  < <(find backend/app/api/routes backend/app/bootstrap backend/app/core -type f 2>/dev/null | grep -E '\.py$' || true)
 
 echo "[maintainability] scanning architecture boundaries"
 
-backend_route_violations="$(rg -n '^(from|import) app\.(db|nlp|services\.)' backend/app/api/routes --glob '*.py' | rg -v 'app\.services\.use_cases' || true)"
+backend_route_violations="$(find backend/app/api/routes -type f -name '*.py' 2>/dev/null -exec grep -Hn -E '^(from|import) app\.(db|nlp|services\.)' {} + | grep -v 'app\.services\.use_cases' || true)"
 if [[ -n "$backend_route_violations" ]]; then
   echo "[FAIL] backend routes must stay transport-only and avoid direct db/nlp/provider imports:"
   echo "$backend_route_violations"
   fail_count=$((fail_count + 1))
 fi
 
-frontend_section_violations="$(rg -n '(@/app/core/api-client|@/app/core/api-runtime|\bfetch\()' frontend/src/app/sections --glob '*.{ts,tsx}' || true)"
+frontend_section_violations="$(find frontend/src/app/sections -type f \( -name '*.ts' -o -name '*.tsx' \) 2>/dev/null -exec grep -Hn -E '(@/app/core/api-client|@/app/core/api-runtime|\bfetch\()' {} + || true)"
 if [[ -n "$frontend_section_violations" ]]; then
   echo "[FAIL] frontend sections must not call transport directly:"
   echo "$frontend_section_violations"
@@ -117,7 +117,7 @@ while IFS= read -r file; do
     echo "[FAIL] app-controller orchestration hard limit >220: $file ($lines)"
     fail_count=$((fail_count + 1))
   fi
-done < <(rg --files frontend/src/app/hooks/app/controller | rg '\.(ts|tsx)$')
+done < <(find frontend/src/app/hooks/app/controller -type f 2>/dev/null | grep -E '\.(ts|tsx)$' || true)
 
 echo "[maintainability] warnings=$warn_count failures=$fail_count"
 
