@@ -395,7 +395,10 @@ def parse_sentence_verification_result(raw: str | None, source_text: str) -> Sen
 
     is_mwe = False
     if raw_is_mwe and raw_mwe_lemma:
-        if " " in source_text.strip():
+        lemma_stripped = raw_mwe_lemma.strip()
+        words = lemma_stripped.split()
+        has_ending_punc = lemma_stripped.endswith((".", "!", "?"))
+        if " " in source_text.strip() and 1 < len(words) <= 6 and not has_ending_punc:
             is_mwe = True
 
     if not is_mwe:

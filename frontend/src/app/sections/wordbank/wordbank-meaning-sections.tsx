@@ -3,6 +3,7 @@ import {
   additionalTranslationsDisplay,
   corSecondaryBadgeClass,
   getMeaningVerificationGate,
+  isMultiWordLemma,
   lemmaTranslationWithGloss,
   normalizeSearchWord,
   posBadgeClass,
@@ -208,8 +209,8 @@ export function WordbankMeaningSections({
                           const isWordType = badge.tone === "primary"
                           const isClickable = Boolean(onApplyFilterAndNavigateBack && isWordType)
                           const handleClick = isClickable
-                            ? () => onApplyFilterAndNavigateBack!("pos", section.pos_tag ?? "")
-                            : undefined
+                             ? () => onApplyFilterAndNavigateBack!("pos", isMultiWordLemma(lemma) ? (badge.label === "Phrasal verb" ? "PHRASAL_VERB" : "IDIOM") : section.pos_tag ?? "")
+                             : undefined
 
                           return (
                             <Badge

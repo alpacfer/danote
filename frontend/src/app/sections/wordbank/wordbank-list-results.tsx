@@ -1,6 +1,6 @@
 import { ChevronRight, FilterX, Trash2 } from "lucide-react"
 
-import type { WordbankLemma } from "@/app/core"
+import { isMultiWordLemma, type WordbankLemma } from "@/app/core"
 import type { PinnedPageMeta } from "@/app/sections/wordbank/_shared/pinned-pages-registry"
 import type { WordbankFilterState } from "@/app/sections/wordbank/wordbank-list-filters"
 import { Button } from "@/components/ui/button"
@@ -110,7 +110,11 @@ function filterLemmas(lemmas: WordbankLemma[], filters: WordbankFilterState): Wo
   return lemmas.filter((lemma) => {
     const lemmaPosTags = new Set((lemma.pos_tags ?? []).map((posTag) => posTag.trim().toUpperCase()).filter(Boolean))
     const lemmaCategories = new Set((lemma.categories ?? []).map((category) => category.trim()).filter(Boolean))
-    const matchesPos = filters.posTags.length === 0 || filters.posTags.some((posTag) => lemmaPosTags.has(posTag))
+    const matchesPos = filters.posTags.length === 0 || filters.posTags.some((posTag) => {
+      if (posTag === "PHRASAL_VERB") return isMultiWordLemma(lemma.lemma) && (lemma.pos_tags?.includes("VERB") || lemma.pos_tags?.includes("AUX"));
+      if (posTag === "IDIOM") return isMultiWordLemma(lemma.lemma) && !(lemma.pos_tags?.includes("VERB") || lemma.pos_tags?.includes("AUX"));
+      return lemmaPosTags.has(posTag);
+    })
     const matchesCategories =
       filters.categories.length === 0 || filters.categories.every((category) => lemmaCategories.has(category))
     return matchesPos && matchesCategories

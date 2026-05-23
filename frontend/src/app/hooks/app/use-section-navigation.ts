@@ -12,12 +12,18 @@ export type PendingSentence = {
   english_translation: string | null
 }
 
+export type WordbankFilterState = {
+  posTags: string[]
+  categories: string[]
+}
+
 export type NavEntry = {
   section: AppSection
   selectedLemma: string | null
   selectedMeaningId: number | null
   selectedSentenceId: number | null
   pendingSentence: PendingSentence | null
+  filters?: WordbankFilterState | null
 }
 
 const ROOT_ENTRY: NavEntry = {
@@ -26,9 +32,21 @@ const ROOT_ENTRY: NavEntry = {
   selectedMeaningId: null,
   selectedSentenceId: null,
   pendingSentence: null,
+  filters: { posTags: [], categories: [] },
 }
 
 const APP_HISTORY_KEY = "danote.nav"
+
+function filtersEqual(a?: WordbankFilterState | null, b?: WordbankFilterState | null): boolean {
+  if (!a && !b) return true
+  if (!a || !b) return false
+  const aPos = a.posTags ?? []
+  const bPos = b.posTags ?? []
+  const aCat = a.categories ?? []
+  const bCat = b.categories ?? []
+  if (aPos.length !== bPos.length || aCat.length !== bCat.length) return false
+  return aPos.every((t) => bPos.includes(t)) && aCat.every((c) => bCat.includes(c))
+}
 
 function entriesEqual(a: NavEntry, b: NavEntry): boolean {
   return (
@@ -38,6 +56,7 @@ function entriesEqual(a: NavEntry, b: NavEntry): boolean {
     && a.selectedSentenceId === b.selectedSentenceId
     && a.pendingSentence?.source_text === b.pendingSentence?.source_text
     && a.pendingSentence?.english_translation === b.pendingSentence?.english_translation
+    && filtersEqual(a.filters, b.filters)
   )
 }
 
@@ -102,10 +121,14 @@ export function useSectionNavigation() {
   const applyPush = useCallback((entry: NavEntry) => {
     const cur = historyRef.current
     const currentEntry = cur.entries[cur.index] ?? ROOT_ENTRY
-    if (entriesEqual(currentEntry, entry)) return
+    const normalizedEntry = {
+      ...entry,
+      filters: entry.filters !== undefined ? entry.filters : (cur.entries[cur.index]?.filters ?? { posTags: [], categories: [] })
+    }
+    if (entriesEqual(currentEntry, normalizedEntry)) return
     const truncated = cur.entries.slice(0, cur.index + 1)
     const newIndex = truncated.length
-    const next: HistoryState = { entries: [...truncated, entry], index: newIndex }
+    const next: HistoryState = { entries: [...truncated, normalizedEntry], index: newIndex }
     historyRef.current = next
     setHistory(next)
     writeBrowserNavIndex("push", newIndex)
@@ -114,14 +137,19 @@ export function useSectionNavigation() {
   const applyReplace = useCallback((entry: NavEntry) => {
     const cur = historyRef.current
     const currentEntry = cur.entries[cur.index] ?? ROOT_ENTRY
-    if (entriesEqual(currentEntry, entry)) return
+    const normalizedEntry = {
+      ...entry,
+      filters: entry.filters !== undefined ? entry.filters : (cur.entries[cur.index]?.filters ?? { posTags: [], categories: [] })
+    }
+    if (entriesEqual(currentEntry, normalizedEntry)) return
     const entries = [...cur.entries]
-    entries[cur.index] = entry
+    entries[cur.index] = normalizedEntry
     const next: HistoryState = { entries, index: cur.index }
     historyRef.current = next
     setHistory(next)
     writeBrowserNavIndex("replace", cur.index)
   }, [])
+
 
   const current = history.entries[history.index] ?? ROOT_ENTRY
   const previousEntry = history.index > 0 ? history.entries[history.index - 1] : null
@@ -302,12 +330,34 @@ export function useSectionNavigation() {
     setHistory(nextState)
   }, [])
 
+  const setWordbankFilters = useCallback((filters: WordbankFilterState) => {
+    const cur = historyRef.current.entries[historyRef.current.index] ?? ROOT_ENTRY
+    applyReplace({
+      ...cur,
+      filters,
+    })
+  }, [applyReplace])
+
+  const applyFilterAndNavigateBack = useCallback((filters: WordbankFilterState) => {
+    applyPush({
+      section: "wordbank",
+      selectedLemma: null,
+      selectedMeaningId: null,
+      selectedSentenceId: null,
+      pendingSentence: null,
+      filters,
+    })
+  }, [applyPush])
+
   return useMemo(() => ({
     activeSection: current.section,
     selectedLemma: current.selectedLemma,
     selectedMeaningId: current.selectedMeaningId,
     selectedSentenceId: current.selectedSentenceId,
     pendingSentence: current.pendingSentence,
+    filters: current.filters ?? { posTags: [], categories: [] },
+    setWordbankFilters,
+    applyFilterAndNavigateBack,
     canGoBack: history.index > 0,
     canGoForward: history.index < history.entries.length - 1,
     previousEntry,
@@ -359,5 +409,7 @@ export function useSectionNavigation() {
     openPendingSentence,
     openSentence,
     replaceCurrentSentence,
+    setWordbankFilters,
+    applyFilterAndNavigateBack,
   ])
 }

@@ -10,6 +10,9 @@ import type {
 export type WordbankSectionProps = {
   selectedLemma: string | null
   selectedMeaningId: number | null
+  filters: import("@/app/sections/wordbank/wordbank-list-filters").WordbankFilterState
+  onFiltersChange: (filters: import("@/app/sections/wordbank/wordbank-list-filters").WordbankFilterState) => void
+  onApplyFilterAndNavigateBack: (filters: import("@/app/sections/wordbank/wordbank-list-filters").WordbankFilterState) => void
   wordbankError: string | null
   isWordbankLoading: boolean
   lemmas: WordbankLemma[]

@@ -46,6 +46,24 @@ class NLPCollaborator:
             self._pos_morph_cache[cache_key] = extracted
             return extracted
 
+        if " " in normalized_value.strip():
+            parts = normalized_value.split()
+            if parts:
+                head = parts[0]
+                head_entries = self._cor_entries_for_surface(head)
+                best_head = self._best_cor_entry(
+                    head_entries,
+                    normalized_surface=head,
+                    preferred_pos_tag=None,
+                )
+                if best_head is not None:
+                    head_pos = (best_head.pos_tag or "").upper()
+                    mwe_pos = head_pos if head_pos in {"VERB", "AUX", "NOUN", "ADJ", "ADV", "PRON"} else None
+                    if mwe_pos:
+                        extracted = (mwe_pos, None)
+                        self._pos_morph_cache[cache_key] = extracted
+                        return extracted
+
         if self._nlp_adapter is None:
             self._pos_morph_cache[cache_key] = (None, None)
             return None, None

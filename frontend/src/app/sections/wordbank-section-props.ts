@@ -5,6 +5,9 @@ import { WordbankSection } from "@/app/sections/wordbank-section"
 export type WordbankSectionAdapterArgs = {
   selectedLemma: ComponentProps<typeof WordbankSection>["selectedLemma"]
   selectedMeaningId: ComponentProps<typeof WordbankSection>["selectedMeaningId"]
+  filters: ComponentProps<typeof WordbankSection>["filters"]
+  onFiltersChange: ComponentProps<typeof WordbankSection>["onFiltersChange"]
+  onApplyFilterAndNavigateBack: ComponentProps<typeof WordbankSection>["onApplyFilterAndNavigateBack"]
   wordbankError: ComponentProps<typeof WordbankSection>["wordbankError"]
   isWordbankLoading: boolean
   lemmas: ComponentProps<typeof WordbankSection>["lemmas"]
@@ -66,6 +69,9 @@ export function buildWordbankSectionProps(
   return {
     selectedLemma: args.selectedLemma,
     selectedMeaningId: args.selectedMeaningId,
+    filters: args.filters,
+    onFiltersChange: args.onFiltersChange,
+    onApplyFilterAndNavigateBack: args.onApplyFilterAndNavigateBack,
     wordbankError: args.wordbankError,
     isWordbankLoading: args.isWordbankLoading,
     lemmas: args.lemmas,

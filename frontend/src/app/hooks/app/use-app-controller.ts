@@ -39,6 +39,9 @@ export function useAppController() {
     wordbankSectionProps: buildWordbankSectionProps({
       selectedLemma: navigation.selectedLemma,
       selectedMeaningId: navigation.selectedMeaningId,
+      filters: navigation.filters,
+      onFiltersChange: navigation.setWordbankFilters,
+      onApplyFilterAndNavigateBack: navigation.applyFilterAndNavigateBack,
       wordbankError: lexiconData.wordbankError,
       isWordbankLoading: lexiconData.isWordbankLoading,
       lemmas: lexiconData.lemmas,

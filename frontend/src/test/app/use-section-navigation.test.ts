@@ -160,4 +160,40 @@ describe("useSectionNavigation history", () => {
     expect(result.current.selectedLemma).toBe("du")
     expect(result.current.selectedMeaningId).toBe(42)
   })
+
+  it("restores filters on goBack to clear filters at wordbank root", () => {
+    const { result } = renderHook(() => useSectionNavigation())
+
+    // 1. Initial State A: wordbank root (no filter)
+    expect(result.current.selectedLemma).toBeNull()
+    expect(result.current.filters).toEqual({ posTags: [], categories: [] })
+
+    // 2. Go into a word (State B)
+    act(() => {
+      result.current.openWordbankLemma("se ud")
+    })
+    expect(result.current.selectedLemma).toBe("se ud")
+    expect(result.current.filters).toEqual({ posTags: [], categories: [] })
+
+    // 3. Click on a filter badge: sets filter and navigates back (State C)
+    act(() => {
+      result.current.applyFilterAndNavigateBack({ posTags: ["PHRASAL_VERB"], categories: [] })
+    })
+    expect(result.current.selectedLemma).toBeNull()
+    expect(result.current.filters).toEqual({ posTags: ["PHRASAL_VERB"], categories: [] })
+
+    // 4. Hit browser back once: should go back to State B (lemma details, clear filters)
+    act(() => {
+      result.current.goBack()
+    })
+    expect(result.current.selectedLemma).toBe("se ud")
+    expect(result.current.filters).toEqual({ posTags: [], categories: [] })
+
+    // 5. Hit browser back again: should go back to State A (clear list view, clear filters)
+    act(() => {
+      result.current.goBack()
+    })
+    expect(result.current.selectedLemma).toBeNull()
+    expect(result.current.filters).toEqual({ posTags: [], categories: [] })
+  })
 })

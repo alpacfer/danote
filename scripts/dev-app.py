@@ -407,22 +407,30 @@ def handle_wordbank_list(args: argparse.Namespace, client: ApiClient) -> Any:
     items = payload.get("items") or []
 
     if args.pos_tag:
-        target_pos = args.pos_tag.strip().lower()
+        target_pos = args.pos_tag.strip().lower().replace("_", " ")
         filtered_items = []
         for item in items:
             pos_tags = item.get("pos_tags") or []
             lemma = item.get("lemma")
+            is_mwe = is_multi_word_lemma(lemma)
+            upper_tags = [t.strip().upper() for t in pos_tags if t.strip()]
+            has_verb = any(t in {"VERB", "AUX"} for t in upper_tags)
+
             matched = False
-            for pos in pos_tags:
-                pos = pos.strip()
-                # Match either the raw POS tag (e.g. 'verb') OR the friendly / MWE POS label (e.g. 'phrasal verb')
-                if pos.lower() == target_pos:
-                    matched = True
-                    break
-                label = primary_pos_label_for_lemma(pos, lemma)
-                if label and label.lower() == target_pos:
-                    matched = True
-                    break
+            if target_pos in {"phrasal verb", "phrasal_verb"}:
+                matched = is_mwe and has_verb
+            elif target_pos == "idiom":
+                matched = is_mwe and not has_verb
+            else:
+                for pos in pos_tags:
+                    pos = pos.strip()
+                    if pos.lower() == target_pos:
+                        matched = True
+                        break
+                    label = primary_pos_label_for_lemma(pos, lemma)
+                    if label and label.lower() == target_pos:
+                        matched = True
+                        break
             if matched:
                 filtered_items.append(item)
         items = filtered_items

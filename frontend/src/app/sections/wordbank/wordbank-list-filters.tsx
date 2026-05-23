@@ -1,6 +1,6 @@
 import { Check, ChevronsUpDown, Filter, FilterX } from "lucide-react"
 
-import { posBadgeClass, type WordbankLemma } from "@/app/core"
+import { isMultiWordLemma, posBadgeClass, type WordbankLemma } from "@/app/core"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -47,6 +47,8 @@ const POS_LABELS: Record<string, string> = {
   PROPN: "Proper noun",
   SCONJ: "Subordinating conjunction",
   VERB: "Verb",
+  PHRASAL_VERB: "Phrasal verb",
+  IDIOM: "Idiom",
 }
 
 export function WordbankListFilters({ lemmas, filters, onFiltersChange }: WordbankListFiltersProps) {
@@ -195,15 +197,39 @@ function FilterMenu({
 
 function collectPosOptions(lemmas: WordbankLemma[]): FilterOption[] {
   const values = new Set<string>()
+  let hasPhrasalVerb = false
+  let hasIdiom = false
   for (const lemma of lemmas) {
+    const isMwe = isMultiWordLemma(lemma.lemma)
+    if (isMwe && (!lemma.pos_tags || lemma.pos_tags.length === 0)) {
+      hasIdiom = true
+    }
     for (const posTag of lemma.pos_tags ?? []) {
       const normalized = posTag.trim().toUpperCase()
-      if (normalized) values.add(normalized)
+      if (normalized) {
+        if (isMwe) {
+          if (normalized === "VERB" || normalized === "AUX") {
+            hasPhrasalVerb = true
+          } else {
+            hasIdiom = true
+          }
+        } else {
+          values.add(normalized)
+        }
+      }
     }
   }
-  return [...values]
+  const options = [...values]
     .sort((left, right) => posLabel(left).localeCompare(posLabel(right), "da", { sensitivity: "base" }))
     .map((value) => ({ value, label: posLabel(value) }))
+
+  if (hasPhrasalVerb) {
+    options.push({ value: "PHRASAL_VERB", label: "Phrasal verb" })
+  }
+  if (hasIdiom) {
+    options.push({ value: "IDIOM", label: "Idiom" })
+  }
+  return options
 }
 
 function collectCategoryOptions(lemmas: WordbankLemma[]): FilterOption[] {

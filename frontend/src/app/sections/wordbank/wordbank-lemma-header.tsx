@@ -1,5 +1,5 @@
 import type { LemmaDetailsResponse, VerificationChangeEntry, VerificationOverview } from "@/app/core"
-import { additionalTranslationsDisplay, corSecondaryBadgeClass, normalizeSearchWord, posBadgeClass } from "@/app/core"
+import { additionalTranslationsDisplay, corSecondaryBadgeClass, isMultiWordLemma, normalizeSearchWord, posBadgeClass } from "@/app/core"
 import { pinnedHomesForLemma } from "@/app/sections/wordbank/_shared/pinned-word-index"
 import { wordPageBadgesForSavedForm } from "@/app/sections/wordbank/wordbank-card-badges"
 import { WordbankPronunciationWord } from "@/app/sections/wordbank/wordbank-pronunciation-word"
@@ -185,7 +185,7 @@ export function WordbankLemmaHeader({
             const isWordType = badge.tone === "primary"
             const isClickable = Boolean(onApplyFilterAndNavigateBack && isWordType)
             const handleClick = isClickable
-              ? () => onApplyFilterAndNavigateBack!("pos", headerPosTag ?? "")
+              ? () => onApplyFilterAndNavigateBack!("pos", isMultiWordLemma(lemmaDetails.lemma) ? (badge.label === "Phrasal verb" ? "PHRASAL_VERB" : "IDIOM") : headerPosTag ?? "")
               : undefined
 
             return (

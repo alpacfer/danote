@@ -150,5 +150,60 @@ describe("App wordbank filters", () => {
     expect(await screen.findByRole("button", { name: /^bog$/i })).toBeInTheDocument()
     expect(screen.queryByRole("button", { name: /^lege$/i })).not.toBeInTheDocument()
   })
+
+  it("filters wordbank by derived Phrasal verb and Idiom tags explicitly, and cleans category filters on badge click", async () => {
+    mockFetchImplementation({
+      lemmasResponse: {
+        items: [
+          { lemma: "passe på", variation_count: 0, pos_tags: ["VERB"], categories: ["School"] },
+          { lemma: "bog", variation_count: 0, pos_tags: ["NOUN"], categories: ["School"] },
+        ],
+      },
+      lemmaDetailsResponse: {
+        lemma: "passe på",
+        is_sectioned: true,
+        meaning_sections: [
+          {
+            id: 1,
+            meaning_key: "watch out",
+            gloss: "watch out",
+            english_translation: "watch out",
+            pos_tag: "VERB",
+            morphology: "VerbForm=Inf",
+            categories: ["School"],
+            surface_forms: [],
+          },
+        ],
+        surface_forms: [],
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    // Open Wordbank, click 'passe på' to go to word details page
+    fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
+    const item = await screen.findByRole("button", { name: /^passe på$/i })
+    fireEvent.click(item)
+
+    // Verify heading is visible
+    expect(await screen.findByRole("heading", { name: /^passe på$/i })).toBeInTheDocument()
+
+    // Find the badges container
+    const meaningBadges = screen.getByTestId("wordbank-meaning-badges-1")
+    const phrasalVerbBadge = within(meaningBadges).getByText(/^Phrasal verb$/i)
+
+    // 1. Click 'Phrasal verb' badge
+    fireEvent.click(phrasalVerbBadge)
+
+    // This should redirect to list view and apply 'PHRASAL_VERB' filter
+    // 'passe på' is a phrasal verb, 'bog' is not
+    expect(await screen.findByRole("button", { name: /^passe på$/i })).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /^bog$/i })).not.toBeInTheDocument()
+
+    // 2. Filter menu should reflect 'Phrasal verb' selected
+    const activeWordTypes = screen.getByRole("button", { name: /word type/i })
+    expect(within(activeWordTypes).getByText(/^Phrasal verb$/i)).toBeInTheDocument()
+  })
 })
 
