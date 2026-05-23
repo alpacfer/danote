@@ -11,6 +11,7 @@ import {
 } from "@/app/core"
 import { WordbankFormList } from "@/app/sections/wordbank/wordbank-form-list"
 import { wordPageBadgesForSavedForm } from "@/app/sections/wordbank/wordbank-card-badges"
+import { applyPrimaryBadgeLabelOverride, primaryPosBadgeOverride } from "@/app/sections/wordbank/wordbank-primary-pos-badge"
 import { WordbankParadigmTable } from "@/app/sections/wordbank/wordbank-paradigm-table"
 import {
   buildPronunciationAvailabilityMap,
@@ -25,7 +26,6 @@ import {
   buildVerbParadigm,
 } from "@/app/sections/wordbank/wordbank-paradigm-utils"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { ScrollableBadgeRow } from "@/components/ui/scrollable-badge-row"
 
@@ -83,13 +83,21 @@ export function WordbankMeaningSections({
   return (
     <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
       {meaningSections.map((section) => {
-        const sectionBadges = wordPageBadgesForSavedForm({
-          pos_tag: section.pos_tag ?? null,
+        const sectionBadges = applyPrimaryBadgeLabelOverride(
+          wordPageBadgesForSavedForm({
+            pos_tag: section.pos_tag ?? null,
+            morphology: section.morphology ?? null,
+            gram_raw: section.gram_raw ?? null,
+            // Pass the page-level lemma so MWE meaning cards render "Phrasal verb"
+            // instead of "Verb". The section itself does not carry the lemma.
+            lemma: lemma,
+          }),
+          { posTag: section.pos_tag ?? null, morphology: section.morphology ?? null, lemma },
+        )
+        const sectionPosBadgeOverride = primaryPosBadgeOverride({
+          posTag: section.pos_tag ?? null,
           morphology: section.morphology ?? null,
-          gram_raw: section.gram_raw ?? null,
-          // Pass the page-level lemma so MWE meaning cards render "Phrasal verb"
-          // instead of "Verb". The section itself does not carry the lemma.
-          lemma: lemma,
+          lemma,
         })
         const isGeneratedNonCor = section.dictionary_status === "generated_non_cor"
         const sectionTranslationBase = additionalTranslationsDisplay(
@@ -141,7 +149,6 @@ export function WordbankMeaningSections({
         const formGroups = posTag === "ADJ" ? buildAdjectiveDegreeGroups(formsWithLemma) : []
         const hasRenderableForms = Boolean(nounParadigm || adjectiveParadigm || verbParadigm || resolvedSectionSurfaceForms.length > 0)
         const sectionBadgeLabels = new Set(sectionBadges.map((b) => b.label))
-        const referenceLinks = onOpenPinnedTab ? (section.reference_links ?? []) : []
         const actionMeaningId = section.id > 0 ? section.id : null
         const isRootSection = section.id === 0
 
@@ -207,10 +214,13 @@ export function WordbankMeaningSections({
                         ) : null}
                         {sectionBadges.map((badge) => {
                           const isWordType = badge.tone === "primary"
-                          const isClickable = Boolean(onApplyFilterAndNavigateBack && isWordType)
-                          const handleClick = isClickable
-                             ? () => onApplyFilterAndNavigateBack!("pos", isMultiWordLemma(lemma) ? (badge.label === "Phrasal verb" ? "PHRASAL_VERB" : "IDIOM") : section.pos_tag ?? "")
-                             : undefined
+                          const pinnedSentinel = isWordType ? sectionPosBadgeOverride?.pinnedSentinel ?? null : null
+                          const isClickable = isWordType && Boolean(pinnedSentinel ? onOpenPinnedTab : onApplyFilterAndNavigateBack)
+                          const handleClick = !isClickable
+                            ? undefined
+                            : pinnedSentinel
+                              ? () => onOpenPinnedTab!(pinnedSentinel)
+                              : () => onApplyFilterAndNavigateBack!("pos", isMultiWordLemma(lemma) ? (badge.label === "Phrasal verb" ? "PHRASAL_VERB" : "IDIOM") : section.pos_tag ?? "")
 
                           return (
                             <Badge
@@ -277,22 +287,6 @@ export function WordbankMeaningSections({
                         onRegeneratePronunciation={onRegeneratePronunciation}
                       />
                     )}
-                  </div>
-                ) : null}
-                {referenceLinks.length > 0 ? (
-                  <div data-testid={isRootSection ? "wordbank-pinned-home-card" : `wordbank-meaning-pinned-links-${section.id}`} className="flex flex-wrap gap-1.5">
-                    {referenceLinks.map((home) => (
-                      <Button
-                        key={home.sentinel}
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="h-auto px-2 py-0.5 text-xs"
-                        onClick={() => onOpenPinnedTab?.(home.sentinel)}
-                      >
-                        {home.page_title}: {home.tab_title}
-                      </Button>
-                    ))}
                   </div>
                 ) : null}
               </CardContent>

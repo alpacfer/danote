@@ -7,7 +7,6 @@ import {
   RELATIVE_PRONOUN_ROWS,
   pronounTranslation,
 } from "@/app/sections/wordbank/pronouns/pronouns-data"
-import { QUESTION_WORDS } from "@/app/sections/wordbank/question-words/question-words-data"
 import {
   PinnedPageLayout,
   PinnedWordGrid,
@@ -34,14 +33,12 @@ export function WordbankPronounsPage({ defaultTab, onOpenWord, onOpenTab }: Prop
             <TabsTrigger value="demonstrative">Demonstrative</TabsTrigger>
             <TabsTrigger value="relative">Relative</TabsTrigger>
             <TabsTrigger value="indefinite">Indefinite</TabsTrigger>
-            <TabsTrigger value="question_words">Question Words</TabsTrigger>
           </TabsList>
           <PinnedTab value="personal" entries={personalEntries()} onOpenWord={onOpenWord} />
           <PinnedTab value="possessive" entries={possessiveEntries()} onOpenWord={onOpenWord} />
           <PinnedTab value="demonstrative" entries={demonstrativeEntries()} onOpenWord={onOpenWord} />
           <PinnedTab value="relative" entries={relativeEntries()} onOpenWord={onOpenWord} />
           <PinnedTab value="indefinite" entries={indefiniteEntries()} onOpenWord={onOpenWord} />
-          <PinnedTab value="question_words" entries={questionWordEntries()} onOpenWord={onOpenWord} />
         </div>
       </Tabs>
     </PinnedPageLayout>
@@ -106,15 +103,6 @@ function indefiniteEntries(): PinnedWordEntry[] {
   return INDEFINITE_PRONOUN_ROWS.map((row) => ({
     lemma: row.lemma,
     translation: row.english,
-  }))
-}
-
-function questionWordEntries(): PinnedWordEntry[] {
-  return QUESTION_WORDS.map((entry) => ({
-    lemma: entry.lemma,
-    translation: entry.translation,
-    posTag: entry.posTag,
-    morphology: entry.morphology,
   }))
 }
 

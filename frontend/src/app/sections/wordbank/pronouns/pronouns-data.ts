@@ -89,6 +89,8 @@ const PRONOUN_CATEGORY_MAP: Record<string, PronounCategory> = {
   begge: "indefinite",
   hinanden: "indefinite",
   hverandre: "indefinite",
+  andre: "indefinite",
+  selv: "indefinite",
 }
 
 /** Returns the PronounCategory for a lemma (case-insensitive), or null if not a pronoun. */
@@ -146,6 +148,8 @@ export const PRONOUN_TRANSLATIONS: Record<string, string> = {
   begge: "both",
   hinanden: "each other",
   hverandre: "each other",
+  andre: "others / other",
+  selv: "self / oneself",
 }
 
 export function pronounTranslation(lemma: string): string | null {
@@ -243,6 +247,8 @@ export const POSSESSIVE_PRONOUN_ROWS: PossessivePronounRow[] = [
   { label: "2nd sg", common: "din", neuter: "dit", plural: "dine" },
   { label: "3rd sg (m.)", common: "hans", neuter: "hans", plural: "hans" },
   { label: "3rd sg (f.)", common: "hendes", neuter: "hendes", plural: "hendes" },
+  { label: "3rd sg (c.)", common: "dens", neuter: "dens", plural: "dens" },
+  { label: "3rd sg (n.)", common: "dets", neuter: "dets", plural: "dets" },
   { label: "3rd sg refl.", common: "sin", neuter: "sit", plural: "sine" },
   { label: "1st pl", common: "vores", neuter: "vores", plural: "vores" },
   { label: "2nd pl", common: "jeres", neuter: "jeres", plural: "jeres" },
@@ -270,6 +276,9 @@ export const INDEFINITE_PRONOUN_ROWS: SimplePronounRow[] = [
   { lemma: "ethvert", english: "each / every", note: "Neuter gender." },
   { lemma: "begge", english: "both" },
   { lemma: "hinanden", english: "each other" },
+  { lemma: "hverandre", english: "each other", note: "Less common than 'hinanden'." },
+  { lemma: "andre", english: "others / other", note: "Plural of 'anden'." },
+  { lemma: "selv", english: "self / oneself", note: "Emphatic: 'jeg gør det selv' = I'll do it myself." },
 ]
 
 // All lemmas that belong to each category (used for saved-count checks)

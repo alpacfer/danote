@@ -2,7 +2,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   DAYS_OF_WEEK,
   MONTHS,
-  SEASONS,
 } from "@/app/sections/wordbank/days-months-seasons/days-months-seasons-data"
 import {
   BASIC_NUMBER_ROWS,
@@ -10,11 +9,6 @@ import {
   ORDINAL_NUMBER_ROWS,
   TENS_NUMBER_ROWS,
 } from "@/app/sections/wordbank/numbers/numbers-data"
-import {
-  DURATION_ROWS,
-  FREQUENCY_ROWS,
-  RELATIVE_DAY_ROWS,
-} from "@/app/sections/wordbank/time-expressions/time-expressions-data"
 import {
   PinnedPageLayout,
   PinnedWordGrid,
@@ -40,15 +34,11 @@ export function WordbankNumbersTimePage({ defaultTab, onOpenWord, onOpenTab }: P
             <TabsTrigger value="ordinal_numbers">Ordinal Numbers</TabsTrigger>
             <TabsTrigger value="days">Days</TabsTrigger>
             <TabsTrigger value="months">Months</TabsTrigger>
-            <TabsTrigger value="seasons">Seasons</TabsTrigger>
-            <TabsTrigger value="time_words">Time Words</TabsTrigger>
           </TabsList>
           <PinnedTab value="cardinal_numbers" entries={cardinalEntries()} onOpenWord={onOpenWord} />
           <PinnedTab value="ordinal_numbers" entries={ordinalEntries()} onOpenWord={onOpenWord} />
           <PinnedTab value="days" entries={calendarEntries(DAYS_OF_WEEK)} onOpenWord={onOpenWord} />
           <PinnedTab value="months" entries={calendarEntries(MONTHS)} onOpenWord={onOpenWord} />
-          <PinnedTab value="seasons" entries={calendarEntries(SEASONS)} onOpenWord={onOpenWord} />
-          <PinnedTab value="time_words" entries={timeWordEntries()} onOpenWord={onOpenWord} />
         </div>
       </Tabs>
     </PinnedPageLayout>
@@ -97,14 +87,4 @@ function calendarEntries(rows: Array<{ lemma: string; english: string }>): Pinne
     translation: row.english,
     posTag: "NOUN",
   }))
-}
-
-function timeWordEntries(): PinnedWordEntry[] {
-  return [...RELATIVE_DAY_ROWS, ...DURATION_ROWS, ...FREQUENCY_ROWS]
-    .filter((row) => !row.lemma.includes(" ") && !row.lemma.includes("…"))
-    .map((row) => ({
-      lemma: row.lemma,
-      translation: row.english,
-      posTag: ["altid", "ofte", "sjældent", "aldrig"].includes(row.lemma) ? "ADV" : "ADP",
-    }))
 }

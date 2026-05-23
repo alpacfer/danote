@@ -7,11 +7,16 @@ const HIDDEN_BADGES_BY_TAB: Record<PinnedPageId, Partial<Record<PinnedPageTabId,
     demonstrative: ["Pronoun", "Demonstrative"],
     relative: ["Pronoun", "Relative"],
     indefinite: ["Pronoun", "Indefinite"],
-    question_words: ["Interrogative"],
   },
-  function_words: {
-    articles: ["Determiner"],
+  hv_questions: {
+    hv_people_things: ["Interrogative"],
+    hv_choice: ["Interrogative"],
+    hv_place_time_manner: ["Interrogative"],
+  },
+  prepositions: {
     prepositions: ["Preposition"],
+  },
+  conjunctions: {
     conjunctions: ["Conjunction"],
   },
   numbers_time: {
@@ -19,8 +24,6 @@ const HIDDEN_BADGES_BY_TAB: Record<PinnedPageId, Partial<Record<PinnedPageTabId,
     ordinal_numbers: ["Adjective", "Numeral"],
     days: ["Noun"],
     months: ["Noun"],
-    seasons: ["Noun"],
-    time_words: ["Adverb", "Preposition"],
   },
 }
 

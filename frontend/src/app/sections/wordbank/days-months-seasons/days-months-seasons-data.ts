@@ -27,17 +27,10 @@ export const MONTHS: CalendarRow[] = [
   { lemma: "december", english: "December" },
 ]
 
-export const SEASONS: CalendarRow[] = [
-  { lemma: "forår", english: "spring" },
-  { lemma: "sommer", english: "summer" },
-  { lemma: "efterår", english: "autumn / fall" },
-  { lemma: "vinter", english: "winter" },
-]
-
 export function parseDaysMonthsSeasonsSentinel(selectedLemma: string): boolean {
   return selectedLemma === DAYS_MONTHS_SEASONS_SENTINEL
 }
 
 export const CALENDAR_LEMMAS = new Set(
-  [...DAYS_OF_WEEK, ...MONTHS, ...SEASONS].map((row) => row.lemma.toLowerCase()),
+  [...DAYS_OF_WEEK, ...MONTHS].map((row) => row.lemma.toLowerCase()),
 )

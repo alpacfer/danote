@@ -15,7 +15,7 @@ from app.services.use_cases.wordbank.runtime import WordbankRuntime
 
 @dataclass(frozen=True, slots=True)
 class StaticReferenceLink:
-    page_id: Literal["pronouns", "function_words", "numbers_time"]
+    page_id: Literal["pronouns", "prepositions", "conjunctions", "numbers_time", "hv_questions"]
     page_title: str
     tab_id: str
     tab_title: str
@@ -52,7 +52,7 @@ def static_builtin_senses_for_token(token: str | None) -> tuple[StaticBuiltinSen
                 pos_tag=hv_word.pos_tag,
                 morphology=hv_word.morphology,
                 provider="static_hv_word",
-                reference_links=(_reference_link("pronouns", "question_words"),),
+                reference_links=(_reference_link("hv_questions", _hv_tab_for_lemma(hv_word.lemma)),),
             )
         )
 
@@ -260,16 +260,20 @@ def _pronoun_senses(normalized: str) -> tuple[StaticBuiltinSense, ...]:
             pos_tag=pronoun.pos_tag,
             morphology=pronoun.morphology,
             provider="static_pronoun",
-            reference_links=(_reference_link("pronouns", _pronoun_tab_for_key(key)),),
+            reference_links=(_pronoun_reference_link(pronoun.lemma, key),),
         ),
     )
+
+
+def _pronoun_reference_link(lemma: str, meaning_key: str) -> StaticReferenceLink:
+    if meaning_key == "interrogative_pronoun":
+        return _reference_link("hv_questions", _hv_tab_for_lemma(lemma))
+    return _reference_link("pronouns", _pronoun_tab_for_key(meaning_key))
 
 
 def _pronoun_tab_for_key(meaning_key: str) -> str:
     if meaning_key == "relative_pronoun":
         return "relative"
-    if meaning_key == "interrogative_pronoun":
-        return "question_words"
     if meaning_key == "demonstrative_pronoun":
         return "demonstrative"
     if meaning_key == "possessive_pronoun":
@@ -279,20 +283,39 @@ def _pronoun_tab_for_key(meaning_key: str) -> str:
     return "personal"
 
 
+_HV_CATEGORY_TAB: dict[str, str] = {
+    "hvem": "hv_people_things",
+    "hvad": "hv_people_things",
+    "hvilken": "hv_choice",
+    "hvilket": "hv_choice",
+    "hvilke": "hv_choice",
+    "hvis": "hv_choice",
+    "hvor": "hv_place_time_manner",
+    "hvornår": "hv_place_time_manner",
+    "hvordan": "hv_place_time_manner",
+    "hvorfor": "hv_place_time_manner",
+}
+
+
+def _hv_tab_for_lemma(lemma: str) -> str:
+    return _HV_CATEGORY_TAB.get(lemma, "hv_people_things")
+
+
 def _reference_links_for_presaved(
     word: StaticPresavedWord,
     *,
     meaning_key: str,
 ) -> tuple[StaticReferenceLink, ...]:
     pos = (word.pos_tag or "").upper()
+    # Articles stay presaved but no longer have a grouped reference page.
     if meaning_key == "article" or pos == "DET":
-        return (_reference_link("function_words", "articles"),)
+        return ()
     if meaning_key == "number" or pos == "NUM":
         return (_reference_link("numbers_time", "cardinal_numbers"),)
     if pos == "ADP":
-        return (_reference_link("function_words", "prepositions"),)
+        return (_reference_link("prepositions", "prepositions"),)
     if pos in {"CCONJ", "SCONJ"}:
-        return (_reference_link("function_words", "conjunctions"),)
+        return (_reference_link("conjunctions", "conjunctions"),)
     if pos == "ADJ" and meaning_key in {"ordinal", "first", "second", "third"}:
         return (_reference_link("numbers_time", "ordinal_numbers"),)
     return ()
@@ -300,7 +323,9 @@ def _reference_links_for_presaved(
 
 _PAGE_LABELS = {
     "pronouns": "Pronouns",
-    "function_words": "Function Words",
+    "hv_questions": "HV Questions",
+    "prepositions": "Prepositions",
+    "conjunctions": "Conjunctions",
     "numbers_time": "Numbers & Time",
 }
 
@@ -310,8 +335,9 @@ _TAB_LABELS = {
     "demonstrative": "Demonstrative",
     "relative": "Relative",
     "indefinite": "Indefinite",
-    "question_words": "Question Words",
-    "articles": "Articles",
+    "hv_people_things": "People & Things",
+    "hv_choice": "Choice",
+    "hv_place_time_manner": "Place, Time, Manner & Reason",
     "prepositions": "Prepositions",
     "conjunctions": "Conjunctions",
     "cardinal_numbers": "Cardinal Numbers",
@@ -324,10 +350,11 @@ _TAB_SENTINELS = {
     ("pronouns", "demonstrative"): "__pinned_pronouns_demonstrative",
     ("pronouns", "relative"): "__pinned_pronouns_relative",
     ("pronouns", "indefinite"): "__pinned_pronouns_indefinite",
-    ("pronouns", "question_words"): "__pinned_pronouns_question_words",
-    ("function_words", "articles"): "__pinned_function_words_articles",
-    ("function_words", "prepositions"): "__pinned_function_words_prepositions",
-    ("function_words", "conjunctions"): "__pinned_function_words_conjunctions",
+    ("hv_questions", "hv_people_things"): "__pinned_hv_questions_people_things",
+    ("hv_questions", "hv_choice"): "__pinned_hv_questions_choice",
+    ("hv_questions", "hv_place_time_manner"): "__pinned_hv_questions_place_time_manner",
+    ("prepositions", "prepositions"): "__pinned_prepositions",
+    ("conjunctions", "conjunctions"): "__pinned_conjunctions",
     ("numbers_time", "cardinal_numbers"): "__pinned_numbers_time_cardinal_numbers",
     ("numbers_time", "ordinal_numbers"): "__pinned_numbers_time_ordinal_numbers",
 }

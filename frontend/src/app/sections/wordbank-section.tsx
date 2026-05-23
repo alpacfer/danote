@@ -1,7 +1,9 @@
 
-import { parsePinnedPageSentinel } from "@/app/sections/wordbank/_shared/pinned-pages-registry"
-import { WordbankFunctionWordsPage } from "@/app/sections/wordbank/function-words/wordbank-function-words-page"
+import { isDeprecatedPinnedSentinel, parsePinnedPageSentinel } from "@/app/sections/wordbank/_shared/pinned-pages-registry"
+import { WordbankConjunctionsPage } from "@/app/sections/wordbank/conjunctions/wordbank-conjunctions-page"
+import { WordbankHvQuestionsPage } from "@/app/sections/wordbank/hv-questions/wordbank-hv-questions-page"
 import { WordbankNumbersTimePage } from "@/app/sections/wordbank/numbers-time/wordbank-numbers-time-page"
+import { WordbankPrepositionsPage } from "@/app/sections/wordbank/prepositions/wordbank-prepositions-page"
 import { WordbankPronounsPage } from "@/app/sections/wordbank/pronouns/wordbank-pronouns-page"
 import { WordbankListView } from "@/app/sections/wordbank/wordbank-list-view"
 import { type WordbankSectionProps } from "@/app/sections/wordbank/wordbank-section-types"
@@ -10,7 +12,7 @@ import { WordbankWordPage } from "@/app/sections/wordbank/wordbank-word-page"
 export type { WordbankSectionProps } from "@/app/sections/wordbank/wordbank-section-types"
 
 export function WordbankSection(props: WordbankSectionProps) {
-  if (!props.selectedLemma) {
+  if (!props.selectedLemma || isDeprecatedPinnedSentinel(props.selectedLemma)) {
     return (
       <WordbankListView
         {...props}
@@ -30,8 +32,12 @@ export function WordbankSection(props: WordbankSectionProps) {
     switch (pinned.id) {
       case "pronouns":
         return <WordbankPronounsPage key={props.selectedLemma} {...pageProps} />
-      case "function_words":
-        return <WordbankFunctionWordsPage key={props.selectedLemma} {...pageProps} />
+      case "hv_questions":
+        return <WordbankHvQuestionsPage key={props.selectedLemma} {...pageProps} />
+      case "prepositions":
+        return <WordbankPrepositionsPage key={props.selectedLemma} onOpenWord={pageProps.onOpenWord} />
+      case "conjunctions":
+        return <WordbankConjunctionsPage key={props.selectedLemma} onOpenWord={pageProps.onOpenWord} />
       case "numbers_time":
         return <WordbankNumbersTimePage key={props.selectedLemma} {...pageProps} />
     }

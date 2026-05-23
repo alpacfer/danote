@@ -52,10 +52,11 @@ STATIC_PRONOUNS: dict[str, StaticPronoun] = {
     "disse": StaticPronoun("disse", "these", "PRON", "PronType=Dem|Number=Plur"),
     "hvem": StaticPronoun("hvem", "who", "PRON", "PronType=Int"),
     "hvad": StaticPronoun("hvad", "what", "PRON", "PronType=Int|Gender=Neut"),
-    "hvilken": StaticPronoun("hvilken", "which", "PRON", "PronType=Int|Number=Sing|Gender=Com"),
-    "hvilket": StaticPronoun("hvilket", "which", "PRON", "PronType=Int|Number=Sing|Gender=Neut"),
-    "hvilke": StaticPronoun("hvilke", "which", "PRON", "PronType=Int|Number=Plur"),
-    "hvis": StaticPronoun("hvis", "whose", "PRON", "PronType=Int,Rel|Poss=Yes"),
+    # Interrogative which/whose modify nouns → DET (matches static_hv_words.py and UD-DA).
+    "hvilken": StaticPronoun("hvilken", "which", "DET", "PronType=Int|Number=Sing|Gender=Com"),
+    "hvilket": StaticPronoun("hvilket", "which", "DET", "PronType=Int|Number=Sing|Gender=Neut"),
+    "hvilke": StaticPronoun("hvilke", "which", "DET", "PronType=Int|Number=Plur"),
+    "hvis": StaticPronoun("hvis", "whose", "DET", "PronType=Int,Rel|Poss=Yes"),
     "som": StaticPronoun("som", "who / which / that", "PRON", "PronType=Rel"),
     "der": StaticPronoun("der", "who / which", "PRON", "PronType=Rel"),
     "man": StaticPronoun("man", "one / you", "PRON", "PronType=Ind|Person=3|Number=Sing"),
@@ -69,6 +70,8 @@ STATIC_PRONOUNS: dict[str, StaticPronoun] = {
     "begge": StaticPronoun("begge", "both", "PRON", "PronType=Tot|Number=Plur"),
     "hinanden": StaticPronoun("hinanden", "each other", "PRON", "PronType=Rcp"),
     "hverandre": StaticPronoun("hverandre", "each other", "PRON", "PronType=Rcp"),
+    "andre": StaticPronoun("andre", "others / other", "PRON", "PronType=Ind|Number=Plur"),
+    "selv": StaticPronoun("selv", "self / oneself", "PRON", "PronType=Emp"),
 }
 
 STATIC_PRONOUNS_BY_ENGLISH: dict[str, StaticPronoun] = {
@@ -112,6 +115,8 @@ STATIC_PRONOUNS_BY_ENGLISH: dict[str, StaticPronoun] = {
     "every": STATIC_PRONOUNS["enhver"],
     "both": STATIC_PRONOUNS["begge"],
     "each other": STATIC_PRONOUNS["hinanden"],
+    "others": STATIC_PRONOUNS["andre"],
+    "self": STATIC_PRONOUNS["selv"],
 }
 
 

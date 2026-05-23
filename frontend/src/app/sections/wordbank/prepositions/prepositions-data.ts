@@ -25,6 +25,9 @@ export const PREPOSITION_ROWS: PrepositionEntry[] = [
   { lemma: "før", translation: "before", note: "Sequence in time." },
   { lemma: "mellem", translation: "between", note: "Between two or more entities." },
   { lemma: "uden", translation: "without", note: "Absence." },
+  { lemma: "bag", translation: "behind", note: "Position behind something." },
+  { lemma: "foran", translation: "in front of", note: "Position in front of something." },
+  { lemma: "omkring", translation: "around / about", note: "Surrounding location or approximate quantity." },
 ]
 
 export function parsePrepositionsSentinel(selectedLemma: string): boolean {

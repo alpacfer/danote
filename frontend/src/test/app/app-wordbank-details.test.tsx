@@ -95,7 +95,7 @@ describe("App wordbank", () => {
     expect(within(meaningBadges).queryByText(/^Indefinite$/i)).not.toBeInTheDocument()
   })
 
-  it("renderer-only: sectioned pinned words keep pinned links inside the matching meaning card", async () => {
+  it("renderer-only: sectioned pinned words no longer render meaning-level pinned-link chips", async () => {
     mockFetchImplementation({
       lemmasResponse: {
         items: [{ lemma: "en", variation_count: 1 }],
@@ -111,13 +111,7 @@ describe("App wordbank", () => {
             english_translation: "a / an",
             pos_tag: "DET",
             morphology: "Gender=Com|Number=Sing",
-            reference_links: [{
-              page_id: "function_words",
-              page_title: "Function Words",
-              tab_id: "articles",
-              tab_title: "Articles",
-              sentinel: "__pinned_function_words_articles",
-            }],
+            reference_links: [],
             surface_forms: [],
           },
           {
@@ -145,8 +139,9 @@ describe("App wordbank", () => {
     fireEvent.click(await screen.findByRole("button", { name: /^en/i }))
 
     expect(screen.queryByTestId("wordbank-pinned-home-card")).not.toBeInTheDocument()
-    expect(within(await screen.findByTestId("wordbank-meaning-pinned-links-1")).getByText("Function Words: Articles")).toBeInTheDocument()
-    expect(within(await screen.findByTestId("wordbank-meaning-pinned-links-2")).getByText("Numbers & Time: Cardinal Numbers")).toBeInTheDocument()
+    expect(screen.queryByText(/Function Words: Articles/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Numbers & Time: Cardinal Numbers/i)).not.toBeInTheDocument()
+    expect(screen.queryByTestId("wordbank-meaning-pinned-links-2")).not.toBeInTheDocument()
   }, 10_000)
 
   it("renderer-only: meaning-section surface forms show badges without rendering surface translations", async () => {

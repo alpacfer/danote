@@ -40,6 +40,9 @@ STATIC_PRESAVED_WORDS: dict[str, StaticPresavedWord] = {
     "efter": StaticPresavedWord("efter", "after", "ADP"),
     "mellem": StaticPresavedWord("mellem", "between", "ADP"),
     "uden": StaticPresavedWord("uden", "without", "ADP"),
+    "bag": StaticPresavedWord("bag", "behind", "ADP"),
+    "foran": StaticPresavedWord("foran", "in front of", "ADP"),
+    "omkring": StaticPresavedWord("omkring", "around / about", "ADP"),
     "og": StaticPresavedWord("og", "and", "CCONJ"),
     "eller": StaticPresavedWord("eller", "or", "CCONJ"),
     "men": StaticPresavedWord("men", "but", "CCONJ"),
@@ -51,6 +54,9 @@ STATIC_PRESAVED_WORDS: dict[str, StaticPresavedWord] = {
     "mens": StaticPresavedWord("mens", "while", "SCONJ"),
     "selvom": StaticPresavedWord("selvom", "although / even though", "SCONJ"),
     "inden": StaticPresavedWord("inden", "before", "SCONJ"),
+    "end": StaticPresavedWord("end", "than", "SCONJ"),
+    "skønt": StaticPresavedWord("skønt", "although / even though", "SCONJ"),
+    "ligesom": StaticPresavedWord("ligesom", "just as / like", "SCONJ"),
     "nul": StaticPresavedWord("nul", "zero", "NUM", meaning_key="number"),
     "to": StaticPresavedWord("to", "two", "NUM", meaning_key="number"),
     "tre": StaticPresavedWord("tre", "three", "NUM", meaning_key="number"),
@@ -114,16 +120,6 @@ STATIC_PRESAVED_WORDS: dict[str, StaticPresavedWord] = {
     "oktober": StaticPresavedWord("oktober", "October", "NOUN"),
     "november": StaticPresavedWord("november", "November", "NOUN"),
     "december": StaticPresavedWord("december", "December", "NOUN"),
-    "forår": StaticPresavedWord("forår", "spring", "NOUN"),
-    "sommer": StaticPresavedWord("sommer", "summer", "NOUN"),
-    "efterår": StaticPresavedWord("efterår", "autumn / fall", "NOUN"),
-    "vinter": StaticPresavedWord("vinter", "winter", "NOUN"),
-    "altid": StaticPresavedWord("altid", "always", "ADV"),
-    "ofte": StaticPresavedWord("ofte", "often", "ADV"),
-    "sjældent": StaticPresavedWord("sjældent", "rarely", "ADV"),
-    "aldrig": StaticPresavedWord("aldrig", "never", "ADV"),
-    "indtil": StaticPresavedWord("indtil", "until", "ADP"),
-    "siden": StaticPresavedWord("siden", "since", "ADP"),
 }
 
 STATIC_PRESAVED_SENSES_BY_TOKEN: dict[str, tuple[StaticPresavedWord, ...]] = {
@@ -141,6 +137,10 @@ STATIC_PRESAVED_SENSES_BY_TOKEN: dict[str, tuple[StaticPresavedWord, ...]] = {
     "for": (
         StaticPresavedWord("for", "for", "ADP", meaning_key="preposition"),
         StaticPresavedWord("for", "because", "CCONJ", meaning_key="conjunction"),
+    ),
+    "før": (
+        StaticPresavedWord("før", "before", "ADP", meaning_key="preposition"),
+        StaticPresavedWord("før", "before", "SCONJ", meaning_key="conjunction"),
     ),
 }
 

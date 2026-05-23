@@ -193,7 +193,8 @@ def test_wordbank_get_lemma_details_sections_static_homographs(tmp_path: Path) -
         ("DET", "a / an"),
         ("NUM", "one"),
     ]
-    assert en_details.meaning_sections[0].reference_links[0].tab_id == "articles"
+    # Articles are still presaved but no longer have a grouped reference page.
+    assert en_details.meaning_sections[0].reference_links == []
     assert en_details.meaning_sections[1].reference_links[0].tab_id == "cardinal_numbers"
     assert [form.form for form in en_details.surface_forms] == ["en"]
     assert der_details.is_sectioned is True

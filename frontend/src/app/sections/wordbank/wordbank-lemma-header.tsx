@@ -2,10 +2,10 @@ import type { LemmaDetailsResponse, VerificationChangeEntry, VerificationOvervie
 import { additionalTranslationsDisplay, corSecondaryBadgeClass, isMultiWordLemma, normalizeSearchWord, posBadgeClass } from "@/app/core"
 import { pinnedHomesForLemma } from "@/app/sections/wordbank/_shared/pinned-word-index"
 import { wordPageBadgesForSavedForm } from "@/app/sections/wordbank/wordbank-card-badges"
+import { applyPrimaryBadgeLabelOverride, primaryPosBadgeOverride } from "@/app/sections/wordbank/wordbank-primary-pos-badge"
 import { WordbankPronunciationWord } from "@/app/sections/wordbank/wordbank-pronunciation-word"
 import { WordbankVerificationPopover } from "@/app/sections/wordbank/wordbank-verification-popover"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { ScrollableBadgeRow } from "@/components/ui/scrollable-badge-row"
@@ -96,15 +96,23 @@ export function WordbankLemmaHeader({
   const headerPosTag = selectedMeaningSection?.pos_tag ?? lemmaDetails.pos_tag
   const headerMorphology = selectedMeaningSection?.morphology ?? lemmaDetails.morphology
   const headerBadges = showSupplementaryMetadata
-    ? wordPageBadgesForSavedForm({
-        pos_tag: headerPosTag ?? null,
-        morphology: headerMorphology ?? null,
-        gram_raw: selectedMeaningSection?.gram_raw ?? lemmaSurfaceDetails?.gram_raw ?? null,
-        // Pass the lemma so multi-word entries ("se ud", "passe på") render the
-        // "Phrasal verb" badge instead of "Verb" in the page header.
-        lemma: lemmaDetails.lemma,
-      })
+    ? applyPrimaryBadgeLabelOverride(
+        wordPageBadgesForSavedForm({
+          pos_tag: headerPosTag ?? null,
+          morphology: headerMorphology ?? null,
+          gram_raw: selectedMeaningSection?.gram_raw ?? lemmaSurfaceDetails?.gram_raw ?? null,
+          // Pass the lemma so multi-word entries ("se ud", "passe på") render the
+          // "Phrasal verb" badge instead of "Verb" in the page header.
+          lemma: lemmaDetails.lemma,
+        }),
+        { posTag: headerPosTag ?? null, morphology: headerMorphology ?? null, lemma: lemmaDetails.lemma },
+      )
     : []
+  const headerPosBadgeOverride = primaryPosBadgeOverride({
+    posTag: headerPosTag ?? null,
+    morphology: headerMorphology ?? null,
+    lemma: lemmaDetails.lemma,
+  })
   const pinnedHomes = pinnedHomesForLemma(lemmaDetails.lemma)
   const isRegeneratingLemma = Boolean(regeneratingPronunciationByForm[normalizeSearchWord(lemmaDetails.lemma)])
   const lemmaContextMenuItems = [
@@ -183,10 +191,13 @@ export function WordbankLemmaHeader({
         >
           {headerBadges.map((badge) => {
             const isWordType = badge.tone === "primary"
-            const isClickable = Boolean(onApplyFilterAndNavigateBack && isWordType)
-            const handleClick = isClickable
-              ? () => onApplyFilterAndNavigateBack!("pos", isMultiWordLemma(lemmaDetails.lemma) ? (badge.label === "Phrasal verb" ? "PHRASAL_VERB" : "IDIOM") : headerPosTag ?? "")
-              : undefined
+            const pinnedSentinel = isWordType ? headerPosBadgeOverride?.pinnedSentinel ?? null : null
+            const isClickable = isWordType && Boolean(pinnedSentinel ? onOpenPinnedTab : onApplyFilterAndNavigateBack)
+            const handleClick = !isClickable
+              ? undefined
+              : pinnedSentinel
+                ? () => onOpenPinnedTab(pinnedSentinel)
+                : () => onApplyFilterAndNavigateBack!("pos", isMultiWordLemma(lemmaDetails.lemma) ? (badge.label === "Phrasal verb" ? "PHRASAL_VERB" : "IDIOM") : headerPosTag ?? "")
 
             return (
               <Badge
@@ -207,24 +218,6 @@ export function WordbankLemmaHeader({
       {/* Translation */}
       {headerTranslationLine && (showSupplementaryMetadata || selectedMeaningSection) ? (
         <p className="text-muted-foreground mt-2 text-base italic">{headerTranslationLine}</p>
-      ) : null}
-
-      {/* Pinned section links */}
-      {showSupplementaryMetadata && pinnedHomes.length > 0 ? (
-        <div data-testid="wordbank-pinned-home-card" className="mt-2 flex flex-wrap gap-1.5">
-          {pinnedHomes.map((home) => (
-            <Button
-              key={home.sentinel}
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-auto px-2 py-0.5 text-xs"
-              onClick={() => onOpenPinnedTab(home.sentinel)}
-            >
-              {home.pageTitle}: {home.tabTitle}
-            </Button>
-          ))}
-        </div>
       ) : null}
     </div>
   )

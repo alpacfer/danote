@@ -24,6 +24,9 @@ export const SUBORDINATING_CONJUNCTION_ROWS: ConjunctionEntry[] = [
   { lemma: "selvom", translation: "although / even though", note: "Concession." },
   { lemma: "inden", translation: "before", note: "Time before another event." },
   { lemma: "før", translation: "before", note: "Synonym of 'inden'." },
+  { lemma: "end", translation: "than", note: "Comparison: 'større end mig' = bigger than me." },
+  { lemma: "skønt", translation: "although / even though", note: "Concession; literary synonym of 'selvom'." },
+  { lemma: "ligesom", translation: "just as / like", note: "Comparison or simultaneity." },
 ]
 
 export const CONJUNCTION_NOTES = [

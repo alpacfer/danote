@@ -5,9 +5,8 @@ import userEvent from "@testing-library/user-event"
 // the lemma is user-saved or a built-in/presaved one) must render the same chrome
 // at the top (lemma title + pronunciation + verification trigger) and the same
 // structural layout inside the synthetic root card (lemma word + translation +
-// POS badges + pinned-home chips). Saved and built-in pages must be 1:1 — the only
-// difference is the verification overview state (built-ins read "Verified" by
-// construction).
+// POS badges). Saved and built-in pages must be 1:1 — the only difference is the
+// verification overview state (built-ins read "Verified" by construction).
 describe("App wordbank word-page parity", () => {
   function savedBogResponse() {
     return {
@@ -32,11 +31,11 @@ describe("App wordbank word-page parity", () => {
       is_sectioned: false,
       reference_links: [
         {
-          page_id: "pronouns",
-          page_title: "Pronouns",
-          tab_id: "question_words",
-          tab_title: "Question Words",
-          sentinel: "__pinned_pronouns_question_words",
+          page_id: "hv_questions",
+          page_title: "HV Questions",
+          tab_id: "hv_place_time_manner",
+          tab_title: "Place, Time, Manner & Reason",
+          sentinel: "__pinned_hv_questions_place_time_manner",
         },
       ],
       meaning_sections: [],
@@ -72,8 +71,8 @@ describe("App wordbank word-page parity", () => {
     })
     renderApp()
     await screen.findByLabelText("backend-connection-status")
-    fireEvent.click(await screen.findByRole("button", { name: /open pronouns reference/i }))
-    await user.click(screen.getByRole("tab", { name: /question words/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /open hv questions reference/i }))
+    await user.click(screen.getByRole("tab", { name: /place, time, manner & reason/i }))
     fireEvent.click(await screen.findByRole("button", { name: /open hvor in wordbank/i }))
     await screen.findByRole("heading", { name: /^hvor$/i })
     return user
@@ -122,7 +121,7 @@ describe("App wordbank word-page parity", () => {
       hasScopeCard: true,
       cardLemma: "hvor",
       hasCardBadges: true,
-      hasPinnedHomeChip: true,
+      hasPinnedHomeChip: false,
       hasVerificationTrigger: true,
       hasAudioButton: true,
     })
@@ -144,10 +143,10 @@ describe("App wordbank word-page parity", () => {
     expect(within(scopeCard).getByTestId("wordbank-lemma-card-lemma")).toHaveTextContent(/^hvor$/)
   })
 
-  it("renders pinned-home chips inside the synthetic root card for built-in words", async () => {
+  it("no longer renders pinned-home chips for built-in words — the POS badge handles that navigation", async () => {
     await openBuiltInHvorPage()
     const scopeCard = screen.getByTestId("wordbank-lemma-scope-card")
-    expect(within(scopeCard).getByTestId("wordbank-pinned-home-card")).toHaveTextContent("Pronouns: Question Words")
+    expect(within(scopeCard).queryByTestId("wordbank-pinned-home-card")).not.toBeInTheDocument()
   })
 
   it("shows the verification trigger as Verified for built-in/presaved words", async () => {

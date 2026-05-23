@@ -37,16 +37,6 @@ export function SidebarNavigation({
         <SidebarGroupContent>
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton type="button" onClick={onOpenSearch} className="max-md:h-12 max-md:text-base max-md:[&>svg]:size-5">
-                <Search />
-                <span>Search</span>
-                <KbdGroup aria-hidden="true" className="ml-auto hidden md:flex">
-                  <Kbd>⌘</Kbd>
-                  <Kbd>K</Kbd>
-                </KbdGroup>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
               <SidebarMenuButton
                 type="button"
                 isActive={activeSection === "wordbank"}
@@ -79,6 +69,16 @@ export function SidebarNavigation({
                 <KbdGroup aria-hidden="true" className="ml-auto hidden md:flex">
                   <Kbd>Alt</Kbd>
                   <Kbd>S</Kbd>
+                </KbdGroup>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton type="button" onClick={onOpenSearch} className="max-md:h-12 max-md:text-base max-md:[&>svg]:size-5">
+                <Search />
+                <span>Search</span>
+                <KbdGroup aria-hidden="true" className="ml-auto hidden md:flex">
+                  <Kbd>⌘</Kbd>
+                  <Kbd>K</Kbd>
                 </KbdGroup>
               </SidebarMenuButton>
             </SidebarMenuItem>

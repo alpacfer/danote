@@ -3,6 +3,7 @@ import type { KeyboardEvent } from "react"
 import { corSecondaryBadgeClass, posBadgeClass, type CorSearchBadge } from "@/app/core"
 import { metadataForPinnedWord } from "@/app/sections/wordbank/_shared/pinned-word-metadata"
 import { wordPageBadgesForSavedForm } from "@/app/sections/wordbank/wordbank-card-badges"
+import { applyPrimaryBadgeLabelOverride } from "@/app/sections/wordbank/wordbank-primary-pos-badge"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardHeader, CardTitle } from "@/components/ui/card"
 import { ScrollableBadgeRow } from "@/components/ui/scrollable-badge-row"
@@ -30,11 +31,16 @@ export function PinnedWordCard({
   const openWord = () => onOpenWord(entry.lemma)
   const metadata = metadataForPinnedWord(entry.lemma)
   const posTag = entry.posTag ?? metadata?.posTag ?? null
-  const allBadges = entry.badges
+  const rawBadges = entry.badges
     ?? (entry.posTag || entry.morphology
       ? wordPageBadgesForSavedForm({ pos_tag: entry.posTag ?? null, morphology: entry.morphology ?? null })
       : metadata?.badges)
     ?? []
+  const allBadges = applyPrimaryBadgeLabelOverride(rawBadges, {
+    posTag: entry.posTag ?? null,
+    morphology: entry.morphology ?? null,
+    lemma: entry.lemma,
+  })
   const hiddenSet = hiddenBadges && hiddenBadges.length > 0 ? new Set(hiddenBadges) : null
   const badges = hiddenSet ? allBadges.filter((badge) => !hiddenSet.has(badge.label)) : allBadges
 
