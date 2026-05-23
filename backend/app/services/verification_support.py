@@ -95,6 +95,6 @@ def is_valid_new_category(label: str) -> bool:
         "feminine",
         "neuter",
     }
-    if any(word.casefold() in blocked for word in words):
+    if normalized.casefold() in blocked:
         return False
     return any(character.isalpha() for character in normalized)

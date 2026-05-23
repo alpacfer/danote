@@ -158,8 +158,6 @@ def is_allowed_word_category_label(label: str | None) -> bool:
         return False
     if key in _BLOCKED_CATEGORY_KEYS:
         return False
-    if any(word in _BLOCKED_CATEGORY_KEYS for word in words):
-        return False
     return any(character.isalpha() for character in key)
 
 

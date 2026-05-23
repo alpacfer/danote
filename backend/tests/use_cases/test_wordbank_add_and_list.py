@@ -623,6 +623,92 @@ def test_wordbank_add_word_keeps_same_surface_under_distinct_meaning_sections(tm
     assert details.meaning_sections[0].surface_forms[0].lemma_translation == "book"
     assert details.meaning_sections[1].surface_forms[0].lemma_translation == "swamp"
 
+
+def test_wordbank_add_word_separates_different_pos_homographs(tmp_path: Path) -> None:
+    # 1. noun: kort (map, lemma_idx 1001)
+    noun_lemma = _cor_local_entry(
+        cor_id="COR.KORT.NOUN.LEM",
+        lemma="kort",
+        gloss="map",
+        form="kort",
+        lemma_idx=1001,
+        pos_tag="NOUN",
+        morphology="Gender=Neut|Number=Sing|Definite=Ind",
+    )
+    noun_surface = _cor_local_entry(
+        cor_id="COR.KORT.NOUN.DEF",
+        lemma="kort",
+        gloss="map",
+        form="kortet",
+        lemma_idx=1001,
+        pos_tag="NOUN",
+        morphology="Gender=Neut|Number=Sing|Definite=Def",
+    )
+    # 2. adjective: kort (short, lemma_idx 1002)
+    adj_lemma = _cor_local_entry(
+        cor_id="COR.KORT.ADJ.LEM",
+        lemma="kort",
+        gloss="short",
+        form="kort",
+        lemma_idx=1002,
+        pos_tag="ADJ",
+        morphology="Gender=Com|Number=Sing|Definite=Ind",
+    )
+    adj_surface = _cor_local_entry(
+        cor_id="COR.KORT.ADJ.NEUT",
+        lemma="kort",
+        gloss="short",
+        form="kortet",
+        lemma_idx=1002,
+        pos_tag="ADJ",
+        morphology="Gender=Neut|Number=Sing|Definite=Ind",
+    )
+
+    fake_cor = FakeCORLocalLexiconService(
+        by_form={
+            "kort": [noun_lemma, adj_lemma],
+            "kortet": [noun_surface, adj_surface],
+        },
+        by_lemma_idx={
+            1001: [noun_lemma, noun_surface],
+            1002: [adj_lemma, adj_surface],
+        },
+    )
+
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_local_lexicon_service=fake_cor,
+        translation_service=FakeTranslationService(
+            {
+                "map": "map",
+                "short": "short",
+            }
+        ),
+        gemini_word_translation_service=FakeGeminiWordTranslationService(
+            {
+                ("kort", "kort", "map"): "map",
+                ("kort", "kort", "short"): "short",
+            }
+        ),
+    )
+
+    first = use_case.add_word("kort", "kort", cor_id="COR.KORT.NOUN.LEM")
+    second = use_case.add_word("kort", "kort", cor_id="COR.KORT.ADJ.LEM")
+    details = use_case.get_lemma_details("kort")
+
+    assert first.status == "inserted"
+    assert second.status == "inserted"
+    assert first.meaning is not None
+    assert second.meaning is not None
+    assert first.meaning.id != second.meaning.id
+
+    assert len(details.meaning_sections) == 2
+    assert details.meaning_sections[0].pos_tag == "NOUN"
+    assert details.meaning_sections[0].meaning_key == "map"
+    assert details.meaning_sections[1].pos_tag == "ADJ"
+    assert details.meaning_sections[1].meaning_key == "short"
+
+
 def test_wordbank_add_word_treats_duplicate_cor_id_for_same_meaning_form_as_exists(tmp_path: Path) -> None:
     use_case = WordbankUseCase(
         _db_path(tmp_path),

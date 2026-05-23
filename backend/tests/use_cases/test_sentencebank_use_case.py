@@ -1508,6 +1508,34 @@ def test_sentencebank_batch_verification_assigns_categories_to_new_words(tmp_pat
     assert surface_form is not None
 
 
+def test_sentencebank_batch_verification_filters_blocked_and_preserves_compound_categories(tmp_path: Path) -> None:
+    db_path = _db_path(tmp_path)
+    nlp_adapter = MappingNLPAdapter(
+        {
+            "er": [
+                NLPToken(text="er", lemma="være", pos="AUX", morphology="Tense=Pres|VerbForm=Fin", is_punctuation=False),
+            ],
+        }
+    )
+    verification_service = FakeVerificationService(categories=("Action Movies", "Common Nouns", "Verb", "Actions"))
+    verification_service.batch_calls = []
+    wordbank_use_case = WordbankUseCase(
+        db_path,
+        nlp_adapter=nlp_adapter,
+        verification_service=verification_service,
+    )
+    sentencebank_use_case = SentencebankUseCase(
+        db_path,
+        nlp_adapter=nlp_adapter,
+        wordbank_use_case=wordbank_use_case,
+    )
+
+    sentencebank_use_case.add_sentence("er")
+
+    details = wordbank_use_case.get_lemma_details("være")
+    assert details.categories == ["Action Movies", "Common Nouns"]
+
+
 def test_sentencebank_batch_verification_persists_meaning_and_surface_targets_for_sectioned_verbs(
     tmp_path: Path,
 ) -> None:

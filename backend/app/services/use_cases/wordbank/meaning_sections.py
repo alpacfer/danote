@@ -74,6 +74,12 @@ def resolve_non_verb_meaning(
         preferred_pos_tag=preferred_pos_tag,
         preferred_lemma_idx=selected.cor_lemma_idx if selected is not None else None,
     )
+    if surface_cor_entry is not None and normalized_cor_id is not None:
+        preferred_pos_tag = surface_cor_entry.pos_tag
+        preferred_morphology = surface_cor_entry.morphology
+        if is_verb_like_pos_tag(preferred_pos_tag):
+            return None
+
     cor_lemma_idx = (
         surface_cor_entry.lemma_idx
         if surface_cor_entry is not None
@@ -86,21 +92,29 @@ def resolve_non_verb_meaning(
             surface_form=surface_form,
             existing_meanings=existing_meanings,
             cor_lemma_idx=cor_lemma_idx,
+            preferred_pos_tag=preferred_pos_tag,
         )
 
-    candidate_entries = runtime.cor.cor_local_entries_for_form(
-        form=surface_form,
-        lemma=stored_lemma,
-        preferred_pos_tag=preferred_pos_tag,
-    )
-    candidate_lemma_idxs = {entry.lemma_idx for entry in candidate_entries}
-    if selected is None and len(candidate_lemma_idxs) == 1:
-        cor_lemma_idx = next(iter(candidate_lemma_idxs))
-        selected = next(
-            (item for item in existing_meanings if item.cor_lemma_idx == cor_lemma_idx),
-            None,
+    if selected is None and cor_lemma_idx is None:
+        candidate_entries = runtime.cor.cor_local_entries_for_form(
+            form=surface_form,
+            lemma=stored_lemma,
+            preferred_pos_tag=preferred_pos_tag,
         )
+        candidate_lemma_idxs = {entry.lemma_idx for entry in candidate_entries}
+        if len(candidate_lemma_idxs) == 1:
+            cor_lemma_idx = next(iter(candidate_lemma_idxs))
+            selected = next(
+                (item for item in existing_meanings if item.cor_lemma_idx == cor_lemma_idx),
+                None,
+            )
+
     if selected is None and len(existing_meanings) > 1:
+        candidate_entries = runtime.cor.cor_local_entries_for_form(
+            form=surface_form,
+            lemma=stored_lemma,
+            preferred_pos_tag=preferred_pos_tag,
+        )
         selected = _select_existing_meaning_with_gemini(
             runtime,
             surface_form=surface_form,
@@ -249,6 +263,7 @@ def _resolve_existing_meaning_by_surface(
     surface_form: str,
     existing_meanings: list[LexemeMeaningRecord],
     cor_lemma_idx: int | None,
+    preferred_pos_tag: str | None = None,
 ) -> LexemeMeaningRecord | None:
     if cor_lemma_idx is not None:
         by_cor_lemma_idx = next(
@@ -262,7 +277,11 @@ def _resolve_existing_meaning_by_surface(
     if len(meaning_ids) != 1:
         return None
     meaning_id = next(iter(meaning_ids))
-    return next((item for item in existing_meanings if item.id == meaning_id), None)
+    meaning = next((item for item in existing_meanings if item.id == meaning_id), None)
+    if meaning is not None and preferred_pos_tag is not None and meaning.pos_tag is not None:
+        if meaning.pos_tag.upper() != preferred_pos_tag.upper():
+            return None
+    return meaning
 
 
 def _select_existing_meaning_with_gemini(
