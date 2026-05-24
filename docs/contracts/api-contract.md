@@ -263,6 +263,16 @@ or `Authorization: Bearer <guest-token>` header. Local dev
   - `added_surface_forms`: forms inserted. `queued_pronunciation_forms`: forms queued for background pronunciation (lemma-scoped, merged by `stored_lemma`; may include lemma itself).
   - `queued_verification_targets`: empty for this Gemini-resolved completion path; retained for response compatibility.
 
+### POST `/api/wordbank/lexemes/expand-senses`
+- **Request model:** `ExpandLemmaSensesRequest` (`lemma`).
+- **Response model:** `ExpandLemmaSensesResponse` (`lemma`, `status`, `discovered_count`, `inserted_count`, `renamed_legacy`).
+- **Notable status/error behavior:** `503` DB unavailable/locked. `404` target not found via `include_lookup_error`. `400` invalid inputs. `status` values: `expanded`, `already_expanded`, `lemma_not_found`, `pos_unsupported`, `no_senses`.
+- **Field invariants:**
+  - Idempotent backfill for already-saved lemmas. Runs Gemini sense discovery for the lemma's stored POS (open-class only: `VERB`/`AUX`/`NOUN`/`PROPN`/`ADJ`/`ADV`) and inserts one `lexeme_meanings` row per discovered sense whose `meaning_key` is not already present.
+  - When the lexeme has exactly one existing meaning and its `meaning_key` equals the lemma (legacy single-meaning saves), the row is renamed in place to the sense whose `english_translation` matches (or the first discovered sense if no match), so the existing row's id/categories/verification are preserved instead of duplicated. Sets `renamed_legacy=true` in that case.
+  - Inserted rows carry the sense's `meaning_key`/`gloss`/`english_translation` and inherit `pos_tag`/`morphology` from the parent lexeme; `cor_lemma_idx` is left `null` for inserted senses to avoid colliding with the legacy meaning's existing index.
+  - `discovered_count` is the number of senses Gemini returned; `inserted_count` is the number actually written.
+
 ### POST `/api/wordbank/lexemes/pronunciation`
 - **Request model:** `GeneratePronunciationRequest`.
 - **Response model:** `GeneratePronunciationResponse`.
@@ -386,6 +396,8 @@ or `Authorization: Bearer <guest-token>` header. Local dev
   - Gemini returns nothing: backend may keep `lemma_translation = null` with gloss-derived `saveable_translation`; no gloss fallback means both stay `null`.
   - `en_query`: when provided, backend may ask Gemini to keep only COR groups whose Danish meaning translates that English query; if Gemini returns no usable match or fails, all COR groups are kept.
   - `did_you_mean`: non-null when `form` had no COR entries and a Levenshtein-close COR lemma was found; `groups` then contains results for the corrected lemma.
+  - **Sense fan-out (open-class POS).** When `include_translations=true` and the lemma's POS is open-class (`VERB`, `AUX`, `NOUN`, `PROPN`, `ADJ`, `ADV`), the backend calls Gemini sense discovery for each `(lemma, pos_tag)` and expands the group into one group per discovered sense. Each rewritten variant carries the per-sense `meaning_key` (stable lowercase slug, e.g. `hit`/`mow`/`ring-bell`), `gloss` (short Danish definition), `lemma_translation`/`saveable_translation` set to the sense's canonical English (`to hit`), `alternative_translations` (≤3 same-sense synonyms), and optional `example_da`/`example_en`. Monosemous lemmas produce one group as before. Discovery results are cached, so repeat searches don't repay the Gemini cost.
+  - **`saved_meaning_id`.** When the user already has a `lexeme_meanings` row whose `meaning_key` matches the sense's key (for the same lemma), the variant carries `saved_meaning_id` = that row's id; the frontend renders an "open in wordbank" icon for those cards instead of "add". Legacy single-meaning saves (created before sense fan-out) match only when the variant's `meaning_key` is `null`.
 
 ### POST `/api/wordbank/search/cor-form-batch`
 - **Request model:** `CORSearchFormBatchRequest` (`items[]` of `form`, optional `en_query`, optional `en_pos_ud`; shared `limit` and `include_translations`).

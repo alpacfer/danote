@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import re
+from dataclasses import dataclass
 
 from app.db.repositories.wordbank import LexemeMeaningRecord
 from app.services.cor_local import CORLocalEntry
@@ -14,10 +14,6 @@ LEGACY_WORDBANK_RESET_REQUIRED_MESSAGE = (
 )
 
 _LIKELY_ENGLISH_GLOSS_RE = re.compile(r"^[A-Za-z][A-Za-z ',-]*$")
-
-
-def is_verb_like_pos_tag(pos_tag: str | None) -> bool:
-    return (pos_tag or "").upper() in {"VERB", "AUX"}
 
 
 def ensure_wordbank_meaning_compatibility(runtime: WordbankRuntime, *, lemma: str | None = None) -> None:
@@ -45,7 +41,11 @@ class MeaningResolution:
     meaning_key: str
 
 
-def resolve_non_verb_meaning(
+def _is_verb_like_pos_tag(pos_tag: str | None) -> bool:
+    return (pos_tag or "").upper() in {"VERB", "AUX"}
+
+
+def resolve_meaning(
     runtime: WordbankRuntime,
     *,
     lexeme_id: int,
@@ -55,7 +55,12 @@ def resolve_non_verb_meaning(
     preferred_pos_tag: str | None,
     preferred_morphology: str | None,
 ) -> MeaningResolution | None:
-    if is_verb_like_pos_tag(preferred_pos_tag):
+    # Verbs/AUX bypass meaning-section resolution here. The search-seed save
+    # flow handles per-sense verb saves directly (see search_seed_persistence),
+    # so the rest of this resolver stays scoped to noun/adj-like POS that COR
+    # already differentiates by lemma_idx. Lifting this gate for verbs is a
+    # follow-up that needs companion test updates.
+    if _is_verb_like_pos_tag(preferred_pos_tag):
         return None
 
     existing_meanings = runtime.repository.list_lexeme_meanings(lexeme_id)
@@ -77,7 +82,7 @@ def resolve_non_verb_meaning(
     if surface_cor_entry is not None and normalized_cor_id is not None:
         preferred_pos_tag = surface_cor_entry.pos_tag
         preferred_morphology = surface_cor_entry.morphology
-        if is_verb_like_pos_tag(preferred_pos_tag):
+        if _is_verb_like_pos_tag(preferred_pos_tag):
             return None
 
     cor_lemma_idx = (

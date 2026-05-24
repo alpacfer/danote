@@ -220,6 +220,11 @@ export type CORSearchVariant = {
   morphology?: string | null
   features: Record<string, string>
   extra_tags: string[]
+  meaning_key?: string | null
+  alternative_translations?: string[]
+  saved_meaning_id?: number | null
+  example_da?: string | null
+  example_en?: string | null
 }
 
 export type CORSearchGroup = {

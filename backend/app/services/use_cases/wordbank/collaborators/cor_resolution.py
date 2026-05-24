@@ -140,6 +140,8 @@ def resolve_query(
         include_translations=include_translations,
         cor_entries_lookup=cor_entries_lookup,
         translation=translation,
+        db_path=db_path,
+        owner_user_id=owner_user_id,
     )
     preferred_pos_tag = cor_add_options[0].pos_tag if cor_add_options else None
     query_pos_tag, query_morphology = nlp.extract_pos_and_morphology(

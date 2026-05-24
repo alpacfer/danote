@@ -8,6 +8,7 @@ from app.api.routes._runtime import run_db_operation
 from app.api.routes._use_case_factories import build_wordbank_use_case
 from app.api.routes.wordbank_audio import router as audio_router
 from app.api.routes.wordbank_search import router as search_router
+from app.api.routes.wordbank_senses import router as senses_router
 from app.api.schemas.v1.wordbank import (
     AddWordRequest,
     AddWordResponse,
@@ -52,6 +53,7 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 router.include_router(audio_router)
 router.include_router(search_router)
+router.include_router(senses_router)
 
 @router.post("/wordbank/lexemes", response_model=AddWordResponse)
 def add_word(payload: AddWordRequest, request: Request) -> AddWordResponse:

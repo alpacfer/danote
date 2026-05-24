@@ -1,6 +1,6 @@
 import { Check, ChevronsUpDown, Filter, FilterX } from "lucide-react"
 
-import { isMultiWordLemma, posBadgeClass, type WordbankLemma } from "@/app/core"
+import { isMultiWordLemma, posBadgeClass, semanticCategoryBadgeClass, type WordbankLemma } from "@/app/core"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -147,12 +147,12 @@ function FilterMenu({
                     const isWordType = label === "Word type"
                     const badgeClasses = isWordType
                       ? `shrink-0 rounded-full px-2 py-0.5 text-xs font-normal leading-none border ${posBadgeClass(item.value)}`
-                      : "rounded-sm px-2 py-0.5 text-xs font-normal leading-none bg-secondary/80 text-secondary-foreground"
+                      : `shrink-0 rounded-full px-2 py-0.5 text-xs font-normal leading-none border ${semanticCategoryBadgeClass(item.value)}`
 
                     return (
                       <Badge
                         key={item.value}
-                        variant={isWordType ? "default" : "secondary"}
+                        variant={isWordType ? "default" : "outline"}
                         className={badgeClasses.trim()}
                       >
                         {item.label}
@@ -174,6 +174,11 @@ function FilterMenu({
             <CommandGroup heading={label}>
               {options.map((option) => {
                 const checked = selectedValues.includes(option.value)
+                const isWordType = label === "Word type"
+                const badgeClasses = isWordType
+                  ? `shrink-0 rounded-full px-2 py-0.5 text-xs font-normal leading-none border ${posBadgeClass(option.value)}`
+                  : `shrink-0 rounded-full px-2 py-0.5 text-xs font-normal leading-none border ${semanticCategoryBadgeClass(option.value)}`
+
                 return (
                   <CommandItem
                     key={option.value}
@@ -182,8 +187,15 @@ function FilterMenu({
                     aria-checked={checked}
                   >
                     <Checkbox checked={checked} tabIndex={-1} aria-hidden="true" />
-                    <span className="truncate">{option.label}</span>
-                    {checked ? <Check className="ml-auto" /> : null}
+                    <div className="flex-1 min-w-0 py-0.5">
+                      <Badge
+                        variant={isWordType ? "default" : "outline"}
+                        className={badgeClasses.trim()}
+                      >
+                        {option.label}
+                      </Badge>
+                    </div>
+                    {checked ? <Check className="ml-2 shrink-0 size-4" /> : null}
                   </CommandItem>
                 )
               })}

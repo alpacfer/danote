@@ -76,6 +76,14 @@ class WordActionSuggestion(BaseModel):
     pos_tag: str | None = None
     morphology: str | None = None
     show_lemma: bool = False
+    meaning_key: str | None = None
+    gloss: str | None = None
+    english_translation: str | None = None
+    alternative_translations: list[str] = Field(default_factory=list)
+    cor_lemma_idx: int | None = None
+    saved_meaning_id: int | None = None
+    example_da: str | None = None
+    example_en: str | None = None
 
 
 class ENSenseOut(BaseModel):
@@ -125,6 +133,24 @@ class ResolveQueryResponse(BaseModel):
     query_language_confidence: float | None
     word_actions: list[WordActionSuggestion] = Field(default_factory=list)
     en_pos_groups: list[ENPosGroup] = Field(default_factory=list)
+
+
+class ExpandLemmaSensesRequest(BaseModel):
+    lemma: str = Field(..., min_length=1)
+
+
+class ExpandLemmaSensesResponse(BaseModel):
+    lemma: str
+    status: Literal[
+        "expanded",
+        "already_expanded",
+        "lemma_not_found",
+        "pos_unsupported",
+        "no_senses",
+    ]
+    discovered_count: int
+    inserted_count: int
+    renamed_legacy: bool
 
 
 class GeneratePhraseTranslationRequest(BaseModel):
@@ -391,6 +417,11 @@ class CORSearchVariant(BaseModel):
     lemma_translation_provider: str | None = None
     lemma_translation_status: Literal["provider", "gemini", "gloss_fallback", "missing"] | None = None
     lemma_translation_reason: str | None = None
+    meaning_key: str | None = None
+    alternative_translations: list[str] = Field(default_factory=list)
+    saved_meaning_id: int | None = None
+    example_da: str | None = None
+    example_en: str | None = None
 
 
 class CORSearchGroup(BaseModel):

@@ -111,6 +111,17 @@ class CorResolutionCollaborator:
                 en_pos_ud=en_pos_ud,
                 en_gemini_translation_service=self._en_gemini_translation_service,
             )
+        if include_translations:
+            from app.services.use_cases.wordbank.collaborators.cor_sense_fanout import (
+                expand_cor_search_response_with_senses,
+            )
+
+            response = expand_cor_search_response_with_senses(
+                response,
+                translation=self._translation,
+                db_path=self._db_path,
+                owner_user_id=self._owner_user_id,
+            )
         return response
 
     def search_cor_form_batch(

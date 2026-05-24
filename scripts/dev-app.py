@@ -447,6 +447,11 @@ def handle_search_all(args: argparse.Namespace, client: ApiClient) -> dict[str, 
             "saveable_translation": variant.get("saveable_translation"),
             "gram_raw": variant.get("gram_raw"),
             "dictionary_status": variant.get("dictionary_status"),
+            "meaning_key": variant.get("meaning_key"),
+            "saved_meaning_id": variant.get("saved_meaning_id"),
+            "alternative_translations": variant.get("alternative_translations") or [],
+            "example_da": variant.get("example_da"),
+            "example_en": variant.get("example_en"),
         }
         for group in (cor_form.get("groups") or [])
         for variant in (group.get("variants") or [])

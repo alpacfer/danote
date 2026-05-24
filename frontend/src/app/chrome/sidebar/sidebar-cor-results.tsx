@@ -1,4 +1,4 @@
-import { Plus } from "lucide-react"
+import { Eye, Plus } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { CommandItem } from "@/components/ui/command"
@@ -46,6 +46,7 @@ type SidebarCorResultsProps = {
     },
     searchSeed?: SearchSaveSeed | null,
   ) => Promise<string | null>
+  onOpenWordbankMeaning?: (lemma: string, meaningId: number) => void
   onCloseSearch: () => void
 }
 
@@ -61,6 +62,7 @@ export function SidebarCorResults({
   corVariantItemValue,
   isTranslationsLoading,
   onAddWordFromSearch,
+  onOpenWordbankMeaning,
   onCloseSearch,
 }: SidebarCorResultsProps) {
   return (
@@ -104,8 +106,9 @@ export function SidebarCorResults({
                   metadataBadges = [{ label: mweLabel, tone: "primary" }, ...filtered]
                 }
               }
-              const isSaveBlocked = isTranslationsLoading || !saveableTranslation
-              const saveBlockedReason = !isTranslationsLoading && !saveableTranslation
+              const isSaved = variant.saved_meaning_id != null
+              const isSaveBlocked = !isSaved && (isTranslationsLoading || !saveableTranslation)
+              const saveBlockedReason = !isSaved && !isTranslationsLoading && !saveableTranslation
                 ? "Translation required before saving."
                 : null
               return (
@@ -114,6 +117,11 @@ export function SidebarCorResults({
                   value={itemValue}
                   disabled={isSaveBlocked}
                   onSelect={() => {
+                    if (isSaved && variant.saved_meaning_id != null) {
+                      onOpenWordbankMeaning?.(variant.lemma, variant.saved_meaning_id)
+                      onCloseSearch()
+                      return
+                    }
                     if (saveBlockedReason) {
                       return
                     }
@@ -137,11 +145,11 @@ export function SidebarCorResults({
                           dictionary_status: isGeneratedNonCor ? "generated_non_cor" : "cor",
                           cor_id: isGeneratedNonCor ? null : variant.cor_id,
                           cor_lemma_idx: isGeneratedNonCor ? null : variant.lemma_idx,
-                          // Each variant represents a distinct sense (especially for
-                          // polysemous MWEs like "tage på"). Use the variant's own
-                          // gloss as the meaning_key so two cards land in two meaning
-                          // rows. Falling back to group.gloss would collide.
-                          meaning_key: variant.gloss ?? group.gloss ?? variant.lemma,
+                          // The backend's sense-discovery fan-out sets meaning_key
+                          // on each variant (one variant per discovered sense). Fall
+                          // back to gloss only when the variant came through a path
+                          // that didn't expand (legacy MWE flow).
+                          meaning_key: variant.meaning_key ?? variant.gloss ?? group.gloss ?? variant.lemma,
                           gloss: variant.gloss ?? group.gloss ?? null,
                           english_translation: saveableTranslation,
                           pos_tag: variant.pos_tag ?? group.pos_tag ?? null,
@@ -196,7 +204,12 @@ export function SidebarCorResults({
                       </div>
                     ) : null}
                   </div>
-                  {isVariationAdd ? (
+                  {isSaved ? (
+                    <span className="text-muted-foreground flex items-center gap-1 text-xs font-semibold">
+                      <span data-testid="search-saved-label">saved</span>
+                      <Eye data-testid="search-saved-icon" className="size-4 shrink-0" />
+                    </span>
+                  ) : isVariationAdd ? (
                     <span className="text-muted-foreground flex items-center gap-1 text-xs font-semibold">
                       <span data-testid="search-add-variation-label">variation</span>
                       <Plus data-testid="search-add-icon" className="size-4 shrink-0" />

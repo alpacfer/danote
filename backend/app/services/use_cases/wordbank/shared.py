@@ -86,6 +86,14 @@ class _CORAddOption:
     pos_tag: str | None
     morphology: str | None
     translation_label: str | None
+    meaning_key: str | None = None
+    gloss: str | None = None
+    english_translation: str | None = None
+    alternative_translations: tuple[str, ...] = ()
+    cor_lemma_idx: int | None = None
+    saved_meaning_id: int | None = None
+    example_da: str | None = None
+    example_en: str | None = None
 
 
 def build_word_action_suggestions(

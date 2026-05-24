@@ -52,9 +52,15 @@ def build_translation_service(*, settings: Settings, api_key: str) -> object | N
 
 def build_gemini_word_translation_service(*, settings: Settings, api_key: str) -> object | None:
     try:
+        cache = (
+            GeminiResultCache(settings.search_gemini_cache_path)
+            if settings.search_gemini_cache_enabled
+            else None
+        )
         return GeminiFlashLiteWordTranslationService(
             api_key=api_key,
             model=settings.gemini_model,
+            cache=cache,
         )
     except (GeminiTranslationError, ValueError, TypeError) as exc:
         logger.warning("user_key_build_failed", extra={"provider": "gemini_word_translation", "error": str(exc)})

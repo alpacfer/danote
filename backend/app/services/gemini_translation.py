@@ -5,6 +5,12 @@ import math
 import time
 from dataclasses import dataclass, field
 
+from app.services.gemini_result_cache import GeminiResultCache
+from app.services.gemini_sense_discovery import (
+    DiscoveredSenseSet,
+    SenseDiscoveryInput,
+    discover_senses_with_gemini,
+)
 from app.services.gemini_translation_configs import (
     alternative_translations_response_config,
     batch_meaning_section_selection_response_config,
@@ -53,26 +59,7 @@ from app.services.gemini_translation_parsing import (
     parse_translation,
 )
 
-__all__ = [
-    "AlternativeTranslationsInput",
-    "AlternativeTranslationsResult",
-    "BatchContextualWordTranslationRequestItem",
-    "BatchContextualWordTranslationResponse",
-    "BatchContextualWordTranslationResponseItem",
-    "ContextualWordTranslationInput",
-    "ExampleSentenceGenerationInput",
-    "ExampleSentenceGenerationResult",
-    "GeminiFlashLiteWordTranslationService",
-    "GeminiTranslationError",
-    "GeminiWordTranslationService",
-    "MeaningSectionCandidateInput",
-    "MeaningSectionSelectionInput",
-    "NonCORVariationCandidate",
-    "NonCORVariationGenerationInput",
-    "NonCORVariationGenerationResult",
-    "NonCORWordGenerationInput",
-    "NonCORWordGenerationResult",
-]
+__all__ = ("AlternativeTranslationsInput", "AlternativeTranslationsResult", "BatchContextualWordTranslationRequestItem", "BatchContextualWordTranslationResponse", "BatchContextualWordTranslationResponseItem", "ContextualWordTranslationInput", "ExampleSentenceGenerationInput", "ExampleSentenceGenerationResult", "GeminiFlashLiteWordTranslationService", "GeminiTranslationError", "GeminiWordTranslationService", "MeaningSectionCandidateInput", "MeaningSectionSelectionInput", "NonCORVariationCandidate", "NonCORVariationGenerationInput", "NonCORVariationGenerationResult", "NonCORWordGenerationInput", "NonCORWordGenerationResult")
 
 
 @dataclass(frozen=True, slots=True)
@@ -107,6 +94,7 @@ class GeminiFlashLiteWordTranslationService:
     timeout_seconds: float = 20.0
     max_retries: int = 2
     backoff_seconds: float = 0.5
+    cache: GeminiResultCache | None = None
     provider: str = field(default="gemini_word_translation", init=False)
     _client: object | None = field(default=None, init=False, repr=False, compare=False)
 
@@ -138,6 +126,14 @@ class GeminiFlashLiteWordTranslationService:
 
     def close(self) -> None:
         self._client = None
+
+    def discover_senses(self, payload: SenseDiscoveryInput) -> DiscoveredSenseSet | None:
+        return discover_senses_with_gemini(
+            payload,
+            cache=self.cache,
+            generate_content=lambda prompt, config: self._generate_content(prompt, config=config),
+            genai_types_factory=self._genai_types,
+        )
 
     def translate_word(self, payload: ContextualWordTranslationInput) -> str | None:
         prompt = build_translation_prompt(payload)

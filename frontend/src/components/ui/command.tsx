@@ -116,7 +116,7 @@ function CommandInput({
             <div
               aria-hidden="true"
               data-slot="command-input-overlay"
-              className="text-foreground pointer-events-none absolute inset-0 overflow-hidden py-0 text-sm whitespace-pre-wrap"
+              className="text-foreground pointer-events-none absolute inset-0 overflow-hidden py-2 max-md:py-3 text-sm whitespace-pre-wrap"
             >
               {overlay}
             </div>
@@ -136,7 +136,7 @@ function CommandInput({
             spellCheck={false}
             autoCapitalize="none"
               className={cn(
-              "placeholder:text-muted-foreground field-sizing-content block max-h-[40vh] w-full resize-none overflow-y-auto bg-transparent py-0 text-sm outline-hidden disabled:cursor-not-allowed disabled:opacity-50",
+              "placeholder:text-muted-foreground field-sizing-content block max-h-[40vh] w-full resize-none overflow-y-auto bg-transparent py-2 max-md:py-3 text-sm outline-hidden disabled:cursor-not-allowed disabled:opacity-50",
               suffix ? "pr-10" : "",
               concealValue ? "relative z-10 text-transparent caret-foreground" : "",
               className

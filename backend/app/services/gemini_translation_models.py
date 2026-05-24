@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
+
+if TYPE_CHECKING:
+    from app.services.gemini_sense_discovery import DiscoveredSenseSet, SenseDiscoveryInput
 
 
 class GeminiTranslationError(RuntimeError):
@@ -131,6 +134,7 @@ class NonCORVariationGenerationResult:
 class GeminiWordTranslationService(Protocol):
     provider: str
 
+    def discover_senses(self, payload: "SenseDiscoveryInput") -> "DiscoveredSenseSet | None": ...
     def translate_word(self, payload: ContextualWordTranslationInput) -> str | None: ...
     def translate_words_batch(
         self, payloads: list[ContextualWordTranslationInput]

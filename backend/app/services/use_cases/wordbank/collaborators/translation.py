@@ -13,6 +13,10 @@ from app.api.schemas.v1.wordbank import (
     GenerateTranslationResponse,
 )
 from app.services.cor_local import CORLocalLexiconService
+from app.services.gemini_sense_discovery import (
+    DiscoveredSenseSet,
+    SenseDiscoveryInput,
+)
 from app.services.gemini_translation import (
     ContextualWordTranslationInput,
     ExampleSentenceGenerationInput,
@@ -198,6 +202,17 @@ class TranslationCollaborator:
             return generate_batch(payloads)
         except (GeminiTranslationError, httpx.HTTPError, TimeoutError, ValueError, TypeError):
             return [None for _ in payloads]
+
+    def discover_senses(self, payload: SenseDiscoveryInput) -> DiscoveredSenseSet | None:
+        if self._gemini_word_translation_service is None:
+            return None
+        discover = getattr(self._gemini_word_translation_service, "discover_senses", None)
+        if not callable(discover):
+            return None
+        try:
+            return discover(payload)
+        except (GeminiTranslationError, httpx.HTTPError, TimeoutError, ValueError, TypeError):
+            return None
 
     def generate_example_sentence(
         self,

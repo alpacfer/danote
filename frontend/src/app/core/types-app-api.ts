@@ -15,6 +15,14 @@ export type WordActionSuggestion = {
   pos_tag: string | null
   morphology: string | null
   show_lemma: boolean
+  meaning_key?: string | null
+  gloss?: string | null
+  english_translation?: string | null
+  alternative_translations?: string[]
+  cor_lemma_idx?: number | null
+  saved_meaning_id?: number | null
+  example_da?: string | null
+  example_en?: string | null
 }
 
 export type AnalyzedToken = {

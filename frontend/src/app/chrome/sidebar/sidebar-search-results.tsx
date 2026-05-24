@@ -157,6 +157,7 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
               corVariantItemValue={data.corVariantItemValue}
               isTranslationsLoading={false}
               onAddWordFromSearch={actions.onAddWordFromSearch}
+              onOpenWordbankMeaning={actions.onOpenWordbankMeaning}
               onCloseSearch={actions.onCloseSearch}
             />
           </CommandGroup>
@@ -276,6 +277,7 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
               corVariantItemValue={data.corVariantItemValue}
               isTranslationsLoading={data.isCorTranslationsLoading}
               onAddWordFromSearch={actions.onAddWordFromSearch}
+              onOpenWordbankMeaning={actions.onOpenWordbankMeaning}
               onCloseSearch={actions.onCloseSearch}
             />
           ) : null}
@@ -309,6 +311,7 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
               corVariantItemValue={data.corVariantItemValue}
               isTranslationsLoading={data.isCorTranslationsLoading}
               onAddWordFromSearch={actions.onAddWordFromSearch}
+              onOpenWordbankMeaning={actions.onOpenWordbankMeaning}
               onCloseSearch={actions.onCloseSearch}
             />
           ) : null}
@@ -344,6 +347,7 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
                 corVariantItemValue={data.translatedEnCorVariantItemValue}
                 isTranslationsLoading={data.isEnResolveLoading}
                 onAddWordFromSearch={actions.onAddWordFromSearch}
+                onOpenWordbankMeaning={actions.onOpenWordbankMeaning}
                 onCloseSearch={actions.onCloseSearch}
               />
             ) : null}

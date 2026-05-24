@@ -7,20 +7,26 @@ from typing import Literal
 from app.api.schemas.v1.wordbank import WordActionSuggestion
 from app.db.migrations import get_connection
 from app.services.cor import COREntry
+from app.services.gemini_sense_discovery import (
+    DiscoveredSense,
+    SenseDiscoveryCorCandidate,
+    SenseDiscoveryInput,
+    is_sense_discoverable_pos,
+)
 from app.services.gemini_translation import ContextualWordTranslationInput
 from app.services.token_classifier import normalize_token
-from app.services.use_cases.wordbank.collaborators.translation_word_frames import (
-    cor_entry_word_translation_frame,
-)
 from app.services.use_cases.wordbank.collaborators.translation import TranslationCollaborator
 from app.services.use_cases.wordbank.collaborators.translation_search_fallbacks import (
     build_search_translation_decision,
     evaluate_search_translation_candidate,
     invalid_search_translation,
 )
+from app.services.use_cases.wordbank.collaborators.translation_word_frames import (
+    cor_entry_word_translation_frame,
+)
 from app.services.use_cases.wordbank.shared import (
-    _CORAddOption,
     _cor_entry_priority,
+    _CORAddOption,
     _normalize_action_value,
 )
 
@@ -70,8 +76,6 @@ def replace_danish_add_actions(
     cor_add_options: list[_CORAddOption],
     fallback_translation: str | None,
 ) -> list[WordActionSuggestion]:
-    if classification in {"known", "variation"} or matched_lemma:
-        return actions
     if not cor_add_options:
         return actions
 
@@ -80,10 +84,14 @@ def replace_danish_add_actions(
         for action in actions
         if action.action_type == "add_as_new" and action.direction == "da_to_en"
     ]
+    # Drop the lemma-level open_wordbank action when we have COR add options:
+    # per-sense cards below render their own open_wordbank entry for any sense
+    # that's already saved, so the lemma-level one would be a redundant duplicate.
     preserved_actions = [
         action
         for action in actions
         if not (action.action_type == "add_as_new" and action.direction == "da_to_en")
+        and not (action.action_type == "open_wordbank" and action.direction == "known")
     ]
     default_direction_label = (
         existing_da_actions[0].direction_label
@@ -92,27 +100,42 @@ def replace_danish_add_actions(
     )
 
     replaced_actions: list[WordActionSuggestion] = []
-    seen_keys: set[tuple[str, str, str | None, str | None]] = set()
+    seen_keys: set[tuple[str, str, str | None, str | None, str | None]] = set()
     for option in cor_add_options:
         comparable_surface = _normalize_action_value(option.surface)
         comparable_lemma = _normalize_action_value(option.lemma)
-        key = (comparable_surface, comparable_lemma, option.pos_tag, option.morphology)
+        key = (comparable_surface, comparable_lemma, option.pos_tag, option.morphology, option.meaning_key)
         if key in seen_keys:
             continue
         seen_keys.add(key)
         label = option.translation_label or fallback_translation or option.surface
+        action_type: Literal["open_wordbank", "add_as_new", "add_variation"] = (
+            "open_wordbank" if option.saved_meaning_id is not None else "add_as_new"
+        )
+        direction: Literal["da_to_en", "en_to_da", "variation", "known"] = (
+            "known" if option.saved_meaning_id is not None else "da_to_en"
+        )
+        direction_label = "Wordbank" if option.saved_meaning_id is not None else default_direction_label
         replaced_actions.append(
             WordActionSuggestion(
-                action_type="add_as_new",
+                action_type=action_type,
                 surface=option.surface,
                 lemma=option.lemma,
                 cor_id=option.cor_id,
                 translation_label=label,
-                direction="da_to_en",
-                direction_label=default_direction_label,
+                direction=direction,
+                direction_label=direction_label,
                 pos_tag=option.pos_tag,
                 morphology=option.morphology,
                 show_lemma=comparable_surface != comparable_lemma,
+                meaning_key=option.meaning_key,
+                gloss=option.gloss,
+                english_translation=option.english_translation,
+                alternative_translations=list(option.alternative_translations),
+                cor_lemma_idx=option.cor_lemma_idx,
+                saved_meaning_id=option.saved_meaning_id,
+                example_da=option.example_da,
+                example_en=option.example_en,
             )
         )
 
@@ -127,6 +150,8 @@ def build_cor_add_options(
     include_translations: bool,
     cor_entries_lookup,
     translation: TranslationCollaborator,
+    db_path: Path | None = None,
+    owner_user_id: int = 1,
 ) -> list[_CORAddOption]:
     if not normalized_query:
         return []
@@ -175,7 +200,184 @@ def build_cor_add_options(
             )
         )
 
-    return options
+    expanded_options = expand_options_with_senses(
+        options,
+        sorted_entries,
+        translation=translation,
+    )
+    saved_meanings = (
+        load_saved_meanings_for_lemmas(
+            db_path,
+            [option.lemma for option in expanded_options],
+            owner_user_id=owner_user_id,
+        )
+        if db_path is not None
+        else {}
+    )
+    return [_attach_saved_meaning(option, saved_meanings) for option in expanded_options]
+
+
+def expand_options_with_senses(
+    options: list[_CORAddOption],
+    cor_entries: list[COREntry],
+    *,
+    translation: TranslationCollaborator,
+) -> list[_CORAddOption]:
+    expanded: list[_CORAddOption] = []
+    candidates_by_lemma_pos = _group_cor_candidates(cor_entries)
+    for option in options:
+        senses = _discover_senses_for_option(
+            option,
+            translation=translation,
+            candidates_by_lemma_pos=candidates_by_lemma_pos,
+        )
+        if not senses or len(senses) <= 1:
+            expanded.append(_option_from_single_sense(option, senses[0] if senses else None))
+            continue
+        for sense in senses:
+            expanded.append(_option_from_sense(option, sense))
+    return expanded
+
+
+def _discover_senses_for_option(
+    option: _CORAddOption,
+    *,
+    translation: TranslationCollaborator,
+    candidates_by_lemma_pos: dict[tuple[str, str | None], list[SenseDiscoveryCorCandidate]],
+) -> list[DiscoveredSense]:
+    if not is_sense_discoverable_pos(option.pos_tag):
+        return []
+    discover = getattr(translation, "discover_senses", None)
+    if not callable(discover):
+        return []
+    candidates = candidates_by_lemma_pos.get(
+        (option.lemma, (option.pos_tag or "").upper() or None),
+        [],
+    )
+    payload = SenseDiscoveryInput(
+        lemma=option.lemma,
+        pos_tag=option.pos_tag,
+        cor_gloss=None,
+        cor_candidates=candidates,
+    )
+    result = discover(payload)
+    if result is None:
+        return []
+    return list(result.senses)
+
+
+def _option_from_single_sense(
+    option: _CORAddOption,
+    sense: DiscoveredSense | None,
+) -> _CORAddOption:
+    if sense is None:
+        return option
+    return _option_from_sense(option, sense)
+
+
+def _option_from_sense(option: _CORAddOption, sense: DiscoveredSense) -> _CORAddOption:
+    return _CORAddOption(
+        surface=option.surface,
+        lemma=option.lemma,
+        cor_id=option.cor_id,
+        pos_tag=option.pos_tag,
+        morphology=option.morphology,
+        translation_label=sense.english_translation or option.translation_label,
+        meaning_key=sense.meaning_key,
+        gloss=sense.gloss,
+        english_translation=sense.english_translation,
+        alternative_translations=tuple(sense.alternative_translations),
+        cor_lemma_idx=sense.cor_lemma_idx,
+        saved_meaning_id=option.saved_meaning_id,
+        example_da=sense.example_da,
+        example_en=sense.example_en,
+    )
+
+
+def _group_cor_candidates(
+    cor_entries: list[COREntry],
+) -> dict[tuple[str, str | None], list[SenseDiscoveryCorCandidate]]:
+    grouped: dict[tuple[str, str | None], list[SenseDiscoveryCorCandidate]] = {}
+    for entry in cor_entries:
+        pos_key = (entry.pos_tag or "").upper() or None
+        bucket = grouped.setdefault((entry.lemma, pos_key), [])
+        bucket.append(
+            SenseDiscoveryCorCandidate(
+                cor_id=entry.cor_id,
+                lemma=entry.lemma,
+                gloss=normalize_token(entry.glosse or "") or None,
+                pos_tag=entry.pos_tag,
+                lemma_idx=getattr(entry, "lemma_idx", None),
+            )
+        )
+    return grouped
+
+
+def load_saved_meanings_for_lemmas(
+    db_path: Path,
+    lemmas: list[str],
+    *,
+    owner_user_id: int = 1,
+) -> dict[str, dict[str, int]]:
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for lemma in lemmas:
+        cleaned = normalize_token(lemma or "")
+        if not cleaned or cleaned in seen:
+            continue
+        seen.add(cleaned)
+        normalized.append(cleaned)
+    if not normalized:
+        return {}
+    placeholders = ", ".join("?" for _ in normalized)
+    with get_connection(db_path) as conn:
+        rows = conn.execute(
+            f"""
+            SELECT l.lemma AS lemma, lm.id AS meaning_id, lm.meaning_key AS meaning_key
+            FROM lexeme_meanings lm
+            JOIN lexemes l ON l.id = lm.lexeme_id
+            WHERE l.owner_user_id = ? AND l.lemma IN ({placeholders})
+            """,
+            (owner_user_id, *normalized),
+        ).fetchall()
+    saved: dict[str, dict[str, int]] = {}
+    for row in rows:
+        saved.setdefault(row["lemma"], {})[row["meaning_key"]] = row["meaning_id"]
+    return saved
+
+
+def _attach_saved_meaning(
+    option: _CORAddOption,
+    saved_meanings: dict[str, dict[str, int]],
+) -> _CORAddOption:
+    if option.saved_meaning_id is not None:
+        return option
+    by_key = saved_meanings.get(option.lemma)
+    if not by_key:
+        return option
+    saved_id = None
+    if option.meaning_key is not None:
+        saved_id = by_key.get(option.meaning_key)
+    if saved_id is None and len(by_key) == 1 and option.meaning_key is None:
+        saved_id = next(iter(by_key.values()))
+    if saved_id is None:
+        return option
+    return _CORAddOption(
+        surface=option.surface,
+        lemma=option.lemma,
+        cor_id=option.cor_id,
+        pos_tag=option.pos_tag,
+        morphology=option.morphology,
+        translation_label=option.translation_label,
+        meaning_key=option.meaning_key,
+        gloss=option.gloss,
+        english_translation=option.english_translation,
+        alternative_translations=option.alternative_translations,
+        cor_lemma_idx=option.cor_lemma_idx,
+        saved_meaning_id=saved_id,
+        example_da=option.example_da,
+        example_en=option.example_en,
+    )
 
 
 def _lookup_translation_labels_for_cor_entries(

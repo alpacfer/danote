@@ -148,6 +148,12 @@ class WordbankUseCase:
             queue_verification=queue_verification,
         )
 
+    def expand_lemma_senses(self, lemma: str):
+        from app.services.use_cases.wordbank.commands_expand_lemma_senses import (
+            expand_lemma_senses,
+        )
+        return expand_lemma_senses(self._runtime, lemma=lemma)
+
     def generate_pronunciation_for_added_word(
         self,
         stored_lemma: str,

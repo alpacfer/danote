@@ -397,6 +397,11 @@ def test_search_cor_form_falls_back_to_gloss_translation_when_gemini_has_no_bett
                     "morphology": "Mood=Imp|VerbForm=Fin",
                     "features": {"Mood": "Imp", "VerbForm": "Fin"},
                     "extra_tags": [],
+                    "meaning_key": None,
+                    "alternative_translations": [],
+                    "saved_meaning_id": None,
+                    "example_da": None,
+                    "example_en": None,
                 }
             ],
         }

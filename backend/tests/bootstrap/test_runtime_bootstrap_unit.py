@@ -143,9 +143,10 @@ def test_initialize_gemini_word_translation_uses_shared_gemini_settings(monkeypa
     class StubGeminiWordTranslationService:
         provider = "gemini_word_translation"
 
-        def __init__(self, api_key: str, model: str):
+        def __init__(self, api_key: str, model: str, cache=None):
             self.api_key = api_key
             self.model = model
+            self.cache = cache
 
         def close(self) -> None:
             return None
@@ -248,7 +249,7 @@ def test_initialize_gemini_word_translation_logs_structured_failure_payload(monk
     init_app_state(app, settings)
 
     class FailingGeminiService:
-        def __init__(self, api_key: str, model: str) -> None:
+        def __init__(self, api_key: str, model: str, cache=None) -> None:
             raise GeminiTranslationError("invalid model")
 
     monkeypatch.setattr(

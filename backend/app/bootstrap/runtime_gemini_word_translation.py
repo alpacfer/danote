@@ -11,6 +11,7 @@ from app.core.app_state import (
     set_service_field,
 )
 from app.core.config import Settings
+from app.services.gemini_result_cache import GeminiResultCache
 from app.services.gemini_translation import (
     GeminiFlashLiteWordTranslationService,
     GeminiTranslationError,
@@ -48,12 +49,18 @@ def initialize_gemini_word_translation(
     )
     if gemini_key:
         try:
+            cache = (
+                GeminiResultCache(settings.search_gemini_cache_path)
+                if settings.search_gemini_cache_enabled
+                else None
+            )
             set_service_field(
                 app,
                 "gemini_word_translation_service",
                 GeminiFlashLiteWordTranslationService(
                     api_key=gemini_key,
                     model=settings.gemini_model,
+                    cache=cache,
                 ),
             )
         except (GeminiTranslationError, ValueError, TypeError) as exc:

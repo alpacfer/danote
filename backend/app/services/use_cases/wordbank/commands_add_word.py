@@ -10,6 +10,9 @@ from app.services.use_cases.static_builtin_words import (
 )
 from app.services.use_cases.static_hv_words import StaticHvWord, static_hv_word_for_token
 from app.services.use_cases.static_pronouns import StaticPronoun, static_pronoun_for_token
+from app.services.use_cases.wordbank.add_word_canonicalisation import (
+    canonicalise_lemma_candidate,
+)
 from app.services.use_cases.wordbank.add_word_normalization import (
     normalize_add_word_inputs,
 )
@@ -32,8 +35,8 @@ from app.services.use_cases.wordbank.meaning_sections import (
     MeaningResolution,
     build_meaning_assignment,
     ensure_wordbank_meaning_compatibility,
+    resolve_meaning,
     resolve_meaning_translation,
-    resolve_non_verb_meaning,
 )
 from app.services.use_cases.wordbank.non_cor_generation import build_non_cor_search_seed
 from app.services.use_cases.wordbank.pronunciation_queue import queue_pronunciation_generation
@@ -83,6 +86,13 @@ def add_word(
             queue_verification=queue_verification,
         )
     ensure_wordbank_meaning_compatibility(runtime)
+    lemma_candidate = canonicalise_lemma_candidate(
+        runtime,
+        surface_token=surface_token,
+        lemma_candidate=lemma_candidate,
+        cor_id=cor_id,
+        pos_tag=pos_tag,
+    )
     inputs = _normalize_add_word_inputs(runtime, surface_token, lemma_candidate, cor_id, pos_tag, morphology)
     initial_metadata = _extract_root_metadata(runtime, inputs)
     lexeme_id, inserted_lexeme = runtime.repository.insert_or_load_lexeme(
@@ -94,7 +104,7 @@ def add_word(
         dictionary_status="cor" if inputs.normalized_cor_id else "unknown",
     )
 
-    meaning_resolution = resolve_non_verb_meaning(
+    meaning_resolution = resolve_meaning(
         runtime,
         lexeme_id=lexeme_id,
         stored_lemma=inputs.stored_lemma,
