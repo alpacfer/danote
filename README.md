@@ -72,6 +72,8 @@ For live API debugging and terminal-level feature verification:
 cd <repo-root>
 scripts/dev-app.py health
 scripts/dev-app.py wordbank details <lemma>
+scripts/dev-app.py wordbank category-status <lemma> --polls 5 --expect-category Food
+scripts/dev-app.py search profile <query>
 scripts/dev-app.py search trace <english-query>
 scripts/dev-app.py search all <query>
 ```

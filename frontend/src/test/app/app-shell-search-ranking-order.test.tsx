@@ -698,7 +698,7 @@ describe("App shell and search", () => {
     const commandDialog = await screen.findByRole("dialog")
     fireEvent.change(within(commandDialog).getByPlaceholderText(/search words/i), { target: { value: "run" } })
 
-    expect(await within(commandDialog).findAllByTestId("search-pending-skeleton")).toHaveLength(3)
+    expect(await within(commandDialog).findAllByTestId("search-pending-skeleton")).toHaveLength(1)
     expect(await within(commandDialog).findAllByTestId("search-en-skeleton")).toHaveLength(3)
     expect(within(commandDialog).queryByText(/^løbe$/i, { selector: "strong" })).not.toBeInTheDocument()
   })
@@ -718,7 +718,7 @@ describe("App shell and search", () => {
     const commandDialog = await screen.findByRole("dialog")
     fireEvent.change(within(commandDialog).getByPlaceholderText(/search words/i), { target: { value: "zztest" } })
 
-    expect(await within(commandDialog).findAllByTestId("search-pending-skeleton")).toHaveLength(3)
+    expect(await within(commandDialog).findAllByTestId("search-pending-skeleton")).toHaveLength(1)
     expect(within(commandDialog).queryByText(/^No results found\.$/i)).not.toBeInTheDocument()
   })
 

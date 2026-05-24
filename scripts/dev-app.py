@@ -13,6 +13,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from typing import Any
 
@@ -173,6 +174,18 @@ def _add_search_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentP
     trace.add_argument("query")
     _set_handler(trace, ["search", "trace"], handle_search_trace)
 
+    profile = child.add_parser("profile", help="Profile sidebar-style single-word search.")
+    profile.add_argument("query")
+    profile.add_argument("--runs", type=int, default=1, help="Number of profile runs.")
+    profile.add_argument("--cold-cache", action="store_true", help="Clear search cache before each run when enabled.")
+    profile.add_argument("--include-resolve", action="store_true", help="Also time /api/wordbank/resolve-query.")
+    profile.add_argument(
+        "--legacy-cor-loop",
+        action="store_true",
+        help="Use one filtered COR GET per English translation instead of cor-form-batch.",
+    )
+    _set_handler(profile, ["search", "profile"], handle_search_profile)
+
     all_results = child.add_parser(
         "all",
         help="List every search result for a query plus typo suggestions.",
@@ -194,6 +207,18 @@ def _add_wordbank_parser(subparsers: argparse._SubParsersAction[argparse.Argumen
     details = child.add_parser("details", help="Read lemma details.")
     details.add_argument("lemma")
     _set_handler(details, ["wordbank", "details"], lambda args, client: get_lemma_details(client, args.lemma))
+
+    category_status = child.add_parser("category-status", help="Summarize lemma categories and verification statuses.")
+    category_status.add_argument("lemma")
+    category_status.add_argument("--polls", type=int, default=1, help="Number of detail snapshots to read.")
+    category_status.add_argument("--interval", type=float, default=0.75, help="Seconds between snapshots.")
+    category_status.add_argument(
+        "--expect-category",
+        action="append",
+        default=[],
+        help="Expected category label. May be repeated; exits non-zero if any are missing from the final snapshot.",
+    )
+    _set_handler(category_status, ["wordbank", "category-status"], handle_wordbank_category_status)
 
     search = child.add_parser("search", help="Search saved wordbank.")
     search.add_argument("query")
@@ -342,6 +367,36 @@ def handle_search_cor(args: argparse.Namespace, client: ApiClient) -> Any:
     return run_single(client, RequestSpec("GET", "/api/wordbank/search/cor-form", cor_params(args)))
 
 
+def handle_search_profile(args: argparse.Namespace, client: ApiClient) -> dict[str, Any]:
+    runs = max(1, args.runs)
+    query = args.query
+    normalized_query = normalize_search_word(query)
+    decision = search_flow_decision(normalized_query)
+    results = []
+    for run_index in range(runs):
+        if args.cold_cache:
+            clear_search_cache(client)
+        results.append(
+            run_search_profile_once(
+                client,
+                query=query,
+                normalized_query=normalized_query,
+                decision=decision,
+                run_index=run_index,
+                cold_cache=args.cold_cache,
+                include_resolve=args.include_resolve,
+                use_cor_batch=not args.legacy_cor_loop,
+            )
+        )
+    return {
+        "query": query,
+        "normalized_query": normalized_query,
+        "decision": decision,
+        "runs": results,
+        "summary": summarize_profile_runs(results),
+    }
+
+
 def handle_search_all(args: argparse.Namespace, client: ApiClient) -> dict[str, Any]:
     query = args.query
     wordbank = client.request(
@@ -460,6 +515,353 @@ def handle_search_trace(args: argparse.Namespace, client: ApiClient) -> dict[str
     return {"query": args.query, "en": en_payload, "cor_traces": trace_items}
 
 
+def run_search_profile_once(
+    client: ApiClient,
+    *,
+    query: str,
+    normalized_query: str,
+    decision: dict[str, Any],
+    run_index: int,
+    cold_cache: bool,
+    include_resolve: bool,
+    use_cor_batch: bool,
+) -> dict[str, Any]:
+    started_at = time.perf_counter()
+    phases: list[dict[str, Any]] = []
+    responses: dict[str, Any] = {}
+
+    if decision["skip_word_lookups"]:
+        return {
+            "run_index": run_index,
+            "cold_cache": cold_cache,
+            "total_wall_ms": round((time.perf_counter() - started_at) * 1000, 3),
+            "phases": phases,
+            "counts": {},
+            "flow": {"skipped": True, "skip_reason": decision["skip_reason"]},
+        }
+
+    initial_specs = {
+        "wordbank": RequestSpec("GET", "/api/wordbank/search", {"query": normalized_query, "limit": 8}),
+        "cor_partial": RequestSpec(
+            "GET",
+            "/api/wordbank/search/cor-form",
+            {"form": normalized_query, "limit": 100, "include_translations": False},
+        ),
+        "en_form": RequestSpec(
+            "GET",
+            "/api/wordbank/search/en-form",
+            {"form": normalized_query, "include_translations": True},
+        ),
+    }
+    initial = run_profile_requests(client, initial_specs)
+    for name in ("wordbank", "cor_partial", "en_form"):
+        record_profile_phase(phases, name, initial[name])
+        responses[name] = initial[name].get("response")
+
+    translation_items = profile_translation_items(query, responses.get("en_form") or {})
+    translated_cor_payloads: dict[str, Any] = {}
+    skip_direct_full = should_skip_direct_cor_full(
+        responses.get("cor_partial") or {},
+        normalized_query,
+        responses.get("en_form") or {},
+    )
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        direct_full_future = None
+        if not skip_direct_full:
+            direct_full_future = executor.submit(
+                run_profile_request,
+                client,
+                RequestSpec(
+                    "GET",
+                    "/api/wordbank/search/cor-form",
+                    {"form": normalized_query, "limit": 100, "include_translations": True},
+                ),
+            )
+        translated_future = executor.submit(
+            run_en_translated_cor_profile,
+            client,
+            translation_items=translation_items,
+            use_cor_batch=use_cor_batch,
+        )
+        direct_full_result = direct_full_future.result() if direct_full_future is not None else None
+        translated_result = translated_future.result()
+
+    if direct_full_result is not None:
+        record_profile_phase(phases, "cor_full", direct_full_result)
+        responses["cor_full"] = direct_full_result.get("response")
+    for phase in translated_result["phases"]:
+        phases.append(phase)
+    translated_cor_payloads = translated_result["payloads"]
+
+    if include_resolve:
+        resolve_result = run_profile_request(
+            client,
+            RequestSpec("POST", "/api/wordbank/resolve-query", body={"query_text": query}),
+        )
+        record_profile_phase(phases, "resolve", resolve_result)
+        responses["resolve"] = resolve_result.get("response")
+
+    total_wall_ms = round((time.perf_counter() - started_at) * 1000, 3)
+    return {
+        "run_index": run_index,
+        "cold_cache": cold_cache,
+        "total_wall_ms": total_wall_ms,
+        "phases": phases,
+        "counts": profile_counts(responses, translated_cor_payloads),
+        "flow": {
+            "skipped": False,
+            "translation_keys": translation_items,
+            "used_cor_batch": use_cor_batch,
+            "included_resolve": include_resolve,
+            "skipped_direct_cor_full": skip_direct_full,
+        },
+    }
+
+
+def run_en_translated_cor_profile(
+    client: ApiClient,
+    *,
+    translation_items: list[dict[str, str | None]],
+    use_cor_batch: bool,
+) -> dict[str, Any]:
+    phases: list[dict[str, Any]] = []
+    payloads: dict[str, Any] = {}
+    if not translation_items:
+        return {"phases": phases, "payloads": payloads}
+
+    partial_specs = {
+        f"en_cor_partial:{item['form']}": RequestSpec(
+            "GET",
+            "/api/wordbank/search/cor-form",
+            {"form": item["form"], "limit": 100, "include_translations": False},
+        )
+        for item in translation_items
+    }
+    partials = run_profile_requests(client, partial_specs)
+    for name, result in partials.items():
+        record_profile_phase(phases, name, result)
+
+    if use_cor_batch:
+        batch_result = run_profile_request(
+            client,
+            RequestSpec(
+                "POST",
+                "/api/wordbank/search/cor-form-batch",
+                body={
+                    "limit": 100,
+                    "include_translations": True,
+                    "items": translation_items,
+                },
+            ),
+        )
+        record_profile_phase(phases, "en_cor_batch", batch_result)
+        batch_payload = batch_result.get("response") or {}
+        for item, payload in zip(translation_items, batch_payload.get("items") or []):
+            payloads[str(item["form"])] = payload
+        return {"phases": phases, "payloads": payloads}
+
+    filtered_specs = {}
+    for item in translation_items:
+        params = {
+            "form": item["form"],
+            "limit": 100,
+            "include_translations": True,
+            "en_query": item["en_query"],
+            "en_pos_ud": item.get("en_pos_ud"),
+        }
+        filtered_specs[f"en_cor_filtered:{item['form']}"] = RequestSpec(
+            "GET",
+            "/api/wordbank/search/cor-form",
+            params,
+        )
+    filtered = run_profile_requests(client, filtered_specs)
+    for name, result in filtered.items():
+        record_profile_phase(phases, name, result)
+        form = name.split(":", 1)[1]
+        payloads[form] = result.get("response")
+    return {"phases": phases, "payloads": payloads}
+
+
+def run_profile_requests(client: ApiClient, specs: dict[str, RequestSpec]) -> dict[str, dict[str, Any]]:
+    if not specs:
+        return {}
+    results: dict[str, dict[str, Any]] = {}
+    with ThreadPoolExecutor(max_workers=min(4, len(specs))) as executor:
+        futures = {
+            executor.submit(run_profile_request, client, spec): name
+            for name, spec in specs.items()
+        }
+        for future in as_completed(futures):
+            results[futures[future]] = future.result()
+    return results
+
+
+def run_profile_request(client: ApiClient, spec: RequestSpec) -> dict[str, Any]:
+    started_at = time.perf_counter()
+    try:
+        response = client.request(spec)
+    except DevAppError as exc:
+        return {
+            "ok": False,
+            "status": exc.status,
+            "elapsed_ms": round((time.perf_counter() - started_at) * 1000, 3),
+            "request": request_payload(spec),
+            "error": str(exc),
+            "body": exc.body,
+        }
+    return {
+        "ok": True,
+        "status": 200,
+        "elapsed_ms": round((time.perf_counter() - started_at) * 1000, 3),
+        "request": request_payload(spec),
+        "response": response,
+    }
+
+
+def record_profile_phase(phases: list[dict[str, Any]], name: str, result: dict[str, Any]) -> None:
+    phase = {
+        "name": name,
+        "ok": result["ok"],
+        "status": result.get("status"),
+        "elapsed_ms": result["elapsed_ms"],
+        "request": result["request"],
+    }
+    if not result["ok"]:
+        phase["error"] = result.get("error")
+    phases.append(phase)
+
+
+def profile_translation_items(query: str, en_payload: dict[str, Any]) -> list[dict[str, str | None]]:
+    return [
+        {
+            "form": label,
+            "en_query": query,
+            "en_pos_ud": ",".join(sorted(pos_values)) or None,
+        }
+        for _key, label, pos_values in translation_keys(en_payload.get("groups") or [])
+    ]
+
+
+def profile_counts(responses: dict[str, Any], translated_cor_payloads: dict[str, Any]) -> dict[str, int]:
+    return {
+        "wordbank_items": len((responses.get("wordbank") or {}).get("items") or []),
+        "direct_cor_partial_variants": count_cor_variants(responses.get("cor_partial") or {}),
+        "direct_cor_full_variants": count_cor_variants(responses.get("cor_full") or {}),
+        "en_groups": len((responses.get("en_form") or {}).get("groups") or []),
+        "translated_cor_forms": len(translated_cor_payloads),
+        "translated_cor_variants": sum(count_cor_variants(payload or {}) for payload in translated_cor_payloads.values()),
+        "resolve_actions": len((responses.get("resolve") or {}).get("word_actions") or []),
+    }
+
+
+def count_cor_variants(payload: dict[str, Any]) -> int:
+    return sum(len(group.get("variants") or []) for group in payload.get("groups") or [])
+
+
+def should_skip_direct_cor_full(
+    partial_payload: dict[str, Any],
+    normalized_query: str,
+    en_payload: dict[str, Any],
+) -> bool:
+    if not (en_payload.get("groups") or []):
+        return False
+    groups = partial_payload.get("groups") or []
+    if not groups:
+        return True
+    for group in groups:
+        if str(group.get("gloss") or "").strip():
+            return False
+        if str(group.get("pos_tag") or "").strip().upper() != "VERB":
+            return False
+        variants = group.get("variants") or []
+        if not variants:
+            return False
+        for variant in variants:
+            form = str(variant.get("form") or "").strip().lower()
+            lemma = str(variant.get("lemma") or "").strip().lower()
+            gloss = str(variant.get("gloss") or "").strip()
+            if form != normalized_query or lemma == normalized_query or gloss:
+                return False
+    return True
+
+
+def summarize_profile_runs(runs: list[dict[str, Any]]) -> dict[str, Any]:
+    if not runs:
+        return {}
+    totals = [float(run.get("total_wall_ms") or 0.0) for run in runs]
+    phase_totals: dict[str, list[float]] = {}
+    for run in runs:
+        for phase in run.get("phases") or []:
+            phase_totals.setdefault(str(phase.get("name") or ""), []).append(float(phase.get("elapsed_ms") or 0.0))
+    return {
+        "runs": len(runs),
+        "p50_wall_ms": percentile(totals, 0.5),
+        "p95_wall_ms": percentile(totals, 0.95),
+        "phases_p50_ms": {
+            name: percentile(values, 0.5)
+            for name, values in sorted(phase_totals.items())
+            if name
+        },
+    }
+
+
+def percentile(values: list[float], fraction: float) -> float:
+    if not values:
+        return 0.0
+    ordered = sorted(values)
+    index = min(len(ordered) - 1, round((len(ordered) - 1) * fraction))
+    return round(ordered[index], 3)
+
+
+def search_flow_decision(normalized_query: str) -> dict[str, Any]:
+    number_mode = is_number_query(normalized_query)
+    sentence_mode = not number_mode and has_multiple_words(normalized_query)
+    short_word = is_short_letter_word(normalized_query)
+    skip_reason = None
+    if number_mode:
+        skip_reason = "number_mode"
+    elif sentence_mode:
+        skip_reason = "sentence_mode"
+    elif not normalized_query:
+        skip_reason = "empty_query"
+    elif len(normalized_query) < 2:
+        skip_reason = "too_short"
+    elif short_word:
+        skip_reason = "short_letter_word"
+    return {
+        "number_mode": number_mode,
+        "sentence_mode": sentence_mode,
+        "short_letter_word": short_word,
+        "single_word_lookup": skip_reason is None,
+        "skip_word_lookups": skip_reason is not None,
+        "skip_reason": skip_reason,
+    }
+
+
+def normalize_search_word(value: str) -> str:
+    return " ".join(value.strip().lower().split())
+
+
+def has_multiple_words(value: str) -> bool:
+    return len([part for part in value.split() if part]) >= 2
+
+
+def is_number_query(value: str) -> bool:
+    cleaned = value.replace(".", "").replace(",", "").replace(" ", "")
+    return bool(cleaned) and cleaned.isdigit()
+
+
+def is_short_letter_word(value: str) -> bool:
+    return value.isalpha() and len(value) <= 2
+
+
+def clear_search_cache(client: ApiClient) -> None:
+    try:
+        client.request(RequestSpec("POST", "/api/admin/clear-search-cache", body={}))
+    except DevAppError:
+        return
+
+
 UD_POS_PRIMARY_LABELS = {
     "ADJ": "Adjective",
     "ADP": "Preposition",
@@ -545,6 +947,128 @@ def handle_wordbank_list(args: argparse.Namespace, client: ApiClient) -> Any:
 
     payload["items"] = items
     return payload
+
+
+def handle_wordbank_category_status(args: argparse.Namespace, client: ApiClient) -> dict[str, Any]:
+    polls = max(1, args.polls)
+    interval = max(0.0, args.interval)
+    snapshots = []
+    for poll_index in range(polls):
+        if poll_index > 0 and interval:
+            time.sleep(interval)
+        details = get_lemma_details(client, args.lemma)
+        snapshots.append(category_status_snapshot(details, poll_index=poll_index))
+
+    final_categories = {
+        normalize_category_label(category)
+        for scope in snapshots[-1]["scopes"]
+        for category in scope["categories"]
+    }
+    missing_expected = [
+        label for label in args.expect_category
+        if normalize_category_label(label) not in final_categories
+    ]
+    if missing_expected:
+        raise DevAppError(
+            f"Missing expected categories in final snapshot: {', '.join(missing_expected)}",
+            request=client.timings[-1]["request"] if client.timings else None,
+        )
+
+    return {
+        "lemma": snapshots[-1]["lemma"],
+        "polls": polls,
+        "interval_seconds": interval,
+        "expected_categories": args.expect_category,
+        "snapshots": snapshots,
+        "final": snapshots[-1],
+    }
+
+
+def category_status_snapshot(details: dict[str, Any], *, poll_index: int) -> dict[str, Any]:
+    scopes = collect_category_scopes(details)
+    return {
+        "poll_index": poll_index,
+        "lemma": details.get("lemma"),
+        "scope_count": len(scopes),
+        "category_count": sum(len(scope["categories"]) for scope in scopes),
+        "queued_verification_count": sum(1 for scope in scopes if scope.get("verification_status") == "queued"),
+        "scopes": scopes,
+    }
+
+
+def collect_category_scopes(details: dict[str, Any]) -> list[dict[str, Any]]:
+    lemma = str(details.get("lemma") or "")
+    scopes = [
+        category_scope_payload(
+            kind="lemma",
+            label=lemma,
+            meaning_id=None,
+            stored_surface_form=None,
+            categories=details.get("categories") or [],
+            verification=details.get("verification"),
+        )
+    ]
+    for section in details.get("meaning_sections") or []:
+        meaning_id = section.get("id")
+        label = section.get("english_translation") or section.get("gloss") or section.get("meaning_key") or lemma
+        scopes.append(
+            category_scope_payload(
+                kind="meaning",
+                label=str(label),
+                meaning_id=meaning_id,
+                stored_surface_form=None,
+                categories=section.get("categories") or [],
+                verification=section.get("verification"),
+            )
+        )
+        for form in section.get("surface_forms") or []:
+            scopes.append(
+                category_scope_payload(
+                    kind="surface",
+                    label=str(form.get("form") or ""),
+                    meaning_id=meaning_id,
+                    stored_surface_form=form.get("form"),
+                    categories=[],
+                    verification=form.get("verification"),
+                )
+            )
+    if not details.get("meaning_sections"):
+        for form in details.get("surface_forms") or []:
+            scopes.append(
+                category_scope_payload(
+                    kind="surface",
+                    label=str(form.get("form") or ""),
+                    meaning_id=None,
+                    stored_surface_form=form.get("form"),
+                    categories=[],
+                    verification=form.get("verification"),
+                )
+            )
+    return scopes
+
+
+def category_scope_payload(
+    *,
+    kind: str,
+    label: str,
+    meaning_id: int | None,
+    stored_surface_form: str | None,
+    categories: list[str],
+    verification: dict[str, Any] | None,
+) -> dict[str, Any]:
+    return {
+        "kind": kind,
+        "label": label,
+        "meaning_id": meaning_id,
+        "stored_surface_form": stored_surface_form,
+        "categories": categories,
+        "verification_status": (verification or {}).get("status"),
+        "verification_completed_at": (verification or {}).get("completed_at"),
+    }
+
+
+def normalize_category_label(value: str | None) -> str:
+    return " ".join((value or "").strip().lower().split())
 
 
 

@@ -122,7 +122,7 @@ and do not require API-key storage.
 | `DANOTE_SEARCH_GEMINI_CACHE_PATH` | `backend/resources/cache/en_gemini.sqlite` | Any filesystem path | Relative paths resolve from repo root; generated SQLite files are gitignored. |
 | `DANOTE_SEARCH_PARALLEL` | `1` | Boolean-like (`1/0`, `true/false`, `yes/no`) | Enables thread-pool fan-out for independent English POS translations and batch COR filters. |
 | `DANOTE_SEARCH_COR_BATCH` | `1` | Boolean-like (`1/0`, `true/false`, `yes/no`) | Enables the sidebar's single-request COR batch flow. The backend endpoint remains available for compatibility. |
-| `DANOTE_SEARCH_BATCHED_GEMINI` | `0` | Boolean-like (`1/0`, `true/false`, `yes/no`) | Experimental prompt batching for English translation and COR sense filtering; keep off unless benchmark quality diff passes. |
+| `DANOTE_SEARCH_BATCHED_GEMINI` | `1` | Boolean-like (`1/0`, `true/false`, `yes/no`) | Enables prompt batching for English translation and COR sense filtering. Set to `0` to compare against the legacy per-choice Gemini calls. |
 | `DANOTE_SEARCH_ADMIN_ENABLED` | `0` | Boolean-like (`1/0`, `true/false`, `yes/no`) | Enables `POST /api/admin/clear-search-cache` for benchmark cold-cache runs. |
 
 ## Trial and guest quota

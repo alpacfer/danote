@@ -55,13 +55,6 @@ export function useSidebarSearch({
     normalizedQuery,
     resetVersion,
   })
-  const { corDidYouMean, corFormSearchResult, isCorLookupLoading, isCorTranslationsLoading } = useSidebarCorSearch({
-    apiClient,
-    shouldSkipLookup: shouldSkipWordLookups,
-    normalizedQuery,
-    resetVersion,
-    onTrialLimitReached,
-  })
   const {
     sentenceSearchPreview,
     isSentenceSearchPreviewLoading,
@@ -86,6 +79,14 @@ export function useSidebarSearch({
     normalizedQuery,
     resetVersion,
     onTrialLimitReached,
+  })
+  const { corDidYouMean, corFormSearchResult, isCorLookupLoading, isCorTranslationsLoading } = useSidebarCorSearch({
+    apiClient,
+    shouldSkipLookup: shouldSkipWordLookups,
+    normalizedQuery,
+    resetVersion,
+    onTrialLimitReached,
+    enResolveGroups: activeEnResolveResult?.groups,
   })
 
   const activeCorFormSearchResult = useMemo(() => {

@@ -80,6 +80,10 @@ Endpoints:
   sentence mode is active, or the query is number-only.
 - Debounced by `SEARCH_RESOLVE_DEBOUNCE_MS`.
 - Two-phase fetch: (1) partial payload without translations → render; (2) full payload with translations → replace.
+- If English lookup has already resolved and the direct COR partial is empty or
+  only contains glossless inflected verb rows that look like loanword spelling
+  collisions, phase 2 is skipped. This avoids translating low-value direct COR
+  rows for clear English queries while preserving real Danish matches.
 - Phase 2 in-flight: `isCorTranslationsLoading=true`, skeleton placeholders, COR save rows disabled (loading skeletons, no extra locked copy).
 - Full payload cached by normalized query.
 - Translation fetch failure → toast error, partial results remain.
@@ -97,6 +101,9 @@ Endpoint: `GET /api/wordbank/search/en-form?form=<q>&include_translations=true`
 - English inflected/surface forms are translated before falling back to lemma translation, so a query like `dogs` can resolve to Danish `hunde` and then to the COR lemma `hund`.
 - For groups with a Danish translation, sidebar looks up the translated Danish form in COR and prefers any matching COR-backed rows.
 - Translated English results use one batch COR request for all Danish translation keys; the backend returns item responses in the same order as requested.
+- English lemma translation and English-to-COR sense filtering use batched
+  Gemini prompts by default when available; failures fall back to the
+  previously visible unfiltered/full result behavior.
 - Groups without a matching COR row stay as generated non-COR fallback rows.
 - When one English query has two or more distinct Danish translations, the backend asks Gemini once for short per-choice disambiguation labels and the sidebar shows those compact labels on both COR-backed and fallback rows.
 - While English/COR translation lookup is loading, search first shows the generic `Searching` skeleton during English resolution. After untranslated COR candidate lookup determines the exact pending row count, the UI switches to the `Translated From English` section and renders that many placeholders until the translated payload arrives.

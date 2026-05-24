@@ -280,7 +280,7 @@ def _initial_group_translations(
     translation_cache: dict[tuple[str, str, str], str | None],
     surface_translation_cache: dict[str, str | None],
 ) -> dict[tuple[str, str], str | None]:
-    if _flag_enabled("DANOTE_SEARCH_BATCHED_GEMINI", default=False):
+    if _flag_enabled("DANOTE_SEARCH_BATCHED_GEMINI", default=True):
         batched = _initial_group_translations_batched(
             normalized_query=normalized_query,
             group_inputs=group_inputs,

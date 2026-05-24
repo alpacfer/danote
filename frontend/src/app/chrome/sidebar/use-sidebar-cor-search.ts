@@ -6,6 +6,7 @@ import {
   SEARCH_RESOLVE_DEBOUNCE_MS,
   isShortLetterWord,
   type CORSearchFormResponse,
+  type ENPosGroup,
 } from "@/app/core"
 import { getPronounCategory } from "@/app/sections/wordbank/pronouns/pronouns-data"
 import { getQuestionWordEntry } from "@/app/sections/wordbank/question-words/question-words-data"
@@ -19,14 +20,17 @@ export function useSidebarCorSearch({
   normalizedQuery,
   resetVersion,
   onTrialLimitReached,
+  enResolveGroups,
 }: {
   apiClient: SidebarApiClient
   shouldSkipLookup: boolean
   normalizedQuery: string
   resetVersion: string
   onTrialLimitReached: (key: string) => void
+  enResolveGroups?: ENPosGroup[]
 }) {
   const cacheRef = useRef<Map<string, CORSearchFormResponse>>(new Map())
+  const partialCacheRef = useRef<Map<string, CORSearchFormResponse>>(new Map())
   const [corDidYouMean, setCorDidYouMean] = useState<string | null>(null)
   const [corFormSearchResult, setCorFormSearchResult] = useState<CorFormSearchResult | null>(null)
   const [isCorLookupLoading, setIsCorLookupLoading] = useState(false)
@@ -34,6 +38,7 @@ export function useSidebarCorSearch({
 
   useEffect(() => {
     cacheRef.current.clear()
+    partialCacheRef.current.clear()
     const clearId = window.setTimeout(() => {
       setCorFormSearchResult(null)
       setCorDidYouMean(null)
@@ -68,6 +73,7 @@ export function useSidebarCorSearch({
       setIsCorTranslationsLoading(false)
       return
     }
+    const cachedPartialPayload = partialCacheRef.current.get(normalizedQuery)
 
     const controller = new AbortController()
     let cancelled = false
@@ -75,16 +81,22 @@ export function useSidebarCorSearch({
     const timeoutId = window.setTimeout(() => {
       void (async () => {
         try {
-          const partialPayload = await apiClient.tryGetJson<CORSearchFormResponse>(
-            `/api/wordbank/search/cor-form?form=${encodeURIComponent(normalizedQuery)}&limit=100&include_translations=false`,
-            { signal: controller.signal },
-          )
+          const partialPayload = cachedPartialPayload
+            ?? await apiClient.tryGetJson<CORSearchFormResponse>(
+              `/api/wordbank/search/cor-form?form=${encodeURIComponent(normalizedQuery)}&limit=100&include_translations=false`,
+              { signal: controller.signal },
+            )
           if (cancelled) return
           if (partialPayload) {
+            partialCacheRef.current.set(normalizedQuery, partialPayload)
             setCorFormSearchResult({ query: normalizedQuery, payload: partialPayload })
-            setIsCorTranslationsLoading(true)
             const partialExact = hasExactCorFormMatch(partialPayload.groups ?? [], normalizedQuery)
             setCorDidYouMean(partialExact ? null : (partialPayload.did_you_mean ?? null))
+            if (shouldSkipDirectCorFull(partialPayload, normalizedQuery, enResolveGroups ?? [])) {
+              setIsCorTranslationsLoading(false)
+              return
+            }
+            setIsCorTranslationsLoading(true)
           }
 
           const fullPayload = await apiClient.getJson<CORSearchFormResponse>(
@@ -121,7 +133,28 @@ export function useSidebarCorSearch({
       setIsCorLookupLoading(false)
       setIsCorTranslationsLoading(false)
     }
-  }, [apiClient, normalizedQuery, onTrialLimitReached, resetVersion, shouldSkipLookup])
+  }, [apiClient, enResolveGroups, normalizedQuery, onTrialLimitReached, resetVersion, shouldSkipLookup])
 
   return { corDidYouMean, corFormSearchResult, isCorLookupLoading, isCorTranslationsLoading }
+}
+
+function shouldSkipDirectCorFull(
+  partialPayload: CORSearchFormResponse,
+  normalizedQuery: string,
+  enResolveGroups: ENPosGroup[],
+): boolean {
+  if (enResolveGroups.length === 0) return false
+  const groups = partialPayload.groups ?? []
+  if (groups.length === 0) return true
+  return groups.every((group) => {
+    if ((group.gloss ?? "").trim()) return false
+    const pos = (group.pos_tag ?? "").trim().toUpperCase()
+    if (pos !== "VERB") return false
+    return (group.variants ?? []).every((variant) => {
+      const form = (variant.form ?? "").trim().toLowerCase()
+      const lemma = (variant.lemma ?? "").trim().toLowerCase()
+      const gloss = (variant.gloss ?? "").trim()
+      return form === normalizedQuery && lemma !== normalizedQuery && !gloss
+    })
+  })
 }

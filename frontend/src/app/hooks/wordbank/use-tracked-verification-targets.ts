@@ -14,6 +14,8 @@ import {
   type VerificationTargetView,
 } from "@/app/core"
 
+import { usePostVerificationDetailRefresh } from "./use-post-verification-detail-refresh"
+
 const TRACKED_VERIFICATION_POLL_INTERVAL_MS = 500
 const AUTO_APPLY_SETTLE_WINDOW_MS = 5_000
 const AUTO_APPLY_ACTION_TYPES = new Set<VerificationAction["action_type"]>(["fix_translation", "fix_variations"])
@@ -63,6 +65,12 @@ export function useTrackedVerificationTargets({
 }: UseTrackedVerificationTargetsParams) {
   const [trackedQueuedVerifications, setTrackedQueuedVerifications] = useState<Record<string, TrackedQueuedVerification>>({})
   const notifiedVerificationSignaturesRef = useRef<Record<string, string>>({})
+  const scheduleOpenLemmaCompletionRefresh = usePostVerificationDetailRefresh({
+    activeSection,
+    apiClient,
+    onOpenLemmaVerificationCompleted,
+    selectedLemma,
+  })
 
   const notifyVerificationTarget = useCallback((storedLemma: string, target: VerificationTargetView) => {
     const verification = target.verification
@@ -213,6 +221,7 @@ export function useTrackedVerificationTargets({
         removeTrackedVerificationKeys(completedKeys)
         if (refreshedOpenLemmaPayload) {
           onOpenLemmaVerificationCompleted?.(refreshedOpenLemmaPayload)
+          scheduleOpenLemmaCompletionRefresh(openLemmaKey)
         }
         if (completedKeys.length > 0) {
           onAnyVerificationCompleted?.()
@@ -237,6 +246,7 @@ export function useTrackedVerificationTargets({
     onAnyVerificationCompleted,
     onOpenLemmaVerificationCompleted,
     removeTrackedVerificationKeys,
+    scheduleOpenLemmaCompletionRefresh,
     selectedLemma,
     trackedQueuedVerifications,
   ])

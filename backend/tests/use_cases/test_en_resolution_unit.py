@@ -57,6 +57,22 @@ class _StubENGeminiTranslationService:
         return dict(self._descriptions)
 
 
+class _BatchENGeminiTranslationService(_StubENGeminiTranslationService):
+    def __init__(self, batch_results: dict[str, str | None]) -> None:
+        super().__init__({})
+        self._batch_results = batch_results
+        self.batch_calls: list[tuple[str, list[dict[str, object]]]] = []
+
+    def translate_english_lemmas_batch(
+        self,
+        *,
+        query: str,
+        candidates: list[dict[str, object]],
+    ) -> dict[str, str | None]:
+        self.batch_calls.append((query, candidates))
+        return dict(self._batch_results)
+
+
 class _StubTranslationCollaborator:
     def lookup_translation(self, source_word: str) -> str | None:
         return None
@@ -201,6 +217,41 @@ def test_resolve_en_query_reuses_translation_cache_and_falls_back_to_provider() 
         ("book", "VERB", "reserve in advance"),
     ]
     assert translation_service.calls == ["books", "book"]
+
+
+def test_resolve_en_query_uses_batched_english_translations_when_available() -> None:
+    lexicon = _StubENLocalLexiconService(
+        matches=[
+            ENLocalFormMatch(form="book", lemma="book", pos_ud="NOUN", tags=[]),
+            ENLocalFormMatch(form="book", lemma="book", pos_ud="VERB", tags=[]),
+        ],
+        senses_by_key={
+            ("book", "NOUN"): [_sense(lemma="book", pos_ud="NOUN", sense_idx=0, gloss="printed work")],
+            ("book", "VERB"): [_sense(lemma="book", pos_ud="VERB", sense_idx=0, gloss="reserve")],
+        },
+    )
+    gemini = _BatchENGeminiTranslationService({"0": "bog", "1": "booke"})
+
+    response = resolve_en_query(
+        normalized_query="book",
+        en_local_lexicon_service=lexicon,
+        en_gemini_translation_service=gemini,
+        translation_service=None,
+        include_translations=True,
+    )
+
+    assert [(group.pos_ud, group.danish_translation) for group in response.en_pos_groups] == [
+        ("NOUN", "bog"),
+        ("VERB", "booke"),
+    ]
+    assert gemini.calls == []
+    assert len(gemini.batch_calls) == 1
+    query, candidates = gemini.batch_calls[0]
+    assert query == "book"
+    assert [(candidate["id"], candidate["lemma"], candidate["pos_ud"]) for candidate in candidates] == [
+        ("0", "book", "NOUN"),
+        ("1", "book", "VERB"),
+    ]
 
 
 def test_resolve_en_query_batches_disambiguation_descriptions_for_distinct_translations() -> None:

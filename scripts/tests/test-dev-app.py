@@ -72,6 +72,42 @@ class DevAppHelpersTest(unittest.TestCase):
         self.assertEqual(targets[1]["suggested_action_count"], 1)
         self.assertEqual(targets[2]["stored_surface_form"], "bogen")
 
+    def test_category_status_snapshot_summarizes_categories_and_queued_verification(self) -> None:
+        details = {
+            "lemma": "and",
+            "categories": [],
+            "meaning_sections": [
+                {
+                    "id": 130,
+                    "meaning_key": "and",
+                    "english_translation": "duck",
+                    "categories": ["Animal", "Food"],
+                    "verification": {"status": "verified", "completed_at": "2026-05-24T08:03:31Z"},
+                    "surface_forms": [
+                        {
+                            "form": "anden",
+                            "verification": {"status": "queued"},
+                        }
+                    ],
+                }
+            ],
+        }
+
+        snapshot = dev_app.category_status_snapshot(details, poll_index=2)
+
+        self.assertEqual(snapshot["poll_index"], 2)
+        self.assertEqual(snapshot["category_count"], 2)
+        self.assertEqual(snapshot["queued_verification_count"], 1)
+        self.assertEqual(snapshot["scopes"][1]["categories"], ["Animal", "Food"])
+        self.assertEqual(snapshot["scopes"][2]["stored_surface_form"], "anden")
+
+    def test_category_status_expectation_fails_when_final_snapshot_is_missing_category(self) -> None:
+        args = argparse_namespace(lemma="and", polls=1, interval=0.0, expect_category=["Animal"])
+        client = FakeDetailsClient({"lemma": "and", "categories": [], "surface_forms": []})
+
+        with self.assertRaises(dev_app.DevAppError):
+            dev_app.handle_wordbank_category_status(args, client)
+
     def test_find_verification_target_selects_actionable_surface(self) -> None:
         details = {
             "lemma": "bog",
@@ -118,6 +154,94 @@ class DevAppHelpersTest(unittest.TestCase):
         self.assertEqual(envelope["request"], {"method": "GET", "path": "/api/health"})
         self.assertEqual(envelope["response"], {"status": "ok"})
         self.assertEqual(envelope["timings_ms"][0]["status"], 200)
+
+    def test_search_profile_decision_marks_sentence_and_short_words(self) -> None:
+        self.assertEqual(dev_app.search_flow_decision("jeg er glad")["skip_reason"], "sentence_mode")
+        self.assertEqual(dev_app.search_flow_decision("i")["skip_reason"], "too_short")
+        self.assertTrue(dev_app.search_flow_decision("book")["single_word_lookup"])
+
+    def test_search_profile_run_reports_waterfall_counts_and_skip(self) -> None:
+        client = FakeProfileClient(
+            {
+                ("GET", "/api/wordbank/search", "query=book"): {"items": []},
+                ("GET", "/api/wordbank/search/cor-form", "form=book&include_translations=False"): {
+                    "form": "book",
+                    "groups": [
+                        {
+                            "lemma": "booke",
+                            "gloss": None,
+                            "pos_tag": "VERB",
+                            "variants": [{"form": "book", "lemma": "booke", "gloss": None}],
+                        }
+                    ],
+                },
+                ("GET", "/api/wordbank/search/en-form", "form=book&include_translations=True"): {
+                    "form": "book",
+                    "groups": [{"lemma": "book", "pos_ud": "NOUN", "danish_translation": "bog", "senses": []}],
+                },
+                ("GET", "/api/wordbank/search/cor-form", "form=bog&include_translations=False"): {
+                    "form": "bog",
+                    "groups": [{"variants": [{"cor_id": "COR.BOG"}]}],
+                },
+                ("POST", "/api/wordbank/search/cor-form-batch", ""): {
+                    "items": [{"form": "bog", "groups": [{"variants": [{"cor_id": "COR.BOG"}]}]}],
+                },
+            }
+        )
+
+        run = dev_app.run_search_profile_once(
+            client,
+            query="book",
+            normalized_query="book",
+            decision=dev_app.search_flow_decision("book"),
+            run_index=0,
+            cold_cache=False,
+            include_resolve=False,
+            use_cor_batch=True,
+        )
+
+        self.assertTrue(run["flow"]["skipped_direct_cor_full"])
+        self.assertEqual(run["counts"]["en_groups"], 1)
+        self.assertEqual(run["counts"]["translated_cor_variants"], 1)
+        self.assertNotIn("cor_full", {phase["name"] for phase in run["phases"]})
+
+
+class FakeProfileClient:
+    def __init__(self, responses):
+        self.responses = responses
+        self.timings = []
+
+    def request(self, spec):
+        params = spec.params or {}
+        interesting = {
+            key: value
+            for key, value in params.items()
+            if key in {"query", "form", "include_translations"}
+        }
+        key = (
+            spec.method,
+            spec.path,
+            "&".join(f"{name}={interesting[name]}" for name in sorted(interesting)),
+        )
+        self.timings.append({"request": dev_app.request_payload(spec), "status": 200, "elapsed_ms": 0.1})
+        try:
+            return self.responses[key]
+        except KeyError as exc:
+            raise AssertionError(f"Unexpected request: {key}") from exc
+
+
+class FakeDetailsClient:
+    def __init__(self, details):
+        self.details = details
+        self.timings = []
+
+    def request(self, spec):
+        self.timings.append({"request": dev_app.request_payload(spec), "status": 200, "elapsed_ms": 0.1})
+        return self.details
+
+
+def argparse_namespace(**kwargs):
+    return type("Args", (), kwargs)()
 
 
 if __name__ == "__main__":

@@ -44,7 +44,7 @@ class Settings:
     gemini_model: str = "gemini-3.1-flash-lite"
     search_gemini_cache_enabled: bool = True
     search_parallel_enabled: bool = True
-    search_batched_gemini_enabled: bool = False
+    search_batched_gemini_enabled: bool = True
     search_cor_batch_enabled: bool = True
     search_admin_enabled: bool = False
     search_gemini_cache_path: Path = BASE_DIR / "resources" / "cache" / "en_gemini.sqlite"
@@ -129,7 +129,7 @@ def load_settings(*, env_file: Path | None = None) -> Settings:
         search_batched_gemini_enabled=_required_env(
             "DANOTE_SEARCH_BATCHED_GEMINI",
             env_values,
-            "0",
+            "1",
         ).lower()
         not in {"0", "false", "no"},
         search_cor_batch_enabled=_required_env("DANOTE_SEARCH_COR_BATCH", env_values, "1").lower()

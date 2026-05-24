@@ -1011,20 +1011,15 @@ describe("App shell and search", () => {
 
   it("request-shape: refreshes wordbank categories when detail polling observes verification completion", async () => {
     let lemmaDetailsRequestCount = 0
-    let detailsReturnedVerified = false
-    let lemmasAfterVerified = 0
     const staleSavedSnapshot = cloneContractFixture(teacherQueuedWordPageContractFixture)
     staleSavedSnapshot.meaning_sections![0].categories = []
-    const verifiedWordPage = cloneContractFixture(teacherVerifiedWordPageContractFixture)
-    verifiedWordPage.meaning_sections![0].categories = ["Person", "School", "Work"]
+    const verifiedWithoutCategories = cloneContractFixture(teacherVerifiedWordPageContractFixture)
+    verifiedWithoutCategories.meaning_sections![0].categories = []
+    const verifiedWithCategories = cloneContractFixture(teacherVerifiedWordPageContractFixture)
+    verifiedWithCategories.meaning_sections![0].categories = ["Person", "School", "Work"]
 
     mockFetchImplementation({
-      lemmasHandler: async () => {
-        if (detailsReturnedVerified) {
-          lemmasAfterVerified += 1
-        }
-        return responseOf({ items: [] })
-      },
+      lemmasResponse: { items: [] },
       searchWordbankResponse: { items: [] },
       corSearchFormResponse: {
         form: "lærere",
@@ -1056,7 +1051,7 @@ describe("App shell and search", () => {
       },
       addWordResponse: {
         ...cloneContractFixture(teacherQueuedSearchAddResponseContractFixture),
-        queued_verification_targets: [],
+        queued_verification_targets: [{ meaning_id: 1, stored_surface_form: null }],
         saved_snapshot: staleSavedSnapshot,
       },
       lemmaDetailsHandler: async () => {
@@ -1064,8 +1059,10 @@ describe("App shell and search", () => {
         if (lemmaDetailsRequestCount === 1) {
           return responseOf(cloneContractFixture(staleSavedSnapshot))
         }
-        detailsReturnedVerified = true
-        return responseOf(cloneContractFixture(verifiedWordPage))
+        if (lemmaDetailsRequestCount === 2) {
+          return responseOf(cloneContractFixture(verifiedWithoutCategories))
+        }
+        return responseOf(cloneContractFixture(verifiedWithCategories))
       },
     })
 
@@ -1081,7 +1078,9 @@ describe("App shell and search", () => {
     expect(await screen.findByRole("heading", { name: /^lærer$/i })).toBeInTheDocument()
 
     await waitFor(() => {
-      expect(lemmasAfterVerified).toBeGreaterThan(0)
+      expect(screen.getByText(/^Person$/i)).toBeInTheDocument()
+      expect(screen.getByText(/^School$/i)).toBeInTheDocument()
+      expect(screen.getByText(/^Work$/i)).toBeInTheDocument()
     }, { timeout: 6_000 })
   }, 15_000)
 

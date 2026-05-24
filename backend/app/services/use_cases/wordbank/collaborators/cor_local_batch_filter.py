@@ -18,7 +18,7 @@ def filter_cor_form_responses_by_en_query_batch(
 ) -> list[CORSearchFormResponse]:
     if not items:
         return []
-    if _flag_enabled("DANOTE_SEARCH_BATCHED_GEMINI", default=False):
+    if _flag_enabled("DANOTE_SEARCH_BATCHED_GEMINI", default=True):
         batched = _filter_cor_form_responses_with_single_gemini_call(
             items,
             en_gemini_translation_service=en_gemini_translation_service,

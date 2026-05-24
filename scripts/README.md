@@ -10,8 +10,10 @@ reuses healthy default ports. It is the preferred local startup path.
 `dev-app.py` is the **Danote Terminal Controller** (**DTC**), the JSON-only live
 API controller for terminal debugging. It auto-detects the local backend and
 calls the same HTTP routes used by the UI for wordbank, sentencebank, search,
-verification, pronunciation, and developer actions. Use it as an extra
-acceptance check after feature work that is reachable through the app API.
+verification, pronunciation, and developer actions. `wordbank category-status`
+polls lemma details and summarizes categories plus verification state, which is
+useful for diagnosing post-verification category refresh timing. Use DTC as an
+extra acceptance check after feature work that is reachable through the app API.
 
 `dev-search-debug.py` is the older human-readable sidebar search tracer. Keep it
 for compatibility; prefer `dev-app.py search trace` when agent-readable JSON is

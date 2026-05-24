@@ -335,6 +335,23 @@ class _StubENGeminiForMatchFilter:
         return {}
 
 
+class _BatchStubENGeminiForMatchFilter(_StubENGeminiForMatchFilter):
+    def __init__(self, decisions: dict[str, bool]) -> None:
+        super().__init__({})
+        self._batch_decisions = decisions
+        self.batch_calls: list[tuple[str, list[dict[str, object]], str | None]] = []
+
+    def select_translation_matches_batch(
+        self,
+        *,
+        query: str,
+        en_pos_ud: str | None,
+        lemma_choices: list[dict[str, object]],
+    ) -> dict[str, bool]:
+        self.batch_calls.append((query, lemma_choices, en_pos_ud))
+        return dict(self._batch_decisions)
+
+
 def _bord_homograph_lookup() -> dict[str, list[CORLocalEntry]]:
     return {
         "bord": [
@@ -444,6 +461,43 @@ def test_wordbank_search_cor_form_batch_preserves_order_and_filter_semantics(tmp
     ]
     assert len(gemini.calls) == 2
     assert gemini.calls[0][2] in {"NOUN", None}
+
+
+def test_wordbank_search_cor_form_batch_uses_single_batched_match_filter(tmp_path: Path) -> None:
+    local_cor = FakeCORLocalLexiconService(by_form=_bord_homograph_lookup())
+    gemini = _BatchStubENGeminiForMatchFilter(
+        {
+            "0:0": True,
+            "0:1": False,
+            "1:0": True,
+            "1:1": False,
+        }
+    )
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_local_lexicon_service=local_cor,
+        en_gemini_translation_service=gemini,
+    )
+
+    responses = use_case.search_cor_form_batch(
+        [
+            ("bord", "table", "NOUN"),
+            ("bord", "table", None),
+        ],
+        limit=100,
+        include_translations=False,
+    )
+
+    assert [response.groups[0].variants[0].cor_id for response in responses] == [
+        "COR.44636.120.01",
+        "COR.44636.120.01",
+    ]
+    assert gemini.calls == []
+    assert len(gemini.batch_calls) == 1
+    query, choices, en_pos_ud = gemini.batch_calls[0]
+    assert query == "table"
+    assert en_pos_ud == "NOUN"
+    assert {choice["id"] for choice in choices} == {"0:0", "0:1", "1:0", "1:1"}
 
 
 def test_wordbank_search_cor_form_keeps_all_senses_when_gemini_marks_none_matching(tmp_path: Path) -> None:

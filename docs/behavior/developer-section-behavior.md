@@ -98,6 +98,23 @@ backend and calls the same API routes as the frontend for health, developer
 probes, search, wordbank, verification, and sentencebank workflows. References
 to "DTC" mean this script.
 
+Search-specific DTC commands:
+- `scripts/dev-app.py search profile <query>` mirrors the single-word sidebar
+  search waterfall and reports flow decisions, per-phase timings, result counts,
+  translation keys, and whether direct translated COR was skipped.
+- `scripts/dev-app.py search trace <english-query>` traces EN → DA → filtered
+  COR decisions for an English query.
+- `scripts/dev-app.py search all <query>` reads saved, direct COR, EN, and
+  resolver outputs sequentially for broad debugging; use `search profile` for
+  latency work.
+
+Wordbank-specific DTC commands:
+- `scripts/dev-app.py wordbank category-status <lemma> --polls 5` repeatedly
+  reads lemma details and summarizes categories plus verification status by
+  lemma/meaning/surface scope. Add `--expect-category <label>` one or more
+  times to fail the command when the final snapshot still lacks a generated
+  category.
+
 After implementing user-facing or backend behavior that is reachable through
 the app API, run at least one relevant DTC command as an extra terminal
 acceptance check. This check supplements pytest, Vitest, lint, and docs smoke
