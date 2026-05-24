@@ -206,7 +206,12 @@ def _add_wordbank_parser(subparsers: argparse._SubParsersAction[argparse.Argumen
 
     details = child.add_parser("details", help="Read lemma details.")
     details.add_argument("lemma")
-    _set_handler(details, ["wordbank", "details"], lambda args, client: get_lemma_details(client, args.lemma))
+    details.add_argument(
+        "--brief",
+        action="store_true",
+        help="Project a compact per-meaning view (id, key, en, gloss, gloss_translation, saved_id).",
+    )
+    _set_handler(details, ["wordbank", "details"], handle_wordbank_details)
 
     category_status = child.add_parser("category-status", help="Summarize lemma categories and verification statuses.")
     category_status.add_argument("lemma")
@@ -241,6 +246,37 @@ def _add_wordbank_parser(subparsers: argparse._SubParsersAction[argparse.Argumen
     delete_meaning = child.add_parser("delete-meaning", help="Delete a meaning immediately.")
     delete_meaning.add_argument("meaning_id", type=int)
     _set_handler(delete_meaning, ["wordbank", "delete-meaning"], lambda args, client: run_single(client, RequestSpec("DELETE", f"/api/wordbank/meanings/{args.meaning_id}")))
+
+    save_sense = child.add_parser(
+        "save-sense",
+        help="Save one discovered sense by meaning_key, auto-building the search seed.",
+    )
+    save_sense.add_argument("surface", help="Surface form to look up (e.g. 'holder', 'slår', 'kort').")
+    save_sense.add_argument("--meaning-key", required=True, help="meaning_key of the sense to save (from sense-discovery output).")
+    save_sense.add_argument("--lemma", help="Override the discovered lemma; defaults to the variant's COR lemma.")
+    save_sense.add_argument("--pos-tag", help="Restrict matching to variants of this POS (NOUN/VERB/ADJ/ADV).")
+    _set_handler(save_sense, ["wordbank", "save-sense"], handle_wordbank_save_sense)
+
+    expand = child.add_parser(
+        "expand-senses",
+        help="Backfill discovered senses for an already-saved lemma (idempotent).",
+    )
+    expand.add_argument("lemma")
+    _set_handler(
+        expand,
+        ["wordbank", "expand-senses"],
+        lambda args, client: run_single(
+            client,
+            RequestSpec("POST", "/api/wordbank/lexemes/expand-senses", body={"lemma": args.lemma}),
+        ),
+    )
+
+    sense_discovery = child.add_parser(
+        "sense-discovery",
+        help="Inspect raw Gemini sense-discovery output for the lemma behind a surface form.",
+    )
+    sense_discovery.add_argument("form", help="Surface form (lemma resolution done backend-side).")
+    _set_handler(sense_discovery, ["wordbank", "sense-discovery"], handle_wordbank_sense_discovery)
 
     _add_wordbank_action_parsers(child)
     _add_verification_parsers(child)
@@ -1090,6 +1126,154 @@ def handle_wordbank_add(args: argparse.Namespace, client: ApiClient) -> Any:
     if args.search_seed_json:
         body["search_seed"] = parse_json_arg(args.search_seed_json, "--search-seed-json")
     return run_single(client, RequestSpec("POST", "/api/wordbank/lexemes", body=body))
+
+
+def handle_wordbank_save_sense(args: argparse.Namespace, client: ApiClient) -> Any:
+    """Convenience: run sense discovery for ``args.surface``, pick the variant
+    whose ``meaning_key`` matches ``args.meaning_key``, build the full search
+    seed (cor_id, cor_lemma_idx, gloss, english_gloss, english_translation,
+    pos_tag, morphology) automatically, and POST add-word. Saves the 20-line
+    raw curl I kept writing by hand to verify the per-sense save flow.
+    """
+    cor_form = client.request(
+        RequestSpec(
+            "GET",
+            "/api/wordbank/search/cor-form",
+            {"form": args.surface, "limit": 100, "include_translations": True},
+        )
+    )
+    requested_pos = (args.pos_tag or "").strip().upper() or None
+    matches: list[tuple[dict[str, Any], dict[str, Any]]] = []
+    for group in cor_form.get("groups") or []:
+        for variant in group.get("variants") or []:
+            if (variant.get("meaning_key") or "").strip().lower() != args.meaning_key.strip().lower():
+                continue
+            variant_pos = (variant.get("pos_tag") or group.get("pos_tag") or "").strip().upper() or None
+            if requested_pos and variant_pos != requested_pos:
+                continue
+            matches.append((group, variant))
+    if not matches:
+        keys = sorted({
+            f"{(v.get('meaning_key') or '?')}/{(v.get('pos_tag') or g.get('pos_tag') or '?')}"
+            for g in (cor_form.get("groups") or [])
+            for v in (g.get("variants") or [])
+        })
+        raise SystemExit(
+            f"No sense matched meaning_key={args.meaning_key!r}"
+            + (f" pos={requested_pos}" if requested_pos else "")
+            + f". Available senses for {args.surface!r}: {', '.join(keys) or '(none)'}"
+        )
+    if len(matches) > 1:
+        keys = sorted({
+            f"{(v.get('meaning_key') or '?')}/{(v.get('pos_tag') or g.get('pos_tag') or '?')}"
+            for g, v in matches
+        })
+        raise SystemExit(
+            f"meaning_key={args.meaning_key!r} matched {len(matches)} variants ({', '.join(keys)}). "
+            "Pass --pos-tag to disambiguate."
+        )
+    group, variant = matches[0]
+    lemma = args.lemma or variant.get("lemma") or group.get("lemma")
+    if not lemma:
+        raise SystemExit("Variant does not expose a lemma; pass --lemma explicitly.")
+    pos_tag = variant.get("pos_tag") or group.get("pos_tag")
+    seed: dict[str, Any] = {
+        "lemma": lemma,
+        "surface": args.surface,
+        "cor_id": variant.get("cor_id"),
+        "cor_lemma_idx": variant.get("lemma_idx"),
+        "dictionary_status": variant.get("dictionary_status") or "cor",
+        "meaning_key": variant.get("meaning_key"),
+        "gloss": variant.get("gloss") or group.get("gloss"),
+        "english_gloss": variant.get("english_gloss"),
+        "english_translation": variant.get("saveable_translation") or variant.get("lemma_translation"),
+        "pos_tag": pos_tag,
+        "morphology": variant.get("morphology"),
+    }
+    body: dict[str, Any] = {
+        "surface_token": args.surface,
+        "lemma_candidate": lemma,
+        "cor_id": variant.get("cor_id"),
+        "pos_tag": pos_tag,
+        "morphology": variant.get("morphology"),
+        "search_seed": seed,
+    }
+    return run_single(client, RequestSpec("POST", "/api/wordbank/lexemes", body=body))
+
+
+def handle_wordbank_sense_discovery(args: argparse.Namespace, client: ApiClient) -> Any:
+    """Project just the discovered-sense fields out of the cor-form fan-out so
+    you can eyeball Gemini's output without the COR/translation noise."""
+    cor_form = client.request(
+        RequestSpec(
+            "GET",
+            "/api/wordbank/search/cor-form",
+            {"form": args.form, "limit": 100, "include_translations": True},
+        )
+    )
+    senses_by_lemma: dict[str, list[dict[str, Any]]] = {}
+    for group in cor_form.get("groups") or []:
+        lemma = group.get("lemma") or "?"
+        for variant in group.get("variants") or []:
+            if not variant.get("meaning_key"):
+                continue
+            senses_by_lemma.setdefault(lemma, []).append(
+                {
+                    "meaning_key": variant.get("meaning_key"),
+                    "pos_tag": variant.get("pos_tag") or group.get("pos_tag"),
+                    "english_translation": variant.get("saveable_translation"),
+                    "english_gloss": variant.get("english_gloss"),
+                    "gloss_da": variant.get("gloss") or group.get("gloss"),
+                    "alternative_translations": variant.get("alternative_translations") or [],
+                    "example_da": variant.get("example_da"),
+                    "example_en": variant.get("example_en"),
+                    "cor_id": variant.get("cor_id"),
+                    "cor_lemma_idx": variant.get("lemma_idx"),
+                }
+            )
+    return {
+        "form": cor_form.get("form"),
+        "did_you_mean": cor_form.get("did_you_mean"),
+        "senses_by_lemma": senses_by_lemma,
+        "sense_count": sum(len(v) for v in senses_by_lemma.values()),
+    }
+
+
+def handle_wordbank_details(args: argparse.Namespace, client: ApiClient) -> Any:
+    details = get_lemma_details(client, args.lemma)
+    if not args.brief:
+        return details
+    return _brief_lemma_details(details)
+
+
+def _brief_lemma_details(details: dict[str, Any]) -> dict[str, Any]:
+    sections = []
+    for section in details.get("meaning_sections") or []:
+        verification = section.get("verification") or {}
+        sections.append(
+            {
+                "id": section.get("id"),
+                "meaning_key": section.get("meaning_key"),
+                "english_translation": section.get("english_translation"),
+                # The resolved English parenthetical (computed from the row's
+                # saved english_gloss when present, else translated via COR).
+                # This is what the wordbank header renders after the lemma.
+                "gloss_translation": section.get("gloss_translation"),
+                "gloss_da": section.get("gloss"),
+                "pos_tag": section.get("pos_tag"),
+                "additional_translations": section.get("additional_translations") or [],
+                "surface_forms": [form.get("form") for form in (section.get("surface_forms") or [])],
+                "verification_status": verification.get("status"),
+            }
+        )
+    return {
+        "lemma": details.get("lemma"),
+        "pos_tag": details.get("pos_tag"),
+        "is_sectioned": details.get("is_sectioned"),
+        "english_translation": details.get("english_translation"),
+        "meaning_sections": sections,
+        "top_level_surface_forms": [form.get("form") for form in (details.get("surface_forms") or [])],
+    }
 
 
 def handle_sentencebank_add(args: argparse.Namespace, client: ApiClient) -> Any:
