@@ -203,16 +203,35 @@ def _resolve_meaning_assignment(
                     False,
                 )
 
-    record, inserted = runtime.repository.upsert_lexeme_meaning(
-        lexeme_id=lexeme_id,
-        meaning_key=meaning_key,
-        cor_lemma_idx=seed.cor_lemma_idx,
-        dictionary_status=seed.dictionary_status,
-        gloss=seed.gloss,
-        english_translation=english_translation,
-        pos_tag=metadata.lemma_pos_tag,
-        morphology=metadata.lemma_morphology,
-    )
+    # When the seed carries an explicit meaning_key (the sense-discovery
+    # fan-out path: per-sense search cards), dedupe strictly on meaning_key.
+    # ``upsert_lexeme_meaning`` dedupes on cor_lemma_idx first, which would
+    # silently rewrite an existing sense's row — every verb sense shares one
+    # COR lemma_idx, so the second save would overwrite the first. The
+    # key-first upsert still records cor_lemma_idx on the new row so
+    # downstream gram_raw / gloss_translation joins keep working.
+    if seed.meaning_key:
+        record, inserted = runtime.repository.upsert_lexeme_meaning_by_key(
+            lexeme_id=lexeme_id,
+            meaning_key=meaning_key,
+            cor_lemma_idx=seed.cor_lemma_idx,
+            dictionary_status=seed.dictionary_status,
+            gloss=seed.gloss,
+            english_translation=english_translation,
+            pos_tag=metadata.lemma_pos_tag,
+            morphology=metadata.lemma_morphology,
+        )
+    else:
+        record, inserted = runtime.repository.upsert_lexeme_meaning(
+            lexeme_id=lexeme_id,
+            meaning_key=meaning_key,
+            cor_lemma_idx=seed.cor_lemma_idx,
+            dictionary_status=seed.dictionary_status,
+            gloss=seed.gloss,
+            english_translation=english_translation,
+            pos_tag=metadata.lemma_pos_tag,
+            morphology=metadata.lemma_morphology,
+        )
     return (
         MeaningAssignment(
             id=record.id,

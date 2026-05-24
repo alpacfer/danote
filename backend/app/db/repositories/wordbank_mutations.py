@@ -360,7 +360,6 @@ class WordbankMutationRepository:
             )
         return lexeme_id, cursor.rowcount == 1
 
-
     def insert_or_update_surface_form(
         self,
         *,
@@ -464,7 +463,6 @@ class WordbankMutationRepository:
             raise RuntimeError("Failed to create or load surface form")
         return surface_form_from_row(row), inserted
 
-
     def insert_surface_form_cor_variant(self, *, surface_form_id: int, cor_id: str) -> bool:
         with timed_db_operation("wordbank.insert_surface_form_cor_variant"), get_connection(self._db_path) as conn:
             cursor = conn.execute(
@@ -478,7 +476,6 @@ class WordbankMutationRepository:
                 (surface_form_id, cor_id),
             )
         return cursor.rowcount == 1
-
 
     def upsert_lexeme_meaning(
         self,
@@ -646,7 +643,34 @@ class WordbankMutationRepository:
             raise RuntimeError("Failed to create or load lexeme meaning")
         return lexeme_meaning_from_row(row), inserted
 
+    def upsert_lexeme_meaning_by_key(
+        self,
+        *,
+        lexeme_id: int,
+        meaning_key: str,
+        cor_lemma_idx: int | None,
+        dictionary_status: str = "unknown",
+        gloss: str | None,
+        english_translation: str | None,
+        pos_tag: str | None,
+        morphology: str | None,
+    ) -> tuple[LexemeMeaningRecord, bool]:
+        from app.db.repositories.wordbank_meaning_key_upsert import (
+            upsert_lexeme_meaning_by_key as _upsert,
+        )
 
+        return _upsert(
+            db_path=self._db_path,
+            owner_user_id=self._owner_user_id,
+            lexeme_id=lexeme_id,
+            meaning_key=meaning_key,
+            cor_lemma_idx=cor_lemma_idx,
+            dictionary_status=dictionary_status,
+            gloss=gloss,
+            english_translation=english_translation,
+            pos_tag=pos_tag,
+            morphology=morphology,
+        )
 
     def replace_related_words(
         self,

@@ -46,8 +46,11 @@ class DiscoveredSenseSet:
 
 _OPEN_CLASS_POS = {"VERB", "AUX", "NOUN", "PROPN", "ADJ", "ADV"}
 _MEANING_KEY_RE = re.compile(r"[^a-z0-9]+")
-_MAX_SENSES = 8
-_MAX_ALTERNATIVES = 3
+_MAX_SENSES = 6
+_MAX_ALTERNATIVES = 4
+# Bump this token whenever the prompt or merge policy changes so cached
+# Gemini results from older policies are naturally invalidated.
+_PROMPT_VERSION = "v3-merge-aggressive-no-dups"
 
 
 def is_sense_discoverable_pos(pos_tag: str | None) -> bool:
@@ -62,7 +65,7 @@ def cache_key(payload: SenseDiscoveryInput) -> str:
         (payload.cor_gloss or "").strip().lower(),
         ",".join(str(idx) for idx in candidate_idxs),
     ]
-    return "sense_discovery::" + "|".join(parts)
+    return f"sense_discovery::{_PROMPT_VERSION}::" + "|".join(parts)
 
 
 def build_sense_discovery_prompt(payload: SenseDiscoveryInput) -> str:
@@ -96,22 +99,54 @@ def build_sense_discovery_prompt(payload: SenseDiscoveryInput) -> str:
         else "- Leave cor_lemma_idx null; no COR candidates were supplied.\n"
     )
     return (
-        "You enumerate the distinct dictionary senses of one Danish lemma for a language-learning wordbank.\n"
+        "You enumerate the DISTINCT dictionary senses of one Danish lemma for a learner's wordbank.\n"
+        "The learner wants ONE card per genuinely different meaning. Aggressively merge anything that\n"
+        "a Danish speaker would consider 'the same idea, just a different English word' into a single\n"
+        "card whose alternative_translations carries the other phrasings.\n"
         "Return JSON only with this exact shape: "
         "{\"senses\":[{\"meaning_key\":\"...\",\"english_translation\":\"...\","
         "\"gloss\":\"...\",\"alternative_translations\":[\"...\"],"
         "\"example_da\":\"...\",\"example_en\":\"...\",\"cor_lemma_idx\":null}]}\n"
-        "Rules:\n"
-        "- Each sense must be semantically distinct from every other sense in the list.\n"
-        "- Synonyms of the same sense (e.g. 'to beat', 'to strike' for 'hit') belong in alternative_translations, not as separate senses.\n"
-        "- meaning_key must be a short, stable, lowercase ASCII slug (a-z, 0-9, hyphens) for this sense — e.g. 'hit', 'mow', 'ring-bell'.\n"
-        "- meaning_keys must be unique across the senses list.\n"
-        "- english_translation must be the single best modern dictionary-style English translation for this sense.\n"
-        "- gloss must be a short Danish definition for this sense (one short phrase, no quotes).\n"
-        "- alternative_translations are obvious popular English synonyms for the same sense. Cap at 3. May be empty.\n"
-        "- example_da is one short natural Danish sentence that demonstrates this sense; example_en is its English translation. Both may be null if no good example fits.\n"
-        f"- Order senses by frequency (most common first). Cap at {_MAX_SENSES} senses.\n"
-        "- Do not invent senses; if the lemma is monosemous return exactly one sense.\n"
+        "MERGE TEST (apply per pair of candidate senses):\n"
+        "  If a fluent Danish-English bilingual would routinely use both English words to translate the\n"
+        "  same Danish sentence with this lemma without any change in meaning, they are the SAME sense\n"
+        "  — emit one card whose english_translation is the more common one and put the other in\n"
+        "  alternative_translations.\n"
+        "  Only split into two cards when the senses cannot share an example sentence — i.e. swapping\n"
+        "  the English word in the example would mistranslate the Danish.\n"
+        "MERGE EXAMPLES (do this):\n"
+        "  - holde: 'to hold' and 'to keep' → ONE card { english_translation: 'to hold',\n"
+        "    alternative_translations: ['to keep'] }. Both translate 'jeg holder bogen' / 'jeg holder det\n"
+        "    hemmeligt' interchangeably.\n"
+        "  - gå: 'to walk' and 'to go (on foot)' → ONE card { english_translation: 'to walk',\n"
+        "    alternative_translations: ['to go'] }.\n"
+        "  - slå: 'to hit', 'to strike', 'to beat' → ONE card { english_translation: 'to hit',\n"
+        "    alternative_translations: ['to strike', 'to beat'] }.\n"
+        "SPLIT EXAMPLES (do NOT merge these):\n"
+        "  - holde: 'to hold/keep' vs 'to stop' vs 'to host (an event)' → three cards. 'Bussen holder'\n"
+        "    cannot be translated with 'hold' or 'host'.\n"
+        "  - slå: 'to hit' vs 'to mow (a lawn)' vs 'to ring (bells)' vs 'to fold (paper)' → distinct\n"
+        "    cards; you cannot mow with 'hit' or ring a bell with 'fold'.\n"
+        "  - gå: 'to walk' vs 'to leave' vs 'to work/function (a machine)' → distinct cards.\n"
+        "Other rules:\n"
+        "- meaning_key: short, stable, lowercase ASCII slug (a-z, 0-9, hyphens) for the merged sense\n"
+        "  — e.g. 'hold', 'stop', 'host-event', 'mow', 'ring-bell'. Unique across the list.\n"
+        "- english_translation: the single most common modern dictionary-style English translation.\n"
+        "- NO TRANSLATION REUSE ACROSS SENSES. Every English phrasing (english_translation or any\n"
+        "  alternative_translations entry) must appear on AT MOST ONE card across the whole response.\n"
+        "  If the same word fits two senses, decide which is its primary sense and put it there only.\n"
+        "  Example: 'to hold' belongs to the 'hold/keep' sense; it must NOT also appear under 'host-event'\n"
+        "  (which should use 'to host', 'to throw', 'to organize' instead).\n"
+        "- gloss: a short Danish definition for the merged sense (one short phrase, no quotes).\n"
+        f"- alternative_translations: ≤{_MAX_ALTERNATIVES} other common English phrasings for the SAME merged\n"
+        "  sense. May be empty when no equally common alternative exists. Do not repeat english_translation.\n"
+        "- example_da / example_en: one short Danish sentence that demonstrates this merged sense,\n"
+        "  plus its English translation. Both may be null if no good example fits.\n"
+        f"- Order senses by everyday frequency (most common first). Hard cap: {_MAX_SENSES} senses.\n"
+        "- Prefer fewer cards. If two candidate senses fail the MERGE TEST only at the edges (rare\n"
+        "  idioms, archaic uses), still merge them and keep the rare phrasing out of\n"
+        "  alternative_translations.\n"
+        "- If the lemma is monosemous, return exactly one sense.\n"
         + verb_rule
         + cor_rule
         + "- Do not explain your reasoning.\n"
@@ -180,7 +215,58 @@ def parse_sense_discovery_payload(payload: object) -> DiscoveredSenseSet | None:
         senses.append(sense)
         if len(senses) >= _MAX_SENSES:
             break
+    senses = _deduplicate_translations_across_senses(senses)
     return DiscoveredSenseSet(senses=senses)
+
+
+def _deduplicate_translations_across_senses(
+    senses: list[DiscoveredSense],
+) -> list[DiscoveredSense]:
+    """Strip any English phrasing that appears on more than one sense card.
+
+    Gemini occasionally reuses the same translation as a primary on one card
+    and as an alternative on another (e.g. 'to hold' showing up under both
+    'hold/keep' and 'host-event' for ``holde``). That makes adjacent search
+    cards look like the same meaning. We keep the phrasing on the card where
+    it first appears as the english_translation (or first appears at all)
+    and drop it everywhere else.
+    """
+    if len(senses) <= 1:
+        return senses
+    claimed: set[str] = set()
+    # First pass: claim every primary translation. Primaries always win over
+    # alternatives because they're the dominant phrasing for that card.
+    for sense in senses:
+        claimed.add(sense.english_translation.lower())
+    deduped: list[DiscoveredSense] = []
+    seen_alternatives: set[str] = set()
+    for sense in senses:
+        filtered_alternatives: list[str] = []
+        for alternative in sense.alternative_translations:
+            alt_key = alternative.lower()
+            if alt_key in claimed and alt_key != sense.english_translation.lower():
+                # This phrasing is some other card's primary — drop it here.
+                continue
+            if alt_key in seen_alternatives:
+                # Already used as an alternative on an earlier card.
+                continue
+            seen_alternatives.add(alt_key)
+            filtered_alternatives.append(alternative)
+        if filtered_alternatives == list(sense.alternative_translations):
+            deduped.append(sense)
+        else:
+            deduped.append(
+                DiscoveredSense(
+                    meaning_key=sense.meaning_key,
+                    english_translation=sense.english_translation,
+                    gloss=sense.gloss,
+                    alternative_translations=filtered_alternatives,
+                    example_da=sense.example_da,
+                    example_en=sense.example_en,
+                    cor_lemma_idx=sense.cor_lemma_idx,
+                )
+            )
+    return deduped
 
 
 def discover_senses_with_gemini(

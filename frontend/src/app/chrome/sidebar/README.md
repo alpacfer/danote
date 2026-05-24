@@ -8,6 +8,7 @@ Sidebar chrome for global navigation and command search. Keep files here focused
 |---|---|
 | `app-sidebar.tsx` | Composes the sidebar shell, command dialog, navigation, and footer actions. |
 | `app-sidebar-types.ts` | Public prop contract for the sidebar shell. |
+| `mobile-bottom-nav.tsx` | Floating bottom pill navigation bar for mobile devices. |
 | `sidebar-navigation.tsx` | Static navigation actions and keyboard shortcut labels. |
 | `sidebar-search-input.tsx`, `sidebar-search-results.tsx` | Command search input and result rendering. |
 | `sidebar-search-skeletons.tsx` | Loading placeholders shared by search result flows. |

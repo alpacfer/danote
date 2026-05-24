@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge"
 import { CommandItem } from "@/components/ui/command"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
+  additionalTranslationsDisplay,
   badgesFromGramRaw,
   badgesForSavedForm,
   corSecondaryBadgeClass,
@@ -81,7 +82,17 @@ export function SidebarCorResults({
               const sourceDescriptionLine = variant.english_source_description?.trim() || null
               const lemmaDisplay = lemmaDisplayForVariant(variant)
               const lemmaTranslation = lemmaTranslationForVariant(variant)
-              const translationLine = lemmaTranslationWithGlossComma(lemmaTranslation, glossLine)
+              // When the backend's sense-discovery fan-out produced this variant,
+              // alternative_translations carries equally-common synonyms for the
+              // same merged sense (e.g. "to hold" + ["to keep"]). Splice them
+              // into the translation line, then append the Danish gloss like
+              // before. Falls back to the plain lemma-with-gloss line when no
+              // alternatives exist (legacy MWE / non-fan-out path).
+              const alternativeTranslations = variant.alternative_translations ?? []
+              const groupedTranslationLine = alternativeTranslations.length > 0
+                ? additionalTranslationsDisplay(lemmaTranslation, alternativeTranslations)
+                : lemmaTranslation
+              const translationLine = lemmaTranslationWithGlossComma(groupedTranslationLine, glossLine)
               const translationLineCoversGloss = showTranslationLine && Boolean(translationLine)
               const detailLine = sourceDescriptionLine
                 || (translationLineCoversGloss ? null : glossLine)

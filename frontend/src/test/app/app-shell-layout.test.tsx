@@ -75,22 +75,21 @@ describe("App shell layout normalization", () => {
     expect(await screen.findByRole("button", { name: /open search/i })).toBeInTheDocument()
   })
 
-  it("closes the mobile sidebar after selecting a destination", async () => {
+  it("navigates directly through the mobile bottom navigation menu", async () => {
     setViewportWidth(390)
     mockFetchImplementation()
 
     renderApp()
     await screen.findByLabelText("backend-connection-status")
 
-    fireEvent.click(screen.getByRole("button", { name: /toggle sidebar/i }))
-    const sidebarDialog = await screen.findByRole("dialog", { name: /sidebar/i })
+    // Verify the mobile bottom nav is displayed
+    const bottomNav = screen.getByRole("button", { name: /sentences/i }).closest("[data-slot='mobile-bottom-nav']")
+    expect(bottomNav).toBeInTheDocument()
 
-    fireEvent.click(within(sidebarDialog).getByRole("button", { name: /sentencebank/i }))
+    // Click on the Sentences button in the bottom nav
+    fireEvent.click(screen.getByRole("button", { name: /sentences/i }))
 
     expect(await screen.findByText(/no saved sentences yet/i)).toBeInTheDocument()
-    await waitFor(() => {
-      expect(screen.queryByRole("dialog", { name: /sidebar/i })).not.toBeInTheDocument()
-    })
   })
 
   it("removes account and hides developer from default command page results", async () => {

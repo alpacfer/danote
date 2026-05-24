@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react"
 
+import { MobileBottomNav } from "@/app/chrome/sidebar/mobile-bottom-nav"
 import { MobileSearchButton } from "@/app/chrome/sidebar/mobile-search-button"
 import { MobileSidebarButton } from "@/app/chrome/sidebar/mobile-sidebar-button"
 import { SidebarFooterActions } from "@/app/chrome/sidebar/sidebar-footer-actions"
@@ -11,7 +12,11 @@ import {
   type SidebarSearchResultsData,
   type SidebarSearchResultsState,
 } from "@/app/chrome/sidebar/sidebar-search-results"
-import { useSidebarCommandSelection } from "@/app/chrome/sidebar/use-sidebar-command-selection"
+import {
+  corVariantSelectionValue,
+  translatedEnCorVariantSelectionValue,
+  useSidebarCommandSelection,
+} from "@/app/chrome/sidebar/use-sidebar-command-selection"
 import { useSidebarHotkeys } from "@/app/chrome/sidebar/use-sidebar-hotkeys"
 import { useSidebarLemmas } from "@/app/chrome/sidebar/use-sidebar-lemmas"
 import { useSidebarSearchHistory } from "@/app/chrome/sidebar/use-sidebar-search-history"
@@ -19,7 +24,7 @@ import { useSidebarSearch } from "@/app/chrome/sidebar/use-sidebar-search"
 import { useSidebarSearchRanking } from "@/app/chrome/sidebar/use-sidebar-search-ranking"
 import { savedWordbankResultKey } from "@/app/chrome/sidebar/use-sidebar-search-ranking"
 import { type AppSidebarProps } from "@/app/chrome/sidebar/app-sidebar-types"
-import { type CORSearchVariant, type WordbankSearchItem } from "@/app/core"
+import { type WordbankSearchItem } from "@/app/core"
 import { Sidebar, SidebarFooter, SidebarHeader, SidebarTrigger, useSidebar } from "@/components/ui/sidebar"
 
 export type { AppSidebarProps } from "@/app/chrome/sidebar/app-sidebar-types"
@@ -205,8 +210,14 @@ export function AppSidebar({
     isCorLookupLoading,
     isCorTranslationsLoading,
     wordbankItemValue: (item: WordbankSearchItem) => `wordbank-${savedWordbankResultKey(item)}`,
-    corVariantItemValue: (variant: CORSearchVariant) => `cor-variant-${variant.cor_id}`,
-    translatedEnCorVariantItemValue: (variant: CORSearchVariant) => `en-cor-${variant.lemma.toLowerCase()}-${variant.cor_id}`,
+    // Sense-discovery fan-out emits one variant per discovered sense, all
+    // sharing the same cor_id (since the underlying COR entry's id doesn't
+    // differ across senses). Without the meaning_key suffix, cmdk treats them
+    // as a single item and hover-highlights every card at once. The shared
+    // helpers in use-sidebar-command-selection.ts keep this in sync with the
+    // keyboard navigation value list.
+    corVariantItemValue: corVariantSelectionValue,
+    translatedEnCorVariantItemValue: translatedEnCorVariantSelectionValue,
     enPosGroups: activeEnTranslatedCorResults.fallbackEnPosGroups,
     isEnResolveLoading: isEnResolveLoading,
     isEnTranslatedCorLoading: isEnTranslatedCorLoading,
@@ -243,30 +254,42 @@ export function AppSidebar({
 
   return (
     <>
-      <Sidebar variant="inset" collapsible="icon">
-        <SidebarHeader>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              className="font-brand truncate rounded-sm pl-2 text-left text-[1.25rem] leading-none font-normal tracking-normal not-italic outline-none hover:text-foreground/80 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 group-data-[collapsible=icon]:sr-only"
-              onClick={selectWordbankFromSidebar}
-            >
-              danote
-            </button>
-            <SidebarTrigger className="ml-auto size-8 cursor-ew-resize group-data-[collapsible=icon]:ml-0 max-md:size-10 max-md:[&_svg:not([class*='size-'])]:size-5" />
-          </div>
-        </SidebarHeader>
-        <SidebarNavigation
+      {!isMobile && (
+        <Sidebar variant="inset" collapsible="icon">
+          <SidebarHeader>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                className="font-brand truncate rounded-sm pl-2 text-left text-[1.25rem] leading-none font-normal tracking-normal not-italic outline-none hover:text-foreground/80 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 group-data-[collapsible=icon]:sr-only"
+                onClick={selectWordbankFromSidebar}
+              >
+                danote
+              </button>
+              <SidebarTrigger className="ml-auto size-8 cursor-ew-resize group-data-[collapsible=icon]:ml-0 max-md:size-10 max-md:[&_svg:not([class*='size-'])]:size-5" />
+            </div>
+          </SidebarHeader>
+          <SidebarNavigation
+            activeSection={activeSection}
+            unreadWordbankNotificationCount={unreadWordbankNotificationCount}
+            onSelectWordbank={selectWordbankFromSidebar}
+            onSelectSentencebank={selectSentencebankFromSidebar}
+            onOpenSearch={() => { openSearch(); closeMobileSidebar() }}
+          />
+          <SidebarFooter>
+            <SidebarFooterActions activeSection={activeSection} onSelectAccount={selectAccountFromSidebar} />
+          </SidebarFooter>
+        </Sidebar>
+      )}
+      {isMobile && (
+        <MobileBottomNav
           activeSection={activeSection}
+          onSelectWordbank={onSelectWordbank}
+          onSelectSentencebank={onSelectSentencebank}
+          onSelectAccount={onSelectAccount}
+          onOpenSearch={openSearch}
           unreadWordbankNotificationCount={unreadWordbankNotificationCount}
-          onSelectWordbank={selectWordbankFromSidebar}
-          onSelectSentencebank={selectSentencebankFromSidebar}
-          onOpenSearch={() => { openSearch(); closeMobileSidebar() }}
         />
-        <SidebarFooter>
-          <SidebarFooterActions activeSection={activeSection} onSelectAccount={selectAccountFromSidebar} />
-        </SidebarFooter>
-      </Sidebar>
+      )}
       <SidebarSearchDialog
         isOpen={isSearchOpen} commandSelectionValue={commandSelectionValue} searchQuery={searchQuery}
         sentenceSearchPreview={sentenceSearchPreview} isSentenceMode={isSentenceMode}
@@ -279,8 +302,12 @@ export function AppSidebar({
           else closeSearch()
         }}
       />
-      <MobileSidebarButton />
-      <MobileSearchButton isSearchOpen={isSearchOpen} onOpenSearch={openSearch} />
+      {!isMobile && (
+        <>
+          <MobileSidebarButton />
+          <MobileSearchButton isSearchOpen={isSearchOpen} onOpenSearch={openSearch} />
+        </>
+      )}
     </>
   )
 }

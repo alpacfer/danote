@@ -250,6 +250,16 @@ export function useSidebarSearchRanking({
   const corSearchVariantsToRender = useMemo(
     () =>
       corSearchVariants.filter((candidate) => {
+        // Sense-fan-out variants carry their own meaning_key + saved_meaning_id,
+        // so each per-sense card decides for itself whether to render as
+        // "saved (eye)" or "add (plus)". The legacy cor_id-based filters below
+        // assumed one variant per lemma and would otherwise drop EVERY
+        // discovered sense the moment any one sense was saved (because every
+        // variant of the same lemma shares the same cor_id) — that's exactly
+        // the regression where post-save search hides the still-unsaved senses.
+        if (candidate.variant.meaning_key) {
+          return true
+        }
         if (savedQueryCorIdSet.has(candidate.variant.cor_id)) {
           return false
         }

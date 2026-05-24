@@ -2,7 +2,9 @@ import { UserButton, useUser } from "@clerk/react"
 import { useEffect, useState } from "react"
 import { Trash2 } from "lucide-react"
 import { toast } from "sonner"
+import { useTheme } from "next-themes"
 
+import { cn } from "@/lib/utils"
 import { ApiKeysForm } from "@/app/auth/api-keys-form"
 import { deleteAccountLearningData, fetchAccountMe, type AccountMe } from "@/app/auth/account-api"
 import { GuestProfileCard, GuestUsageCard } from "@/app/auth/guest-account-cards"
@@ -59,9 +61,85 @@ export function AccountSection({ onFreshStart }: { onFreshStart?: () => void }) 
         </p>
       </header>
       {isGuest ? <GuestProfileCard /> : IS_CLERK_CONFIGURED ? <ClerkProfileCard /> : <LocalDevCard />}
+      <ThemeSelectorCard />
       <FreshStartCard onFreshStart={onFreshStart} />
       {isGuest ? <GuestUsageCard /> : <ApiKeysCard />}
     </div>
+  )
+}
+
+function ThemeSelectorCard() {
+  const { theme, setTheme } = useTheme()
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Theme</CardTitle>
+        <CardDescription>
+          Customize the appearance of danote on your device.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        <Separator />
+        <div className="grid grid-cols-2 gap-4">
+          {/* Light Theme Button */}
+          <button
+            type="button"
+            onClick={() => setTheme("light")}
+            className={cn(
+              "flex flex-col items-center gap-3 rounded-xl border-2 p-3 text-left transition-all hover:bg-accent/40 active:scale-[0.98]",
+              theme === "light"
+                ? "border-primary bg-accent/30 shadow-sm"
+                : "border-muted bg-card hover:border-muted-foreground/30"
+            )}
+          >
+            <div className="flex h-20 w-full flex-col gap-1.5 rounded-lg border border-border bg-slate-50 p-2 select-none">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1">
+                  <div className="size-2 rounded-full bg-slate-300" />
+                  <div className="h-1.5 w-8 rounded-full bg-slate-200" />
+                </div>
+                <div className="size-2 rounded-full bg-slate-300" />
+              </div>
+              <div className="flex flex-1 flex-col gap-1.5">
+                <div className="h-2 w-full rounded-sm bg-slate-200" />
+                <div className="h-2 w-3/4 rounded-sm bg-slate-200" />
+              </div>
+              <div className="mx-auto h-3 w-16 rounded-full border border-slate-200 bg-white" />
+            </div>
+            <span className="text-xs font-semibold text-foreground">Light</span>
+          </button>
+
+          {/* Dark Theme Button */}
+          <button
+            type="button"
+            onClick={() => setTheme("dark")}
+            className={cn(
+              "flex flex-col items-center gap-3 rounded-xl border-2 p-3 text-left transition-all hover:bg-accent/40 active:scale-[0.98]",
+              theme === "dark"
+                ? "border-primary bg-accent/30 shadow-sm"
+                : "border-muted bg-card hover:border-muted-foreground/30"
+            )}
+          >
+            <div className="flex h-20 w-full flex-col gap-1.5 rounded-lg border border-zinc-800 bg-zinc-950 p-2 select-none">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1">
+                  <div className="size-2 rounded-full bg-zinc-700" />
+                  <div className="h-1.5 w-8 rounded-full bg-zinc-800" />
+                </div>
+                <div className="size-2 rounded-full bg-zinc-700" />
+              </div>
+              <div className="flex flex-1 flex-col gap-1.5">
+                <div className="h-2 w-full rounded-sm bg-zinc-800" />
+                <div className="h-2 w-3/4 rounded-sm bg-zinc-800" />
+              </div>
+              <div className="mx-auto h-3 w-16 rounded-full border border-zinc-800 bg-zinc-900" />
+            </div>
+            <span className="text-xs font-semibold text-foreground">Dark</span>
+          </button>
+        </div>
+      </CardContent>
+    </Card>
   )
 }
 

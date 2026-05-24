@@ -25,6 +25,24 @@ function orderedCorVariants(
   return variants
 }
 
+// Keep these two helpers byte-for-byte aligned with the corVariantItemValue
+// / translatedEnCorVariantItemValue lambdas in app-sidebar.tsx so the cmdk
+// `value` attribute on each rendered <CommandItem> matches the keyboard
+// navigation list built here. Sense-fan-out variants get a `-sense-<key>`
+// suffix; legacy variants stay on the original shape so existing tests still
+// match.
+export function corVariantSelectionValue(variant: CORSearchVariant): string {
+  return variant.meaning_key
+    ? `cor-variant-${variant.cor_id}-sense-${variant.meaning_key}`
+    : `cor-variant-${variant.cor_id}`
+}
+
+export function translatedEnCorVariantSelectionValue(variant: CORSearchVariant): string {
+  return variant.meaning_key
+    ? `en-cor-${variant.lemma.toLowerCase()}-${variant.cor_id}-sense-${variant.meaning_key}`
+    : `en-cor-${variant.lemma.toLowerCase()}-${variant.cor_id}`
+}
+
 export function useSidebarCommandSelection({
   activeEnTranslatedCorResults,
   commandSelectionOverride,
@@ -77,7 +95,7 @@ export function useSidebarCommandSelection({
     }
     if (!corDidYouMean && !hasEnCommandResults) {
       for (const variant of orderedCorVariantsToRender) {
-        values.push(`cor-variant-${variant.cor_id}`)
+        values.push(corVariantSelectionValue(variant))
       }
     }
     if (wordbankDidYouMean || corDidYouMean) {
@@ -90,11 +108,11 @@ export function useSidebarCommandSelection({
     }
     if (corDidYouMean) {
       for (const variant of orderedCorVariantsToRender) {
-        values.push(`cor-variant-${variant.cor_id}`)
+        values.push(corVariantSelectionValue(variant))
       }
     }
     for (const variant of activeEnTranslatedCorResults.corSearchVariantsToRender) {
-      values.push(`en-cor-${variant.group.lemma.toLowerCase()}-${variant.variant.cor_id}`)
+      values.push(translatedEnCorVariantSelectionValue(variant.variant))
     }
     for (const group of activeEnTranslatedCorResults.fallbackEnPosGroups) {
       if (group.danish_translation) {
