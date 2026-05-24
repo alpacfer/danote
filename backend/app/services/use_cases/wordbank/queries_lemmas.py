@@ -67,21 +67,21 @@ def search_lemmas(runtime: WordbankRuntime, query: str, *, limit: int = 8) -> Wo
         return _static_hv_word_search_response(static_hv_word, match_surface=None)
     static_english_hv_word = static_hv_word_for_english(query)
     if static_english_hv_word is not None:
-        return _static_hv_word_search_response(static_english_hv_word, match_surface=normalized_query)
+        return _static_hv_word_search_response(static_english_hv_word, match_surface=None)
 
     static_pronoun = static_pronoun_for_token(normalized_query)
     if static_pronoun is not None:
         return _static_pronoun_search_response(static_pronoun, match_surface=None)
     static_english_pronoun = static_pronoun_for_english(query)
     if static_english_pronoun is not None:
-        return _static_pronoun_search_response(static_english_pronoun, match_surface=normalized_query)
+        return _static_pronoun_search_response(static_english_pronoun, match_surface=None)
 
     static_presaved_word = static_presaved_word_for_token(normalized_query)
     if static_presaved_word is not None:
         return _static_presaved_word_search_response(static_presaved_word, match_surface=None)
     static_english_presaved_word = static_presaved_word_for_english(query)
     if static_english_presaved_word is not None:
-        return _static_presaved_word_search_response(static_english_presaved_word, match_surface=normalized_query)
+        return _static_presaved_word_search_response(static_english_presaved_word, match_surface=None)
 
     rows = runtime.repository.search_lemmas(normalized_query, limit=limit)
 

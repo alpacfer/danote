@@ -121,7 +121,7 @@ def test_wordbank_search_lemmas_returns_static_pronouns_as_saved_defaults(tmp_pa
     assert danish_result.items[0].english_translation == "you"
     assert danish_result.items[0].pos_tag == "PRON"
     assert english_result.items[0].lemma == "du"
-    assert english_result.items[0].match_surface == "you"
+    assert english_result.items[0].match_surface is None
 
 
 def test_wordbank_search_lemmas_returns_static_hv_words_as_saved_defaults(tmp_path: Path) -> None:
@@ -134,7 +134,7 @@ def test_wordbank_search_lemmas_returns_static_hv_words_as_saved_defaults(tmp_pa
     assert danish_result.items[0].english_translation == "why"
     assert danish_result.items[0].pos_tag == "ADV"
     assert english_result.items[0].lemma == "hvorfor"
-    assert english_result.items[0].match_surface == "why"
+    assert english_result.items[0].match_surface is None
 
 
 def test_wordbank_search_lemmas_returns_static_presaved_words_as_saved_defaults(tmp_path: Path) -> None:
@@ -147,7 +147,7 @@ def test_wordbank_search_lemmas_returns_static_presaved_words_as_saved_defaults(
     assert danish_result.items[0].english_translation == "Monday"
     assert danish_result.items[0].pos_tag == "NOUN"
     assert english_result.items[0].lemma == "mandag"
-    assert english_result.items[0].match_surface == "monday"
+    assert english_result.items[0].match_surface is None
 
 
 def test_wordbank_get_lemma_details_returns_static_pronoun_defaults(tmp_path: Path) -> None:
