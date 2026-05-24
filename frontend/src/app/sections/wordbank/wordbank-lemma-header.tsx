@@ -203,7 +203,7 @@ export function WordbankLemmaHeader({
               <Badge
                 key={`lemma-badge-${badge.label}`}
                 variant={badge.tone === "primary" ? "default" : "secondary"}
-                className={`shrink-0 text-xs ${badge.tone === "primary" ? `border ${posBadgeClass(headerPosTag)}` : `border ${corSecondaryBadgeClass(badge.label)}`} ${
+                className={`shrink-0 text-xs ${badge.tone === "primary" ? `border ${posBadgeClass(badge.label === "HV Word" ? "HV_WORD" : headerPosTag)}` : `border ${corSecondaryBadgeClass(badge.label)}`} ${
                   isClickable ? "cursor-pointer hover:scale-105 transition-transform" : ""
                 }`.trim()}
                 onClick={handleClick}

@@ -27,6 +27,7 @@ class SearchSeedInputs:
     pos_tag: str | None
     morphology: str | None
     target_meaning_id: int | None
+    alternative_translations: tuple[str, ...] = ()
     english_gloss: str | None = None
 
 
@@ -74,6 +75,7 @@ def normalize_search_seed(search_seed: dict[str, object]) -> SearchSeedInputs:
         gloss=_optional_normalized_string(search_seed, "gloss"),
         english_gloss=_optional_normalized_string(search_seed, "english_gloss"),
         english_translation=_optional_normalized_string(search_seed, "english_translation"),
+        alternative_translations=_optional_string_list(search_seed, "alternative_translations"),
         pos_tag=_optional_upper_string(search_seed, "pos_tag"),
         morphology=_optional_spaced_string(search_seed, "morphology"),
         target_meaning_id=_optional_int(search_seed, "target_meaning_id"),
@@ -116,6 +118,13 @@ def persist_search_seed_surface_form(
         english_translation=stored_translation,
     )
     if meaning_record is not None:
+        _persist_search_seed_alternative_translations(
+            runtime,
+            lexeme_id=lexeme_id,
+            meaning_id=meaning_record.id,
+            primary_translation=meaning_record.english_translation,
+            translations=seed.alternative_translations,
+        )
         _repair_meaning_metadata_if_surface_derived(
             runtime,
             meaning=meaning_record,
@@ -304,6 +313,28 @@ def _sanitize_search_seed_translation(
     return seed.english_translation
 
 
+def _persist_search_seed_alternative_translations(
+    runtime: WordbankRuntime,
+    *,
+    lexeme_id: int,
+    meaning_id: int,
+    primary_translation: str | None,
+    translations: tuple[str, ...],
+) -> None:
+    seen = {normalize_token(primary_translation or "")}
+    for translation in translations:
+        normalized = normalize_token(translation)
+        if not normalized or normalized in seen:
+            continue
+        seen.add(normalized)
+        runtime.repository.insert_additional_translation(
+            lexeme_id=lexeme_id,
+            meaning_id=meaning_id,
+            english_translation=translation,
+            source="search_seed",
+        )
+
+
 def _resolve_search_seed_metadata(
     runtime: WordbankRuntime,
     *,
@@ -435,6 +466,26 @@ def _optional_int(payload: dict[str, object], key: str) -> int | None:
     if not isinstance(value, int):
         raise ValueError(f"search_seed.{key} is invalid")
     return value
+
+
+def _optional_string_list(payload: dict[str, object], key: str) -> tuple[str, ...]:
+    value = payload.get(key)
+    if value is None:
+        return ()
+    if not isinstance(value, list):
+        raise ValueError(f"search_seed.{key} is invalid")
+    items: list[str] = []
+    seen: set[str] = set()
+    for item in value:
+        if not isinstance(item, str):
+            raise ValueError(f"search_seed.{key} is invalid")
+        cleaned = _normalize_space(item)
+        normalized = normalize_token(cleaned)
+        if not normalized or normalized in seen:
+            continue
+        seen.add(normalized)
+        items.append(cleaned)
+    return tuple(items)
 
 
 def _dictionary_status(payload: dict[str, object]) -> str:

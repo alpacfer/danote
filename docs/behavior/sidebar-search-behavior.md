@@ -141,6 +141,9 @@ Sorted by best variant score per group:
 
 - COR variants with `cor_id` in saved `query_cor_ids` → hidden.
 - COR variants already linked as add-variation targets for saved result → hidden from standalone COR list.
+- Saved/open state is sense-specific: a COR row only receives the saved/open
+  marker when its `meaning_key` also matches the saved row's POS/COR lemma
+  identity. Same-label homographs such as ADV/ADJ/NOUN `nok` remain separate.
 - Prefix-only saved matches → hidden (sidebar keeps exact lemma/surface only).
 - ASCII queries may resolve as both Danish and English. Direct COR rows stay visible when the Danish result has a non-self English translation (for example `bog` → `book`), and self-translated COR rows wait behind English resolution to avoid flashing loanword/no-op Danish rows.
 
@@ -162,7 +165,7 @@ Sorted by best variant score per group:
 ### COR rows
 
 - Primary title = `variant.form`. May show `from <lemma>` when lemma context is useful.
-- Direct Danish-search translations render as their own secondary line. When a translated gloss is available, it is appended on the same line after a comma, e.g. `mother, person`.
+- Direct Danish-search translations render as their own secondary line. When a translated gloss is available, it uses the same parenthetical display as the saved word card, e.g. `mother (person)`.
 - COR-backed English translation rows hide English source text; they show only the Danish form, except inflected Danish forms still show `from <Danish lemma>` (for example `hunde from hund`).
 - Sense-level gloss translation disambiguates the translation line, not fallback English.
 - During loading: skeleton placeholders for translation-dependent text.
@@ -191,7 +194,8 @@ Sorted by best variant score per group:
 - Translation loading → COR rows disabled, no save request.
 - Search-save payload keeps lemma translation, gloss translation, saveability separate:
   - `search_seed.english_translation` from backend `saveable_translation`
-  - displayed parentheses from `lemma_translation` only
+  - `search_seed.alternative_translations` from same-sense search synonyms, persisted as meaning-level additional translations
+  - displayed text from `lemma_translation`, same-sense alternatives, and optional `gloss_translation`
   - gloss/gloss translation = disambiguation metadata, not promoted to `lemma_translation`
   - primary provider framed lemma translation collapses to original Danish → treated as invalid → prefer Gemini contextual lemma translation
   - Gemini fallback: no gloss required; glossless entries send lemma/POS/morphology context; verbs framed as `at <infinitive>`

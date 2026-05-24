@@ -358,7 +358,7 @@ describe("App system state", () => {
     await user.clear(searchInput)
     await user.type(searchInput, "bil")
 
-    expect(await within(commandDialog).findByText(/to drive, go by car/i)).toBeInTheDocument()
+    expect(await within(commandDialog).findByText(/to drive \(go by car\)/i)).toBeInTheDocument()
     expect(within(commandDialog).queryByText(/translation required before saving\./i)).not.toBeInTheDocument()
 
     const bilFetchCalls = corSearchFormHandler.mock.calls.filter(([input]) => {

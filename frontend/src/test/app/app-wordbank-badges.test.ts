@@ -17,7 +17,16 @@ describe("Wordbank saved badges", () => {
         morphology: "Gender=Com|Number=Sing|Definite=Ind",
         gram_raw: "adj. sg. ubest. fk | adj. sg. ubest. itk | adj. sg. best | adj. pl",
       }).map((badge) => badge.label),
-    ).toEqual(["Adjective", "Singular", "Indefinite", "n-word", "t-word", "Definite", "Plural"])
+    ).toEqual(["Adjective"])
+  })
+
+  it("filters out contradictory adjective badges in badgesForSavedForm", () => {
+    expect(
+      badgesForSavedForm({
+        pos_tag: "ADJ",
+        gram_raw: "adj.sg.fk.ubest | adj.sg.itk.ubest",
+      }).map((badge) => badge.label),
+    ).toEqual(["Adjective", "Singular", "Indefinite"])
   })
 
   it("keeps verb voice badges when morphology includes them", () => {

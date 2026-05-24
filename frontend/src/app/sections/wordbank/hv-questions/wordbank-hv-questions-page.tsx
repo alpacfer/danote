@@ -1,4 +1,3 @@
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   QUESTION_WORDS,
   type QuestionWordCategory,
@@ -8,8 +7,6 @@ import {
   PinnedWordGrid,
   type PinnedPageTabId,
   type PinnedWordEntry,
-  hiddenBadgesForPinnedTab,
-  sentinelForPinnedPageTab,
 } from "@/app/sections/wordbank/_shared"
 
 type Props = {
@@ -24,52 +21,25 @@ const TAB_BY_CATEGORY: Record<QuestionWordCategory, PinnedPageTabId> = {
   place_time_manner_reason: "hv_place_time_manner",
 }
 
-export function WordbankHvQuestionsPage({ defaultTab, onOpenWord, onOpenTab }: Props) {
-  return (
-    <PinnedPageLayout title="HV Questions">
-      <Tabs value={defaultTab} onValueChange={(value) => onOpenTab(sentinelForPinnedPageTab("hv_questions", value as PinnedPageTabId))}>
-        <div className="flex flex-col gap-4">
-          <TabsList>
-            <TabsTrigger value="hv_people_things">People &amp; Things</TabsTrigger>
-            <TabsTrigger value="hv_choice">Choice</TabsTrigger>
-            <TabsTrigger value="hv_place_time_manner">Place, Time, Manner &amp; Reason</TabsTrigger>
-          </TabsList>
-          <PinnedTab value="hv_people_things" entries={entriesForCategory("people_things")} onOpenWord={onOpenWord} />
-          <PinnedTab value="hv_choice" entries={entriesForCategory("choice")} onOpenWord={onOpenWord} />
-          <PinnedTab value="hv_place_time_manner" entries={entriesForCategory("place_time_manner_reason")} onOpenWord={onOpenWord} />
-        </div>
-      </Tabs>
-    </PinnedPageLayout>
-  )
-}
-
-function PinnedTab({
-  value,
-  entries,
-  onOpenWord,
-}: {
-  value: PinnedPageTabId
-  entries: PinnedWordEntry[]
-  onOpenWord: (lemma: string) => void
-}) {
-  return (
-    <TabsContent value={value}>
-      <PinnedWordGrid
-        entries={entries}
-        onOpenWord={onOpenWord}
-        hiddenBadges={hiddenBadgesForPinnedTab("hv_questions", value)}
-      />
-    </TabsContent>
-  )
-}
-
-function entriesForCategory(category: QuestionWordCategory): PinnedWordEntry[] {
-  return QUESTION_WORDS.filter((entry) => entry.category === category).map((entry) => ({
+export function WordbankHvQuestionsPage({ onOpenWord }: Props) {
+  const entries: PinnedWordEntry[] = QUESTION_WORDS.map((entry) => ({
     lemma: entry.lemma,
     translation: entry.translation,
     posTag: entry.posTag,
     morphology: entry.morphology,
   }))
+
+  return (
+    <PinnedPageLayout title="HV Questions">
+      <div className="flex flex-col gap-4">
+        <PinnedWordGrid
+          entries={entries}
+          onOpenWord={onOpenWord}
+          hiddenBadges={["Interrogative"]}
+        />
+      </div>
+    </PinnedPageLayout>
+  )
 }
 
 export { TAB_BY_CATEGORY }

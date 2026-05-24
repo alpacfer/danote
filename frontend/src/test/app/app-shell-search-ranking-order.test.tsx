@@ -550,7 +550,7 @@ describe("App shell and search", () => {
     fireEvent.change(searchInput, { target: { value: "bog" } })
 
     expect(await within(commandDialog).findByText(/^bog$/i, { selector: "strong" })).toBeInTheDocument()
-    expect(await within(commandDialog).findByText(/^book, for reading$/i)).toBeInTheDocument()
+    expect(await within(commandDialog).findByText(/^book \(for reading\)$/i)).toBeInTheDocument()
     expect(await within(commandDialog).findByText(/^mose$/i, { selector: "strong" })).toBeInTheDocument()
     expect(await within(commandDialog).findByText(/^Translated From English$/i)).toBeInTheDocument()
   })

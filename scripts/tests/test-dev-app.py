@@ -6,7 +6,6 @@ import sys
 import unittest
 from pathlib import Path
 
-
 ROOT_DIR = Path(__file__).resolve().parents[2]
 SCRIPT_PATH = ROOT_DIR / "scripts" / "dev-app.py"
 
@@ -205,6 +204,41 @@ class DevAppHelpersTest(unittest.TestCase):
         self.assertEqual(run["counts"]["translated_cor_variants"], 1)
         self.assertNotIn("cor_full", {phase["name"] for phase in run["phases"]})
 
+    def test_search_and_wordcard_display_helpers_match_parenthetical_gloss(self) -> None:
+        group = {"gloss": "jordlag", "pos_tag": "NOUN"}
+        variant = {
+            "lemma_translation": "mother",
+            "saveable_translation": "mother",
+            "gloss_translation": "soil layer",
+            "alternative_translations": [],
+        }
+        section = {
+            "english_translation": "mother",
+            "gloss_translation": "soil layer",
+            "additional_translations": [],
+        }
+
+        self.assertEqual(dev_app._search_variant_display(group, variant), "mother (soil layer)")
+        self.assertEqual(dev_app._wordcard_section_display(section), "mother (soil layer)")
+
+    def test_verify_saved_display_fails_when_displays_diverge(self) -> None:
+        client = FakeVerifySavedDisplayClient(
+            section={
+                "id": 7,
+                "meaning_key": "enough",
+                "pos_tag": "ADV",
+                "english_translation": "probably",
+                "gloss_translation": "in all likelihood",
+                "additional_translations": [],
+            }
+        )
+
+        with self.assertRaises(dev_app.DevAppError):
+            dev_app.handle_wordbank_verify_saved_display(
+                argparse_namespace(surface="nok", meaning_key="enough", pos_tag="ADV", lemma=None),
+                client,
+            )
+
 
 class FakeProfileClient:
     def __init__(self, responses):
@@ -238,6 +272,50 @@ class FakeDetailsClient:
     def request(self, spec):
         self.timings.append({"request": dev_app.request_payload(spec), "status": 200, "elapsed_ms": 0.1})
         return self.details
+
+
+class FakeVerifySavedDisplayClient:
+    def __init__(self, *, section):
+        self.section = section
+        self.timings = []
+
+    def request(self, spec):
+        self.timings.append({"request": dev_app.request_payload(spec), "status": 200, "elapsed_ms": 0.1})
+        if spec.path == "/api/wordbank/search/cor-form":
+            return {
+                "form": "nok",
+                "groups": [
+                    {
+                        "lemma": "nok",
+                        "gloss": "i tilstrækkelig grad",
+                        "pos_tag": "ADV",
+                        "variants": [
+                            {
+                                "form": "nok",
+                                "lemma": "nok",
+                                "cor_id": "COR.10200.900.01",
+                                "lemma_idx": 10200,
+                                "meaning_key": "enough",
+                                "pos_tag": "ADV",
+                                "gloss": "i tilstrækkelig grad",
+                                "english_gloss": "to a sufficient degree",
+                                "gloss_translation": "to a sufficient degree",
+                                "lemma_translation": "enough",
+                                "saveable_translation": "enough",
+                                "alternative_translations": [],
+                            }
+                        ],
+                    }
+                ],
+            }
+        if spec.path == "/api/wordbank/lexemes":
+            return {
+                "stored_lemma": "nok",
+                "meaning": {"id": 7, "meaning_key": "enough", "english_translation": "enough"},
+            }
+        if spec.path == "/api/wordbank/lemmas/nok":
+            return {"lemma": "nok", "meaning_sections": [self.section]}
+        raise AssertionError(f"Unexpected request: {spec.method} {spec.path}")
 
 
 def argparse_namespace(**kwargs):

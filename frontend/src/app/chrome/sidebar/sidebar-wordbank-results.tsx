@@ -3,10 +3,12 @@ import { Eye, Plus } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { CommandItem } from "@/components/ui/command"
 import {
+  additionalTranslationsDisplay,
   badgesForSavedForm,
   corSecondaryBadgeClass,
   glossDisplayForVariant,
   lemmaDisplayForVariant,
+  lemmaTranslationForVariant,
   lemmaTranslationWithGloss,
   normalizeSearchWord,
   posBadgeClass,
@@ -140,10 +142,21 @@ export function SidebarWordbankResults({
                   : (showMatchedSurface || showExactSavedLink)
                     ? (result.display_lemma?.trim() || result.lemma)
                     : null
-                const savedTranslationLine = lemmaTranslationWithGloss(
-                  result.english_translation ?? null,
-                  result.gloss_translation ?? null,
-                )
+                const savedTranslationLine = (() => {
+                  if (displayVariant) {
+                    const alternativeTranslations = displayVariant.alternative_translations ?? []
+                    const lemmaTranslation = result.english_translation ?? lemmaTranslationForVariant(displayVariant) ?? null
+                    const groupedTranslationLine = alternativeTranslations.length > 0
+                      ? additionalTranslationsDisplay(lemmaTranslation, alternativeTranslations)
+                      : lemmaTranslation
+                    const glossLine = glossDisplayForVariant(displayVariant) ?? result.gloss_translation ?? null
+                    return lemmaTranslationWithGloss(groupedTranslationLine, glossLine)
+                  }
+                  return lemmaTranslationWithGloss(
+                    result.english_translation ?? null,
+                    result.gloss_translation ?? null,
+                  )
+                })()
                 const linkedVariation = addVariationBySavedResult.get(resultKey)
                 const variationAddBlockedReason = linkedVariation
                   ? (
@@ -152,11 +165,7 @@ export function SidebarWordbankResults({
                       : null
                     )
                   : null
-                const detailLine = displayVariant
-                  ? (savedTranslationLine ?? glossDisplayForVariant(displayVariant))
-                  : (showMatchedSurface || showExactSavedLink)
-                    ? savedTranslationLine
-                    : savedTranslationLine
+                const detailLine = savedTranslationLine
                 const badges = displayVariant
                   // For CoR matches, fold the MWE label in on top of the gram-derived
                   // badges. `badgesForSavedForm` handles the MWE injection when given

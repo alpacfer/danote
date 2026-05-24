@@ -209,7 +209,7 @@ def _add_wordbank_parser(subparsers: argparse._SubParsersAction[argparse.Argumen
     details.add_argument(
         "--brief",
         action="store_true",
-        help="Project a compact per-meaning view (id, key, en, gloss, gloss_translation, saved_id).",
+        help="Project a compact per-meaning view, including the word-card display string.",
     )
     _set_handler(details, ["wordbank", "details"], handle_wordbank_details)
 
@@ -256,6 +256,16 @@ def _add_wordbank_parser(subparsers: argparse._SubParsersAction[argparse.Argumen
     save_sense.add_argument("--lemma", help="Override the discovered lemma; defaults to the variant's COR lemma.")
     save_sense.add_argument("--pos-tag", help="Restrict matching to variants of this POS (NOUN/VERB/ADJ/ADV).")
     _set_handler(save_sense, ["wordbank", "save-sense"], handle_wordbank_save_sense)
+
+    verify_saved_display = child.add_parser(
+        "verify-saved-display",
+        help="Save one discovered sense and fail if search display differs from the word-card display.",
+    )
+    verify_saved_display.add_argument("surface", help="Surface form to look up (e.g. 'nok').")
+    verify_saved_display.add_argument("--meaning-key", required=True, help="meaning_key of the sense to save.")
+    verify_saved_display.add_argument("--lemma", help="Override the discovered lemma; defaults to the variant's COR lemma.")
+    verify_saved_display.add_argument("--pos-tag", help="Restrict matching to variants of this POS (NOUN/VERB/ADJ/ADV).")
+    _set_handler(verify_saved_display, ["wordbank", "verify-saved-display"], handle_wordbank_verify_saved_display)
 
     expand = child.add_parser(
         "expand-senses",
@@ -698,8 +708,11 @@ def run_en_translated_cor_profile(
         )
         record_profile_phase(phases, "en_cor_batch", batch_result)
         batch_payload = batch_result.get("response") or {}
-        for item, payload in zip(translation_items, batch_payload.get("items") or []):
-            payloads[str(item["form"])] = payload
+        batch_items = batch_payload.get("items") or []
+        for index, item in enumerate(translation_items):
+            if index >= len(batch_items):
+                break
+            payloads[str(item["form"])] = batch_items[index]
         return {"phases": phases, "payloads": payloads}
 
     filtered_specs = {}
@@ -1135,6 +1148,49 @@ def handle_wordbank_save_sense(args: argparse.Namespace, client: ApiClient) -> A
     pos_tag, morphology) automatically, and POST add-word. Saves the 20-line
     raw curl I kept writing by hand to verify the per-sense save flow.
     """
+    _, _, body = _prepare_sense_save(args, client)
+    return run_single(client, RequestSpec("POST", "/api/wordbank/lexemes", body=body))
+
+
+def handle_wordbank_verify_saved_display(args: argparse.Namespace, client: ApiClient) -> Any:
+    group, variant, body = _prepare_sense_save(args, client)
+    search_display = _search_variant_display(group, variant)
+    save_response = client.request(RequestSpec("POST", "/api/wordbank/lexemes", body=body))
+    saved_lemma = save_response.get("stored_lemma") or body.get("lemma_candidate") or variant.get("lemma") or group.get("lemma")
+    details = client.request(RequestSpec("GET", f"/api/wordbank/lemmas/{quote_path(str(saved_lemma))}"))
+    meaning_id = ((save_response.get("meaning") or {}).get("id"))
+    section = _find_saved_section(
+        details,
+        meaning_id=meaning_id,
+        meaning_key=variant.get("meaning_key"),
+        pos_tag=variant.get("pos_tag") or group.get("pos_tag"),
+    )
+    wordcard_display = _wordcard_section_display(section) if section else None
+    result = {
+        "surface": args.surface,
+        "lemma": saved_lemma,
+        "meaning_id": meaning_id,
+        "meaning_key": variant.get("meaning_key"),
+        "pos_tag": variant.get("pos_tag") or group.get("pos_tag"),
+        "search_display": search_display,
+        "wordcard_display": wordcard_display,
+        "saved_english_translation": section.get("english_translation") if section else None,
+        "saved_gloss_translation": section.get("gloss_translation") if section else None,
+        "display_match": search_display == wordcard_display,
+    }
+    if not result["display_match"]:
+        raise DevAppError(
+            "Saved word-card display does not match the search-dialog display.",
+            body=json.dumps(result, ensure_ascii=False),
+            request=request_payload(RequestSpec("POST", "/api/wordbank/lexemes", body=body)),
+        )
+    return result
+
+
+def _prepare_sense_save(
+    args: argparse.Namespace,
+    client: ApiClient,
+) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
     cor_form = client.request(
         RequestSpec(
             "GET",
@@ -1142,11 +1198,39 @@ def handle_wordbank_save_sense(args: argparse.Namespace, client: ApiClient) -> A
             {"form": args.surface, "limit": 100, "include_translations": True},
         )
     )
-    requested_pos = (args.pos_tag or "").strip().upper() or None
+    group, variant = _find_cor_sense_variant(
+        cor_form,
+        surface=args.surface,
+        meaning_key=args.meaning_key,
+        pos_tag=args.pos_tag,
+    )
+    lemma = args.lemma or variant.get("lemma") or group.get("lemma")
+    if not lemma:
+        raise SystemExit("Variant does not expose a lemma; pass --lemma explicitly.")
+    pos_tag = variant.get("pos_tag") or group.get("pos_tag")
+    body: dict[str, Any] = {
+        "surface_token": args.surface,
+        "lemma_candidate": lemma,
+        "cor_id": variant.get("cor_id"),
+        "pos_tag": pos_tag,
+        "morphology": variant.get("morphology"),
+        "search_seed": _search_seed_for_variant(args.surface, lemma, group, variant, pos_tag),
+    }
+    return group, variant, body
+
+
+def _find_cor_sense_variant(
+    cor_form: dict[str, Any],
+    *,
+    surface: str,
+    meaning_key: str,
+    pos_tag: str | None,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    requested_pos = (pos_tag or "").strip().upper() or None
     matches: list[tuple[dict[str, Any], dict[str, Any]]] = []
     for group in cor_form.get("groups") or []:
         for variant in group.get("variants") or []:
-            if (variant.get("meaning_key") or "").strip().lower() != args.meaning_key.strip().lower():
+            if (variant.get("meaning_key") or "").strip().lower() != meaning_key.strip().lower():
                 continue
             variant_pos = (variant.get("pos_tag") or group.get("pos_tag") or "").strip().upper() or None
             if requested_pos and variant_pos != requested_pos:
@@ -1159,9 +1243,9 @@ def handle_wordbank_save_sense(args: argparse.Namespace, client: ApiClient) -> A
             for v in (g.get("variants") or [])
         })
         raise SystemExit(
-            f"No sense matched meaning_key={args.meaning_key!r}"
+            f"No sense matched meaning_key={meaning_key!r}"
             + (f" pos={requested_pos}" if requested_pos else "")
-            + f". Available senses for {args.surface!r}: {', '.join(keys) or '(none)'}"
+            + f". Available senses for {surface!r}: {', '.join(keys) or '(none)'}"
         )
     if len(matches) > 1:
         keys = sorted({
@@ -1169,17 +1253,22 @@ def handle_wordbank_save_sense(args: argparse.Namespace, client: ApiClient) -> A
             for g, v in matches
         })
         raise SystemExit(
-            f"meaning_key={args.meaning_key!r} matched {len(matches)} variants ({', '.join(keys)}). "
+            f"meaning_key={meaning_key!r} matched {len(matches)} variants ({', '.join(keys)}). "
             "Pass --pos-tag to disambiguate."
         )
-    group, variant = matches[0]
-    lemma = args.lemma or variant.get("lemma") or group.get("lemma")
-    if not lemma:
-        raise SystemExit("Variant does not expose a lemma; pass --lemma explicitly.")
-    pos_tag = variant.get("pos_tag") or group.get("pos_tag")
-    seed: dict[str, Any] = {
+    return matches[0]
+
+
+def _search_seed_for_variant(
+    surface: str,
+    lemma: str,
+    group: dict[str, Any],
+    variant: dict[str, Any],
+    pos_tag: str | None,
+) -> dict[str, Any]:
+    return {
         "lemma": lemma,
-        "surface": args.surface,
+        "surface": surface,
         "cor_id": variant.get("cor_id"),
         "cor_lemma_idx": variant.get("lemma_idx"),
         "dictionary_status": variant.get("dictionary_status") or "cor",
@@ -1187,18 +1276,10 @@ def handle_wordbank_save_sense(args: argparse.Namespace, client: ApiClient) -> A
         "gloss": variant.get("gloss") or group.get("gloss"),
         "english_gloss": variant.get("english_gloss"),
         "english_translation": variant.get("saveable_translation") or variant.get("lemma_translation"),
+        "alternative_translations": variant.get("alternative_translations") or [],
         "pos_tag": pos_tag,
         "morphology": variant.get("morphology"),
     }
-    body: dict[str, Any] = {
-        "surface_token": args.surface,
-        "lemma_candidate": lemma,
-        "cor_id": variant.get("cor_id"),
-        "pos_tag": pos_tag,
-        "morphology": variant.get("morphology"),
-        "search_seed": seed,
-    }
-    return run_single(client, RequestSpec("POST", "/api/wordbank/lexemes", body=body))
 
 
 def handle_wordbank_sense_discovery(args: argparse.Namespace, client: ApiClient) -> Any:
@@ -1250,6 +1331,14 @@ def _brief_lemma_details(details: dict[str, Any]) -> dict[str, Any]:
     sections = []
     for section in details.get("meaning_sections") or []:
         verification = section.get("verification") or {}
+        display_translation = _translation_display(
+            section.get("english_translation"),
+            section.get("additional_translations") or [],
+        )
+        wordcard_display = _translation_with_gloss(
+            display_translation,
+            section.get("gloss_translation"),
+        )
         sections.append(
             {
                 "id": section.get("id"),
@@ -1260,6 +1349,7 @@ def _brief_lemma_details(details: dict[str, Any]) -> dict[str, Any]:
                 # This is what the wordbank header renders after the lemma.
                 "gloss_translation": section.get("gloss_translation"),
                 "gloss_da": section.get("gloss"),
+                "wordcard_display": wordcard_display,
                 "pos_tag": section.get("pos_tag"),
                 "additional_translations": section.get("additional_translations") or [],
                 "surface_forms": [form.get("form") for form in (section.get("surface_forms") or [])],
@@ -1274,6 +1364,82 @@ def _brief_lemma_details(details: dict[str, Any]) -> dict[str, Any]:
         "meaning_sections": sections,
         "top_level_surface_forms": [form.get("form") for form in (details.get("surface_forms") or [])],
     }
+
+
+def _translation_display(primary: Any, additional: list[Any]) -> str | None:
+    parts: list[str] = []
+    for value in [primary, *additional]:
+        if not isinstance(value, str):
+            continue
+        cleaned = " ".join(value.strip().split())
+        if not cleaned:
+            continue
+        if cleaned.casefold() in {part.casefold() for part in parts}:
+            continue
+        parts.append(cleaned)
+    return ", ".join(parts) if parts else None
+
+
+def _translation_with_gloss(display_translation: str | None, gloss_translation: Any) -> str | None:
+    if not display_translation:
+        return None
+    if not isinstance(gloss_translation, str):
+        return display_translation
+    cleaned = " ".join(gloss_translation.strip().split())
+    if not cleaned:
+        return display_translation
+    translation_parts = [
+        " ".join(part.strip().split()).casefold()
+        for part in display_translation.split(",")
+        if part.strip()
+    ]
+    if cleaned.casefold() in translation_parts:
+        return display_translation
+    return f"{display_translation} ({cleaned})"
+
+
+def _search_variant_display(group: dict[str, Any], variant: dict[str, Any]) -> str | None:
+    display_translation = _translation_display(
+        variant.get("lemma_translation"),
+        variant.get("alternative_translations") or [],
+    )
+    return _translation_with_gloss(
+        display_translation,
+        variant.get("gloss_translation") or variant.get("english_gloss") or group.get("english_gloss"),
+    )
+
+
+def _wordcard_section_display(section: dict[str, Any]) -> str | None:
+    return _translation_with_gloss(
+        _translation_display(
+            section.get("english_translation"),
+            section.get("additional_translations") or [],
+        ),
+        section.get("gloss_translation"),
+    )
+
+
+def _find_saved_section(
+    details: dict[str, Any],
+    *,
+    meaning_id: Any,
+    meaning_key: Any,
+    pos_tag: Any,
+) -> dict[str, Any] | None:
+    sections = list(details.get("meaning_sections") or [])
+    if meaning_id is not None:
+        for section in sections:
+            if section.get("id") == meaning_id:
+                return section
+    normalized_key = str(meaning_key or "").strip().casefold()
+    normalized_pos = str(pos_tag or "").strip().upper()
+    for section in sections:
+        if normalized_key and str(section.get("meaning_key") or "").strip().casefold() != normalized_key:
+            continue
+        if normalized_pos and str(section.get("pos_tag") or "").strip().upper() != normalized_pos:
+            continue
+        return section
+    return None
 
 
 def handle_sentencebank_add(args: argparse.Namespace, client: ApiClient) -> Any:

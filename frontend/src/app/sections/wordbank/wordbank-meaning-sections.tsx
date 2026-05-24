@@ -147,7 +147,8 @@ export function WordbankMeaningSections({
         const adjectiveParadigm = posTag === "ADJ" ? buildAdjectiveParadigm(formsWithLemma) : null
         const verbParadigm = isVerb ? buildVerbParadigm(formsWithLemma) : null
         const formGroups = posTag === "ADJ" ? buildAdjectiveDegreeGroups(formsWithLemma) : []
-        const hasRenderableForms = Boolean(nounParadigm || adjectiveParadigm || verbParadigm || resolvedSectionSurfaceForms.length > 0)
+        const resolvedFallbackForms = resolvedSectionSurfaceForms.filter((f) => normalizeSearchWord(f.form) !== normalizeSearchWord(lemma))
+        const hasRenderableForms = Boolean(nounParadigm || adjectiveParadigm || verbParadigm || resolvedFallbackForms.length > 0)
         const sectionBadgeLabels = new Set(sectionBadges.map((b) => b.label))
         const actionMeaningId = section.id > 0 ? section.id : null
         const isRootSection = section.id === 0
@@ -226,7 +227,7 @@ export function WordbankMeaningSections({
                             <Badge
                               key={`meaning-section-${section.id}-badge-${badge.label}`}
                               variant={badge.tone === "primary" ? "default" : "secondary"}
-                              className={`shrink-0 text-xs ${badge.tone === "primary" ? `border ${posBadgeClass(section.pos_tag ?? null)}` : `border ${corSecondaryBadgeClass(badge.label)}`} ${
+                              className={`shrink-0 text-xs ${badge.tone === "primary" ? `border ${posBadgeClass(badge.label === "HV Word" ? "HV_WORD" : section.pos_tag ?? null)}` : `border ${corSecondaryBadgeClass(badge.label)}`} ${
                                 isClickable ? "cursor-pointer hover:scale-105 transition-transform" : ""
                               }`.trim()}
                               onClick={handleClick}
@@ -278,7 +279,7 @@ export function WordbankMeaningSections({
                     ) : (
                         <WordbankFormList
                           groups={formGroups}
-                          fallbackForms={formGroups.length === 0 ? resolvedSectionSurfaceForms : []}
+                          fallbackForms={formGroups.length === 0 ? resolvedFallbackForms : []}
                           parentPosTag={section.pos_tag ?? null}
                           parentBadgeLabels={sectionBadgeLabels}
                         pronunciationLoadingByForm={pronunciationLoadingByForm}

@@ -10,6 +10,7 @@ export type SearchSaveSeed = {
   gloss?: string | null
   english_gloss?: string | null
   english_translation?: string | null
+  alternative_translations?: string[]
   pos_tag?: string | null
   morphology?: string | null
   target_meaning_id?: number | null

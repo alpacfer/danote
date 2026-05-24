@@ -12,7 +12,7 @@ import {
   isMultiWordLemma,
   lemmaDisplayForVariant,
   lemmaTranslationForVariant,
-  lemmaTranslationWithGlossComma,
+  lemmaTranslationWithGloss,
   saveableTranslationForVariant,
   posBadgeClass,
   primaryPosLabelForLemma,
@@ -92,7 +92,7 @@ export function SidebarCorResults({
               const groupedTranslationLine = alternativeTranslations.length > 0
                 ? additionalTranslationsDisplay(lemmaTranslation, alternativeTranslations)
                 : lemmaTranslation
-              const translationLine = lemmaTranslationWithGlossComma(groupedTranslationLine, glossLine)
+              const translationLine = lemmaTranslationWithGloss(groupedTranslationLine, glossLine)
               const translationLineCoversGloss = showTranslationLine && Boolean(translationLine)
               const detailLine = sourceDescriptionLine
                 || (translationLineCoversGloss ? null : glossLine)
@@ -164,6 +164,7 @@ export function SidebarCorResults({
                           gloss: variant.gloss ?? group.gloss ?? null,
                           english_gloss: variant.english_gloss ?? null,
                           english_translation: saveableTranslation,
+                          alternative_translations: alternativeTranslations,
                           pos_tag: variant.pos_tag ?? group.pos_tag ?? null,
                           morphology: variant.morphology ?? null,
                           target_meaning_id: null,
@@ -217,8 +218,7 @@ export function SidebarCorResults({
                     ) : null}
                   </div>
                   {isSaved ? (
-                    <span className="text-muted-foreground flex items-center gap-1 text-xs font-semibold">
-                      <span data-testid="search-saved-label">saved</span>
+                    <span className="text-muted-foreground flex items-center text-xs font-semibold">
                       <Eye data-testid="search-saved-icon" className="size-4 shrink-0" />
                     </span>
                   ) : isVariationAdd ? (

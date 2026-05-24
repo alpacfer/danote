@@ -72,7 +72,6 @@ describe("App wordbank word-page parity", () => {
     renderApp()
     await screen.findByLabelText("backend-connection-status")
     fireEvent.click(await screen.findByRole("button", { name: /open hv questions reference/i }))
-    await user.click(screen.getByRole("tab", { name: /place, time, manner & reason/i }))
     fireEvent.click(await screen.findByRole("button", { name: /open hvor in wordbank/i }))
     await screen.findByRole("heading", { name: /^hvor$/i })
     return user

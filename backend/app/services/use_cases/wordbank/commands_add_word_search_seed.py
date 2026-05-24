@@ -126,4 +126,5 @@ def _enrich_non_cor_seed_morphology(runtime: WordbankRuntime, seed: SearchSeedIn
         pos_tag=generated.surface_pos_tag or generated.pos_tag or seed.pos_tag,
         morphology=generated.surface_morphology or generated.morphology,
         target_meaning_id=seed.target_meaning_id,
+        alternative_translations=seed.alternative_translations,
     )

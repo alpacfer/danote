@@ -142,6 +142,7 @@ export function posBadgeClass(posTag: string | null): string {
     X: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200 border-transparent",
     PHRASAL_VERB: "bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-200 border-transparent",
     IDIOM: "bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-200 border-transparent",
+    HV_WORD: "bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-200 border-transparent",
   }
   return colorByPos[upperTag] ?? colorByPos[posTag] ?? "bg-muted text-muted-foreground border-transparent"
 }

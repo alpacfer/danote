@@ -729,7 +729,7 @@ describe("App shell and search", () => {
     const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
     fireEvent.change(searchInput, { target: { value: "mor" } })
 
-    const translationLine = await within(commandDialog).findByText(/^mother, soil layer$/i)
+    const translationLine = await within(commandDialog).findByText(/^mother \(soil layer\)$/i)
     const corRow = translationLine.closest("[cmdk-item]")
     expect(corRow).toBeTruthy()
     fireEvent.click(corRow as HTMLElement)

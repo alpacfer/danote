@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
@@ -31,6 +32,14 @@ from app.services.use_cases.wordbank.shared import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True, slots=True)
+class SavedMeaningMatch:
+    meaning_id: int
+    meaning_key: str | None
+    pos_tag: str | None
+    cor_lemma_idx: int | None
 
 
 def find_saved_lemma(
@@ -318,7 +327,7 @@ def load_saved_meanings_for_lemmas(
     lemmas: list[str],
     *,
     owner_user_id: int = 1,
-) -> dict[str, dict[str, int]]:
+) -> dict[str, dict[str, list[SavedMeaningMatch]]]:
     normalized: list[str] = []
     seen: set[str] = set()
     for lemma in lemmas:
@@ -333,33 +342,54 @@ def load_saved_meanings_for_lemmas(
     with get_connection(db_path) as conn:
         rows = conn.execute(
             f"""
-            SELECT l.lemma AS lemma, lm.id AS meaning_id, lm.meaning_key AS meaning_key
+            SELECT
+                l.lemma AS lemma,
+                lm.id AS meaning_id,
+                lm.meaning_key AS meaning_key,
+                lm.pos_tag AS pos_tag,
+                lm.cor_lemma_idx AS cor_lemma_idx
             FROM lexeme_meanings lm
             JOIN lexemes l ON l.id = lm.lexeme_id
             WHERE l.owner_user_id = ? AND l.lemma IN ({placeholders})
             """,
             (owner_user_id, *normalized),
         ).fetchall()
-    saved: dict[str, dict[str, int]] = {}
+    saved: dict[str, dict[str, list[SavedMeaningMatch]]] = {}
     for row in rows:
-        saved.setdefault(row["lemma"], {})[row["meaning_key"]] = row["meaning_id"]
+        saved.setdefault(row["lemma"], {}).setdefault(row["meaning_key"], []).append(
+            SavedMeaningMatch(
+                meaning_id=int(row["meaning_id"]),
+                meaning_key=row["meaning_key"],
+                pos_tag=(row["pos_tag"] or "").strip().upper() or None,
+                cor_lemma_idx=int(row["cor_lemma_idx"]) if row["cor_lemma_idx"] is not None else None,
+            )
+        )
     return saved
 
 
 def _attach_saved_meaning(
     option: _CORAddOption,
-    saved_meanings: dict[str, dict[str, int]],
+    saved_meanings: dict[str, dict[str, list[SavedMeaningMatch]]],
 ) -> _CORAddOption:
     if option.saved_meaning_id is not None:
         return option
     by_key = saved_meanings.get(option.lemma)
     if not by_key:
         return option
-    saved_id = None
+    saved_id: int | None = None
     if option.meaning_key is not None:
-        saved_id = by_key.get(option.meaning_key)
+        saved_id = _matching_saved_meaning_id(
+            by_key.get(option.meaning_key) or [],
+            pos_tag=option.pos_tag,
+            cor_lemma_idx=option.cor_lemma_idx,
+        )
     if saved_id is None and len(by_key) == 1 and option.meaning_key is None:
-        saved_id = next(iter(by_key.values()))
+        only_matches = next(iter(by_key.values()))
+        saved_id = _matching_saved_meaning_id(
+            only_matches,
+            pos_tag=option.pos_tag,
+            cor_lemma_idx=option.cor_lemma_idx,
+        )
     if saved_id is None:
         return option
     return _CORAddOption(
@@ -378,6 +408,24 @@ def _attach_saved_meaning(
         example_da=option.example_da,
         example_en=option.example_en,
     )
+
+
+def _matching_saved_meaning_id(
+    candidates: list[SavedMeaningMatch],
+    *,
+    pos_tag: str | None,
+    cor_lemma_idx: int | None,
+) -> int | None:
+    normalized_pos = (pos_tag or "").strip().upper() or None
+    for candidate in candidates:
+        if cor_lemma_idx is not None and candidate.cor_lemma_idx is not None:
+            if candidate.cor_lemma_idx != cor_lemma_idx:
+                continue
+        elif normalized_pos is not None and candidate.pos_tag is not None:
+            if candidate.pos_tag != normalized_pos:
+                continue
+        return candidate.meaning_id
+    return None
 
 
 def _lookup_translation_labels_for_cor_entries(

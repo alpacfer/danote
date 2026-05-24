@@ -257,8 +257,10 @@ export function useSidebarSearchRanking({
         // discovered sense the moment any one sense was saved (because every
         // variant of the same lemma shares the same cor_id) — that's exactly
         // the regression where post-save search hides the still-unsaved senses.
+        // However, if the specific sense is already saved (saved_meaning_id is not null),
+        // we filter it out to prevent rendering it both in wordbank results and COR results.
         if (candidate.variant.meaning_key) {
-          return true
+          return candidate.variant.saved_meaning_id == null
         }
         if (savedQueryCorIdSet.has(candidate.variant.cor_id)) {
           return false

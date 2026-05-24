@@ -84,7 +84,7 @@ Legacy sentinels such as `__pronouns_personal`, `__question_words`, and
 open the owning grouped page and select the matching default tab.
 
 Grouped pinned pages render through `PinnedPageLayout` and shadcn/Radix
-`Tabs`. Pronouns includes Personal, Possessive, Demonstrative, Relative,
+`Tabs` (except HV Questions, which presents all words together in a single grid). Pronouns includes Personal, Possessive, Demonstrative, Relative,
 Indefinite, and Question Words. Function Words includes Articles,
 Prepositions, and Conjunctions. Numbers & Time includes Cardinal Numbers,
 Ordinal Numbers, Days, Months, Seasons, and Time Words. The pages intentionally
@@ -256,7 +256,7 @@ flow as for any other verb.
   - verb cards: lemma in infinitive form `at <lemma>`
   - section `gram_raw` → badge set from COR grammar (e.g. invariant `orange` keeps merged badges)
   - right semantic category badges from `meaning_sections[].categories`; right-aligned wide, wrap narrow
-  - optional combined translation line: `translation, gloss translation` format (gloss is supplemental, not replacement); redundant gloss translations are omitted, including English verb glosses already covered by an infinitive translation
+  - optional combined translation line: `translation (gloss translation)` format; search rows use the same display string before save so the saved word card matches what the user selected
   - optional `reference_links` render as compact buttons inside the same card
 - Surface forms per meaning:
   - divided list, each row uses `WordbankPronunciationWord`

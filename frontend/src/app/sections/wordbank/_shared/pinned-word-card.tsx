@@ -69,7 +69,7 @@ export function PinnedWordCard({
                   <Badge
                     key={`pinned-word-${entry.lemma}-${badge.label}`}
                     variant={badge.tone === "primary" ? "default" : "secondary"}
-                    className={`shrink-0 text-xs ${badge.tone === "primary" ? `border ${posBadgeClass(posTag)}` : `border ${corSecondaryBadgeClass(badge.label)}`}`.trim()}
+                    className={`shrink-0 text-xs ${badge.tone === "primary" ? `border ${posBadgeClass(badge.label === "HV Word" ? "HV_WORD" : posTag)}` : `border ${corSecondaryBadgeClass(badge.label)}`}`.trim()}
                   >
                     {badge.label}
                   </Badge>

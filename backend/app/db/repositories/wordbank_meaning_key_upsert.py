@@ -20,15 +20,13 @@ def upsert_lexeme_meaning_by_key(
     morphology: str | None,
     english_gloss: str | None = None,
 ) -> tuple[LexemeMeaningRecord, bool]:
-    """Insert/update a meaning row keyed strictly on ``(lexeme_id, meaning_key)``.
+    """Insert/update a meaning row keyed on ``meaning_key`` plus COR/POS identity.
 
     ``WordbankRepository.upsert_lexeme_meaning`` dedupes on ``cor_lemma_idx``
-    first, which is correct for single-meaning POS (nouns/adjectives where each
-    COR lemma_idx maps to one sense). For the sense-discovery fan-out path,
-    many senses of a verb share one COR lemma_idx, so we must dedupe by
-    ``meaning_key`` instead — otherwise saving a second sense silently rewrites
-    the first sense's row. ``cor_lemma_idx`` is still recorded on the row so
-    downstream lookups (gram_raw, gloss_translation, COR joins) keep working.
+    first, which would collapse several discovered senses that share a COR
+    lemma. This path starts with ``meaning_key`` but still treats different
+    POS/COR lemma identities as separate rows, because homographs such as
+    ``nok`` can legitimately have the same label under ADV, ADJ, and NOUN.
     """
     with timed_db_operation("wordbank.upsert_lexeme_meaning_by_key"), get_connection(db_path) as conn:
         if conn.execute(
@@ -36,20 +34,14 @@ def upsert_lexeme_meaning_by_key(
             (lexeme_id, owner_user_id),
         ).fetchone() is None:
             raise LookupError("lexeme was not found")
-        row = conn.execute(
-            """
-            SELECT id, meaning_key, cor_lemma_idx, dictionary_status, gloss,
-                   english_translation, pos_tag, morphology, lexeme_id, english_gloss
-            FROM lexeme_meanings
-            WHERE lexeme_id = ? AND meaning_key = ?
-              AND EXISTS (
-                SELECT 1 FROM lexemes l
-                WHERE l.id = lexeme_meanings.lexeme_id AND l.owner_user_id = ?
-              )
-            LIMIT 1
-            """,
-            (lexeme_id, meaning_key, owner_user_id),
-        ).fetchone()
+        row = _find_existing_meaning(
+            conn,
+            lexeme_id=lexeme_id,
+            owner_user_id=owner_user_id,
+            meaning_key=meaning_key,
+            cor_lemma_idx=cor_lemma_idx,
+            pos_tag=pos_tag,
+        )
         inserted = False
         if row is None:
             cursor = conn.execute(
@@ -93,3 +85,43 @@ def upsert_lexeme_meaning_by_key(
     if row is None:
         raise RuntimeError("Failed to create or load lexeme meaning")
     return lexeme_meaning_from_row(row), inserted
+
+
+def _find_existing_meaning(
+    conn,
+    *,
+    lexeme_id: int,
+    owner_user_id: int,
+    meaning_key: str,
+    cor_lemma_idx: int | None,
+    pos_tag: str | None,
+):
+    normalized_pos = (pos_tag or "").strip().upper() or None
+    rows = conn.execute(
+        """
+        SELECT id, meaning_key, cor_lemma_idx, dictionary_status, gloss,
+               english_translation, pos_tag, morphology, lexeme_id, english_gloss
+        FROM lexeme_meanings
+        WHERE lexeme_id = ? AND meaning_key = ?
+          AND EXISTS (
+            SELECT 1 FROM lexemes l
+            WHERE l.id = lexeme_meanings.lexeme_id AND l.owner_user_id = ?
+          )
+        ORDER BY id
+        """,
+        (lexeme_id, meaning_key, owner_user_id),
+    ).fetchall()
+    if not rows:
+        return None
+    if cor_lemma_idx is not None:
+        for row in rows:
+            if row["cor_lemma_idx"] == cor_lemma_idx:
+                return row
+    if normalized_pos is not None:
+        for row in rows:
+            row_pos = (row["pos_tag"] or "").strip().upper() or None
+            if row_pos == normalized_pos:
+                return row
+    if cor_lemma_idx is None and normalized_pos is None and len(rows) == 1:
+        return rows[0]
+    return None

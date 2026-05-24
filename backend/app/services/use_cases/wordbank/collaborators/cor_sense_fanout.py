@@ -15,6 +15,8 @@ from app.services.gemini_sense_discovery import (
 )
 from app.services.token_classifier import normalize_token
 from app.services.use_cases.wordbank.collaborators.cor_actions import (
+    SavedMeaningMatch,
+    _matching_saved_meaning_id,
     load_saved_meanings_for_lemmas,
 )
 from app.services.use_cases.wordbank.collaborators.translation import TranslationCollaborator
@@ -151,7 +153,7 @@ def _rewrite_variant_with_sense(
 
 def _attach_saved_to_group(
     group: CORSearchGroup,
-    saved_meanings: dict[str, dict[str, int]],
+    saved_meanings: dict[str, dict[str, list[SavedMeaningMatch]]],
 ) -> CORSearchGroup:
     by_key = saved_meanings.get(normalize_token(group.lemma))
     if not by_key:
@@ -167,15 +169,23 @@ def _attach_saved_to_group(
 
 def _attach_saved_to_variant(
     variant: CORSearchVariant,
-    by_key: dict[str, int],
+    by_key: dict[str, list[SavedMeaningMatch]],
 ) -> CORSearchVariant:
     if variant.saved_meaning_id is not None:
         return variant
     saved_id: int | None = None
     if variant.meaning_key is not None:
-        saved_id = by_key.get(variant.meaning_key)
+        saved_id = _matching_saved_meaning_id(
+            by_key.get(variant.meaning_key) or [],
+            pos_tag=variant.pos_tag,
+            cor_lemma_idx=variant.lemma_idx,
+        )
     if saved_id is None and len(by_key) == 1 and variant.meaning_key is None:
-        saved_id = next(iter(by_key.values()))
+        saved_id = _matching_saved_meaning_id(
+            next(iter(by_key.values())),
+            pos_tag=variant.pos_tag,
+            cor_lemma_idx=variant.lemma_idx,
+        )
     if saved_id is None:
         return variant
     return variant.model_copy(update={"saved_meaning_id": saved_id})

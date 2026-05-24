@@ -186,7 +186,7 @@ describe("App shell and search", () => {
     const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
     fireEvent.change(searchInput, { target: { value: "mor" } })
 
-    expect(await within(commandDialog).findByText(/^mother, person$/i)).toBeInTheDocument()
+    expect(await within(commandDialog).findByText(/^mother \(person\)$/i)).toBeInTheDocument()
     expect(within(commandDialog).queryByText(/^mother$/i)).not.toBeInTheDocument()
     expect(within(commandDialog).queryByText(/^person$/i)).not.toBeInTheDocument()
   })

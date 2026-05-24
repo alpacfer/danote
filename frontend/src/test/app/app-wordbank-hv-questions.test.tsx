@@ -24,8 +24,7 @@ describe("App wordbank pinned pages", () => {
     expect(screen.queryByText(/no saved lemmas yet/i)).not.toBeInTheDocument()
   })
 
-  it("renders the HV Questions page with category tabs and simplified word cards", async () => {
-    const user = userEvent.setup()
+  it("renders the HV Questions page with simplified word cards", async () => {
     mockFetchImplementation({
       lemmasResponse: {
         items: [],
@@ -37,11 +36,10 @@ describe("App wordbank pinned pages", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: /open hv questions reference/i }))
     expect(await screen.findByRole("heading", { name: /^hv questions$/i })).toBeInTheDocument()
-    expect(screen.getByRole("tab", { name: /people & things/i })).toBeInTheDocument()
-    expect(screen.getByRole("tab", { name: /choice/i })).toBeInTheDocument()
-    expect(screen.getByRole("tab", { name: /place, time, manner & reason/i })).toBeInTheDocument()
+    expect(screen.queryByRole("tab", { name: /people & things/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole("tab", { name: /choice/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole("tab", { name: /place, time, manner & reason/i })).not.toBeInTheDocument()
 
-    await user.click(screen.getByRole("tab", { name: /place, time, manner & reason/i }))
     const hvorCard = await screen.findByRole("button", { name: /open hvor in wordbank/i })
     expect(within(hvorCard).queryByRole("button", { name: /listen to hvor/i })).not.toBeInTheDocument()
     expect(within(hvorCard).getByText(/^where$/i)).toBeInTheDocument()
@@ -68,7 +66,6 @@ describe("App wordbank pinned pages", () => {
   })
 
   it("opens a normal word page from a pinned word card", async () => {
-    const user = userEvent.setup()
     const fetchSpy = mockFetchImplementation({
       lemmasResponse: {
         items: [],
@@ -110,7 +107,6 @@ describe("App wordbank pinned pages", () => {
     await screen.findByLabelText("backend-connection-status")
 
     fireEvent.click(await screen.findByRole("button", { name: /open hv questions reference/i }))
-    await user.click(screen.getByRole("tab", { name: /place, time, manner & reason/i }))
     fireEvent.click(await screen.findByRole("button", { name: /open hvor in wordbank/i }))
 
     expect(await screen.findByRole("heading", { name: /^hvor$/i })).toBeInTheDocument()
@@ -119,7 +115,6 @@ describe("App wordbank pinned pages", () => {
   })
 
   it("clicks the HV Word badge on a word page to land on the HV Questions pinned page", async () => {
-    const user = userEvent.setup()
     mockFetchImplementation({
       lemmasResponse: { items: [] },
       lemmaDetailsHandler: async (input) => {
@@ -143,7 +138,6 @@ describe("App wordbank pinned pages", () => {
     await screen.findByLabelText("backend-connection-status")
 
     fireEvent.click(await screen.findByRole("button", { name: /open hv questions reference/i }))
-    await user.click(screen.getByRole("tab", { name: /place, time, manner & reason/i }))
     fireEvent.click(await screen.findByRole("button", { name: /open hvor in wordbank/i }))
 
     expect(await screen.findByRole("heading", { name: /^hvor$/i })).toBeInTheDocument()
@@ -334,21 +328,21 @@ describe("App wordbank pinned pages", () => {
     renderApp()
     await screen.findByLabelText("backend-connection-status")
 
-    fireEvent.click(await screen.findByRole("button", { name: /open hv questions reference/i }))
-    await user.click(screen.getByRole("tab", { name: /choice/i }))
-    expect(screen.getByRole("tab", { name: /choice/i })).toHaveAttribute("data-state", "active")
-    await user.click(screen.getByRole("tab", { name: /place, time, manner & reason/i }))
-    expect(screen.getByRole("tab", { name: /place, time, manner & reason/i })).toHaveAttribute("data-state", "active")
+    fireEvent.click(await screen.findByRole("button", { name: /open pronouns reference/i }))
+    await user.click(screen.getByRole("tab", { name: /possessive/i }))
+    expect(screen.getByRole("tab", { name: /possessive/i })).toHaveAttribute("data-state", "active")
+    await user.click(screen.getByRole("tab", { name: /demonstrative/i }))
+    expect(screen.getByRole("tab", { name: /demonstrative/i })).toHaveAttribute("data-state", "active")
 
     window.history.back()
     await waitFor(() => {
-      expect(screen.queryByRole("heading", { name: /^hv questions$/i })).not.toBeInTheDocument()
+      expect(screen.queryByRole("heading", { name: /^pronouns$/i })).not.toBeInTheDocument()
     })
-    expect(await screen.findByRole("button", { name: /open hv questions reference/i })).toBeInTheDocument()
+    expect(await screen.findByRole("button", { name: /open pronouns reference/i })).toBeInTheDocument()
 
     window.history.forward()
     await waitFor(() => {
-      expect(screen.getByRole("tab", { name: /place, time, manner & reason/i })).toHaveAttribute("data-state", "active")
+      expect(screen.getByRole("tab", { name: /demonstrative/i })).toHaveAttribute("data-state", "active")
     })
   })
 })

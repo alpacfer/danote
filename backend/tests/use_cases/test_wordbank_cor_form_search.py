@@ -2,14 +2,37 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from app.services.cor import COREntry
 from app.services.cor_local import CORLocalEntry
+from app.services.gemini_sense_discovery import DiscoveredSense, DiscoveredSenseSet
 from app.services.use_cases.wordbank import WordbankUseCase
 from tests.helpers.factories import _db_path
 from tests.helpers.fakes import (
+    FakeCORLexiconService,
     FakeCORLocalLexiconService,
     FakeGeminiWordTranslationService,
     FakeTranslationService,
 )
+
+
+class _NokSenseGeminiService(FakeGeminiWordTranslationService):
+    def __init__(self) -> None:
+        super().__init__({})
+        self.discover_sense_calls = []
+
+    def discover_senses(self, payload):
+        self.discover_sense_calls.append(payload)
+        return DiscoveredSenseSet(
+            senses=[
+                DiscoveredSense(
+                    meaning_key="probably",
+                    english_translation="probably",
+                    gloss="sandsynligvis",
+                    english_gloss="in all likelihood",
+                    cor_lemma_idx=payload.cor_candidates[0].lemma_idx if payload.cor_candidates else None,
+                )
+            ]
+        )
 
 
 def test_wordbank_search_cor_form_uses_static_pronoun_without_cor_or_translation(tmp_path: Path) -> None:
@@ -175,6 +198,238 @@ def test_wordbank_search_cor_form_uses_frame_identity_for_homograph_lemma_transl
     assert by_pos["NOUN"] == "doctrine"
     assert "at lære" in translation_service.calls
     assert "en lære" in translation_service.calls
+
+
+def test_wordbank_search_cor_form_attaches_saved_state_to_matching_pos_only(tmp_path: Path) -> None:
+    local_cor = FakeCORLocalLexiconService(
+        by_form={
+            "nok": [
+                CORLocalEntry(
+                    cor_id="COR.NOK.ADV",
+                    lemma="nok",
+                    gloss="sandsynligvis",
+                    gram_raw="adv",
+                    form="nok",
+                    norm="N",
+                    lemma_idx=10200,
+                    gram_code=900,
+                    variation=1,
+                    pos_tag="ADV",
+                    morphology=None,
+                    features={},
+                    extra_tags=[],
+                ),
+                CORLocalEntry(
+                    cor_id="COR.NOK.ADJ",
+                    lemma="nok",
+                    gloss="sandsynligvis",
+                    gram_raw="adj.sg.ubest",
+                    form="nok",
+                    norm="N",
+                    lemma_idx=17872,
+                    gram_code=300,
+                    variation=1,
+                    pos_tag="ADJ",
+                    morphology="Number=Sing|Definite=Ind|Gender=Com",
+                    features={"Number": "Sing", "Definite": "Ind", "Gender": "Com"},
+                    extra_tags=[],
+                ),
+                CORLocalEntry(
+                    cor_id="COR.NOK.NOUN",
+                    lemma="nok",
+                    gloss="sandsynligvis",
+                    gram_raw="sb.fk.sg.ubest",
+                    form="nok",
+                    norm="N",
+                    lemma_idx=45928,
+                    gram_code=110,
+                    variation=1,
+                    pos_tag="NOUN",
+                    morphology="Gender=Com|Number=Sing|Definite=Ind",
+                    features={"Gender": "Com", "Number": "Sing", "Definite": "Ind"},
+                    extra_tags=[],
+                ),
+            ]
+        },
+        by_lemma_idx={
+            10200: [
+                CORLocalEntry(
+                    cor_id="COR.NOK.ADV",
+                    lemma="nok",
+                    gloss="sandsynligvis",
+                    gram_raw="adv",
+                    form="nok",
+                    norm="N",
+                    lemma_idx=10200,
+                    gram_code=900,
+                    variation=1,
+                    pos_tag="ADV",
+                    morphology=None,
+                    features={},
+                    extra_tags=[],
+                )
+            ]
+        },
+    )
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_lexicon_service=FakeCORLexiconService(
+            {
+                "nok": [
+                    COREntry(
+                        cor_id="COR.NOK.ADV",
+                        lemma="nok",
+                        full_form="nok",
+                        ordklasse="adv",
+                        grammatical_function=None,
+                        glosse="sandsynligvis",
+                        norm_status="N",
+                        pos_tag="ADV",
+                        morphology=None,
+                    ),
+                    COREntry(
+                        cor_id="COR.NOK.ADJ",
+                        lemma="nok",
+                        full_form="nok",
+                        ordklasse="adj",
+                        grammatical_function="sg.ubest",
+                        glosse="sandsynligvis",
+                        norm_status="N",
+                        pos_tag="ADJ",
+                        morphology="Number=Sing|Definite=Ind|Gender=Com",
+                    ),
+                    COREntry(
+                        cor_id="COR.NOK.NOUN",
+                        lemma="nok",
+                        full_form="nok",
+                        ordklasse="sb",
+                        grammatical_function="fk.sg.ubest",
+                        glosse="sandsynligvis",
+                        norm_status="N",
+                        pos_tag="NOUN",
+                        morphology="Gender=Com|Number=Sing|Definite=Ind",
+                    ),
+                ]
+            }
+        ),
+        cor_local_lexicon_service=local_cor,
+        translation_service=FakeTranslationService({"sandsynligvis": "probably"}),
+        gemini_word_translation_service=_NokSenseGeminiService(),
+    )
+    saved = use_case.add_word(
+        "nok",
+        "nok",
+        search_seed={
+            "lemma": "nok",
+            "surface": "nok",
+            "cor_id": "COR.NOK.ADV",
+            "cor_lemma_idx": 10200,
+            "dictionary_status": "cor",
+            "meaning_key": "probably",
+            "gloss": "sandsynligvis",
+            "english_gloss": "in all likelihood",
+            "english_translation": "probably",
+            "pos_tag": "ADV",
+        },
+    )
+
+    response = use_case.search_cor_form("nok", limit=100)
+    saved_by_pos = {
+        group.pos_tag: group.variants[0].saved_meaning_id
+        for group in response.groups
+    }
+    actions_by_pos = {
+        action.pos_tag: action
+        for action in use_case.resolve_query("nok").word_actions
+        if action.meaning_key == "probably"
+    }
+
+    assert saved.meaning is not None
+    assert saved_by_pos == {
+        "ADV": saved.meaning.id,
+        "ADJ": None,
+        "NOUN": None,
+    }
+    assert actions_by_pos["ADV"].action_type == "open_wordbank"
+    assert actions_by_pos["ADV"].saved_meaning_id == saved.meaning.id
+    assert actions_by_pos["ADJ"].action_type == "add_as_new"
+    assert actions_by_pos["ADJ"].saved_meaning_id is None
+    assert actions_by_pos["NOUN"].action_type == "add_as_new"
+    assert actions_by_pos["NOUN"].saved_meaning_id is None
+
+
+def test_search_seed_save_keeps_same_meaning_key_separate_across_pos(tmp_path: Path) -> None:
+    use_case = WordbankUseCase(_db_path(tmp_path))
+
+    use_case.add_word(
+        "nok",
+        "nok",
+        search_seed={
+            "lemma": "nok",
+            "surface": "nok",
+            "cor_id": "COR.NOK.ADV",
+            "cor_lemma_idx": 10200,
+            "dictionary_status": "cor",
+            "meaning_key": "probably",
+            "gloss": "sandsynligvis",
+            "english_translation": "probably",
+            "pos_tag": "ADV",
+        },
+    )
+    use_case.add_word(
+        "nok",
+        "nok",
+        search_seed={
+            "lemma": "nok",
+            "surface": "nok",
+            "cor_id": "COR.NOK.ADJ",
+            "cor_lemma_idx": 17872,
+            "dictionary_status": "cor",
+            "meaning_key": "probably",
+            "gloss": "sandsynligvis",
+            "english_translation": "probably",
+            "pos_tag": "ADJ",
+            "morphology": "Number=Sing|Definite=Ind|Gender=Com",
+        },
+    )
+
+    details = use_case.get_lemma_details("nok")
+
+    assert [
+        (section.meaning_key, section.pos_tag, section.english_translation)
+        for section in details.meaning_sections
+    ] == [
+        ("probably", "ADV", "probably"),
+        ("probably", "ADJ", "probably"),
+    ]
+
+
+def test_search_seed_save_persists_same_sense_alternative_translations(tmp_path: Path) -> None:
+    use_case = WordbankUseCase(_db_path(tmp_path))
+
+    use_case.add_word(
+        "nok",
+        "nok",
+        search_seed={
+            "lemma": "nok",
+            "surface": "nok",
+            "cor_id": "COR.NOK.ADV",
+            "cor_lemma_idx": 10200,
+            "dictionary_status": "cor",
+            "meaning_key": "enough",
+            "gloss": "i tilstrækkelig grad",
+            "english_gloss": "to a sufficient degree",
+            "english_translation": "enough",
+            "alternative_translations": ["sufficiently", "adequately", "enough"],
+            "pos_tag": "ADV",
+        },
+    )
+
+    details = use_case.get_lemma_details("nok")
+
+    assert details.meaning_sections[0].english_translation == "enough"
+    assert details.meaning_sections[0].additional_translations == ["sufficiently", "adequately"]
+
 
 def test_wordbank_search_cor_form_consolidates_same_entry_with_multiple_grams(tmp_path: Path) -> None:
     local_cor = FakeCORLocalLexiconService(

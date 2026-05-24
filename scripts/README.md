@@ -12,7 +12,10 @@ API controller for terminal debugging. It auto-detects the local backend and
 calls the same HTTP routes used by the UI for wordbank, sentencebank, search,
 verification, pronunciation, and developer actions. `wordbank category-status`
 polls lemma details and summarizes categories plus verification state, which is
-useful for diagnosing post-verification category refresh timing. Use DTC as an
+useful for diagnosing post-verification category refresh timing. `wordbank
+details --brief` includes the word-card display string, and `wordbank
+verify-saved-display` saves one discovered sense then fails if the search-dialog
+display differs from the saved word-card display. Use DTC as an
 extra acceptance check after feature work that is reachable through the app API.
 
 `dev-search-debug.py` is the older human-readable sidebar search tracer. Keep it

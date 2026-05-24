@@ -114,6 +114,10 @@ Wordbank-specific DTC commands:
   lemma/meaning/surface scope. Add `--expect-category <label>` one or more
   times to fail the command when the final snapshot still lacks a generated
   category.
+- `scripts/dev-app.py wordbank verify-saved-display <surface> --meaning-key <key>
+  --pos-tag <POS>` saves one discovered COR sense and fails if the visible
+  search-dialog translation string differs from the saved word-card translation
+  string.
 
 After implementing user-facing or backend behavior that is reachable through
 the app API, run at least one relevant DTC command as an extra terminal

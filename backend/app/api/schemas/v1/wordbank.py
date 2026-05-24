@@ -16,6 +16,7 @@ class AddWordRequest(BaseModel):
         gloss: str | None = None
         english_gloss: str | None = None
         english_translation: str | None = None
+        alternative_translations: list[str] = Field(default_factory=list)
         pos_tag: str | None = None
         morphology: str | None = None
         target_meaning_id: int | None = None
@@ -609,7 +610,7 @@ class DeleteLemmaResponse(BaseModel):
     message: str
 
 
-from app.api.schemas.v1.sentencebank import SentenceTokenCard
+from app.api.schemas.v1.sentencebank import SentenceTokenCard  # noqa: E402
 
 AddWordResponse.model_rebuild()
 LemmaDetailsResponse.model_rebuild()
