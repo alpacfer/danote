@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 
 from app.db.repositories.wordbank import LexemeMeaningRecord
@@ -13,7 +12,7 @@ LEGACY_WORDBANK_RESET_REQUIRED_MESSAGE = (
     "Reset the database from Developer settings and add words again."
 )
 
-_LIKELY_ENGLISH_GLOSS_RE = re.compile(r"^[A-Za-z][A-Za-z ',-]*$")
+from app.services.use_cases.wordbank.gloss_translations import is_likely_english_gloss as _is_likely_english_gloss_shared  # noqa: E402
 
 
 def ensure_wordbank_meaning_compatibility(runtime: WordbankRuntime, *, lemma: str | None = None) -> None:
@@ -219,10 +218,7 @@ def resolve_meaning_translation(
 
 
 def _is_likely_english_gloss(gloss: str | None) -> bool:
-    normalized_gloss = normalize_token(gloss or "")
-    if not normalized_gloss:
-        return False
-    return _LIKELY_ENGLISH_GLOSS_RE.fullmatch(normalized_gloss) is not None
+    return _is_likely_english_gloss_shared(gloss)
 
 
 def _resolve_existing_meaning_by_cor_id(

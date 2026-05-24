@@ -31,7 +31,7 @@ export function WordbankListView({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
-      <h1 className="font-section-title text-2xl leading-none font-normal tracking-normal">Wordbank</h1>
+      <h1 className="font-section-title text-2xl leading-none font-normal tracking-normal">Words</h1>
       {wordbankError ? (
         <p className="text-destructive text-sm" role="alert">
           {wordbankError}

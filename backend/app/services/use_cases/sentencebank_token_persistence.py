@@ -348,6 +348,7 @@ def sentence_token_from_saved_word(
                 meaning_pos_tag=meaning.pos_tag,
                 cor_lemma_idx=meaning.cor_lemma_idx,
                 cache=gloss_translation_cache,
+                meaning_english_gloss=getattr(meaning, "english_gloss", None),
             )
             if meaning is not None
             else None

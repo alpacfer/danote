@@ -29,6 +29,7 @@ class WordbankSearchRow:
     variation_count: int
     match_surface: str | None
     query_cor_ids: list[str]
+    english_gloss: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -53,6 +54,7 @@ class LexemeMeaningRecord:
     pos_tag: str | None
     morphology: str | None
     lexeme_id: int
+    english_gloss: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -165,6 +167,16 @@ def surface_form_from_row(row) -> SurfaceFormRecord:
 
 
 def lexeme_meaning_from_row(row) -> LexemeMeaningRecord:
+    # Older queries don't always SELECT the new english_gloss column; tolerate
+    # its absence by falling back to None when the row mapping doesn't expose
+    # the key. sqlite3.Row supports the keys() protocol.
+    english_gloss: str | None = None
+    try:
+        row_keys = row.keys() if hasattr(row, "keys") else ()
+    except Exception:
+        row_keys = ()
+    if "english_gloss" in row_keys:
+        english_gloss = row["english_gloss"]
     return LexemeMeaningRecord(
         id=int(row["id"]),
         meaning_key=str(row["meaning_key"]),
@@ -175,6 +187,7 @@ def lexeme_meaning_from_row(row) -> LexemeMeaningRecord:
         pos_tag=row["pos_tag"],
         morphology=row["morphology"],
         lexeme_id=int(row["lexeme_id"]),
+        english_gloss=english_gloss,
     )
 
 

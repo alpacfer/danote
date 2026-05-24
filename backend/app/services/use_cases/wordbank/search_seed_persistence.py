@@ -27,6 +27,7 @@ class SearchSeedInputs:
     pos_tag: str | None
     morphology: str | None
     target_meaning_id: int | None
+    english_gloss: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -71,6 +72,7 @@ def normalize_search_seed(search_seed: dict[str, object]) -> SearchSeedInputs:
         dictionary_status=_dictionary_status(search_seed),
         meaning_key=_optional_normalized_string(search_seed, "meaning_key"),
         gloss=_optional_normalized_string(search_seed, "gloss"),
+        english_gloss=_optional_normalized_string(search_seed, "english_gloss"),
         english_translation=_optional_normalized_string(search_seed, "english_translation"),
         pos_tag=_optional_upper_string(search_seed, "pos_tag"),
         morphology=_optional_spaced_string(search_seed, "morphology"),
@@ -220,6 +222,7 @@ def _resolve_meaning_assignment(
             english_translation=english_translation,
             pos_tag=metadata.lemma_pos_tag,
             morphology=metadata.lemma_morphology,
+            english_gloss=seed.english_gloss,
         )
     else:
         record, inserted = runtime.repository.upsert_lexeme_meaning(

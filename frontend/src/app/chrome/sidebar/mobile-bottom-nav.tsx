@@ -45,6 +45,7 @@ export function MobileBottomNav({
         {/* Wordbank Tab */}
         <button
           type="button"
+          aria-label="Wordbank"
           onClick={onSelectWordbank}
           className={cn(
             "relative flex h-9 flex-1 items-center justify-center gap-1.5 rounded-full px-2 text-xs font-semibold transition-all duration-200 active:scale-95 text-muted-foreground hover:text-foreground",
@@ -54,7 +55,7 @@ export function MobileBottomNav({
           )}
         >
           <BookOpen className="size-5" />
-          <span>Wordbank</span>
+          <span>Words</span>
           {unreadWordbankNotificationCount > 0 && (
             <span
               className={cn(

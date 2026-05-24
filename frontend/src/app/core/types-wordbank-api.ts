@@ -8,6 +8,7 @@ export type SearchSaveSeed = {
   dictionary_status?: "cor" | "generated_non_cor" | "unknown" | null
   meaning_key?: string | null
   gloss?: string | null
+  english_gloss?: string | null
   english_translation?: string | null
   pos_tag?: string | null
   morphology?: string | null
@@ -221,6 +222,7 @@ export type CORSearchVariant = {
   features: Record<string, string>
   extra_tags: string[]
   meaning_key?: string | null
+  english_gloss?: string | null
   alternative_translations?: string[]
   saved_meaning_id?: number | null
   example_da?: string | null

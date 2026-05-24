@@ -102,8 +102,8 @@ describe("App shell layout normalization", () => {
     fireEvent.click(screen.getByRole("button", { name: /^search$/i }))
     const commandDialog = await screen.findByRole("dialog")
 
-    expect(within(commandDialog).getByText(/^Wordbank$/)).toBeInTheDocument()
-    expect(within(commandDialog).getByText(/^Sentencebank$/)).toBeInTheDocument()
+    expect(within(commandDialog).getByText(/^Words$/)).toBeInTheDocument()
+    expect(within(commandDialog).getByText(/^Sentences$/)).toBeInTheDocument()
     expect(within(commandDialog).queryByText(/^Developer$/)).not.toBeInTheDocument()
     expect(within(commandDialog).queryByText(/^Account$/)).not.toBeInTheDocument()
 

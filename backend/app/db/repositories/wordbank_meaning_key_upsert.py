@@ -18,6 +18,7 @@ def upsert_lexeme_meaning_by_key(
     english_translation: str | None,
     pos_tag: str | None,
     morphology: str | None,
+    english_gloss: str | None = None,
 ) -> tuple[LexemeMeaningRecord, bool]:
     """Insert/update a meaning row keyed strictly on ``(lexeme_id, meaning_key)``.
 
@@ -38,7 +39,7 @@ def upsert_lexeme_meaning_by_key(
         row = conn.execute(
             """
             SELECT id, meaning_key, cor_lemma_idx, dictionary_status, gloss,
-                   english_translation, pos_tag, morphology, lexeme_id
+                   english_translation, pos_tag, morphology, lexeme_id, english_gloss
             FROM lexeme_meanings
             WHERE lexeme_id = ? AND meaning_key = ?
               AND EXISTS (
@@ -55,11 +56,11 @@ def upsert_lexeme_meaning_by_key(
                 """
                 INSERT INTO lexeme_meanings (
                     lexeme_id, meaning_key, cor_lemma_idx, dictionary_status,
-                    gloss, english_translation, pos_tag, morphology
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    gloss, english_translation, pos_tag, morphology, english_gloss
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (lexeme_id, meaning_key, cor_lemma_idx, dictionary_status,
-                 gloss, english_translation, pos_tag, morphology),
+                 gloss, english_translation, pos_tag, morphology, english_gloss),
             )
             inserted = True
             row_id = cursor.lastrowid
@@ -75,17 +76,18 @@ def upsert_lexeme_meaning_by_key(
                     END,
                     gloss = COALESCE(gloss, ?),
                     english_translation = COALESCE(english_translation, ?),
+                    english_gloss = COALESCE(english_gloss, ?),
                     pos_tag = COALESCE(pos_tag, ?),
                     morphology = COALESCE(morphology, ?),
                     updated_at = CURRENT_TIMESTAMP
                 WHERE id = ?
                 """,
                 (cor_lemma_idx, dictionary_status, dictionary_status,
-                 gloss, english_translation, pos_tag, morphology, int(row["id"])),
+                 gloss, english_translation, english_gloss, pos_tag, morphology, int(row["id"])),
             )
             row_id = int(row["id"])
         row = conn.execute(
-            "SELECT id, meaning_key, cor_lemma_idx, dictionary_status, gloss, english_translation, pos_tag, morphology, lexeme_id FROM lexeme_meanings WHERE id = ? LIMIT 1",
+            "SELECT id, meaning_key, cor_lemma_idx, dictionary_status, gloss, english_translation, pos_tag, morphology, lexeme_id, english_gloss FROM lexeme_meanings WHERE id = ? LIMIT 1",
             (row_id,),
         ).fetchone()
     if row is None:

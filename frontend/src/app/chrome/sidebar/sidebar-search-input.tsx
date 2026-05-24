@@ -209,7 +209,7 @@ const SEARCH_PHRASES = [
   'Search words (e.g. "hygge")...',
   'Search verbs (e.g. "at hygge sig")...',
   'Search phrasal verbs (e.g. "finde ud af")...',
-  'Search app pages (e.g. "Sentencebank")...',
+  'Search app pages (e.g. "Sentences")...',
   'Search app pages (e.g. "Developer")...',
 ]
 

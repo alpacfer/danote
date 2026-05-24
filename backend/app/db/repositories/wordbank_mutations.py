@@ -654,6 +654,7 @@ class WordbankMutationRepository:
         english_translation: str | None,
         pos_tag: str | None,
         morphology: str | None,
+        english_gloss: str | None = None,
     ) -> tuple[LexemeMeaningRecord, bool]:
         from app.db.repositories.wordbank_meaning_key_upsert import (
             upsert_lexeme_meaning_by_key as _upsert,
@@ -670,6 +671,7 @@ class WordbankMutationRepository:
             english_translation=english_translation,
             pos_tag=pos_tag,
             morphology=morphology,
+            english_gloss=english_gloss,
         )
 
     def replace_related_words(

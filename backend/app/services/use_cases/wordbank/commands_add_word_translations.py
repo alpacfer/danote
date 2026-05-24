@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 from typing import Literal
 
@@ -32,7 +31,6 @@ class TranslationSelection:
 
 
 NO_TRANSLATION = TranslationLookupResult(translation=None, provider=None)
-_LIKELY_ENGLISH_GLOSS_RE = re.compile(r"^[A-Za-z][A-Za-z ',-]*$")
 
 
 def lookup_word_translations(
@@ -194,7 +192,5 @@ def _resolve_cor_lemma_translation(
 
 
 def _is_likely_english_gloss(gloss: str | None) -> bool:
-    normalized_gloss = normalize_token(gloss or "")
-    if not normalized_gloss:
-        return False
-    return _LIKELY_ENGLISH_GLOSS_RE.fullmatch(normalized_gloss) is not None
+    from app.services.use_cases.wordbank.gloss_translations import is_likely_english_gloss
+    return is_likely_english_gloss(gloss)

@@ -637,6 +637,7 @@ def _meaning_gloss_translation(
         meaning_pos_tag=meaning.pos_tag,
         cor_lemma_idx=meaning.cor_lemma_idx,
         cache=cache,
+        meaning_english_gloss=getattr(meaning, "english_gloss", None),
     )
 
 

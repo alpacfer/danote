@@ -162,6 +162,7 @@ export function SidebarCorResults({
                           // that didn't expand (legacy MWE flow).
                           meaning_key: variant.meaning_key ?? variant.gloss ?? group.gloss ?? variant.lemma,
                           gloss: variant.gloss ?? group.gloss ?? null,
+                          english_gloss: variant.english_gloss ?? null,
                           english_translation: saveableTranslation,
                           pos_tag: variant.pos_tag ?? group.pos_tag ?? null,
                           morphology: variant.morphology ?? null,

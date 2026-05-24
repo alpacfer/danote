@@ -66,7 +66,7 @@ def build_verification_input(
             lexeme_morphology = lexeme_row["morphology"]
             meaning_rows = conn.execute(
                 """
-                SELECT id, meaning_key, cor_lemma_idx, gloss, english_translation, pos_tag, morphology
+                SELECT id, meaning_key, cor_lemma_idx, gloss, english_translation, pos_tag, morphology, english_gloss
                 FROM lexeme_meanings
                 WHERE lexeme_id = ?
                 ORDER BY id ASC
@@ -121,6 +121,7 @@ def build_verification_input(
                         else None
                     ),
                     cache=gloss_translation_cache,
+                    meaning_english_gloss=row["english_gloss"] if "english_gloss" in row.keys() else None,
                 )
                 for row in meaning_rows
             }
@@ -311,7 +312,17 @@ def _meaning_gloss_translation(
     meaning_pos_tag: str | None,
     cor_lemma_idx: int | None,
     cache: dict[tuple[str, str, str | None, str | None, str, str | None, str | None], str | None],
+    meaning_english_gloss: str | None = None,
 ) -> str | None:
+    # Sense-discovery saves persist an English equivalent of the Danish gloss
+    # directly. When present, that's the authoritative source — no need to
+    # round-trip through COR or the ASCII heuristic.
+    normalized_english_gloss = " ".join((meaning_english_gloss or "").strip().split())
+    if normalized_english_gloss:
+        normalized_meaning_translation = " ".join((meaning_translation or "").strip().split()).lower()
+        if normalized_english_gloss.lower() == normalized_meaning_translation:
+            return None
+        return normalized_english_gloss
     normalized_meaning_gloss = " ".join((meaning_gloss or "").strip().split()).lower()
     normalized_meaning_translation = " ".join((meaning_translation or "").strip().split()).lower()
     if normalized_meaning_gloss and normalized_meaning_gloss == normalized_meaning_translation:
@@ -443,7 +454,7 @@ def _load_meaning_row(
     if requested_meaning_id is not None:
         meaning_row = conn.execute(
             """
-            SELECT id, meaning_key, cor_lemma_idx, gloss, english_translation, pos_tag, morphology
+            SELECT id, meaning_key, cor_lemma_idx, gloss, english_translation, pos_tag, morphology, english_gloss
             FROM lexeme_meanings
             WHERE id = ? AND lexeme_id = ?
             LIMIT 1
@@ -456,7 +467,7 @@ def _load_meaning_row(
 
     meaning_rows = conn.execute(
         """
-        SELECT id, meaning_key, cor_lemma_idx, gloss, english_translation, pos_tag, morphology
+        SELECT id, meaning_key, cor_lemma_idx, gloss, english_translation, pos_tag, morphology, english_gloss
         FROM lexeme_meanings
         WHERE lexeme_id = ?
         ORDER BY id ASC

@@ -154,6 +154,7 @@ class WordbankReadRepository:
                 variation_count=int(row["variation_count"]),
                 match_surface=row["match_surface"],
                 query_cor_ids=parse_query_cor_ids(row["query_cor_ids"]),
+                english_gloss=row["english_gloss"] if "english_gloss" in row.keys() else None,
             )
             for row in rows
         ]
@@ -245,7 +246,7 @@ class WordbankReadRepository:
             self._db_path, read_only=True
         ) as conn:
             rows = conn.execute(
-                """SELECT lm.id,lm.meaning_key,lm.cor_lemma_idx,lm.dictionary_status,lm.gloss,lm.english_translation,lm.pos_tag,lm.morphology,lm.lexeme_id
+                """SELECT lm.id,lm.meaning_key,lm.cor_lemma_idx,lm.dictionary_status,lm.gloss,lm.english_translation,lm.pos_tag,lm.morphology,lm.lexeme_id,lm.english_gloss
                 FROM lexeme_meanings lm
                 JOIN lexemes l ON l.id = lm.lexeme_id
                 WHERE lm.lexeme_id = ? AND l.owner_user_id = ?
@@ -259,7 +260,7 @@ class WordbankReadRepository:
             self._db_path, read_only=True
         ) as conn:
             row = conn.execute(
-                """SELECT lm.id,lm.meaning_key,lm.cor_lemma_idx,lm.dictionary_status,lm.gloss,lm.english_translation,lm.pos_tag,lm.morphology,lm.lexeme_id
+                """SELECT lm.id,lm.meaning_key,lm.cor_lemma_idx,lm.dictionary_status,lm.gloss,lm.english_translation,lm.pos_tag,lm.morphology,lm.lexeme_id,lm.english_gloss
                 FROM lexeme_meanings lm
                 JOIN lexemes l ON l.id = lm.lexeme_id
                 WHERE lm.id = ? AND l.owner_user_id = ?

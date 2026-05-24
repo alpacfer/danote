@@ -239,3 +239,12 @@
   color: var(--danote-comment-foreground);
   font-style: italic;
 }
+
+/* Position mobile toasts above the bottom navigation bar */
+@media (max-width: 47.99rem) {
+  [data-sonner-toaster],
+  .toaster {
+    --offset-bottom: calc(5.25rem + env(safe-area-inset-bottom)) !important;
+    --mobile-offset-bottom: calc(5.25rem + env(safe-area-inset-bottom)) !important;
+  }
+}

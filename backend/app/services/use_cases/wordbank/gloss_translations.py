@@ -10,14 +10,38 @@ if TYPE_CHECKING:
     from app.services.use_cases.wordbank.runtime import WordbankRuntime
 
 _LIKELY_ENGLISH_GLOSS_RE = re.compile(r"^[A-Za-z][A-Za-z ',-]*$")
+# Common Danish function words that are pure ASCII. Any of them appearing in
+# the gloss is a strong signal the phrase is Danish despite passing the
+# ASCII-only regex. Sense-discovery glosses are always Danish — they read like
+# 'stykke papir eller pap brugt til spil' for ``kort``, which has no æ/ø/å but
+# is unmistakably Danish thanks to ``eller`` and ``til``. Without this guard
+# the regex misidentifies the phrase as English and the wordbank header renders
+# 'playing card (stykke papir eller pap brugt til spil)'.
+_DANISH_GLOSS_STOPWORDS = frozenset({
+    "af", "at", "den", "der", "det", "eller", "en", "er", "et", "for", "fra",
+    "har", "hvor", "i", "ikke", "ind", "kan", "med", "ned", "noget", "nogen",
+    "om", "op", "over", "pa", "samme", "sin", "som", "til", "ud", "ved", "og",
+})
 GlossTranslationCacheKey = tuple[str, str, str | None, str | None, str, str | None, str | None]
+
+
+def _ascii_fold(value: str) -> str:
+    return (
+        value.replace("æ", "ae").replace("ø", "o").replace("å", "a")
+        .replace("Æ", "ae").replace("Ø", "o").replace("Å", "a")
+    )
 
 
 def is_likely_english_gloss(gloss: str | None) -> bool:
     normalized_gloss = normalize_token(gloss or "")
     if not normalized_gloss:
         return False
-    return _LIKELY_ENGLISH_GLOSS_RE.fullmatch(normalized_gloss) is not None
+    if _LIKELY_ENGLISH_GLOSS_RE.fullmatch(normalized_gloss) is None:
+        return False
+    folded_tokens = {_ascii_fold(token.lower()) for token in normalized_gloss.split()}
+    if folded_tokens & _DANISH_GLOSS_STOPWORDS:
+        return False
+    return True
 
 
 def gloss_translation(
@@ -64,7 +88,27 @@ def meaning_gloss_translation(
     meaning_pos_tag: str | None,
     cor_lemma_idx: int | None,
     cache: dict[GlossTranslationCacheKey, str | None],
+    meaning_english_gloss: str | None = None,
 ) -> str | None:
+    # Sense-discovery saves persist an English gloss directly on the meaning
+    # row (lexeme_meanings.english_gloss). That's the authoritative source —
+    # no need to round-trip through COR lookups or the ASCII-only English
+    # heuristic, which used to misclassify Danish glosses without æ/ø/å as
+    # English and echo them verbatim into the wordbank header. Fall through
+    # to the COR-translation pipeline only when the meaning doesn't carry
+    # an english_gloss (legacy rows + nouns whose meaning came straight from
+    # COR without sense fan-out).
+    normalized_english_gloss = normalize_token(meaning_english_gloss or "")
+    if normalized_english_gloss:
+        normalized_meaning_translation = normalize_token(meaning_translation or "")
+        if _is_redundant_gloss_translation(
+            normalized_english_gloss,
+            normalized_meaning_translation,
+            pos_tag=meaning_pos_tag or lexeme_pos_tag,
+        ):
+            return None
+        return normalized_english_gloss
+
     normalized_meaning_gloss = normalize_token(meaning_gloss or "")
     normalized_meaning_translation = normalize_token(meaning_translation or "")
     if _is_redundant_gloss_translation(

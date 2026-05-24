@@ -131,6 +131,13 @@ def _rewrite_variant_with_sense(
         update={
             "meaning_key": sense.meaning_key,
             "gloss": sense.gloss,
+            "english_gloss": sense.english_gloss,
+            # gloss_translation is the existing field the frontend renders as
+            # the parenthetical after the lemma translation. Populate it from
+            # english_gloss when present so the wordbank header reads
+            # 'playing card (a piece of stiff paper used in card games)'
+            # without us needing to add a new render path.
+            "gloss_translation": sense.english_gloss,
             "lemma_translation": sense.english_translation,
             "saveable_translation": sense.english_translation,
             "lemma_translation_provider": variant.lemma_translation_provider or "gemini",

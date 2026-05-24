@@ -114,6 +114,7 @@ def search_lemmas(runtime: WordbankRuntime, query: str, *, limit: int = 8) -> Wo
                         meaning_pos_tag=row.pos_tag,
                         cor_lemma_idx=row.cor_lemma_idx,
                         cache=gloss_translation_cache,
+                        meaning_english_gloss=row.english_gloss,
                     )
                     if row.meaning_id is not None
                     else None

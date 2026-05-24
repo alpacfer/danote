@@ -9,7 +9,7 @@ describe("App shell and search", () => {
 
     const statusBadge = await screen.findByLabelText("backend-connection-status")
     expect(statusBadge).toHaveTextContent(/connected/i)
-    expect(screen.getAllByText(/^Wordbank$/).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/^Words$/).length).toBeGreaterThan(0)
   })
 
   it("renders sidebar navigation without Playground or Notes", async () => {

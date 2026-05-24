@@ -31,7 +31,7 @@ export function SentencebankListView({
 }: SentencebankListViewProps) {
   const [sentenceToDelete, setSentenceToDelete] = useState<SentencebankSentence | null>(null)
 
-  const title = <h1 className="font-section-title text-2xl leading-none font-normal tracking-normal">Sentencebank</h1>
+  const title = <h1 className="font-section-title text-2xl leading-none font-normal tracking-normal">Sentences</h1>
 
   if (sentencebankError) {
     return (

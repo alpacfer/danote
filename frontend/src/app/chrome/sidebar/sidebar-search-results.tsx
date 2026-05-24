@@ -148,7 +148,7 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
 
       return (
         <CommandList>
-          <CommandGroup heading="Wordbank">
+          <CommandGroup heading="Words">
             <SidebarCorResults
               orderedCorSearchGroups={[mweGroup]}
               corSearchVariantsToRender={mweVariantsToRender}
@@ -252,7 +252,7 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
 
       {/* Direct results — exact query match */}
       {hasDirectResults ? (
-        <CommandGroup heading="Wordbank">
+        <CommandGroup heading="Words">
           {hasDirectWordbank ? (
             <SidebarWordbankResults
               orderedWordbankResults={data.orderedWordbankResults}
@@ -301,7 +301,7 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
 
       {/* Corrected results — for the DYM suggestion word, COR first then saved */}
       {hasCorrectedResults ? (
-        <CommandGroup heading="Wordbank">
+        <CommandGroup heading="Words">
           {hasCorrectedCor ? (
             <SidebarCorResults
               orderedCorSearchGroups={data.orderedCorSearchGroups}

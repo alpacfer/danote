@@ -20,8 +20,8 @@ export type SidebarNavigationActions = {
 }
 
 export const SIDEBAR_PAGE_DEFINITIONS = {
-  wordbank: { key: "page-wordbank", label: "Wordbank", shortcut: "Alt+W", icon: BookOpen },
-  sentencebank: { key: "page-sentencebank", label: "Sentencebank", shortcut: "Alt+S", icon: ScrollText },
+  wordbank: { key: "page-wordbank", label: "Words", shortcut: "Alt+W", icon: BookOpen },
+  sentencebank: { key: "page-sentencebank", label: "Sentences", shortcut: "Alt+S", icon: ScrollText },
   developer: { key: "page-developer", label: "Developer", shortcut: "Alt+D", icon: Settings },
 } satisfies Record<string, Omit<SidebarPageItem, "onSelect">>
 

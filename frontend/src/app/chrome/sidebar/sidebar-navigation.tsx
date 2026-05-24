@@ -39,12 +39,13 @@ export function SidebarNavigation({
             <SidebarMenuItem>
               <SidebarMenuButton
                 type="button"
+                aria-label="Wordbank"
                 isActive={activeSection === "wordbank"}
                 onClick={onSelectWordbank}
                 className="max-md:h-12 max-md:text-base max-md:[&>svg]:size-5"
               >
                 <WordbankIcon />
-                <span>Wordbank</span>
+                <span>Words</span>
                 {unreadWordbankNotificationCount > 0 ? (
                   <span className="bg-primary text-primary-foreground ml-auto inline-flex min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] leading-5">
                     {unreadWordbankNotificationCount}
@@ -60,12 +61,13 @@ export function SidebarNavigation({
             <SidebarMenuItem>
               <SidebarMenuButton
                 type="button"
+                aria-label="Sentencebank"
                 isActive={activeSection === "sentencebank"}
                 onClick={onSelectSentencebank}
                 className="max-md:h-12 max-md:text-base max-md:[&>svg]:size-5"
               >
                 <SentencebankIcon />
-                <span>Sentencebank</span>
+                <span>Sentences</span>
                 <KbdGroup aria-hidden="true" className="ml-auto hidden md:flex">
                   <Kbd>Alt</Kbd>
                   <Kbd>S</Kbd>

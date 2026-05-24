@@ -420,7 +420,7 @@ describe("App shell and search", () => {
     expect(searchInput.value).toBe("jeg elsker dansk")
     expect(await within(commandDialog).findByText(/^i love danish$/i)).toBeInTheDocument()
     expect(within(commandDialog).getByText(/^Sentence$/i)).toBeInTheDocument()
-    expect(within(commandDialog).queryByText(/^Wordbank$/i)).not.toBeInTheDocument()
+    expect(within(commandDialog).queryByText(/^Words$/i)).not.toBeInTheDocument()
     expect(within(commandDialog).queryByText(/^Notes$/i)).not.toBeInTheDocument()
     expect(within(commandDialog).queryByText(/^Pages$/i)).not.toBeInTheDocument()
 

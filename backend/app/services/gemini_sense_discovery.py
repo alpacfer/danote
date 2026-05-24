@@ -33,6 +33,7 @@ class DiscoveredSense:
     meaning_key: str
     english_translation: str
     gloss: str
+    english_gloss: str | None = None
     alternative_translations: list[str] = field(default_factory=list)
     example_da: str | None = None
     example_en: str | None = None
@@ -50,7 +51,7 @@ _MAX_SENSES = 6
 _MAX_ALTERNATIVES = 4
 # Bump this token whenever the prompt or merge policy changes so cached
 # Gemini results from older policies are naturally invalidated.
-_PROMPT_VERSION = "v3-merge-aggressive-no-dups"
+_PROMPT_VERSION = "v4-bilingual-gloss"
 
 
 def is_sense_discoverable_pos(pos_tag: str | None) -> bool:
@@ -105,7 +106,8 @@ def build_sense_discovery_prompt(payload: SenseDiscoveryInput) -> str:
         "card whose alternative_translations carries the other phrasings.\n"
         "Return JSON only with this exact shape: "
         "{\"senses\":[{\"meaning_key\":\"...\",\"english_translation\":\"...\","
-        "\"gloss\":\"...\",\"alternative_translations\":[\"...\"],"
+        "\"gloss\":\"...\",\"english_gloss\":\"...\","
+        "\"alternative_translations\":[\"...\"],"
         "\"example_da\":\"...\",\"example_en\":\"...\",\"cor_lemma_idx\":null}]}\n"
         "MERGE TEST (apply per pair of candidate senses):\n"
         "  If a fluent Danish-English bilingual would routinely use both English words to translate the\n"
@@ -138,6 +140,12 @@ def build_sense_discovery_prompt(payload: SenseDiscoveryInput) -> str:
         "  Example: 'to hold' belongs to the 'hold/keep' sense; it must NOT also appear under 'host-event'\n"
         "  (which should use 'to host', 'to throw', 'to organize' instead).\n"
         "- gloss: a short Danish definition for the merged sense (one short phrase, no quotes).\n"
+        "- english_gloss: a short English equivalent of that same definition — the\n"
+        "  English text a Danish-English dictionary would print after the headword.\n"
+        "  Must be English (never Danish). Do NOT just repeat english_translation; the\n"
+        "  english_gloss is a descriptive phrase (e.g. 'a piece of stiff paper used in\n"
+        "  games' for the 'playing card' sense of 'kort'). One short phrase, no quotes,\n"
+        "  no parentheses. Must be present for every sense.\n"
         f"- alternative_translations: ≤{_MAX_ALTERNATIVES} other common English phrasings for the SAME merged\n"
         "  sense. May be empty when no equally common alternative exists. Do not repeat english_translation.\n"
         "- example_da / example_en: one short Danish sentence that demonstrates this merged sense,\n"
@@ -168,6 +176,7 @@ def sense_discovery_response_config(genai_types) -> object:
                             "meaning_key": {"type": "STRING"},
                             "english_translation": {"type": "STRING"},
                             "gloss": {"type": "STRING"},
+                            "english_gloss": {"type": "STRING"},
                             "alternative_translations": {
                                 "type": "ARRAY",
                                 "items": {"type": "STRING"},
@@ -180,6 +189,7 @@ def sense_discovery_response_config(genai_types) -> object:
                             "meaning_key",
                             "english_translation",
                             "gloss",
+                            "english_gloss",
                             "alternative_translations",
                         ],
                     },
@@ -260,6 +270,7 @@ def _deduplicate_translations_across_senses(
                     meaning_key=sense.meaning_key,
                     english_translation=sense.english_translation,
                     gloss=sense.gloss,
+                    english_gloss=sense.english_gloss,
                     alternative_translations=filtered_alternatives,
                     example_da=sense.example_da,
                     example_en=sense.example_en,
@@ -359,6 +370,12 @@ def _parse_single_sense(raw_sense: dict[str, Any], seen_keys: set[str]) -> Disco
         raw_sense.get("alternative_translations"),
         primary=english_translation,
     )
+    english_gloss = normalize_translation_value(raw_sense.get("english_gloss"))
+    # Reject the case where Gemini echoed the lemma translation back into
+    # english_gloss — that adds no info and the UI would render it as a
+    # redundant parenthetical ("playing card (playing card)").
+    if english_gloss is not None and english_gloss == english_translation:
+        english_gloss = None
     example_da = _normalize_example_text(raw_sense.get("example_da"))
     example_en = _normalize_example_text(raw_sense.get("example_en"))
     cor_lemma_idx = _normalize_int(raw_sense.get("cor_lemma_idx"))
@@ -366,6 +383,7 @@ def _parse_single_sense(raw_sense: dict[str, Any], seen_keys: set[str]) -> Disco
         meaning_key=meaning_key,
         english_translation=english_translation,
         gloss=gloss,
+        english_gloss=english_gloss,
         alternative_translations=alternatives,
         example_da=example_da,
         example_en=example_en,

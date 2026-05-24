@@ -14,6 +14,7 @@ class AddWordRequest(BaseModel):
         dictionary_status: Literal["cor", "generated_non_cor", "unknown"] | None = None
         meaning_key: str | None = None
         gloss: str | None = None
+        english_gloss: str | None = None
         english_translation: str | None = None
         pos_tag: str | None = None
         morphology: str | None = None
@@ -418,6 +419,7 @@ class CORSearchVariant(BaseModel):
     lemma_translation_status: Literal["provider", "gemini", "gloss_fallback", "missing"] | None = None
     lemma_translation_reason: str | None = None
     meaning_key: str | None = None
+    english_gloss: str | None = None
     alternative_translations: list[str] = Field(default_factory=list)
     saved_meaning_id: int | None = None
     example_da: str | None = None
