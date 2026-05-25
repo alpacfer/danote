@@ -12,14 +12,14 @@ class SentenceVerificationError(RuntimeError):
     """Raised when Gemini sentence verification cannot complete."""
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class SentenceVerificationErrorSpan:
     start: int    # char offset, inclusive
     end: int      # char offset, exclusive
     message: str
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class SentenceMWESpan:
     start: int
     end: int
@@ -30,7 +30,7 @@ class SentenceMWESpan:
     english_translation: str | None = None
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class SentenceMWEMeaning:
     """One distinct sense of a Multi-Word Expression.
 
@@ -45,7 +45,7 @@ class SentenceMWEMeaning:
     meaning_key: str | None = None
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class SentenceVerificationResult:
     is_valid: bool
     errors: list[SentenceVerificationErrorSpan]
@@ -63,7 +63,7 @@ class SentenceVerificationResult:
     mwe_spans: list[SentenceMWESpan] = field(default_factory=list)
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class _WordSpan:
     start: int
     end: int

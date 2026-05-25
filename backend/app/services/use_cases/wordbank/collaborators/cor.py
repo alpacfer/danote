@@ -105,6 +105,8 @@ class CorResolutionCollaborator:
             form,
             limit=limit,
             include_translations=include_translations,
+            en_query=en_query,
+            en_pos_ud=en_pos_ud,
         )
         if en_query and en_query.strip():
             response = filter_cor_form_response_by_en_query(
@@ -153,8 +155,10 @@ class CorResolutionCollaborator:
                 form,
                 limit=limit,
                 include_translations=include_translations,
+                en_query=en_query,
+                en_pos_ud=en_pos_ud,
             )
-            for form, _en_query, _en_pos_ud in items
+            for form, en_query, en_pos_ud in items
         ]
         filter_items = [
             (response, en_query, en_pos_ud)

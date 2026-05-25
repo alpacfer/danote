@@ -126,6 +126,7 @@ def verify_sentence(payload: VerifySentenceRequest, request: Request) -> VerifyS
     return run_db_operation(
         request,
         lambda: _sentencebank_use_case(request).verify_sentence(payload.source_text),
+        include_runtime_error=True,
         error_log_name="sentencebank_verify_db_operational_error",
     )
 

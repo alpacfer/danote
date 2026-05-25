@@ -82,6 +82,27 @@ def load_settings(*, env_file: Path | None = None) -> Settings:
         for origin in raw_cors_origins.split(",")
         if origin.strip()
     )
+
+    raw_gemini_model = _required_env(
+        "DANOTE_GEMINI_MODEL",
+        env_values,
+        _required_env("DANOTE_WORD_VERIFICATION_GEMINI_MODEL", env_values, "gemini-3.1-flash-lite"),
+    )
+    if "preview" in raw_gemini_model:
+        gemini_model = raw_gemini_model.replace("-preview", "")
+    else:
+        gemini_model = raw_gemini_model
+
+    raw_word_verification_model = _required_env(
+        "DANOTE_WORD_VERIFICATION_GEMINI_MODEL",
+        env_values,
+        _required_env("DANOTE_GEMINI_MODEL", env_values, "gemini-3.1-flash-lite"),
+    )
+    if "preview" in raw_word_verification_model:
+        word_verification_model = raw_word_verification_model.replace("-preview", "")
+    else:
+        word_verification_model = raw_word_verification_model
+
     return Settings(
         environment=_required_env("DANOTE_ENV", env_values, "development"),
         app_name=_required_env("DANOTE_APP_NAME", env_values, "danote-backend"),
@@ -113,11 +134,7 @@ def load_settings(*, env_file: Path | None = None) -> Settings:
             env_values,
             _optional_env("DANOTE_WORD_VERIFICATION_GEMINI_API_KEY", env_values),
         ),
-        gemini_model=_required_env(
-            "DANOTE_GEMINI_MODEL",
-            env_values,
-            _required_env("DANOTE_WORD_VERIFICATION_GEMINI_MODEL", env_values, "gemini-3.1-flash-lite"),
-        ),
+        gemini_model=gemini_model,
         search_gemini_cache_enabled=_required_env(
             "DANOTE_SEARCH_GEMINI_CACHE",
             env_values,
@@ -160,11 +177,7 @@ def load_settings(*, env_file: Path | None = None) -> Settings:
             env_values,
             _optional_env("DANOTE_GEMINI_API_KEY", env_values),
         ),
-        word_verification_gemini_model=_required_env(
-            "DANOTE_WORD_VERIFICATION_GEMINI_MODEL",
-            env_values,
-            _required_env("DANOTE_GEMINI_MODEL", env_values, "gemini-3.1-flash-lite"),
-        ),
+        word_verification_gemini_model=word_verification_model,
         wordbank_background_job_workers=int(
             _required_env("DANOTE_WORDBANK_BACKGROUND_JOB_WORKERS", env_values, "4")
         ),

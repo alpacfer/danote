@@ -88,6 +88,29 @@ def replace_danish_add_actions(
     if not cor_add_options:
         return actions
 
+    def _option_sort_key(opt: _CORAddOption) -> tuple:
+        saved_priority = 0 if opt.saved_meaning_id is not None else 1
+        is_exact_lemma = (normalize_token(opt.lemma) == normalize_token(opt.surface))
+        lemma_priority = 0 if is_exact_lemma else 1
+        
+        pos = (opt.pos_tag or "").upper()
+        if pos == "VERB":
+            pos_priority = 0
+        elif pos == "NOUN":
+            pos_priority = 1
+        else:
+            pos_priority = 2
+            
+        import re
+        cor_num = 9999999
+        if opt.cor_id:
+            match = re.search(r'\d+', opt.cor_id)
+            if match:
+                cor_num = int(match.group(0))
+        return (saved_priority, lemma_priority, pos_priority, cor_num)
+
+    sorted_options = sorted(cor_add_options, key=_option_sort_key)
+
     existing_da_actions = [
         action
         for action in actions
@@ -110,7 +133,7 @@ def replace_danish_add_actions(
 
     replaced_actions: list[WordActionSuggestion] = []
     seen_keys: set[tuple[str, str, str | None, str | None, str | None]] = set()
-    for option in cor_add_options:
+    for option in sorted_options:
         comparable_surface = _normalize_action_value(option.surface)
         comparable_lemma = _normalize_action_value(option.lemma)
         key = (comparable_surface, comparable_lemma, option.pos_tag, option.morphology, option.meaning_key)

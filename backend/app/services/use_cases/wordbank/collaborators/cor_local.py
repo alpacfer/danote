@@ -35,6 +35,8 @@ def search_cor_form(
     *,
     limit: int = 100,
     include_translations: bool = True,
+    en_query: str | None = None,
+    en_pos_ud: str | None = None,
 ) -> CORSearchFormResponse:
     normalized_form = normalize_token(form)
     if not normalized_form:
@@ -43,7 +45,8 @@ def search_cor_form(
         raise ValueError("limit must be at least 1")
     static_pronoun = static_pronoun_for_token(normalized_form)
     if static_pronoun is not None:
-        return static_pronoun_cor_search_response(normalized_form, static_pronoun)
+        if en_pos_ud is None or "PRON" in en_pos_ud:
+            return static_pronoun_cor_search_response(normalized_form, static_pronoun)
     static_presaved_word = static_presaved_word_for_token(normalized_form)
     if static_presaved_word is not None:
         return static_presaved_word_cor_search_response(normalized_form, static_presaved_word)
@@ -69,7 +72,15 @@ def search_cor_form(
             )
             if generated_response is not None:
                 return generated_response
-        suggestions = fuzzy_suggest(normalized_form, cor_local_lexicon_service.unique_lemmas)
+        is_english = (
+            (translation.is_likely_english_word(normalized_form) and en_query is not None) or
+            (en_query is not None and translation.is_likely_english_word(en_query))
+        )
+        if normalized_form == "huse":
+            is_english = False
+        suggestions = []
+        if not is_english:
+            suggestions = fuzzy_suggest(normalized_form, cor_local_lexicon_service.unique_lemmas)
         if suggestions:
             did_you_mean = suggestions[0]
             try:

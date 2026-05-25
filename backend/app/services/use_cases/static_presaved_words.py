@@ -15,6 +15,8 @@ class StaticPresavedWord:
 
 
 STATIC_PRESAVED_WORDS: dict[str, StaticPresavedWord] = {
+    "ikke": StaticPresavedWord("ikke", "not", "ADV"),
+    "er": StaticPresavedWord("være", "to be / is / are", "AUX"),
     "i": StaticPresavedWord("i", "in / for", "ADP"),
     "der": StaticPresavedWord("der", "there", "ADV", meaning_key="there"),
     "en": StaticPresavedWord("en", "a / an", "DET", "Gender=Com|Number=Sing", meaning_key="article"),
@@ -157,6 +159,8 @@ for word in STATIC_PRESAVED_WORDS.values():
     for part in word.english_translation.replace("(", "/").replace(")", "").split("/"):
         normalized_part = normalize_token(part)
         if normalized_part:
+            if normalized_part == "is":
+                continue
             STATIC_PRESAVED_WORDS_BY_ENGLISH.setdefault(normalized_part, word)
 
 
