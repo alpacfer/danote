@@ -166,7 +166,7 @@ or `Authorization: Bearer <guest-token>` header. Local dev
   - `english_translation`: for Danish/unknown queries, derived from the finalized Danish `source_text`; for English-origin queries, the corrected original English sentence used for translation, not a Danish-to-English retranslation.
   - `status = "preview"`: fast preview path. Skips sentence verification, uses heuristic language detection plus the configured translation service, and is intended for immediate sidebar feedback while the full result is still pending.
   - `status = "ready"`: save may proceed when `source_text` is non-null.
-  - `status = "blocked"`: sidebar disables save and surfaces `message`.
+  - `status = "blocked"`: sidebar disables save and surfaces `message`. Full preview blocks mixed Danish/English input and verification failures unless a deterministic local correction or exact MWE fallback can produce a safe Danish candidate.
   - `is_multi_word_expression`: true if the entire query is exactly one multi-word expression (e.g. phrasal verb or idiom).
   - `mwe_lemma`: dictionary form of the MWE if applicable.
   - `mwe_pos_tag`: part of speech of the MWE (e.g., `phrasal_verb` or `idiom`).
@@ -174,6 +174,7 @@ or `Authorization: Bearer <guest-token>` header. Local dev
   - `mwe_english_translation`: English translation of the MWE.
   - `mwe_cor_match`: matched `CORSearchVariant` for the MWE if found in COR, or a synthetically populated one if it is generated.
   - Explicit English queries translate the corrected or normalized English sentence into Danish and do not perform a second Danish verification pass. Unknown-language queries do not auto-switch into English flow.
+  - Exact known MWEs may be returned from local fallback even when sentence verification is unavailable; polysemous entries such as `tage på` still populate `mwe_meanings`.
 
 ## Wordbank
 
@@ -397,6 +398,7 @@ or `Authorization: Bearer <guest-token>` header. Local dev
   - `en_query`: when provided, backend may ask Gemini to keep only COR groups whose Danish meaning translates that English query; if Gemini returns no usable match or fails, all COR groups are kept.
   - `did_you_mean`: non-null when `form` had no COR entries and a Levenshtein-close COR lemma was found; `groups` then contains results for the corrected lemma.
   - **Sense fan-out (open-class POS).** When `include_translations=true` and the lemma's POS is open-class (`VERB`, `AUX`, `NOUN`, `PROPN`, `ADJ`, `ADV`), the backend calls Gemini sense discovery for each `(lemma, pos_tag)` and expands the group into one group per discovered sense. Each rewritten variant carries the per-sense `meaning_key` (stable lowercase slug, e.g. `hit`/`mow`/`ring-bell`), `gloss` (short Danish definition), `lemma_translation`/`saveable_translation` set to the sense's canonical English (`to hit`), `alternative_translations` (≤3 same-sense synonyms), and optional `example_da`/`example_en`. Search-save payloads persist those same-sense alternatives as meaning-level additional translations so the saved word-card display matches the search row. Monosemous lemmas produce one group as before. Discovery results are cached, so repeat searches don't repay the Gemini cost.
+  - Search responses collapse indistinguishable duplicate COR rows when normalized form, lemma, POS/morphology, and saveable English translation match and no sense-level `meaning_key` or English gloss distinguishes them.
   - **`saved_meaning_id`.** When the user already has a `lexeme_meanings` row whose `meaning_key` matches the sense's key (for the same lemma), the variant carries `saved_meaning_id` = that row's id; the frontend renders an "open in wordbank" icon for those cards instead of "add". Legacy single-meaning saves (created before sense fan-out) match only when the variant's `meaning_key` is `null`.
 
 ### POST `/api/wordbank/search/cor-form-batch`
@@ -417,6 +419,7 @@ or `Authorization: Bearer <guest-token>` header. Local dev
   - Groups are keyed by `(lemma, pos_ud)`, preserve POS priority `NOUN`, `VERB`, `ADJ`, `ADV`, `PROPN`, then others, and cap senses to five per POS group.
   - `danish_translation` prefers the matched English surface form translation before lemma translation, and may be `null`; clients must treat null rows as not directly saveable.
   - `meaning_description` is nullable. When a query has two or more distinct Danish translations and Gemini is available, it contains a short English disambiguation label for that translated meaning.
+  - English verb forms for `clothe` are not translated as noun `tøj`; `clothes`/`clothing` verb groups resolve to `klæde på`.
 
 ### GET `/api/wordbank/search/cor-lemma/{lemma_idx}`
 - **Request model:** none (`lemma_idx` path param, optional `limit` query param).

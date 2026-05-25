@@ -4,7 +4,7 @@ import { toast } from "sonner"
 import {
   ApiRequestError,
   SEARCH_RESOLVE_DEBOUNCE_MS,
-  isShortLetterWord,
+  isBlockedShortSearchWord,
   type CORSearchFormResponse,
   type ENPosGroup,
 } from "@/app/core"
@@ -53,7 +53,7 @@ export function useSidebarCorSearch({
       shouldSkipLookup
       || !normalizedQuery
       || /\s/u.test(normalizedQuery)
-      || isShortLetterWord(normalizedQuery)
+      || isBlockedShortSearchWord(normalizedQuery)
       || getQuestionWordEntry(normalizedQuery)
       || getPronounCategory(normalizedQuery)
     ) {

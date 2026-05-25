@@ -10,6 +10,7 @@ import pytest
 
 from app.api.schemas.v1.sentencebank import SentenceVerificationErrorItem
 from app.nlp.adapter import NLPToken
+from app.services.cor_local import CORLocalEntry
 from app.services.sentence_verification import (
     SentenceVerificationErrorSpan,
     SentenceVerificationResult,
@@ -201,7 +202,7 @@ def test_sentencebank_save_reuses_cached_phrase_translation(tmp_path: Path) -> N
 
     assert preview.status == "generated"
     assert inserted.status == "inserted"
-    assert inserted.english_translation == "i like it"
+    assert inserted.english_translation == "I like it"
     assert translation_service.calls == ["Jeg kan godt lide det"]
 
 
@@ -1159,9 +1160,62 @@ def test_sentencebank_preview_sentence_search_returns_danish_correction(tmp_path
     assert preview.status == "ready"
     assert preview.query_language == "da"
     assert preview.source_text == "jeg er glad"
-    assert preview.english_translation == "i am happy"
+    assert preview.english_translation == "I am happy"
     assert preview.is_valid is False
     assert preview.errors == [SentenceVerificationErrorItem(start=7, end=11, message="typo")]
+
+
+def test_sentencebank_preview_sentence_search_heuristically_corrects_common_danish_verb_form(
+    tmp_path: Path,
+) -> None:
+    verification_service = FakeSentenceVerificationService(
+        results={
+            "jeg spise et æble": SentenceVerificationResult(
+                is_valid=True,
+                errors=[],
+                corrected_text=None,
+                language="da",
+            ),
+        }
+    )
+    use_case = SentencebankUseCase(
+        _db_path(tmp_path),
+        translation_service=FakeTranslationService({"jeg spiser et æble": "I eat an apple"}),
+        sentence_verification_service=verification_service,
+    )
+
+    preview = use_case.preview_sentence_search("jeg spise et æble")
+
+    assert preview.status == "ready"
+    assert preview.source_text == "jeg spiser et æble"
+    assert preview.is_valid is False
+    assert preview.errors == [SentenceVerificationErrorItem(start=4, end=9, message="Use the finite verb form.")]
+
+
+def test_sentencebank_preview_sentence_search_blocks_mixed_language_without_correction(
+    tmp_path: Path,
+) -> None:
+    verification_service = FakeSentenceVerificationService(
+        results={
+            "jeg har a dog": SentenceVerificationResult(
+                is_valid=True,
+                errors=[],
+                corrected_text=None,
+                language="da",
+            ),
+        }
+    )
+    use_case = SentencebankUseCase(
+        _db_path(tmp_path),
+        translation_service=FakeTranslationService({"jeg har a dog": "I have a dog"}),
+        sentence_verification_service=verification_service,
+    )
+
+    preview = use_case.preview_sentence_search("jeg har a dog")
+
+    assert preview.status == "blocked"
+    assert preview.is_valid is False
+    assert preview.source_text is None
 
 
 def test_sentencebank_preview_sentence_search_translates_english_input(tmp_path: Path) -> None:
@@ -1324,7 +1378,58 @@ def test_sentencebank_preview_sentence_search_mwe_from_english_query(tmp_path: P
     assert preview.mwe_meanings[0].saveable_translation == "look after"
 
 
-def test_sentencebank_preview_sentence_search_degrades_when_verification_unavailable(tmp_path: Path) -> None:
+def test_sentencebank_preview_sentence_search_uses_cor_mwe_fallback(tmp_path: Path) -> None:
+    verification_service = FakeSentenceVerificationService(
+        results={
+            "tage på": SentenceVerificationResult(
+                is_valid=True,
+                errors=[],
+                corrected_text=None,
+                language="da",
+            ),
+        }
+    )
+    db_path = _db_path(tmp_path)
+    wordbank_use_case = WordbankUseCase(
+        db_path,
+        translation_service=FakeTranslationService({"tage på": "gain weight"}),
+        cor_local_lexicon_service=FakeCORLocalLexiconService(
+            by_form={
+                "tage på": [
+                    CORLocalEntry(
+                        cor_id="COR.MWE.TAGE_PAA",
+                        lemma="tage på",
+                        gloss="forøge sin kropsvægt",
+                        gram_raw="mwe",
+                        form="tage på",
+                        norm="N",
+                        lemma_idx=123,
+                        gram_code=0,
+                        variation=1,
+                        pos_tag="VERB",
+                        morphology=None,
+                        features={},
+                        extra_tags=[],
+                    ),
+                ],
+            }
+        ),
+    )
+    use_case = SentencebankUseCase(
+        db_path,
+        translation_service=FakeTranslationService({"tage på": "gain weight"}),
+        sentence_verification_service=verification_service,
+        wordbank_use_case=wordbank_use_case,
+    )
+
+    preview = use_case.preview_sentence_search("tage på")
+
+    assert preview.is_multi_word_expression is True
+    assert preview.mwe_lemma == "tage på"
+    assert preview.mwe_meanings[0].saveable_translation == "Gain weight"
+
+
+def test_sentencebank_preview_sentence_search_blocks_when_verification_unavailable(tmp_path: Path) -> None:
     use_case = SentencebankUseCase(
         _db_path(tmp_path),
         translation_service=FakeTranslationService(
@@ -1336,11 +1441,11 @@ def test_sentencebank_preview_sentence_search_degrades_when_verification_unavail
 
     preview = use_case.preview_sentence_search("I am happy")
 
-    assert preview.status == "ready"
+    assert preview.status == "blocked"
     assert preview.query_language == "en"
-    assert preview.source_text == "jeg er glad"
-    assert preview.english_translation == "I am happy"
-    assert preview.is_valid is True
+    assert preview.source_text is None
+    assert preview.english_translation is None
+    assert preview.is_valid is False
     assert preview.errors == []
 
 
@@ -1358,7 +1463,7 @@ def test_sentencebank_preview_sentence_fast_path_danish(tmp_path: Path) -> None:
     assert preview.status == "preview"
     assert preview.query_language == "da"
     assert preview.source_text == "jeg er glad"
-    assert preview.english_translation == "i am happy"
+    assert preview.english_translation == "I am happy"
     assert preview.is_valid is True
     assert preview.errors == []
 
@@ -2202,4 +2307,3 @@ def test_sentencebank_save_merges_contiguous_phrasal_verb_pas_paa(tmp_path: Path
     assert mwe_token.surface_form == "Pas på"
     assert mwe_token.stored_lemma == "passe på"
     assert mwe_token.pos_tag == "VERB"
-

@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   ApiRequestError,
   SEARCH_RESOLVE_DEBOUNCE_MS,
-  isShortLetterWord,
+  isBlockedShortSearchWord,
   normalizeSearchWord,
   type CORSearchFormBatchResponse,
   type CORSearchFormResponse,
@@ -69,7 +69,7 @@ export function useSidebarEnSearch({
       || !normalizedQuery
       || normalizedQuery.length < 2
       || /\s/u.test(normalizedQuery)
-      || isShortLetterWord(normalizedQuery)
+      || isBlockedShortSearchWord(normalizedQuery)
       || isEnglishQuestionWordQuery(normalizedQuery)
       || isEnglishPronounQuery(normalizedQuery)
       || !isEnglishSingleWordQuery

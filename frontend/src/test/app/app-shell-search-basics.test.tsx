@@ -489,7 +489,7 @@ describe("App shell and search", () => {
     })
   })
 
-  it("command search skips wordbank API calls for one-character queries", async () => {
+  it("command search skips low-signal short queries but allows core short words", async () => {
     const fetchSpy = mockFetchImplementation({
       lemmasResponse: { items: [] },
       searchWordbankResponse: {
@@ -520,6 +520,14 @@ describe("App shell and search", () => {
     })
 
     fireEvent.change(searchInput, { target: { value: "so" } })
+
+    await waitFor(() => {
+      expect(
+        fetchSpy.mock.calls.filter(([input]) => String(input).includes("/api/wordbank/search?")),
+      ).toHaveLength(0)
+    })
+
+    fireEvent.change(searchInput, { target: { value: "er" } })
 
     await waitFor(() => {
       expect(

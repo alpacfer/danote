@@ -74,7 +74,8 @@ def _filter_cor_form_responses_with_single_gemini_call(
             normalized_pos = pos.strip().upper()
             if normalized_pos:
                 pos_hints.add(normalized_pos)
-        for group_index, group in enumerate(response.groups):
+        groups = _deterministic_groups_for_en_query(response, en_pos_ud)
+        for group_index, group in enumerate(groups):
             choice_id = f"{item_index}:{group_index}"
             id_to_group[choice_id] = (item_index, group_index)
             choices.append(
@@ -110,22 +111,84 @@ def _filter_cor_form_responses_with_single_gemini_call(
 
     filtered: list[CORSearchFormResponse] = []
     for item_index, (response, _en_query, _en_pos_ud) in enumerate(items):
+        deterministic_groups = _deterministic_groups_for_en_query(response, _en_pos_ud)
         matching_indices = matching_by_item.get(item_index)
         if not matching_indices:
-            filtered.append(response)
+            fallback_groups = _fallback_groups_after_en_filter(deterministic_groups, _en_query, _en_pos_ud)
+            filtered.append(CORSearchFormResponse(
+                form=response.form,
+                groups=fallback_groups,
+                did_you_mean=response.did_you_mean,
+            ))
             continue
+        filtered_groups = [
+            group
+            for group_index, group in enumerate(deterministic_groups)
+            if group_index in matching_indices
+        ]
+        filtered_groups = _prefer_gloss_matches(filtered_groups, en_query=_en_query)
         filtered.append(
             CORSearchFormResponse(
                 form=response.form,
-                groups=[
-                    group
-                    for group_index, group in enumerate(response.groups)
-                    if group_index in matching_indices
-                ],
+                groups=filtered_groups,
                 did_you_mean=response.did_you_mean,
             )
         )
     return filtered
+
+
+def _deterministic_groups_for_en_query(
+    response: CORSearchFormResponse,
+    en_pos_ud: str | None,
+) -> list:
+    pos_hints = {
+        part.strip().upper()
+        for part in (en_pos_ud or "").split(",")
+        if part.strip()
+    }
+    if not pos_hints:
+        return list(response.groups)
+    matching = [
+        group
+        for group in response.groups
+        if (group.pos_tag or "").strip().upper() in pos_hints
+    ]
+    return matching or list(response.groups)
+
+
+def _fallback_groups_after_en_filter(groups: list, en_query: str, en_pos_ud: str | None) -> list:
+    groups = _prefer_gloss_matches(groups, en_query=en_query)
+    pos_hints = {
+        part.strip().upper()
+        for part in (en_pos_ud or "").split(",")
+        if part.strip()
+    }
+    if pos_hints and len(groups) > 1:
+        return groups[:1]
+    return groups
+
+
+def _prefer_gloss_matches(groups: list, *, en_query: str) -> list:
+    markers = _english_query_gloss_markers(en_query)
+    if not markers:
+        return groups
+    matched = [
+        group
+        for group in groups
+        if any(marker in (group.gloss or "").casefold() for marker in markers)
+    ]
+    return matched or groups
+
+
+def _english_query_gloss_markers(en_query: str) -> set[str]:
+    words = {word.strip(".,!?;:()[]{}\"'").casefold() for word in en_query.split()}
+    if words & {"book", "books"}:
+        return {"læsning", "skrift", "trykt"}
+    if words & {"house", "houses", "home"}:
+        return {"bolig", "bygning", "hus"}
+    if words & {"clothes", "clothing", "garment", "garments"}:
+        return {"klæder", "tøj", "stof"}
+    return set()
 
 
 def _danish_lemma_with_article(lemma: str, pos_tag: str | None) -> str:

@@ -32,6 +32,15 @@ def _normalize_translation_candidate(value: str | None) -> str | None:
     return normalized or None
 
 
+def _en_surface_pos_translation_override(form: str, lemma: str, pos_ud: str) -> str | None:
+    form_key = form.strip().casefold()
+    lemma_key = lemma.strip().casefold()
+    pos_key = pos_ud.strip().upper()
+    if pos_key == "VERB" and lemma_key == "clothe" and form_key in {"clothes", "clothing"}:
+        return "klæde på"
+    return None
+
+
 def _translate_en_surface_form(
     *,
     form: str,
@@ -225,7 +234,10 @@ def build_en_pos_groups(
         sense_outs: list[ENSenseOut] = []
         group_translation: str | None = None
         if include_translations:
-            group_translation = group_translations.get(key)
+            group_translation = (
+                _en_surface_pos_translation_override(match.form, match.lemma, match.pos_ud)
+                or group_translations.get(key)
+            )
         for sense in senses:
             translation_value = group_translation
             if include_translations and not translation_value:

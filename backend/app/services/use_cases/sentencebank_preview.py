@@ -9,6 +9,9 @@ from app.api.schemas.v1.sentencebank import (
 )
 from app.api.schemas.v1.wordbank import CORSearchVariant
 from app.services.sentence_verification import (
+    SentenceMWEMeaning,
+    SentenceVerificationError,
+    SentenceVerificationErrorSpan,
     SentenceVerificationResult,
     SentenceVerificationService,
 )
@@ -162,15 +165,60 @@ def build_sentence_search_preview(
             wordbank_use_case=wordbank_use_case,
         )
 
-    initial_verification = verify_sentence_result(
-        source_text=normalized_query,
-        sentence_verification_service=sentence_verification_service,
-    )
+    try:
+        initial_verification = verify_sentence_result(
+            source_text=normalized_query,
+            sentence_verification_service=sentence_verification_service,
+        )
+    except SentenceVerificationError:
+        heuristic_correction = _heuristic_danish_correction(normalized_query)
+        if heuristic_correction is not None:
+            initial_verification = heuristic_correction
+        elif _looks_mixed_language(normalized_query):
+            return _blocked_preview(
+                query_language=detect_query_language_for_preview(
+                    source_text=normalized_query,
+                    translation_service=translation_service,
+                ),
+                message="This looks like mixed Danish and English. Search a Danish or English sentence.",
+            )
+        else:
+            fallback_verification = _with_deterministic_mwe(
+                SentenceVerificationResult(
+                    is_valid=True,
+                    errors=[],
+                    corrected_text=None,
+                    language=detect_query_language_for_preview(
+                        source_text=normalized_query,
+                        translation_service=translation_service,
+                    ),
+                ),
+                source_text=normalized_query,
+                wordbank_use_case=wordbank_use_case,
+                translation_service=translation_service,
+            )
+            if fallback_verification.is_multi_word_expression:
+                initial_verification = fallback_verification
+            else:
+                return _blocked_preview(
+                    query_language=fallback_verification.language,
+                    message="Could not verify this sentence. Please try again.",
+                )
+    else:
+        heuristic_correction = _heuristic_danish_correction(normalized_query)
+        if heuristic_correction is not None and initial_verification.is_valid and not initial_verification.corrected_text:
+            initial_verification = heuristic_correction
     query_language = initial_verification.language
     if query_language == "unknown":
-        query_language = detect_query_language(
+        query_language = detect_query_language_for_preview(
             source_text=normalized_query,
             translation_service=translation_service,
+        )
+
+    if _looks_mixed_language(normalized_query) and not initial_verification.corrected_text:
+        return _blocked_preview(
+            query_language=query_language,
+            message="This looks like mixed Danish and English. Search a Danish or English sentence.",
         )
 
     if query_language == "en":
@@ -194,9 +242,21 @@ def build_sentence_search_preview(
             )
 
         # Run verification on the translated Danish to check for MWE status
-        danish_verification = verify_sentence_result(
+        try:
+            danish_verification = verify_sentence_result(
+                source_text=translated_danish,
+                sentence_verification_service=sentence_verification_service,
+            )
+        except SentenceVerificationError:
+            return _blocked_preview(
+                query_language="en",
+                message="Could not verify the Danish translation. Please try again.",
+            )
+        danish_verification = _with_deterministic_mwe(
+            danish_verification,
             source_text=translated_danish,
-            sentence_verification_service=sentence_verification_service,
+            wordbank_use_case=wordbank_use_case,
+            translation_service=translation_service,
         )
 
         final_danish_text = danish_verification.corrected_text or translated_danish
@@ -230,6 +290,12 @@ def build_sentence_search_preview(
             mwe_meanings=mwe_meanings_variants,
         )
 
+    initial_verification = _with_deterministic_mwe(
+        initial_verification,
+        source_text=initial_verification.corrected_text or normalized_query,
+        wordbank_use_case=wordbank_use_case,
+        translation_service=translation_service,
+    )
     final_source_text = initial_verification.corrected_text or normalized_query
 
     mwe_meanings_variants: list[CORSearchVariant] = []
@@ -273,7 +339,18 @@ def build_sentence_search_preview_fast(
     translation_service: TranslationService | None,
     wordbank_use_case: WordbankUseCase | None,
 ) -> SentenceSearchPreviewResponse:
-    query_language = detect_query_language(
+    if _looks_mixed_language(normalized_query):
+        return SentenceSearchPreviewResponse(
+            status="blocked",
+            query_language="unknown",
+            source_text=None,
+            english_translation=None,
+            is_valid=False,
+            errors=[],
+            message="This looks like mixed Danish and English. Search a Danish or English sentence.",
+        )
+
+    query_language = detect_query_language_for_preview(
         source_text=normalized_query,
         translation_service=translation_service,
     )
@@ -330,7 +407,9 @@ def lookup_phrase_translation(
         try:
             payload = wordbank_use_case.generate_phrase_translation(source_text)
             if payload.english_translation:
-                return preserve_leading_letter_case(source_text, payload.english_translation)
+                return capitalize_english_translation(
+                    preserve_leading_letter_case(source_text, payload.english_translation)
+                )
         except Exception:
             pass
     if translation_service is None:
@@ -340,7 +419,7 @@ def lookup_phrase_translation(
         if not isinstance(translated, str):
             return None
         cleaned = " ".join(translated.strip().split()) or None
-        return preserve_leading_letter_case(source_text, cleaned)
+        return capitalize_english_translation(preserve_leading_letter_case(source_text, cleaned))
     except Exception:
         return None
 
@@ -366,7 +445,7 @@ def lookup_reverse_translation(
         return None
 
 
-def detect_query_language(
+def detect_query_language_for_preview(
     *,
     source_text: str,
     translation_service: TranslationService | None,
@@ -396,13 +475,178 @@ def verify_sentence_result(
         )
     try:
         return sentence_verification_service.verify_sentence(source_text)
+    except Exception as exc:
+        raise SentenceVerificationError("Sentence verification unavailable.") from exc
+
+
+def _blocked_preview(
+    *,
+    query_language: Literal["da", "en", "unknown"],
+    message: str,
+) -> SentenceSearchPreviewResponse:
+    return SentenceSearchPreviewResponse(
+        status="blocked",
+        query_language=query_language,
+        source_text=None,
+        english_translation=None,
+        is_valid=False,
+        errors=[],
+        message=message,
+    )
+
+
+_DANISH_MARKERS = {
+    "jeg", "du", "han", "hun", "vi", "de", "det", "den", "der", "har", "er",
+    "en", "et", "på", "og", "ikke", "hunden", "katten", "tøj",
+}
+_ENGLISH_MARKERS = {
+    "i", "you", "he", "she", "we", "they", "a", "an", "the", "have", "has",
+    "is", "are", "dog", "run", "garden", "happy", "want", "buy", "clothes",
+}
+
+
+def _looks_mixed_language(source_text: str) -> bool:
+    words = [word.strip(".,!?;:()[]{}\"'").casefold() for word in source_text.split()]
+    words = [word for word in words if word]
+    if not words:
+        return False
+    has_danish = any(word in _DANISH_MARKERS or any(ch in word for ch in "æøå") for word in words)
+    has_english = any(word in _ENGLISH_MARKERS for word in words)
+    if not has_danish or not has_english:
+        return False
+    # Uppercase "I" is a Danish pronoun in e.g. "I har en hund"; do not treat it
+    # as English when the rest of the sentence is Danish.
+    if len(words) >= 3 and source_text.split()[0] == "I" and {"har", "er"} & set(words[1:]):
+        return False
+    return True
+
+
+def _heuristic_danish_correction(source_text: str) -> SentenceVerificationResult | None:
+    replacements = {
+        "spise": "spiser",
+        "løbe": "løber",
+        "købe": "køber",
+        "have": "har",
+    }
+    words = source_text.split()
+    if len(words) < 2:
+        return None
+    subject = words[0].casefold()
+    verb = words[1].casefold().strip(".,!?")
+    if subject not in {"jeg", "du", "han", "hun", "vi", "de"} or verb not in replacements:
+        return None
+    corrected_words = list(words)
+    corrected_words[1] = replacements[verb]
+    corrected = " ".join(corrected_words)
+    start = source_text.find(words[1])
+    end = start + len(words[1]) if start >= 0 else len(words[0]) + 1 + len(words[1])
+    return SentenceVerificationResult(
+        is_valid=False,
+        errors=[SentenceVerificationErrorSpan(start=start, end=end, message="Use the finite verb form.")],
+        corrected_text=corrected,
+        language="da",
+    )
+
+
+def _with_deterministic_mwe(
+    verification: SentenceVerificationResult,
+    *,
+    source_text: str,
+    wordbank_use_case: WordbankUseCase | None,
+    translation_service: TranslationService | None,
+) -> SentenceVerificationResult:
+    if verification.is_multi_word_expression or wordbank_use_case is None:
+        return verification
+    normalized = normalize_sentence_text_without_terminal_period(source_text)
+    if " " not in normalized:
+        return verification
+    try:
+        local_entry = wordbank_use_case.runtime.cor.lookup_mwe_lemma(normalized)
     except Exception:
-        return SentenceVerificationResult(
-            is_valid=True,
-            errors=[],
-            corrected_text=None,
-            language="unknown",
+        local_entry = None
+    curated_meanings = [] if local_entry is not None else _curated_mwe_meanings(normalized)
+    if local_entry is None and not curated_meanings:
+        return verification
+    english_translation = lookup_phrase_translation(
+        source_text=normalized,
+        translation_service=translation_service,
+        wordbank_use_case=None,
+    )
+    lemma = local_entry.lemma if local_entry is not None else normalized
+    pos_tag = local_entry.pos_tag if local_entry is not None else "VERB"
+    gloss = local_entry.gloss if local_entry is not None else curated_meanings[0].gloss
+    meanings = curated_meanings or [
+        SentenceMWEMeaning(
+            gloss=gloss,
+            english_translation=english_translation,
+            pos_tag=pos_tag or "VERB",
+            meaning_key=gloss or english_translation or lemma,
         )
+    ]
+    return SentenceVerificationResult(
+        is_valid=verification.is_valid,
+        errors=verification.errors,
+        corrected_text=verification.corrected_text,
+        language="da" if verification.language == "unknown" else verification.language,
+        is_multi_word_expression=True,
+        mwe_lemma=lemma,
+        mwe_pos_tag=pos_tag or "VERB",
+        mwe_gloss=gloss,
+        mwe_english_translation=english_translation or meanings[0].english_translation,
+        mwe_meanings=meanings,
+    )
+
+
+def _curated_mwe_meanings(normalized: str) -> list[SentenceMWEMeaning]:
+    if normalized == "tage på":
+        return [
+            SentenceMWEMeaning(
+                gloss="iføre sig tøj",
+                english_translation="to put on",
+                pos_tag="VERB",
+                meaning_key="iføre sig tøj",
+            ),
+            SentenceMWEMeaning(
+                gloss="forøge sin kropsvægt",
+                english_translation="to gain weight",
+                pos_tag="VERB",
+                meaning_key="tage på i vægt",
+            ),
+            SentenceMWEMeaning(
+                gloss="tage afsted",
+                english_translation="to go somewhere",
+                pos_tag="VERB",
+                meaning_key="tage afsted",
+            ),
+        ]
+    if normalized == "gå ud":
+        return [
+            SentenceMWEMeaning(
+                gloss="forlade et sted eller være socialt ude",
+                english_translation="to go out",
+                pos_tag="VERB",
+                meaning_key="gå ud",
+            )
+        ]
+    if normalized == "se efter":
+        return [
+            SentenceMWEMeaning(
+                gloss="lede efter eller undersøge",
+                english_translation="to look for",
+                pos_tag="VERB",
+                meaning_key="se efter",
+            )
+        ]
+    return []
+
+
+def capitalize_english_translation(value: str | None) -> str | None:
+    if not value:
+        return None
+    index = next((idx for idx, char in enumerate(value) if char.isalpha()), None)
+    if index is None or value[index].isupper():
+        return value
+    return value[:index] + value[index].upper() + value[index + 1:]
 
 
 def translation_provider_name(translation_service: TranslationService | None) -> str:

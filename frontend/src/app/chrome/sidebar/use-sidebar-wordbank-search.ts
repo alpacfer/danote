@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react"
 
 import {
   SEARCH_RESOLVE_DEBOUNCE_MS,
+  isBlockedShortSearchWord,
   normalizeSearchWord,
   type WordbankSearchItem,
   type WordbankSearchResponse,
@@ -51,7 +52,7 @@ export function useSidebarWordbankSearch({
       }, 0)
     }
 
-    if (shouldSkipLookup || !normalizedQuery || normalizedQuery.length < 2) {
+    if (shouldSkipLookup || !normalizedQuery || normalizedQuery.length < 2 || isBlockedShortSearchWord(normalizedQuery)) {
       setIsWordbankSearchLoading(false)
       commitSearchMatches([])
       commitDidYouMean(null)

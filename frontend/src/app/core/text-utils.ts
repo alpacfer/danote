@@ -79,6 +79,26 @@ export function isShortLetterWord(value: string): boolean {
   return /^[\p{L}\-'’]+$/u.test(cleaned)
 }
 
+const ALLOWED_SHORT_SEARCH_WORDS = new Set([
+  "er",
+  "på",
+  "at",
+  "og",
+  "en",
+  "et",
+  "i",
+  "is",
+  "be",
+  "on",
+  "in",
+  "to",
+])
+
+export function isBlockedShortSearchWord(value: string): boolean {
+  const normalized = normalizeSearchWord(value)
+  return isShortLetterWord(normalized) && !ALLOWED_SHORT_SEARCH_WORDS.has(normalized)
+}
+
 export function hasMultipleWords(value: string): boolean {
   return value.split(/\s+/u).filter(Boolean).length >= 2
 }

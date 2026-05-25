@@ -128,7 +128,7 @@ def test_sentence_search_preview_returns_danish_preview(tmp_path, stub_nlp_adapt
     assert data["status"] == "ready"
     assert data["query_language"] == "da"
     assert data["source_text"] == "jeg er glad"
-    assert data["english_translation"] == "i am happy"
+    assert data["english_translation"] == "I am happy"
     assert data["is_valid"] is False
     assert data["errors"] == [{"start": 7, "end": 11, "message": "typo"}]
     assert data["message"] is None
@@ -193,7 +193,7 @@ def test_sentence_search_preview_fast_mode_returns_preview_status(tmp_path, stub
     assert data["status"] == "preview"
     assert data["query_language"] == "da"
     assert data["source_text"] == "jeg er glad"
-    assert data["english_translation"] == "i am happy"
+    assert data["english_translation"] == "I am happy"
     assert data["is_valid"] is True
     assert data["errors"] == []
     assert data["message"] is None

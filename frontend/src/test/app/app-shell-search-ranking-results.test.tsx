@@ -191,6 +191,77 @@ describe("App shell and search", () => {
     expect(within(commandDialog).queryByText(/^person$/i)).not.toBeInTheDocument()
   })
 
+  it("renders one COR row for duplicate same-form same-translation meanings", async () => {
+    mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      searchWordbankResponse: { items: [] },
+      corSearchFormResponse: {
+        form: "tøj",
+        groups: [
+          {
+            lemma: "tøj",
+            gloss: "vævet stykke stof, klæde",
+            pos_tag: "NOUN",
+            variants: [
+              {
+                cor_id: "COR.TOEJ.FABRIC",
+                form: "tøj",
+                lemma: "tøj",
+                gloss: "vævet stykke stof, klæde",
+                lemma_translation: "garment",
+                saveable_translation: "garment",
+                gram_raw: "sb.itk.sg.ubest",
+                norm: "N",
+                lemma_idx: 47212,
+                gram_code: 120,
+                variation: 1,
+                pos_tag: "NOUN",
+                morphology: "Gender=Neut|Number=Sing|Definite=Ind",
+                features: { Gender: "Neut", Number: "Sing", Definite: "Ind" },
+                extra_tags: [],
+              },
+            ],
+          },
+          {
+            lemma: "tøj",
+            gloss: "klæder; ting af stof",
+            pos_tag: "NOUN",
+            variants: [
+              {
+                cor_id: "COR.TOEJ.CLOTHING",
+                form: "tøj",
+                lemma: "tøj",
+                gloss: "klæder; ting af stof",
+                lemma_translation: "garment",
+                saveable_translation: "garment",
+                gram_raw: "sb.itk.sg.ubest",
+                norm: "N",
+                lemma_idx: 48541,
+                gram_code: 120,
+                variation: 1,
+                pos_tag: "NOUN",
+                morphology: "Gender=Neut|Number=Sing|Definite=Ind",
+                features: { Gender: "Neut", Number: "Sing", Definite: "Ind" },
+                extra_tags: [],
+              },
+            ],
+          },
+        ],
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    const commandDialog = await screen.findByRole("dialog")
+    const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
+    fireEvent.change(searchInput, { target: { value: "tøj" } })
+
+    expect(await within(commandDialog).findByText(/^garment$/i)).toBeInTheDocument()
+    expect(within(commandDialog).getAllByText(/^tøj$/i, { selector: "strong" })).toHaveLength(1)
+  })
+
   it("omits raw gloss from saved-word translation lines when gloss translation is missing", async () => {
     mockFetchImplementation({
       lemmasResponse: { items: [] },

@@ -476,6 +476,29 @@ def test_wordbank_search_en_form_prefers_surface_form_translation(tmp_path) -> N
     assert response.groups[0].senses[0].danish_translation == "hunde"
 
 
+def test_wordbank_search_en_form_does_not_translate_clothe_verb_as_toej(tmp_path) -> None:
+    lexicon = _StubENLocalLexiconService(
+        matches=[
+            ENLocalFormMatch(form="clothes", lemma="clothes", pos_ud="NOUN", tags=[]),
+            ENLocalFormMatch(form="clothes", lemma="clothe", pos_ud="VERB", tags=[]),
+        ],
+        senses_by_key={
+            ("clothes", "NOUN"): [_sense(lemma="clothes", pos_ud="NOUN", sense_idx=0, gloss="things people wear")],
+            ("clothe", "VERB"): [_sense(lemma="clothe", pos_ud="VERB", sense_idx=0, gloss="put clothes on someone")],
+        },
+    )
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        en_local_lexicon_service=lexicon,
+        translation_service=FakeTranslationService({"clothes": "tøj", "clothe": "tøj"}),
+    )
+
+    response = use_case.search_en_form("clothes")
+
+    by_pos = {group.pos_ud: group.danish_translation for group in response.groups}
+    assert by_pos == {"NOUN": "tøj", "VERB": "klæde på"}
+
+
 def test_resolve_query_keeps_danish_flow_and_attaches_english_groups_when_both_exist(tmp_path) -> None:
     db_path = _db_path(tmp_path)
     en_lexicon = _StubENLocalLexiconService(

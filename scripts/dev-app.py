@@ -1072,6 +1072,8 @@ def is_number_query(value: str) -> bool:
 
 
 def is_short_letter_word(value: str) -> bool:
+    if value in {"er", "på", "at", "og", "en", "et", "i", "is", "be", "on", "in", "to"}:
+        return False
     return value.isalpha() and len(value) <= 2
 
 

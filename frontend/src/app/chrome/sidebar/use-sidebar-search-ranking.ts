@@ -112,7 +112,9 @@ export function useSidebarSearchRanking({
     [activeCorFormSearchResult],
   )
   const corSearchVariants = useMemo(
-    () => corSearchGroups.flatMap((group) => (group.variants ?? []).map((variant) => ({ group, variant }))),
+    () => dedupeEquivalentCorCandidates(
+      corSearchGroups.flatMap((group) => (group.variants ?? []).map((variant) => ({ group, variant }))),
+    ),
     [corSearchGroups],
   )
   const variationCandidateCorIdSet = useMemo(
@@ -370,6 +372,39 @@ function candidateMatchesAnySavedMeaning(
     const translationKey = normalizeSearchWord(lemma.english_translation ?? "")
     return Boolean(translationKey) && candidateMeaningKeySet.has(translationKey)
   })
+}
+
+function dedupeEquivalentCorCandidates(candidates: CorVariantCandidate[]): CorVariantCandidate[] {
+  const seen = new Set<string>()
+  const output: CorVariantCandidate[] = []
+  for (const candidate of candidates) {
+    const key = equivalentCorCandidateKey(candidate.variant)
+    if (key && seen.has(key)) {
+      continue
+    }
+    if (key) {
+      seen.add(key)
+    }
+    output.push(candidate)
+  }
+  return output
+}
+
+function equivalentCorCandidateKey(variant: CORSearchVariant): string | null {
+  if (variant.meaning_key || variant.english_gloss) {
+    return null
+  }
+  const translation = normalizeSearchWord(variant.saveable_translation ?? variant.lemma_translation ?? "")
+  if (!translation) {
+    return null
+  }
+  return [
+    normalizeSearchWord(variant.form),
+    normalizeSearchWord(variant.lemma),
+    translation,
+    String(variant.pos_tag ?? "").toUpperCase(),
+    normalizeSearchWord(variant.morphology ?? ""),
+  ].join("::")
 }
 
 export { savedWordbankResultKey }

@@ -142,6 +142,55 @@ def test_wordbank_search_cor_form_groups_variants_by_lemma_gloss_pos(tmp_path: P
     assert response.groups[1].pos_tag == "VERB"
     assert response.groups[1].variants[0].lemma_translation == "to learn"
 
+
+def test_wordbank_search_cor_form_collapses_duplicate_same_translation_rows(tmp_path: Path) -> None:
+    local_cor = FakeCORLocalLexiconService(
+        by_form={
+            "tøj": [
+                CORLocalEntry(
+                    cor_id="COR.TOEJ.FABRIC",
+                    lemma="tøj",
+                    gloss="vævet stykke stof, klæde",
+                    gram_raw="sb.itk.sg.ubest",
+                    form="tøj",
+                    norm="N",
+                    lemma_idx=47212,
+                    gram_code=120,
+                    variation=1,
+                    pos_tag="NOUN",
+                    morphology="Gender=Neut|Number=Sing|Definite=Ind",
+                    features={"Gender": "Neut", "Number": "Sing", "Definite": "Ind"},
+                    extra_tags=[],
+                ),
+                CORLocalEntry(
+                    cor_id="COR.TOEJ.CLOTHING",
+                    lemma="tøj",
+                    gloss="klæder; ting af stof",
+                    gram_raw="sb.itk.sg.ubest",
+                    form="tøj",
+                    norm="N",
+                    lemma_idx=48541,
+                    gram_code=120,
+                    variation=1,
+                    pos_tag="NOUN",
+                    morphology="Gender=Neut|Number=Sing|Definite=Ind",
+                    features={"Gender": "Neut", "Number": "Sing", "Definite": "Ind"},
+                    extra_tags=[],
+                ),
+            ]
+        }
+    )
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_local_lexicon_service=local_cor,
+        translation_service=FakeTranslationService({"et tøj": "garment", "tøj": "garment"}),
+    )
+
+    response = use_case.search_cor_form("tøj", limit=100)
+
+    assert len(response.groups) == 1
+    assert response.groups[0].variants[0].cor_id == "COR.TOEJ.FABRIC"
+
 def test_wordbank_search_cor_form_uses_frame_identity_for_homograph_lemma_translations(tmp_path: Path) -> None:
     local_cor = FakeCORLocalLexiconService(
         by_form={
@@ -774,6 +823,62 @@ def test_wordbank_search_cor_form_keeps_all_senses_when_gemini_marks_none_matchi
     # Empty filter result is treated as a Gemini failure: keep all senses rather than
     # leaving the user with zero results.
     assert {group.gloss for group in response.groups} == {"et møbel", "planke på skib el. båd"}
+
+
+def test_wordbank_search_cor_form_falls_back_to_pos_filter_when_gemini_marks_none(tmp_path: Path) -> None:
+    local_cor = FakeCORLocalLexiconService(
+        by_form={
+            "bog": [
+                CORLocalEntry(
+                    cor_id="COR.BOG.VERB",
+                    lemma="boge",
+                    gloss=None,
+                    gram_raw="vb.imp",
+                    form="bog",
+                    norm="N",
+                    lemma_idx=34998,
+                    gram_code=209,
+                    variation=1,
+                    pos_tag="VERB",
+                    morphology="Mood=Imp|VerbForm=Fin",
+                    features={"Mood": "Imp", "VerbForm": "Fin"},
+                    extra_tags=[],
+                ),
+                CORLocalEntry(
+                    cor_id="COR.BOG.NOUN",
+                    lemma="bog",
+                    gloss="til læsning",
+                    gram_raw="sb.fk.sg.ubest",
+                    form="bog",
+                    norm="N",
+                    lemma_idx=41274,
+                    gram_code=110,
+                    variation=1,
+                    pos_tag="NOUN",
+                    morphology="Gender=Com|Number=Sing|Definite=Ind",
+                    features={"Gender": "Com", "Number": "Sing", "Definite": "Ind"},
+                    extra_tags=[],
+                ),
+            ]
+        }
+    )
+    gemini = _StubENGeminiForMatchFilter({"0": False})
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_local_lexicon_service=local_cor,
+        en_gemini_translation_service=gemini,
+    )
+
+    response = use_case.search_cor_form(
+        "bog",
+        limit=100,
+        include_translations=False,
+        en_query="books",
+        en_pos_ud="NOUN",
+    )
+
+    assert [group.pos_tag for group in response.groups] == ["NOUN"]
+    assert response.groups[0].variants[0].cor_id == "COR.BOG.NOUN"
 
 
 def test_wordbank_search_cor_form_filters_cross_pos_homographs_via_en_query(tmp_path: Path) -> None:

@@ -98,6 +98,59 @@ def attach_saved_meaning_ids(
     )
 
 
+def collapse_duplicate_search_groups(response: CORSearchFormResponse) -> CORSearchFormResponse:
+    """Collapse search rows that would render as the same saveable meaning.
+
+    COR can contain multiple lemma ids for the same surface/translation pair.
+    When no sense fan-out has provided a distinct English gloss or meaning key,
+    those rows are indistinguishable in search and should render once.
+    """
+    if len(response.groups) < 2:
+        return response
+
+    collapsed: set[tuple[str, str, str, str, str]] = set()
+    output: list[CORSearchGroup] = []
+    for group in response.groups:
+        if len(group.variants) != 1:
+            output.append(group)
+            continue
+        variant = group.variants[0]
+        if variant.meaning_key or variant.english_gloss:
+            output.append(group)
+            continue
+        translation = _search_translation_key(variant)
+        if not translation:
+            output.append(group)
+            continue
+        key = (
+            _normalize_search_key(variant.form),
+            translation,
+            (variant.pos_tag or group.pos_tag or "").upper(),
+            _normalize_search_key(variant.morphology or ""),
+            _normalize_search_key(variant.lemma),
+        )
+        if key in collapsed:
+            continue
+        collapsed.add(key)
+        output.append(group)
+
+    return CORSearchFormResponse(
+        form=response.form,
+        groups=output,
+        did_you_mean=response.did_you_mean,
+    )
+
+
+def _search_translation_key(variant: CORSearchVariant) -> str:
+    return _normalize_search_key(variant.saveable_translation or variant.lemma_translation or "")
+
+
+def _normalize_search_key(value: str | None) -> str:
+    if not value:
+        return ""
+    return " ".join(value.strip().casefold().split())
+
+
 def _discover_for_group(
     group: CORSearchGroup,
     *,

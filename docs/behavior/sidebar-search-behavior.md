@@ -42,6 +42,8 @@ Exact behavior of sidebar command search ("Search words...").
 - Preview requests receive whitespace-normalized sentence text with the user's capitalization preserved.
 - Danish and unknown-language queries stay in Danish-first flow: the fast result skips verification and the full result verifies the typed sentence, uses corrected Danish text when available, then returns the English translation for that finalized Danish sentence.
 - Explicit English queries switch flow: the fast result uses heuristic language detection plus translation only, and the full result translates the corrected or normalized English sentence to Danish without a second Danish verification pass.
+- Full preview is strict: verification/service failure returns a blocked row unless a deterministic local fallback can correct the sentence or identify an exact MWE. Mixed Danish/English text is blocked instead of saved as valid Danish.
+- Exact known MWEs can be identified without Gemini verification. `tage på` returns one save row per common sense.
 - English-origin previews render without a visible translation indicator or helper row.
 - Input underline overlay only appears for non-English previews with verification errors. English-origin queries do not underline the raw English input.
 - Sentence translation display is sentence-cased; the UI no longer lowercases translation text.
@@ -63,6 +65,7 @@ Endpoint: `GET /api/wordbank/search?query=<q>&limit=8`
 - Cached by normalized query. Error/empty → empty matches.
 - Sidebar keeps rows when the backend attributes the hit with `matched_via`, or falls back to exact-ish rows for older responses: `normalized lemma === normalizedQuery` or `normalized match_surface === normalizedQuery`.
 - Backend typo correction is conservative for saved Danish lemmas: one-to-three-character queries do not fuzzy-correct into unrelated saved rows.
+- High-value short words (`er`, `på`, `at`, `og`, `en`, `et`, `i`, `is`, `be`, `on`, `in`, `to`) still run word lookup; other one/two-letter letter-only queries stay suppressed.
 - Static presaved words (pronouns, function words, calendar/time words, and
   number words represented as saved defaults) are returned by the backend before
   COR or provider translation. Selecting a saved static row opens the raw lemma
@@ -90,6 +93,8 @@ Endpoints:
 - Translation fetch failure → toast error, partial results remain.
 - Translation label normalization: content-word results drop frame scaffolding but may keep short multi-word phrases; function words keep minimal lexicalized context.
 - `en_query` narrows all returned COR groups through Gemini meaning-match selection. If Gemini returns no usable match or fails, all groups remain visible.
+- For English-translated COR lookup, deterministic filtering first prefers exact translated forms and POS-compatible groups. If Gemini returns no usable match or fails, the backend keeps the strongest deterministic candidate instead of re-exposing cross-POS spelling collisions.
+- Search collapses indistinguishable COR rows with the same normalized form, lemma, POS/morphology, and saveable English translation when no sense-level `meaning_key` or English gloss distinguishes them.
 
 ## English form API behavior
 
@@ -100,6 +105,7 @@ Endpoint: `GET /api/wordbank/search/en-form?form=<q>&include_translations=true`
 - Uses the local English dictionary only; it does not run COR lookup, Danish classification, or `/resolve-query`.
 - Full payload cached by normalized query, including empty `groups`.
 - English inflected/surface forms are translated before falling back to lemma translation, so a query like `dogs` can resolve to Danish `hunde` and then to the COR lemma `hund`.
+- English `clothe` verb forms are kept distinct from the noun `clothes`: `clothes`/`clothing` as verbs resolve to `klæde på` rather than the noun `tøj`.
 - For groups with a Danish translation, sidebar looks up the translated Danish form in COR and prefers any matching COR-backed rows.
 - Translated English results use one batch COR request for all Danish translation keys; the backend returns item responses in the same order as requested.
 - English lemma translation and English-to-COR sense filtering use batched

@@ -6,7 +6,7 @@ import {
   createApiClient,
   normalizeSentenceText,
   hasMultipleWords,
-  isShortLetterWord,
+  isBlockedShortSearchWord,
   normalizeSearchWord,
 } from "@/app/core"
 import { searchAttemptKey } from "@/app/chrome/sidebar/sidebar-search-types"
@@ -38,7 +38,7 @@ export function useSidebarSearch({
     && !isNumberMode
     && normalizedQuery.length >= 2
     && !/\s/u.test(normalizedQuery)
-    && !isShortLetterWord(normalizedQuery)
+    && !isBlockedShortSearchWord(normalizedQuery)
 
   // Banner is keyed to the search attempt that hit the cap, so it clears
   // automatically when the user edits the query (no reset effect needed).

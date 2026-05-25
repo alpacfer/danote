@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import logging
-
 from app.api.schemas.v1.wordbank import (
     CORLemmaParadigmResponse,
     CORSearchFormResponse,
@@ -9,7 +7,6 @@ from app.api.schemas.v1.wordbank import (
     CORSearchVariant,
 )
 from app.services.cor_local import CORLocalEntry, CORLocalLexiconService
-from app.services.en_gemini_translation import ENGeminiTranslationService
 from app.services.fuzzy_search import fuzzy_suggest
 from app.services.token_classifier import normalize_token
 from app.services.use_cases.static_presaved_words import (
@@ -20,9 +17,6 @@ from app.services.use_cases.static_pronouns import StaticPronoun, static_pronoun
 from app.services.use_cases.wordbank.collaborators.cor_generated_non_cor import (
     generated_non_cor_response,
 )
-from app.services.use_cases.wordbank.collaborators.cor_local_batch_filter import (
-    filter_cor_form_responses_by_en_query_batch as filter_cor_form_responses_by_en_query_batch_with_runner,
-)
 from app.services.use_cases.wordbank.collaborators.cor_local_translations import (
     AzureFrameCacheKey,
     ContextualCacheKey,
@@ -32,8 +26,6 @@ from app.services.use_cases.wordbank.collaborators.cor_local_translations import
     search_translation_decision_for_cor_local_entry,
 )
 from app.services.use_cases.wordbank.collaborators.translation import TranslationCollaborator
-
-logger = logging.getLogger(__name__)
 
 
 def search_cor_form(
@@ -159,119 +151,6 @@ def search_cor_form(
         )
 
     return CORSearchFormResponse(form=normalized_form, groups=groups, did_you_mean=did_you_mean)
-
-
-def _danish_lemma_with_article(lemma: str, pos_tag: str | None) -> str:
-    """Prefix the lemma with the Danish article/infinitive marker that clarifies its role.
-
-    Helps Gemini disambiguate when the lemma alone is ambiguous (e.g. ``korte`` vs.
-    ``kort``). Without this, the prompt can confuse a verb with a noun spelled
-    similarly.
-    """
-    cleaned = (lemma or "").strip()
-    if not cleaned:
-        return cleaned
-    pos = (pos_tag or "").upper()
-    if pos == "VERB":
-        return f"at {cleaned}"
-    if pos == "NOUN":
-        return f"et/en {cleaned}"
-    return cleaned
-
-
-def filter_cor_form_response_by_en_query(
-    response: CORSearchFormResponse,
-    *,
-    en_query: str,
-    en_pos_ud: str | None = None,
-    en_gemini_translation_service: ENGeminiTranslationService | None,
-) -> CORSearchFormResponse:
-    """Drop COR groups whose Danish meaning Gemini judges not to translate ``en_query``.
-
-    Every group in the response is evaluated; this catches both same-POS homographs
-    (e.g. ``bord`` table vs. ship plank for the query ``table``) and cross-POS
-    spelling collisions where the Danish surface form happens to match an unrelated
-    paradigm slot (e.g. ``kort`` as imperative of ``korte`` "to shorten" surfacing
-    for the query ``card``).
-
-    Safety nets: if Gemini returns no decisions, fails, or marks every group as
-    non-matching, the response is returned unchanged so the user is never left
-    with zero results.
-    """
-    if en_gemini_translation_service is None or not response.groups or not en_query.strip():
-        return response
-
-    choices: list[dict[str, object]] = []
-    for index, group in enumerate(response.groups):
-        choices.append(
-            {
-                "id": str(index),
-                "danish_lemma": _danish_lemma_with_article(group.lemma, group.pos_tag),
-                "danish_gloss": group.gloss or "",
-                "pos": group.pos_tag or "",
-            }
-        )
-
-    try:
-        decisions = en_gemini_translation_service.select_translation_matches(
-            query=en_query.strip(),
-            choices=choices,
-            en_pos_ud=(en_pos_ud or "").strip() or None,
-        )
-    except Exception:
-        logger.exception(
-            "cor_form_filter_gemini_failed",
-            extra={"en_query": en_query, "form": response.form},
-        )
-        return response
-
-    logger.info(
-        "cor_form_filter_decision",
-        extra={
-            "en_query": en_query,
-            "form": response.form,
-            "choices": choices,
-            "decisions": decisions,
-        },
-    )
-
-    if not decisions:
-        return response
-
-    matching_indices: set[int] = set()
-    for raw_id, matches in decisions.items():
-        try:
-            int_id = int(raw_id)
-        except (TypeError, ValueError):
-            continue
-        if matches and 0 <= int_id < len(response.groups):
-            matching_indices.add(int_id)
-
-    if not matching_indices:
-        return response
-
-    filtered_groups = [
-        group
-        for index, group in enumerate(response.groups)
-        if index in matching_indices
-    ]
-    return CORSearchFormResponse(
-        form=response.form,
-        groups=filtered_groups,
-        did_you_mean=response.did_you_mean,
-    )
-
-
-def filter_cor_form_responses_by_en_query_batch(
-    items: list[tuple[CORSearchFormResponse, str, str | None]],
-    *,
-    en_gemini_translation_service: ENGeminiTranslationService | None,
-) -> list[CORSearchFormResponse]:
-    return filter_cor_form_responses_by_en_query_batch_with_runner(
-        items,
-        en_gemini_translation_service=en_gemini_translation_service,
-        single_filter=filter_cor_form_response_by_en_query,
-    )
 
 
 def static_pronoun_cor_search_response(form: str, pronoun: StaticPronoun) -> CORSearchFormResponse:

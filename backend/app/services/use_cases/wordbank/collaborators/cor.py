@@ -20,11 +20,13 @@ from app.services.use_cases.wordbank.collaborators.cor_local import (
     cor_local_entries_for_lemma_idx,
     cor_local_entries_for_surface_form,
     cor_local_entry_for_cor_id,
-    filter_cor_form_response_by_en_query,
-    filter_cor_form_responses_by_en_query_batch,
     lookup_translation_for_cor_gloss,
     search_cor_form,
     search_cor_lemma_paradigm,
+)
+from app.services.use_cases.wordbank.collaborators.cor_local_en_filter import (
+    filter_cor_form_response_by_en_query,
+    filter_cor_form_responses_by_en_query_batch,
 )
 from app.services.use_cases.wordbank.collaborators.cor_resolution import resolve_query
 from app.services.use_cases.wordbank.collaborators.en_resolution import search_en_form
@@ -113,14 +115,17 @@ class CorResolutionCollaborator:
             )
         if include_translations:
             from app.services.use_cases.wordbank.collaborators.cor_sense_fanout import (
+                collapse_duplicate_search_groups,
                 expand_cor_search_response_with_senses,
             )
 
-            response = expand_cor_search_response_with_senses(
-                response,
-                translation=self._translation,
-                db_path=self._db_path,
-                owner_user_id=self._owner_user_id,
+            response = collapse_duplicate_search_groups(
+                expand_cor_search_response_with_senses(
+                    response,
+                    translation=self._translation,
+                    db_path=self._db_path,
+                    owner_user_id=self._owner_user_id,
+                )
             )
         else:
             from app.services.use_cases.wordbank.collaborators.cor_sense_fanout import (
@@ -171,13 +176,16 @@ class CorResolutionCollaborator:
                 merged.append(response)
         from app.services.use_cases.wordbank.collaborators.cor_sense_fanout import (
             attach_saved_meaning_ids,
+            collapse_duplicate_search_groups,
         )
 
         return [
-            attach_saved_meaning_ids(
-                response,
-                db_path=self._db_path,
-                owner_user_id=self._owner_user_id,
+            collapse_duplicate_search_groups(
+                attach_saved_meaning_ids(
+                    response,
+                    db_path=self._db_path,
+                    owner_user_id=self._owner_user_id,
+                )
             )
             for response in merged
         ]

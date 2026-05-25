@@ -136,6 +136,7 @@ export function buildEnTranslatedCorResults(
   const corSearchVariantsToRender: Array<{ group: CORSearchGroup; variant: CORSearchVariant }> = []
   const fallbackEnPosGroups: ENPosGroup[] = []
   const seenVariantCorIds = new Set<string>()
+  const seenEquivalentVariantKeys = new Set<string>()
   const renderedTranslationKeys = new Set<string>()
 
   for (const sourceGroup of activeEnResolveResult.groups) {
@@ -157,7 +158,14 @@ export function buildEnTranslatedCorResults(
         if (seenVariantCorIds.has(variant.cor_id)) {
           return false
         }
+        const equivalentKey = equivalentCorVariantKey(variant)
+        if (equivalentKey && seenEquivalentVariantKeys.has(equivalentKey)) {
+          return false
+        }
         seenVariantCorIds.add(variant.cor_id)
+        if (equivalentKey) {
+          seenEquivalentVariantKeys.add(equivalentKey)
+        }
         return true
       })
       if (variants.length === 0) {
@@ -178,4 +186,21 @@ export function buildEnTranslatedCorResults(
   }
 
   return { orderedCorSearchGroups, corSearchVariantsToRender, fallbackEnPosGroups }
+}
+
+function equivalentCorVariantKey(variant: CORSearchVariant): string | null {
+  if (variant.meaning_key || variant.english_gloss) {
+    return null
+  }
+  const translation = normalizeSearchWord(variant.saveable_translation ?? variant.lemma_translation ?? "")
+  if (!translation) {
+    return null
+  }
+  return [
+    normalizeSearchWord(variant.form),
+    normalizeSearchWord(variant.lemma),
+    translation,
+    String(variant.pos_tag ?? "").toUpperCase(),
+    normalizeSearchWord(variant.morphology ?? ""),
+  ].join("::")
 }
