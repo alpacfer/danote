@@ -61,7 +61,8 @@ Endpoint: `GET /api/wordbank/search?query=<q>&limit=8`
 - Debounced by `SEARCH_RESOLVE_DEBOUNCE_MS`. Skipped when query length `< 2`,
   sentence mode is active, or the query is number-only.
 - Cached by normalized query. Error/empty → empty matches.
-- Sidebar keeps exact-ish rows only: `normalized lemma === normalizedQuery` or `normalized match_surface === normalizedQuery`; all others discarded.
+- Sidebar keeps rows when the backend attributes the hit with `matched_via`, or falls back to exact-ish rows for older responses: `normalized lemma === normalizedQuery` or `normalized match_surface === normalizedQuery`.
+- Backend typo correction is conservative for saved Danish lemmas: one-to-three-character queries do not fuzzy-correct into unrelated saved rows.
 - Static presaved words (pronouns, function words, calendar/time words, and
   number words represented as saved defaults) are returned by the backend before
   COR or provider translation. Selecting a saved static row opens the raw lemma

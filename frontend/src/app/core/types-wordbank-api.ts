@@ -193,7 +193,16 @@ export type WordbankSearchItem = {
   query_cor_ids?: string[]
   pos_tag?: string | null
   morphology?: string | null
+  matched_via?: WordbankMatchedVia | null
 }
+
+export type WordbankMatchedVia =
+  | "lemma"
+  | "surface"
+  | "english_translation"
+  | "alternative_translation"
+  | "english_gloss"
+  | "gloss"
 
 export type WordbankSearchResponse = {
   items: WordbankSearchItem[]

@@ -214,6 +214,7 @@ def test_search_lemmas_returns_gloss_translation_without_promoting_it_to_english
             "query_cor_ids": ["COR.MOR.SOIL.LEM"],
             "pos_tag": "NOUN",
             "morphology": "Gender=Com|Number=Sing|Definite=Ind",
+            "matched_via": "lemma",
         }
     ]
 

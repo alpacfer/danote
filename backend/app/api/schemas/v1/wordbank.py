@@ -391,6 +391,7 @@ class WordbankSearchItem(BaseModel):
     query_cor_ids: list[str] = Field(default_factory=list)
     pos_tag: str | None = None
     morphology: str | None = None
+    matched_via: str | None = None
 
 
 class WordbankSearchResponse(BaseModel):

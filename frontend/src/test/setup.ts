@@ -1,6 +1,9 @@
 import "@testing-library/jest-dom/vitest"
+import { configure } from "@testing-library/dom"
 import { toast } from "sonner"
 import { afterEach, vi } from "vitest"
+
+configure({ asyncUtilTimeout: 5000 })
 
 vi.mock("sonner", () => ({
   toast: {

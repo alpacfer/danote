@@ -194,6 +194,15 @@ def _add_search_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentP
     all_results.add_argument("--limit", type=int, default=8, help="Wordbank result limit.")
     _set_handler(all_results, ["search", "all"], handle_search_all)
 
+    sidebar = child.add_parser(
+        "sidebar",
+        help="Simulate the sidebar pipeline (Words + Translated From English) "
+        "for a query and flag rendered duplicates.",
+    )
+    sidebar.add_argument("query")
+    sidebar.add_argument("--limit", type=int, default=8, help="Wordbank result limit.")
+    _set_handler(sidebar, ["search", "sidebar"], handle_search_sidebar)
+
 
 def _add_wordbank_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     parser = subparsers.add_parser("wordbank", help="Wordbank commands.")
@@ -540,6 +549,162 @@ def handle_search_all(args: argparse.Namespace, client: ApiClient) -> dict[str, 
             "word_actions": word_actions,
         },
     }
+
+
+def handle_search_sidebar(args: argparse.Namespace, client: ApiClient) -> dict[str, Any]:
+    """Simulate the sidebar: Words section + "Translated From English" rows.
+
+    Calls the same endpoints the React sidebar calls in order, mirrors its
+    filtering logic (saved-wordbank exact-or-attributed match; en-form ->
+    cor-form-batch with en_query), then dedups CoR variants whose
+    saved_meaning_id already appears in the Words section. Flags any leftover
+    duplicate where the same (lemma, pos) renders in both sections — that's
+    the regression class we keep hitting.
+    """
+    query = args.query
+    normalized = _normalize_for_match(query)
+
+    wordbank = client.request(
+        RequestSpec("GET", "/api/wordbank/search", {"query": query, "limit": args.limit})
+    )
+    words_section: list[dict[str, Any]] = []
+    for item in wordbank.get("items") or []:
+        matched_via = item.get("matched_via")
+        lemma_key = _normalize_for_match(item.get("lemma") or "")
+        surface_key = _normalize_for_match(item.get("match_surface") or "")
+        if not matched_via and lemma_key != normalized and surface_key != normalized:
+            continue
+        words_section.append({
+            "lemma": item.get("lemma"),
+            "meaning_id": item.get("meaning_id"),
+            "english_translation": item.get("english_translation"),
+            "gloss_translation": item.get("gloss_translation"),
+            "pos_tag": item.get("pos_tag"),
+            "match_surface": item.get("match_surface"),
+            "matched_via": matched_via,
+        })
+
+    en_form = client.request(
+        RequestSpec(
+            "GET",
+            "/api/wordbank/search/en-form",
+            {"form": query, "include_translations": True},
+        )
+    )
+    en_groups = en_form.get("groups") or []
+
+    translation_keys: list[str] = []
+    seen_keys: set[str] = set()
+    for group in en_groups:
+        key = _normalize_for_match(group.get("danish_translation") or "")
+        if not key or key in seen_keys:
+            continue
+        seen_keys.add(key)
+        translation_keys.append(key)
+
+    batch_responses: list[dict[str, Any]] = []
+    if translation_keys:
+        batch = client.request(
+            RequestSpec(
+                "POST",
+                "/api/wordbank/search/cor-form-batch",
+                body={
+                    "limit": 100,
+                    "include_translations": True,
+                    "items": [
+                        {
+                            "form": key,
+                            "en_query": normalized,
+                            "en_pos_ud": _en_pos_for_key(en_groups, key),
+                        }
+                        for key in translation_keys
+                    ],
+                },
+            )
+        )
+        batch_responses = batch.get("items") or []
+
+    saved_ids_in_words = {
+        row["meaning_id"]
+        for row in words_section
+        if isinstance(row.get("meaning_id"), int)
+    }
+
+    en_section_raw: list[dict[str, Any]] = []
+    en_section: list[dict[str, Any]] = []
+    seen_variant_keys: set[tuple[str, str]] = set()
+    for source_group, response in zip(en_groups, batch_responses):
+        translation_key = _normalize_for_match(source_group.get("danish_translation") or "")
+        for group in response.get("groups") or []:
+            for variant in group.get("variants") or []:
+                form_key = _normalize_for_match(variant.get("form") or "")
+                if form_key != translation_key:
+                    continue
+                row = {
+                    "lemma": variant.get("lemma"),
+                    "form": variant.get("form"),
+                    "pos_tag": variant.get("pos_tag") or group.get("pos_tag"),
+                    "meaning_key": variant.get("meaning_key"),
+                    "saved_meaning_id": variant.get("saved_meaning_id"),
+                    "cor_lemma_idx": variant.get("lemma_idx"),
+                    "english_gloss": variant.get("english_gloss") or group.get("gloss"),
+                    "from_en_source": {
+                        "lemma": source_group.get("lemma"),
+                        "pos_ud": source_group.get("pos_ud"),
+                        "danish_translation": source_group.get("danish_translation"),
+                        "meaning_description": source_group.get("meaning_description"),
+                    },
+                }
+                en_section_raw.append(row)
+                dedupe_key = (variant.get("cor_id") or "", variant.get("meaning_key") or "")
+                if dedupe_key in seen_variant_keys:
+                    continue
+                seen_variant_keys.add(dedupe_key)
+                if isinstance(row["saved_meaning_id"], int) and row["saved_meaning_id"] in saved_ids_in_words:
+                    continue
+                en_section.append(row)
+
+    duplicates: list[dict[str, Any]] = []
+    for w in words_section:
+        w_lemma = (w.get("lemma") or "").lower()
+        w_pos = (w.get("pos_tag") or "").upper()
+        for en_row in en_section:
+            if (en_row.get("lemma") or "").lower() == w_lemma and (en_row.get("pos_tag") or "").upper() == w_pos:
+                duplicates.append({
+                    "lemma": w.get("lemma"),
+                    "pos_tag": w.get("pos_tag"),
+                    "words_meaning_id": w.get("meaning_id"),
+                    "en_meaning_key": en_row.get("meaning_key"),
+                    "en_saved_meaning_id": en_row.get("saved_meaning_id"),
+                    "en_cor_lemma_idx": en_row.get("cor_lemma_idx"),
+                })
+
+    return {
+        "query": query,
+        "summary": {
+            "wordbank_did_you_mean": wordbank.get("did_you_mean"),
+            "words_section_rows": len(words_section),
+            "en_section_rows": len(en_section),
+            "en_section_raw_rows": len(en_section_raw),
+            "duplicates": len(duplicates),
+        },
+        "duplicate_warnings": duplicates,
+        "words_section": words_section,
+        "en_section": en_section,
+        "en_section_raw_before_dedup": en_section_raw,
+    }
+
+
+def _normalize_for_match(value: str) -> str:
+    return " ".join((value or "").strip().lower().split())
+
+
+def _en_pos_for_key(en_groups: list[dict[str, Any]], translation_key: str) -> str | None:
+    for group in en_groups:
+        if _normalize_for_match(group.get("danish_translation") or "") == translation_key:
+            pos = group.get("pos_ud")
+            return str(pos).upper() if pos else None
+    return None
 
 
 def handle_search_trace(args: argparse.Namespace, client: ApiClient) -> dict[str, Any]:

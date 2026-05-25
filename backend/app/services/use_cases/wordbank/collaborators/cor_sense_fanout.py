@@ -70,6 +70,34 @@ def expand_cor_search_response_with_senses(
     )
 
 
+def attach_saved_meaning_ids(
+    response: CORSearchFormResponse,
+    *,
+    db_path: Path,
+    owner_user_id: int = 1,
+) -> CORSearchFormResponse:
+    """Stamp ``saved_meaning_id`` on every CoR variant in ``response``.
+
+    Cheap DB lookup (no Gemini calls), safe to run for both the sense-fan-out
+    and batch search paths so the sidebar's "already saved" eye icon shows up
+    for any variant that maps to a saved meaning of this user.
+    """
+    if not response.groups:
+        return response
+    saved_meanings = load_saved_meanings_for_lemmas(
+        db_path,
+        [group.lemma for group in response.groups],
+        owner_user_id=owner_user_id,
+    )
+    if not saved_meanings:
+        return response
+    return CORSearchFormResponse(
+        form=response.form,
+        groups=[_attach_saved_to_group(group, saved_meanings) for group in response.groups],
+        did_you_mean=response.did_you_mean,
+    )
+
+
 def _discover_for_group(
     group: CORSearchGroup,
     *,
@@ -183,6 +211,19 @@ def _attach_saved_to_variant(
     if saved_id is None and len(by_key) == 1 and variant.meaning_key is None:
         saved_id = _matching_saved_meaning_id(
             next(iter(by_key.values())),
+            pos_tag=variant.pos_tag,
+            cor_lemma_idx=variant.lemma_idx,
+        )
+    # Fallback: meaning_key conventions drift (English sense-fan-out keys vs.
+    # legacy keys derived from Danish gloss text). When the variant has a
+    # cor_lemma_idx, scan every saved meaning under this lemma and match by
+    # cor_lemma_idx alone — a stable per-sense identity.
+    if saved_id is None and variant.lemma_idx is not None:
+        all_candidates: list[SavedMeaningMatch] = []
+        for candidates in by_key.values():
+            all_candidates.extend(candidates)
+        saved_id = _matching_saved_meaning_id(
+            all_candidates,
             pos_tag=variant.pos_tag,
             cor_lemma_idx=variant.lemma_idx,
         )

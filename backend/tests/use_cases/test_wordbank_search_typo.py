@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import pytest
 
-from app.services.use_cases.wordbank import WordbankUseCase
-from tests.helpers.factories import _db_path, _cor_local_entry
-from tests.helpers.fakes import FakeCORLocalLexiconService
 from app.db.migrations import get_connection
+from app.services.use_cases.wordbank import WordbankUseCase
+from tests.helpers.factories import _cor_local_entry, _db_path
+from tests.helpers.fakes import FakeCORLocalLexiconService
 
 
 def _add_word_directly(db_path, lemma: str) -> None:
@@ -49,6 +49,19 @@ def test_search_returns_no_did_you_mean_when_no_correction_found(tmp_path):
 
     # "xyz" has no close wordbank lemma
     result = use_case.search_lemmas("xyz")
+
+    assert result.did_you_mean is None
+    assert result.items == []
+
+
+@pytest.mark.parametrize("query", ["tøj", "tæg", "tøg", "tig", "tog", "tjg", "tg"])
+def test_search_does_not_fuzzy_correct_short_queries_to_unrelated_lemmas(tmp_path, query):
+    db = _db_path(tmp_path)
+    _add_word_directly(db, "tag")
+    cor_local = FakeCORLocalLexiconService()
+    use_case = WordbankUseCase(db, cor_local_lexicon_service=cor_local)
+
+    result = use_case.search_lemmas(query)
 
     assert result.did_you_mean is None
     assert result.items == []

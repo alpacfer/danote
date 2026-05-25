@@ -122,6 +122,16 @@ class CorResolutionCollaborator:
                 db_path=self._db_path,
                 owner_user_id=self._owner_user_id,
             )
+        else:
+            from app.services.use_cases.wordbank.collaborators.cor_sense_fanout import (
+                attach_saved_meaning_ids,
+            )
+
+            response = attach_saved_meaning_ids(
+                response,
+                db_path=self._db_path,
+                owner_user_id=self._owner_user_id,
+            )
         return response
 
     def search_cor_form_batch(
@@ -159,7 +169,18 @@ class CorResolutionCollaborator:
                 merged.append(next(filtered_iter))
             else:
                 merged.append(response)
-        return merged
+        from app.services.use_cases.wordbank.collaborators.cor_sense_fanout import (
+            attach_saved_meaning_ids,
+        )
+
+        return [
+            attach_saved_meaning_ids(
+                response,
+                db_path=self._db_path,
+                owner_user_id=self._owner_user_id,
+            )
+            for response in merged
+        ]
 
     def search_cor_lemma_paradigm(
         self, lemma_idx: int, *, limit: int = 1000

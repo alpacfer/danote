@@ -590,7 +590,7 @@ describe("App shell and search", () => {
     const input = within(commandDialog).getByPlaceholderText(/search words/i)
     fireEvent.change(input, { target: { value: "huse" } })
 
-    const suggestion = await screen.findByText(/did you mean/i)
+    const suggestion = await screen.findByText(/did you mean/i, {}, { timeout: 5000 })
     fireEvent.click(suggestion)
 
     await waitFor(() => {

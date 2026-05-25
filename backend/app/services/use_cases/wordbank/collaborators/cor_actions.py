@@ -390,6 +390,20 @@ def _attach_saved_meaning(
             pos_tag=option.pos_tag,
             cor_lemma_idx=option.cor_lemma_idx,
         )
+    # Fallback: meaning_key conventions can drift (English sense-fan-out keys
+    # like "roof" vs. legacy saved keys derived from Danish gloss text), so an
+    # exact-key lookup misses real matches. When the option carries a
+    # cor_lemma_idx, scan every saved meaning under this lemma and match by
+    # cor_lemma_idx alone — that's a hard identity for a CoR sense.
+    if saved_id is None and option.cor_lemma_idx is not None:
+        all_candidates: list[SavedMeaningMatch] = []
+        for candidates in by_key.values():
+            all_candidates.extend(candidates)
+        saved_id = _matching_saved_meaning_id(
+            all_candidates,
+            pos_tag=option.pos_tag,
+            cor_lemma_idx=option.cor_lemma_idx,
+        )
     if saved_id is None:
         return option
     return _CORAddOption(

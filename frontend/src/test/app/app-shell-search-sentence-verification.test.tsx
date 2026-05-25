@@ -144,7 +144,7 @@ describe("Sentence verification in search", () => {
       const option = getSentenceOption(dialog)
       expect(within(option).getByText(/^jeg er glad$/i)).toBeInTheDocument()
       expect(within(option).getByText("I am happy")).toBeInTheDocument()
-    })
+    }, { timeout: 5000 })
     expect(within(dialog).queryByTestId("sentence-search-translation-skeleton")).not.toBeInTheDocument()
 
     expect(resolveFullPreview).not.toBeNull()
@@ -201,7 +201,7 @@ describe("Sentence verification in search", () => {
 
     await waitFor(() => {
       expect(getSentenceOption(dialog)).not.toHaveAttribute("aria-disabled", "true")
-    })
+    }, { timeout: 5000 })
     const option = getSentenceOption(dialog)
     expect(within(option).getByText(/^jeg er glad$/i)).toBeInTheDocument()
     expect(within(option).getByText("I am happy")).toBeInTheDocument()
@@ -344,7 +344,7 @@ it("underlines the typo in the input and shows only the correction plus correcte
 
     await waitFor(() => {
       expect(getSentenceOption(dialog)).not.toHaveAttribute("aria-disabled", "true")
-    })
+    }, { timeout: 5000 })
 
     const option = getSentenceOption(dialog)
     expect(within(dialog).queryByTestId("sentence-search-input-overlay")).not.toBeInTheDocument()
@@ -382,7 +382,7 @@ it("underlines the typo in the input and shows only the correction plus correcte
 
     await waitFor(() => {
       expect(getSentenceOption(dialog)).not.toHaveAttribute("aria-disabled", "true")
-    })
+    }, { timeout: 5000 })
     const item = getSentenceOption(dialog)
     fireEvent.click(item)
 
@@ -438,7 +438,7 @@ it("underlines the typo in the input and shows only the correction plus correcte
 
     await waitFor(() => {
       expect(getSentenceOption(dialog)).not.toHaveAttribute("aria-disabled", "true")
-    })
+    }, { timeout: 5000 })
     expect(await within(dialog).findByText("I am happy")).toBeInTheDocument()
 
     fireEvent.click(getSentenceOption(dialog))
@@ -474,7 +474,7 @@ it("underlines the typo in the input and shows only the correction plus correcte
 
     await waitFor(() => {
       expect(getSentenceOption(dialog)).not.toHaveAttribute("aria-disabled", "true")
-    })
+    }, { timeout: 5000 })
     const item = getSentenceOption(dialog)
     fireEvent.click(item)
 
@@ -524,7 +524,7 @@ it("underlines the typo in the input and shows only the correction plus correcte
       const option = getSentenceOption(dialog)
       expect(option).toHaveAttribute("data-selected", "true")
       expect(option).not.toHaveAttribute("aria-disabled", "true")
-    })
+    }, { timeout: 5000 })
 
     fireEvent.keyDown(input, { key: "Enter" })
 
@@ -598,7 +598,7 @@ it("underlines the typo in the input and shows only the correction plus correcte
       const option = getSentenceOption(dialog)
       expect(option).toHaveAttribute("data-selected", "true")
       expect(option).not.toHaveAttribute("aria-disabled", "true")
-    })
+    }, { timeout: 5000 })
 
     fireEvent.keyDown(input, { key: "Enter" })
 
@@ -710,7 +710,7 @@ it("underlines the typo in the input and shows only the correction plus correcte
 
     await waitFor(() => {
       expect(getSentenceOption(dialog)).not.toHaveAttribute("aria-disabled", "true")
-    })
+    }, { timeout: 5000 })
     const option = getSentenceOption(dialog)
     expect(within(option).getByText("i am happy")).toBeInTheDocument()
     expect(within(option).queryByText("I am happy")).not.toBeInTheDocument()

@@ -87,11 +87,28 @@ def search_lemmas(runtime: WordbankRuntime, query: str, *, limit: int = 8) -> Wo
 
     did_you_mean: str | None = None
     if not rows:
-        all_lemmas = runtime.repository.list_all_lemma_strings()
-        suggestions = fuzzy_suggest(normalized_query, all_lemmas)
-        if suggestions:
-            did_you_mean = suggestions[0]
-            rows = runtime.repository.search_lemmas(did_you_mean, limit=limit)
+        looks_english = _looks_english(normalized_query)
+        if looks_english:
+            english_tokens = runtime.repository.list_all_english_tokens()
+            suggestions = fuzzy_suggest(normalized_query, english_tokens)
+            if suggestions:
+                did_you_mean = suggestions[0]
+                rows = runtime.repository.search_lemmas(did_you_mean, limit=limit)
+        if not rows:
+            # Danish-lemma fuzzy fallback. Scale the edit distance with token
+            # length so short strings do not silently correct to unrelated
+            # lemmas (for example ``tøj``/``tig``/``tog`` -> ``tag``), while
+            # ordinary longer typos such as ``huse`` -> ``hus`` still work.
+            all_lemmas = runtime.repository.list_all_lemma_strings()
+            max_distance = _lemma_fuzzy_max_distance(normalized_query, looks_english=looks_english)
+            suggestions = fuzzy_suggest(
+                normalized_query,
+                all_lemmas,
+                max_distance=max_distance,
+            )
+            if suggestions:
+                did_you_mean = suggestions[0]
+                rows = runtime.repository.search_lemmas(did_you_mean, limit=limit)
 
     gloss_translation_cache: dict[tuple[str, str, str | None, str | None, str, str | None, str | None], str | None] = {}
 
@@ -126,6 +143,7 @@ def search_lemmas(runtime: WordbankRuntime, query: str, *, limit: int = 8) -> Wo
                 query_cor_ids=row.query_cor_ids,
                 pos_tag=row.pos_tag,
                 morphology=row.morphology,
+                matched_via=row.matched_via,
             )
             for row in rows
         ]
@@ -211,6 +229,17 @@ def _static_presaved_word_search_response(
             )
         ],
     )
+
+
+def _looks_english(query: str) -> bool:
+    return all(ord(ch) < 128 for ch in query) and any(ch.isalpha() for ch in query)
+
+
+def _lemma_fuzzy_max_distance(query: str, *, looks_english: bool) -> int:
+    scaled_distance = len(query) // 4
+    if looks_english:
+        return min(scaled_distance, 1)
+    return min(scaled_distance, 2)
 
 
 def _display_lemma_for_list(runtime: WordbankRuntime, lemma: str, pos_tag: str | None) -> str:

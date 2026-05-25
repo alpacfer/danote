@@ -155,6 +155,7 @@ class WordbankReadRepository:
                 match_surface=row["match_surface"],
                 query_cor_ids=parse_query_cor_ids(row["query_cor_ids"]),
                 english_gloss=row["english_gloss"] if "english_gloss" in row.keys() else None,
+                matched_via=row["matched_via"] if "matched_via" in row.keys() else None,
             )
             for row in rows
         ]
@@ -168,6 +169,37 @@ class WordbankReadRepository:
                 (self._owner_user_id,),
             ).fetchall()
         return [str(row["lemma"]) for row in rows]
+
+    def list_all_english_tokens(self) -> list[str]:
+        """All English tokens reachable from this user's saved meanings.
+
+        Used as the candidate pool for English typo-suggestion: when an
+        English-looking query has no FTS hits, we fuzzy-match against the
+        primary translations, alt translations, and descriptive english_gloss
+        text the user has actually saved.
+        """
+        with timed_db_operation("wordbank.list_all_english_tokens"), get_connection(
+            self._db_path, read_only=True
+        ) as conn:
+            rows = conn.execute(
+                """
+                SELECT english_translation, english_gloss, alt_translations
+                FROM wordbank_fts
+                WHERE owner_user_id = ?
+                """,
+                (self._owner_user_id,),
+            ).fetchall()
+        seen: set[str] = set()
+        for row in rows:
+            for field in ("english_translation", "english_gloss", "alt_translations"):
+                value = row[field]
+                if not value:
+                    continue
+                for token in str(value).replace("/", " ").split():
+                    cleaned = "".join(ch for ch in token.lower() if ch.isalpha())
+                    if len(cleaned) >= 3:
+                        seen.add(cleaned)
+        return sorted(seen)
 
     def get_lexeme(self, normalized_lemma: str) -> LexemeRecord | None:
         with timed_db_operation("wordbank.get_lexeme"), get_connection(

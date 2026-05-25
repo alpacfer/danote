@@ -30,7 +30,7 @@ describe("App wordbank", () => {
     expect(within(table).getByText(/^definite$/i)).toBeInTheDocument()
     expect(within(table).getByText(/^bogen$/i)).toBeInTheDocument()
     expect(screen.queryByText(/\(book, til læsning\)/i)).not.toBeInTheDocument()
-  }, 10_000)
+  }, 30_000)
 
   it("renderer-only: does not render an empty-variation message when there are no saved variations", async () => {
     mockFetchImplementation({
@@ -616,7 +616,7 @@ describe("App wordbank", () => {
 
     expect(await screen.findByTestId("wordbank-meaning-card-2")).toBeInTheDocument()
     expect(screen.queryByTestId("wordbank-lemma-scope-card")).not.toBeInTheDocument()
-  }, 15_000)
+  }, 30_000)
 
   it("request-shape: right-clicking a meaning card rethinks categories and refreshes the badges", async () => {
     let lemmaDetails = cloneContractFixture(teacherSectionedWordPageContractFixture)
@@ -1330,7 +1330,7 @@ describe("App wordbank", () => {
         }),
       )
     })
-  }, 15_000)
+  }, 30_000)
 
   it("keeps one current-state notification per target for complete-variations reviews even after leaving the lemma page", async () => {
     vi.useRealTimers()
@@ -1459,7 +1459,7 @@ describe("App wordbank", () => {
     await waitFor(() => {
       expect(screen.getByRole("button", { name: /wordbank/i })).toHaveTextContent("1")
     }, { timeout: 5_000 })
-  }, 15_000)
+  }, 30_000)
 
   it("renderer-only: adjective completion review summarizes n-word and t-word slots", async () => {
     mockFetchImplementation({

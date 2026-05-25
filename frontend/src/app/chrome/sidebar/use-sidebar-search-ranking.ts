@@ -18,12 +18,25 @@ type UseSidebarSearchRankingParams = {
   activeCorFormSearchResult: { query: string; payload: CORSearchFormResponse } | null
 }
 
+// Server-attributed match source feeds ranking so an "english_translation"
+// hit beats an "english_gloss" hit even when neither lemma nor surface match
+// the raw query string.
+const MATCHED_VIA_BONUS: Record<string, number> = {
+  lemma: 480,
+  surface: 360,
+  english_translation: 320,
+  alternative_translation: 280,
+  english_gloss: 220,
+  gloss: 180,
+}
+
 const scoreWordbankResult = (payload: {
   query: string
   lemmaKey: string
   linkedForm: string
   matchSurface: string
   isExactSaved: boolean
+  matchedVia?: string | null
 }): number => {
   if (!payload.query) {
     return 0
@@ -48,6 +61,9 @@ const scoreWordbankResult = (payload: {
   }
   if (payload.lemmaKey.startsWith(payload.query)) {
     return 200
+  }
+  if (payload.matchedVia && MATCHED_VIA_BONUS[payload.matchedVia] !== undefined) {
+    return MATCHED_VIA_BONUS[payload.matchedVia]
   }
   return 0
 }
@@ -229,6 +245,7 @@ export function useSidebarSearchRanking({
         linkedForm: normalizeSearchWord(leftLinked?.form ?? ""),
         matchSurface: normalizeSearchWord(left.match_surface ?? ""),
         isExactSaved: exactSavedVariationKeySet.has(leftKey),
+        matchedVia: left.matched_via,
       })
       const rightScore = scoreWordbankResult({
         query: normalizedQuery,
@@ -236,6 +253,7 @@ export function useSidebarSearchRanking({
         linkedForm: normalizeSearchWord(rightLinked?.form ?? ""),
         matchSurface: normalizeSearchWord(right.match_surface ?? ""),
         isExactSaved: exactSavedVariationKeySet.has(rightKey),
+        matchedVia: right.matched_via,
       })
       if (leftScore !== rightScore) {
         return rightScore - leftScore

@@ -30,6 +30,7 @@ class WordbankSearchRow:
     match_surface: str | None
     query_cor_ids: list[str]
     english_gloss: str | None = None
+    matched_via: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

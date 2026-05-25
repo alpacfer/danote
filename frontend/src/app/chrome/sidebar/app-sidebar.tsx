@@ -125,6 +125,46 @@ export function AppSidebar({
     activeCorFormSearchResult,
   })
 
+  // Drop CoR variants from the "Translated From English" section when their
+  // saved_meaning_id already appears in the Words section above. Without this,
+  // a saved sense (e.g. "tag" = roof) renders once as the saved row and again
+  // as a CoR card that happens to also resolve to the same meaning_id — both
+  // showing the eye icon, just visually duplicated.
+  const dedupedEnTranslatedCorResults = useMemo(() => {
+    const savedMeaningIdsAlreadyShown = new Set<number>()
+    for (const row of orderedWordbankResults) {
+      if (typeof row.meaning_id === "number") {
+        savedMeaningIdsAlreadyShown.add(row.meaning_id)
+      }
+    }
+    if (savedMeaningIdsAlreadyShown.size === 0) {
+      return activeEnTranslatedCorResults
+    }
+    const keptVariantKeys = new Set<string>()
+    const filteredVariantsToRender = activeEnTranslatedCorResults.corSearchVariantsToRender
+      .filter(({ variant }) => {
+        const meaningId = variant.saved_meaning_id
+        if (typeof meaningId === "number" && savedMeaningIdsAlreadyShown.has(meaningId)) {
+          return false
+        }
+        keptVariantKeys.add(`${variant.cor_id}::${variant.meaning_key ?? ""}`)
+        return true
+      })
+    const filteredGroups = activeEnTranslatedCorResults.orderedCorSearchGroups
+      .map((group) => ({
+        ...group,
+        variants: (group.variants ?? []).filter((variant) =>
+          keptVariantKeys.has(`${variant.cor_id}::${variant.meaning_key ?? ""}`),
+        ),
+      }))
+      .filter((group) => group.variants.length > 0)
+    return {
+      ...activeEnTranslatedCorResults,
+      orderedCorSearchGroups: filteredGroups,
+      corSearchVariantsToRender: filteredVariantsToRender,
+    }
+  }, [activeEnTranslatedCorResults, orderedWordbankResults])
+
   const matchingPageItems = useSidebarPageItems({
     normalizedQuery,
     onSelectWordbank,
@@ -134,8 +174,8 @@ export function AppSidebar({
   })
 
   const hasPageResults = matchingPageItems.length > 0
-  const hasTranslatedEnResults = activeEnTranslatedCorResults.corSearchVariantsToRender.length > 0
-  const hasFallbackEnResults = activeEnTranslatedCorResults.fallbackEnPosGroups.length > 0
+  const hasTranslatedEnResults = dedupedEnTranslatedCorResults.corSearchVariantsToRender.length > 0
+  const hasFallbackEnResults = dedupedEnTranslatedCorResults.fallbackEnPosGroups.length > 0
   const hasEnResults = hasTranslatedEnResults || hasFallbackEnResults
   const hasMatchedSentences = matchedSavedSentences.length > 0
   const hasAnyResults = isSentenceMode
@@ -152,7 +192,7 @@ export function AppSidebar({
       )
 
   const { commandSelectionValue } = useSidebarCommandSelection({
-    activeEnTranslatedCorResults,
+    activeEnTranslatedCorResults: dedupedEnTranslatedCorResults,
     commandSelectionOverride,
     corDidYouMean,
     corSearchVariantsToRender,
@@ -203,8 +243,8 @@ export function AppSidebar({
     orderedCorSearchGroups,
     corSearchVariantsToRender,
     variationCandidateCorIdSet,
-    translatedEnCorSearchGroups: activeEnTranslatedCorResults.orderedCorSearchGroups,
-    translatedEnCorVariantsToRender: activeEnTranslatedCorResults.corSearchVariantsToRender,
+    translatedEnCorSearchGroups: dedupedEnTranslatedCorResults.orderedCorSearchGroups,
+    translatedEnCorVariantsToRender: dedupedEnTranslatedCorResults.corSearchVariantsToRender,
     matchingPageItems,
     isWordbankSearchLoading,
     isCorLookupLoading,
@@ -218,7 +258,7 @@ export function AppSidebar({
     // keyboard navigation value list.
     corVariantItemValue: corVariantSelectionValue,
     translatedEnCorVariantItemValue: translatedEnCorVariantSelectionValue,
-    enPosGroups: activeEnTranslatedCorResults.fallbackEnPosGroups,
+    enPosGroups: dedupedEnTranslatedCorResults.fallbackEnPosGroups,
     isEnResolveLoading: isEnResolveLoading,
     isEnTranslatedCorLoading: isEnTranslatedCorLoading,
     enTranslatedCorSkeletonCount,

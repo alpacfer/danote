@@ -93,6 +93,14 @@ export function useSidebarWordbankSearch({
           const correction = payload.did_you_mean ?? null
           const effectiveQuery = correction ?? normalizedQuery
           const exactMatches = (payload.items ?? []).filter((item) => {
+            // Server's matched_via is authoritative: a non-null value means the
+            // backend FTS/LIKE pipeline already attributed the hit to a stored
+            // field (translation, gloss, alt translation, surface…). Fall back
+            // to lemma/surface equality only when matched_via is absent (older
+            // server build) so the UI keeps working through deploys.
+            if (item.matched_via) {
+              return true
+            }
             const lemmaKey = normalizeSearchWord(item.lemma)
             const matchSurfaceKey = normalizeSearchWord(item.match_surface ?? "")
             return lemmaKey === effectiveQuery || matchSurfaceKey === effectiveQuery

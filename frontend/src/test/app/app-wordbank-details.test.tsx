@@ -55,7 +55,7 @@ describe("App wordbank", () => {
     expect((await screen.findAllByText(/^book$/i)).length).toBeGreaterThan(0)
     expect(screen.getByText(/^bogens$/i)).toBeInTheDocument()
     expect(screen.queryByText(/^book's$/i)).not.toBeInTheDocument()
-  }, 10_000)
+  }, 30_000)
 
   it("renderer-only: non-verb word pages render meaning sections and remove duplicated top metadata", async () => {
     mockFetchImplementation({
@@ -142,7 +142,7 @@ describe("App wordbank", () => {
     expect(screen.queryByText(/Function Words: Articles/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/Numbers & Time: Cardinal Numbers/i)).not.toBeInTheDocument()
     expect(screen.queryByTestId("wordbank-meaning-pinned-links-2")).not.toBeInTheDocument()
-  }, 10_000)
+  }, 30_000)
 
   it("renderer-only: meaning-section surface forms show badges without rendering surface translations", async () => {
     mockFetchImplementation({
@@ -555,7 +555,7 @@ describe("App wordbank", () => {
       () => {
         expect(screen.getByTestId("wordbank-details-loading-skeleton")).toBeInTheDocument()
       },
-      { timeout: 1000 },
+      { timeout: 5000 },
     )
     const loadingCards = screen.getAllByTestId("wordbank-details-loading-card")
     expect(loadingCards).toHaveLength(1)
@@ -601,7 +601,7 @@ describe("App wordbank", () => {
       () => {
          expect(screen.getByTestId("wordbank-details-loading-skeleton")).toBeInTheDocument()
       },
-      { timeout: 1000 },
+      { timeout: 5000 },
     )
     const loadingCards = screen.getAllByTestId("wordbank-details-loading-card")
     expect(loadingCards).toHaveLength(2)

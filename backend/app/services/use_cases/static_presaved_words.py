@@ -145,6 +145,14 @@ STATIC_PRESAVED_SENSES_BY_TOKEN: dict[str, tuple[StaticPresavedWord, ...]] = {
 }
 
 STATIC_PRESAVED_WORDS_BY_ENGLISH: dict[str, StaticPresavedWord] = {}
+# Two-pass build so an exact translation match always wins over a slash-split
+# partial. Otherwise "because" would resolve to "for" (translation "for /
+# because") and shadow the canonical "fordi" (translation "because") just
+# because "for" sits earlier in the dict iteration order.
+for word in STATIC_PRESAVED_WORDS.values():
+    normalized_full = normalize_token(word.english_translation)
+    if normalized_full:
+        STATIC_PRESAVED_WORDS_BY_ENGLISH.setdefault(normalized_full, word)
 for word in STATIC_PRESAVED_WORDS.values():
     for part in word.english_translation.replace("(", "/").replace(")", "").split("/"):
         normalized_part = normalize_token(part)
