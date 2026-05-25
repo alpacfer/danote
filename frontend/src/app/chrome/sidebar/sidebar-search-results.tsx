@@ -10,7 +10,6 @@ import {
 import { Kbd, KbdGroup } from "@/components/ui/kbd"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
-  formatSentenceTranslation,
   normalizeSearchWord,
   type CORSearchGroup,
   type CORSearchVariant,
@@ -27,6 +26,7 @@ import { SidebarEnResults } from "@/app/chrome/sidebar/sidebar-en-results"
 import { SidebarSentenceResult } from "@/app/chrome/sidebar/sidebar-sentence-result"
 import { SidebarSearchPendingSkeleton } from "@/app/chrome/sidebar/sidebar-search-skeletons"
 import { SidebarWordbankResults } from "@/app/chrome/sidebar/sidebar-wordbank-results"
+import { SavedSentencesGroup } from "@/app/chrome/sidebar/sidebar-saved-sentences"
 
 type PageItem = {
   key: string
@@ -204,8 +204,17 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
   const hasEnResults = data.translatedEnCorVariantsToRender.length > 0 || data.enPosGroups.length > 0
   const isAnyEnLoading = data.isEnResolveLoading || data.isEnTranslatedCorLoading
   const shouldResolveEnglishAmbiguity = hasEnResults || isAnyEnLoading
+  const translatedEnCorIds = new Set(
+    data.translatedEnCorVariantsToRender.map(({ variant }) => variant.cor_id)
+  )
   const directCorSearchVariantsToRender = shouldResolveEnglishAmbiguity
-    ? data.corSearchVariantsToRender.filter(({ variant }) => !isSelfTranslatedCorVariant(variant, state.normalizedQuery))
+    ? data.corSearchVariantsToRender.filter(
+        ({ variant }) =>
+          !(
+            isSelfTranslatedCorVariant(variant, state.normalizedQuery) &&
+            translatedEnCorIds.has(variant.cor_id)
+          ),
+      )
     : data.corSearchVariantsToRender
   const directCorSearchGroups = data.orderedCorSearchGroups.filter((group) =>
     directCorSearchVariantsToRender.some((item) => item.group === group),
@@ -416,33 +425,5 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
         </>
       ) : null}
     </CommandList>
-  )
-}
-
-type SavedSentencesGroupProps = {
-  sentences: SentencebankSentence[]
-  onOpen: (id: number) => void
-}
-
-function SavedSentencesGroup({ sentences, onOpen }: SavedSentencesGroupProps) {
-  return (
-    <CommandGroup heading="Saved Sentences">
-      {sentences.map((sentence) => {
-        const translation = formatSentenceTranslation(sentence.english_translation)
-        return (
-          <CommandItem
-            key={sentence.id}
-            value={`saved-sentence-${sentence.id}`}
-            onSelect={() => onOpen(sentence.id)}
-            className="flex flex-col items-start gap-0.5"
-          >
-            <span className="text-sm font-medium leading-snug">{sentence.source_text}</span>
-            {translation ? (
-              <span className="text-muted-foreground text-xs leading-4">{translation}</span>
-            ) : null}
-          </CommandItem>
-        )
-      })}
-    </CommandGroup>
   )
 }

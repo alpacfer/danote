@@ -584,6 +584,29 @@ def handle_search_sidebar(args: argparse.Namespace, client: ApiClient) -> dict[s
             "matched_via": matched_via,
         })
 
+    cor_form = client.request(
+        RequestSpec(
+            "GET",
+            "/api/wordbank/search/cor-form",
+            {"form": query, "limit": 100, "include_translations": True},
+        )
+    )
+    direct_cor_variants: list[dict[str, Any]] = []
+    for group in (cor_form.get("groups") or []):
+        for variant in (group.get("variants") or []):
+            direct_cor_variants.append({
+                "cor_id": variant.get("cor_id"),
+                "form": variant.get("form"),
+                "lemma": variant.get("lemma"),
+                "pos_tag": variant.get("pos_tag") or group.get("pos_tag"),
+                "saveable_translation": variant.get("saveable_translation"),
+                "lemma_translation": variant.get("lemma_translation"),
+                "saved_meaning_id": variant.get("saved_meaning_id"),
+                "cor_lemma_idx": variant.get("lemma_idx"),
+                "meaning_key": variant.get("meaning_key"),
+                "english_gloss": variant.get("english_gloss") or group.get("gloss"),
+            })
+
     en_form = client.request(
         RequestSpec(
             "GET",
@@ -647,6 +670,7 @@ def handle_search_sidebar(args: argparse.Namespace, client: ApiClient) -> dict[s
                     "meaning_key": variant.get("meaning_key"),
                     "saved_meaning_id": variant.get("saved_meaning_id"),
                     "cor_lemma_idx": variant.get("lemma_idx"),
+                    "cor_id": variant.get("cor_id"),
                     "english_gloss": variant.get("english_gloss") or group.get("gloss"),
                     "from_en_source": {
                         "lemma": source_group.get("lemma"),
@@ -664,6 +688,27 @@ def handle_search_sidebar(args: argparse.Namespace, client: ApiClient) -> dict[s
                     continue
                 en_section.append(row)
 
+    # Deduplicate direct COR results based on the updated React UI logic
+    translated_en_cor_ids = {
+        row["cor_id"] for row in en_section if row.get("cor_id")
+    }
+    has_en_results = len(en_section) > 0 or len(en_groups) > 0
+
+    rendered_direct_cor: list[dict[str, Any]] = []
+    if not cor_form.get("did_you_mean"):
+        for variant in direct_cor_variants:
+            trans = _normalize_for_match(variant.get("saveable_translation") or variant.get("lemma_translation") or "")
+            is_self_trans = bool(trans) and trans == normalized
+            
+            keep = True
+            if has_en_results:
+                if is_self_trans:
+                    if variant.get("cor_id") in translated_en_cor_ids:
+                        keep = False
+            
+            if keep:
+                rendered_direct_cor.append(variant)
+
     duplicates: list[dict[str, Any]] = []
     for w in words_section:
         w_lemma = (w.get("lemma") or "").lower()
@@ -679,6 +724,13 @@ def handle_search_sidebar(args: argparse.Namespace, client: ApiClient) -> dict[s
                     "en_cor_lemma_idx": en_row.get("cor_lemma_idx"),
                 })
 
+    total_rendered_rows = len(words_section) + len(en_section) + len(rendered_direct_cor)
+    had_raw_results = len(words_section) > 0 or len(en_section) > 0 or len(direct_cor_variants) > 0
+
+    visibility_warning = None
+    if had_raw_results and total_rendered_rows == 0:
+        visibility_warning = "BUG: Search has raw results, but the UI filters render absolutely nothing!"
+
     return {
         "query": query,
         "summary": {
@@ -686,11 +738,14 @@ def handle_search_sidebar(args: argparse.Namespace, client: ApiClient) -> dict[s
             "words_section_rows": len(words_section),
             "en_section_rows": len(en_section),
             "en_section_raw_rows": len(en_section_raw),
+            "direct_cor_rows": len(rendered_direct_cor),
             "duplicates": len(duplicates),
         },
+        "visibility_warning": visibility_warning,
         "duplicate_warnings": duplicates,
         "words_section": words_section,
         "en_section": en_section,
+        "direct_cor_section": rendered_direct_cor,
         "en_section_raw_before_dedup": en_section_raw,
     }
 
