@@ -475,3 +475,26 @@ def test_parse_result_strips_danish_parenthetical_from_mwe_english_translation()
     result = _parse_result(raw, "løbe fra")
     assert result.mwe_english_translation == "to run away"
     assert result.mwe_meanings[0].english_translation == "to run away"
+
+
+def test_parse_result_rejects_mwe_longer_than_4_words() -> None:
+    raw = (
+        '{"is_valid": true, "errors": [], "corrected_text": null, "language": "da", '
+        '"is_multi_word_expression": true, "mwe_lemma": "det er ikke min kop te", "mwe_pos_tag": "VERB", '
+        '"mwe_gloss": "not my preference", "mwe_english_translation": "not my cup of tea", "mwe_meanings": []}'
+    )
+    result = _parse_result(raw, "det er ikke min kop te")
+    assert result.is_multi_word_expression is False
+    assert result.mwe_lemma is None
+
+
+def test_parse_result_accepts_mwe_up_to_4_words() -> None:
+    raw = (
+        '{"is_valid": true, "errors": [], "corrected_text": null, "language": "da", '
+        '"is_multi_word_expression": true, "mwe_lemma": "gå i gang", "mwe_pos_tag": "VERB", '
+        '"mwe_gloss": "begynde", "mwe_english_translation": "get started", "mwe_meanings": []}'
+    )
+    result = _parse_result(raw, "gå i gang")
+    assert result.is_multi_word_expression is True
+    assert result.mwe_lemma == "gå i gang"
+

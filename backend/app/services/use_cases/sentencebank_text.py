@@ -103,3 +103,40 @@ def heuristic_detect_language(source_text: str) -> Literal["da", "en", "unknown"
     if source_text.isascii():
         return "en"
     return "unknown"
+
+
+def translation_provider_name(translation_service: object | None) -> str:
+    provider = getattr(translation_service, "provider", None)
+    if isinstance(provider, str):
+        cleaned = provider.strip().lower()
+        if cleaned:
+            return cleaned
+    return "translation"
+
+
+_DANISH_MARKERS = {
+    "jeg", "du", "han", "hun", "vi", "de", "det", "den", "der", "har", "er",
+    "en", "et", "på", "og", "ikke", "hunden", "katten", "tøj",
+}
+_ENGLISH_MARKERS = {
+    "you", "he", "she", "we", "they", "a", "an", "the", "have", "has",
+    "is", "are", "dog", "run", "garden", "happy", "want", "buy", "clothes",
+}
+
+
+def looks_mixed_language(source_text: str) -> bool:
+    words = [word.strip(".,!?;:()[]{}\"'").casefold() for word in source_text.split()]
+    words = [word for word in words if word]
+    if not words:
+        return False
+    has_danish = any(word in _DANISH_MARKERS or any(ch in word for ch in "æøå") for word in words)
+    has_english = any(word in _ENGLISH_MARKERS for word in words)
+    if not has_danish or not has_english:
+        return False
+    # Uppercase "I" is a Danish pronoun in e.g. "I har en hund"; do not treat it
+    # as English when the rest of the sentence is Danish.
+    if len(words) >= 3 and source_text.split()[0] == "I" and {"har", "er"} & set(words[1:]):
+        return False
+    return True
+
+

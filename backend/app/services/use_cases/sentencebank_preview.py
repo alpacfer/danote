@@ -17,10 +17,13 @@ from app.services.sentence_verification import (
 )
 from app.services.translation import TranslationService
 from app.services.use_cases.sentencebank_text import (
+    capitalize_sentence_translation,
     heuristic_detect_language,
+    looks_mixed_language,
     normalize_query_language,
     normalize_sentence_text_without_terminal_period,
     preserve_leading_letter_case,
+    translation_provider_name,
 )
 from app.services.use_cases.wordbank import WordbankUseCase
 
@@ -198,7 +201,7 @@ def build_sentence_search_preview(
         heuristic_correction = _heuristic_danish_correction(normalized_query)
         if heuristic_correction is not None:
             initial_verification = heuristic_correction
-        elif _looks_mixed_language(normalized_query):
+        elif looks_mixed_language(normalized_query):
             return _blocked_preview(
                 query_language=detect_query_language_for_preview(
                     source_text=normalized_query,
@@ -241,7 +244,7 @@ def build_sentence_search_preview(
             translation_service=translation_service,
         )
 
-    if _looks_mixed_language(normalized_query) and not initial_verification.corrected_text:
+    if looks_mixed_language(normalized_query) and not initial_verification.corrected_text:
         return _blocked_preview(
             query_language=query_language,
             message="This looks like mixed Danish and English. Search a Danish or English sentence.",
@@ -379,7 +382,7 @@ def build_sentence_search_preview_fast(
     wordbank_use_case: WordbankUseCase | None,
     language_mode: Literal["da", "en"] | None = None,
 ) -> SentenceSearchPreviewResponse:
-    if _looks_mixed_language(normalized_query):
+    if looks_mixed_language(normalized_query):
         return SentenceSearchPreviewResponse(
             status="blocked",
             query_language="unknown",
@@ -447,7 +450,7 @@ def lookup_phrase_translation(
         try:
             payload = wordbank_use_case.generate_phrase_translation(source_text)
             if payload.english_translation:
-                return capitalize_english_translation(
+                return capitalize_sentence_translation(
                     preserve_leading_letter_case(source_text, payload.english_translation)
                 )
         except Exception:
@@ -459,7 +462,7 @@ def lookup_phrase_translation(
         if not isinstance(translated, str):
             return None
         cleaned = " ".join(translated.strip().split()) or None
-        return capitalize_english_translation(preserve_leading_letter_case(source_text, cleaned))
+        return capitalize_sentence_translation(preserve_leading_letter_case(source_text, cleaned))
     except Exception:
         return None
 
@@ -535,30 +538,7 @@ def _blocked_preview(
     )
 
 
-_DANISH_MARKERS = {
-    "jeg", "du", "han", "hun", "vi", "de", "det", "den", "der", "har", "er",
-    "en", "et", "på", "og", "ikke", "hunden", "katten", "tøj",
-}
-_ENGLISH_MARKERS = {
-    "i", "you", "he", "she", "we", "they", "a", "an", "the", "have", "has",
-    "is", "are", "dog", "run", "garden", "happy", "want", "buy", "clothes",
-}
 
-
-def _looks_mixed_language(source_text: str) -> bool:
-    words = [word.strip(".,!?;:()[]{}\"'").casefold() for word in source_text.split()]
-    words = [word for word in words if word]
-    if not words:
-        return False
-    has_danish = any(word in _DANISH_MARKERS or any(ch in word for ch in "æøå") for word in words)
-    has_english = any(word in _ENGLISH_MARKERS for word in words)
-    if not has_danish or not has_english:
-        return False
-    # Uppercase "I" is a Danish pronoun in e.g. "I har en hund"; do not treat it
-    # as English when the rest of the sentence is Danish.
-    if len(words) >= 3 and source_text.split()[0] == "I" and {"har", "er"} & set(words[1:]):
-        return False
-    return True
 
 
 def _heuristic_danish_correction(source_text: str) -> SentenceVerificationResult | None:
@@ -706,20 +686,3 @@ def _curated_mwe_meanings(normalized: str) -> list[SentenceMWEMeaning]:
         ]
     return []
 
-
-def capitalize_english_translation(value: str | None) -> str | None:
-    if not value:
-        return None
-    index = next((idx for idx, char in enumerate(value) if char.isalpha()), None)
-    if index is None or value[index].isupper():
-        return value
-    return value[:index] + value[index].upper() + value[index + 1:]
-
-
-def translation_provider_name(translation_service: TranslationService | None) -> str:
-    provider = getattr(translation_service, "provider", None)
-    if isinstance(provider, str):
-        cleaned = provider.strip().lower()
-        if cleaned:
-            return cleaned
-    return "translation"

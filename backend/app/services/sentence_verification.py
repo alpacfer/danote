@@ -90,33 +90,33 @@ def _build_prompt(source_text: str) -> str:
     return (
         "You are a Danish language expert.\n"
         f'Check this text for typos and grammatical errors: "{source_text}"\n\n'
-        "Additionally, detect any Multi-Word Expressions (MWEs) present in the text.\n"
-        "Multi-Word Expressions are combinations of words that act as a single semantic unit, including:\n"
-        "- Danish phrasal verbs or verb-particle constructions (e.g., 'se efter', 'kigge efter', 'slukke for', 'tage af sted')\n"
-        "- Fixed idiomatic expressions (e.g., 'skyde papegøjen', 'bide i det sure æble')\n"
+        "Additionally, detect any phrasal verbs (verb-particle constructions) present in the text as Multi-Word Expressions (MWEs).\n"
+        "In this system, we make a strict distinction between phrasal verbs and fixed idiomatic expressions/sayings:\n"
+        "1. Phrasal verbs or verb-particle constructions (e.g., 'se efter', 'kigge efter', 'slukke for', 'tage af sted', 'gå i gang', 'finde ud af' in Danish; 'look up', 'run out of', 'give up' in English) act as single verb units and should be classified as MWEs.\n"
+        "2. Fixed idiomatic expressions, idioms, proverbs, sayings, or full clauses (e.g., 'det er ikke min kop te', 'skyde papegøjen', 'bide i det sure æble', 'spille kong gulerod', 'it takes two to tango', 'kick the bucket', 'raining cats and dogs') are processed as full sentences and must NOT be classified as MWEs here. Idioms and sayings must be treated as full sentences, not MWEs.\n"
         "Do NOT classify regular noun phrases, free word combinations (e.g., 'spise æble'), or separable verbs acting compositional as MWEs.\n\n"
         "Return JSON only:\n"
         '- "is_valid": true if no errors, false otherwise\n'
         '- "errors": array of {start, end, message} with 0-indexed char offsets for each error; empty if valid\n'
         '- "corrected_text": fully corrected sentence string if is_valid is false, null if is_valid is true\n'
         '- "language": "da" if Danish, "en" if English, "unknown" otherwise\n'
-        '- "is_multi_word_expression": true if the ENTIRE input is exactly one multi-word expression (e.g. "se efter"), false otherwise\n'
-        '- "mwe_lemma": the canonical infinitive/dictionary form of the MWE if the entire input is an MWE, null otherwise (e.g., "se efter" if input is "ser efter")\n'
-        '- "mwe_pos_tag": the syntactic part-of-speech of the MWE using STANDARD Universal Dependencies tags ("VERB" for phrasal verbs/verbal idioms, "NOUN" for nominal idioms, "ADJ", "ADV", etc.). Do NOT use "phrasal_verb" or "idiom" — return the underlying syntactic role. Null if the entire input is not an MWE.\n'
-        '- "mwe_gloss": a brief Danish explanation/gloss of the MWE\'s MOST COMMON meaning if the entire input is an MWE, null otherwise. (Duplicates the first entry of mwe_meanings — kept for back-compat.)\n'
-        '- "mwe_english_translation": English translation of the MWE\'s MOST COMMON meaning if the entire input is an MWE, null otherwise. Must be English only — do not include Danish words or parenthetical Danish explanations.\n'
+        '- "is_multi_word_expression": true if the ENTIRE input is exactly one phrasal verb / verb-particle construction (e.g. "se efter", "gå i gang"), false otherwise. Do NOT set to true for idioms, sayings, proverbs, or full idiomatic expressions (e.g. "det er ikke min kop te", "it takes two to tango") — those must return false.\n'
+        '- "mwe_lemma": the canonical infinitive/dictionary form of the phrasal verb MWE if the entire input is a phrasal verb MWE, null otherwise (e.g., "se efter" if input is "ser efter")\n'
+        '- "mwe_pos_tag": the syntactic part-of-speech of the MWE using STANDARD Universal Dependencies tags (e.g. "VERB" for phrasal verbs). Do NOT use "phrasal_verb" or "idiom". Null if the entire input is not an MWE.\n'
+        '- "mwe_gloss": a brief Danish explanation/gloss of the MWE\'s MOST COMMON meaning if the entire input is a phrasal verb MWE, null otherwise.\n'
+        '- "mwe_english_translation": English translation of the MWE\'s MOST COMMON meaning if the entire input is a phrasal verb MWE, null otherwise. Must be English only — do not include Danish words or parenthetical Danish explanations.\n'
         '- "mwe_meanings": when is_multi_word_expression is true, an array of DISTINCT senses for the lemma, ordered from most common to least. Even monosemous MWEs return a one-element array. Polysemous phrasal verbs like "tage på" (put on / gain weight / go somewhere) must return one entry per distinct sense. Each entry has fields:\n'
         '  - "gloss": brief Danish explanation/gloss of THIS specific sense\n'
         '  - "english_translation": English translation of THIS specific sense (e.g. "to dress" vs "to gain weight"). Must be English only — never include Danish words or parenthetical Danish text.\n'
         '  - "pos_tag": standard UD POS tag for this sense (usually matches mwe_pos_tag)\n'
         '  - "meaning_key": a short stable identifier for this sense, normalized lowercase and unique within the array (e.g. "iføre sig tøj", "tage til vægt", "tage afsted")\n'
         '  Empty array if not an MWE. Cap at 6 entries — only return clearly distinct, commonly-used senses; do not invent rare meanings.\n'
-        '- "mwe_spans": list of MWE spans detected within the sentence if the input is a sentence. Each span has the fields:\n'
+        '- "mwe_spans": list of phrasal verb MWE spans detected within the sentence if the input is a sentence. Do not include idioms or full clauses in mwe_spans. Each span has the fields:\n'
         '  - "start": 0-indexed character offset of the start of the MWE span (inclusive)\n'
         '  - "end": 0-indexed character offset of the end of the MWE span (exclusive)\n'
         '  - "surface": the exact substring of the MWE in the sentence (e.g. "kigger efter")\n'
         '  - "lemma": the canonical dictionary form (e.g. "se efter")\n'
-        '  - "pos_tag": STANDARD Universal Dependencies POS tag ("VERB" for phrasal verbs/verbal idioms, "NOUN" for nominal idioms, "ADJ", "ADV", etc.). Do NOT use "phrasal_verb" or "idiom".\n'
+        '  - "pos_tag": STANDARD Universal Dependencies POS tag ("VERB" for phrasal verbs)\n'
         '  - "gloss": Danish gloss/definition of this expression\n'
         '  - "english_translation": English translation of this expression\n\n'
         "Keep the same capitalization style at the start of the sentence as the source text.\n"

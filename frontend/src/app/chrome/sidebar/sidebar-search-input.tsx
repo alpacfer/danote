@@ -149,6 +149,16 @@ const SEARCH_PHRASES = [
   'Search English sentences (e.g. "I need coffee to wake up my coffee")...',
   'Search English sentences (e.g. "why do round pizzas come in square boxes?")...',
   'Search English sentences (e.g. "sleeping is my favorite hobby")...',
+  'Search English sentences (e.g. "I only speak Danish when I am asleep")...',
+  'Search English sentences (e.g. "do not trust a smiling potato")...',
+  'Search English sentences (e.g. "the potato in my throat has its own potato")...',
+  'Search English sentences (e.g. "who stole my last slice of smørrebrød?")...',
+  'Search English sentences (e.g. "my hovercraft is full of eels")...',
+  'Search English sentences (e.g. "I am not arguing, I am just explaining why I am right")...',
+  'Search English sentences (e.g. "hold my coffee, I am going to try Danish grammar")...',
+  'Search English sentences (e.g. "why does the letter Ø look like a forbidden donut?")...',
+  'Search English sentences (e.g. "my pronunciation sounds like a wet sponge")...',
+  'Search English sentences (e.g. "I am fluent in Danish until someone speaks back to me")...',
 
   // --- New English Idioms ---
   'Search English idioms (e.g. "kick the bucket")...',
@@ -190,6 +200,16 @@ const SEARCH_PHRASES = [
   'Search Danish sentences (e.g. "hvor kan jeg købe en enhjørning?")...',
   'Search Danish sentences (e.g. "jeg forstår intet, men jeg smiler bare")...',
   'Search Danish sentences (e.g. "er det her vejen til månen?")...',
+  'Search Danish sentences (e.g. "kartoflen i min hals taler flydende spansk")...',
+  'Search Danish sentences (e.g. "der er ugler i mosen og kameler i baghaven")...',
+  'Search Danish sentences (e.g. "min hund tror, at den er statsminister")...',
+  'Search Danish sentences (e.g. "hvorfor koster denne cykel en hel bondegård?")...',
+  'Search Danish sentences (e.g. "jeg spiste to spandauere til morgenmad, hjælp")...',
+  'Search Danish sentences (e.g. "skal vi danse med en rød pølse?")...',
+  'Search Danish sentences (e.g. "jeg taler flydende jysk efter tre øl")...',
+  'Search Danish sentences (e.g. "hvor er mit yndlings-rugbrød henne?")...',
+  'Search Danish sentences (e.g. "regnen i Danmark falder mest på cyklisterne")...',
+  'Search Danish sentences (e.g. "katten sidder på computeren og koder i Python")...',
 
   // --- New Funny Danish Idioms ---
   'Search Danish idioms (e.g. "have en skrue løs")...',
@@ -243,6 +263,16 @@ export function SidebarSearchInput({
   const [phraseIndex, setPhraseIndex] = useState(0)
   const [displayText, setDisplayText] = useState("")
   const [isDeleting, setIsDeleting] = useState(false)
+
+  const [prevValue, setPrevValue] = useState(value)
+  if (value !== prevValue) {
+    setPrevValue(value)
+    if (value === "") {
+      setPhraseIndex(0)
+      setDisplayText("")
+      setIsDeleting(false)
+    }
+  }
 
   const isTest = typeof import.meta !== "undefined" && import.meta.env?.MODE === "test"
 

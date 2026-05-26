@@ -34,10 +34,9 @@ from app.services.use_cases.sentencebank_preview import (
     build_sentence_search_preview,
     build_verify_sentence_response,
     lookup_phrase_translation,
-    translation_provider_name,
 )
 from app.services.use_cases.sentencebank_pronunciation import SentencePronunciationCollaborator
-from app.services.use_cases.sentencebank_text import normalize_sentence_text
+from app.services.use_cases.sentencebank_text import normalize_sentence_text, translation_provider_name
 from app.services.use_cases.sentencebank_token_persistence import (
     batch_verify_new_sentence_tokens,
 )
