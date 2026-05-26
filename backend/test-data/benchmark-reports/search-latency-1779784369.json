@@ -1,0 +1,1526 @@
+{
+  "label": "",
+  "backend": "http://127.0.0.1:8000",
+  "created_at": "2026-05-26T08:32:49.384306+00:00",
+  "queries": [
+    "card",
+    "book",
+    "house"
+  ],
+  "runs": [
+    {
+      "query": "card",
+      "run_index": 0,
+      "cold": false,
+      "total_wall_ms": 18.892375,
+      "sum_http_ms": 18.843750000000007,
+      "timings": [
+        {
+          "label": "en-form card",
+          "duration_ms": 9.983000000000006
+        },
+        {
+          "label": "cor-form-batch",
+          "duration_ms": 8.860750000000001
+        }
+      ],
+      "responses": {
+        "en_form": {
+          "form": "card",
+          "groups": [
+            {
+              "lemma": "card",
+              "form": "card",
+              "pos_ud": "NOUN",
+              "pos_raw": "noun",
+              "danish_translation": "kort",
+              "meaning_description": "small piece of paper",
+              "senses": [
+                {
+                  "pos_ud": "NOUN",
+                  "sense_idx": 0,
+                  "gloss": "A card is a small, often rectangular piece of paper or plastic, usually with information.",
+                  "danish_translation": "kort",
+                  "examples": [
+                    "The police stopped me and asked to see my identity card.",
+                    "\"I don't have any money with me, can I pay with my credit card?\"",
+                    "The soccer player got a red card and left the game.",
+                    "We spent the afternoon playing card games.",
+                    "I think we sent them a Christmas card last year."
+                  ]
+                }
+              ]
+            },
+            {
+              "lemma": "card",
+              "form": "card",
+              "pos_ud": "VERB",
+              "pos_raw": "verb",
+              "danish_translation": "legitimere",
+              "meaning_description": "check identification documents",
+              "senses": [
+                {
+                  "pos_ud": "VERB",
+                  "sense_idx": 0,
+                  "gloss": "If you card someone, you check their ID cards, usually to see if they are old enough to enter a place or drink alcohol.",
+                  "danish_translation": "legitimere",
+                  "examples": [
+                    "They have to card anybody who looks 30 or younger."
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "cor_forms": {
+          "kort": {
+            "form": "kort",
+            "groups": [
+              {
+                "lemma": "kort",
+                "gloss": null,
+                "pos_tag": "NOUN",
+                "variants": [
+                  {
+                    "cor_id": "COR.53487.120.01",
+                    "form": "kort",
+                    "lemma": "kort",
+                    "dictionary_status": "cor",
+                    "gloss": null,
+                    "gloss_translation": null,
+                    "gram_raw": "sb.itk.sg.ubest | sb.itk.pl.ubest",
+                    "norm": "N",
+                    "lemma_idx": 53487,
+                    "gram_code": 120,
+                    "variation": 1,
+                    "pos_tag": "NOUN",
+                    "morphology": "Gender=Neut|Number=Sing|Definite=Ind",
+                    "features": {
+                      "Gender": "Neut",
+                      "Definite": "Ind"
+                    },
+                    "extra_tags": [],
+                    "lemma_translation": null,
+                    "saveable_translation": null,
+                    "lemma_translation_provider": null,
+                    "lemma_translation_status": null,
+                    "lemma_translation_reason": null,
+                    "meaning_key": null,
+                    "english_gloss": null,
+                    "alternative_translations": [],
+                    "saved_meaning_id": null,
+                    "example_da": null,
+                    "example_en": null
+                  }
+                ]
+              }
+            ],
+            "did_you_mean": null
+          },
+          "legitimere": {
+            "form": "legitimere",
+            "groups": [
+              {
+                "lemma": "legitimere",
+                "gloss": null,
+                "pos_tag": "VERB",
+                "variants": [
+                  {
+                    "cor_id": "COR.39149.200.01",
+                    "form": "legitimere",
+                    "lemma": "legitimere",
+                    "dictionary_status": "cor",
+                    "gloss": null,
+                    "gloss_translation": null,
+                    "gram_raw": "vb.inf.akt",
+                    "norm": "N",
+                    "lemma_idx": 39149,
+                    "gram_code": 200,
+                    "variation": 1,
+                    "pos_tag": "VERB",
+                    "morphology": "VerbForm=Inf|Voice=Act",
+                    "features": {
+                      "VerbForm": "Inf",
+                      "Voice": "Act"
+                    },
+                    "extra_tags": [],
+                    "lemma_translation": null,
+                    "saveable_translation": null,
+                    "lemma_translation_provider": null,
+                    "lemma_translation_status": null,
+                    "lemma_translation_reason": null,
+                    "meaning_key": null,
+                    "english_gloss": null,
+                    "alternative_translations": [],
+                    "saved_meaning_id": null,
+                    "example_da": null,
+                    "example_en": null
+                  }
+                ]
+              }
+            ],
+            "did_you_mean": null
+          }
+        }
+      }
+    },
+    {
+      "query": "card",
+      "run_index": 1,
+      "cold": false,
+      "total_wall_ms": 18.138,
+      "sum_http_ms": 18.110666000000013,
+      "timings": [
+        {
+          "label": "en-form card",
+          "duration_ms": 5.31150000000001
+        },
+        {
+          "label": "cor-form-batch",
+          "duration_ms": 12.799166000000001
+        }
+      ],
+      "responses": {
+        "en_form": {
+          "form": "card",
+          "groups": [
+            {
+              "lemma": "card",
+              "form": "card",
+              "pos_ud": "NOUN",
+              "pos_raw": "noun",
+              "danish_translation": "kort",
+              "meaning_description": "small piece of paper",
+              "senses": [
+                {
+                  "pos_ud": "NOUN",
+                  "sense_idx": 0,
+                  "gloss": "A card is a small, often rectangular piece of paper or plastic, usually with information.",
+                  "danish_translation": "kort",
+                  "examples": [
+                    "The police stopped me and asked to see my identity card.",
+                    "\"I don't have any money with me, can I pay with my credit card?\"",
+                    "The soccer player got a red card and left the game.",
+                    "We spent the afternoon playing card games.",
+                    "I think we sent them a Christmas card last year."
+                  ]
+                }
+              ]
+            },
+            {
+              "lemma": "card",
+              "form": "card",
+              "pos_ud": "VERB",
+              "pos_raw": "verb",
+              "danish_translation": "legitimere",
+              "meaning_description": "check identification documents",
+              "senses": [
+                {
+                  "pos_ud": "VERB",
+                  "sense_idx": 0,
+                  "gloss": "If you card someone, you check their ID cards, usually to see if they are old enough to enter a place or drink alcohol.",
+                  "danish_translation": "legitimere",
+                  "examples": [
+                    "They have to card anybody who looks 30 or younger."
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "cor_forms": {
+          "kort": {
+            "form": "kort",
+            "groups": [
+              {
+                "lemma": "kort",
+                "gloss": null,
+                "pos_tag": "NOUN",
+                "variants": [
+                  {
+                    "cor_id": "COR.53487.120.01",
+                    "form": "kort",
+                    "lemma": "kort",
+                    "dictionary_status": "cor",
+                    "gloss": null,
+                    "gloss_translation": null,
+                    "gram_raw": "sb.itk.sg.ubest | sb.itk.pl.ubest",
+                    "norm": "N",
+                    "lemma_idx": 53487,
+                    "gram_code": 120,
+                    "variation": 1,
+                    "pos_tag": "NOUN",
+                    "morphology": "Gender=Neut|Number=Sing|Definite=Ind",
+                    "features": {
+                      "Gender": "Neut",
+                      "Definite": "Ind"
+                    },
+                    "extra_tags": [],
+                    "lemma_translation": null,
+                    "saveable_translation": null,
+                    "lemma_translation_provider": null,
+                    "lemma_translation_status": null,
+                    "lemma_translation_reason": null,
+                    "meaning_key": null,
+                    "english_gloss": null,
+                    "alternative_translations": [],
+                    "saved_meaning_id": null,
+                    "example_da": null,
+                    "example_en": null
+                  }
+                ]
+              }
+            ],
+            "did_you_mean": null
+          },
+          "legitimere": {
+            "form": "legitimere",
+            "groups": [
+              {
+                "lemma": "legitimere",
+                "gloss": null,
+                "pos_tag": "VERB",
+                "variants": [
+                  {
+                    "cor_id": "COR.39149.200.01",
+                    "form": "legitimere",
+                    "lemma": "legitimere",
+                    "dictionary_status": "cor",
+                    "gloss": null,
+                    "gloss_translation": null,
+                    "gram_raw": "vb.inf.akt",
+                    "norm": "N",
+                    "lemma_idx": 39149,
+                    "gram_code": 200,
+                    "variation": 1,
+                    "pos_tag": "VERB",
+                    "morphology": "VerbForm=Inf|Voice=Act",
+                    "features": {
+                      "VerbForm": "Inf",
+                      "Voice": "Act"
+                    },
+                    "extra_tags": [],
+                    "lemma_translation": null,
+                    "saveable_translation": null,
+                    "lemma_translation_provider": null,
+                    "lemma_translation_status": null,
+                    "lemma_translation_reason": null,
+                    "meaning_key": null,
+                    "english_gloss": null,
+                    "alternative_translations": [],
+                    "saved_meaning_id": null,
+                    "example_da": null,
+                    "example_en": null
+                  }
+                ]
+              }
+            ],
+            "did_you_mean": null
+          }
+        }
+      }
+    },
+    {
+      "query": "card",
+      "run_index": 2,
+      "cold": false,
+      "total_wall_ms": 7.645499999999999,
+      "sum_http_ms": 7.59916699999999,
+      "timings": [
+        {
+          "label": "en-form card",
+          "duration_ms": 3.1142079999999934
+        },
+        {
+          "label": "cor-form-batch",
+          "duration_ms": 4.484958999999996
+        }
+      ],
+      "responses": {
+        "en_form": {
+          "form": "card",
+          "groups": [
+            {
+              "lemma": "card",
+              "form": "card",
+              "pos_ud": "NOUN",
+              "pos_raw": "noun",
+              "danish_translation": "kort",
+              "meaning_description": "small piece of paper",
+              "senses": [
+                {
+                  "pos_ud": "NOUN",
+                  "sense_idx": 0,
+                  "gloss": "A card is a small, often rectangular piece of paper or plastic, usually with information.",
+                  "danish_translation": "kort",
+                  "examples": [
+                    "The police stopped me and asked to see my identity card.",
+                    "\"I don't have any money with me, can I pay with my credit card?\"",
+                    "The soccer player got a red card and left the game.",
+                    "We spent the afternoon playing card games.",
+                    "I think we sent them a Christmas card last year."
+                  ]
+                }
+              ]
+            },
+            {
+              "lemma": "card",
+              "form": "card",
+              "pos_ud": "VERB",
+              "pos_raw": "verb",
+              "danish_translation": "legitimere",
+              "meaning_description": "check identification documents",
+              "senses": [
+                {
+                  "pos_ud": "VERB",
+                  "sense_idx": 0,
+                  "gloss": "If you card someone, you check their ID cards, usually to see if they are old enough to enter a place or drink alcohol.",
+                  "danish_translation": "legitimere",
+                  "examples": [
+                    "They have to card anybody who looks 30 or younger."
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "cor_forms": {
+          "kort": {
+            "form": "kort",
+            "groups": [
+              {
+                "lemma": "kort",
+                "gloss": null,
+                "pos_tag": "NOUN",
+                "variants": [
+                  {
+                    "cor_id": "COR.53487.120.01",
+                    "form": "kort",
+                    "lemma": "kort",
+                    "dictionary_status": "cor",
+                    "gloss": null,
+                    "gloss_translation": null,
+                    "gram_raw": "sb.itk.sg.ubest | sb.itk.pl.ubest",
+                    "norm": "N",
+                    "lemma_idx": 53487,
+                    "gram_code": 120,
+                    "variation": 1,
+                    "pos_tag": "NOUN",
+                    "morphology": "Gender=Neut|Number=Sing|Definite=Ind",
+                    "features": {
+                      "Gender": "Neut",
+                      "Definite": "Ind"
+                    },
+                    "extra_tags": [],
+                    "lemma_translation": null,
+                    "saveable_translation": null,
+                    "lemma_translation_provider": null,
+                    "lemma_translation_status": null,
+                    "lemma_translation_reason": null,
+                    "meaning_key": null,
+                    "english_gloss": null,
+                    "alternative_translations": [],
+                    "saved_meaning_id": null,
+                    "example_da": null,
+                    "example_en": null
+                  }
+                ]
+              }
+            ],
+            "did_you_mean": null
+          },
+          "legitimere": {
+            "form": "legitimere",
+            "groups": [
+              {
+                "lemma": "legitimere",
+                "gloss": null,
+                "pos_tag": "VERB",
+                "variants": [
+                  {
+                    "cor_id": "COR.39149.200.01",
+                    "form": "legitimere",
+                    "lemma": "legitimere",
+                    "dictionary_status": "cor",
+                    "gloss": null,
+                    "gloss_translation": null,
+                    "gram_raw": "vb.inf.akt",
+                    "norm": "N",
+                    "lemma_idx": 39149,
+                    "gram_code": 200,
+                    "variation": 1,
+                    "pos_tag": "VERB",
+                    "morphology": "VerbForm=Inf|Voice=Act",
+                    "features": {
+                      "VerbForm": "Inf",
+                      "Voice": "Act"
+                    },
+                    "extra_tags": [],
+                    "lemma_translation": null,
+                    "saveable_translation": null,
+                    "lemma_translation_provider": null,
+                    "lemma_translation_status": null,
+                    "lemma_translation_reason": null,
+                    "meaning_key": null,
+                    "english_gloss": null,
+                    "alternative_translations": [],
+                    "saved_meaning_id": null,
+                    "example_da": null,
+                    "example_en": null
+                  }
+                ]
+              }
+            ],
+            "did_you_mean": null
+          }
+        }
+      }
+    },
+    {
+      "query": "book",
+      "run_index": 0,
+      "cold": false,
+      "total_wall_ms": 830.86675,
+      "sum_http_ms": 830.8173340000001,
+      "timings": [
+        {
+          "label": "en-form book",
+          "duration_ms": 3.377375000000002
+        },
+        {
+          "label": "cor-form-batch",
+          "duration_ms": 827.439959
+        }
+      ],
+      "responses": {
+        "en_form": {
+          "form": "book",
+          "groups": [
+            {
+              "lemma": "book",
+              "form": "book",
+              "pos_ud": "NOUN",
+              "pos_raw": "noun",
+              "danish_translation": "bog",
+              "meaning_description": "bound pages for reading",
+              "senses": [
+                {
+                  "pos_ud": "NOUN",
+                  "sense_idx": 0,
+                  "gloss": "A book is a lot of paper joined together with writing and pictures printed on them for you to read or write in.",
+                  "danish_translation": "bog",
+                  "examples": [
+                    "I borrow books from the library, and keep them in a bookcase."
+                  ]
+                },
+                {
+                  "pos_ud": "NOUN",
+                  "sense_idx": 1,
+                  "gloss": "A book is a group of stamps, matches, tickets, etc., held together inside a paper cover.",
+                  "danish_translation": "bog",
+                  "examples": []
+                },
+                {
+                  "pos_ud": "NOUN",
+                  "sense_idx": 2,
+                  "gloss": "A company's books are its money records.",
+                  "danish_translation": "bog",
+                  "examples": [
+                    "An outside accountant kept the books and signed the checks until he joined the company."
+                  ]
+                }
+              ]
+            },
+            {
+              "lemma": "book",
+              "form": "book",
+              "pos_ud": "VERB",
+              "pos_raw": "verb",
+              "danish_translation": "booke",
+              "meaning_description": "reserve or record officially",
+              "senses": [
+                {
+                  "pos_ud": "VERB",
+                  "sense_idx": 0,
+                  "gloss": "If you book something or someone, you reserve them for a certain time.",
+                  "danish_translation": "booke",
+                  "examples": [
+                    "I want to book a hotel room for tomorrow night.",
+                    "I can book tickets for the concert next week."
+                  ]
+                },
+                {
+                  "pos_ud": "VERB",
+                  "sense_idx": 1,
+                  "gloss": "If you book someone, you officially put their name in police records for a crime.",
+                  "danish_translation": "booke",
+                  "examples": [
+                    "The police booked him for driving too fast."
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "cor_forms": {
+          "bog": {
+            "form": "bog",
+            "groups": [
+              {
+                "lemma": "bog",
+                "gloss": "til læsning",
+                "pos_tag": "NOUN",
+                "variants": [
+                  {
+                    "cor_id": "COR.41274.110.01",
+                    "form": "bog",
+                    "lemma": "bog",
+                    "dictionary_status": "cor",
+                    "gloss": "til læsning",
+                    "gloss_translation": null,
+                    "gram_raw": "sb.fk.sg.ubest",
+                    "norm": "N",
+                    "lemma_idx": 41274,
+                    "gram_code": 110,
+                    "variation": 1,
+                    "pos_tag": "NOUN",
+                    "morphology": "Gender=Com|Number=Sing|Definite=Ind",
+                    "features": {
+                      "Gender": "Com",
+                      "Number": "Sing",
+                      "Definite": "Ind"
+                    },
+                    "extra_tags": [],
+                    "lemma_translation": null,
+                    "saveable_translation": null,
+                    "lemma_translation_provider": null,
+                    "lemma_translation_status": null,
+                    "lemma_translation_reason": null,
+                    "meaning_key": null,
+                    "english_gloss": null,
+                    "alternative_translations": [],
+                    "saved_meaning_id": null,
+                    "example_da": null,
+                    "example_en": null
+                  }
+                ]
+              }
+            ],
+            "did_you_mean": null
+          },
+          "booke": {
+            "form": "booke",
+            "groups": [
+              {
+                "lemma": "booke",
+                "gloss": null,
+                "pos_tag": "VERB",
+                "variants": [
+                  {
+                    "cor_id": "COR.39909.200.01",
+                    "form": "booke",
+                    "lemma": "booke",
+                    "dictionary_status": "cor",
+                    "gloss": null,
+                    "gloss_translation": null,
+                    "gram_raw": "vb.inf.akt",
+                    "norm": "N",
+                    "lemma_idx": 39909,
+                    "gram_code": 200,
+                    "variation": 1,
+                    "pos_tag": "VERB",
+                    "morphology": "VerbForm=Inf|Voice=Act",
+                    "features": {
+                      "VerbForm": "Inf",
+                      "Voice": "Act"
+                    },
+                    "extra_tags": [],
+                    "lemma_translation": null,
+                    "saveable_translation": null,
+                    "lemma_translation_provider": null,
+                    "lemma_translation_status": null,
+                    "lemma_translation_reason": null,
+                    "meaning_key": null,
+                    "english_gloss": null,
+                    "alternative_translations": [],
+                    "saved_meaning_id": null,
+                    "example_da": null,
+                    "example_en": null
+                  }
+                ]
+              }
+            ],
+            "did_you_mean": null
+          }
+        }
+      }
+    },
+    {
+      "query": "book",
+      "run_index": 1,
+      "cold": false,
+      "total_wall_ms": 19.775416999999962,
+      "sum_http_ms": 19.616126000000065,
+      "timings": [
+        {
+          "label": "en-form book",
+          "duration_ms": 9.92820900000002
+        },
+        {
+          "label": "cor-form-batch",
+          "duration_ms": 9.687917000000045
+        }
+      ],
+      "responses": {
+        "en_form": {
+          "form": "book",
+          "groups": [
+            {
+              "lemma": "book",
+              "form": "book",
+              "pos_ud": "NOUN",
+              "pos_raw": "noun",
+              "danish_translation": "bog",
+              "meaning_description": "bound pages for reading",
+              "senses": [
+                {
+                  "pos_ud": "NOUN",
+                  "sense_idx": 0,
+                  "gloss": "A book is a lot of paper joined together with writing and pictures printed on them for you to read or write in.",
+                  "danish_translation": "bog",
+                  "examples": [
+                    "I borrow books from the library, and keep them in a bookcase."
+                  ]
+                },
+                {
+                  "pos_ud": "NOUN",
+                  "sense_idx": 1,
+                  "gloss": "A book is a group of stamps, matches, tickets, etc., held together inside a paper cover.",
+                  "danish_translation": "bog",
+                  "examples": []
+                },
+                {
+                  "pos_ud": "NOUN",
+                  "sense_idx": 2,
+                  "gloss": "A company's books are its money records.",
+                  "danish_translation": "bog",
+                  "examples": [
+                    "An outside accountant kept the books and signed the checks until he joined the company."
+                  ]
+                }
+              ]
+            },
+            {
+              "lemma": "book",
+              "form": "book",
+              "pos_ud": "VERB",
+              "pos_raw": "verb",
+              "danish_translation": "booke",
+              "meaning_description": "reserve or record officially",
+              "senses": [
+                {
+                  "pos_ud": "VERB",
+                  "sense_idx": 0,
+                  "gloss": "If you book something or someone, you reserve them for a certain time.",
+                  "danish_translation": "booke",
+                  "examples": [
+                    "I want to book a hotel room for tomorrow night.",
+                    "I can book tickets for the concert next week."
+                  ]
+                },
+                {
+                  "pos_ud": "VERB",
+                  "sense_idx": 1,
+                  "gloss": "If you book someone, you officially put their name in police records for a crime.",
+                  "danish_translation": "booke",
+                  "examples": [
+                    "The police booked him for driving too fast."
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "cor_forms": {
+          "bog": {
+            "form": "bog",
+            "groups": [
+              {
+                "lemma": "bog",
+                "gloss": "til læsning",
+                "pos_tag": "NOUN",
+                "variants": [
+                  {
+                    "cor_id": "COR.41274.110.01",
+                    "form": "bog",
+                    "lemma": "bog",
+                    "dictionary_status": "cor",
+                    "gloss": "til læsning",
+                    "gloss_translation": null,
+                    "gram_raw": "sb.fk.sg.ubest",
+                    "norm": "N",
+                    "lemma_idx": 41274,
+                    "gram_code": 110,
+                    "variation": 1,
+                    "pos_tag": "NOUN",
+                    "morphology": "Gender=Com|Number=Sing|Definite=Ind",
+                    "features": {
+                      "Gender": "Com",
+                      "Number": "Sing",
+                      "Definite": "Ind"
+                    },
+                    "extra_tags": [],
+                    "lemma_translation": null,
+                    "saveable_translation": null,
+                    "lemma_translation_provider": null,
+                    "lemma_translation_status": null,
+                    "lemma_translation_reason": null,
+                    "meaning_key": null,
+                    "english_gloss": null,
+                    "alternative_translations": [],
+                    "saved_meaning_id": null,
+                    "example_da": null,
+                    "example_en": null
+                  }
+                ]
+              }
+            ],
+            "did_you_mean": null
+          },
+          "booke": {
+            "form": "booke",
+            "groups": [
+              {
+                "lemma": "booke",
+                "gloss": null,
+                "pos_tag": "VERB",
+                "variants": [
+                  {
+                    "cor_id": "COR.39909.200.01",
+                    "form": "booke",
+                    "lemma": "booke",
+                    "dictionary_status": "cor",
+                    "gloss": null,
+                    "gloss_translation": null,
+                    "gram_raw": "vb.inf.akt",
+                    "norm": "N",
+                    "lemma_idx": 39909,
+                    "gram_code": 200,
+                    "variation": 1,
+                    "pos_tag": "VERB",
+                    "morphology": "VerbForm=Inf|Voice=Act",
+                    "features": {
+                      "VerbForm": "Inf",
+                      "Voice": "Act"
+                    },
+                    "extra_tags": [],
+                    "lemma_translation": null,
+                    "saveable_translation": null,
+                    "lemma_translation_provider": null,
+                    "lemma_translation_status": null,
+                    "lemma_translation_reason": null,
+                    "meaning_key": null,
+                    "english_gloss": null,
+                    "alternative_translations": [],
+                    "saved_meaning_id": null,
+                    "example_da": null,
+                    "example_en": null
+                  }
+                ]
+              }
+            ],
+            "did_you_mean": null
+          }
+        }
+      }
+    },
+    {
+      "query": "book",
+      "run_index": 2,
+      "cold": false,
+      "total_wall_ms": 12.441208999999898,
+      "sum_http_ms": 12.351041999999923,
+      "timings": [
+        {
+          "label": "en-form book",
+          "duration_ms": 5.1856249999999715
+        },
+        {
+          "label": "cor-form-batch",
+          "duration_ms": 7.165416999999952
+        }
+      ],
+      "responses": {
+        "en_form": {
+          "form": "book",
+          "groups": [
+            {
+              "lemma": "book",
+              "form": "book",
+              "pos_ud": "NOUN",
+              "pos_raw": "noun",
+              "danish_translation": "bog",
+              "meaning_description": "bound pages for reading",
+              "senses": [
+                {
+                  "pos_ud": "NOUN",
+                  "sense_idx": 0,
+                  "gloss": "A book is a lot of paper joined together with writing and pictures printed on them for you to read or write in.",
+                  "danish_translation": "bog",
+                  "examples": [
+                    "I borrow books from the library, and keep them in a bookcase."
+                  ]
+                },
+                {
+                  "pos_ud": "NOUN",
+                  "sense_idx": 1,
+                  "gloss": "A book is a group of stamps, matches, tickets, etc., held together inside a paper cover.",
+                  "danish_translation": "bog",
+                  "examples": []
+                },
+                {
+                  "pos_ud": "NOUN",
+                  "sense_idx": 2,
+                  "gloss": "A company's books are its money records.",
+                  "danish_translation": "bog",
+                  "examples": [
+                    "An outside accountant kept the books and signed the checks until he joined the company."
+                  ]
+                }
+              ]
+            },
+            {
+              "lemma": "book",
+              "form": "book",
+              "pos_ud": "VERB",
+              "pos_raw": "verb",
+              "danish_translation": "booke",
+              "meaning_description": "reserve or record officially",
+              "senses": [
+                {
+                  "pos_ud": "VERB",
+                  "sense_idx": 0,
+                  "gloss": "If you book something or someone, you reserve them for a certain time.",
+                  "danish_translation": "booke",
+                  "examples": [
+                    "I want to book a hotel room for tomorrow night.",
+                    "I can book tickets for the concert next week."
+                  ]
+                },
+                {
+                  "pos_ud": "VERB",
+                  "sense_idx": 1,
+                  "gloss": "If you book someone, you officially put their name in police records for a crime.",
+                  "danish_translation": "booke",
+                  "examples": [
+                    "The police booked him for driving too fast."
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "cor_forms": {
+          "bog": {
+            "form": "bog",
+            "groups": [
+              {
+                "lemma": "bog",
+                "gloss": "til læsning",
+                "pos_tag": "NOUN",
+                "variants": [
+                  {
+                    "cor_id": "COR.41274.110.01",
+                    "form": "bog",
+                    "lemma": "bog",
+                    "dictionary_status": "cor",
+                    "gloss": "til læsning",
+                    "gloss_translation": null,
+                    "gram_raw": "sb.fk.sg.ubest",
+                    "norm": "N",
+                    "lemma_idx": 41274,
+                    "gram_code": 110,
+                    "variation": 1,
+                    "pos_tag": "NOUN",
+                    "morphology": "Gender=Com|Number=Sing|Definite=Ind",
+                    "features": {
+                      "Gender": "Com",
+                      "Number": "Sing",
+                      "Definite": "Ind"
+                    },
+                    "extra_tags": [],
+                    "lemma_translation": null,
+                    "saveable_translation": null,
+                    "lemma_translation_provider": null,
+                    "lemma_translation_status": null,
+                    "lemma_translation_reason": null,
+                    "meaning_key": null,
+                    "english_gloss": null,
+                    "alternative_translations": [],
+                    "saved_meaning_id": null,
+                    "example_da": null,
+                    "example_en": null
+                  }
+                ]
+              }
+            ],
+            "did_you_mean": null
+          },
+          "booke": {
+            "form": "booke",
+            "groups": [
+              {
+                "lemma": "booke",
+                "gloss": null,
+                "pos_tag": "VERB",
+                "variants": [
+                  {
+                    "cor_id": "COR.39909.200.01",
+                    "form": "booke",
+                    "lemma": "booke",
+                    "dictionary_status": "cor",
+                    "gloss": null,
+                    "gloss_translation": null,
+                    "gram_raw": "vb.inf.akt",
+                    "norm": "N",
+                    "lemma_idx": 39909,
+                    "gram_code": 200,
+                    "variation": 1,
+                    "pos_tag": "VERB",
+                    "morphology": "VerbForm=Inf|Voice=Act",
+                    "features": {
+                      "VerbForm": "Inf",
+                      "Voice": "Act"
+                    },
+                    "extra_tags": [],
+                    "lemma_translation": null,
+                    "saveable_translation": null,
+                    "lemma_translation_provider": null,
+                    "lemma_translation_status": null,
+                    "lemma_translation_reason": null,
+                    "meaning_key": null,
+                    "english_gloss": null,
+                    "alternative_translations": [],
+                    "saved_meaning_id": null,
+                    "example_da": null,
+                    "example_en": null
+                  }
+                ]
+              }
+            ],
+            "did_you_mean": null
+          }
+        }
+      }
+    },
+    {
+      "query": "house",
+      "run_index": 0,
+      "cold": false,
+      "total_wall_ms": 624.768375,
+      "sum_http_ms": 624.607292,
+      "timings": [
+        {
+          "label": "en-form house",
+          "duration_ms": 11.661291999999989
+        },
+        {
+          "label": "cor-form-batch",
+          "duration_ms": 612.946
+        }
+      ],
+      "responses": {
+        "en_form": {
+          "form": "house",
+          "groups": [
+            {
+              "lemma": "house",
+              "form": "house",
+              "pos_ud": "NOUN",
+              "pos_raw": "noun",
+              "danish_translation": "hus",
+              "meaning_description": "residential building or music",
+              "senses": [
+                {
+                  "pos_ud": "NOUN",
+                  "sense_idx": 0,
+                  "gloss": "A house is a building that one family lives in.",
+                  "danish_translation": "hus",
+                  "examples": [
+                    "The president lives in a house in Washington, called The White House."
+                  ]
+                },
+                {
+                  "pos_ud": "NOUN",
+                  "sense_idx": 1,
+                  "gloss": "House is a type of music.",
+                  "danish_translation": "hus",
+                  "examples": []
+                }
+              ]
+            },
+            {
+              "lemma": "house",
+              "form": "house",
+              "pos_ud": "VERB",
+              "pos_raw": "verb",
+              "danish_translation": "huse",
+              "meaning_description": "provide shelter or space",
+              "senses": [
+                {
+                  "pos_ud": "VERB",
+                  "sense_idx": 0,
+                  "gloss": "If you house someone or something, you give them a home.",
+                  "danish_translation": "huse",
+                  "examples": [
+                    "The building houses a research centre and a school.",
+                    "During the storm they were housed in the local school's gym."
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "cor_forms": {
+          "hus": {
+            "form": "hus",
+            "groups": [
+              {
+                "lemma": "hus",
+                "gloss": null,
+                "pos_tag": "NOUN",
+                "variants": [
+                  {
+                    "cor_id": "COR.43962.120.01",
+                    "form": "hus",
+                    "lemma": "hus",
+                    "dictionary_status": "cor",
+                    "gloss": null,
+                    "gloss_translation": null,
+                    "gram_raw": "sb.itk.sg.ubest",
+                    "norm": "N",
+                    "lemma_idx": 43962,
+                    "gram_code": 120,
+                    "variation": 1,
+                    "pos_tag": "NOUN",
+                    "morphology": "Gender=Neut|Number=Sing|Definite=Ind",
+                    "features": {
+                      "Gender": "Neut",
+                      "Number": "Sing",
+                      "Definite": "Ind"
+                    },
+                    "extra_tags": [],
+                    "lemma_translation": null,
+                    "saveable_translation": null,
+                    "lemma_translation_provider": null,
+                    "lemma_translation_status": null,
+                    "lemma_translation_reason": null,
+                    "meaning_key": null,
+                    "english_gloss": null,
+                    "alternative_translations": [],
+                    "saved_meaning_id": null,
+                    "example_da": null,
+                    "example_en": null
+                  }
+                ]
+              }
+            ],
+            "did_you_mean": null
+          },
+          "huse": {
+            "form": "huse",
+            "groups": [
+              {
+                "lemma": "huse",
+                "gloss": null,
+                "pos_tag": "VERB",
+                "variants": [
+                  {
+                    "cor_id": "COR.31381.200.01",
+                    "form": "huse",
+                    "lemma": "huse",
+                    "dictionary_status": "cor",
+                    "gloss": null,
+                    "gloss_translation": null,
+                    "gram_raw": "vb.inf.akt",
+                    "norm": "N",
+                    "lemma_idx": 31381,
+                    "gram_code": 200,
+                    "variation": 1,
+                    "pos_tag": "VERB",
+                    "morphology": "VerbForm=Inf|Voice=Act",
+                    "features": {
+                      "VerbForm": "Inf",
+                      "Voice": "Act"
+                    },
+                    "extra_tags": [],
+                    "lemma_translation": null,
+                    "saveable_translation": null,
+                    "lemma_translation_provider": null,
+                    "lemma_translation_status": null,
+                    "lemma_translation_reason": null,
+                    "meaning_key": null,
+                    "english_gloss": null,
+                    "alternative_translations": [],
+                    "saved_meaning_id": null,
+                    "example_da": null,
+                    "example_en": null
+                  }
+                ]
+              }
+            ],
+            "did_you_mean": null
+          }
+        }
+      }
+    },
+    {
+      "query": "house",
+      "run_index": 1,
+      "cold": false,
+      "total_wall_ms": 17.652250000000038,
+      "sum_http_ms": 17.491248999999875,
+      "timings": [
+        {
+          "label": "en-form house",
+          "duration_ms": 8.651041000000026
+        },
+        {
+          "label": "cor-form-batch",
+          "duration_ms": 8.84020799999985
+        }
+      ],
+      "responses": {
+        "en_form": {
+          "form": "house",
+          "groups": [
+            {
+              "lemma": "house",
+              "form": "house",
+              "pos_ud": "NOUN",
+              "pos_raw": "noun",
+              "danish_translation": "hus",
+              "meaning_description": "residential building or music",
+              "senses": [
+                {
+                  "pos_ud": "NOUN",
+                  "sense_idx": 0,
+                  "gloss": "A house is a building that one family lives in.",
+                  "danish_translation": "hus",
+                  "examples": [
+                    "The president lives in a house in Washington, called The White House."
+                  ]
+                },
+                {
+                  "pos_ud": "NOUN",
+                  "sense_idx": 1,
+                  "gloss": "House is a type of music.",
+                  "danish_translation": "hus",
+                  "examples": []
+                }
+              ]
+            },
+            {
+              "lemma": "house",
+              "form": "house",
+              "pos_ud": "VERB",
+              "pos_raw": "verb",
+              "danish_translation": "huse",
+              "meaning_description": "provide shelter or space",
+              "senses": [
+                {
+                  "pos_ud": "VERB",
+                  "sense_idx": 0,
+                  "gloss": "If you house someone or something, you give them a home.",
+                  "danish_translation": "huse",
+                  "examples": [
+                    "The building houses a research centre and a school.",
+                    "During the storm they were housed in the local school's gym."
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "cor_forms": {
+          "hus": {
+            "form": "hus",
+            "groups": [
+              {
+                "lemma": "hus",
+                "gloss": null,
+                "pos_tag": "NOUN",
+                "variants": [
+                  {
+                    "cor_id": "COR.43962.120.01",
+                    "form": "hus",
+                    "lemma": "hus",
+                    "dictionary_status": "cor",
+                    "gloss": null,
+                    "gloss_translation": null,
+                    "gram_raw": "sb.itk.sg.ubest",
+                    "norm": "N",
+                    "lemma_idx": 43962,
+                    "gram_code": 120,
+                    "variation": 1,
+                    "pos_tag": "NOUN",
+                    "morphology": "Gender=Neut|Number=Sing|Definite=Ind",
+                    "features": {
+                      "Gender": "Neut",
+                      "Number": "Sing",
+                      "Definite": "Ind"
+                    },
+                    "extra_tags": [],
+                    "lemma_translation": null,
+                    "saveable_translation": null,
+                    "lemma_translation_provider": null,
+                    "lemma_translation_status": null,
+                    "lemma_translation_reason": null,
+                    "meaning_key": null,
+                    "english_gloss": null,
+                    "alternative_translations": [],
+                    "saved_meaning_id": null,
+                    "example_da": null,
+                    "example_en": null
+                  }
+                ]
+              }
+            ],
+            "did_you_mean": null
+          },
+          "huse": {
+            "form": "huse",
+            "groups": [
+              {
+                "lemma": "huse",
+                "gloss": null,
+                "pos_tag": "VERB",
+                "variants": [
+                  {
+                    "cor_id": "COR.31381.200.01",
+                    "form": "huse",
+                    "lemma": "huse",
+                    "dictionary_status": "cor",
+                    "gloss": null,
+                    "gloss_translation": null,
+                    "gram_raw": "vb.inf.akt",
+                    "norm": "N",
+                    "lemma_idx": 31381,
+                    "gram_code": 200,
+                    "variation": 1,
+                    "pos_tag": "VERB",
+                    "morphology": "VerbForm=Inf|Voice=Act",
+                    "features": {
+                      "VerbForm": "Inf",
+                      "Voice": "Act"
+                    },
+                    "extra_tags": [],
+                    "lemma_translation": null,
+                    "saveable_translation": null,
+                    "lemma_translation_provider": null,
+                    "lemma_translation_status": null,
+                    "lemma_translation_reason": null,
+                    "meaning_key": null,
+                    "english_gloss": null,
+                    "alternative_translations": [],
+                    "saved_meaning_id": null,
+                    "example_da": null,
+                    "example_en": null
+                  }
+                ]
+              }
+            ],
+            "did_you_mean": null
+          }
+        }
+      }
+    },
+    {
+      "query": "house",
+      "run_index": 2,
+      "cold": false,
+      "total_wall_ms": 17.29070800000021,
+      "sum_http_ms": 17.183708999999993,
+      "timings": [
+        {
+          "label": "en-form house",
+          "duration_ms": 10.826624999999979
+        },
+        {
+          "label": "cor-form-batch",
+          "duration_ms": 6.357084000000013
+        }
+      ],
+      "responses": {
+        "en_form": {
+          "form": "house",
+          "groups": [
+            {
+              "lemma": "house",
+              "form": "house",
+              "pos_ud": "NOUN",
+              "pos_raw": "noun",
+              "danish_translation": "hus",
+              "meaning_description": "residential building or music",
+              "senses": [
+                {
+                  "pos_ud": "NOUN",
+                  "sense_idx": 0,
+                  "gloss": "A house is a building that one family lives in.",
+                  "danish_translation": "hus",
+                  "examples": [
+                    "The president lives in a house in Washington, called The White House."
+                  ]
+                },
+                {
+                  "pos_ud": "NOUN",
+                  "sense_idx": 1,
+                  "gloss": "House is a type of music.",
+                  "danish_translation": "hus",
+                  "examples": []
+                }
+              ]
+            },
+            {
+              "lemma": "house",
+              "form": "house",
+              "pos_ud": "VERB",
+              "pos_raw": "verb",
+              "danish_translation": "huse",
+              "meaning_description": "provide shelter or space",
+              "senses": [
+                {
+                  "pos_ud": "VERB",
+                  "sense_idx": 0,
+                  "gloss": "If you house someone or something, you give them a home.",
+                  "danish_translation": "huse",
+                  "examples": [
+                    "The building houses a research centre and a school.",
+                    "During the storm they were housed in the local school's gym."
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "cor_forms": {
+          "hus": {
+            "form": "hus",
+            "groups": [
+              {
+                "lemma": "hus",
+                "gloss": null,
+                "pos_tag": "NOUN",
+                "variants": [
+                  {
+                    "cor_id": "COR.43962.120.01",
+                    "form": "hus",
+                    "lemma": "hus",
+                    "dictionary_status": "cor",
+                    "gloss": null,
+                    "gloss_translation": null,
+                    "gram_raw": "sb.itk.sg.ubest",
+                    "norm": "N",
+                    "lemma_idx": 43962,
+                    "gram_code": 120,
+                    "variation": 1,
+                    "pos_tag": "NOUN",
+                    "morphology": "Gender=Neut|Number=Sing|Definite=Ind",
+                    "features": {
+                      "Gender": "Neut",
+                      "Number": "Sing",
+                      "Definite": "Ind"
+                    },
+                    "extra_tags": [],
+                    "lemma_translation": null,
+                    "saveable_translation": null,
+                    "lemma_translation_provider": null,
+                    "lemma_translation_status": null,
+                    "lemma_translation_reason": null,
+                    "meaning_key": null,
+                    "english_gloss": null,
+                    "alternative_translations": [],
+                    "saved_meaning_id": null,
+                    "example_da": null,
+                    "example_en": null
+                  }
+                ]
+              }
+            ],
+            "did_you_mean": null
+          },
+          "huse": {
+            "form": "huse",
+            "groups": [
+              {
+                "lemma": "huse",
+                "gloss": null,
+                "pos_tag": "VERB",
+                "variants": [
+                  {
+                    "cor_id": "COR.31381.200.01",
+                    "form": "huse",
+                    "lemma": "huse",
+                    "dictionary_status": "cor",
+                    "gloss": null,
+                    "gloss_translation": null,
+                    "gram_raw": "vb.inf.akt",
+                    "norm": "N",
+                    "lemma_idx": 31381,
+                    "gram_code": 200,
+                    "variation": 1,
+                    "pos_tag": "VERB",
+                    "morphology": "VerbForm=Inf|Voice=Act",
+                    "features": {
+                      "VerbForm": "Inf",
+                      "Voice": "Act"
+                    },
+                    "extra_tags": [],
+                    "lemma_translation": null,
+                    "saveable_translation": null,
+                    "lemma_translation_provider": null,
+                    "lemma_translation_status": null,
+                    "lemma_translation_reason": null,
+                    "meaning_key": null,
+                    "english_gloss": null,
+                    "alternative_translations": [],
+                    "saved_meaning_id": null,
+                    "example_da": null,
+                    "example_en": null
+                  }
+                ]
+              }
+            ],
+            "did_you_mean": null
+          }
+        }
+      }
+    }
+  ],
+  "summary": {
+    "book": {
+      "runs": 3,
+      "p50_wall_ms": 19.775416999999962,
+      "p95_wall_ms": 830.86675,
+      "p50_sum_http_ms": 19.616126000000065,
+      "p95_sum_http_ms": 830.8173340000001,
+      "total_wall_ms": 863.0833759999998
+    },
+    "card": {
+      "runs": 3,
+      "p50_wall_ms": 18.138,
+      "p95_wall_ms": 18.892375,
+      "p50_sum_http_ms": 18.110666000000013,
+      "p95_sum_http_ms": 18.843750000000007,
+      "total_wall_ms": 44.675875000000005
+    },
+    "house": {
+      "runs": 3,
+      "p50_wall_ms": 17.652250000000038,
+      "p95_wall_ms": 624.768375,
+      "p50_sum_http_ms": 17.491248999999875,
+      "p95_sum_http_ms": 624.607292,
+      "total_wall_ms": 659.7113330000002
+    }
+  }
+}

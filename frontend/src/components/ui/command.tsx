@@ -91,6 +91,7 @@ function CommandDialog({
 function CommandInput({
   overlay,
   suffix,
+  icon,
   concealValue = false,
   multiline = false,
   className,
@@ -98,6 +99,7 @@ function CommandInput({
 }: React.ComponentProps<typeof CommandPrimitive.Input> & {
   overlay?: React.ReactNode
   suffix?: React.ReactNode
+  icon?: React.ReactNode
   concealValue?: boolean
   multiline?: boolean
 }) {
@@ -108,9 +110,16 @@ function CommandInput({
     return (
       <div
         data-slot="command-input-wrapper"
-        className="!h-auto min-h-9 m-2 flex items-center gap-2 rounded-md border bg-muted dark:bg-background px-3"
+        className={cn(
+          "!h-auto min-h-9 m-2 flex items-center gap-2 rounded-md border bg-muted dark:bg-background pr-3",
+          icon !== undefined ? "pl-1" : "pl-3"
+        )}
       >
-        <SearchIcon className="self-start mt-2 size-4 shrink-0 opacity-50" />
+        {icon !== undefined ? (
+          icon
+        ) : (
+          <SearchIcon className="self-start mt-2 size-4 shrink-0 opacity-50" />
+        )}
         <div className="relative min-w-0 flex-1">
           {overlay ? (
             <div
@@ -165,9 +174,16 @@ function CommandInput({
   return (
     <div
       data-slot="command-input-wrapper"
-      className="m-2 flex h-9 items-center gap-2 rounded-md border bg-muted dark:bg-background px-3"
+      className={cn(
+        "m-2 flex h-9 items-center gap-2 rounded-md border bg-muted dark:bg-background pr-3",
+        icon !== undefined ? "pl-1" : "pl-3"
+      )}
     >
-      <SearchIcon className="size-4 shrink-0 opacity-50" />
+      {icon !== undefined ? (
+        icon
+      ) : (
+        <SearchIcon className="size-4 shrink-0 opacity-50" />
+      )}
       <div className="relative min-w-0 flex-1">
         {overlay ? (
           <div

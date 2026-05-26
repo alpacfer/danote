@@ -13,14 +13,27 @@ class GeminiResultCache:
         self._path = path
         self._lock = threading.Lock()
         self._initialized = False
+        self._local = threading.local()
 
     @property
     def path(self) -> Path:
         return self._path
 
-    def get(self, key: str) -> str | None:
+    def _get_conn(self) -> sqlite3.Connection:
         self._ensure_initialized()
-        with self._lock, sqlite3.connect(self._path) as conn:
+        if not hasattr(self._local, "conn"):
+            conn = sqlite3.connect(self._path)
+            try:
+                conn.execute("PRAGMA journal_mode = WAL")
+                conn.execute("PRAGMA synchronous = NORMAL")
+            except sqlite3.DatabaseError:
+                pass
+            self._local.conn = conn
+        return self._local.conn
+
+    def get(self, key: str) -> str | None:
+        conn = self._get_conn()
+        with self._lock:
             row = conn.execute(
                 "SELECT value FROM gemini_cache WHERE key = ?",
                 (key,),
@@ -31,9 +44,9 @@ class GeminiResultCache:
         return value if isinstance(value, str) else None
 
     def put(self, key: str, value: str) -> None:
-        self._ensure_initialized()
+        conn = self._get_conn()
         created_at = int(time.time())
-        with self._lock, sqlite3.connect(self._path) as conn:
+        with self._lock:
             conn.execute(
                 """
                 INSERT INTO gemini_cache (key, value, created_at)
@@ -47,8 +60,8 @@ class GeminiResultCache:
             conn.commit()
 
     def clear(self) -> None:
-        self._ensure_initialized()
-        with self._lock, sqlite3.connect(self._path) as conn:
+        conn = self._get_conn()
+        with self._lock:
             conn.execute("DELETE FROM gemini_cache")
             conn.commit()
 

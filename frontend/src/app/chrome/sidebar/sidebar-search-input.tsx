@@ -9,6 +9,7 @@ import {
 import type { SearchLanguageMode } from "@/app/chrome/sidebar/sidebar-search-types"
 import { Button } from "@/components/ui/button"
 import { CommandInput } from "@/components/ui/command"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 
 type TextSegment = {
@@ -115,6 +116,7 @@ function buildSegments(text: string, errors: SentenceVerificationErrorItem[]): T
 type SidebarSearchInputProps = {
   value: string
   searchLanguageMode: SearchLanguageMode
+  onLanguageModeChange: (mode: SearchLanguageMode) => void
   sentenceSearchPreview: SentenceSearchPreviewResponse | null
   onValueChange: (value: string) => void
   onCloseSearch: () => void
@@ -229,6 +231,7 @@ function shuffleArray<T>(array: T[]): T[] {
 export function SidebarSearchInput({
   value,
   searchLanguageMode,
+  onLanguageModeChange,
   sentenceSearchPreview,
   onValueChange,
   onCloseSearch,
@@ -285,6 +288,7 @@ export function SidebarSearchInput({
     return () => clearTimeout(timer)
   }, [displayText, isDeleting, phraseIndex, shuffledPhrases, isTest])
 
+
   const rawErrors = useMemo(
     () => {
       const previewErrors = sentenceSearchPreview?.query_language === "en"
@@ -314,8 +318,40 @@ export function SidebarSearchInput({
   ) : null
 
   const hasValue = value.length > 0
+  const toggleLanguage = () => {
+    setPhraseIndex(0)
+    setDisplayText("")
+    setIsDeleting(false)
+    onLanguageModeChange(searchLanguageMode === "da" ? "en" : "da")
+  }
+
+  const toggleLanguageButton = (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          className="h-7 w-7 rounded-sm text-[10px] font-bold tracking-wider transition-all duration-200 select-none shadow-none border-border bg-background hover:bg-accent hover:text-accent-foreground text-foreground shrink-0 p-0 flex items-center justify-center self-center"
+          onClick={toggleLanguage}
+          aria-label={
+            searchLanguageMode === "da"
+              ? "Switch to English search"
+              : "Switch to Danish search"
+          }
+        >
+          {searchLanguageMode === "da" ? "DA" : "EN"}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="left" align="center" className="text-xs">
+        {searchLanguageMode === "da"
+          ? "Searching in Danish. Click to switch to English."
+          : "Searching in English. Click to switch to Danish."}
+      </TooltipContent>
+    </Tooltip>
+  )
+
   return (
-    <div data-slot="sidebar-search-input-row" className="flex items-stretch">
+    <div data-slot="sidebar-search-input-row" className="flex items-center">
       <div className="min-w-0 flex-1">
         <CommandInput
           placeholder={isTest ? "Search words..." : displayText}
@@ -325,6 +361,7 @@ export function SidebarSearchInput({
           aria-label="command search"
           overlay={overlay}
           concealValue={Boolean(overlay)}
+          icon={toggleLanguageButton}
           suffix={(
             <Button
               type="button"
@@ -347,7 +384,7 @@ export function SidebarSearchInput({
         variant="ghost"
         size="icon"
         aria-label="Close search"
-        className="hidden max-md:flex max-md:ml-1 max-md:mr-2 max-md:size-10 max-md:shrink-0 max-md:self-center max-md:rounded-full"
+        className="hidden max-md:flex max-md:size-9 max-md:shrink-0 max-md:rounded-full max-md:mr-2"
         onClick={onCloseSearch}
       >
         <ChevronDown className="size-5" />

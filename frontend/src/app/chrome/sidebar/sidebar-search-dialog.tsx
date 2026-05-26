@@ -68,9 +68,12 @@ export function SidebarSearchDialog({
       description="Search saved words and local COR analyses."
     >
       <SidebarSearchInput
-        key={searchLanguageMode}
         value={searchQuery}
         searchLanguageMode={searchLanguageMode}
+        onLanguageModeChange={(mode) => {
+          setSearchLanguageMode(mode)
+          setCommandSelectionOverride("")
+        }}
         sentenceSearchPreview={sentenceSearchPreview}
         onCloseSearch={onCloseSearch}
         onKeyDown={(event) => {
@@ -98,7 +101,7 @@ export function SidebarSearchDialog({
           setCommandSelectionOverride("")
         }}
       />
-      <div className="mx-3 my-2 flex items-center justify-between gap-3">
+      <div className="sr-only">
         <span id="search-language-label" className="sr-only">Search language</span>
         <ToggleGroup
           type="single"
