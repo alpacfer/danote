@@ -406,6 +406,12 @@ export function SidebarSearchInput({
               aria-label="Clear search"
               className={cn("rounded-full", hasValue ? "" : "invisible pointer-events-none")}
               onClick={() => onValueChange("")}
+              onMouseDown={(e) => {
+                e.preventDefault()
+              }}
+              onPointerDown={(e) => {
+                e.preventDefault()
+              }}
             >
               <X />
             </Button>

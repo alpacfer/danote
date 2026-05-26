@@ -31,10 +31,10 @@ export function MobileBottomNav({
         aria-label="Settings"
         onClick={onSelectAccount}
         className={cn(
-          "flex size-11 shrink-0 items-center justify-center rounded-full border border-border bg-background shadow-lg text-muted-foreground transition-all duration-200 active:scale-90 hover:text-foreground",
+          "flex size-11 shrink-0 items-center justify-center rounded-full border border-border bg-background shadow-lg text-muted-foreground transition-all duration-200 active:scale-90 md:hover:text-foreground",
           activeSection === "account"
             ? "bg-primary text-primary-foreground border-primary shadow-sm"
-            : "hover:bg-muted/60"
+            : "md:hover:bg-muted/60"
         )}
       >
         <Settings className="size-5" />
@@ -48,10 +48,10 @@ export function MobileBottomNav({
           aria-label="Wordbank"
           onClick={onSelectWordbank}
           className={cn(
-            "relative flex h-9 flex-1 items-center justify-center gap-1.5 rounded-full px-2 text-xs font-semibold transition-all duration-200 active:scale-95 text-muted-foreground hover:text-foreground",
+            "relative flex h-9 flex-1 items-center justify-center gap-1.5 rounded-full px-2 text-xs font-semibold transition-all duration-200 active:scale-95 text-muted-foreground md:hover:text-foreground",
             activeSection === "wordbank"
               ? "bg-primary text-primary-foreground shadow-sm"
-              : "hover:bg-muted/60"
+              : "md:hover:bg-muted/60"
           )}
         >
           <BookOpen className="size-5" />
@@ -75,10 +75,10 @@ export function MobileBottomNav({
           type="button"
           onClick={onSelectSentencebank}
           className={cn(
-            "flex h-9 flex-1 items-center justify-center gap-1.5 rounded-full px-2 text-xs font-semibold transition-all duration-200 active:scale-95 text-muted-foreground hover:text-foreground",
+            "flex h-9 flex-1 items-center justify-center gap-1.5 rounded-full px-2 text-xs font-semibold transition-all duration-200 active:scale-95 text-muted-foreground md:hover:text-foreground",
             activeSection === "sentencebank"
               ? "bg-primary text-primary-foreground shadow-sm"
-              : "hover:bg-muted/60"
+              : "md:hover:bg-muted/60"
           )}
         >
           <ScrollText className="size-5" />
@@ -91,7 +91,7 @@ export function MobileBottomNav({
         type="button"
         aria-label="Open search"
         onClick={onOpenSearch}
-        className="flex size-11 shrink-0 items-center justify-center rounded-full border border-border bg-background shadow-lg text-muted-foreground transition-all duration-200 active:scale-90 hover:bg-muted/60 hover:text-foreground"
+        className="flex size-11 shrink-0 items-center justify-center rounded-full border border-border bg-background shadow-lg text-muted-foreground transition-all duration-200 active:scale-90 md:hover:bg-muted/60 md:hover:text-foreground"
       >
         <Search className="size-5" />
       </button>

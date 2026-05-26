@@ -166,7 +166,15 @@ function FilterMenu({
           <ChevronsUpDown data-icon="inline-end" className="size-4 opacity-50 ml-2 shrink-0" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-72 p-0">
+      <PopoverContent
+        align="start"
+        className="w-72 p-0"
+        onOpenAutoFocus={(e) => {
+          if (window.matchMedia("(max-width: 767px)").matches) {
+            e.preventDefault()
+          }
+        }}
+      >
         <Command>
           {searchable ? <CommandInput placeholder={searchPlaceholder ?? `Search ${label.toLowerCase()}...`} /> : null}
           <CommandList className="max-h-72">
