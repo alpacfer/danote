@@ -106,6 +106,7 @@ class VerifySentenceResponse(BaseModel):
 class SentenceSearchPreviewRequest(BaseModel):
     source_text: str = Field(..., min_length=1, max_length=100)
     fast: bool = False
+    language_mode: Literal["da", "en"] | None = None
 
 
 class SentenceSearchPreviewResponse(BaseModel):

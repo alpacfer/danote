@@ -7,13 +7,16 @@ import {
   type SidebarSearchResultsData,
   type SidebarSearchResultsState,
 } from "@/app/chrome/sidebar/sidebar-search-results"
+import type { SearchLanguageMode } from "@/app/chrome/sidebar/sidebar-search-types"
 import { type SentenceSearchPreviewResponse } from "@/app/core"
 import { CommandDialog } from "@/components/ui/command"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 
 type SidebarSearchDialogProps = {
   isOpen: boolean
   commandSelectionValue: string
   searchQuery: string
+  searchLanguageMode: SearchLanguageMode
   sentenceSearchPreview: SentenceSearchPreviewResponse | null
   isSentenceMode: boolean
   isSentenceSearchPreviewLoading: boolean
@@ -22,6 +25,7 @@ type SidebarSearchDialogProps = {
   searchResultData: SidebarSearchResultsData
   searchResultActions: SidebarSearchResultsActions
   setSearchQuery: Dispatch<SetStateAction<string>>
+  setSearchLanguageMode: Dispatch<SetStateAction<SearchLanguageMode>>
   setCommandSelectionOverride: Dispatch<SetStateAction<string>>
   onCloseSearch: () => void
   onSelectAccount: () => void
@@ -33,6 +37,7 @@ export function SidebarSearchDialog({
   isOpen,
   commandSelectionValue,
   searchQuery,
+  searchLanguageMode,
   sentenceSearchPreview,
   isSentenceMode,
   isSentenceSearchPreviewLoading,
@@ -41,6 +46,7 @@ export function SidebarSearchDialog({
   searchResultData,
   searchResultActions,
   setSearchQuery,
+  setSearchLanguageMode,
   setCommandSelectionOverride,
   onCloseSearch,
   onSelectAccount,
@@ -62,7 +68,9 @@ export function SidebarSearchDialog({
       description="Search saved words and local COR analyses."
     >
       <SidebarSearchInput
+        key={searchLanguageMode}
         value={searchQuery}
+        searchLanguageMode={searchLanguageMode}
         sentenceSearchPreview={sentenceSearchPreview}
         onCloseSearch={onCloseSearch}
         onKeyDown={(event) => {
@@ -90,6 +98,27 @@ export function SidebarSearchDialog({
           setCommandSelectionOverride("")
         }}
       />
+      <div className="mx-3 my-2 flex items-center justify-between gap-3">
+        <span id="search-language-label" className="sr-only">Search language</span>
+        <ToggleGroup
+          type="single"
+          value={searchLanguageMode}
+          onValueChange={(value) => {
+            if (value === "da" || value === "en") {
+              setSearchLanguageMode(value)
+              setCommandSelectionOverride("")
+            }
+          }}
+          aria-labelledby="search-language-label"
+          variant="outline"
+          size="sm"
+          spacing={0}
+          className="w-full"
+        >
+          <ToggleGroupItem value="da" className="flex-1">Danish</ToggleGroupItem>
+          <ToggleGroupItem value="en" className="flex-1">English</ToggleGroupItem>
+        </ToggleGroup>
+      </div>
       {isTrialLimitReached ? (
         <div className="mx-3 my-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
           You&apos;ve used today&apos;s free-trial searches.{" "}

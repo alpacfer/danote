@@ -6,17 +6,19 @@ import {
   type SentenceSearchPreviewResponse,
 } from "@/app/core"
 import { detectQueryLanguage } from "@/app/chrome/sidebar/sidebar-search-query"
-import type { SidebarApiClient } from "@/app/chrome/sidebar/sidebar-search-types"
+import type { SearchLanguageMode, SidebarApiClient } from "@/app/chrome/sidebar/sidebar-search-types"
 
 export function useSidebarSentencePreview({
   apiClient,
   isSentenceMode,
   sentenceQuery,
+  searchLanguageMode,
   resetVersion,
 }: {
   apiClient: SidebarApiClient
   isSentenceMode: boolean
   sentenceQuery: string
+  searchLanguageMode: SearchLanguageMode
   resetVersion: string
 }) {
   const cacheRef = useRef<Map<string, SentenceSearchPreviewResponse>>(new Map())
@@ -47,7 +49,8 @@ export function useSidebarSentencePreview({
       return () => window.clearTimeout(clearId)
     }
 
-    const cached = cacheRef.current.get(sentenceQuery)
+    const cacheKey = `${searchLanguageMode}:${sentenceQuery}`
+    const cached = cacheRef.current.get(cacheKey)
     if (cached) {
       const clearId = window.setTimeout(() => {
         setSentenceSearchPreview({ query: sentenceQuery, result: cached })
@@ -66,18 +69,18 @@ export function useSidebarSentencePreview({
         setSentenceSearchPreviewError(null)
       }
     }, 0)
-    const detectedLang = detectQueryLanguage(sentenceQuery)
+    const detectedLang = searchLanguageMode === "da" ? "da" : detectQueryLanguage(sentenceQuery)
     const debounceMs = detectedLang === "da" ? SENTENCE_DEBOUNCE_DA_MS : SENTENCE_DEBOUNCE_EN_MS
 
     const timeoutId = window.setTimeout(() => {
       const fastPromise = apiClient.postJson<SentenceSearchPreviewResponse>(
         "/api/sentencebank/search-preview",
-        { source_text: sentenceQuery, fast: true },
+        { source_text: sentenceQuery, fast: true, language_mode: searchLanguageMode },
         "Could not prepare sentence preview.",
       )
       const fullPromise = apiClient.postJson<SentenceSearchPreviewResponse>(
         "/api/sentencebank/search-preview",
-        { source_text: sentenceQuery, fast: false },
+        { source_text: sentenceQuery, fast: false, language_mode: searchLanguageMode },
         "Could not prepare sentence preview.",
       )
 
@@ -93,7 +96,7 @@ export function useSidebarSentencePreview({
         .then((fullResult) => {
           if (cancelled) return
           gotFullResult = true
-          cacheRef.current.set(sentenceQuery, fullResult)
+          cacheRef.current.set(cacheKey, fullResult)
           setSentenceSearchPreview({ query: sentenceQuery, result: fullResult })
           setSentenceSearchPreviewError(null)
         })
@@ -127,7 +130,7 @@ export function useSidebarSentencePreview({
       window.clearTimeout(timeoutId)
       setIsSentenceSearchPreviewLoading(false)
     }
-  }, [apiClient, isSentenceMode, sentenceQuery, resetVersion])
+  }, [apiClient, isSentenceMode, sentenceQuery, resetVersion, searchLanguageMode])
 
   const activeSentenceSearchPreview = sentenceSearchPreview?.query === sentenceQuery
     ? sentenceSearchPreview.result

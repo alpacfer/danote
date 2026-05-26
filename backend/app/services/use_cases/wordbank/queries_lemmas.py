@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Literal
+
 from app.api.schemas.v1.wordbank import (
     LemmaListResponse,
     LemmaSummary,
@@ -28,6 +30,10 @@ from app.services.use_cases.wordbank.gloss_translations import meaning_gloss_tra
 from app.services.use_cases.wordbank.meaning_sections import ensure_wordbank_meaning_compatibility
 from app.services.use_cases.wordbank.runtime import WordbankRuntime
 
+SearchLanguageMode = Literal["da", "en"]
+_DANISH_MATCH_FIELDS = {None, "lemma", "surface", "gloss"}
+_ENGLISH_MATCH_FIELDS = {"english_translation", "alternative_translation", "english_gloss"}
+
 
 def list_lemmas(runtime: WordbankRuntime) -> LemmaListResponse:
     ensure_wordbank_meaning_compatibility(runtime)
@@ -54,7 +60,13 @@ def list_lemmas(runtime: WordbankRuntime) -> LemmaListResponse:
     )
 
 
-def search_lemmas(runtime: WordbankRuntime, query: str, *, limit: int = 8) -> WordbankSearchResponse:
+def search_lemmas(
+    runtime: WordbankRuntime,
+    query: str,
+    *,
+    limit: int = 8,
+    language: SearchLanguageMode = "da",
+) -> WordbankSearchResponse:
     ensure_wordbank_meaning_compatibility(runtime)
     normalized_query = normalize_token(query)
     if not normalized_query:
@@ -62,45 +74,48 @@ def search_lemmas(runtime: WordbankRuntime, query: str, *, limit: int = 8) -> Wo
     if limit < 1:
         raise ValueError("limit must be at least 1")
 
-    static_hv_word = static_hv_word_for_token(normalized_query)
-    if static_hv_word is not None:
-        return _static_hv_word_search_response(static_hv_word, match_surface=None)
-    static_english_hv_word = static_hv_word_for_english(query)
-    if static_english_hv_word is not None:
-        return _static_hv_word_search_response(static_english_hv_word, match_surface=None)
+    if language == "da":
+        static_hv_word = static_hv_word_for_token(normalized_query)
+        if static_hv_word is not None:
+            return _static_hv_word_search_response(static_hv_word, match_surface=None)
 
-    static_pronoun = static_pronoun_for_token(normalized_query)
-    if static_pronoun is not None:
-        return _static_pronoun_search_response(static_pronoun, match_surface=None)
-    static_english_pronoun = static_pronoun_for_english(query)
-    if static_english_pronoun is not None:
-        return _static_pronoun_search_response(static_english_pronoun, match_surface=None)
+        static_pronoun = static_pronoun_for_token(normalized_query)
+        if static_pronoun is not None:
+            return _static_pronoun_search_response(static_pronoun, match_surface=None)
 
-    static_presaved_word = static_presaved_word_for_token(normalized_query)
-    if static_presaved_word is not None:
-        return _static_presaved_word_search_response(static_presaved_word, match_surface=None)
-    static_english_presaved_word = static_presaved_word_for_english(query)
-    if static_english_presaved_word is not None:
-        return _static_presaved_word_search_response(static_english_presaved_word, match_surface=None)
+        static_presaved_word = static_presaved_word_for_token(normalized_query)
+        if static_presaved_word is not None:
+            return _static_presaved_word_search_response(static_presaved_word, match_surface=None)
+    else:
+        static_english_hv_word = static_hv_word_for_english(query)
+        if static_english_hv_word is not None:
+            return _static_hv_word_search_response(static_english_hv_word, match_surface=None)
 
-    rows = runtime.repository.search_lemmas(normalized_query, limit=limit)
+        static_english_pronoun = static_pronoun_for_english(query)
+        if static_english_pronoun is not None:
+            return _static_pronoun_search_response(static_english_pronoun, match_surface=None)
+
+        static_english_presaved_word = static_presaved_word_for_english(query)
+        if static_english_presaved_word is not None:
+            return _static_presaved_word_search_response(static_english_presaved_word, match_surface=None)
+
+    rows = _search_rows_for_language(runtime, normalized_query, limit=limit, language=language)
 
     did_you_mean: str | None = None
     if not rows:
-        looks_english = _looks_english(normalized_query)
-        if looks_english:
+        if language == "en":
             english_tokens = runtime.repository.list_all_english_tokens()
             suggestions = fuzzy_suggest(normalized_query, english_tokens)
             if suggestions:
                 did_you_mean = suggestions[0]
-                rows = runtime.repository.search_lemmas(did_you_mean, limit=limit)
-        if not rows:
+                rows = _search_rows_for_language(runtime, did_you_mean, limit=limit, language=language)
+        else:
             # Danish-lemma fuzzy fallback. Scale the edit distance with token
             # length so short strings do not silently correct to unrelated
             # lemmas (for example ``tøj``/``tig``/``tog`` -> ``tag``), while
             # ordinary longer typos such as ``huse`` -> ``hus`` still work.
             all_lemmas = runtime.repository.list_all_lemma_strings()
-            max_distance = _lemma_fuzzy_max_distance(normalized_query, looks_english=looks_english)
+            max_distance = _lemma_fuzzy_max_distance(normalized_query, looks_english=False)
             suggestions = fuzzy_suggest(
                 normalized_query,
                 all_lemmas,
@@ -108,7 +123,7 @@ def search_lemmas(runtime: WordbankRuntime, query: str, *, limit: int = 8) -> Wo
             )
             if suggestions:
                 did_you_mean = suggestions[0]
-                rows = runtime.repository.search_lemmas(did_you_mean, limit=limit)
+                rows = _search_rows_for_language(runtime, did_you_mean, limit=limit, language=language)
 
     gloss_translation_cache: dict[tuple[str, str, str | None, str | None, str, str | None, str | None], str | None] = {}
 
@@ -148,6 +163,18 @@ def search_lemmas(runtime: WordbankRuntime, query: str, *, limit: int = 8) -> Wo
             for row in rows
         ]
     )
+
+
+def _search_rows_for_language(
+    runtime: WordbankRuntime,
+    normalized_query: str,
+    *,
+    limit: int,
+    language: SearchLanguageMode,
+):
+    rows = runtime.repository.search_lemmas(normalized_query, limit=limit)
+    allowed = _DANISH_MATCH_FIELDS if language == "da" else _ENGLISH_MATCH_FIELDS
+    return [row for row in rows if row.matched_via in allowed]
 
 
 def _static_hv_word_search_response(

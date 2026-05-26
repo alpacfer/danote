@@ -15,6 +15,13 @@ Exact behavior of sidebar command search ("Search words...").
 - Close → clears `searchQuery` + command selection override.
 - Input keeps the raw typed value so spaces survive while composing a sentence query. Normalization happens downstream in `useSidebarSearch`.
 - Placeholder: `Search words...`
+- A compact `Danish | English` toggle sits directly below the input. It is a
+  single-select shadcn/Radix toggle group; clicking the selected language does
+  not clear the mode. The selected mode is stored in browser `sessionStorage`
+  as `danote.search.languageMode` and defaults to Danish when storage is empty
+  or unavailable.
+- Placeholder examples are mode-specific: Danish mode rotates Danish examples,
+  English mode rotates English examples.
 - Single-word queries render a generic `Searching` skeleton group as soon as wordbank/COR/English lookup starts, including during debounce. Once the flow shape is known, those generic rows give way to source-specific results or source-specific skeleton rows.
 
 ## Data sources
@@ -25,6 +32,16 @@ Exact behavior of sidebar command search ("Search words...").
 4. **Static pages** (Wordbank/Sentencebank/Developer)
 5. **Sentence mode** (multi-word sentence preview with Danish-first save)
 
+The language toggle gates lookup sources:
+
+- **Danish mode** calls saved wordbank search with `language=da`, then direct
+  Danish COR lookup. It does not call `en-form` or translated COR batch for the
+  raw query.
+- **English mode** calls saved wordbank search with `language=en`, then
+  `en-form` and translated COR batch. It does not call direct COR lookup for
+  the raw English query.
+- Static page and number results remain available in both modes.
+
 ## Sentence mode
 
 - Trigger: normalized query contains 2 or more whitespace-delimited words.
@@ -34,14 +51,20 @@ Exact behavior of sidebar command search ("Search words...").
 - Result set: exactly one row under `Sentence`.
 - While sentence mode is active, sidebar suppresses saved-word, COR, and page groups.
 - Sentence mode owns the result area immediately and shows the sentence loading row during debounce/request gaps; generic `No results found.` is never shown for an in-progress sentence query.
-- Sidebar uses adaptive debounce before sentence preview: 200 ms for heuristic Danish queries, 350 ms for heuristic English/unknown queries.
+- Sidebar uses adaptive debounce before sentence preview: 200 ms in Danish mode
+  and 350 ms for English/unknown-looking input in English mode.
 - After that debounce, sidebar fires two sentence-preview requests in parallel for the same normalized query:
   - `fast: true` for immediate preview feedback
   - `fast: false` for the final verified result
 - Only the full result is cached per normalized query. The fast result is transient UI state.
-- Preview requests receive whitespace-normalized sentence text with the user's capitalization preserved.
-- Danish and unknown-language queries stay in Danish-first flow: the fast result skips verification and the full result verifies the typed sentence, uses corrected Danish text when available, then returns the English translation for that finalized Danish sentence.
-- Explicit English queries switch flow: the fast result uses heuristic language detection plus translation only, and the full result translates the corrected or normalized English sentence to Danish without a second Danish verification pass.
+- Preview requests receive whitespace-normalized sentence text with the user's capitalization preserved and include `language_mode: "da"` or `"en"`.
+- Danish mode forces the Danish-first flow: the fast result skips verification
+  and the full result verifies the typed Danish sentence, uses corrected Danish
+  text when available, then returns the English translation for that finalized
+  Danish sentence.
+- English mode forces the English-to-Danish flow: the fast result uses
+  translation only, and the full result translates the corrected or normalized
+  English sentence to Danish without a second Danish verification pass.
 - Full preview is strict: verification/service failure returns a blocked row unless a deterministic local fallback can correct the sentence or identify an exact MWE. Mixed Danish/English text is blocked instead of saved as valid Danish.
 - Exact known MWEs can be identified without Gemini verification. `tage på` returns one save row per common sense.
 - English-origin previews render without a visible translation indicator or helper row.
@@ -58,11 +81,16 @@ Exact behavior of sidebar command search ("Search words...").
 
 ## Saved wordbank API behavior
 
-Endpoint: `GET /api/wordbank/search?query=<q>&limit=8`
+Endpoint: `GET /api/wordbank/search?query=<q>&limit=8&language=<da|en>`
 
 - Debounced by `SEARCH_RESOLVE_DEBOUNCE_MS`. Skipped when query length `< 2`,
   sentence mode is active, or the query is number-only.
-- Cached by normalized query. Error/empty → empty matches.
+- Cached by language mode + normalized query. Error/empty → empty matches.
+- Danish mode searches Danish-facing fields only: lemma, saved surface forms,
+  and Danish gloss. Its typo suggestions use Danish lemma candidates only.
+- English mode searches English-facing fields only: primary translation,
+  additional translations, and English gloss. Static English presets, pronouns,
+  and HV words are only returned in English mode.
 - Sidebar keeps rows when the backend attributes the hit with `matched_via`, or falls back to exact-ish rows for older responses: `normalized lemma === normalizedQuery` or `normalized match_surface === normalizedQuery`.
 - Backend typo correction is conservative for saved Danish lemmas: one-to-three-character queries do not fuzzy-correct into unrelated saved rows.
 - High-value short words (`er`, `på`, `at`, `og`, `en`, `et`, `i`, `is`, `be`, `on`, `in`, `to`) still run word lookup; other one/two-letter letter-only queries stay suppressed.
@@ -81,13 +109,11 @@ Endpoints:
 - `POST /api/wordbank/search/cor-form-batch`
 
 - Skipped when: empty query, whitespace present, `isShortLetterWord(...)`,
-  sentence mode is active, or the query is number-only.
+  sentence mode is active, the query is number-only, or search mode is English.
 - Debounced by `SEARCH_RESOLVE_DEBOUNCE_MS`.
 - Two-phase fetch: (1) partial payload without translations → render; (2) full payload with translations → replace.
-- If English lookup has already resolved and the direct COR partial is empty or
-  only contains glossless inflected verb rows that look like loanword spelling
-  collisions, phase 2 is skipped. This avoids translating low-value direct COR
-  rows for clear English queries while preserving real Danish matches.
+- Direct COR and English translated COR no longer run together for the same raw
+  query, so English ambiguity suppression is unnecessary in the sidebar flow.
 - Phase 2 in-flight: `isCorTranslationsLoading=true`, skeleton placeholders, COR save rows disabled (loading skeletons, no extra locked copy).
 - Full payload cached by normalized query.
 - Translation fetch failure → toast error, partial results remain.
@@ -101,6 +127,7 @@ Endpoints:
 Endpoint: `GET /api/wordbank/search/en-form?form=<q>&include_translations=true`
 
 - Skipped when: sentence mode, number-only query, empty query, length `< 2`, whitespace present, or `isShortLetterWord(...)`.
+- Also skipped when search mode is Danish.
 - Debounced by `SEARCH_RESOLVE_DEBOUNCE_MS`.
 - Uses the local English dictionary only; it does not run COR lookup, Danish classification, or `/resolve-query`.
 - Full payload cached by normalized query, including empty `groups`.
@@ -118,6 +145,11 @@ Endpoint: `GET /api/wordbank/search/en-form?form=<q>&include_translations=true`
 ## Cache invalidation
 
 `wordbankCacheVersion` or `searchTranslationConfigVersion` changes → clear wordbank cache + COR cache + sentence-preview cache + reset displayed results asynchronously. Ensures new saves/edits reflected + translation provider changes force refetch.
+
+Changing the language toggle does not clear cached results. Wordbank and sentence
+preview caches are keyed by language mode + normalized query, while direct COR
+and English fan-out caches remain available for their respective modes. Toggling
+back to a previous mode reuses that mode's cached data unless the query changed.
 
 ## Ranking and ordering
 
@@ -152,7 +184,9 @@ Sorted by best variant score per group:
   marker when its `meaning_key` also matches the saved row's POS/COR lemma
   identity. Same-label homographs such as ADV/ADJ/NOUN `nok` remain separate.
 - Prefix-only saved matches → hidden (sidebar keeps exact lemma/surface only).
-- ASCII queries may resolve as both Danish and English. Direct COR rows stay visible when the Danish result has a non-self English translation (for example `bog` → `book`), and self-translated COR rows wait behind English resolution to avoid flashing loanword/no-op Danish rows.
+- Direct Danish COR rows and English translated rows are mode-separated. ASCII
+  strings are interpreted according to the selected mode instead of being
+  processed through both language flows.
 
 ## Row presentation
 

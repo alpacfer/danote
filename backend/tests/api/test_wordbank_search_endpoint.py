@@ -156,6 +156,41 @@ def test_search_lemmas_returns_two_rows_for_exact_homograph_lemma(tmp_path, stub
     ]
 
 
+def test_search_lemmas_language_mode_separates_saved_danish_and_english_matches(
+    tmp_path,
+    stub_nlp_adapter_factory,
+) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    app = build_api_test_app(
+        db_path,
+        nlp_adapter_factory=stub_nlp_adapter_factory,
+        service_overrides={"translation_service": FakeTranslationService({"kat": "cat"})},
+    )
+
+    with TestClient(app) as client:
+        client.post(
+            "/api/wordbank/lexemes",
+            json={
+                "surface_token": "Kat",
+                "lemma_candidate": "kat",
+                "search_seed": {
+                    "lemma": "kat",
+                    "surface": "kat",
+                    "meaning_key": "cat",
+                    "english_translation": "cat",
+                },
+            },
+        )
+        danish_response = client.get("/api/wordbank/search", params={"query": "cat", "language": "da"})
+        english_response = client.get("/api/wordbank/search", params={"query": "cat", "language": "en"})
+
+    assert danish_response.status_code == 200
+    assert english_response.status_code == 200
+    assert danish_response.json()["items"] == []
+    assert english_response.json()["items"][0]["lemma"] == "kat"
+    assert english_response.json()["items"][0]["matched_via"] == "english_translation"
+
+
 def test_search_lemmas_returns_gloss_translation_without_promoting_it_to_english_translation(
     tmp_path,
     stub_nlp_adapter_factory,

@@ -6,6 +6,7 @@ import {
   type SentenceSearchPreviewResponse,
   type SentenceVerificationErrorItem,
 } from "@/app/core"
+import type { SearchLanguageMode } from "@/app/chrome/sidebar/sidebar-search-types"
 import { Button } from "@/components/ui/button"
 import { CommandInput } from "@/components/ui/command"
 import { cn } from "@/lib/utils"
@@ -113,6 +114,7 @@ function buildSegments(text: string, errors: SentenceVerificationErrorItem[]): T
 
 type SidebarSearchInputProps = {
   value: string
+  searchLanguageMode: SearchLanguageMode
   sentenceSearchPreview: SentenceSearchPreviewResponse | null
   onValueChange: (value: string) => void
   onCloseSearch: () => void
@@ -212,6 +214,8 @@ const SEARCH_PHRASES = [
   'Search app pages (e.g. "Sentences")...',
   'Search app pages (e.g. "Developer")...',
 ]
+const ENGLISH_SEARCH_PHRASES = SEARCH_PHRASES.filter((phrase) => phrase.includes("English"))
+const DANISH_SEARCH_PHRASES = SEARCH_PHRASES.filter((phrase) => !phrase.includes("English"))
 
 function shuffleArray<T>(array: T[]): T[] {
   const shuffled = [...array]
@@ -224,12 +228,14 @@ function shuffleArray<T>(array: T[]): T[] {
 
 export function SidebarSearchInput({
   value,
+  searchLanguageMode,
   sentenceSearchPreview,
   onValueChange,
   onCloseSearch,
   onKeyDown,
 }: SidebarSearchInputProps) {
-  const shuffledPhrases = useMemo(() => shuffleArray(SEARCH_PHRASES), [])
+  const phrases = searchLanguageMode === "en" ? ENGLISH_SEARCH_PHRASES : DANISH_SEARCH_PHRASES
+  const shuffledPhrases = useMemo(() => shuffleArray(phrases), [phrases])
 
   const [phraseIndex, setPhraseIndex] = useState(0)
   const [displayText, setDisplayText] = useState("")

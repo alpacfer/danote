@@ -63,6 +63,8 @@ export function AppSidebar({
   const {
     searchQuery,
     setSearchQuery,
+    searchLanguageMode,
+    setSearchLanguageMode,
     normalizedQuery,
     isTrialLimitReached,
     isSentenceMode,
@@ -332,10 +334,11 @@ export function AppSidebar({
       )}
       <SidebarSearchDialog
         isOpen={isSearchOpen} commandSelectionValue={commandSelectionValue} searchQuery={searchQuery}
+        searchLanguageMode={searchLanguageMode}
         sentenceSearchPreview={sentenceSearchPreview} isSentenceMode={isSentenceMode}
         isSentenceSearchPreviewLoading={isSentenceSearchPreviewLoading} isTrialLimitReached={isTrialLimitReached}
         searchResultState={searchResultState} searchResultData={searchResultData} searchResultActions={searchResultActions}
-        setSearchQuery={setSearchQuery} setCommandSelectionOverride={setCommandSelectionOverride}
+        setSearchQuery={setSearchQuery} setSearchLanguageMode={setSearchLanguageMode} setCommandSelectionOverride={setCommandSelectionOverride}
         onCloseSearch={closeSearch} onSelectAccount={onSelectAccount} onSaveSentenceFromSearch={saveSentenceFromSearch}
         onOpenChange={(open) => {
           if (open) openSearch()

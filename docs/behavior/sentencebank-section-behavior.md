@@ -14,12 +14,14 @@ The previous selected-text save path from Playground is retired while Playground
 
 `useSidebarSearch` + `AppSidebar` sentence mode:
 1. Normalize query for sentence mode after raw input is preserved in the command field
-2. After an adaptive debounce, request `POST /api/sentencebank/search-preview` twice in parallel for the same query: first with `fast=true`, then with `fast=false`
-3. Fast preview can render immediately while the full verified result is still pending; the full result overwrites the fast result when it arrives
-4. Backend returns the finalized Danish sentence candidate to save, its English translation, detected query language, and any verification findings
-5. English-origin previews show an inline translation-origin indicator before save
-6. Search save uses `preview.source_text` only, so English-origin queries save the backend-finalized Danish sentence rather than the original English input
-7. Save still calls the same `addSentenceToSentencebank` workflow and therefore keeps existing refresh and pending-page behavior
+2. Read the search dialog language toggle (`da` or `en`) and send it as
+   `language_mode` with each preview request
+3. After an adaptive debounce, request `POST /api/sentencebank/search-preview` twice in parallel for the same query: first with `fast=true`, then with `fast=false`
+4. Fast preview can render immediately while the full verified result is still pending; the full result overwrites the fast result when it arrives
+5. Backend returns the finalized Danish sentence candidate to save, its English translation, selected/detected query language, and any verification findings
+6. English-mode previews use English-to-Danish translation and save the backend-finalized Danish sentence rather than the original English input
+7. Danish-mode previews force Danish-first verification even for ASCII input that could otherwise look English
+8. Save still calls the same `addSentenceToSentencebank` workflow and therefore keeps existing refresh and pending-page behavior
 
 ### Generated example add flow from Wordbank
 

@@ -15,8 +15,10 @@ polls lemma details and summarizes categories plus verification state, which is
 useful for diagnosing post-verification category refresh timing. `wordbank
 details --brief` includes the word-card display string, and `wordbank
 verify-saved-display` saves one discovered sense then fails if the search-dialog
-display differs from the saved word-card display. Use DTC as an
-extra acceptance check after feature work that is reachable through the app API.
+display differs from the saved word-card display. Search commands accept
+`--mode da|en` where the sidebar UI exposes the same Danish/English language
+mode split. Use DTC as an extra acceptance check after feature work that is
+reachable through the app API.
 
 `dev-search-debug.py` is the older human-readable sidebar search tracer. Keep it
 for compatibility; prefer `dev-app.py search trace` when agent-readable JSON is

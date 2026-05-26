@@ -19,6 +19,7 @@ export function useSidebarCorSearch({
   shouldSkipLookup,
   normalizedQuery,
   resetVersion,
+  searchAttemptVersion,
   onTrialLimitReached,
   enResolveGroups,
 }: {
@@ -26,6 +27,7 @@ export function useSidebarCorSearch({
   shouldSkipLookup: boolean
   normalizedQuery: string
   resetVersion: string
+  searchAttemptVersion: string
   onTrialLimitReached: (key: string) => void
   enResolveGroups?: ENPosGroup[]
 }) {
@@ -112,7 +114,7 @@ export function useSidebarCorSearch({
         } catch (error) {
           if (!cancelled) {
             if (error instanceof ApiRequestError && error.status === 429) {
-              onTrialLimitReached(searchAttemptKey(resetVersion, normalizedQuery))
+              onTrialLimitReached(searchAttemptKey(searchAttemptVersion, normalizedQuery))
             } else if (error instanceof Error) {
               toast.error(error.message)
             }
@@ -133,7 +135,15 @@ export function useSidebarCorSearch({
       setIsCorLookupLoading(false)
       setIsCorTranslationsLoading(false)
     }
-  }, [apiClient, enResolveGroups, normalizedQuery, onTrialLimitReached, resetVersion, shouldSkipLookup])
+  }, [
+    apiClient,
+    enResolveGroups,
+    normalizedQuery,
+    onTrialLimitReached,
+    resetVersion,
+    searchAttemptVersion,
+    shouldSkipLookup,
+  ])
 
   return { corDidYouMean, corFormSearchResult, isCorLookupLoading, isCorTranslationsLoading }
 }

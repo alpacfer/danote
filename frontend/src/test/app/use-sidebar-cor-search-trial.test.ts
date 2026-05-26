@@ -28,6 +28,7 @@ describe("useSidebarCorSearch trial limit", () => {
     vi.useFakeTimers()
     const onTrialLimitReached = vi.fn()
     const resetVersion = "0:0"
+    const searchAttemptVersion = `${resetVersion}:da`
     const normalizedQuery = "bilen"
 
     renderHook(() =>
@@ -36,6 +37,7 @@ describe("useSidebarCorSearch trial limit", () => {
         shouldSkipLookup: false,
         normalizedQuery,
         resetVersion,
+        searchAttemptVersion,
         onTrialLimitReached,
       }),
     )
@@ -45,7 +47,7 @@ describe("useSidebarCorSearch trial limit", () => {
     })
 
     expect(onTrialLimitReached).toHaveBeenCalledWith(
-      searchAttemptKey(resetVersion, normalizedQuery),
+      searchAttemptKey(searchAttemptVersion, normalizedQuery),
     )
   })
 })

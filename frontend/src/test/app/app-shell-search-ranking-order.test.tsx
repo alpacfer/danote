@@ -469,6 +469,7 @@ describe("App shell and search", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
+    fireEvent.click(within(commandDialog).getByRole("radio", { name: /^English$/i }))
     const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
     fireEvent.change(searchInput, { target: { value: "candle" } })
 
@@ -484,7 +485,7 @@ describe("App shell and search", () => {
     expect(await within(commandDialog).findByText(/^Verb$/i)).toBeInTheDocument()
   })
 
-  it("keeps direct Danish COR results visible when the same query is also an English word", async () => {
+  it("keeps direct Danish COR results visible in Danish mode when the same query is also an English word", async () => {
     mockFetchImplementation({
       lemmasResponse: { items: [] },
       searchWordbankResponse: { items: [] },
@@ -551,8 +552,8 @@ describe("App shell and search", () => {
 
     expect(await within(commandDialog).findByText(/^bog$/i, { selector: "strong" })).toBeInTheDocument()
     expect(await within(commandDialog).findByText(/^book \(for reading\)$/i)).toBeInTheDocument()
-    expect(await within(commandDialog).findByText(/^mose$/i, { selector: "strong" })).toBeInTheDocument()
-    expect(await within(commandDialog).findByText(/^Translated From English$/i)).toBeInTheDocument()
+    expect(within(commandDialog).queryByText(/^mose$/i, { selector: "strong" })).not.toBeInTheDocument()
+    expect(within(commandDialog).queryByText(/^Translated From English$/i)).not.toBeInTheDocument()
   })
 
   it("renders English surface-form translations through matching Danish COR forms", async () => {
@@ -627,6 +628,7 @@ describe("App shell and search", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
+    fireEvent.click(within(commandDialog).getByRole("radio", { name: /^English$/i }))
     const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
     fireEvent.change(searchInput, { target: { value: "dogs" } })
 
@@ -696,6 +698,7 @@ describe("App shell and search", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
+    fireEvent.click(within(commandDialog).getByRole("radio", { name: /^English$/i }))
     fireEvent.change(within(commandDialog).getByPlaceholderText(/search words/i), { target: { value: "run" } })
 
     expect(await within(commandDialog).findAllByTestId("search-pending-skeleton")).toHaveLength(1)

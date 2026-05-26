@@ -1178,4 +1178,155 @@ describe("App shell and search", () => {
       expect(screen.queryByText(/^placeholder translation$/i)).not.toBeInTheDocument()
     }, { timeout: 6_000 })
   }, 15_000)
+
+  it("Danish mode skips English lookup endpoints", async () => {
+    const fetchSpy = mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      corSearchFormResponse: { form: "kat", groups: [] },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    const commandDialog = await screen.findByRole("dialog")
+    fireEvent.change(within(commandDialog).getByPlaceholderText(/search words/i), { target: { value: "kat" } })
+
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 450))
+    })
+
+    const urls = fetchSpy.mock.calls.map(([input]) => String(input))
+    expect(urls.some((url) => url.includes("/api/wordbank/search?") && url.includes("language=da"))).toBe(true)
+    expect(urls.some((url) => url.includes("/api/wordbank/search/en-form"))).toBe(false)
+    expect(urls.some((url) => url.includes("/api/wordbank/search/cor-form-batch"))).toBe(false)
+  })
+
+  it("English mode skips direct COR lookup and renders translated results", async () => {
+    const fetchSpy = mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      enSearchFormResponse: {
+        form: "cat",
+        groups: [{ lemma: "cat", pos_ud: "NOUN", pos_raw: "noun", danish_translation: "kat", senses: [] }],
+      },
+      corSearchFormResponse: {
+        form: "kat",
+        groups: [
+          {
+            lemma: "kat",
+            gloss: "cat",
+            pos_tag: "NOUN",
+            variants: [
+              {
+                cor_id: "COR.KAT.1",
+                form: "kat",
+                lemma: "kat",
+                gloss: "cat",
+                lemma_translation: "cat",
+                saveable_translation: "cat",
+                gram_raw: "sb.fk.sg.ubest",
+                norm: "N",
+                lemma_idx: 1,
+                gram_code: 1,
+                variation: 1,
+                pos_tag: "NOUN",
+                morphology: "Gender=Com|Number=Sing|Definite=Ind",
+                features: { Gender: "Com", Number: "Sing", Definite: "Ind" },
+                extra_tags: [],
+              },
+            ],
+          },
+        ],
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    const commandDialog = await screen.findByRole("dialog")
+    fireEvent.click(within(commandDialog).getByRole("radio", { name: /^English$/i }))
+    fireEvent.change(within(commandDialog).getByPlaceholderText(/search words/i), { target: { value: "cat" } })
+
+    expect(await within(commandDialog).findByText(/^kat$/i, { selector: "strong" })).toBeInTheDocument()
+    const urls = fetchSpy.mock.calls.map(([input]) => String(input))
+    expect(urls.some((url) => url.includes("/api/wordbank/search?") && url.includes("language=en"))).toBe(true)
+    expect(urls.some((url) => url.includes("/api/wordbank/search/en-form"))).toBe(true)
+    expect(urls.some((url) => url.includes("/api/wordbank/search/cor-form?form=cat"))).toBe(false)
+    fireEvent.click(within(commandDialog).getByRole("radio", { name: /^Danish$/i }))
+  })
+
+  it("reuses cached mode-specific results when toggling back without changing the query", async () => {
+    const fetchSpy = mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      enSearchFormResponse: {
+        form: "cat",
+        groups: [{ lemma: "cat", pos_ud: "NOUN", pos_raw: "noun", danish_translation: "kat", senses: [] }],
+      },
+      corSearchFormResponse: {
+        form: "kat",
+        groups: [
+          {
+            lemma: "kat",
+            gloss: "cat",
+            pos_tag: "NOUN",
+            variants: [
+              {
+                cor_id: "COR.KAT.1",
+                form: "kat",
+                lemma: "kat",
+                gloss: "cat",
+                lemma_translation: "cat",
+                saveable_translation: "cat",
+                gram_raw: "sb.fk.sg.ubest",
+                norm: "N",
+                lemma_idx: 1,
+                gram_code: 1,
+                variation: 1,
+                pos_tag: "NOUN",
+                morphology: "Gender=Com|Number=Sing|Definite=Ind",
+                features: { Gender: "Com", Number: "Sing", Definite: "Ind" },
+                extra_tags: [],
+              },
+            ],
+          },
+        ],
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    const commandDialog = await screen.findByRole("dialog")
+    const englishToggle = within(commandDialog).getByRole("radio", { name: /^English$/i })
+    const danishToggle = within(commandDialog).getByRole("radio", { name: /^Danish$/i })
+
+    fireEvent.click(englishToggle)
+    fireEvent.change(within(commandDialog).getByPlaceholderText(/search words/i), { target: { value: "cat" } })
+    expect(await within(commandDialog).findByText(/^kat$/i, { selector: "strong" })).toBeInTheDocument()
+
+    const countEnglishModeRequests = () => {
+      const urls = fetchSpy.mock.calls.map(([input]) => String(input))
+      return {
+        wordbank: urls.filter((url) => url.includes("/api/wordbank/search?") && url.includes("language=en")).length,
+        enForm: urls.filter((url) => url.includes("/api/wordbank/search/en-form?form=cat")).length,
+        translatedBatch: urls.filter((url) => url.includes("/api/wordbank/search/cor-form-batch")).length,
+      }
+    }
+    const initialEnglishRequestCounts = countEnglishModeRequests()
+
+    fireEvent.click(danishToggle)
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 450))
+    })
+
+    fireEvent.click(englishToggle)
+    expect(await within(commandDialog).findByText(/^kat$/i, { selector: "strong" })).toBeInTheDocument()
+
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 50))
+    })
+    expect(countEnglishModeRequests()).toEqual(initialEnglishRequestCounts)
+  })
 })

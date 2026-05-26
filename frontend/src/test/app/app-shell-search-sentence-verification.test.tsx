@@ -17,11 +17,11 @@ function getSentenceOption(dialog: HTMLElement) {
 
 describe("Sentence verification in search", () => {
   it("keeps mixed number-and-word queries in the sentence flow", async () => {
-    const previewBodies: Array<{ source_text?: string; fast?: boolean }> = []
+    const previewBodies: Array<{ source_text?: string; fast?: boolean; language_mode?: "da" | "en" }> = []
     mockFetchImplementation({
       lemmasResponse: { items: [] },
       sentenceSearchPreviewHandler: async (_input, init) => {
-        previewBodies.push(JSON.parse(String(init?.body ?? "{}")) as { source_text?: string; fast?: boolean })
+        previewBodies.push(JSON.parse(String(init?.body ?? "{}")) as { source_text?: string; fast?: boolean; language_mode?: "da" | "en" })
         return responseOf({
           status: "ready",
           query_language: "en",
@@ -43,8 +43,43 @@ describe("Sentence verification in search", () => {
     expect(await within(dialog).findByText(/^jeg har 21 katte$/i)).toBeInTheDocument()
     await waitFor(() => {
       expect(previewBodies.some((body) => body.source_text === "21 cats")).toBe(true)
+      expect(previewBodies.some((body) => body.source_text === "21 cats" && body.fast === true && body.language_mode === "da")).toBe(true)
+      expect(previewBodies.some((body) => body.source_text === "21 cats" && body.fast === false && body.language_mode === "da")).toBe(true)
     })
     expect(within(dialog).queryByText(/21 =/i)).not.toBeInTheDocument()
+  })
+
+  it("sends English language mode for sentence preview requests", async () => {
+    const previewBodies: Array<{ source_text?: string; fast?: boolean; language_mode?: "da" | "en" }> = []
+    mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      sentenceSearchPreviewHandler: async (_input, init) => {
+        previewBodies.push(JSON.parse(String(init?.body ?? "{}")) as { source_text?: string; fast?: boolean; language_mode?: "da" | "en" })
+        return responseOf({
+          status: "ready",
+          query_language: "en",
+          source_text: "jeg elsker dansk",
+          english_translation: "I love Danish",
+          is_valid: true,
+          errors: [],
+          message: null,
+        })
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    const dialog = await openSearch()
+    fireEvent.click(within(dialog).getByRole("radio", { name: /^English$/i }))
+    typeInSearch(dialog, "I love Danish")
+
+    await waitFor(() => {
+      expect(previewBodies.some((body) => body.fast === true && body.language_mode === "en")).toBe(true)
+      expect(previewBodies.some((body) => body.fast === false && body.language_mode === "en")).toBe(true)
+    }, { timeout: 5000 })
+
+    fireEvent.click(within(dialog).getByRole("radio", { name: /^Danish$/i }))
   })
 
   it("keeps the sentence loading row visible during debounce instead of flashing no results", async () => {
@@ -825,5 +860,3 @@ it("underlines the typo in the input and shows only the correction plus correcte
     })
   })
 })
-
-

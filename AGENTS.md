@@ -42,9 +42,10 @@ scripts/dev-app.py wordbank save-sense <surface> --meaning-key <k> [--pos-tag PO
                                               # auto-build the search seed from sense discovery and POST add-word
 scripts/dev-app.py wordbank expand-senses <lemma>     # backfill missing senses on an already-saved lemma
 scripts/dev-app.py wordbank delete-lemma <lemma>      # remove a saved lemma
-scripts/dev-app.py search profile <query>    # sidebar-style search waterfall timings
+scripts/dev-app.py search profile <query> [--mode da|en]  # sidebar-style search waterfall timings
 scripts/dev-app.py search trace <english-query>  # JSON EN → DA → COR trace
-scripts/dev-app.py search all <query>            # consolidated saved+COR+EN+resolver results with typo suggestions
+scripts/dev-app.py search sidebar <query> [--mode da|en]  # sidebar flow with executed/skipped phases
+scripts/dev-app.py search all <query> [--mode da|en]      # consolidated saved+COR+EN+resolver results with typo suggestions
 scripts/dev-search-debug.py <english-query>      # full EN → DA → COR trace, with filter diff
 scripts/dev-search-debug.py --da <danish-form>   # direct Danish COR lookup
 scripts/dev-search-debug.py --host H --port P <q>  # override auto-detection

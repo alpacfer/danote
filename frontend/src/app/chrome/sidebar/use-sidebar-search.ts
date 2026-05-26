@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 
 import {
   BACKEND_URL,
@@ -10,7 +10,7 @@ import {
   normalizeSearchWord,
 } from "@/app/core"
 import { searchAttemptKey } from "@/app/chrome/sidebar/sidebar-search-types"
-import type { UseSidebarSearchParams } from "@/app/chrome/sidebar/sidebar-search-types"
+import type { SearchLanguageMode, UseSidebarSearchParams } from "@/app/chrome/sidebar/sidebar-search-types"
 import { useSidebarCorSearch } from "@/app/chrome/sidebar/use-sidebar-cor-search"
 import { useSidebarEnSearch } from "@/app/chrome/sidebar/use-sidebar-en-search"
 import { useSidebarSentencePreview } from "@/app/chrome/sidebar/use-sidebar-sentence-preview"
@@ -18,16 +18,38 @@ import { useSidebarWordbankSearch } from "@/app/chrome/sidebar/use-sidebar-wordb
 import { numberFromSearchQuery } from "@/app/sections/wordbank/numbers/numbers-data"
 import { extractErrorMessage } from "@/app/hooks/app/controller/runtime-utils"
 
+const SEARCH_LANGUAGE_MODE_STORAGE_KEY = "danote.search.languageMode"
+
+function initialSearchLanguageMode(): SearchLanguageMode {
+  if (typeof window === "undefined") return "da"
+  try {
+    const stored = window.sessionStorage.getItem(SEARCH_LANGUAGE_MODE_STORAGE_KEY)
+    return stored === "da" || stored === "en" ? stored : "da"
+  } catch {
+    return "da"
+  }
+}
+
 export function useSidebarSearch({
   wordbankCacheVersion,
   searchTranslationConfigVersion,
 }: UseSidebarSearchParams) {
   const [searchQuery, setSearchQuery] = useState("")
+  const [searchLanguageMode, setSearchLanguageMode] = useState<SearchLanguageMode>(initialSearchLanguageMode)
   const apiClient = useMemo(
     () => createApiClient({ backendUrl: BACKEND_URL, extractErrorMessage }),
     [],
   )
   const resetVersion = `${searchTranslationConfigVersion}:${wordbankCacheVersion}`
+  const searchAttemptVersion = `${resetVersion}:${searchLanguageMode}`
+
+  useEffect(() => {
+    try {
+      window.sessionStorage.setItem(SEARCH_LANGUAGE_MODE_STORAGE_KEY, searchLanguageMode)
+    } catch {
+      // sessionStorage is best-effort; Danish remains the fallback.
+    }
+  }, [searchLanguageMode])
 
   const sentenceQuery = normalizeSentenceText(searchQuery)
   const normalizedQuery = normalizeSearchWord(searchQuery)
@@ -47,12 +69,13 @@ export function useSidebarSearch({
     (key: string) => setTrialLimitedKey(key),
     [],
   )
-  const isTrialLimitReached = trialLimitedKey === searchAttemptKey(resetVersion, normalizedQuery)
+  const isTrialLimitReached = trialLimitedKey === searchAttemptKey(searchAttemptVersion, normalizedQuery)
 
   const { searchApiMatches, wordbankDidYouMean, isWordbankSearchLoading } = useSidebarWordbankSearch({
     apiClient,
     shouldSkipLookup: shouldSkipWordLookups,
     normalizedQuery,
+    searchLanguageMode,
     resetVersion,
   })
   const {
@@ -63,6 +86,7 @@ export function useSidebarSearch({
     apiClient,
     isSentenceMode,
     sentenceQuery,
+    searchLanguageMode,
     resetVersion,
   })
   const isMweMode = isSentenceMode && sentenceSearchPreview?.is_multi_word_expression === true
@@ -74,17 +98,19 @@ export function useSidebarSearch({
     enTranslatedCorSkeletonCount,
   } = useSidebarEnSearch({
     apiClient,
-    isEnglishSingleWordQuery,
+    isEnglishSingleWordQuery: searchLanguageMode === "en" && isEnglishSingleWordQuery,
     isSentenceMode,
     normalizedQuery,
     resetVersion,
+    searchAttemptVersion,
     onTrialLimitReached,
   })
   const { corDidYouMean, corFormSearchResult, isCorLookupLoading, isCorTranslationsLoading } = useSidebarCorSearch({
     apiClient,
-    shouldSkipLookup: shouldSkipWordLookups,
+    shouldSkipLookup: shouldSkipWordLookups || searchLanguageMode === "en",
     normalizedQuery,
     resetVersion,
+    searchAttemptVersion,
     onTrialLimitReached,
     enResolveGroups: activeEnResolveResult?.groups,
   })
@@ -99,6 +125,8 @@ export function useSidebarSearch({
   return {
     searchQuery,
     setSearchQuery,
+    searchLanguageMode,
+    setSearchLanguageMode,
     normalizedQuery,
     isTrialLimitReached,
     isSentenceMode,

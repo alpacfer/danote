@@ -141,6 +141,7 @@ def sentence_search_preview(
         lambda: _sentencebank_use_case(request).preview_sentence_search(
             payload.source_text,
             fast=payload.fast,
+            language_mode=payload.language_mode,
         ),
         error_log_name="sentencebank_search_preview_db_operational_error",
     )

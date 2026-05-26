@@ -9,6 +9,7 @@ import {
 } from "@/app/core"
 
 export type SidebarApiClient = ReturnType<typeof createApiClient>
+export type SearchLanguageMode = "da" | "en"
 
 /** Identifies one search attempt so a trial-limit banner clears when the
  *  query or the search/cache config changes. */

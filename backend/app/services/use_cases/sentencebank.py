@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Literal
+
 from app.api.schemas.v1.sentencebank import (
     AddSentenceResponse,
     GenerateExamplePreviewResponse,
@@ -279,7 +281,13 @@ class SentencebankUseCase:
             sentence_verification_service=self._sentence_verification_service,
         )
 
-    def preview_sentence_search(self, source_text: str, *, fast: bool = False) -> SentenceSearchPreviewResponse:
+    def preview_sentence_search(
+        self,
+        source_text: str,
+        *,
+        fast: bool = False,
+        language_mode: Literal["da", "en"] | None = None,
+    ) -> SentenceSearchPreviewResponse:
         normalized_query = normalize_sentence_text(source_text)
         if not normalized_query:
             raise ValueError("source_text is required")
@@ -289,6 +297,7 @@ class SentencebankUseCase:
             wordbank_use_case=self._wordbank_use_case,
             sentence_verification_service=self._sentence_verification_service,
             fast=fast,
+            language_mode=language_mode,
         )
 
     def generate_pronunciation_for_sentence(

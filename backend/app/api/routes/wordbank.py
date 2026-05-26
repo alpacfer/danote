@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
@@ -270,10 +271,11 @@ def search_wordbank(
     request: Request,
     query: str = Query(..., min_length=1),
     limit: int = Query(8, ge=1, le=50),
+    language: Literal["da", "en"] = Query("da"),
 ) -> WordbankSearchResponse:
     return run_db_operation(
         request,
-        lambda: build_wordbank_use_case(request).search_lemmas(query, limit=limit),
+        lambda: build_wordbank_use_case(request).search_lemmas(query, limit=limit, language=language),
         include_runtime_error=True,
         error_log_name="wordbank_db_operational_error",
     )

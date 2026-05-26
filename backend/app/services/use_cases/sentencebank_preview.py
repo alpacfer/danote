@@ -157,12 +157,22 @@ def build_sentence_search_preview(
     wordbank_use_case: WordbankUseCase | None,
     sentence_verification_service: SentenceVerificationService | None,
     fast: bool,
+    language_mode: Literal["da", "en"] | None = None,
 ) -> SentenceSearchPreviewResponse:
     if fast:
         return build_sentence_search_preview_fast(
             normalized_query=normalized_query,
             translation_service=translation_service,
             wordbank_use_case=wordbank_use_case,
+            language_mode=language_mode,
+        )
+
+    if language_mode == "en":
+        return _english_sentence_preview(
+            normalized_query=normalized_query,
+            translation_service=translation_service,
+            wordbank_use_case=wordbank_use_case,
+            sentence_verification_service=sentence_verification_service,
         )
 
     try:
@@ -209,6 +219,8 @@ def build_sentence_search_preview(
         if heuristic_correction is not None and initial_verification.is_valid and not initial_verification.corrected_text:
             initial_verification = heuristic_correction
     query_language = initial_verification.language
+    if language_mode == "da":
+        query_language = "da"
     if query_language == "unknown":
         query_language = detect_query_language_for_preview(
             source_text=normalized_query,
@@ -222,72 +234,12 @@ def build_sentence_search_preview(
         )
 
     if query_language == "en":
-        english_for_translation = (
-            preserve_leading_letter_case(normalized_query, initial_verification.corrected_text)
-            or normalized_query
-        )
-        translated_danish = lookup_reverse_translation(
-            source_text=english_for_translation,
+        return _english_sentence_preview(
+            normalized_query=normalized_query,
             translation_service=translation_service,
-        )
-        if not translated_danish:
-            return SentenceSearchPreviewResponse(
-                status="blocked",
-                query_language="en",
-                source_text=None,
-                english_translation=None,
-                is_valid=False,
-                errors=[],
-                message="Could not translate this English sentence to Danish.",
-            )
-
-        # Run verification on the translated Danish to check for MWE status
-        try:
-            danish_verification = verify_sentence_result(
-                source_text=translated_danish,
-                sentence_verification_service=sentence_verification_service,
-            )
-        except SentenceVerificationError:
-            return _blocked_preview(
-                query_language="en",
-                message="Could not verify the Danish translation. Please try again.",
-            )
-        danish_verification = _with_deterministic_mwe(
-            danish_verification,
-            source_text=translated_danish,
             wordbank_use_case=wordbank_use_case,
-            translation_service=translation_service,
-        )
-
-        final_danish_text = danish_verification.corrected_text or translated_danish
-
-        mwe_meanings_variants: list[CORSearchVariant] = []
-        mwe_cor_match: CORSearchVariant | None = None
-        if wordbank_use_case is not None and danish_verification.is_multi_word_expression and danish_verification.mwe_lemma:
-            mwe_meanings_variants = _build_mwe_meaning_variants(
-                wordbank_use_case=wordbank_use_case,
-                verification=danish_verification,
-            )
-            mwe_cor_match = mwe_meanings_variants[0] if mwe_meanings_variants else None
-
-        return SentenceSearchPreviewResponse(
-            status="ready",
-            query_language="en",
-            source_text=final_danish_text,
-            english_translation=english_for_translation,
-            is_valid=danish_verification.is_valid,
-            errors=[
-                SentenceVerificationErrorItem(start=error.start, end=error.end, message=error.message)
-                for error in danish_verification.errors
-            ],
-            message=None,
-            is_multi_word_expression=danish_verification.is_multi_word_expression,
-            mwe_lemma=danish_verification.mwe_lemma,
-            mwe_pos_tag=danish_verification.mwe_pos_tag,
-            mwe_gloss=danish_verification.mwe_gloss,
-            mwe_english_translation=danish_verification.mwe_english_translation,
-            mwe_cor_match=mwe_cor_match,
-            mwe_meanings=mwe_meanings_variants,
+            sentence_verification_service=sentence_verification_service,
+            corrected_text=initial_verification.corrected_text,
         )
 
     initial_verification = _with_deterministic_mwe(
@@ -333,11 +285,84 @@ def build_sentence_search_preview(
     )
 
 
+def _english_sentence_preview(
+    *,
+    normalized_query: str,
+    translation_service: TranslationService | None,
+    wordbank_use_case: WordbankUseCase | None,
+    sentence_verification_service: SentenceVerificationService | None,
+    corrected_text: str | None = None,
+) -> SentenceSearchPreviewResponse:
+    english_for_translation = preserve_leading_letter_case(normalized_query, corrected_text) or normalized_query
+    translated_danish = lookup_reverse_translation(
+        source_text=english_for_translation,
+        translation_service=translation_service,
+    )
+    if not translated_danish:
+        return SentenceSearchPreviewResponse(
+            status="blocked",
+            query_language="en",
+            source_text=None,
+            english_translation=None,
+            is_valid=False,
+            errors=[],
+            message="Could not translate this English sentence to Danish.",
+        )
+
+    try:
+        danish_verification = verify_sentence_result(
+            source_text=translated_danish,
+            sentence_verification_service=sentence_verification_service,
+        )
+    except SentenceVerificationError:
+        return _blocked_preview(
+            query_language="en",
+            message="Could not verify the Danish translation. Please try again.",
+        )
+    danish_verification = _with_deterministic_mwe(
+        danish_verification,
+        source_text=translated_danish,
+        wordbank_use_case=wordbank_use_case,
+        translation_service=translation_service,
+    )
+
+    final_danish_text = danish_verification.corrected_text or translated_danish
+    mwe_meanings_variants: list[CORSearchVariant] = []
+    mwe_cor_match: CORSearchVariant | None = None
+    if wordbank_use_case is not None and danish_verification.is_multi_word_expression and danish_verification.mwe_lemma:
+        mwe_meanings_variants = _build_mwe_meaning_variants(
+            wordbank_use_case=wordbank_use_case,
+            verification=danish_verification,
+        )
+        mwe_cor_match = mwe_meanings_variants[0] if mwe_meanings_variants else None
+
+    return SentenceSearchPreviewResponse(
+        status="ready",
+        query_language="en",
+        source_text=final_danish_text,
+        english_translation=english_for_translation,
+        is_valid=danish_verification.is_valid,
+        errors=[
+            SentenceVerificationErrorItem(start=error.start, end=error.end, message=error.message)
+            for error in danish_verification.errors
+        ],
+        message=None,
+        is_multi_word_expression=danish_verification.is_multi_word_expression,
+        mwe_lemma=danish_verification.mwe_lemma,
+        mwe_pos_tag=danish_verification.mwe_pos_tag,
+        mwe_gloss=danish_verification.mwe_gloss,
+        mwe_english_translation=danish_verification.mwe_english_translation,
+        mwe_cor_match=mwe_cor_match,
+        mwe_meanings=mwe_meanings_variants,
+    )
+
+
 def build_sentence_search_preview_fast(
     *,
     normalized_query: str,
     translation_service: TranslationService | None,
     wordbank_use_case: WordbankUseCase | None,
+    language_mode: Literal["da", "en"] | None = None,
 ) -> SentenceSearchPreviewResponse:
     if _looks_mixed_language(normalized_query):
         return SentenceSearchPreviewResponse(
@@ -350,7 +375,7 @@ def build_sentence_search_preview_fast(
             message="This looks like mixed Danish and English. Search a Danish or English sentence.",
         )
 
-    query_language = detect_query_language_for_preview(
+    query_language = language_mode or detect_query_language_for_preview(
         source_text=normalized_query,
         translation_service=translation_service,
     )

@@ -273,6 +273,8 @@ describe("App shell and search", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
+    fireEvent.click(within(commandDialog).getByRole("radio", { name: /^English$/i }))
+    expect(within(commandDialog).getByRole("radio", { name: /^English$/i })).toHaveAttribute("data-state", "on")
     const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
     fireEvent.change(searchInput, { target: { value: "notebook" } })
 
@@ -290,7 +292,7 @@ describe("App shell and search", () => {
       ).toBe(true)
       expect(
         fetchSpy.mock.calls.some(([input]) => String(input).includes("/api/wordbank/search/cor-form?form=notebook")),
-      ).toBe(true)
+      ).toBe(false)
       expect(
         fetchSpy.mock.calls.some(([input]) => String(input).includes("/api/wordbank/search/en-form?form=notebook")),
       ).toBe(true)
@@ -405,6 +407,7 @@ describe("App shell and search", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
+    fireEvent.click(within(commandDialog).getByRole("radio", { name: /^English$/i }))
     const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
     fireEvent.change(searchInput, { target: { value: "notebook" } })
 
@@ -482,7 +485,7 @@ describe("App shell and search", () => {
     await waitFor(() => {
       expect(
         fetchSpy.mock.calls.some(([input]) => String(input).includes("/api/wordbank/search/en-form?form=kat")),
-      ).toBe(true)
+      ).toBe(false)
       expect(
         fetchSpy.mock.calls.some(([input]) => String(input).includes("/api/wordbank/search/cor-form?form=kat")),
       ).toBe(true)
@@ -662,5 +665,28 @@ describe("App shell and search", () => {
 
     expect(corResult).toBeInTheDocument()
     expect(within(commandDialog).queryByText(/did you mean/i)).not.toBeInTheDocument()
+  })
+
+  it("search mode toggle is remembered for the browser session", async () => {
+    mockFetchImplementation({ lemmasResponse: { items: [] } })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    let commandDialog = await screen.findByRole("dialog")
+    expect(within(commandDialog).getByRole("radio", { name: /^Danish$/i })).toHaveAttribute("data-state", "on")
+
+    fireEvent.click(within(commandDialog).getByRole("radio", { name: /^English$/i }))
+    expect(within(commandDialog).getByRole("radio", { name: /^English$/i })).toHaveAttribute("data-state", "on")
+
+    fireEvent.keyDown(commandDialog, { key: "Escape" })
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument())
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    commandDialog = await screen.findByRole("dialog")
+    expect(within(commandDialog).getByRole("radio", { name: /^English$/i })).toHaveAttribute("data-state", "on")
+
+    fireEvent.click(within(commandDialog).getByRole("radio", { name: /^Danish$/i }))
   })
 })

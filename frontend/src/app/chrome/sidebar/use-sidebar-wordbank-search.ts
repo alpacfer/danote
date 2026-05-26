@@ -7,17 +7,19 @@ import {
   type WordbankSearchItem,
   type WordbankSearchResponse,
 } from "@/app/core"
-import type { SidebarApiClient } from "@/app/chrome/sidebar/sidebar-search-types"
+import type { SearchLanguageMode, SidebarApiClient } from "@/app/chrome/sidebar/sidebar-search-types"
 
 export function useSidebarWordbankSearch({
   apiClient,
   shouldSkipLookup,
   normalizedQuery,
+  searchLanguageMode,
   resetVersion,
 }: {
   apiClient: SidebarApiClient
   shouldSkipLookup: boolean
   normalizedQuery: string
+  searchLanguageMode: SearchLanguageMode
   resetVersion: string
 }) {
   const cacheRef = useRef<Map<string, { matches: WordbankSearchItem[]; correction: string | null }>>(new Map())
@@ -61,7 +63,8 @@ export function useSidebarWordbankSearch({
       }
     }
 
-    const cached = cacheRef.current.get(normalizedQuery)
+    const cacheKey = `${searchLanguageMode}:${normalizedQuery}`
+    const cached = cacheRef.current.get(cacheKey)
     if (cached) {
       setIsWordbankSearchLoading(false)
       commitDidYouMean(cached.correction)
@@ -79,7 +82,7 @@ export function useSidebarWordbankSearch({
       void (async () => {
         try {
           const payload = await apiClient.tryGetJson<WordbankSearchResponse>(
-            `/api/wordbank/search?query=${encodeURIComponent(normalizedQuery)}&limit=8`,
+            `/api/wordbank/search?query=${encodeURIComponent(normalizedQuery)}&limit=8&language=${searchLanguageMode}`,
             { signal: controller.signal },
           )
           if (!payload) {
@@ -106,7 +109,7 @@ export function useSidebarWordbankSearch({
             const matchSurfaceKey = normalizeSearchWord(item.match_surface ?? "")
             return lemmaKey === effectiveQuery || matchSurfaceKey === effectiveQuery
           })
-          cacheRef.current.set(normalizedQuery, { matches: exactMatches, correction })
+          cacheRef.current.set(cacheKey, { matches: exactMatches, correction })
           commitDidYouMean(correction)
           commitSearchMatches(exactMatches)
         } catch {
@@ -128,7 +131,7 @@ export function useSidebarWordbankSearch({
       controller.abort()
       setIsWordbankSearchLoading(false)
     }
-  }, [apiClient, normalizedQuery, resetVersion, shouldSkipLookup])
+  }, [apiClient, normalizedQuery, resetVersion, searchLanguageMode, shouldSkipLookup])
 
   return { searchApiMatches, wordbankDidYouMean, isWordbankSearchLoading }
 }

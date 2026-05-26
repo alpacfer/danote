@@ -158,22 +158,12 @@ class DevAppHelpersTest(unittest.TestCase):
         self.assertEqual(dev_app.search_flow_decision("jeg er glad")["skip_reason"], "sentence_mode")
         self.assertEqual(dev_app.search_flow_decision("i")["skip_reason"], "too_short")
         self.assertTrue(dev_app.search_flow_decision("book")["single_word_lookup"])
+        self.assertEqual(dev_app.search_flow_decision("book", language_mode="en")["language_mode"], "en")
 
     def test_search_profile_run_reports_waterfall_counts_and_skip(self) -> None:
         client = FakeProfileClient(
             {
-                ("GET", "/api/wordbank/search", "query=book"): {"items": []},
-                ("GET", "/api/wordbank/search/cor-form", "form=book&include_translations=False"): {
-                    "form": "book",
-                    "groups": [
-                        {
-                            "lemma": "booke",
-                            "gloss": None,
-                            "pos_tag": "VERB",
-                            "variants": [{"form": "book", "lemma": "booke", "gloss": None}],
-                        }
-                    ],
-                },
+                ("GET", "/api/wordbank/search", "language=en&query=book"): {"items": []},
                 ("GET", "/api/wordbank/search/en-form", "form=book&include_translations=True"): {
                     "form": "book",
                     "groups": [{"lemma": "book", "pos_ud": "NOUN", "danish_translation": "bog", "senses": []}],
@@ -192,7 +182,7 @@ class DevAppHelpersTest(unittest.TestCase):
             client,
             query="book",
             normalized_query="book",
-            decision=dev_app.search_flow_decision("book"),
+            decision=dev_app.search_flow_decision("book", language_mode="en"),
             run_index=0,
             cold_cache=False,
             include_resolve=False,
@@ -200,6 +190,7 @@ class DevAppHelpersTest(unittest.TestCase):
         )
 
         self.assertTrue(run["flow"]["skipped_direct_cor_full"])
+        self.assertEqual(run["flow"]["language_mode"], "en")
         self.assertEqual(run["counts"]["en_groups"], 1)
         self.assertEqual(run["counts"]["translated_cor_variants"], 1)
         self.assertNotIn("cor_full", {phase["name"] for phase in run["phases"]})
@@ -250,7 +241,7 @@ class FakeProfileClient:
         interesting = {
             key: value
             for key, value in params.items()
-            if key in {"query", "form", "include_translations"}
+            if key in {"query", "form", "include_translations", "language"}
         }
         key = (
             spec.method,

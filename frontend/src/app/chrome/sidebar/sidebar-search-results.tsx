@@ -212,7 +212,7 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
         ({ variant }) =>
           !(
             isSelfTranslatedCorVariant(variant, state.normalizedQuery) &&
-            translatedEnCorIds.has(variant.cor_id)
+            (translatedEnCorIds.has(variant.cor_id) || variant.cor_id.endsWith(".SELF"))
           ),
       )
     : data.corSearchVariantsToRender

@@ -27,6 +27,36 @@ def test_wordbank_search_lemmas_matches_variations(tmp_path: Path) -> None:
     assert result.items[0].match_surface == "bogens"
 
 
+def test_wordbank_search_lemmas_respects_language_mode_for_saved_translations(tmp_path: Path) -> None:
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        translation_service=FakeTranslationService({"kat": "cat"}),
+    )
+    use_case.add_word("Kat", "kat")
+
+    danish_result = use_case.search_lemmas("cat", language="da")
+    english_result = use_case.search_lemmas("cat", language="en")
+
+    assert danish_result.items == []
+    assert english_result.items[0].lemma == "kat"
+    assert english_result.items[0].matched_via == "english_translation"
+
+
+def test_wordbank_search_lemmas_uses_language_specific_typo_candidates(tmp_path: Path) -> None:
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        translation_service=FakeTranslationService({"kat": "cat"}),
+    )
+    use_case.add_word("Kat", "kat")
+
+    danish_result = use_case.search_lemmas("cta", language="da")
+    english_result = use_case.search_lemmas("cta", language="en")
+
+    assert danish_result.did_you_mean is None
+    assert english_result.did_you_mean == "cat"
+    assert english_result.items[0].lemma == "kat"
+
+
 def test_wordbank_resolve_query_uses_static_danish_pronoun_without_providers(tmp_path: Path) -> None:
     translation_service = FakeTranslationService({"du": "provider should not be used"})
     use_case = WordbankUseCase(
@@ -115,7 +145,7 @@ def test_wordbank_search_lemmas_returns_static_pronouns_as_saved_defaults(tmp_pa
     use_case = WordbankUseCase(_db_path(tmp_path))
 
     danish_result = use_case.search_lemmas("du")
-    english_result = use_case.search_lemmas("you")
+    english_result = use_case.search_lemmas("you", language="en")
 
     assert danish_result.items[0].lemma == "du"
     assert danish_result.items[0].english_translation == "you"
@@ -128,7 +158,7 @@ def test_wordbank_search_lemmas_returns_static_hv_words_as_saved_defaults(tmp_pa
     use_case = WordbankUseCase(_db_path(tmp_path))
 
     danish_result = use_case.search_lemmas("hvorfor")
-    english_result = use_case.search_lemmas("why")
+    english_result = use_case.search_lemmas("why", language="en")
 
     assert danish_result.items[0].lemma == "hvorfor"
     assert danish_result.items[0].english_translation == "why"
@@ -141,7 +171,7 @@ def test_wordbank_search_lemmas_returns_static_presaved_words_as_saved_defaults(
     use_case = WordbankUseCase(_db_path(tmp_path))
 
     danish_result = use_case.search_lemmas("mandag")
-    english_result = use_case.search_lemmas("Monday")
+    english_result = use_case.search_lemmas("Monday", language="en")
 
     assert danish_result.items[0].lemma == "mandag"
     assert danish_result.items[0].english_translation == "Monday"

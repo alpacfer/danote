@@ -355,8 +355,10 @@ class WordbankUseCase:
     def list_lemmas(self) -> LemmaListResponse:
         return list_lemmas(self._runtime)
 
-    def search_lemmas(self, query: str, *, limit: int = 8) -> WordbankSearchResponse:
-        return search_lemmas(self._runtime, query, limit=limit)
+    def search_lemmas(self, query: str, *, limit: int = 8, language: str = "da") -> WordbankSearchResponse:
+        if language not in {"da", "en"}:
+            raise ValueError("language must be 'da' or 'en'")
+        return search_lemmas(self._runtime, query, limit=limit, language=language)
 
     def get_lemma_details(self, lemma: str) -> LemmaDetailsResponse:
         return get_lemma_details(self._runtime, lemma)

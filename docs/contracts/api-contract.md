@@ -156,7 +156,7 @@ or `Authorization: Bearer <guest-token>` header. Local dev
 - **Notable status/error behavior:** `422` empty or >100 char text. `503` DB unavailable. No Gemini service → returns `is_valid=true`.
 
 ### POST `/api/sentencebank/search-preview`
-- **Request model:** `SentenceSearchPreviewRequest` (`source_text: str`, max 100 chars, `fast: bool = False`).
+- **Request model:** `SentenceSearchPreviewRequest` (`source_text: str`, max 100 chars, `fast: bool = False`, `language_mode: "da" | "en" | null = null`).
 - **Response model:** `SentenceSearchPreviewResponse` (`status: "ready" | "blocked" | "preview"`, `query_language`, `source_text`, `english_translation`, `is_valid`, `errors`, `message`, `is_multi_word_expression`, `mwe_lemma`, `mwe_pos_tag`, `mwe_gloss`, `mwe_english_translation`, `mwe_cor_match`, `mwe_meanings`).
   - `mwe_meanings: CORSearchVariant[]` — one entry per distinct sense for polysemous MWE lemmas (e.g. `tage på` → put on / gain weight / go somewhere). Monosemous MWEs return a one-element list mirroring `mwe_cor_match`. Each entry has a distinct `cor_id` (suffixed with the meaning_key) so the frontend can render one save card per sense; saving each creates a separate `lexeme_meanings` row under the same MWE lexeme. Empty when the input is not an MWE.
 - **Notable status/error behavior:** `422` empty or >100 char text. `503` DB unavailable.
@@ -173,7 +173,7 @@ or `Authorization: Bearer <guest-token>` header. Local dev
   - `mwe_gloss`: brief Danish definition of the MWE.
   - `mwe_english_translation`: English translation of the MWE.
   - `mwe_cor_match`: matched `CORSearchVariant` for the MWE if found in COR, or a synthetically populated one if it is generated.
-  - Explicit English queries translate the corrected or normalized English sentence into Danish and do not perform a second Danish verification pass. Unknown-language queries do not auto-switch into English flow.
+  - `language_mode = "da"` forces Danish-first routing instead of heuristic English detection. `language_mode = "en"` forces English-to-Danish routing and does not perform a second Danish verification pass. `null` keeps the legacy heuristic routing.
   - Exact known MWEs may be returned from local fallback even when sentence verification is unavailable; polysemous entries such as `tage på` still populate `mwe_meanings`.
 
 ## Wordbank
@@ -366,10 +366,10 @@ or `Authorization: Bearer <guest-token>` header. Local dev
   translation/display behavior.
 
 ### GET `/api/wordbank/search`
-- **Request model:** none (`query`, `limit` query params).
+- **Request model:** none (`query`, `limit`, `language: "da" | "en" = "da"` query params).
 - **Response model:** `WordbankSearchResponse`.
 - **Notable status/error behavior:** `422` validation failures (empty query, limit out of range). `503` DB unavailable/locked. `503` runtime errors.
-- **Field invariants:** saved search rows keep lemma translation + gloss translation separate. `english_translation` = saved lemma translation only. `gloss_translation` = optional disambiguation context and is omitted when redundant with the lemma translation, including verb glosses already covered by an infinitive translation. Raw `gloss` not promoted into `english_translation`. Static presaved words may return saved-default rows even when not persisted as DB lexemes; those rows include lemma, translation, POS/morphology, `variation_count=1`, empty `query_cor_ids`, and optional `match_surface` for English matches. `matched_via`: the saved-meaning field that triggered the hit — one of `"lemma"`, `"surface"`, `"english_translation"`, `"alternative_translation"`, `"english_gloss"`, `"gloss"`, or `null` for legacy/static rows. The UI uses it to rank results and show a "matched X" reason. `did_you_mean`: non-null when query had no direct matches and a Levenshtein-close candidate was found; English-looking queries fuzzy-match against indexed English tokens (primary translation, alt translations, english_gloss) before falling back to Danish lemmas. Danish lemma fallback scales edit distance with query length and does not correct one-to-three-character queries. `items` then contains results for the corrected word.
+- **Field invariants:** saved search rows keep lemma translation + gloss translation separate. `english_translation` = saved lemma translation only. `gloss_translation` = optional disambiguation context and is omitted when redundant with the lemma translation, including verb glosses already covered by an infinitive translation. Raw `gloss` not promoted into `english_translation`. `language=da` searches Danish-facing fields only (`lemma`, saved surface forms, Danish gloss) and uses Danish lemma candidates for `did_you_mean`. `language=en` searches English-facing fields only (`english_translation`, `alternative_translation`, `english_gloss`) and uses indexed English tokens for `did_you_mean`. Static presaved English defaults are available only in English mode; Danish static defaults are available only in Danish mode. Static presaved words may return saved-default rows even when not persisted as DB lexemes; those rows include lemma, translation, POS/morphology, `variation_count=1`, empty `query_cor_ids`, and optional `match_surface` for English matches. `matched_via`: the saved-meaning field that triggered the hit — one of `"lemma"`, `"surface"`, `"english_translation"`, `"alternative_translation"`, `"english_gloss"`, `"gloss"`, or `null` for legacy/static rows. The UI uses it to rank results and show a "matched X" reason. `did_you_mean`: non-null when the selected language mode has no direct matches and a Levenshtein-close candidate was found. Danish lemma fallback scales edit distance with query length and does not correct one-to-three-character queries. `items` then contains results for the corrected word.
 
 > **Hosted-key metering:** `cor-form`, `cor-form-batch`, and `en-form` count one
 > distinct word per day against the free-trial cap for signed-in users who have

@@ -21,6 +21,7 @@ export function useSidebarEnSearch({
   isSentenceMode,
   normalizedQuery,
   resetVersion,
+  searchAttemptVersion,
   onTrialLimitReached,
 }: {
   apiClient: SidebarApiClient
@@ -28,16 +29,17 @@ export function useSidebarEnSearch({
   isSentenceMode: boolean
   normalizedQuery: string
   resetVersion: string
+  searchAttemptVersion: string
   onTrialLimitReached: (key: string) => void
 }) {
   const reportSearchError = useCallback(
     (error: unknown): null => {
       if (error instanceof ApiRequestError && error.status === 429) {
-        onTrialLimitReached(searchAttemptKey(resetVersion, normalizedQuery))
+        onTrialLimitReached(searchAttemptKey(searchAttemptVersion, normalizedQuery))
       }
       return null
     },
-    [normalizedQuery, onTrialLimitReached, resetVersion],
+    [normalizedQuery, onTrialLimitReached, searchAttemptVersion],
   )
   const enResolveCacheRef = useRef<Map<string, EnResolveResult>>(new Map())
   const enTranslatedCorCacheRef = useRef<Map<string, CORSearchFormResponse>>(new Map())

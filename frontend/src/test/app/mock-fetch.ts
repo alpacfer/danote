@@ -1274,6 +1274,7 @@ export function mockFetchImplementation(options?: {
       }
       const parsed = new URL(url, "http://localhost")
       const query = (parsed.searchParams.get("query") ?? "").trim().toLocaleLowerCase("da-DK")
+      const language = parsed.searchParams.get("language") === "en" ? "en" : "da"
       if (!query) {
         return responseOf({ items: [] })
       }
@@ -1281,7 +1282,10 @@ export function mockFetchImplementation(options?: {
         const lemma = item.lemma.trim().toLocaleLowerCase("da-DK")
         const translation = (item.english_translation ?? "").trim().toLocaleLowerCase("da-DK")
         const surface = (item.match_surface ?? "").trim().toLocaleLowerCase("da-DK")
-        return lemma.includes(query) || translation.includes(query) || surface.includes(query)
+        if (language === "en") {
+          return translation.includes(query)
+        }
+        return lemma.includes(query) || surface.includes(query)
       })
       return responseOf({ items: filtered })
     }

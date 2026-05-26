@@ -176,6 +176,7 @@ def _add_search_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentP
 
     profile = child.add_parser("profile", help="Profile sidebar-style single-word search.")
     profile.add_argument("query")
+    profile.add_argument("--mode", choices=("da", "en"), default="da", help="Search language mode.")
     profile.add_argument("--runs", type=int, default=1, help="Number of profile runs.")
     profile.add_argument("--cold-cache", action="store_true", help="Clear search cache before each run when enabled.")
     profile.add_argument("--include-resolve", action="store_true", help="Also time /api/wordbank/resolve-query.")
@@ -191,6 +192,7 @@ def _add_search_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentP
         help="List every search result for a query plus typo suggestions.",
     )
     all_results.add_argument("query")
+    all_results.add_argument("--mode", choices=("da", "en"), default="da", help="Search language mode.")
     all_results.add_argument("--limit", type=int, default=8, help="Wordbank result limit.")
     _set_handler(all_results, ["search", "all"], handle_search_all)
 
@@ -200,6 +202,7 @@ def _add_search_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentP
         "for a query and flag rendered duplicates.",
     )
     sidebar.add_argument("query")
+    sidebar.add_argument("--mode", choices=("da", "en"), default="da", help="Search language mode.")
     sidebar.add_argument("--limit", type=int, default=8, help="Wordbank result limit.")
     _set_handler(sidebar, ["search", "sidebar"], handle_search_sidebar)
 
@@ -426,7 +429,7 @@ def handle_search_profile(args: argparse.Namespace, client: ApiClient) -> dict[s
     runs = max(1, args.runs)
     query = args.query
     normalized_query = normalize_search_word(query)
-    decision = search_flow_decision(normalized_query)
+    decision = search_flow_decision(normalized_query, language_mode=args.mode)
     results = []
     for run_index in range(runs):
         if args.cold_cache:
@@ -446,6 +449,7 @@ def handle_search_profile(args: argparse.Namespace, client: ApiClient) -> dict[s
     return {
         "query": query,
         "normalized_query": normalized_query,
+        "language_mode": args.mode,
         "decision": decision,
         "runs": results,
         "summary": summarize_profile_runs(results),
@@ -454,23 +458,31 @@ def handle_search_profile(args: argparse.Namespace, client: ApiClient) -> dict[s
 
 def handle_search_all(args: argparse.Namespace, client: ApiClient) -> dict[str, Any]:
     query = args.query
+    executed_phases = ["wordbank"]
     wordbank = client.request(
-        RequestSpec("GET", "/api/wordbank/search", {"query": query, "limit": args.limit})
+        RequestSpec("GET", "/api/wordbank/search", {"query": query, "limit": args.limit, "language": args.mode})
     )
-    cor_form = client.request(
-        RequestSpec(
-            "GET",
-            "/api/wordbank/search/cor-form",
-            {"form": query, "limit": 100, "include_translations": True},
+    cor_form = {"groups": [], "did_you_mean": None}
+    en_form = {"groups": []}
+    if args.mode == "da":
+        executed_phases.append("cor_form")
+        cor_form = client.request(
+            RequestSpec(
+                "GET",
+                "/api/wordbank/search/cor-form",
+                {"form": query, "limit": 100, "include_translations": True},
+            )
         )
-    )
-    en_form = client.request(
-        RequestSpec(
-            "GET",
-            "/api/wordbank/search/en-form",
-            {"form": query, "include_translations": True},
+    else:
+        executed_phases.append("en_form")
+        en_form = client.request(
+            RequestSpec(
+                "GET",
+                "/api/wordbank/search/en-form",
+                {"form": query, "include_translations": True},
+            )
         )
-    )
+    executed_phases.append("resolve")
     resolve = client.request(
         RequestSpec("POST", "/api/wordbank/resolve-query", body={"query_text": query})
     )
@@ -528,6 +540,8 @@ def handle_search_all(args: argparse.Namespace, client: ApiClient) -> dict[str, 
 
     return {
         "query": query,
+        "language_mode": args.mode,
+        "executed_phases": executed_phases,
         "summary": {
             "saved_wordbank": len(saved_results),
             "cor_variants": len(cor_results),
@@ -563,9 +577,10 @@ def handle_search_sidebar(args: argparse.Namespace, client: ApiClient) -> dict[s
     """
     query = args.query
     normalized = _normalize_for_match(query)
+    executed_phases = ["wordbank"]
 
     wordbank = client.request(
-        RequestSpec("GET", "/api/wordbank/search", {"query": query, "limit": args.limit})
+        RequestSpec("GET", "/api/wordbank/search", {"query": query, "limit": args.limit, "language": args.mode})
     )
     words_section: list[dict[str, Any]] = []
     for item in wordbank.get("items") or []:
@@ -584,36 +599,42 @@ def handle_search_sidebar(args: argparse.Namespace, client: ApiClient) -> dict[s
             "matched_via": matched_via,
         })
 
-    cor_form = client.request(
-        RequestSpec(
-            "GET",
-            "/api/wordbank/search/cor-form",
-            {"form": query, "limit": 100, "include_translations": True},
-        )
-    )
+    cor_form: dict[str, Any] = {"groups": [], "did_you_mean": None}
     direct_cor_variants: list[dict[str, Any]] = []
-    for group in (cor_form.get("groups") or []):
-        for variant in (group.get("variants") or []):
-            direct_cor_variants.append({
-                "cor_id": variant.get("cor_id"),
-                "form": variant.get("form"),
-                "lemma": variant.get("lemma"),
-                "pos_tag": variant.get("pos_tag") or group.get("pos_tag"),
-                "saveable_translation": variant.get("saveable_translation"),
-                "lemma_translation": variant.get("lemma_translation"),
-                "saved_meaning_id": variant.get("saved_meaning_id"),
-                "cor_lemma_idx": variant.get("lemma_idx"),
-                "meaning_key": variant.get("meaning_key"),
-                "english_gloss": variant.get("english_gloss") or group.get("gloss"),
-            })
-
-    en_form = client.request(
-        RequestSpec(
-            "GET",
-            "/api/wordbank/search/en-form",
-            {"form": query, "include_translations": True},
+    if args.mode == "da":
+        executed_phases.append("cor_form")
+        cor_form = client.request(
+            RequestSpec(
+                "GET",
+                "/api/wordbank/search/cor-form",
+                {"form": query, "limit": 100, "include_translations": True},
+            )
         )
-    )
+        for group in (cor_form.get("groups") or []):
+            for variant in (group.get("variants") or []):
+                direct_cor_variants.append({
+                    "cor_id": variant.get("cor_id"),
+                    "form": variant.get("form"),
+                    "lemma": variant.get("lemma"),
+                    "pos_tag": variant.get("pos_tag") or group.get("pos_tag"),
+                    "saveable_translation": variant.get("saveable_translation"),
+                    "lemma_translation": variant.get("lemma_translation"),
+                    "saved_meaning_id": variant.get("saved_meaning_id"),
+                    "cor_lemma_idx": variant.get("lemma_idx"),
+                    "meaning_key": variant.get("meaning_key"),
+                    "english_gloss": variant.get("english_gloss") or group.get("gloss"),
+                })
+
+    en_form: dict[str, Any] = {"groups": []}
+    if args.mode == "en":
+        executed_phases.append("en_form")
+        en_form = client.request(
+            RequestSpec(
+                "GET",
+                "/api/wordbank/search/en-form",
+                {"form": query, "include_translations": True},
+            )
+        )
     en_groups = en_form.get("groups") or []
 
     translation_keys: list[str] = []
@@ -627,6 +648,7 @@ def handle_search_sidebar(args: argparse.Namespace, client: ApiClient) -> dict[s
 
     batch_responses: list[dict[str, Any]] = []
     if translation_keys:
+        executed_phases.append("cor_form_batch")
         batch = client.request(
             RequestSpec(
                 "POST",
@@ -703,7 +725,7 @@ def handle_search_sidebar(args: argparse.Namespace, client: ApiClient) -> dict[s
             keep = True
             if has_en_results:
                 if is_self_trans:
-                    if variant.get("cor_id") in translated_en_cor_ids:
+                    if variant.get("cor_id") in translated_en_cor_ids or (variant.get("cor_id") or "").endswith(".SELF"):
                         keep = False
             
             if keep:
@@ -733,6 +755,8 @@ def handle_search_sidebar(args: argparse.Namespace, client: ApiClient) -> dict[s
 
     return {
         "query": query,
+        "language_mode": args.mode,
+        "executed_phases": executed_phases,
         "summary": {
             "wordbank_did_you_mean": wordbank.get("did_you_mean"),
             "words_section_rows": len(words_section),
@@ -812,27 +836,35 @@ def run_search_profile_once(
             "flow": {"skipped": True, "skip_reason": decision["skip_reason"]},
         }
 
+    language_mode = str(decision.get("language_mode") or "da")
     initial_specs = {
-        "wordbank": RequestSpec("GET", "/api/wordbank/search", {"query": normalized_query, "limit": 8}),
-        "cor_partial": RequestSpec(
+        "wordbank": RequestSpec(
+            "GET",
+            "/api/wordbank/search",
+            {"query": normalized_query, "limit": 8, "language": language_mode},
+        ),
+    }
+    if language_mode == "da":
+        initial_specs["cor_partial"] = RequestSpec(
             "GET",
             "/api/wordbank/search/cor-form",
             {"form": normalized_query, "limit": 100, "include_translations": False},
-        ),
-        "en_form": RequestSpec(
+        )
+    else:
+        initial_specs["en_form"] = RequestSpec(
             "GET",
             "/api/wordbank/search/en-form",
             {"form": normalized_query, "include_translations": True},
-        ),
-    }
+        )
     initial = run_profile_requests(client, initial_specs)
     for name in ("wordbank", "cor_partial", "en_form"):
-        record_profile_phase(phases, name, initial[name])
-        responses[name] = initial[name].get("response")
+        if name in initial:
+            record_profile_phase(phases, name, initial[name])
+            responses[name] = initial[name].get("response")
 
     translation_items = profile_translation_items(query, responses.get("en_form") or {})
     translated_cor_payloads: dict[str, Any] = {}
-    skip_direct_full = should_skip_direct_cor_full(
+    skip_direct_full = language_mode != "da" or should_skip_direct_cor_full(
         responses.get("cor_partial") or {},
         normalized_query,
         responses.get("en_form") or {},
@@ -849,14 +881,16 @@ def run_search_profile_once(
                     {"form": normalized_query, "limit": 100, "include_translations": True},
                 ),
             )
-        translated_future = executor.submit(
-            run_en_translated_cor_profile,
-            client,
-            translation_items=translation_items,
-            use_cor_batch=use_cor_batch,
-        )
+        translated_future = None
+        if language_mode == "en":
+            translated_future = executor.submit(
+                run_en_translated_cor_profile,
+                client,
+                translation_items=translation_items,
+                use_cor_batch=use_cor_batch,
+            )
         direct_full_result = direct_full_future.result() if direct_full_future is not None else None
-        translated_result = translated_future.result()
+        translated_result = translated_future.result() if translated_future is not None else {"phases": [], "payloads": {}}
 
     if direct_full_result is not None:
         record_profile_phase(phases, "cor_full", direct_full_result)
@@ -882,6 +916,7 @@ def run_search_profile_once(
         "counts": profile_counts(responses, translated_cor_payloads),
         "flow": {
             "skipped": False,
+            "language_mode": language_mode,
             "translation_keys": translation_items,
             "used_cor_batch": use_cor_batch,
             "included_resolve": include_resolve,
@@ -1088,7 +1123,7 @@ def percentile(values: list[float], fraction: float) -> float:
     return round(ordered[index], 3)
 
 
-def search_flow_decision(normalized_query: str) -> dict[str, Any]:
+def search_flow_decision(normalized_query: str, *, language_mode: str = "da") -> dict[str, Any]:
     number_mode = is_number_query(normalized_query)
     sentence_mode = not number_mode and has_multiple_words(normalized_query)
     short_word = is_short_letter_word(normalized_query)
@@ -1107,6 +1142,7 @@ def search_flow_decision(normalized_query: str) -> dict[str, Any]:
         "number_mode": number_mode,
         "sentence_mode": sentence_mode,
         "short_letter_word": short_word,
+        "language_mode": language_mode,
         "single_word_lookup": skip_reason is None,
         "skip_word_lookups": skip_reason is not None,
         "skip_reason": skip_reason,
