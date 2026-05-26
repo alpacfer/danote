@@ -17,13 +17,20 @@ from app.services.sentence_verification import (
 )
 from app.services.translation import TranslationService
 from app.services.use_cases.sentencebank_text import (
+    blocked_preview,
     capitalize_sentence_translation,
+    curated_mwe_meanings,
+    detect_query_language_for_preview,
+    heuristic_danish_correction,
     heuristic_detect_language,
     looks_mixed_language,
+    lookup_reverse_translation,
+    meaning_id_suffix,
     normalize_query_language,
     normalize_sentence_text_without_terminal_period,
     preserve_leading_letter_case,
     translation_provider_name,
+    verify_sentence_result,
 )
 from app.services.use_cases.wordbank import WordbankUseCase
 
@@ -81,7 +88,7 @@ def _build_mwe_meaning_variants(
         pos_tag = meaning.pos_tag or verification.mwe_pos_tag
         translation = meaning.english_translation or verification.mwe_english_translation
         gloss = meaning.gloss
-        sense_suffix = _meaning_id_suffix(meaning, fallback_index=index)
+        sense_suffix = meaning_id_suffix(meaning, fallback_index=index)
         if local_entry is not None:
             variants.append(CORSearchVariant(
                 # Disambiguate per-sense cor_id so each card is a distinct save target.
@@ -105,6 +112,7 @@ def _build_mwe_meaning_variants(
                 lemma_translation_provider="gemini",
                 lemma_translation_status="gemini",
                 lemma_translation_reason=None,
+                meaning_key=meaning.meaning_key,
             ))
         else:
             variants.append(CORSearchVariant(
@@ -128,24 +136,70 @@ def _build_mwe_meaning_variants(
                 lemma_translation_status="gemini",
                 lemma_translation_reason=None,
                 dictionary_status="generated_non_cor",
+                meaning_key=meaning.meaning_key,
             ))
+
+    from app.db.migrations import get_connection
+    from app.services.token_classifier import normalize_token
+
+    try:
+        with get_connection(wordbank_use_case.runtime.db_path) as conn:
+            saved_rows = conn.execute(
+                """
+                SELECT
+                    lm.id AS meaning_id,
+                    lm.meaning_key AS meaning_key,
+                    lm.english_translation AS english_translation,
+                    lm.gloss AS gloss,
+                    lm.pos_tag AS pos_tag
+                FROM lexeme_meanings lm
+                JOIN lexemes l ON l.id = lm.lexeme_id
+                WHERE l.owner_user_id = ? AND l.lemma = ?
+                """,
+                (wordbank_use_case.runtime.owner_user_id, lemma),
+            ).fetchall()
+    except Exception:
+        saved_rows = []
+
+    if saved_rows:
+        def clean_translation(t: str | None) -> str:
+            if not t:
+                return ""
+            val = " ".join(t.strip().lower().split())
+            if val.startswith("to "):
+                return val[3:].strip()
+            return val
+
+        stamped_variants = []
+        for variant in variants:
+            matched_meaning_id = None
+            var_key = clean_translation(variant.meaning_key)
+            var_trans = clean_translation(variant.lemma_translation)
+            var_gloss = clean_translation(variant.gloss)
+
+            for row in saved_rows:
+                row_key = clean_translation(row["meaning_key"])
+                row_trans = clean_translation(row["english_translation"])
+                row_gloss = clean_translation(row["gloss"])
+
+                # Check exact or normalized matches
+                if var_key and row_key and var_key == row_key:
+                    matched_meaning_id = row["meaning_id"]
+                    break
+                if var_trans and row_trans and var_trans == row_trans:
+                    matched_meaning_id = row["meaning_id"]
+                    break
+                if var_gloss and row_gloss and var_gloss == row_gloss:
+                    matched_meaning_id = row["meaning_id"]
+                    break
+
+            if matched_meaning_id is not None:
+                stamped_variants.append(variant.model_copy(update={"saved_meaning_id": matched_meaning_id}))
+            else:
+                stamped_variants.append(variant)
+        variants = stamped_variants
+
     return variants
-
-
-def _meaning_id_suffix(meaning, *, fallback_index: int) -> str:
-    """Pick a stable suffix for the synthesized cor_id of an MWE meaning.
-
-    Prefer Gemini's meaning_key; fall back to the english_translation (snake);
-    last resort is the position. Always normalized to uppercase ASCII-safe form
-    so it slots into a cor_id-like string.
-    """
-    candidate = (meaning.meaning_key or meaning.english_translation or meaning.gloss or "").strip()
-    if not candidate:
-        return f"SENSE_{fallback_index}"
-    # Compact + safe for use inside a cor_id-like identifier.
-    normalized = "_".join(candidate.upper().split())
-    safe = "".join(ch for ch in normalized if ch.isalnum() or ch in {"_", "-"})
-    return safe or f"SENSE_{fallback_index}"
 
 
 def build_verify_sentence_response(
@@ -198,11 +252,11 @@ def build_sentence_search_preview(
             sentence_verification_service=sentence_verification_service,
         )
     except SentenceVerificationError:
-        heuristic_correction = _heuristic_danish_correction(normalized_query)
+        heuristic_correction = heuristic_danish_correction(normalized_query)
         if heuristic_correction is not None:
             initial_verification = heuristic_correction
         elif looks_mixed_language(normalized_query):
-            return _blocked_preview(
+            return blocked_preview(
                 query_language=detect_query_language_for_preview(
                     source_text=normalized_query,
                     translation_service=translation_service,
@@ -227,12 +281,12 @@ def build_sentence_search_preview(
             if fallback_verification.is_multi_word_expression:
                 initial_verification = fallback_verification
             else:
-                return _blocked_preview(
+                return blocked_preview(
                     query_language=fallback_verification.language,
                     message="Could not verify this sentence. Please try again.",
                 )
     else:
-        heuristic_correction = _heuristic_danish_correction(normalized_query)
+        heuristic_correction = heuristic_danish_correction(normalized_query)
         if heuristic_correction is not None and initial_verification.is_valid and not initial_verification.corrected_text:
             initial_verification = heuristic_correction
     query_language = initial_verification.language
@@ -245,7 +299,7 @@ def build_sentence_search_preview(
         )
 
     if looks_mixed_language(normalized_query) and not initial_verification.corrected_text:
-        return _blocked_preview(
+        return blocked_preview(
             query_language=query_language,
             message="This looks like mixed Danish and English. Search a Danish or English sentence.",
         )
@@ -332,7 +386,7 @@ def _english_sentence_preview(
             sentence_verification_service=sentence_verification_service,
         )
     except SentenceVerificationError:
-        return _blocked_preview(
+        return blocked_preview(
             query_language="en",
             message="Could not verify the Danish translation. Please try again.",
         )
@@ -467,107 +521,6 @@ def lookup_phrase_translation(
         return None
 
 
-def lookup_reverse_translation(
-    *,
-    source_text: str,
-    translation_service: TranslationService | None,
-) -> str | None:
-    if translation_service is None:
-        return None
-    translate_en_to_da = getattr(translation_service, "translate_en_to_da", None)
-    if not callable(translate_en_to_da):
-        return None
-    try:
-        translated = translate_en_to_da(source_text)
-        return (
-            normalize_sentence_text_without_terminal_period(translated)
-            if isinstance(translated, str) and translated.strip()
-            else None
-        )
-    except Exception:
-        return None
-
-
-def detect_query_language_for_preview(
-    *,
-    source_text: str,
-    translation_service: TranslationService | None,
-) -> Literal["da", "en", "unknown"]:
-    if translation_service is None:
-        return "unknown"
-    detect_source_language = getattr(translation_service, "detect_source_language", None)
-    if not callable(detect_source_language):
-        return "unknown"
-    try:
-        return normalize_query_language(detect_source_language(source_text))
-    except Exception:
-        return "unknown"
-
-
-def verify_sentence_result(
-    *,
-    source_text: str,
-    sentence_verification_service: SentenceVerificationService | None,
-) -> SentenceVerificationResult:
-    if sentence_verification_service is None:
-        return SentenceVerificationResult(
-            is_valid=True,
-            errors=[],
-            corrected_text=None,
-            language="unknown",
-        )
-    try:
-        return sentence_verification_service.verify_sentence(source_text)
-    except Exception as exc:
-        raise SentenceVerificationError("Sentence verification unavailable.") from exc
-
-
-def _blocked_preview(
-    *,
-    query_language: Literal["da", "en", "unknown"],
-    message: str,
-) -> SentenceSearchPreviewResponse:
-    return SentenceSearchPreviewResponse(
-        status="blocked",
-        query_language=query_language,
-        source_text=None,
-        english_translation=None,
-        is_valid=False,
-        errors=[],
-        message=message,
-    )
-
-
-
-
-
-def _heuristic_danish_correction(source_text: str) -> SentenceVerificationResult | None:
-    replacements = {
-        "spise": "spiser",
-        "løbe": "løber",
-        "købe": "køber",
-        "have": "har",
-    }
-    words = source_text.split()
-    if len(words) < 2:
-        return None
-    subject = words[0].casefold()
-    verb = words[1].casefold().strip(".,!?")
-    if subject not in {"jeg", "du", "han", "hun", "vi", "de"} or verb not in replacements:
-        return None
-    corrected_words = list(words)
-    corrected_words[1] = replacements[verb]
-    corrected = " ".join(corrected_words)
-    start = source_text.find(words[1])
-    end = start + len(words[1]) if start >= 0 else len(words[0]) + 1 + len(words[1])
-    return SentenceVerificationResult(
-        is_valid=False,
-        errors=[SentenceVerificationErrorSpan(start=start, end=end, message="Use the finite verb form.")],
-        corrected_text=corrected,
-        language="da",
-    )
-
-
 def _with_deterministic_mwe(
     verification: SentenceVerificationResult,
     *,
@@ -606,7 +559,7 @@ def _with_deterministic_mwe(
     except Exception:
         local_entry = None
         
-    curated_meanings = [] if local_entry is not None else _curated_mwe_meanings(normalized)
+    curated_meanings = [] if local_entry is not None else curated_mwe_meanings(normalized)
     
     if local_entry is None and not curated_meanings:
         if is_danish_mwe or not is_english_mwe:
@@ -642,47 +595,3 @@ def _with_deterministic_mwe(
         mwe_english_translation=english_translation or meanings[0].english_translation,
         mwe_meanings=meanings,
     )
-
-
-def _curated_mwe_meanings(normalized: str) -> list[SentenceMWEMeaning]:
-    if normalized == "tage på":
-        return [
-            SentenceMWEMeaning(
-                gloss="iføre sig tøj",
-                english_translation="to put on",
-                pos_tag="VERB",
-                meaning_key="iføre sig tøj",
-            ),
-            SentenceMWEMeaning(
-                gloss="forøge sin kropsvægt",
-                english_translation="to gain weight",
-                pos_tag="VERB",
-                meaning_key="tage på i vægt",
-            ),
-            SentenceMWEMeaning(
-                gloss="tage afsted",
-                english_translation="to go somewhere",
-                pos_tag="VERB",
-                meaning_key="tage afsted",
-            ),
-        ]
-    if normalized == "gå ud":
-        return [
-            SentenceMWEMeaning(
-                gloss="forlade et sted eller være socialt ude",
-                english_translation="to go out",
-                pos_tag="VERB",
-                meaning_key="gå ud",
-            )
-        ]
-    if normalized == "se efter":
-        return [
-            SentenceMWEMeaning(
-                gloss="lede efter eller undersøge",
-                english_translation="to look for",
-                pos_tag="VERB",
-                meaning_key="se efter",
-            )
-        ]
-    return []
-

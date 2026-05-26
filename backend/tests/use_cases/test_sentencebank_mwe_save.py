@@ -424,6 +424,97 @@ def test_search_preview_falls_back_to_single_match_when_meanings_absent(tmp_path
     assert preview.mwe_meanings[0].saveable_translation == "look after"
 
 
+def test_search_preview_populates_saved_meaning_id_on_matching_mwe_variant(tmp_path: Path) -> None:
+    """If an MWE has a saved meaning in the database, the search preview must stamp
+    its `saved_meaning_id` on the matching variant and leave it as None on other variants.
+    """
+    from app.services.sentence_verification import SentenceMWEMeaning
+
+    db_path = _db_path(tmp_path)
+    wordbank_use_case = WordbankUseCase(
+        db_path,
+        translation_service=FakeTranslationService({"tage på": "to put on"}),
+        nlp_adapter=MappingNLPAdapter({}),
+    )
+    sb = SentencebankUseCase(
+        db_path,
+        translation_service=FakeTranslationService({"tage på": "to put on"}),
+        nlp_adapter=MappingNLPAdapter({}),
+        wordbank_use_case=wordbank_use_case,
+        sentence_verification_service=FakeSentenceVerificationService(results={
+            "tage på": SentenceVerificationResult(
+                is_valid=True,
+                errors=[],
+                corrected_text=None,
+                language="da",
+                is_multi_word_expression=True,
+                mwe_lemma="tage på",
+                mwe_pos_tag="VERB",
+                mwe_gloss="iføre sig tøj",
+                mwe_english_translation="to put on (clothes)",
+                mwe_meanings=[
+                    SentenceMWEMeaning(
+                        gloss="iføre sig tøj",
+                        english_translation="to put on (clothes)",
+                        pos_tag="VERB",
+                        meaning_key="iføre sig tøj",
+                    ),
+                    SentenceMWEMeaning(
+                        gloss="forøge sin kropsvægt",
+                        english_translation="to gain weight",
+                        pos_tag="VERB",
+                        meaning_key="tage på i vægt",
+                    ),
+                    SentenceMWEMeaning(
+                        gloss="tage afsted",
+                        english_translation="to go somewhere",
+                        pos_tag="VERB",
+                        meaning_key="tage afsted",
+                    ),
+                ],
+            ),
+        }),
+    )
+
+    # First, let's explicitly save the "to gain weight" meaning.
+    wordbank_use_case.add_word(
+        "tage på",
+        "tage på",
+        search_seed={
+            "lemma": "tage på", "surface": "tage på",
+            "dictionary_status": "generated_non_cor",
+            "cor_id": None, "cor_lemma_idx": None,
+            "meaning_key": "tage på i vægt",
+            "gloss": "forøge sin kropsvægt",
+            "english_translation": "to gain weight",
+            "pos_tag": "VERB", "morphology": None, "target_meaning_id": None,
+        },
+    )
+
+    # Retrieve saved meanings to get the ID.
+    lexeme = wordbank_use_case.runtime.repository.get_lexeme("tage på")
+    assert lexeme is not None
+    saved_meanings = wordbank_use_case.runtime.repository.list_lexeme_meanings(lexeme.id)
+    assert len(saved_meanings) == 1
+    saved_meaning_id = saved_meanings[0].id
+
+    # Call preview.
+    preview = sb.preview_sentence_search("tage på")
+
+    assert preview.is_multi_word_expression is True
+    assert len(preview.mwe_meanings) == 3
+
+    # Check stamped saved_meaning_id on each meaning.
+    variants_by_key = {variant.meaning_key: variant for variant in preview.mwe_meanings}
+
+    # "tage på i vægt" should have the saved_meaning_id stamped.
+    assert variants_by_key["tage på i vægt"].saved_meaning_id == saved_meaning_id
+
+    # The other two should be None.
+    assert variants_by_key["iføre sig tøj"].saved_meaning_id is None
+    assert variants_by_key["tage afsted"].saved_meaning_id is None
+
+
 def test_mwe_search_save_after_sentence_save_replaces_auto_meaning(tmp_path: Path) -> None:
     """The sentence-save flow auto-creates an MWE meaning (meaning_key == lemma) so
     the word page renders and "Complete variations" can open. When the user later
