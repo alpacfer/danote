@@ -331,8 +331,14 @@ export function SidebarSearchInput({
         <Button
           type="button"
           variant="outline"
-          className="h-7 w-7 rounded-sm text-[10px] font-bold tracking-wider transition-all duration-200 select-none shadow-none border-border bg-background hover:bg-accent hover:text-accent-foreground text-foreground shrink-0 p-0 flex items-center justify-center self-center"
+          className="h-7 w-7 max-md:h-10 max-md:w-10 rounded-sm text-[10px] max-md:text-sm font-bold tracking-wider transition-all duration-200 select-none shadow-none border-border bg-background hover:bg-accent hover:text-accent-foreground text-foreground shrink-0 p-0 flex items-center justify-center self-center"
           onClick={toggleLanguage}
+          onMouseDown={(e) => {
+            e.preventDefault()
+          }}
+          onPointerDown={(e) => {
+            e.preventDefault()
+          }}
           aria-label={
             searchLanguageMode === "da"
               ? "Switch to English search"
