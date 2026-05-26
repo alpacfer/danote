@@ -127,8 +127,8 @@ export function AppSidebar({
     activeCorFormSearchResult,
   })
 
-  // Drop CoR variants from the "Translated From English" section when their
-  // saved_meaning_id already appears in the Words section above. Without this,
+  // Drop CoR variants from the English dictionary section when their
+  // saved_meaning_id already appears in the Saved section above. Without this,
   // a saved sense (e.g. "tag" = roof) renders once as the saved row and again
   // as a CoR card that happens to also resolve to the same meaning_id — both
   // showing the eye icon, just visually duplicated.
@@ -143,15 +143,13 @@ export function AppSidebar({
       return activeEnTranslatedCorResults
     }
     const keptVariantKeys = new Set<string>()
-    const filteredVariantsToRender = activeEnTranslatedCorResults.corSearchVariantsToRender
-      .filter(({ variant }) => {
-        const meaningId = variant.saved_meaning_id
-        if (typeof meaningId === "number" && savedMeaningIdsAlreadyShown.has(meaningId)) {
-          return false
-        }
-        keptVariantKeys.add(`${variant.cor_id}::${variant.meaning_key ?? ""}`)
-        return true
-      })
+    for (const { variant } of activeEnTranslatedCorResults.corSearchVariantsToRender) {
+      const meaningId = variant.saved_meaning_id
+      if (typeof meaningId === "number" && savedMeaningIdsAlreadyShown.has(meaningId)) {
+        continue
+      }
+      keptVariantKeys.add(`${variant.cor_id}::${variant.meaning_key ?? ""}`)
+    }
     const filteredGroups = activeEnTranslatedCorResults.orderedCorSearchGroups
       .map((group) => ({
         ...group,
@@ -160,6 +158,9 @@ export function AppSidebar({
         ),
       }))
       .filter((group) => group.variants.length > 0)
+    const filteredVariantsToRender = filteredGroups.flatMap((group) =>
+      group.variants.map((variant) => ({ group, variant })),
+    )
     return {
       ...activeEnTranslatedCorResults,
       orderedCorSearchGroups: filteredGroups,

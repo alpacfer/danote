@@ -148,7 +148,7 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
 
       return (
         <CommandList>
-          <CommandGroup heading="Words">
+          <CommandGroup heading="Dictionary">
             <SidebarCorResults
               orderedCorSearchGroups={[mweGroup]}
               corSearchVariantsToRender={mweVariantsToRender}
@@ -261,36 +261,41 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
 
       {/* Direct results — exact query match */}
       {hasDirectResults ? (
-        <CommandGroup heading="Words">
+        <>
           {hasDirectWordbank ? (
-            <SidebarWordbankResults
-              orderedWordbankResults={data.orderedWordbankResults}
-              displayVariantBySavedResult={data.displayVariantBySavedResult}
-              addVariationBySavedResult={data.addVariationBySavedResult}
-              exactSavedVariationKeySet={data.exactSavedVariationKeySet}
-              normalizedQuery={state.normalizedQuery}
-              isTranslationsLoading={data.isCorTranslationsLoading}
-              wordbankItemValue={data.wordbankItemValue}
-              onAddWordFromSearch={actions.onAddWordFromSearch}
-              onOpenWordbankLemma={actions.onOpenWordbankLemmaRaw}
-              onOpenWordbankMeaning={actions.onOpenWordbankMeaning}
-              onCloseSearch={actions.onCloseSearch}
-            />
+            <CommandGroup heading="Saved">
+              <SidebarWordbankResults
+                orderedWordbankResults={data.orderedWordbankResults}
+                displayVariantBySavedResult={data.displayVariantBySavedResult}
+                addVariationBySavedResult={data.addVariationBySavedResult}
+                exactSavedVariationKeySet={data.exactSavedVariationKeySet}
+                normalizedQuery={state.normalizedQuery}
+                isTranslationsLoading={data.isCorTranslationsLoading}
+                wordbankItemValue={data.wordbankItemValue}
+                onAddWordFromSearch={actions.onAddWordFromSearch}
+                onOpenWordbankLemma={actions.onOpenWordbankLemmaRaw}
+                onOpenWordbankMeaning={actions.onOpenWordbankMeaning}
+                onCloseSearch={actions.onCloseSearch}
+              />
+            </CommandGroup>
           ) : null}
+          {hasDirectWordbank && hasDirectCor ? <CommandSeparator /> : null}
           {hasDirectCor ? (
-            <SidebarCorResults
-              orderedCorSearchGroups={directCorSearchGroups}
-              corSearchVariantsToRender={directCorSearchVariantsToRender}
-              variationCandidateCorIdSet={data.variationCandidateCorIdSet}
-              normalizedQuery={state.normalizedQuery}
-              corVariantItemValue={data.corVariantItemValue}
-              isTranslationsLoading={data.isCorTranslationsLoading}
-              onAddWordFromSearch={actions.onAddWordFromSearch}
-              onOpenWordbankMeaning={actions.onOpenWordbankMeaning}
-              onCloseSearch={actions.onCloseSearch}
-            />
+            <CommandGroup heading="Dictionary">
+              <SidebarCorResults
+                orderedCorSearchGroups={directCorSearchGroups}
+                corSearchVariantsToRender={directCorSearchVariantsToRender}
+                variationCandidateCorIdSet={data.variationCandidateCorIdSet}
+                normalizedQuery={state.normalizedQuery}
+                corVariantItemValue={data.corVariantItemValue}
+                isTranslationsLoading={data.isCorTranslationsLoading}
+                onAddWordFromSearch={actions.onAddWordFromSearch}
+                onOpenWordbankMeaning={actions.onOpenWordbankMeaning}
+                onCloseSearch={actions.onCloseSearch}
+              />
+            </CommandGroup>
           ) : null}
-        </CommandGroup>
+        </>
       ) : null}
 
       {/* DYM banner — between direct and corrected */}
@@ -310,42 +315,47 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
 
       {/* Corrected results — for the DYM suggestion word, COR first then saved */}
       {hasCorrectedResults ? (
-        <CommandGroup heading="Words">
+        <>
           {hasCorrectedCor ? (
-            <SidebarCorResults
-              orderedCorSearchGroups={data.orderedCorSearchGroups}
-              corSearchVariantsToRender={data.corSearchVariantsToRender}
-              variationCandidateCorIdSet={data.variationCandidateCorIdSet}
-              normalizedQuery={state.normalizedQuery}
-              corVariantItemValue={data.corVariantItemValue}
-              isTranslationsLoading={data.isCorTranslationsLoading}
-              onAddWordFromSearch={actions.onAddWordFromSearch}
-              onOpenWordbankMeaning={actions.onOpenWordbankMeaning}
-              onCloseSearch={actions.onCloseSearch}
-            />
+            <CommandGroup heading="Dictionary">
+              <SidebarCorResults
+                orderedCorSearchGroups={data.orderedCorSearchGroups}
+                corSearchVariantsToRender={data.corSearchVariantsToRender}
+                variationCandidateCorIdSet={data.variationCandidateCorIdSet}
+                normalizedQuery={state.normalizedQuery}
+                corVariantItemValue={data.corVariantItemValue}
+                isTranslationsLoading={data.isCorTranslationsLoading}
+                onAddWordFromSearch={actions.onAddWordFromSearch}
+                onOpenWordbankMeaning={actions.onOpenWordbankMeaning}
+                onCloseSearch={actions.onCloseSearch}
+              />
+            </CommandGroup>
           ) : null}
+          {hasCorrectedCor && hasCorrectedWordbank ? <CommandSeparator /> : null}
           {hasCorrectedWordbank ? (
-            <SidebarWordbankResults
-              orderedWordbankResults={data.orderedWordbankResults}
-              displayVariantBySavedResult={data.displayVariantBySavedResult}
-              addVariationBySavedResult={data.addVariationBySavedResult}
-              exactSavedVariationKeySet={data.exactSavedVariationKeySet}
-              normalizedQuery={state.normalizedQuery}
-              isTranslationsLoading={data.isCorTranslationsLoading}
-              wordbankItemValue={data.wordbankItemValue}
-              onAddWordFromSearch={actions.onAddWordFromSearch}
-              onOpenWordbankLemma={actions.onOpenWordbankLemmaRaw}
-              onOpenWordbankMeaning={actions.onOpenWordbankMeaning}
-              onCloseSearch={actions.onCloseSearch}
-            />
+            <CommandGroup heading="Saved">
+              <SidebarWordbankResults
+                orderedWordbankResults={data.orderedWordbankResults}
+                displayVariantBySavedResult={data.displayVariantBySavedResult}
+                addVariationBySavedResult={data.addVariationBySavedResult}
+                exactSavedVariationKeySet={data.exactSavedVariationKeySet}
+                normalizedQuery={state.normalizedQuery}
+                isTranslationsLoading={data.isCorTranslationsLoading}
+                wordbankItemValue={data.wordbankItemValue}
+                onAddWordFromSearch={actions.onAddWordFromSearch}
+                onOpenWordbankLemma={actions.onOpenWordbankLemmaRaw}
+                onOpenWordbankMeaning={actions.onOpenWordbankMeaning}
+                onCloseSearch={actions.onCloseSearch}
+              />
+            </CommandGroup>
           ) : null}
-        </CommandGroup>
+        </>
       ) : null}
 
       {hasTranslatedEnSection ? (
         <>
           {hasWordbankSection ? <CommandSeparator /> : null}
-          <CommandGroup heading="Translated From English" className="animate-in fade-in-0 duration-150">
+          <CommandGroup heading="Dictionary" className="animate-in fade-in-0 duration-150">
             {hasTranslatedEnCorResults ? (
               <SidebarCorResults
                 orderedCorSearchGroups={data.translatedEnCorSearchGroups}

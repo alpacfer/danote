@@ -140,7 +140,7 @@ Endpoint: `GET /api/wordbank/search/en-form?form=<q>&include_translations=true`
   previously visible unfiltered/full result behavior.
 - Groups without a matching COR row stay as generated non-COR fallback rows.
 - When one English query has two or more distinct Danish translations, the backend asks Gemini once for short per-choice disambiguation labels and the sidebar shows those compact labels on both COR-backed and fallback rows.
-- While English/COR translation lookup is loading, search first shows the generic `Searching` skeleton during English resolution. After untranslated COR candidate lookup determines the exact pending row count, the UI switches to the `Translated From English` section and renders that many placeholders until the translated payload arrives.
+- While English/COR translation lookup is loading, search first shows the generic `Searching` skeleton during English resolution. After untranslated COR candidate lookup determines the exact pending row count, the UI switches to the `Dictionary` section and renders that many placeholders until the translated payload arrives.
 
 ## Cache invalidation
 
@@ -283,7 +283,7 @@ Sorted by best variant score per group:
 ## Empty state and sections
 
 - "No results found." only when: query non-empty, no wordbank/page results, and no search lookup is still loading.
-- Section order: (1) Wordbank, (2) Translated From English, (3) Pages. Separators between present sections.
+- Section order: `Saved` for stored wordbank hits, `Dictionary` for COR/local English lookup rows, then `Pages`. Separators appear between present sections.
 
 ## Test coverage map
 

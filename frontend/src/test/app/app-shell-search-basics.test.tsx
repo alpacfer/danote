@@ -278,7 +278,7 @@ describe("App shell and search", () => {
     const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
     fireEvent.change(searchInput, { target: { value: "notebook" } })
 
-    expect(await within(commandDialog).findByText(/^translated from english$/i)).toBeInTheDocument()
+    expect(await within(commandDialog).findByText(/^Dictionary$/i)).toBeInTheDocument()
     await waitFor(() => {
       const translatedRow = within(commandDialog).getByText(/^notesbog$/i, { selector: "strong" })
       expect(translatedRow).toBeInTheDocument()
@@ -480,7 +480,7 @@ describe("App shell and search", () => {
     fireEvent.change(searchInput, { target: { value: "kat" } })
 
     expect(await within(commandDialog).findByText(/^kat$/i, { selector: "strong" })).toBeInTheDocument()
-    expect(within(commandDialog).queryByText(/^translated from english$/i)).not.toBeInTheDocument()
+    expect(within(commandDialog).queryByText(/^Saved$/i)).not.toBeInTheDocument()
 
     await waitFor(() => {
       expect(

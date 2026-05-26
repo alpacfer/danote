@@ -476,7 +476,7 @@ describe("App shell and search", () => {
     expect(await within(commandDialog).findByText(/^lys$/i, { selector: "strong" })).toBeInTheDocument()
     expect(await within(commandDialog).findByText(/^genlyse$/i, { selector: "strong" })).toBeInTheDocument()
     await waitFor(() => {
-      expect(within(commandDialog).getAllByText(/^Translated From English$/i)).toHaveLength(1)
+      expect(within(commandDialog).getAllByText(/^Dictionary$/i)).toHaveLength(1)
     })
     expect(within(commandDialog).queryByText(/To watch the growth/i)).not.toBeInTheDocument()
     expect(within(commandDialog).queryByText(/\+1 more sense/i)).not.toBeInTheDocument()
@@ -553,7 +553,7 @@ describe("App shell and search", () => {
     expect(await within(commandDialog).findByText(/^bog$/i, { selector: "strong" })).toBeInTheDocument()
     expect(await within(commandDialog).findByText(/^book \(for reading\)$/i)).toBeInTheDocument()
     expect(within(commandDialog).queryByText(/^mose$/i, { selector: "strong" })).not.toBeInTheDocument()
-    expect(within(commandDialog).queryByText(/^Translated From English$/i)).not.toBeInTheDocument()
+    expect(within(commandDialog).queryByText(/^Saved$/i)).not.toBeInTheDocument()
   })
 
   it("renders English surface-form translations through matching Danish COR forms", async () => {
@@ -637,6 +637,135 @@ describe("App shell and search", () => {
     expect(row).toBeTruthy()
     expect(row).toHaveTextContent(/from hund/i)
     expect(row).not.toHaveTextContent(/from dogs/i)
+  })
+
+  it("keeps translated English rows visible when wordbank search returns an unrelated corrected hit", async () => {
+    mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      searchWordbankResponse: { items: [] },
+      wordbankSearchHandler: async () => responseOf({
+        did_you_mean: "with",
+        items: [
+          {
+            lemma: "postkort",
+            display_lemma: "postkort",
+            meaning_id: 200,
+            meaning_key: "postcard",
+            gloss: "card for mail",
+            cor_lemma_idx: 54842,
+            variation_count: 1,
+            english_translation: "postcard",
+            match_surface: null,
+            matched_via: "english_gloss",
+            query_cor_ids: [],
+            pos_tag: "NOUN",
+            morphology: "Gender=Neut|Number=Sing|Definite=Ind",
+          },
+        ],
+      }),
+      enSearchFormResponse: {
+        form: "fish",
+        groups: [
+          {
+            lemma: "fish",
+            form: "fish",
+            pos_ud: "NOUN",
+            pos_raw: "noun",
+            danish_translation: "fisk",
+            meaning_description: "aquatic animal or food",
+            senses: [],
+          },
+          {
+            lemma: "fish",
+            form: "fish",
+            pos_ud: "VERB",
+            pos_raw: "verb",
+            danish_translation: "fiske",
+            meaning_description: "catch in the water",
+            senses: [],
+          },
+        ],
+      },
+      corSearchFormHandler: async (input) => {
+        const url = new URL(String(input), "http://localhost")
+        const form = url.searchParams.get("form") ?? ""
+        if (form === "fisk") {
+          return responseOf({
+            form,
+            groups: [
+              {
+                lemma: "fisk",
+                gloss: null,
+                pos_tag: "NOUN",
+                variants: [
+                  {
+                    cor_id: "COR.FISK.NOUN",
+                    form: "fisk",
+                    lemma: "fisk",
+                    gloss: null,
+                    lemma_translation: "fish",
+                    saveable_translation: "fish",
+                    gram_raw: "sb.fk.sg.ubest",
+                    norm: "N",
+                    lemma_idx: 42931,
+                    gram_code: 110,
+                    variation: 1,
+                    pos_tag: "NOUN",
+                    morphology: "Gender=Com|Number=Sing|Definite=Ind",
+                    features: { Gender: "Com", Number: "Sing", Definite: "Ind" },
+                    extra_tags: [],
+                  },
+                ],
+              },
+            ],
+          })
+        }
+        if (form === "fiske") {
+          return responseOf({
+            form,
+            groups: [
+              {
+                lemma: "fiske",
+                gloss: null,
+                pos_tag: "VERB",
+                variants: [
+                  {
+                    cor_id: "COR.FISKE.VERB",
+                    form: "fiske",
+                    lemma: "fiske",
+                    gloss: null,
+                    lemma_translation: "fish",
+                    saveable_translation: "fish",
+                    gram_raw: "vb.inf.akt",
+                    norm: "N",
+                    lemma_idx: 34173,
+                    gram_code: 200,
+                    variation: 1,
+                    pos_tag: "VERB",
+                    morphology: "VerbForm=Inf|Voice=Act",
+                    features: { VerbForm: "Inf", Voice: "Act" },
+                    extra_tags: [],
+                  },
+                ],
+              },
+            ],
+          })
+        }
+        return responseOf({ form, groups: [] })
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    const commandDialog = await screen.findByRole("dialog")
+    fireEvent.click(within(commandDialog).getByRole("radio", { name: /^English$/i }))
+    fireEvent.change(within(commandDialog).getByPlaceholderText(/search words/i), { target: { value: "fish" } })
+
+    expect(await within(commandDialog).findByText(/^fisk$/i, { selector: "strong" })).toBeInTheDocument()
+    expect(await within(commandDialog).findByText(/^fiske$/i, { selector: "strong" })).toBeInTheDocument()
+    expect(within(commandDialog).queryByText(/^postkort$/i, { selector: "strong" })).not.toBeInTheDocument()
   })
 
   it("shows exact-count translated English skeletons after COR candidates resolve", async () => {
