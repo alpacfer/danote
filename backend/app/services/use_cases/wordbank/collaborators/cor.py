@@ -148,51 +148,90 @@ class CorResolutionCollaborator:
         limit: int = 100,
         include_translations: bool = False,
     ) -> list[CORSearchFormResponse]:
-        responses = [
-            search_cor_form(
+        from concurrent.futures import ThreadPoolExecutor
+
+        def fetch_raw(item: tuple[str, str | None, str | None]) -> CORSearchFormResponse:
+            form, en_query, en_pos_ud = item
+            return search_cor_form(
                 self._cor_local_lexicon_service,
                 self._translation,
                 form,
                 limit=limit,
-                include_translations=include_translations,
+                include_translations=False,  # Deferred sense expansion/translation priming
                 en_query=en_query,
                 en_pos_ud=en_pos_ud,
             )
-            for form, en_query, en_pos_ud in items
-        ]
+
+        # 1. Fetch raw candidates concurrently (extremely fast local SQLite lookups)
+        with ThreadPoolExecutor(max_workers=min(4, len(items))) as executor:
+            responses = list(executor.map(fetch_raw, items))
+
+        # 2. Filter raw candidates using Gemini (batch selector call)
         filter_items = [
             (response, en_query, en_pos_ud)
             for response, (_form, en_query, en_pos_ud) in zip(responses, items, strict=False)
             if en_query and en_query.strip()
         ]
-        if not filter_items:
-            return responses
-        filtered = filter_cor_form_responses_by_en_query_batch(
-            filter_items,
-            en_gemini_translation_service=self._en_gemini_translation_service,
+        if filter_items:
+            filtered = filter_cor_form_responses_by_en_query_batch(
+                filter_items,
+                en_gemini_translation_service=self._en_gemini_translation_service,
+            )
+            filtered_iter = iter(filtered)
+            merged: list[CORSearchFormResponse] = []
+            for response, (_form, en_query, _en_pos_ud) in zip(responses, items, strict=False):
+                if en_query and en_query.strip():
+                    merged.append(next(filtered_iter))
+                else:
+                    merged.append(response)
+        else:
+            merged = responses
+
+        # 3. Gather all lemmas to prefetch saved meanings in ONE query instead of in loops
+        all_lemmas = []
+        for resp in merged:
+            for group in resp.groups:
+                all_lemmas.append(group.lemma)
+
+        from app.services.use_cases.wordbank.collaborators.cor_actions import (
+            load_saved_meanings_for_lemmas,
         )
-        filtered_iter = iter(filtered)
-        merged: list[CORSearchFormResponse] = []
-        for response, (_form, en_query, _en_pos_ud) in zip(responses, items, strict=False):
-            if en_query and en_query.strip():
-                merged.append(next(filtered_iter))
-            else:
-                merged.append(response)
+        prefetched_saved = load_saved_meanings_for_lemmas(
+            self._db_path,
+            all_lemmas,
+            owner_user_id=self._owner_user_id,
+        ) if all_lemmas else {}
+
+        # 4. Expand, attach, and collapse filtered responses concurrently
         from app.services.use_cases.wordbank.collaborators.cor_sense_fanout import (
             attach_saved_meaning_ids,
             collapse_duplicate_search_groups,
+            expand_cor_search_response_with_senses,
         )
 
-        return [
-            collapse_duplicate_search_groups(
-                attach_saved_meaning_ids(
-                    response,
+        def process_expansion(resp: CORSearchFormResponse) -> CORSearchFormResponse:
+            if include_translations:
+                expanded = expand_cor_search_response_with_senses(
+                    resp,
+                    translation=self._translation,
                     db_path=self._db_path,
                     owner_user_id=self._owner_user_id,
+                    saved_meanings=prefetched_saved,
                 )
-            )
-            for response in merged
-        ]
+                return collapse_duplicate_search_groups(expanded)
+            else:
+                attached = attach_saved_meaning_ids(
+                    resp,
+                    db_path=self._db_path,
+                    owner_user_id=self._owner_user_id,
+                    saved_meanings=prefetched_saved,
+                )
+                return collapse_duplicate_search_groups(attached)
+
+        with ThreadPoolExecutor(max_workers=min(4, len(merged))) as executor:
+            final_responses = list(executor.map(process_expansion, merged))
+
+        return final_responses
 
     def search_cor_lemma_paradigm(
         self, lemma_idx: int, *, limit: int = 1000

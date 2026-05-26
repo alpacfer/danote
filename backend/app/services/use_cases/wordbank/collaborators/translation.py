@@ -412,14 +412,22 @@ class TranslationCollaborator:
 
     def is_likely_english_word(self, value: str) -> bool:
         normalized = value.strip().lower()
-        if not normalized or " " in normalized:
+        if not normalized:
             return False
         if any(char in normalized for char in ("æ", "ø", "å")):
             return False
-        allowed = set("abcdefghijklmnopqrstuvwxyz'-")
-        if any(char not in allowed for char in normalized):
+        parts = normalized.split()
+        if not parts:
             return False
-        return any(char in "aeiouy" for char in normalized)
+        allowed = set("abcdefghijklmnopqrstuvwxyz'-")
+        for part in parts:
+            if not part:
+                continue
+            if any(char not in allowed for char in part):
+                return False
+            if not any(char in "aeiouy" for char in part):
+                return False
+        return True
 
     def lookup_reverse_translation(self, source_word: str) -> str | None:
         return self.lookup_reverse_translation_result(source_word).value

@@ -22,8 +22,10 @@ def detect_word_language(
     if any(char in normalized_lower for char in ("æ", "ø", "å")):
         return DetectWordLanguageResponse(source_word=normalized_source, language="da", confidence=0.99)
     if " " in normalized_source:
-        return DetectWordLanguageResponse(source_word=normalized_source, language="ambiguous", confidence=0.25)
-    if not normalized_lower.isascii() or not normalized_lower.replace("-", "").replace("'", "").isalpha():
+        parts = normalized_source.split()
+        if len(parts) > 3:
+            return DetectWordLanguageResponse(source_word=normalized_source, language="ambiguous", confidence=0.25)
+    if not normalized_lower.isascii() or not normalized_lower.replace("-", "").replace("'", "").replace(" ", "").isalpha():
         return DetectWordLanguageResponse(source_word=normalized_source, language="ambiguous", confidence=0.25)
     if cor_entries_lookup is not None and cor_entries_lookup(normalized_source):
         return DetectWordLanguageResponse(source_word=normalized_source, language="da", confidence=0.95)

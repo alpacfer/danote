@@ -58,7 +58,21 @@ def _build_mwe_meaning_variants(
     if not meanings:
         return []
 
-    local_entry = wordbank_use_case.runtime.cor.lookup_mwe_lemma(lemma)
+    try:
+        if " " in lemma:
+            local_entry = wordbank_use_case.runtime.cor.lookup_mwe_lemma(lemma)
+        else:
+            candidates = wordbank_use_case.runtime.cor.lookup_form(lemma)
+            local_entry = None
+            if candidates:
+                for cand in candidates:
+                    if cand.lemma == lemma:
+                        local_entry = cand
+                        break
+                if not local_entry:
+                    local_entry = candidates[0]
+    except Exception:
+        local_entry = None
     variants: list[CORSearchVariant] = []
     for index, meaning in enumerate(meanings):
         pos_tag = meaning.pos_tag or verification.mwe_pos_tag
@@ -324,6 +338,7 @@ def _english_sentence_preview(
         source_text=translated_danish,
         wordbank_use_case=wordbank_use_case,
         translation_service=translation_service,
+        english_query=english_for_translation,
     )
 
     final_danish_text = danish_verification.corrected_text or translated_danish
@@ -579,27 +594,54 @@ def _with_deterministic_mwe(
     source_text: str,
     wordbank_use_case: WordbankUseCase | None,
     translation_service: TranslationService | None,
+    english_query: str | None = None,
 ) -> SentenceVerificationResult:
     if verification.is_multi_word_expression or wordbank_use_case is None:
         return verification
     normalized = normalize_sentence_text_without_terminal_period(source_text)
-    if " " not in normalized:
+    
+    is_danish_mwe = " " in normalized
+    is_english_mwe = (
+        english_query is not None
+        and " " in normalize_sentence_text_without_terminal_period(english_query)
+        and len(normalize_sentence_text_without_terminal_period(english_query).split()) <= 4
+    )
+    
+    if not is_danish_mwe and not is_english_mwe:
         return verification
+        
     try:
-        local_entry = wordbank_use_case.runtime.cor.lookup_mwe_lemma(normalized)
+        if is_danish_mwe:
+            local_entry = wordbank_use_case.runtime.cor.lookup_mwe_lemma(normalized)
+        else:
+            candidates = wordbank_use_case.runtime.cor.lookup_form(normalized)
+            local_entry = None
+            if candidates:
+                for cand in candidates:
+                    if cand.lemma == normalized:
+                        local_entry = cand
+                        break
+                if not local_entry:
+                    local_entry = candidates[0]
     except Exception:
         local_entry = None
+        
     curated_meanings = [] if local_entry is not None else _curated_mwe_meanings(normalized)
+    
     if local_entry is None and not curated_meanings:
-        return verification
-    english_translation = lookup_phrase_translation(
+        if is_danish_mwe or not is_english_mwe:
+            return verification
+            
+    english_translation = english_query or lookup_phrase_translation(
         source_text=normalized,
         translation_service=translation_service,
         wordbank_use_case=None,
     )
+    
     lemma = local_entry.lemma if local_entry is not None else normalized
-    pos_tag = local_entry.pos_tag if local_entry is not None else "VERB"
-    gloss = local_entry.gloss if local_entry is not None else curated_meanings[0].gloss
+    pos_tag = local_entry.pos_tag if local_entry is not None else ("NOUN" if is_english_mwe else "VERB")
+    gloss = local_entry.gloss if local_entry is not None else (curated_meanings[0].gloss if curated_meanings else None)
+    
     meanings = curated_meanings or [
         SentenceMWEMeaning(
             gloss=gloss,

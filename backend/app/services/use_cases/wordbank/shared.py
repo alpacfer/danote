@@ -165,6 +165,7 @@ def build_word_action_suggestions(
                     pos_tag=query_pos_tag,
                     morphology=query_morphology,
                     show_lemma=_normalize_action_value(query_surface_clean) != _normalize_action_value(lemma_value),
+                    english_translation=da_to_en_translation,
                 )
             )
 
@@ -183,6 +184,7 @@ def build_word_action_suggestions(
                     pos_tag=en_to_da_pos_tag,
                     morphology=en_to_da_morphology,
                     show_lemma=_normalize_action_value(en_to_da_translation) != _normalize_action_value(en_lemma),
+                    english_translation=query_surface_clean,
                 )
             )
 

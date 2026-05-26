@@ -31,3 +31,10 @@ def test_detect_word_language_uses_provider_signal() -> None:
     module = _load_module()
     response = module.detect_word_language("book", detect_source_language=lambda _: "en")
     assert response.language == "en"
+
+
+def test_detect_word_language_allows_english_mwe() -> None:
+    module = _load_module()
+    response = module.detect_word_language("watering can", detect_source_language=lambda _: "en")
+    assert response.language == "en"
+    assert response.confidence == 0.82

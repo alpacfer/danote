@@ -28,6 +28,7 @@ def expand_cor_search_response_with_senses(
     translation: TranslationCollaborator,
     db_path: Path,
     owner_user_id: int = 1,
+    saved_meanings: dict[str, dict[str, list[SavedMeaningMatch]]] | None = None,
 ) -> CORSearchFormResponse:
     """Expand each ``CORSearchGroup`` into one group per discovered sense.
 
@@ -37,11 +38,12 @@ def expand_cor_search_response_with_senses(
     """
     if not response.groups:
         return response
-    saved_meanings = load_saved_meanings_for_lemmas(
-        db_path,
-        [group.lemma for group in response.groups],
-        owner_user_id=owner_user_id,
-    )
+    if saved_meanings is None:
+        saved_meanings = load_saved_meanings_for_lemmas(
+            db_path,
+            [group.lemma for group in response.groups],
+            owner_user_id=owner_user_id,
+        )
     expanded_groups: list[CORSearchGroup] = []
     for group in response.groups:
         senses = _discover_for_group(group, translation=translation)
@@ -75,6 +77,7 @@ def attach_saved_meaning_ids(
     *,
     db_path: Path,
     owner_user_id: int = 1,
+    saved_meanings: dict[str, dict[str, list[SavedMeaningMatch]]] | None = None,
 ) -> CORSearchFormResponse:
     """Stamp ``saved_meaning_id`` on every CoR variant in ``response``.
 
@@ -84,11 +87,12 @@ def attach_saved_meaning_ids(
     """
     if not response.groups:
         return response
-    saved_meanings = load_saved_meanings_for_lemmas(
-        db_path,
-        [group.lemma for group in response.groups],
-        owner_user_id=owner_user_id,
-    )
+    if saved_meanings is None:
+        saved_meanings = load_saved_meanings_for_lemmas(
+            db_path,
+            [group.lemma for group in response.groups],
+            owner_user_id=owner_user_id,
+        )
     if not saved_meanings:
         return response
     return CORSearchFormResponse(
