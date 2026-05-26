@@ -163,7 +163,7 @@ export function WordbankLemmaHeader({
   )
 
   return (
-    <div id="wordbank-lemma-header">
+    <div id="wordbank-lemma-header" className="flex flex-col">
       {/* Lemma word + verification button. Categories, POS badges, translation,
           and pinned-home chips live inside the meaning section card(s) below so
           every word page (saved or built-in) shares the same chrome. */}
@@ -185,7 +185,7 @@ export function WordbankLemmaHeader({
       {/* POS + morphology badges */}
       {headerBadges.length > 0 ? (
         <ScrollableBadgeRow
-          className="mt-1.5"
+          className="mt-1.5 order-2 md:order-none"
           fadeFromClass="from-background"
           testId="wordbank-lemma-header-badges"
         >
@@ -217,7 +217,7 @@ export function WordbankLemmaHeader({
 
       {/* Translation */}
       {headerTranslationLine && (showSupplementaryMetadata || selectedMeaningSection) ? (
-        <p className="text-muted-foreground mt-2 text-base italic">{headerTranslationLine}</p>
+        <p className="text-muted-foreground mt-2 text-base italic order-1 md:order-none">{headerTranslationLine}</p>
       ) : null}
     </div>
   )

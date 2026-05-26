@@ -48,7 +48,7 @@ export function MobileBottomNav({
           aria-label="Wordbank"
           onClick={onSelectWordbank}
           className={cn(
-            "relative flex h-9 flex-1 items-center justify-center gap-1.5 rounded-full px-2 text-xs font-semibold transition-all duration-200 active:scale-95 text-muted-foreground md:hover:text-foreground",
+            "relative flex h-9 flex-1 items-center justify-center gap-1.5 rounded-full px-2 text-sm font-semibold transition-all duration-200 active:scale-95 text-muted-foreground md:hover:text-foreground",
             activeSection === "wordbank"
               ? "bg-primary text-primary-foreground shadow-sm"
               : "md:hover:bg-muted/60"
@@ -75,7 +75,7 @@ export function MobileBottomNav({
           type="button"
           onClick={onSelectSentencebank}
           className={cn(
-            "flex h-9 flex-1 items-center justify-center gap-1.5 rounded-full px-2 text-xs font-semibold transition-all duration-200 active:scale-95 text-muted-foreground md:hover:text-foreground",
+            "flex h-9 flex-1 items-center justify-center gap-1.5 rounded-full px-2 text-sm font-semibold transition-all duration-200 active:scale-95 text-muted-foreground md:hover:text-foreground",
             activeSection === "sentencebank"
               ? "bg-primary text-primary-foreground shadow-sm"
               : "md:hover:bg-muted/60"

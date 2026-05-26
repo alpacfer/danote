@@ -42,7 +42,7 @@ export function SidebarNavigation({
                 aria-label="Wordbank"
                 isActive={activeSection === "wordbank"}
                 onClick={onSelectWordbank}
-                className="max-md:h-12 max-md:text-base max-md:[&>svg]:size-5"
+                className="text-base max-md:h-12 max-md:text-lg max-md:[&>svg]:size-5"
               >
                 <WordbankIcon />
                 <span>Words</span>
@@ -64,7 +64,7 @@ export function SidebarNavigation({
                 aria-label="Sentencebank"
                 isActive={activeSection === "sentencebank"}
                 onClick={onSelectSentencebank}
-                className="max-md:h-12 max-md:text-base max-md:[&>svg]:size-5"
+                className="text-base max-md:h-12 max-md:text-lg max-md:[&>svg]:size-5"
               >
                 <SentencebankIcon />
                 <span>Sentences</span>
@@ -75,7 +75,7 @@ export function SidebarNavigation({
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton type="button" onClick={onOpenSearch} className="max-md:h-12 max-md:text-base max-md:[&>svg]:size-5">
+              <SidebarMenuButton type="button" onClick={onOpenSearch} className="text-base max-md:h-12 max-md:text-lg max-md:[&>svg]:size-5">
                 <Search />
                 <span>Search</span>
                 <KbdGroup aria-hidden="true" className="ml-auto hidden md:flex">

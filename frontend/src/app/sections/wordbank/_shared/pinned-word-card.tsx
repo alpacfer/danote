@@ -60,24 +60,22 @@ export function PinnedWordCard({
       className="cursor-pointer transition-colors hover:bg-accent/50 focus-visible:ring-ring/50 focus-visible:ring-2"
     >
       <CardHeader className="gap-2">
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-2">
-            <CardTitle className="shrink-0 text-lg font-semibold">{entry.lemma}</CardTitle>
-            {badges.length > 0 ? (
-              <ScrollableBadgeRow className="flex-1" fadeFromClass="from-card">
-                {badges.map((badge) => (
-                  <Badge
-                    key={`pinned-word-${entry.lemma}-${badge.label}`}
-                    variant={badge.tone === "primary" ? "default" : "secondary"}
-                    className={`shrink-0 text-xs ${badge.tone === "primary" ? `border ${posBadgeClass(badge.label === "HV Word" ? "HV_WORD" : posTag)}` : `border ${corSecondaryBadgeClass(badge.label)}`}`.trim()}
-                  >
-                    {badge.label}
-                  </Badge>
-                ))}
-              </ScrollableBadgeRow>
-            ) : null}
-          </div>
-          <p className="text-muted-foreground text-sm">{entry.translation}</p>
+        <div className="flex flex-col md:grid md:grid-cols-[auto_1fr] gap-x-2 gap-y-1">
+          <CardTitle className="shrink-0 text-lg font-semibold md:col-start-1 md:row-start-1">{entry.lemma}</CardTitle>
+          {badges.length > 0 ? (
+            <ScrollableBadgeRow className="flex-1 w-full md:w-auto order-3 md:order-none md:col-start-2 md:row-start-1" fadeFromClass="from-card">
+              {badges.map((badge) => (
+                <Badge
+                  key={`pinned-word-${entry.lemma}-${badge.label}`}
+                  variant={badge.tone === "primary" ? "default" : "secondary"}
+                  className={`shrink-0 text-xs ${badge.tone === "primary" ? `border ${posBadgeClass(badge.label === "HV Word" ? "HV_WORD" : posTag)}` : `border ${corSecondaryBadgeClass(badge.label)}`}`.trim()}
+                >
+                  {badge.label}
+                </Badge>
+              ))}
+            </ScrollableBadgeRow>
+          ) : null}
+          <p className="text-muted-foreground text-sm order-2 md:order-none md:col-span-2 md:row-start-2">{entry.translation}</p>
         </div>
       </CardHeader>
     </Card>

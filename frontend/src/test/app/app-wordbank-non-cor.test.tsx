@@ -54,7 +54,7 @@ function buildNonCorLemmaDetails() {
 }
 
 describe("App wordbank non-COR entries", () => {
-  it("renderer-only: shows Not in COR for generated entries", async () => {
+  it("renderer-only: does not show Not in COR for generated entries", async () => {
     mockFetchImplementation({
       lemmasResponse: {
         items: [{ lemma: "superstor", variation_count: 1 }],
@@ -68,8 +68,7 @@ describe("App wordbank non-COR entries", () => {
     fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
     fireEvent.click(await screen.findByRole("button", { name: /superstor/i }))
 
-    const badges = await screen.findAllByText("Not in COR")
-    expect(badges.length).toBeGreaterThan(0)
+    expect(screen.queryByText("Not in COR")).not.toBeInTheDocument()
   })
 
   it("renderer-only: renders composition (decomposition) items even when they have no COR variants", async () => {

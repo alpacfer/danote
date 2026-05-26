@@ -191,76 +191,69 @@ export function WordbankMeaningSections({
                     they overflow the available width. Right padding reserves
                     space for the meatball menu (always visible on mobile, on
                     hover on desktop). */}
-                <div className="flex flex-col gap-1.5">
-                  <div className="flex items-center gap-2 pr-9">
-                    <span
-                      data-testid={isRootSection ? "wordbank-lemma-card-lemma" : `wordbank-meaning-card-lemma-${section.id}`}
-                      className="shrink-0 text-lg leading-tight font-bold"
+                <div className="flex flex-col md:grid md:grid-cols-[auto_1fr] gap-x-2 gap-y-1.5 pr-9">
+                  <span
+                    data-testid={isRootSection ? "wordbank-lemma-card-lemma" : `wordbank-meaning-card-lemma-${section.id}`}
+                    className="shrink-0 text-lg leading-tight font-bold md:col-start-1 md:row-start-1"
+                  >
+                    {meaningLemma}
+                  </span>
+                  {(sectionBadges.length > 0 || isGeneratedNonCor || (section.categories?.length ?? 0) > 0) ? (
+                    <ScrollableBadgeRow
+                      className="flex-1 w-full md:w-auto order-3 md:order-none md:col-start-2 md:row-start-1"
+                      fadeFromClass="from-card"
+                      testId={isRootSection ? "wordbank-lemma-header-badges" : `wordbank-meaning-badges-${section.id}`}
                     >
-                      {meaningLemma}
-                    </span>
-                    {(sectionBadges.length > 0 || isGeneratedNonCor || (section.categories?.length ?? 0) > 0) ? (
-                      <ScrollableBadgeRow
-                        className="flex-1"
-                        fadeFromClass="from-card"
-                        testId={isRootSection ? "wordbank-lemma-header-badges" : `wordbank-meaning-badges-${section.id}`}
-                      >
-                        {isGeneratedNonCor ? (
+
+                      {sectionBadges.map((badge) => {
+                        const isWordType = badge.tone === "primary"
+                        const pinnedSentinel = isWordType ? sectionPosBadgeOverride?.pinnedSentinel ?? null : null
+                        const isClickable = isWordType && Boolean(pinnedSentinel ? onOpenPinnedTab : onApplyFilterAndNavigateBack)
+                        const handleClick = !isClickable
+                          ? undefined
+                          : pinnedSentinel
+                            ? () => onOpenPinnedTab!(pinnedSentinel)
+                            : () => onApplyFilterAndNavigateBack!("pos", isMultiWordLemma(lemma) ? (badge.label === "Phrasal verb" ? "PHRASAL_VERB" : "IDIOM") : section.pos_tag ?? "")
+
+                        return (
                           <Badge
-                            variant="outline"
-                            className="shrink-0 text-xs border-amber-300 bg-amber-50 text-amber-800"
+                            key={`meaning-section-${section.id}-badge-${badge.label}`}
+                            variant={badge.tone === "primary" ? "default" : "secondary"}
+                            className={`shrink-0 text-xs ${badge.tone === "primary" ? `border ${posBadgeClass(badge.label === "HV Word" ? "HV_WORD" : section.pos_tag ?? null)}` : `border ${corSecondaryBadgeClass(badge.label)}`} ${
+                              isClickable ? "cursor-pointer hover:scale-105 transition-transform" : ""
+                            }`.trim()}
+                            onClick={handleClick}
                           >
-                            Not in COR
+                            {badge.label}
                           </Badge>
-                        ) : null}
-                        {sectionBadges.map((badge) => {
-                          const isWordType = badge.tone === "primary"
-                          const pinnedSentinel = isWordType ? sectionPosBadgeOverride?.pinnedSentinel ?? null : null
-                          const isClickable = isWordType && Boolean(pinnedSentinel ? onOpenPinnedTab : onApplyFilterAndNavigateBack)
-                          const handleClick = !isClickable
-                            ? undefined
-                            : pinnedSentinel
-                              ? () => onOpenPinnedTab!(pinnedSentinel)
-                              : () => onApplyFilterAndNavigateBack!("pos", isMultiWordLemma(lemma) ? (badge.label === "Phrasal verb" ? "PHRASAL_VERB" : "IDIOM") : section.pos_tag ?? "")
+                        )
+                      })}
+                      {section.categories?.map((category) => {
+                        const isClickable = Boolean(onApplyFilterAndNavigateBack)
+                        const handleClick = isClickable
+                          ? () => onApplyFilterAndNavigateBack!("category", category)
+                          : undefined
 
-                          return (
-                            <Badge
-                              key={`meaning-section-${section.id}-badge-${badge.label}`}
-                              variant={badge.tone === "primary" ? "default" : "secondary"}
-                              className={`shrink-0 text-xs ${badge.tone === "primary" ? `border ${posBadgeClass(badge.label === "HV Word" ? "HV_WORD" : section.pos_tag ?? null)}` : `border ${corSecondaryBadgeClass(badge.label)}`} ${
-                                isClickable ? "cursor-pointer hover:scale-105 transition-transform" : ""
-                              }`.trim()}
-                              onClick={handleClick}
-                            >
-                              {badge.label}
-                            </Badge>
-                          )
-                        })}
-                        {section.categories?.map((category) => {
-                          const isClickable = Boolean(onApplyFilterAndNavigateBack)
-                          const handleClick = isClickable
-                            ? () => onApplyFilterAndNavigateBack!("category", category)
-                            : undefined
-
-                          return (
-                            <Badge
-                              key={`meaning-section-${section.id}-category-${category}`}
-                              variant="outline"
-                              className={`shrink-0 text-xs ${semanticCategoryBadgeClass(category)} ${
-                                isClickable ? "cursor-pointer hover:scale-105 transition-transform" : ""
-                              }`.trim()}
-                              onClick={handleClick}
-                            >
-                              {category}
-                            </Badge>
-                          )
-                        })}
-                      </ScrollableBadgeRow>
-                    ) : null}
-                  </div>
+                        return (
+                          <Badge
+                            key={`meaning-section-${section.id}-category-${category}`}
+                            variant="outline"
+                            className={`shrink-0 text-xs ${semanticCategoryBadgeClass(category)} ${
+                              isClickable ? "cursor-pointer hover:scale-105 transition-transform" : ""
+                            }`.trim()}
+                            onClick={handleClick}
+                          >
+                            {category}
+                          </Badge>
+                        )
+                      })}
+                    </ScrollableBadgeRow>
+                  ) : null}
                   {/* Row 2: Translation directly below the lemma */}
                   {sectionTranslation ? (
-                    <span className="text-muted-foreground text-sm italic">{sectionTranslation}</span>
+                    <span className="text-muted-foreground text-sm italic order-2 md:order-none md:col-span-2 md:row-start-2">
+                      {sectionTranslation}
+                    </span>
                   ) : null}
                 </div>
 
