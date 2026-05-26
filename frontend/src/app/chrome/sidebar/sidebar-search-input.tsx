@@ -1,4 +1,4 @@
-import { X, ChevronDown } from "lucide-react"
+import { X, ChevronDown, Search } from "lucide-react"
 import { useMemo, useState, useEffect, type KeyboardEventHandler } from "react"
 
 import {
@@ -355,13 +355,13 @@ export function SidebarSearchInput({
     onLanguageModeChange(searchLanguageMode === "da" ? "en" : "da")
   }
 
-  const toggleLanguageButton = (
+  const desktopLanguageButton = (
     <Tooltip>
       <TooltipTrigger asChild>
         <Button
           type="button"
           variant="outline"
-          className="h-7 w-7 max-md:h-10 max-md:w-10 rounded-sm text-[10px] max-md:text-sm font-bold tracking-wider transition-all duration-200 select-none shadow-none border-border bg-background hover:bg-accent hover:text-accent-foreground text-foreground shrink-0 p-0 flex items-center justify-center self-center"
+          className="h-7 w-7 rounded-sm text-[10px] font-bold tracking-wider transition-all duration-200 select-none shadow-none border-border bg-background hover:bg-accent hover:text-accent-foreground text-foreground shrink-0 p-0 flex items-center justify-center self-center"
           onClick={toggleLanguage}
           onMouseDown={(e) => {
             e.preventDefault()
@@ -386,9 +386,46 @@ export function SidebarSearchInput({
     </Tooltip>
   )
 
+  const responsiveLanguageButton = (
+    <>
+      {/* Desktop version - hidden on mobile */}
+      <div className="max-md:hidden flex items-center justify-center self-center shrink-0">
+        {desktopLanguageButton}
+      </div>
+      {/* Mobile version - hidden on desktop, renders magnifying glass icon inside the input wrapper */}
+      <div className="hidden max-md:flex max-md:items-center max-md:justify-center max-md:self-center max-md:shrink-0 max-md:pl-1">
+        <Search className="size-4 opacity-50" />
+      </div>
+    </>
+  )
+
   return (
-    <div data-slot="sidebar-search-input-row" className="flex items-center">
-      <div className="min-w-0 flex-1">
+    <div
+      data-slot="sidebar-search-input-row"
+      className="flex items-center max-md:w-full max-md:gap-3 max-md:px-4 max-md:py-3 max-md:pb-[calc(0.75rem+env(safe-area-inset-bottom))] max-md:bg-popover max-md:[&_[data-slot=command-input-wrapper]]:m-0 max-md:[&_[data-slot=command-input-wrapper]]:h-11 max-md:[&_[data-slot=command-input-wrapper]]:min-h-11 max-md:[&_[data-slot=command-input-wrapper]]:rounded-full max-md:[&_[data-slot=command-input-wrapper]]:bg-background max-md:[&_[data-slot=command-input-wrapper]]:border-border max-md:[&_[data-slot=command-input-wrapper]]:shadow-lg max-md:[&_[data-slot=command-input-wrapper]]:flex-1 max-md:[&_[data-slot=command-input-wrapper]]:pr-3 max-md:[&_[data-slot=command-input-wrapper]]:pl-3 max-md:[&_[data-slot=command-input-wrapper]_textarea]:py-2.5 max-md:[&_[data-slot=command-input-wrapper]_textarea]:text-base max-md:[&_[data-slot=command-input-overlay]]:py-2.5 max-md:[&_[data-slot=command-input-overlay]]:text-base"
+    >
+      {/* Mobile Language Toggle Button (Visible only on mobile) */}
+      <button
+        type="button"
+        className="flex size-11 shrink-0 items-center justify-center rounded-full border border-border bg-background shadow-lg text-foreground font-semibold text-sm transition-all duration-200 active:scale-90 md:hidden"
+        onClick={toggleLanguage}
+        onMouseDown={(e) => {
+          e.preventDefault()
+        }}
+        onPointerDown={(e) => {
+          e.preventDefault()
+        }}
+        aria-label={
+          searchLanguageMode === "da"
+            ? "Switch to English search"
+            : "Switch to Danish search"
+        }
+      >
+        {searchLanguageMode === "da" ? "DA" : "EN"}
+      </button>
+
+      {/* Main Pill Search Input */}
+      <div className="min-w-0 flex-1 md:contents">
         <CommandInput
           placeholder={isTest ? "Search words..." : displayText}
           value={value}
@@ -397,7 +434,7 @@ export function SidebarSearchInput({
           aria-label="command search"
           overlay={overlay}
           concealValue={Boolean(overlay)}
-          icon={toggleLanguageButton}
+          icon={responsiveLanguageButton}
           suffix={(
             <Button
               type="button"
@@ -421,16 +458,16 @@ export function SidebarSearchInput({
           maxLength={SENTENCE_VERIFY_MAX_CHARS}
         />
       </div>
-      <Button
+
+      {/* Mobile Close Button (Visible only on mobile) */}
+      <button
         type="button"
-        variant="ghost"
-        size="icon"
         aria-label="Close search"
-        className="hidden max-md:flex max-md:size-9 max-md:shrink-0 max-md:rounded-full max-md:mr-2"
+        className="flex size-11 shrink-0 items-center justify-center rounded-full border border-border bg-background shadow-lg text-muted-foreground transition-all duration-200 active:scale-90 md:hidden"
         onClick={onCloseSearch}
       >
         <ChevronDown className="size-5" />
-      </Button>
+      </button>
     </div>
   )
 }
