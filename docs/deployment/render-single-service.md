@@ -148,8 +148,9 @@ If the data disappears after restart, the disk is missing or not mounted at
 - Keep the service at one instance while using SQLite.
 - Use Render's paid persistent disk; ephemeral filesystem deploys will lose
   user data.
-- The first rollout should remain private beta until broader owner-isolation
-  verification is complete.
+- The first rollout should remain private beta until a two-user hosted smoke
+  confirms the endpoint-level owner-isolation coverage in `ROADMAP.md` holds in
+  the deployed environment.
 
 ## Troubleshooting
 

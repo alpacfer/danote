@@ -13,6 +13,7 @@ from app.db.sqlite import get_connection, timed_db_operation
 
 class WordbankCategoryReadRepository:
     _db_path: Path
+    _owner_user_id: int
 
     def list_word_categories(self) -> list[WordCategoryRecord]:
         with timed_db_operation("wordbank.list_word_categories"), get_connection(
@@ -41,9 +42,10 @@ class WordbankCategoryReadRepository:
                     wc.normalized_label AS category_normalized_label
                 FROM wordbank_category_assignments wca
                 JOIN wordbank_categories wc ON wc.id = wca.category_id
-                WHERE wca.lexeme_id = ?
+                JOIN lexemes l ON l.id = wca.lexeme_id
+                WHERE wca.lexeme_id = ? AND l.owner_user_id = ?
                 ORDER BY wca.meaning_id IS NULL DESC, wca.meaning_id ASC, wc.normalized_label ASC
                 """,
-                (lexeme_id,),
+                (lexeme_id, self._owner_user_id),
             ).fetchall()
         return [word_category_assignment_from_row(row) for row in rows]

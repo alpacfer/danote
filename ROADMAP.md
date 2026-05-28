@@ -88,7 +88,7 @@ That's Phase 2.
 
 ## Phase 2 — Per-user data isolation
 
-**Status:** partially implemented; needs broader owner-isolation verification before public multi-user hosting.
+**Status:** implemented with endpoint-level owner-isolation coverage; still needs a hosted two-user smoke before public multi-user hosting.
 
 **Goal:** every user sees only their own wordbank and sentencebank.
 
@@ -110,9 +110,10 @@ only their own saved wordbank and sentencebank data.
 - Every update/delete adds `AND owner_user_id = :user_id` to the WHERE.
 - Use-case orchestrators (`backend/app/services/use_cases/`) thread
   `current_user.id` from the route into the repos.
-- Owner-isolation tests confirm that two users adding the same Danish word get
-  distinct rows and that user A cannot read user B's rows through persisted
-  read endpoints.
+- Owner-isolation API tests confirm that two users adding the same Danish word
+  and sentence get distinct rows; user A cannot read or delete user B's saved
+  word, sentence, linked sentence card, or verification-change history through
+  persisted endpoints.
 - Existing use-case and repo tests are updated to pass an explicit
   `user_id` parameter via the test helpers.
 - Read-only reference DBs (`cor.sqlite`, `english_wiki.sqlite`,
@@ -129,10 +130,10 @@ only their own saved wordbank and sentencebank data.
 - The background jobs worker (`wordbank_background_jobs`) needs to know
   which user a queued job belongs to.
 
-**Estimated size:** 3–5 days of focused verification and cleanup. Largest
-risk area: a half-done isolation pass leaks data across users, which is worse
-than not starting. Keep hosted rollout private until owner-isolation checks
-cover the persisted routes.
+**Current risk:** endpoint-level isolation coverage now protects the persisted
+wordbank and sentencebank routes most likely to leak user data. Keep hosted
+rollout private until a real deployment smoke confirms two Clerk users remain
+isolated across sign-in, save, refresh, restart, and delete flows.
 
 **What's already on main (started in `027_user_isolation.sql`):**
 - `app_users` table.
@@ -147,11 +148,9 @@ cover the persisted routes.
   updated to consume `current_user.id`.
 
 **Remaining for Phase 2:**
-- Audit every persisted read/write route and repository for owner scoping,
-  including less-traveled verification, category, typo, and token-event paths.
-- Broaden tests from the current targeted repository coverage to
-  cross-endpoint owner-isolation scenarios.
-- Run a Docker smoke with two users before treating the deployment as public
-  multi-user ready.
+- Run a hosted or Docker smoke with two real users before treating the
+  deployment as public multi-user ready.
+- Keep adding owner-isolation regression tests whenever new persisted routes or
+  user-owned tables are introduced.
 
 Then follow `HOSTING.md` for the actual deploy.

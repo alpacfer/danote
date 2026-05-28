@@ -10,6 +10,7 @@ SQLite data access. One file per table or domain area, split by read/write where
 | `wordbank_reads.py` | Query-only operations on wordbank tables. |
 | `wordbank_mutations.py` | Insert / update / delete on wordbank tables. |
 | `wordbank_search.py` | Search-specific queries (fuzzy, surface form). |
+| `wordbank_owner_scope.py` | Shared owner-scope guards for repository methods that accept row IDs. |
 | `wordbank_surface_form_queries.py` | Surface-form lookups used by search and verification. |
 | `wordbank_change_log.py` | Audit/history tracking for wordbank edits. |
 | `wordbank_category_reads.py` / `wordbank_category_mutations.py` | Category sub-domain. |

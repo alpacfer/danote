@@ -9,6 +9,11 @@ from app.db.repositories.wordbank_models import (
     lexeme_meaning_from_row,
     surface_form_from_row,
 )
+from app.db.repositories.wordbank_owner_scope import (
+    lexeme_scope_exists,
+    meaning_scope_exists,
+    surface_form_scope_exists,
+)
 from app.db.repositories.wordbank_surface_form_queries import select_surface_form_row
 from app.db.sqlite import get_connection, timed_db_operation
 
@@ -166,6 +171,15 @@ class WordbankMutationRepository:
         source: str = "related_words",
     ) -> bool:
         with timed_db_operation("wordbank.insert_additional_translation"), get_connection(self._db_path) as conn:
+            if not lexeme_scope_exists(conn, lexeme_id, owner_user_id=self._owner_user_id):
+                raise LookupError("lexeme was not found")
+            if meaning_id is not None and not meaning_scope_exists(
+                conn,
+                lexeme_id=lexeme_id,
+                meaning_id=meaning_id,
+                owner_user_id=self._owner_user_id,
+            ):
+                raise LookupError("meaning was not found")
             if meaning_id is None:
                 cursor = conn.execute(
                     """
@@ -371,6 +385,15 @@ class WordbankMutationRepository:
         source: str = "manual",
     ) -> tuple[SurfaceFormRecord, bool]:
         with timed_db_operation("wordbank.insert_or_update_surface_form"), get_connection(self._db_path) as conn:
+            if not lexeme_scope_exists(conn, lexeme_id, owner_user_id=self._owner_user_id):
+                raise LookupError("lexeme was not found")
+            if meaning_id is not None and not meaning_scope_exists(
+                conn,
+                lexeme_id=lexeme_id,
+                meaning_id=meaning_id,
+                owner_user_id=self._owner_user_id,
+            ):
+                raise LookupError("meaning was not found")
             row = select_surface_form_row(conn, lexeme_id=lexeme_id, meaning_id=meaning_id, form=form)
             inserted = False
             if row is None:
@@ -465,6 +488,8 @@ class WordbankMutationRepository:
 
     def insert_surface_form_cor_variant(self, *, surface_form_id: int, cor_id: str) -> bool:
         with timed_db_operation("wordbank.insert_surface_form_cor_variant"), get_connection(self._db_path) as conn:
+            if not surface_form_scope_exists(conn, surface_form_id, owner_user_id=self._owner_user_id):
+                raise LookupError("surface form was not found")
             cursor = conn.execute(
                 """
                 INSERT OR IGNORE INTO surface_form_cor_variants (
@@ -681,12 +706,19 @@ class WordbankMutationRepository:
         items: list[RelatedWordWriteRecord],
     ) -> None:
         with timed_db_operation("wordbank.replace_related_words"), get_connection(self._db_path) as conn:
+            if not lexeme_scope_exists(conn, owner_lexeme_id, owner_user_id=self._owner_user_id):
+                raise LookupError("lexeme was not found")
             conn.execute(
                 """
                 DELETE FROM wordbank_related_words
                 WHERE owner_lexeme_id = ?
+                  AND EXISTS (
+                    SELECT 1 FROM lexemes l
+                    WHERE l.id = wordbank_related_words.owner_lexeme_id
+                      AND l.owner_user_id = ?
+                  )
                 """,
-                (owner_lexeme_id,),
+                (owner_lexeme_id, self._owner_user_id),
             )
             for item in items:
                 conn.execute(

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from app.db.repositories.wordbank_owner_scope import lexeme_scope_exists
 from app.db.sqlite import get_connection, timed_db_operation
 
 
@@ -17,37 +18,59 @@ class WordbankDeleteRepository:
         stored_surface_form: str | None,
     ) -> None:
         with timed_db_operation("wordbank.delete_verification_record"), get_connection(self._db_path) as conn:
+            if not lexeme_scope_exists(conn, lexeme_id, owner_user_id=self._owner_user_id):
+                raise LookupError("lexeme was not found")
             if meaning_id is None and stored_surface_form is None:
                 conn.execute(
                     """
                     DELETE FROM wordbank_verification_records
                     WHERE lexeme_id = ? AND meaning_id IS NULL AND stored_surface_form IS NULL
+                      AND EXISTS (
+                        SELECT 1 FROM lexemes l
+                        WHERE l.id = wordbank_verification_records.lexeme_id
+                          AND l.owner_user_id = ?
+                      )
                     """,
-                    (lexeme_id,),
+                    (lexeme_id, self._owner_user_id),
                 )
             elif meaning_id is None:
                 conn.execute(
                     """
                     DELETE FROM wordbank_verification_records
                     WHERE lexeme_id = ? AND meaning_id IS NULL AND stored_surface_form = ?
+                      AND EXISTS (
+                        SELECT 1 FROM lexemes l
+                        WHERE l.id = wordbank_verification_records.lexeme_id
+                          AND l.owner_user_id = ?
+                      )
                     """,
-                    (lexeme_id, stored_surface_form),
+                    (lexeme_id, stored_surface_form, self._owner_user_id),
                 )
             elif stored_surface_form is None:
                 conn.execute(
                     """
                     DELETE FROM wordbank_verification_records
                     WHERE lexeme_id = ? AND meaning_id = ? AND stored_surface_form IS NULL
+                      AND EXISTS (
+                        SELECT 1 FROM lexemes l
+                        WHERE l.id = wordbank_verification_records.lexeme_id
+                          AND l.owner_user_id = ?
+                      )
                     """,
-                    (lexeme_id, meaning_id),
+                    (lexeme_id, meaning_id, self._owner_user_id),
                 )
             else:
                 conn.execute(
                     """
                     DELETE FROM wordbank_verification_records
                     WHERE lexeme_id = ? AND meaning_id = ? AND stored_surface_form = ?
+                      AND EXISTS (
+                        SELECT 1 FROM lexemes l
+                        WHERE l.id = wordbank_verification_records.lexeme_id
+                          AND l.owner_user_id = ?
+                      )
                     """,
-                    (lexeme_id, meaning_id, stored_surface_form),
+                    (lexeme_id, meaning_id, stored_surface_form, self._owner_user_id),
                 )
 
     def delete_lexeme_meaning(self, meaning_id: int) -> bool:

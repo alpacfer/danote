@@ -7,6 +7,7 @@ from app.db.repositories.wordbank_models import (
     VerificationRecord,
     verification_record_from_row,
 )
+from app.db.repositories.wordbank_owner_scope import lexeme_scope_exists, meaning_scope_exists
 from app.db.sqlite import get_connection, timed_db_operation
 
 
@@ -34,15 +35,29 @@ class WordbankVerificationRepository:
         request_generation: int = 0,
     ) -> VerificationRecord:
         with timed_db_operation("wordbank.upsert_verification_record"), get_connection(self._db_path) as conn:
+            if not lexeme_scope_exists(conn, lexeme_id, owner_user_id=self._owner_user_id):
+                raise LookupError("lexeme was not found")
+            if meaning_id is not None and not meaning_scope_exists(
+                conn,
+                lexeme_id=lexeme_id,
+                meaning_id=meaning_id,
+                owner_user_id=self._owner_user_id,
+            ):
+                raise LookupError("meaning was not found")
             if meaning_id is None and stored_surface_form is None:
                 existing_row = conn.execute(
                     """
                     SELECT id
                     FROM wordbank_verification_records
                     WHERE lexeme_id = ? AND meaning_id IS NULL AND stored_surface_form IS NULL
+                      AND EXISTS (
+                        SELECT 1 FROM lexemes l
+                        WHERE l.id = wordbank_verification_records.lexeme_id
+                          AND l.owner_user_id = ?
+                      )
                     LIMIT 1
                     """,
-                    (lexeme_id,),
+                    (lexeme_id, self._owner_user_id),
                 ).fetchone()
             elif meaning_id is None:
                 existing_row = conn.execute(
@@ -50,9 +65,14 @@ class WordbankVerificationRepository:
                     SELECT id
                     FROM wordbank_verification_records
                     WHERE lexeme_id = ? AND meaning_id IS NULL AND stored_surface_form = ?
+                      AND EXISTS (
+                        SELECT 1 FROM lexemes l
+                        WHERE l.id = wordbank_verification_records.lexeme_id
+                          AND l.owner_user_id = ?
+                      )
                     LIMIT 1
                     """,
-                    (lexeme_id, stored_surface_form),
+                    (lexeme_id, stored_surface_form, self._owner_user_id),
                 ).fetchone()
             elif stored_surface_form is None:
                 existing_row = conn.execute(
@@ -60,9 +80,14 @@ class WordbankVerificationRepository:
                     SELECT id
                     FROM wordbank_verification_records
                     WHERE lexeme_id = ? AND meaning_id = ? AND stored_surface_form IS NULL
+                      AND EXISTS (
+                        SELECT 1 FROM lexemes l
+                        WHERE l.id = wordbank_verification_records.lexeme_id
+                          AND l.owner_user_id = ?
+                      )
                     LIMIT 1
                     """,
-                    (lexeme_id, meaning_id),
+                    (lexeme_id, meaning_id, self._owner_user_id),
                 ).fetchone()
             else:
                 existing_row = conn.execute(
@@ -70,9 +95,14 @@ class WordbankVerificationRepository:
                     SELECT id
                     FROM wordbank_verification_records
                     WHERE lexeme_id = ? AND meaning_id = ? AND stored_surface_form = ?
+                      AND EXISTS (
+                        SELECT 1 FROM lexemes l
+                        WHERE l.id = wordbank_verification_records.lexeme_id
+                          AND l.owner_user_id = ?
+                      )
                     LIMIT 1
                     """,
-                    (lexeme_id, meaning_id, stored_surface_form),
+                    (lexeme_id, meaning_id, stored_surface_form, self._owner_user_id),
                 ).fetchone()
 
             actions_json = json.dumps(suggested_actions, ensure_ascii=True, sort_keys=True)
