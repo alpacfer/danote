@@ -95,7 +95,7 @@ describe("App shell and search", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
-    const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
+    const searchInput = within(commandDialog).getByRole("textbox", { name: /command search/i })
     fireEvent.change(searchInput, { target: { value: "bogens" } })
 
     expect(await within(commandDialog).findByTestId("search-open-icon")).toBeInTheDocument()
@@ -151,7 +151,7 @@ describe("App shell and search", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
-    const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
+    const searchInput = within(commandDialog).getByRole("textbox", { name: /command search/i })
     fireEvent.change(searchInput, { target: { value: "bog" } })
 
     expect(await within(commandDialog).findByText(/^bog$/i, { selector: "strong" })).toBeInTheDocument()
@@ -172,7 +172,7 @@ describe("App shell and search", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
-    const searchInput = within(commandDialog).getByPlaceholderText(/search words/i) as HTMLInputElement
+    const searchInput = within(commandDialog).getByRole("textbox", { name: /command search/i }) as HTMLInputElement
 
     fireEvent.change(searchInput, { target: { value: "jeg " } })
 
@@ -198,7 +198,7 @@ describe("App shell and search", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
-    const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
+    const searchInput = within(commandDialog).getByRole("textbox", { name: /command search/i })
     fireEvent.change(searchInput, { target: { value: "bog" } })
 
     await waitFor(() => {
@@ -275,7 +275,7 @@ describe("App shell and search", () => {
     const commandDialog = await screen.findByRole("dialog")
     fireEvent.click(within(commandDialog).getByRole("radio", { name: /^English$/i }))
     expect(within(commandDialog).getByRole("radio", { name: /^English$/i })).toHaveAttribute("data-state", "on")
-    const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
+    const searchInput = within(commandDialog).getByRole("textbox", { name: /command search/i })
     fireEvent.change(searchInput, { target: { value: "notebook" } })
 
     expect(await within(commandDialog).findByText(/^Dictionary$/i)).toBeInTheDocument()
@@ -291,7 +291,11 @@ describe("App shell and search", () => {
         fetchSpy.mock.calls.some(([input]) => String(input).includes("/api/wordbank/search/cor-form?form=notesbog")),
       ).toBe(true)
       expect(
-        fetchSpy.mock.calls.some(([input]) => String(input).includes("/api/wordbank/search/cor-form?form=notebook")),
+        fetchSpy.mock.calls.some(([input]) => {
+          const url = String(input)
+          return url.includes("/api/wordbank/search/cor-form?form=notebook")
+            && !url.includes("include_translations=false")
+        }),
       ).toBe(false)
       expect(
         fetchSpy.mock.calls.some(([input]) => String(input).includes("/api/wordbank/search/en-form?form=notebook")),
@@ -408,7 +412,7 @@ describe("App shell and search", () => {
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
     fireEvent.click(within(commandDialog).getByRole("radio", { name: /^English$/i }))
-    const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
+    const searchInput = within(commandDialog).getByRole("textbox", { name: /command search/i })
     fireEvent.change(searchInput, { target: { value: "notebook" } })
 
     const translatedRow = await within(commandDialog).findByText(/^notesbog$/i, { selector: "strong" })
@@ -476,7 +480,7 @@ describe("App shell and search", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
-    const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
+    const searchInput = within(commandDialog).getByRole("textbox", { name: /command search/i })
     fireEvent.change(searchInput, { target: { value: "kat" } })
 
     expect(await within(commandDialog).findByText(/^kat$/i, { selector: "strong" })).toBeInTheDocument()
@@ -484,7 +488,11 @@ describe("App shell and search", () => {
 
     await waitFor(() => {
       expect(
-        fetchSpy.mock.calls.some(([input]) => String(input).includes("/api/wordbank/search/en-form?form=kat")),
+        fetchSpy.mock.calls.some(([input]) => {
+          const url = String(input)
+          return url.includes("/api/wordbank/search/en-form?form=kat")
+            && !url.includes("include_translations=false")
+        }),
       ).toBe(false)
       expect(
         fetchSpy.mock.calls.some(([input]) => String(input).includes("/api/wordbank/search/cor-form?form=kat")),
@@ -513,7 +521,7 @@ describe("App shell and search", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
-    const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
+    const searchInput = within(commandDialog).getByRole("textbox", { name: /command search/i })
     fireEvent.change(searchInput, { target: { value: "s" } })
 
     await waitFor(() => {
@@ -534,7 +542,10 @@ describe("App shell and search", () => {
 
     await waitFor(() => {
       expect(
-        fetchSpy.mock.calls.filter(([input]) => String(input).includes("/api/wordbank/search?")),
+        fetchSpy.mock.calls.filter(([input]) => {
+          const url = String(input)
+          return url.includes("/api/wordbank/search?") && url.includes("language=da")
+        }),
       ).toHaveLength(1)
     })
   })
@@ -561,7 +572,7 @@ describe("App shell and search", () => {
     fireEvent.click(searchButton)
 
     const commandDialog = await screen.findByRole("dialog")
-    const input = within(commandDialog).getByPlaceholderText(/search words/i)
+    const input = within(commandDialog).getByRole("textbox", { name: /command search/i })
     fireEvent.change(input, { target: { value: "huse" } })
 
     await waitFor(() => {
@@ -598,7 +609,7 @@ describe("App shell and search", () => {
     fireEvent.click(searchButton)
 
     const commandDialog = await screen.findByRole("dialog")
-    const input = within(commandDialog).getByPlaceholderText(/search words/i)
+    const input = within(commandDialog).getByRole("textbox", { name: /command search/i })
     fireEvent.change(input, { target: { value: "huse" } })
 
     const suggestion = await screen.findByText(/did you mean/i, {}, { timeout: 5000 })
@@ -658,7 +669,7 @@ describe("App shell and search", () => {
     const searchButton = await screen.findByRole("button", { name: /search/i })
     fireEvent.click(searchButton)
     const commandDialog = await screen.findByRole("dialog")
-    const input = within(commandDialog).getByPlaceholderText(/search words/i)
+    const input = within(commandDialog).getByRole("textbox", { name: /command search/i })
     fireEvent.change(input, { target: { value: "huse" } })
 
     const corResult = await within(commandDialog).findByText(/^huse$/i)
@@ -688,5 +699,142 @@ describe("App shell and search", () => {
     expect(within(commandDialog).getByRole("radio", { name: /^English$/i })).toHaveAttribute("data-state", "on")
 
     fireEvent.click(within(commandDialog).getByRole("radio", { name: /^Danish$/i }))
+  })
+
+  it("suggests switching to English when Danish mode has an English word match", async () => {
+    mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      enSearchFormResponse: {
+        form: "book",
+        groups: [{ lemma: "book", pos_ud: "NOUN", pos_raw: "noun", danish_translation: "bog", senses: [] }],
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    const commandDialog = await screen.findByRole("dialog")
+    const input = within(commandDialog).getByRole("textbox", { name: /command search/i })
+    fireEvent.change(input, { target: { value: "book" } })
+
+    expect(await within(commandDialog).findByText("Search in English instead?")).toBeInTheDocument()
+    fireEvent.keyDown(input, { key: "Enter" })
+
+    await waitFor(() => {
+      expect(within(commandDialog).getByRole("radio", { name: /^English$/i })).toHaveAttribute("data-state", "on")
+    })
+  })
+
+  it("suggests switching to Danish when English mode has a Danish dictionary match", async () => {
+    mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      corSearchFormResponse: {
+        form: "bog",
+        groups: [
+          {
+            lemma: "bog",
+            gloss: "book",
+            pos_tag: "NOUN",
+            variants: [
+              {
+                cor_id: "COR.BOG.1",
+                form: "bog",
+                lemma: "bog",
+                gloss: "book",
+                gram_raw: "sb.fk.sg.ubest",
+                lemma_idx: 1,
+                gram_code: 1,
+                variation: 1,
+                pos_tag: "NOUN",
+                morphology: "Gender=Com|Number=Sing",
+                features: {},
+                extra_tags: [],
+              },
+            ],
+          },
+        ],
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    const commandDialog = await screen.findByRole("dialog")
+    fireEvent.click(within(commandDialog).getByRole("radio", { name: /^English$/i }))
+    const input = within(commandDialog).getByRole("textbox", { name: /command search/i })
+    fireEvent.change(input, { target: { value: "bog" } })
+
+    const suggestion = await within(commandDialog).findByText("Search in Danish instead?")
+    fireEvent.click(suggestion)
+
+    await waitFor(() => {
+      expect(within(commandDialog).getByRole("radio", { name: /^Danish$/i })).toHaveAttribute("data-state", "on")
+    })
+  })
+
+  it("shows the mode suggestion below valid current-mode results", async () => {
+    mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      searchWordbankResponse: {
+        items: [
+          {
+            lemma: "gift",
+            display_lemma: "gift",
+            variation_count: 1,
+            english_translation: "married",
+            match_surface: null,
+          },
+        ],
+      },
+      enSearchFormResponse: {
+        form: "gift",
+        groups: [{ lemma: "gift", pos_ud: "NOUN", pos_raw: "noun", danish_translation: "gave", senses: [] }],
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    const commandDialog = await screen.findByRole("dialog")
+    fireEvent.change(within(commandDialog).getByRole("textbox", { name: /command search/i }), { target: { value: "gift" } })
+
+    const currentResult = await within(commandDialog).findByText(/^gift$/i, { selector: "strong" })
+    const suggestion = await within(commandDialog).findByText("Search in English instead?")
+    expect(currentResult.compareDocumentPosition(suggestion) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it("keeps normal results when the mode suggestion probe fails", async () => {
+    mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      searchWordbankResponse: {
+        items: [
+          {
+            lemma: "bog",
+            display_lemma: "bog",
+            variation_count: 1,
+            english_translation: "book",
+            match_surface: null,
+          },
+        ],
+      },
+      enSearchFormHandler: async () => {
+        throw new Error("probe failed")
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    const commandDialog = await screen.findByRole("dialog")
+    fireEvent.change(within(commandDialog).getByRole("textbox", { name: /command search/i }), { target: { value: "bog" } })
+
+    expect(await within(commandDialog).findByText(/^bog$/i, { selector: "strong" })).toBeInTheDocument()
+    await waitFor(() => {
+      expect(within(commandDialog).queryByText(/Search in English instead/i)).not.toBeInTheDocument()
+    })
   })
 })

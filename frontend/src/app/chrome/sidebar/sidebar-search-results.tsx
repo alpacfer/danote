@@ -27,6 +27,7 @@ import { SidebarSentenceResult } from "@/app/chrome/sidebar/sidebar-sentence-res
 import { SidebarSearchPendingSkeleton } from "@/app/chrome/sidebar/sidebar-search-skeletons"
 import { SidebarWordbankResults } from "@/app/chrome/sidebar/sidebar-wordbank-results"
 import { SavedSentencesGroup } from "@/app/chrome/sidebar/sidebar-saved-sentences"
+import type { SearchLanguageMode, SearchModeSwitchSuggestion } from "@/app/chrome/sidebar/sidebar-search-types"
 
 type PageItem = {
   key: string
@@ -39,6 +40,7 @@ type PageItem = {
 export type SidebarSearchResultsState = {
   normalizedQuery: string
   isSentenceMode: boolean
+  isNumberMode: boolean
   isMweMode?: boolean
   hasAnyResults: boolean
   hasWordbankSectionResults: boolean
@@ -46,6 +48,7 @@ export type SidebarSearchResultsState = {
   hasPageResults: boolean
   wordbankDidYouMean: string | null
   corDidYouMean: string | null
+  modeSwitchSuggestion: SearchModeSwitchSuggestion | null
 }
 
 export type SidebarSearchResultsData = {
@@ -77,6 +80,7 @@ export type SidebarSearchResultsData = {
 export type SidebarSearchResultsActions = {
   onAddSentenceFromSearch: (sourceText: string, englishTranslation: string | null) => Promise<void>
   onSetSearchQuery: (query: string) => void
+  onSwitchSearchMode: (mode: SearchLanguageMode) => void
   onOpenWordbankLemma: (lemma: string) => void
   onOpenWordbankLemmaRaw: (lemma: string) => void
   onOpenWordbankMeaning: (lemma: string, meaningId: number) => void
@@ -117,6 +121,19 @@ function isSelfTranslatedCorVariant(variant: CORSearchVariant, normalizedQuery: 
 }
 
 export function SidebarSearchResults({ state, data, actions }: SidebarSearchResultsProps) {
+  const modeSwitchEntry = state.modeSwitchSuggestion ? (
+    <CommandItem
+      value={state.modeSwitchSuggestion.value}
+      onSelect={() => actions.onSwitchSearchMode(state.modeSwitchSuggestion!.targetMode)}
+      className="mx-2"
+    >
+      <span>{state.modeSwitchSuggestion.label}</span>
+      <span className="ml-auto hidden text-xs text-muted-foreground md:inline">
+        {state.modeSwitchSuggestion.evidenceLabel}
+      </span>
+    </CommandItem>
+  ) : null
+
   if (state.isSentenceMode) {
     if (state.isMweMode && data.sentenceSearchPreview && data.sentenceSearchPreview.mwe_cor_match) {
       // The backend normalizes mwe_pos_tag → UD ("VERB" for phrasal verbs and verbal
@@ -161,6 +178,12 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
               onCloseSearch={actions.onCloseSearch}
             />
           </CommandGroup>
+          {modeSwitchEntry ? (
+            <>
+              <CommandSeparator />
+              {modeSwitchEntry}
+            </>
+          ) : null}
           {data.matchedSavedSentences.length > 0 ? (
             <>
               <CommandSeparator />
@@ -182,6 +205,12 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
           isSentenceSearchPreviewLoading={data.isSentenceSearchPreviewLoading || !data.sentenceSearchPreview}
           onSaveSentence={actions.onAddSentenceFromSearch}
         />
+        {modeSwitchEntry ? (
+          <>
+            <CommandSeparator />
+            {modeSwitchEntry}
+          </>
+        ) : null}
         {data.matchedSavedSentences.length > 0 ? (
           <>
             <CommandSeparator />
@@ -230,6 +259,7 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
   // Suppress DYM when COR has a direct match, EN has results, or EN is loading — the query is valid in some language.
   const dymSuggestion = (hasDirectCor || hasEnResults || isAnyEnLoading) ? null : (state.wordbankDidYouMean ?? state.corDidYouMean)
   const hasDirectResults = hasDirectWordbank || hasDirectCor
+  const hasModeSwitchSuggestion = Boolean(state.modeSwitchSuggestion)
 
   const hasCorrectedWordbank = Boolean(state.wordbankDidYouMean)
     && data.orderedWordbankResults.length > 0
@@ -298,10 +328,20 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
         </>
       ) : null}
 
+      {modeSwitchEntry ? (
+        <>
+          {hasDirectResults ? <CommandSeparator /> : null}
+          {modeSwitchEntry}
+          {(dymSuggestion || hasCorrectedResults || hasTranslatedEnSection || state.hasPageResults || data.matchedSavedSentences.length > 0)
+            ? <CommandSeparator />
+            : null}
+        </>
+      ) : null}
+
       {/* DYM banner — between direct and corrected */}
       {dymSuggestion ? (
         <>
-          {hasDirectResults ? <CommandSeparator /> : null}
+          {hasDirectResults && !hasModeSwitchSuggestion ? <CommandSeparator /> : null}
           <CommandItem
             value="did-you-mean-suggestion"
             onSelect={() => actions.onSetSearchQuery(dymSuggestion)}

@@ -15,6 +15,7 @@ Sidebar chrome for global navigation and command search. Keep files here focused
 | `sidebar-*-results.tsx`, `sidebar-sentence-result.tsx` | Result presenters for each search source. |
 | `sidebar-page-items.ts` | Searchable app page definitions and navigation actions. |
 | `sidebar-search-query.ts` | Shared query normalization and mode detection. |
+| `use-sidebar-mode-suggestion.ts` | Non-blocking opposite-language probe for the search mode switch suggestion. |
 | `use-sidebar-*.ts` | Sidebar-only hooks for hotkeys, search orchestration, ranking, selection, and search-dialog history. |
 
 ## Rules

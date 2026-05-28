@@ -6,7 +6,7 @@ function openSearch() {
 }
 
 function typeInSearch(dialog: HTMLElement, text: string) {
-  const input = within(dialog).getByPlaceholderText(/search words/i)
+  const input = within(dialog).getByRole("textbox", { name: /command search/i })
   fireEvent.change(input, { target: { value: text } })
 }
 
@@ -80,6 +80,69 @@ describe("Sentence verification in search", () => {
     }, { timeout: 5000 })
 
     fireEvent.click(within(dialog).getByRole("radio", { name: /^Danish$/i }))
+  })
+
+  it("suggests switching mode for sentences when neutral preview detects the other language", async () => {
+    const previewBodies: Array<{ source_text?: string; fast?: boolean; language_mode?: "da" | "en" | null }> = []
+    mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      sentenceSearchPreviewHandler: async (_input, init) => {
+        const body = JSON.parse(String(init?.body ?? "{}")) as { source_text?: string; fast?: boolean; language_mode?: "da" | "en" | null }
+        previewBodies.push(body)
+        return responseOf({
+          status: body.fast ? "preview" : "ready",
+          query_language: body.language_mode === null ? "en" : "da",
+          source_text: "jeg er glad",
+          english_translation: "I am happy",
+          is_valid: true,
+          errors: [],
+          message: null,
+        })
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    const dialog = await openSearch()
+    typeInSearch(dialog, "I am happy")
+
+    expect(await within(dialog).findByText("Search in English instead?")).toBeInTheDocument()
+    await waitFor(() => {
+      expect(previewBodies.some((body) => body.fast === true && body.language_mode === null)).toBe(true)
+    })
+  })
+
+  it("does not suggest English for obvious Danish sentences misdetected by neutral preview", async () => {
+    const previewBodies: Array<{ fast?: boolean; language_mode?: "da" | "en" | null }> = []
+    mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      sentenceSearchPreviewHandler: async (_input, init) => {
+        const body = JSON.parse(String(init?.body ?? "{}")) as { fast?: boolean; language_mode?: "da" | "en" | null }
+        previewBodies.push(body)
+        return responseOf({
+          status: body.fast ? "preview" : "ready",
+          query_language: body.language_mode === null ? "en" : "da",
+          source_text: "hunden sover",
+          english_translation: "the dog sleeps",
+          is_valid: true,
+          errors: [],
+          message: null,
+        })
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    const dialog = await openSearch()
+    typeInSearch(dialog, "hunden sover")
+
+    expect(await within(dialog).findByText(/^hunden sover$/i)).toBeInTheDocument()
+    await waitFor(() => {
+      expect(previewBodies.some((body) => body.fast === true && body.language_mode === null)).toBe(true)
+      expect(within(dialog).queryByText("Search in English instead?")).not.toBeInTheDocument()
+    })
   })
 
   it("keeps the sentence loading row visible during debounce instead of flashing no results", async () => {
@@ -552,7 +615,7 @@ it("underlines the typo in the input and shows only the correction plus correcte
     await screen.findByLabelText("backend-connection-status")
 
     const dialog = await openSearch()
-    const input = within(dialog).getByPlaceholderText(/search words/i)
+    const input = within(dialog).getByRole("textbox", { name: /command search/i })
     fireEvent.change(input, { target: { value: "jeg er glad" } })
 
     await waitFor(() => {
@@ -626,7 +689,7 @@ it("underlines the typo in the input and shows only the correction plus correcte
     await screen.findByLabelText("backend-connection-status")
 
     const dialog = await openSearch()
-    const input = within(dialog).getByPlaceholderText(/search words/i)
+    const input = within(dialog).getByRole("textbox", { name: /command search/i })
     fireEvent.change(input, { target: { value: "jeg er glad" } })
 
     await waitFor(() => {
@@ -772,7 +835,10 @@ it("underlines the typo in the input and shows only the correction plus correcte
     typeInSearch(dialog, "I am happy")
 
     expect(await within(dialog).findByText("Could not translate this English sentence to Danish.")).toBeInTheDocument()
-    const option = await within(dialog).findByRole("option")
+    const option = (await within(dialog).findAllByRole("option"))
+      .find((el) => el.getAttribute("data-value") === "sentence-translation-result")
+    expect(option).toBeDefined()
+    if (!option) return
     expect(option).toHaveAttribute("aria-disabled", "true")
     expect(within(option).getByText("Could not translate this English sentence to Danish.")).toBeInTheDocument()
   })

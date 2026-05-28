@@ -68,7 +68,9 @@ export function AppSidebar({
     normalizedQuery,
     isTrialLimitReached,
     isSentenceMode,
+    isNumberMode,
     isMweMode,
+    modeSwitchSuggestion,
     sentenceSearchPreview,
     isSentenceSearchPreviewLoading,
     searchApiMatches,
@@ -182,12 +184,13 @@ export function AppSidebar({
   const hasEnResults = hasTranslatedEnResults || hasFallbackEnResults
   const hasMatchedSentences = matchedSavedSentences.length > 0
   const hasAnyResults = isSentenceMode
-    ? (Boolean(sentenceSearchPreview) || hasMatchedSentences)
+    ? (Boolean(sentenceSearchPreview) || hasMatchedSentences || Boolean(modeSwitchSuggestion))
     : (
         hasWordbankSectionResults
         || hasEnResults
         || hasPageResults
         || hasMatchedSentences
+        || Boolean(modeSwitchSuggestion)
         || isWordbankSearchLoading
         || isCorLookupLoading
         || isEnResolveLoading
@@ -206,6 +209,7 @@ export function AppSidebar({
     orderedWordbankResults,
     sentenceSearchPreview,
     setCommandSelectionOverride,
+    modeSwitchSuggestion,
     wordbankDidYouMean,
   })
 
@@ -226,7 +230,9 @@ export function AppSidebar({
   const searchResultState: SidebarSearchResultsState = {
     normalizedQuery,
     isSentenceMode,
+    isNumberMode,
     isMweMode,
+    modeSwitchSuggestion,
     hasAnyResults,
     hasWordbankSectionResults,
     hasWordbankActions,
@@ -272,6 +278,10 @@ export function AppSidebar({
       saveSentenceFromSearch(sourceText, sentenceSearchPreview?.english_translation ?? null)
     },
     onSetSearchQuery: (query: string) => { setSearchQuery(query) },
+    onSwitchSearchMode: (mode) => {
+      setSearchLanguageMode(mode)
+      setCommandSelectionOverride("")
+    },
     onOpenWordbankLemma,
     onOpenWordbankLemmaRaw,
     onOpenWordbankMeaning,

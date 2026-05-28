@@ -13,6 +13,7 @@ import { searchAttemptKey } from "@/app/chrome/sidebar/sidebar-search-types"
 import type { SearchLanguageMode, UseSidebarSearchParams } from "@/app/chrome/sidebar/sidebar-search-types"
 import { useSidebarCorSearch } from "@/app/chrome/sidebar/use-sidebar-cor-search"
 import { useSidebarEnSearch } from "@/app/chrome/sidebar/use-sidebar-en-search"
+import { useSidebarModeSuggestion } from "@/app/chrome/sidebar/use-sidebar-mode-suggestion"
 import { useSidebarSentencePreview } from "@/app/chrome/sidebar/use-sidebar-sentence-preview"
 import { useSidebarWordbankSearch } from "@/app/chrome/sidebar/use-sidebar-wordbank-search"
 import { numberFromSearchQuery } from "@/app/sections/wordbank/numbers/numbers-data"
@@ -114,6 +115,15 @@ export function useSidebarSearch({
     onTrialLimitReached,
     enResolveGroups: activeEnResolveResult?.groups,
   })
+  const { modeSwitchSuggestion } = useSidebarModeSuggestion({
+    apiClient,
+    searchLanguageMode,
+    normalizedQuery,
+    sentenceQuery,
+    isSentenceMode,
+    isNumberMode,
+    resetVersion,
+  })
 
   const activeCorFormSearchResult = useMemo(() => {
     if (!corFormSearchResult || corFormSearchResult.query !== normalizedQuery) {
@@ -130,7 +140,9 @@ export function useSidebarSearch({
     normalizedQuery,
     isTrialLimitReached,
     isSentenceMode,
+    isNumberMode,
     isMweMode,
+    modeSwitchSuggestion,
     sentenceSearchPreview,
     isSentenceSearchPreviewLoading,
     searchApiMatches,

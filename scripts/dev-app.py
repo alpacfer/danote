@@ -187,6 +187,14 @@ def _add_search_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentP
     )
     _set_handler(profile, ["search", "profile"], handle_search_profile)
 
+    mode_check = child.add_parser(
+        "mode-check",
+        help="Check whether sidebar search should suggest switching Danish/English mode.",
+    )
+    mode_check.add_argument("query")
+    mode_check.add_argument("--mode", choices=("da", "en"), default="da", help="Current search language mode.")
+    _set_handler(mode_check, ["search", "mode-check"], handle_search_mode_check)
+
     all_results = child.add_parser(
         "all",
         help="List every search result for a query plus typo suggestions.",
@@ -365,7 +373,8 @@ def _add_sentencebank_parser(subparsers: argparse._SubParsersAction[argparse.Arg
     preview = child.add_parser("preview", help="Preview sentence search/save.")
     preview.add_argument("text")
     preview.add_argument("--fast", action="store_true")
-    _set_handler(preview, ["sentencebank", "preview"], lambda args, client: run_single(client, RequestSpec("POST", "/api/sentencebank/search-preview", body={"source_text": args.text, "fast": args.fast})))
+    preview.add_argument("--language-mode", choices=("da", "en", "auto"), default="auto")
+    _set_handler(preview, ["sentencebank", "preview"], handle_sentencebank_preview)
 
     add = child.add_parser("add", help="Add a sentence.")
     add.add_argument("text")
@@ -454,6 +463,10 @@ def handle_search_profile(args: argparse.Namespace, client: ApiClient) -> dict[s
         "runs": results,
         "summary": summarize_profile_runs(results),
     }
+
+
+def handle_search_mode_check(args: argparse.Namespace, client: ApiClient) -> dict[str, Any]:
+    return run_search_mode_check(client, query=args.query, mode=args.mode)
 
 
 def handle_search_all(args: argparse.Namespace, client: ApiClient) -> dict[str, Any]:
@@ -565,6 +578,133 @@ def handle_search_all(args: argparse.Namespace, client: ApiClient) -> dict[str, 
     }
 
 
+def run_search_mode_check(client: ApiClient, *, query: str, mode: str) -> dict[str, Any]:
+    normalized = normalize_search_word(query)
+    target_mode = "en" if mode == "da" else "da"
+    decision = search_flow_decision(normalized, language_mode=mode)
+    phases: list[dict[str, Any]] = []
+    evidence: dict[str, Any] = {
+        "opposite_saved_rows": 0,
+        "opposite_en_groups": 0,
+        "opposite_cor_variants": 0,
+        "opposite_cor_exact_form": False,
+        "sentence_query_language": None,
+    }
+
+    if not normalized:
+        return _mode_check_response(query, normalized, mode, target_mode, "skipped", False, "empty_query", evidence, phases)
+    if decision["number_mode"]:
+        return _mode_check_response(query, normalized, mode, target_mode, "number", False, "number_mode", evidence, phases)
+    if decision["sentence_mode"]:
+        result = run_profile_request(
+            client,
+            RequestSpec(
+                "POST",
+                "/api/sentencebank/search-preview",
+                body={"source_text": query, "fast": True, "language_mode": None},
+            ),
+        )
+        record_profile_phase(phases, "sentence_preview_auto_fast", result)
+        payload = result.get("response") or {}
+        query_language = payload.get("query_language")
+        effective_language = "da" if query_language == "en" and has_danish_sentence_hint(query) else query_language
+        evidence["sentence_query_language"] = query_language
+        evidence["danish_sentence_hint"] = has_danish_sentence_hint(query)
+        evidence["effective_sentence_language"] = effective_language
+        should_prompt = result.get("ok") is True and effective_language == target_mode
+        reason = f"{target_mode}_sentence_detected" if should_prompt else "sentence_language_not_opposite"
+        return _mode_check_response(query, normalized, mode, target_mode, "sentence", should_prompt, reason, evidence, phases)
+    if len(normalized) < 2:
+        return _mode_check_response(query, normalized, mode, target_mode, "skipped", False, "too_short", evidence, phases)
+    if decision["short_letter_word"]:
+        return _mode_check_response(query, normalized, mode, target_mode, "skipped", False, "short_letter_word", evidence, phases)
+
+    if target_mode == "en":
+        results = run_profile_requests(
+            client,
+            {
+                "opposite_wordbank": RequestSpec(
+                    "GET",
+                    "/api/wordbank/search",
+                    {"query": normalized, "limit": 1, "language": "en"},
+                ),
+                "opposite_en_form": RequestSpec(
+                    "GET",
+                    "/api/wordbank/search/en-form",
+                    {"form": normalized, "include_translations": False},
+                ),
+            },
+        )
+        for name in ("opposite_wordbank", "opposite_en_form"):
+            record_profile_phase(phases, name, results[name])
+        wordbank = results["opposite_wordbank"].get("response") or {}
+        en_form = results["opposite_en_form"].get("response") or {}
+        evidence["opposite_saved_rows"] = count_credible_saved_matches(wordbank.get("items") or [], normalized)
+        evidence["opposite_en_groups"] = len(en_form.get("groups") or [])
+        if evidence["opposite_saved_rows"]:
+            reason = "opposite_saved_match"
+        elif evidence["opposite_en_groups"]:
+            reason = "opposite_en_dictionary_match"
+        else:
+            reason = "no_opposite_match"
+    else:
+        results = run_profile_requests(
+            client,
+            {
+                "opposite_wordbank": RequestSpec(
+                    "GET",
+                    "/api/wordbank/search",
+                    {"query": normalized, "limit": 1, "language": "da"},
+                ),
+                "opposite_cor_partial": RequestSpec(
+                    "GET",
+                    "/api/wordbank/search/cor-form",
+                    {"form": normalized, "limit": 20, "include_translations": False},
+                ),
+            },
+        )
+        for name in ("opposite_wordbank", "opposite_cor_partial"):
+            record_profile_phase(phases, name, results[name])
+        wordbank = results["opposite_wordbank"].get("response") or {}
+        cor_form = results["opposite_cor_partial"].get("response") or {}
+        evidence["opposite_saved_rows"] = count_credible_saved_matches(wordbank.get("items") or [], normalized)
+        evidence["opposite_cor_variants"] = count_cor_variants(cor_form)
+        evidence["opposite_cor_exact_form"] = has_exact_cor_form_match(cor_form, normalized)
+        if evidence["opposite_saved_rows"]:
+            reason = "opposite_saved_match"
+        elif evidence["opposite_cor_exact_form"]:
+            reason = "opposite_cor_exact_form"
+        else:
+            reason = "no_opposite_match"
+
+    should_prompt = reason != "no_opposite_match"
+    return _mode_check_response(query, normalized, mode, target_mode, "word", should_prompt, reason, evidence, phases)
+
+
+def _mode_check_response(
+    query: str,
+    normalized: str,
+    current_mode: str,
+    target_mode: str,
+    query_kind: str,
+    should_prompt: bool,
+    reason: str,
+    evidence: dict[str, Any],
+    phases: list[dict[str, Any]],
+) -> dict[str, Any]:
+    return {
+        "query": query,
+        "normalized_query": normalized,
+        "current_mode": current_mode,
+        "target_mode": target_mode,
+        "query_kind": query_kind,
+        "should_prompt": should_prompt,
+        "reason": reason,
+        "evidence": evidence,
+        "phases": phases,
+    }
+
+
 def handle_search_sidebar(args: argparse.Namespace, client: ApiClient) -> dict[str, Any]:
     """Simulate the sidebar: Words section + "Translated From English" rows.
 
@@ -577,6 +717,7 @@ def handle_search_sidebar(args: argparse.Namespace, client: ApiClient) -> dict[s
     """
     query = args.query
     normalized = _normalize_for_match(query)
+    mode_switch_suggestion = run_search_mode_check(client, query=query, mode=args.mode)
     executed_phases = ["wordbank"]
 
     wordbank = client.request(
@@ -765,6 +906,7 @@ def handle_search_sidebar(args: argparse.Namespace, client: ApiClient) -> dict[s
             "direct_cor_rows": len(rendered_direct_cor),
             "duplicates": len(duplicates),
         },
+        "mode_switch_suggestion": mode_switch_suggestion,
         "visibility_warning": visibility_warning,
         "duplicate_warnings": duplicates,
         "words_section": words_section,
@@ -1068,6 +1210,28 @@ def count_cor_variants(payload: dict[str, Any]) -> int:
     return sum(len(group.get("variants") or []) for group in payload.get("groups") or [])
 
 
+def count_credible_saved_matches(items: list[dict[str, Any]], normalized_query: str) -> int:
+    count = 0
+    for item in items:
+        if item.get("matched_via"):
+            count += 1
+            continue
+        if _normalize_for_match(item.get("lemma") or "") == normalized_query:
+            count += 1
+            continue
+        if _normalize_for_match(item.get("match_surface") or "") == normalized_query:
+            count += 1
+    return count
+
+
+def has_exact_cor_form_match(payload: dict[str, Any], normalized_query: str) -> bool:
+    for group in payload.get("groups") or []:
+        for variant in group.get("variants") or []:
+            if _normalize_for_match(variant.get("form") or "") == normalized_query:
+                return True
+    return False
+
+
 def should_skip_direct_cor_full(
     partial_payload: dict[str, Any],
     normalized_query: str,
@@ -1155,6 +1319,39 @@ def normalize_search_word(value: str) -> str:
 
 def has_multiple_words(value: str) -> bool:
     return len([part for part in value.split() if part]) >= 2
+
+
+def has_danish_sentence_hint(value: str) -> bool:
+    normalized = value.lower()
+    if re.search(r"[æøå]", normalized):
+        return True
+    tokens = re.findall(r"[^\W\d_]+", normalized, flags=re.UNICODE)
+    danish_markers = {
+        "jeg",
+        "du",
+        "han",
+        "hun",
+        "vi",
+        "de",
+        "det",
+        "den",
+        "er",
+        "ikke",
+        "på",
+        "og",
+        "at",
+        "som",
+        "har",
+        "vil",
+        "skal",
+        "kan",
+    }
+    if any(token in danish_markers for token in tokens):
+        return True
+    return len(tokens) >= 2 and any(
+        len(token) >= 5 and token.endswith(("en", "et", "ene", "erne"))
+        for token in tokens
+    )
 
 
 def is_number_query(value: str) -> bool:
@@ -1397,6 +1594,18 @@ def handle_wordbank_add(args: argparse.Namespace, client: ApiClient) -> Any:
     if args.search_seed_json:
         body["search_seed"] = parse_json_arg(args.search_seed_json, "--search-seed-json")
     return run_single(client, RequestSpec("POST", "/api/wordbank/lexemes", body=body))
+
+
+def handle_sentencebank_preview(args: argparse.Namespace, client: ApiClient) -> Any:
+    language_mode = None if args.language_mode == "auto" else args.language_mode
+    return run_single(
+        client,
+        RequestSpec(
+            "POST",
+            "/api/sentencebank/search-preview",
+            body={"source_text": args.text, "fast": args.fast, "language_mode": language_mode},
+        ),
+    )
 
 
 def handle_wordbank_save_sense(args: argparse.Namespace, client: ApiClient) -> Any:

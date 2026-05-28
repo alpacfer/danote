@@ -7,7 +7,7 @@ import type {
   SentenceSearchPreviewResponse,
   WordbankSearchItem,
 } from "@/app/core"
-import type { EnTranslatedCorResults } from "@/app/chrome/sidebar/sidebar-search-types"
+import type { EnTranslatedCorResults, SearchModeSwitchSuggestion } from "@/app/chrome/sidebar/sidebar-search-types"
 import type { SidebarPageItem } from "@/app/chrome/sidebar/sidebar-page-items"
 
 function orderedCorVariants(
@@ -55,6 +55,7 @@ export function useSidebarCommandSelection({
   orderedWordbankResults,
   sentenceSearchPreview,
   setCommandSelectionOverride,
+  modeSwitchSuggestion,
   wordbankDidYouMean,
 }: {
   activeEnTranslatedCorResults: EnTranslatedCorResults
@@ -68,6 +69,7 @@ export function useSidebarCommandSelection({
   orderedWordbankResults: WordbankSearchItem[]
   sentenceSearchPreview: SentenceSearchPreviewResponse | null
   setCommandSelectionOverride: (value: string) => void
+  modeSwitchSuggestion: SearchModeSwitchSuggestion | null
   wordbankDidYouMean: string | null
 }) {
   const orderedCorVariantsToRender = useMemo(() => {
@@ -79,10 +81,19 @@ export function useSidebarCommandSelection({
     const hasEnCommandResults = activeEnTranslatedCorResults.corSearchVariantsToRender.length > 0
       || activeEnTranslatedCorResults.fallbackEnPosGroups.length > 0
     if (isSentenceMode && sentenceSearchPreview) {
+      const sentenceValues: string[] = []
       if (sentenceSearchPreview.is_multi_word_expression && sentenceSearchPreview.mwe_cor_match) {
-        return [`cor-variant-${sentenceSearchPreview.mwe_cor_match.cor_id}`]
+        sentenceValues.push(`cor-variant-${sentenceSearchPreview.mwe_cor_match.cor_id}`)
+      } else {
+        sentenceValues.push("sentence-translation-result")
       }
-      return ["sentence-translation-result"]
+      if (modeSwitchSuggestion) {
+        sentenceValues.push(modeSwitchSuggestion.value)
+      }
+      return sentenceValues
+    }
+    if (isSentenceMode && modeSwitchSuggestion) {
+      return [modeSwitchSuggestion.value]
     }
     const numericPage = matchingPageItems.find((page) => page.key === "page-numbers")
     if (numericPage) {
@@ -97,6 +108,9 @@ export function useSidebarCommandSelection({
       for (const variant of orderedCorVariantsToRender) {
         values.push(corVariantSelectionValue(variant))
       }
+    }
+    if (modeSwitchSuggestion) {
+      values.push(modeSwitchSuggestion.value)
     }
     if (wordbankDidYouMean || corDidYouMean) {
       values.push("did-you-mean-suggestion")
@@ -131,6 +145,7 @@ export function useSidebarCommandSelection({
     corDidYouMean,
     isSentenceMode,
     matchingPageItems,
+    modeSwitchSuggestion,
     orderedCorVariantsToRender,
     orderedWordbankResults,
     sentenceSearchPreview,
@@ -164,7 +179,12 @@ export function useSidebarCommandSelection({
       return
     }
 
-    if (!commandSelectionOverride || !orderedCommandItemValues.includes(commandSelectionOverride)) {
+    const selectedModeSwitch = commandSelectionOverride.startsWith("switch-search-mode-")
+    if (
+      !commandSelectionOverride
+      || !orderedCommandItemValues.includes(commandSelectionOverride)
+      || (selectedModeSwitch && commandSelectionOverride !== nextValue)
+    ) {
       setCommandSelectionOverride(nextValue)
     }
   }, [commandSelectionOverride, isSearchOpen, isSentenceMode, orderedCommandItemValues, setCommandSelectionOverride])

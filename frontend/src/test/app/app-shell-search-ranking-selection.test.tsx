@@ -90,7 +90,7 @@ describe("App shell and search", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
-    const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
+    const searchInput = within(commandDialog).getByRole("textbox", { name: /command search/i })
     fireEvent.change(searchInput, { target: { value: "lærer" } })
 
     await waitFor(() => {
@@ -169,7 +169,7 @@ describe("App shell and search", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
-    const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
+    const searchInput = within(commandDialog).getByRole("textbox", { name: /command search/i })
     fireEvent.change(searchInput, { target: { value: "lærer" } })
 
     const options = await within(commandDialog).findAllByRole("option")
@@ -241,7 +241,7 @@ describe("App shell and search", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
-    const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
+    const searchInput = within(commandDialog).getByRole("textbox", { name: /command search/i })
 
     fireEvent.change(searchInput, { target: { value: "ulykk" } })
     await waitFor(() => {

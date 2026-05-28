@@ -26,7 +26,7 @@ describe("App shell and search", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
-    const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
+    const searchInput = within(commandDialog).getByRole("textbox", { name: /command search/i })
     fireEvent.change(searchInput, { target: { value: "kat" } })
 
     expect(await within(commandDialog).findByText(/^kat$/i, { selector: "strong" })).toBeInTheDocument()
@@ -73,7 +73,7 @@ describe("App shell and search", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
-    const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
+    const searchInput = within(commandDialog).getByRole("textbox", { name: /command search/i })
     fireEvent.change(searchInput, { target: { value: "mor" } })
 
     expect(await within(commandDialog).findByText(/^mother \(soil layer\)$/i)).toBeInTheDocument()
@@ -132,7 +132,7 @@ describe("App shell and search", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
-    const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
+    const searchInput = within(commandDialog).getByRole("textbox", { name: /command search/i })
     fireEvent.change(searchInput, { target: { value: "rejse" } })
 
     const option = (await within(commandDialog).findByTestId("search-open-icon")).closest("[cmdk-item]") as HTMLElement
@@ -183,7 +183,7 @@ describe("App shell and search", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
-    const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
+    const searchInput = within(commandDialog).getByRole("textbox", { name: /command search/i })
     fireEvent.change(searchInput, { target: { value: "mor" } })
 
     expect(await within(commandDialog).findByText(/^mother \(person\)$/i)).toBeInTheDocument()
@@ -255,7 +255,7 @@ describe("App shell and search", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
-    const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
+    const searchInput = within(commandDialog).getByRole("textbox", { name: /command search/i })
     fireEvent.change(searchInput, { target: { value: "tøj" } })
 
     expect(await within(commandDialog).findByText(/^garment$/i)).toBeInTheDocument()
@@ -295,7 +295,7 @@ describe("App shell and search", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
-    const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
+    const searchInput = within(commandDialog).getByRole("textbox", { name: /command search/i })
     fireEvent.change(searchInput, { target: { value: "mor" } })
 
     expect(await within(commandDialog).findByText(/^mother$/i)).toBeInTheDocument()
@@ -342,7 +342,7 @@ describe("App shell and search", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
-    const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
+    const searchInput = within(commandDialog).getByRole("textbox", { name: /command search/i })
     fireEvent.change(searchInput, { target: { value: "kattens" } })
 
     expect(await within(commandDialog).findByText(/^kattens$/i, { selector: "strong" })).toBeInTheDocument()
@@ -425,7 +425,7 @@ describe("App shell and search", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
-    const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
+    const searchInput = within(commandDialog).getByRole("textbox", { name: /command search/i })
     fireEvent.change(searchInput, { target: { value: "bil" } })
 
     await within(commandDialog).findAllByText(/^bil$/i, { selector: "strong" })
@@ -512,7 +512,7 @@ describe("App shell and search", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
-    const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
+    const searchInput = within(commandDialog).getByRole("textbox", { name: /command search/i })
     fireEvent.change(searchInput, { target: { value: "lærer" } })
 
     const selectedOption = await waitFor(() => {
@@ -673,7 +673,7 @@ describe("App shell and search", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
-    const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
+    const searchInput = within(commandDialog).getByRole("textbox", { name: /command search/i })
     fireEvent.change(searchInput, { target: { value: "lærer" } })
 
     expect((await within(commandDialog).findAllByText(/^lærer$/i)).length).toBeGreaterThan(0)
@@ -757,7 +757,7 @@ describe("App shell and search", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
-    const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
+    const searchInput = within(commandDialog).getByRole("textbox", { name: /command search/i })
     fireEvent.change(searchInput, { target: { value: "bogen" } })
 
     expect((await within(commandDialog).findAllByText(/^bogen$/i)).length).toBeGreaterThan(0)
@@ -835,7 +835,7 @@ describe("App shell and search", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
-    const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
+    const searchInput = within(commandDialog).getByRole("textbox", { name: /command search/i })
     fireEvent.change(searchInput, { target: { value: "mus" } })
 
     expect(await within(commandDialog).findByTestId("search-open-icon")).toBeInTheDocument()
@@ -901,7 +901,7 @@ describe("App shell and search", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
-    const searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
+    const searchInput = within(commandDialog).getByRole("textbox", { name: /command search/i })
     fireEvent.change(searchInput, { target: { value: "ved" } })
 
     expect(await within(commandDialog).findByTestId("search-open-icon")).toBeInTheDocument()

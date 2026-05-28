@@ -41,6 +41,31 @@ The language toggle gates lookup sources:
   `en-form` and translated COR batch. It does not call direct COR lookup for
   the raw English query.
 - Static page and number results remain available in both modes.
+- The sidebar also runs a non-blocking opposite-mode hint probe. This is not
+  part of the primary result waterfall: it has its own debounce/cache, fails
+  silently, and never drives loading skeletons, toasts, trial-limit banners, or
+  result suppression.
+
+## Wrong-mode suggestion
+
+- When the opposite language mode has credible evidence, the result list shows a
+  normal command row: `Search in English instead?` or `Search in Danish instead?`.
+  Selecting it by click or Enter switches the language mode and keeps the typed
+  query in place.
+- The row still appears when the current mode has valid results. In that case it
+  renders after direct current-mode results; otherwise it becomes the first
+  actionable row. Typo `Did you mean?` rows remain separate and lower priority.
+- Single-word Danish-mode hint probes check English saved search plus
+  `/api/wordbank/search/en-form?include_translations=false`.
+- Single-word English-mode hint probes check Danish saved search plus lightweight
+  COR lookup with `include_translations=false`; only exact COR form evidence is
+  enough to suggest switching.
+- Sentence-mode hint probes call `POST /api/sentencebank/search-preview` with
+  `{ fast: true, language_mode: null }` and suggest switching only when the
+  returned `query_language` is the opposite mode. Obvious Danish sentence hints
+  (Danish letters, common Danish function words, or common definite suffixes)
+  override English misdetections from the neutral fast path.
+- Empty, number-only, and blocked-short word queries do not run mode hint probes.
 
 ## Sentence mode
 

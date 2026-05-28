@@ -1,4 +1,4 @@
-import { X, ChevronDown, Search } from "lucide-react"
+import { X, ChevronDown } from "lucide-react"
 import { useMemo, useState, useEffect, type KeyboardEventHandler } from "react"
 
 import {
@@ -59,8 +59,6 @@ export function SidebarSearchInput({
 
   const isTest =
     (typeof import.meta !== "undefined" && import.meta.env?.MODE === "test") ||
-    (typeof process !== "undefined" && process.env?.NODE_ENV === "test") ||
-    (typeof process !== "undefined" && process.env?.VITEST === "true") ||
     (typeof window !== "undefined" && "__VITEST__" in window)
 
   useEffect(() => {
@@ -71,40 +69,28 @@ export function SidebarSearchInput({
 
     const tick = () => {
       if (!isDeleting) {
-        // Typing phase
         if (displayText.length < currentPhrase.length) {
           setDisplayText(currentPhrase.substring(0, displayText.length + 1))
-          timer = setTimeout(tick, 90) // 90ms typing speed
+          timer = setTimeout(tick, 90)
         } else {
-          // Pause when fully typed
           timer = setTimeout(() => {
             setIsDeleting(true)
-          }, 4500) // 4.5s pause
+          }, 4500)
         }
+      } else if (displayText.length > 0) {
+        setDisplayText(currentPhrase.substring(0, displayText.length - 1))
+        timer = setTimeout(tick, 35)
       } else {
-        // Deleting phase
-        if (displayText.length > 0) {
-          setDisplayText(currentPhrase.substring(0, displayText.length - 1))
-          timer = setTimeout(tick, 35) // 35ms deleting speed
-        } else {
-          // Pause when fully deleted, then move to next
-          setIsDeleting(false)
-          setPhraseIndex((prev) => (prev + 1) % shuffledPhrases.length)
-          timer = setTimeout(() => {}, 500) // 500ms switch pause
-        }
+        setIsDeleting(false)
+        setPhraseIndex((prev) => (prev + 1) % shuffledPhrases.length)
+        timer = setTimeout(() => {}, 500)
       }
     }
 
-    // Set initial timer or active character timer
-    if (!isDeleting && displayText.length === 0) {
-      timer = setTimeout(tick, 500)
-    } else {
-      timer = setTimeout(tick, isDeleting ? 35 : 90)
-    }
+    timer = setTimeout(tick, isDeleting ? 35 : displayText.length === 0 ? 500 : 90)
 
     return () => clearTimeout(timer)
   }, [displayText, isDeleting, phraseIndex, shuffledPhrases, isTest])
-
 
   const rawErrors = useMemo(
     () => {
@@ -175,13 +161,8 @@ export function SidebarSearchInput({
 
   const responsiveLanguageButton = (
     <>
-      {/* Desktop version - hidden on mobile */}
       <div className="max-md:hidden flex items-center justify-center self-center shrink-0">
         {desktopLanguageButton}
-      </div>
-      {/* Mobile version - hidden on desktop, renders magnifying glass icon inside the input wrapper */}
-      <div className="hidden max-md:flex max-md:items-center max-md:justify-center max-md:self-center max-md:shrink-0 max-md:pl-1">
-        <Search className="size-4 opacity-50" />
       </div>
     </>
   )
@@ -189,7 +170,7 @@ export function SidebarSearchInput({
   return (
     <div
       data-slot="sidebar-search-input-row"
-      className="flex items-center max-md:w-full max-md:gap-3 max-md:px-4 max-md:py-3 max-md:pb-[calc(0.75rem+env(safe-area-inset-bottom))] max-md:bg-popover max-md:[&_[data-slot=command-input-wrapper]]:m-0 max-md:[&_[data-slot=command-input-wrapper]]:h-11 max-md:[&_[data-slot=command-input-wrapper]]:min-h-11 max-md:[&_[data-slot=command-input-wrapper]]:rounded-full max-md:[&_[data-slot=command-input-wrapper]]:bg-background max-md:[&_[data-slot=command-input-wrapper]]:border-border max-md:[&_[data-slot=command-input-wrapper]]:shadow-lg max-md:[&_[data-slot=command-input-wrapper]]:flex-1 max-md:[&_[data-slot=command-input-wrapper]]:pr-3 max-md:[&_[data-slot=command-input-wrapper]]:pl-3 max-md:[&_[data-slot=command-input-wrapper]_textarea]:py-2.5 max-md:[&_[data-slot=command-input-wrapper]_textarea]:text-base max-md:[&_[data-slot=command-input-overlay]]:py-2.5 max-md:[&_[data-slot=command-input-overlay]]:text-base"
+      className="flex items-center [&_[data-slot=command-input-wrapper]]:flex-1 max-md:w-full max-md:gap-3 max-md:px-4 max-md:py-3 max-md:pb-[calc(0.75rem+env(safe-area-inset-bottom))] max-md:bg-popover max-md:[&_[data-slot=command-input-wrapper]]:m-0 max-md:[&_[data-slot=command-input-wrapper]]:h-11 max-md:[&_[data-slot=command-input-wrapper]]:min-h-11 max-md:[&_[data-slot=command-input-wrapper]]:rounded-2xl max-md:[&_[data-slot=command-input-wrapper]]:bg-background max-md:[&_[data-slot=command-input-wrapper]]:border-border max-md:[&_[data-slot=command-input-wrapper]]:shadow-lg max-md:[&_[data-slot=command-input-wrapper]]:pr-3 max-md:[&_[data-slot=command-input-wrapper]]:pl-3 max-md:[&_[data-slot=command-input-wrapper]_textarea]:py-2.5 max-md:[&_[data-slot=command-input-wrapper]_textarea]:text-base max-md:[&_[data-slot=command-input-overlay]]:py-2.5 max-md:[&_[data-slot=command-input-overlay]]:text-base"
     >
       {/* Mobile Language Toggle Button (Visible only on mobile) */}
       <button
@@ -214,7 +195,7 @@ export function SidebarSearchInput({
       {/* Main Pill Search Input */}
       <div className="min-w-0 flex-1 md:contents">
         <CommandInput
-          placeholder={isTest ? "Search words..." : displayText}
+          placeholder={isTest ? phrases[0] : displayText}
           value={value}
           onValueChange={onValueChange}
           onKeyDown={onKeyDown as KeyboardEventHandler<HTMLInputElement>}

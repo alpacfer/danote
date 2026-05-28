@@ -195,6 +195,95 @@ class DevAppHelpersTest(unittest.TestCase):
         self.assertEqual(run["counts"]["translated_cor_variants"], 1)
         self.assertNotIn("cor_full", {phase["name"] for phase in run["phases"]})
 
+    def test_search_mode_check_prompts_for_opposite_english_word(self) -> None:
+        client = FakeProfileClient(
+            {
+                ("GET", "/api/wordbank/search", "language=en&query=book"): {"items": []},
+                ("GET", "/api/wordbank/search/en-form", "form=book&include_translations=False"): {
+                    "form": "book",
+                    "groups": [{"lemma": "book", "pos_ud": "NOUN", "danish_translation": "bog"}],
+                },
+            }
+        )
+
+        result = dev_app.run_search_mode_check(client, query="book", mode="da")
+
+        self.assertTrue(result["should_prompt"])
+        self.assertEqual(result["target_mode"], "en")
+        self.assertEqual(result["query_kind"], "word")
+        self.assertEqual(result["reason"], "opposite_en_dictionary_match")
+        self.assertEqual({phase["name"] for phase in result["phases"]}, {"opposite_wordbank", "opposite_en_form"})
+
+    def test_search_mode_check_prompts_for_opposite_danish_exact_cor(self) -> None:
+        client = FakeProfileClient(
+            {
+                ("GET", "/api/wordbank/search", "language=da&query=bog"): {"items": []},
+                ("GET", "/api/wordbank/search/cor-form", "form=bog&include_translations=False"): {
+                    "form": "bog",
+                    "groups": [{"variants": [{"form": "bog", "cor_id": "COR.BOG"}]}],
+                },
+            }
+        )
+
+        result = dev_app.run_search_mode_check(client, query="bog", mode="en")
+
+        self.assertTrue(result["should_prompt"])
+        self.assertEqual(result["target_mode"], "da")
+        self.assertEqual(result["reason"], "opposite_cor_exact_form")
+        self.assertTrue(result["evidence"]["opposite_cor_exact_form"])
+
+    def test_search_mode_check_uses_neutral_fast_sentence_preview(self) -> None:
+        client = FakeProfileClient(
+            {
+                ("POST", "/api/sentencebank/search-preview", ""): {
+                    "status": "preview",
+                    "query_language": "en",
+                    "source_text": "jeg er glad",
+                    "english_translation": "I am happy",
+                    "is_valid": True,
+                    "errors": [],
+                    "message": None,
+                },
+            }
+        )
+
+        result = dev_app.run_search_mode_check(client, query="I am happy", mode="da")
+
+        self.assertTrue(result["should_prompt"])
+        self.assertEqual(result["query_kind"], "sentence")
+        self.assertEqual(result["reason"], "en_sentence_detected")
+        request = result["phases"][0]["request"]
+        self.assertEqual(request["body"], {"source_text": "I am happy", "fast": True, "language_mode": None})
+
+    def test_search_mode_check_overrides_ascii_danish_sentence_misdetection(self) -> None:
+        client = FakeProfileClient(
+            {
+                ("POST", "/api/sentencebank/search-preview", ""): {
+                    "status": "preview",
+                    "query_language": "en",
+                    "source_text": "hunden sover",
+                    "english_translation": "the dog sleeps",
+                    "is_valid": True,
+                    "errors": [],
+                    "message": None,
+                },
+            }
+        )
+
+        danish_mode = dev_app.run_search_mode_check(client, query="hunden sover", mode="da")
+        english_mode = dev_app.run_search_mode_check(client, query="hunden sover", mode="en")
+
+        self.assertFalse(danish_mode["should_prompt"])
+        self.assertTrue(english_mode["should_prompt"])
+        self.assertEqual(english_mode["evidence"]["effective_sentence_language"], "da")
+
+    def test_search_mode_check_skips_empty_number_and_short_queries(self) -> None:
+        client = FakeProfileClient({})
+
+        self.assertEqual(dev_app.run_search_mode_check(client, query="", mode="da")["reason"], "empty_query")
+        self.assertEqual(dev_app.run_search_mode_check(client, query="21", mode="da")["query_kind"], "number")
+        self.assertEqual(dev_app.run_search_mode_check(client, query="a", mode="da")["reason"], "too_short")
+
     def test_search_and_wordcard_display_helpers_match_parenthetical_gloss(self) -> None:
         group = {"gloss": "jordlag", "pos_tag": "NOUN"}
         variant = {

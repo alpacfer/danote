@@ -20,6 +20,37 @@ export function detectQueryLanguage(text: string): "da" | "en" | "unknown" {
   return "unknown"
 }
 
+export function hasDanishSentenceHint(text: string): boolean {
+  const normalized = text.toLocaleLowerCase("da-DK")
+  if (/[æøå]/u.test(normalized)) return true
+  const tokens = normalized.match(/\p{L}+/gu) ?? []
+  if (tokens.some((token) => (
+    [
+      "jeg",
+      "du",
+      "han",
+      "hun",
+      "vi",
+      "de",
+      "det",
+      "den",
+      "er",
+      "ikke",
+      "på",
+      "og",
+      "at",
+      "som",
+      "har",
+      "vil",
+      "skal",
+      "kan",
+    ].includes(token)
+  ))) {
+    return true
+  }
+  return tokens.length >= 2 && tokens.some((token) => token.length >= 5 && /(en|et|ene|erne)$/u.test(token))
+}
+
 function matchingCorGroupsForEnglishSource(
   payload: CORSearchFormResponse,
   sourceGroup: ENPosGroup,

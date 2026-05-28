@@ -326,7 +326,7 @@ describe("App system state", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     let commandDialog = await screen.findByRole("dialog")
-    let searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
+    let searchInput = within(commandDialog).getByRole("textbox", { name: /command search/i })
     await user.type(searchInput, "bil")
 
     expect(await within(commandDialog).findByText(/translation required before saving\./i)).toBeInTheDocument()
@@ -354,7 +354,7 @@ describe("App system state", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     commandDialog = await screen.findByRole("dialog")
-    searchInput = within(commandDialog).getByPlaceholderText(/search words/i)
+    searchInput = within(commandDialog).getByRole("textbox", { name: /command search/i })
     await user.clear(searchInput)
     await user.type(searchInput, "bil")
 

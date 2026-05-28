@@ -17,8 +17,11 @@ details --brief` includes the word-card display string, and `wordbank
 verify-saved-display` saves one discovered sense then fails if the search-dialog
 display differs from the saved word-card display. Search commands accept
 `--mode da|en` where the sidebar UI exposes the same Danish/English language
-mode split. Use DTC as an extra acceptance check after feature work that is
-reachable through the app API.
+mode split. `search mode-check <query> --mode da|en` reports whether the
+sidebar should show the wrong-mode switch row, and `sentencebank preview` accepts
+`--language-mode da|en|auto` for forced or neutral sentence routing. Use DTC as
+an extra acceptance check after feature work that is reachable through the app
+API.
 
 `dev-search-debug.py` is the older human-readable sidebar search tracer. Keep it
 for compatibility; prefer `dev-app.py search trace` when agent-readable JSON is

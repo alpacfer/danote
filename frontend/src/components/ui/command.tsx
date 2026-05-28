@@ -125,7 +125,7 @@ function CommandInput({
             <div
               aria-hidden="true"
               data-slot="command-input-overlay"
-              className="text-foreground pointer-events-none absolute inset-0 overflow-hidden py-2 max-md:py-3 text-sm whitespace-pre-wrap"
+              className="text-foreground pointer-events-none absolute inset-0 overflow-hidden py-2 text-sm leading-5 whitespace-pre-wrap max-md:py-2.5 max-md:leading-6"
             >
               {overlay}
             </div>
@@ -144,8 +144,8 @@ function CommandInput({
             autoComplete="off"
             spellCheck={false}
             autoCapitalize="none"
-              className={cn(
-              "placeholder:text-muted-foreground field-sizing-content block max-h-[40vh] w-full resize-none overflow-y-auto bg-transparent py-2 max-md:py-3 text-sm outline-hidden disabled:cursor-not-allowed disabled:opacity-50",
+            className={cn(
+              "placeholder:text-muted-foreground field-sizing-content block max-h-[40vh] w-full resize-none overflow-y-auto bg-transparent py-2 text-sm leading-5 outline-hidden disabled:cursor-not-allowed disabled:opacity-50 max-md:py-2.5 max-md:leading-6",
               suffix ? "pr-10" : "",
               concealValue ? "relative z-10 text-transparent caret-foreground" : "",
               className
@@ -189,7 +189,7 @@ function CommandInput({
           <div
             aria-hidden="true"
             data-slot="command-input-overlay"
-            className="text-foreground pointer-events-none absolute inset-0 flex items-center overflow-hidden py-3 text-sm whitespace-pre"
+            className="text-foreground pointer-events-none absolute inset-0 flex items-center overflow-hidden py-2 text-sm leading-5 whitespace-pre"
           >
             {overlay}
           </div>
@@ -197,7 +197,7 @@ function CommandInput({
         <CommandPrimitive.Input
           data-slot="command-input"
           className={cn(
-            "placeholder:text-muted-foreground flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-hidden disabled:cursor-not-allowed disabled:opacity-50",
+            "placeholder:text-muted-foreground flex h-9 w-full rounded-md bg-transparent py-2 text-sm leading-5 outline-hidden disabled:cursor-not-allowed disabled:opacity-50",
             suffix ? "pr-28" : "",
             concealValue ? "relative z-10 text-transparent caret-foreground" : "",
             className

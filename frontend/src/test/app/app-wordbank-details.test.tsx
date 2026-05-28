@@ -594,7 +594,7 @@ describe("App wordbank", () => {
     await screen.findByLabelText("backend-connection-status")
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
-    fireEvent.change(within(commandDialog).getByPlaceholderText(/search words/i), { target: { value: "mor" } })
+    fireEvent.change(within(commandDialog).getByRole("textbox", { name: /command search/i }), { target: { value: "mor" } })
     fireEvent.click(await within(commandDialog).findByText(/^mor$/i, { selector: "strong" }))
 
     await waitFor(

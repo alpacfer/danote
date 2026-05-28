@@ -43,6 +43,7 @@ scripts/dev-app.py wordbank save-sense <surface> --meaning-key <k> [--pos-tag PO
 scripts/dev-app.py wordbank expand-senses <lemma>     # backfill missing senses on an already-saved lemma
 scripts/dev-app.py wordbank delete-lemma <lemma>      # remove a saved lemma
 scripts/dev-app.py search profile <query> [--mode da|en]  # sidebar-style search waterfall timings
+scripts/dev-app.py search mode-check <query> [--mode da|en]  # wrong-mode switch suggestion decision
 scripts/dev-app.py search trace <english-query>  # JSON EN → DA → COR trace
 scripts/dev-app.py search sidebar <query> [--mode da|en]  # sidebar flow with executed/skipped phases
 scripts/dev-app.py search all <query> [--mode da|en]      # consolidated saved+COR+EN+resolver results with typo suggestions
