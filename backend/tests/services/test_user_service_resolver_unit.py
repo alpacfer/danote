@@ -181,3 +181,89 @@ def test_resolve_returns_fallback_on_repo_failure() -> None:
     result = resolver.resolve(user_id=1)
 
     assert result is fallback
+
+
+def test_resolve_caches_services_across_requests() -> None:
+    settings = _settings()
+    fallback = _host_services()
+    repo = _FakeRepo({7: {"gemini": "user-gemini-key"}})
+    resolver = UserServiceResolver(
+        settings=settings,
+        user_api_keys_repository=repo,
+        fallback_services=fallback,
+    )
+
+    # First resolve: should build new services and query repo
+    result1 = resolver.resolve(user_id=7)
+    assert len(repo.calls) == 1
+
+    # Second resolve: should return cached instance and NOT query repo
+    result2 = resolver.resolve(user_id=7)
+    assert result2 is result1
+    assert len(repo.calls) == 1
+
+
+def test_clear_cache_for_user_invalidates_and_closes(monkeypatch) -> None:
+    settings = _settings()
+    fallback = _host_services()
+    repo = _FakeRepo({7: {"gemini": "user-gemini-key"}})
+
+    # Create dummy closable service
+    class _ClosableFakeService:
+        def __init__(self, *args, **kwargs):
+            self.closed = False
+        def close(self):
+            self.closed = True
+
+    dummy_service = _ClosableFakeService()
+
+    # Monkeypatch builder to return our dummy closable service
+    from app.services import user_service_builders
+    monkeypatch.setattr(user_service_builders, "build_gemini_word_translation_service", lambda **kw: dummy_service)
+
+    resolver = UserServiceResolver(
+        settings=settings,
+        user_api_keys_repository=repo,
+        fallback_services=fallback,
+    )
+
+    result = resolver.resolve(user_id=7)
+    assert result.gemini_word_translation_service is dummy_service
+    assert not dummy_service.closed
+
+    # Clear cache for user: should close user service
+    resolver.clear_cache_for_user(7)
+    assert dummy_service.closed
+
+    # Next resolve should fetch from repo again
+    result3 = resolver.resolve(user_id=7)
+    assert len(repo.calls) == 2
+
+
+def test_close_resolver_closes_all_cached_services(monkeypatch) -> None:
+    settings = _settings()
+    fallback = _host_services()
+    repo = _FakeRepo({7: {"gemini": "user-gemini-key"}})
+
+    class _ClosableFakeService:
+        def __init__(self, *args, **kwargs):
+            self.closed = False
+        def close(self):
+            self.closed = True
+
+    dummy_service = _ClosableFakeService()
+
+    from app.services import user_service_builders
+    monkeypatch.setattr(user_service_builders, "build_gemini_word_translation_service", lambda **kw: dummy_service)
+
+    resolver = UserServiceResolver(
+        settings=settings,
+        user_api_keys_repository=repo,
+        fallback_services=fallback,
+    )
+
+    resolver.resolve(user_id=7)
+    assert not dummy_service.closed
+
+    resolver.close()
+    assert dummy_service.closed

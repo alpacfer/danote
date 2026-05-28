@@ -52,4 +52,5 @@ def build_account_use_case(request: Request) -> AccountUseCase:
         db_path=runtime.settings.db_path,
         api_keys_repository=runtime.user_api_keys_repository,
         trial_use_case=build_trial_use_case(request),
+        user_service_resolver=runtime.user_service_resolver,
     )

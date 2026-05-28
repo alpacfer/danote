@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, replace
+import threading
+from dataclasses import dataclass, field, replace
 
 from app.core.app_state import BackendServices
 from app.core.config import Settings
@@ -31,7 +32,19 @@ class UserServiceResolver:
     user_api_keys_repository: UserApiKeysRepository | None
     fallback_services: BackendServices
 
+    _cache: dict[int, BackendServices] = field(
+        default_factory=dict, init=False, compare=False, hash=False
+    )
+    _lock: threading.Lock = field(
+        default_factory=threading.Lock, init=False, compare=False, hash=False
+    )
+
     def resolve(self, user_id: int) -> BackendServices:
+        with self._lock:
+            cached = self._cache.get(user_id)
+            if cached is not None:
+                return cached
+
         repo = self.user_api_keys_repository
         if repo is None:
             return self.fallback_services
@@ -45,7 +58,51 @@ class UserServiceResolver:
         if not user_keys:
             return self.fallback_services
 
-        return self._build(user_keys)
+        built = self._build(user_keys)
+
+        with self._lock:
+            old = self._cache.get(user_id)
+            self._cache[user_id] = built
+
+        if old is not None:
+            self._close_user_services(old)
+
+        return built
+
+    def clear_cache_for_user(self, user_id: int) -> None:
+        with self._lock:
+            old = self._cache.pop(user_id, None)
+        if old is not None:
+            self._close_user_services(old)
+
+    def close(self) -> None:
+        with self._lock:
+            cached_entries = list(self._cache.values())
+            self._cache.clear()
+        for services in cached_entries:
+            self._close_user_services(services)
+
+    def _close_user_services(self, services: BackendServices) -> None:
+        for field_name in (
+            "translation_service",
+            "gemini_word_translation_service",
+            "gemini_related_words_service",
+            "en_gemini_translation_service",
+            "word_verification_service",
+            "sentence_verification_service",
+            "tts_service",
+        ):
+            user_service = getattr(services, field_name, None)
+            fallback_service = getattr(self.fallback_services, field_name, None)
+            if user_service is not None and user_service is not fallback_service:
+                close = getattr(user_service, "close", None)
+                if callable(close):
+                    try:
+                        close()
+                    except Exception:
+                        logger.exception(
+                            "failed_to_close_user_service", extra={"field": field_name}
+                        )
 
     def _build(self, user_keys: dict[str, str]) -> BackendServices:
         settings = self.settings

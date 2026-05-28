@@ -2,6 +2,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from app.services.user_service_resolver import UserServiceResolver
 
 from app.api.schemas.v1 import (
     AccountFreshStartResponse,
@@ -37,6 +41,7 @@ class AccountUseCase:
     db_path: Path
     api_keys_repository: UserApiKeysRepository | None
     trial_use_case: TrialUseCase
+    user_service_resolver: UserServiceResolver | None = None
 
     def _keys_repo(self) -> UserApiKeysRepository:
         if self.api_keys_repository is None:
@@ -113,6 +118,8 @@ class AccountUseCase:
             meta = self._keys_repo().upsert(user_id=user_id, provider=provider, plaintext=value)
         except UnknownProviderError as exc:
             raise UnsupportedApiKeyProviderError(str(exc)) from None
+        if self.user_service_resolver is not None:
+            self.user_service_resolver.clear_cache_for_user(user_id)
         return UpdateApiKeyResponse(provider=meta.provider, is_set=meta.is_set, last_four=meta.last_four)
 
     def delete_api_key(self, *, user_id: int, auth_provider: str, provider: str) -> UpdateApiKeyResponse:
@@ -120,6 +127,8 @@ class AccountUseCase:
             raise GuestApiKeysForbiddenError
         self.ensure_supported(provider)
         self._keys_repo().delete(user_id=user_id, provider=provider)
+        if self.user_service_resolver is not None:
+            self.user_service_resolver.clear_cache_for_user(user_id)
         return UpdateApiKeyResponse(provider=provider, is_set=False, last_four=None)
 
     def test_api_key(self, *, user_id: int, auth_provider: str, provider: str) -> TestApiKeyResponse:

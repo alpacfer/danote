@@ -101,6 +101,10 @@ def close_runtime_services(app: FastAPI) -> None:
     if callable(stop):
         stop()
 
+    resolver = runtime.user_service_resolver
+    if resolver is not None and hasattr(resolver, "close"):
+        resolver.close()
+
     services = get_services(app)
     for field_name in (
         "cor_lexicon_service",
