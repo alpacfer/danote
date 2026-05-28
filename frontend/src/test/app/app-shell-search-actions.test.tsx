@@ -20,7 +20,9 @@ async function findCommandOptionByValue(commandDialog: HTMLElement, value: strin
 }
 
 async function waitForSearchCloseCleanup() {
-  await new Promise((resolve) => window.setTimeout(resolve, 250))
+  await act(async () => {
+    await new Promise((resolve) => window.setTimeout(resolve, 250))
+  })
 }
 
 describe("App shell and search", () => {

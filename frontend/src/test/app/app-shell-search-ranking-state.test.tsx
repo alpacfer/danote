@@ -1,4 +1,4 @@
-import { fireEvent, mockFetchImplementation, renderApp, responseOf, screen, waitFor, within } from "@/test/app-test-helpers"
+import { act, fireEvent, mockFetchImplementation, renderApp, responseOf, screen, waitFor, within } from "@/test/app-test-helpers"
 import userEvent from "@testing-library/user-event"
 
 async function findCommandOptionByValue(commandDialog: HTMLElement, value: string) {
@@ -21,7 +21,9 @@ async function setSearchValue(user: ReturnType<typeof userEvent.setup>, input: H
 }
 
 async function waitForSearchCloseCleanup() {
-  await new Promise((resolve) => window.setTimeout(resolve, 250))
+  await act(async () => {
+    await new Promise((resolve) => window.setTimeout(resolve, 250))
+  })
 }
 
 describe("App shell and search", () => {
