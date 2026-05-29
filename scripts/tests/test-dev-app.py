@@ -212,7 +212,33 @@ class DevAppHelpersTest(unittest.TestCase):
         self.assertEqual(result["target_mode"], "en")
         self.assertEqual(result["query_kind"], "word")
         self.assertEqual(result["reason"], "opposite_en_dictionary_match")
-        self.assertEqual({phase["name"] for phase in result["phases"]}, {"opposite_wordbank", "opposite_en_form"})
+        self.assertEqual(
+            {phase["name"] for phase in result["phases"]},
+            {"opposite_wordbank", "opposite_en_form"},
+        )
+
+    def test_search_mode_check_does_not_prompt_for_exact_danish_cor_with_loose_saved_match(self) -> None:
+        client = FakeProfileClient(
+            {
+                ("GET", "/api/wordbank/search/cor-form", "form=lave&include_translations=False"): {
+                    "form": "lave",
+                    "groups": [{"variants": [{"form": "lave", "cor_id": "COR.LAVE"}]}],
+                },
+                ("GET", "/api/wordbank/search", "language=en&query=lave"): {
+                    "items": [{"lemma": "holde", "matched_via": "english_gloss"}],
+                },
+                ("GET", "/api/wordbank/search/en-form", "form=lave&include_translations=False"): {
+                    "form": "lave",
+                    "groups": [],
+                },
+            }
+        )
+
+        result = dev_app.run_search_mode_check(client, query="lave", mode="da")
+
+        self.assertFalse(result["should_prompt"])
+        self.assertEqual(result["reason"], "current_cor_exact_form")
+        self.assertTrue(result["evidence"]["current_cor_exact_form"])
 
     def test_search_mode_check_prompts_for_opposite_danish_exact_cor(self) -> None:
         client = FakeProfileClient(
@@ -231,6 +257,29 @@ class DevAppHelpersTest(unittest.TestCase):
         self.assertEqual(result["target_mode"], "da")
         self.assertEqual(result["reason"], "opposite_cor_exact_form")
         self.assertTrue(result["evidence"]["opposite_cor_exact_form"])
+
+    def test_find_cor_sense_variant_can_disambiguate_by_cor_id(self) -> None:
+        cor_form = {
+            "groups": [
+                {
+                    "pos_tag": "VERB",
+                    "variants": [
+                        {"meaning_key": "walk", "pos_tag": "VERB", "cor_id": "COR.30234.200.01"},
+                        {"meaning_key": "walk", "pos_tag": "VERB", "cor_id": "COR.30234.209.01"},
+                    ],
+                }
+            ]
+        }
+
+        _group, variant = dev_app._find_cor_sense_variant(
+            cor_form,
+            surface="gå",
+            meaning_key="walk",
+            pos_tag="VERB",
+            cor_id="COR.30234.209.01",
+        )
+
+        self.assertEqual(variant["cor_id"], "COR.30234.209.01")
 
     def test_search_mode_check_uses_neutral_fast_sentence_preview(self) -> None:
         client = FakeProfileClient(

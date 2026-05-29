@@ -14,10 +14,11 @@ from app.services.gemini_sense_discovery import (
     is_sense_discoverable_pos,
 )
 from app.services.token_classifier import normalize_token
-from app.services.use_cases.wordbank.collaborators.cor_actions import (
+from app.services.use_cases.wordbank.collaborators.saved_meaning_match import (
     SavedMeaningMatch,
-    _matching_saved_meaning_id,
     load_saved_meanings_for_lemmas,
+    matching_saved_meaning_id,
+    semantic_matching_saved_meaning_id,
 )
 from app.services.use_cases.wordbank.collaborators.translation import TranslationCollaborator
 
@@ -105,34 +106,25 @@ def attach_saved_meaning_ids(
 def collapse_duplicate_search_groups(response: CORSearchFormResponse) -> CORSearchFormResponse:
     """Collapse search rows that would render as the same saveable meaning.
 
-    COR can contain multiple lemma ids for the same surface/translation pair.
-    When no sense fan-out has provided a distinct English gloss or meaning key,
-    those rows are indistinguishable in search and should render once.
+    COR can contain multiple lemma ids or grammar rows for the same
+    surface/translation pair. Rows that share a displayable sense identity are
+    indistinguishable in search and should render once.
     """
     if len(response.groups) < 2:
         return response
 
-    collapsed: set[tuple[str, str, str, str, str]] = set()
+    collapsed: set[tuple[str, str, str, str, str, str, str]] = set()
     output: list[CORSearchGroup] = []
     for group in response.groups:
+        group = _collapse_duplicate_group_variants(group)
         if len(group.variants) != 1:
             output.append(group)
             continue
         variant = group.variants[0]
-        if variant.meaning_key or variant.english_gloss:
+        key = _collapse_key(group, variant)
+        if key is None:
             output.append(group)
             continue
-        translation = _search_translation_key(variant)
-        if not translation:
-            output.append(group)
-            continue
-        key = (
-            _normalize_search_key(variant.form),
-            translation,
-            (variant.pos_tag or group.pos_tag or "").upper(),
-            _normalize_search_key(variant.morphology or ""),
-            _normalize_search_key(variant.lemma),
-        )
         if key in collapsed:
             continue
         collapsed.add(key)
@@ -147,6 +139,59 @@ def collapse_duplicate_search_groups(response: CORSearchFormResponse) -> CORSear
 
 def _search_translation_key(variant: CORSearchVariant) -> str:
     return _normalize_search_key(variant.saveable_translation or variant.lemma_translation or "")
+
+
+def _collapse_duplicate_group_variants(group: CORSearchGroup) -> CORSearchGroup:
+    if len(group.variants) < 2:
+        return group
+    seen: set[tuple[str, str, str, str, str, str, str]] = set()
+    variants: list[CORSearchVariant] = []
+    for variant in group.variants:
+        key = _collapse_key(group, variant)
+        if key is not None:
+            if key in seen:
+                continue
+            seen.add(key)
+        variants.append(variant)
+    if len(variants) == len(group.variants):
+        return group
+    return CORSearchGroup(
+        lemma=group.lemma,
+        gloss=group.gloss,
+        pos_tag=group.pos_tag,
+        variants=variants,
+    )
+
+
+def _collapse_key(
+    group: CORSearchGroup,
+    variant: CORSearchVariant,
+) -> tuple[str, str, str, str, str, str, str] | None:
+    translation = _search_translation_key(variant)
+    meaning_key = _normalize_search_key(variant.meaning_key)
+    english_gloss = _normalize_search_key(variant.english_gloss)
+    gloss = _normalize_search_key(variant.gloss or group.gloss)
+    if not translation and not meaning_key and not english_gloss and not gloss:
+        return None
+    if meaning_key or english_gloss:
+        return (
+            _normalize_search_key(variant.form),
+            translation,
+            (variant.pos_tag or group.pos_tag or "").upper(),
+            _normalize_search_key(variant.lemma),
+            meaning_key,
+            english_gloss,
+            gloss,
+        )
+    return (
+        _normalize_search_key(variant.form),
+        translation,
+        (variant.pos_tag or group.pos_tag or "").upper(),
+        _normalize_search_key(variant.morphology or ""),
+        _normalize_search_key(variant.lemma),
+        "",
+        "",
+    )
 
 
 def _normalize_search_key(value: str | None) -> str:
@@ -260,30 +305,40 @@ def _attach_saved_to_variant(
         return variant
     saved_id: int | None = None
     if variant.meaning_key is not None:
-        saved_id = _matching_saved_meaning_id(
+        saved_id = matching_saved_meaning_id(
             by_key.get(variant.meaning_key) or [],
             pos_tag=variant.pos_tag,
             cor_lemma_idx=variant.lemma_idx,
         )
     if saved_id is None and len(by_key) == 1 and variant.meaning_key is None:
-        saved_id = _matching_saved_meaning_id(
+        saved_id = matching_saved_meaning_id(
             next(iter(by_key.values())),
             pos_tag=variant.pos_tag,
             cor_lemma_idx=variant.lemma_idx,
         )
     # Fallback: meaning_key conventions drift (English sense-fan-out keys vs.
-    # legacy keys derived from Danish gloss text). When the variant has a
-    # cor_lemma_idx, scan every saved meaning under this lemma and match by
-    # cor_lemma_idx alone — a stable per-sense identity.
+    # legacy keys derived from Danish gloss text). For sense-expanded rows,
+    # cor_lemma_idx is shared by all meanings of a lemma, so require a semantic
+    # field match before stamping a saved id.
     if saved_id is None and variant.lemma_idx is not None:
         all_candidates: list[SavedMeaningMatch] = []
         for candidates in by_key.values():
             all_candidates.extend(candidates)
-        saved_id = _matching_saved_meaning_id(
-            all_candidates,
-            pos_tag=variant.pos_tag,
-            cor_lemma_idx=variant.lemma_idx,
-        )
+        if variant.meaning_key is None:
+            saved_id = matching_saved_meaning_id(
+                all_candidates,
+                pos_tag=variant.pos_tag,
+                cor_lemma_idx=variant.lemma_idx,
+            )
+        else:
+            saved_id = semantic_matching_saved_meaning_id(
+                all_candidates,
+                pos_tag=variant.pos_tag,
+                cor_lemma_idx=variant.lemma_idx,
+                meaning_key=variant.meaning_key,
+                gloss=variant.gloss,
+                english_translation=variant.saveable_translation or variant.lemma_translation,
+            )
     if saved_id is None:
         return variant
     return variant.model_copy(update={"saved_meaning_id": saved_id})

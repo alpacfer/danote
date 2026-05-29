@@ -275,6 +275,7 @@ def _add_wordbank_parser(subparsers: argparse._SubParsersAction[argparse.Argumen
     save_sense.add_argument("--meaning-key", required=True, help="meaning_key of the sense to save (from sense-discovery output).")
     save_sense.add_argument("--lemma", help="Override the discovered lemma; defaults to the variant's COR lemma.")
     save_sense.add_argument("--pos-tag", help="Restrict matching to variants of this POS (NOUN/VERB/ADJ/ADV).")
+    save_sense.add_argument("--cor-id", help="Restrict matching to a specific COR id when POS and meaning_key are not unique.")
     _set_handler(save_sense, ["wordbank", "save-sense"], handle_wordbank_save_sense)
 
     verify_saved_display = child.add_parser(
@@ -285,6 +286,7 @@ def _add_wordbank_parser(subparsers: argparse._SubParsersAction[argparse.Argumen
     verify_saved_display.add_argument("--meaning-key", required=True, help="meaning_key of the sense to save.")
     verify_saved_display.add_argument("--lemma", help="Override the discovered lemma; defaults to the variant's COR lemma.")
     verify_saved_display.add_argument("--pos-tag", help="Restrict matching to variants of this POS (NOUN/VERB/ADJ/ADV).")
+    verify_saved_display.add_argument("--cor-id", help="Restrict matching to a specific COR id when POS and meaning_key are not unique.")
     _set_handler(verify_saved_display, ["wordbank", "verify-saved-display"], handle_wordbank_verify_saved_display)
 
     expand = child.add_parser(
@@ -588,6 +590,7 @@ def run_search_mode_check(client: ApiClient, *, query: str, mode: str) -> dict[s
         "opposite_en_groups": 0,
         "opposite_cor_variants": 0,
         "opposite_cor_exact_form": False,
+        "current_cor_exact_form": False,
         "sentence_query_language": None,
     }
 
@@ -641,7 +644,21 @@ def run_search_mode_check(client: ApiClient, *, query: str, mode: str) -> dict[s
         en_form = results["opposite_en_form"].get("response") or {}
         evidence["opposite_saved_rows"] = count_credible_saved_matches(wordbank.get("items") or [], normalized)
         evidence["opposite_en_groups"] = len(en_form.get("groups") or [])
-        if evidence["opposite_saved_rows"]:
+        if evidence["opposite_saved_rows"] and not evidence["opposite_en_groups"]:
+            current_result = run_profile_request(
+                client,
+                RequestSpec(
+                    "GET",
+                    "/api/wordbank/search/cor-form",
+                    {"form": normalized, "limit": 20, "include_translations": False},
+                ),
+            )
+            record_profile_phase(phases, "current_cor_partial", current_result)
+            current_cor = current_result.get("response") or {}
+            evidence["current_cor_exact_form"] = has_exact_cor_form_match(current_cor, normalized)
+        if evidence["current_cor_exact_form"] and not evidence["opposite_en_groups"]:
+            reason = "current_cor_exact_form"
+        elif evidence["opposite_saved_rows"]:
             reason = "opposite_saved_match"
         elif evidence["opposite_en_groups"]:
             reason = "opposite_en_dictionary_match"
@@ -677,7 +694,7 @@ def run_search_mode_check(client: ApiClient, *, query: str, mode: str) -> dict[s
         else:
             reason = "no_opposite_match"
 
-    should_prompt = reason != "no_opposite_match"
+    should_prompt = reason not in {"no_opposite_match", "current_cor_exact_form"}
     return _mode_check_response(query, normalized, mode, target_mode, "word", should_prompt, reason, evidence, phases)
 
 
@@ -819,7 +836,7 @@ def handle_search_sidebar(args: argparse.Namespace, client: ApiClient) -> dict[s
     en_section_raw: list[dict[str, Any]] = []
     en_section: list[dict[str, Any]] = []
     seen_variant_keys: set[tuple[str, str]] = set()
-    for source_group, response in zip(en_groups, batch_responses):
+    for source_group, response in zip(en_groups, batch_responses):  # noqa: B905 - DTC supports Python 3.9.
         translation_key = _normalize_for_match(source_group.get("danish_translation") or "")
         for group in response.get("groups") or []:
             for variant in group.get("variants") or []:
@@ -1670,6 +1687,7 @@ def _prepare_sense_save(
         surface=args.surface,
         meaning_key=args.meaning_key,
         pos_tag=args.pos_tag,
+        cor_id=getattr(args, "cor_id", None),
     )
     lemma = args.lemma or variant.get("lemma") or group.get("lemma")
     if not lemma:
@@ -1692,8 +1710,10 @@ def _find_cor_sense_variant(
     surface: str,
     meaning_key: str,
     pos_tag: str | None,
+    cor_id: str | None,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     requested_pos = (pos_tag or "").strip().upper() or None
+    requested_cor_id = (cor_id or "").strip() or None
     matches: list[tuple[dict[str, Any], dict[str, Any]]] = []
     for group in cor_form.get("groups") or []:
         for variant in group.get("variants") or []:
@@ -1701,6 +1721,8 @@ def _find_cor_sense_variant(
                 continue
             variant_pos = (variant.get("pos_tag") or group.get("pos_tag") or "").strip().upper() or None
             if requested_pos and variant_pos != requested_pos:
+                continue
+            if requested_cor_id and variant.get("cor_id") != requested_cor_id:
                 continue
             matches.append((group, variant))
     if not matches:
@@ -1712,16 +1734,18 @@ def _find_cor_sense_variant(
         raise SystemExit(
             f"No sense matched meaning_key={meaning_key!r}"
             + (f" pos={requested_pos}" if requested_pos else "")
+            + (f" cor_id={requested_cor_id}" if requested_cor_id else "")
             + f". Available senses for {surface!r}: {', '.join(keys) or '(none)'}"
         )
     if len(matches) > 1:
         keys = sorted({
-            f"{(v.get('meaning_key') or '?')}/{(v.get('pos_tag') or g.get('pos_tag') or '?')}"
+            f"{(v.get('meaning_key') or '?')}/{(v.get('pos_tag') or g.get('pos_tag') or '?')}/{(v.get('cor_id') or '?')}"
             for g, v in matches
         })
+        hint = "Pass --cor-id to disambiguate." if requested_pos else "Pass --pos-tag or --cor-id to disambiguate."
         raise SystemExit(
             f"meaning_key={meaning_key!r} matched {len(matches)} variants ({', '.join(keys)}). "
-            "Pass --pos-tag to disambiguate."
+            f"{hint}"
         )
     return matches[0]
 

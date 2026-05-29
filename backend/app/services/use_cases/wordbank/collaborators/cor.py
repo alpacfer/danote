@@ -193,7 +193,7 @@ class CorResolutionCollaborator:
             for group in resp.groups:
                 all_lemmas.append(group.lemma)
 
-        from app.services.use_cases.wordbank.collaborators.cor_actions import (
+        from app.services.use_cases.wordbank.collaborators.saved_meaning_match import (
             load_saved_meanings_for_lemmas,
         )
         prefetched_saved = load_saved_meanings_for_lemmas(

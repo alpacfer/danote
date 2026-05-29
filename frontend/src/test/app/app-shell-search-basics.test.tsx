@@ -726,6 +726,64 @@ describe("App shell and search", () => {
     })
   })
 
+  it("does not suggest switching to English for an exact Danish dictionary form with only saved-word evidence", async () => {
+    mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      searchWordbankResponse: {
+        items: [
+          {
+            lemma: "holde",
+            display_lemma: "holde",
+            variation_count: 1,
+            english_translation: "lave",
+            match_surface: null,
+          },
+        ],
+      },
+      corSearchFormResponse: {
+        form: "lave",
+        groups: [
+          {
+            lemma: "lave",
+            gloss: "make",
+            pos_tag: "VERB",
+            variants: [
+              {
+                cor_id: "COR.LAVE.1",
+                form: "lave",
+                lemma: "lave",
+                gloss: "make",
+                gram_raw: "vb.inf.akt",
+                lemma_idx: 1,
+                gram_code: 1,
+                variation: 1,
+                pos_tag: "VERB",
+                morphology: "VerbForm=Inf",
+                features: {},
+                extra_tags: [],
+              },
+            ],
+          },
+        ],
+      },
+      enSearchFormResponse: {
+        form: "lave",
+        groups: [],
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    const commandDialog = await screen.findByRole("dialog")
+    fireEvent.change(within(commandDialog).getByRole("textbox", { name: /command search/i }), { target: { value: "lave" } })
+
+    await waitFor(() => {
+      expect(within(commandDialog).queryByText("Search in English instead?")).not.toBeInTheDocument()
+    })
+  })
+
   it("suggests switching to Danish when English mode has a Danish dictionary match", async () => {
     mockFetchImplementation({
       lemmasResponse: { items: [] },

@@ -18,6 +18,8 @@ For these names, the file in this directory is wordbank-specific and the file in
 
 - **Edit here** when the change only matters inside a wordbank use-case.
 - **Edit `backend/app/services/`** when the change should benefit other use-cases too (sentencebank, analyze).
+- `saved_meaning_match.py` owns the shared lookup helpers that attach saved
+  wordbank meaning ids to CoR search/action candidates.
 
 ## Size budget
 

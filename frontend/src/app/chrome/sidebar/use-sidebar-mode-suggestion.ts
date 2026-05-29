@@ -122,7 +122,15 @@ export function useSidebarModeSuggestion({
             ])
             const savedCount = credibleSavedMatches(wordbank?.items ?? [], normalizedQuery).length
             const enGroupCount = enForm?.groups?.length ?? 0
-            if (savedCount > 0) {
+            if (savedCount > 0 && enGroupCount === 0) {
+              const currentCorForm = await apiClient.tryGetJson<CORSearchFormResponse>(
+                `/api/wordbank/search/cor-form?form=${encodeURIComponent(normalizedQuery)}&limit=20&include_translations=false`,
+                { signal: controller.signal },
+              )
+              if (!hasExactCorFormMatch(currentCorForm?.groups ?? [], normalizedQuery)) {
+                suggestion = suggestionFor("en", "English saved match found")
+              }
+            } else if (savedCount > 0) {
               suggestion = suggestionFor("en", "English saved match found")
             } else if (enGroupCount > 0) {
               suggestion = suggestionFor("en", "English dictionary match found")

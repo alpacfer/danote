@@ -38,7 +38,7 @@ scripts/dev-app.py health                    # JSON live-API smoke check
 scripts/dev-app.py wordbank details <lemma>           # full lemma payload
 scripts/dev-app.py wordbank details <lemma> --brief   # compact per-meaning view (id/key/en/gloss_translation/status)
 scripts/dev-app.py wordbank sense-discovery <form>    # raw Gemini sense fan-out for the form's lemma
-scripts/dev-app.py wordbank save-sense <surface> --meaning-key <k> [--pos-tag POS]
+scripts/dev-app.py wordbank save-sense <surface> --meaning-key <k> [--pos-tag POS] [--cor-id COR_ID]
                                               # auto-build the search seed from sense discovery and POST add-word
 scripts/dev-app.py wordbank expand-senses <lemma>     # backfill missing senses on an already-saved lemma
 scripts/dev-app.py wordbank delete-lemma <lemma>      # remove a saved lemma

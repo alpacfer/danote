@@ -15,7 +15,9 @@ polls lemma details and summarizes categories plus verification state, which is
 useful for diagnosing post-verification category refresh timing. `wordbank
 details --brief` includes the word-card display string, and `wordbank
 verify-saved-display` saves one discovered sense then fails if the search-dialog
-display differs from the saved word-card display. Search commands accept
+display differs from the saved word-card display. `wordbank save-sense` accepts
+`--cor-id` when `meaning_key` and `--pos-tag` still match duplicate CoR variants.
+Search commands accept
 `--mode da|en` where the sidebar UI exposes the same Danish/English language
 mode split. `search mode-check <query> --mode da|en` reports whether the
 sidebar should show the wrong-mode switch row, and `sentencebank preview` accepts
