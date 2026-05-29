@@ -8,6 +8,7 @@ import {
   hasMultipleWords,
   isBlockedShortSearchWord,
   normalizeSearchWord,
+  isAtVerbCandidate,
 } from "@/app/core"
 import { searchAttemptKey } from "@/app/chrome/sidebar/sidebar-search-types"
 import type { SearchLanguageMode, UseSidebarSearchParams } from "@/app/chrome/sidebar/sidebar-search-types"
@@ -60,7 +61,7 @@ export function useSidebarSearch({
   const isEnglishSingleWordQuery = !isSentenceMode
     && !isNumberMode
     && normalizedQuery.length >= 2
-    && !/\s/u.test(normalizedQuery)
+    && !(/\s/u.test(normalizedQuery) && !isAtVerbCandidate(normalizedQuery))
     && !isBlockedShortSearchWord(normalizedQuery)
 
   // Banner is keyed to the search attempt that hit the cap, so it clears

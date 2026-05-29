@@ -99,7 +99,15 @@ export function isBlockedShortSearchWord(value: string): boolean {
   return isShortLetterWord(normalized) && !ALLOWED_SHORT_SEARCH_WORDS.has(normalized)
 }
 
+export function isAtVerbCandidate(value: string): boolean {
+  const parts = value.split(/\s+/u).filter(Boolean)
+  return parts.length === 2 && parts[0].toLowerCase() === "at"
+}
+
 export function hasMultipleWords(value: string): boolean {
+  if (isAtVerbCandidate(value)) {
+    return false
+  }
   return value.split(/\s+/u).filter(Boolean).length >= 2
 }
 

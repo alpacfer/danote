@@ -1335,7 +1335,10 @@ def normalize_search_word(value: str) -> str:
 
 
 def has_multiple_words(value: str) -> bool:
-    return len([part for part in value.split() if part]) >= 2
+    parts = [part for part in value.split() if part]
+    if len(parts) == 2 and parts[0].lower() == "at":
+        return False
+    return len(parts) >= 2
 
 
 def has_danish_sentence_hint(value: str) -> bool:

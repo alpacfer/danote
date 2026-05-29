@@ -5,6 +5,7 @@ import {
   ApiRequestError,
   SEARCH_RESOLVE_DEBOUNCE_MS,
   isBlockedShortSearchWord,
+  isAtVerbCandidate,
   type CORSearchFormResponse,
   type ENPosGroup,
 } from "@/app/core"
@@ -54,7 +55,7 @@ export function useSidebarCorSearch({
     if (
       shouldSkipLookup
       || !normalizedQuery
-      || /\s/u.test(normalizedQuery)
+      || (/\s/u.test(normalizedQuery) && !isAtVerbCandidate(normalizedQuery))
       || isBlockedShortSearchWord(normalizedQuery)
       || getQuestionWordEntry(normalizedQuery)
       || getPronounCategory(normalizedQuery)

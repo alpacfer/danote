@@ -185,21 +185,39 @@ def build_cor_add_options(
     if not normalized_query:
         return []
 
-    entries = cor_entries_lookup(normalized_query)
+    is_at_verb_search = False
+    lookup_query = normalized_query
+    if normalized_query.startswith("at ") and len(normalized_query) > 3:
+        verb_candidate = normalized_query[3:].strip()
+        if " " not in verb_candidate:
+            try:
+                candidate_entries = cor_entries_lookup(verb_candidate)
+                if any(getattr(e, "pos_tag", None) == "VERB" for e in candidate_entries):
+                    is_at_verb_search = True
+                    lookup_query = verb_candidate
+            except Exception:
+                pass
+
+    entries = cor_entries_lookup(lookup_query)
     if not entries:
         return []
 
+    if is_at_verb_search:
+        entries = [e for e in entries if getattr(e, "pos_tag", None) == "VERB"]
+        if not entries:
+            return []
+
     by_pos: dict[str | None, COREntry] = {}
     for entry in entries:
-        if _normalize_action_value(entry.full_form) != _normalize_action_value(normalized_query):
+        if _normalize_action_value(entry.full_form) != _normalize_action_value(lookup_query):
             continue
         key = entry.pos_tag
         current = by_pos.get(key)
         if current is None:
             by_pos[key] = entry
             continue
-        if _cor_entry_priority(entry, normalized_query) < _cor_entry_priority(
-            current, normalized_query
+        if _cor_entry_priority(entry, lookup_query) < _cor_entry_priority(
+            current, lookup_query
         ):
             by_pos[key] = entry
 

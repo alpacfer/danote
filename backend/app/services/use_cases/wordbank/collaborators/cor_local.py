@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import replace
+
 from app.api.schemas.v1.wordbank import (
     CORLemmaParadigmResponse,
     CORSearchFormResponse,
@@ -53,13 +55,28 @@ def search_cor_form(
     if cor_local_lexicon_service is None:
         raise RuntimeError("COR local lookup service is unavailable.")
 
+    is_at_verb_search = False
+    lookup_form_query = normalized_form
+    if normalized_form.startswith("at ") and len(normalized_form) > 3:
+        verb_candidate = normalized_form[3:].strip()
+        if " " not in verb_candidate:
+            try:
+                candidate_entries = cor_local_lexicon_service.lookup_form(verb_candidate, limit=limit)
+                if any(e.pos_tag == "VERB" for e in candidate_entries if e.norm == "N"):
+                    is_at_verb_search = True
+                    lookup_form_query = verb_candidate
+            except Exception:
+                pass
+
     try:
-        entries = cor_local_lexicon_service.lookup_form(normalized_form, limit=limit)
+        entries = cor_local_lexicon_service.lookup_form(lookup_form_query, limit=limit)
     except FileNotFoundError as exc:
         raise RuntimeError(
             "COR local database is unavailable. Build backend/resources/dictionaries/cor.sqlite first."
         ) from exc
     entries = [entry for entry in entries if entry.norm == "N"]
+    if is_at_verb_search:
+        entries = [replace(entry, form=normalized_form) for entry in entries if entry.pos_tag == "VERB"]
     entries = consolidate_cor_local_entries(entries)
     entries = drop_glossless_when_gloss_exists(entries)
 
@@ -322,12 +339,30 @@ def cor_local_entries_for_form(
     normalized_lemma = normalize_token(lemma)
     if not normalized_form or not normalized_lemma:
         return []
+
+    is_at_verb_search = False
+    lookup_form_query = normalized_form
+    if normalized_form.startswith("at ") and len(normalized_form) > 3:
+        verb_candidate = normalized_form[3:].strip()
+        if " " not in verb_candidate:
+            try:
+                candidate_entries = cor_local_lexicon_service.lookup_form(verb_candidate, limit=500)
+                if any(e.pos_tag == "VERB" for e in candidate_entries if e.norm == "N"):
+                    is_at_verb_search = True
+                    lookup_form_query = verb_candidate
+            except Exception:
+                pass
+
     try:
-        entries = cor_local_lexicon_service.lookup_form(normalized_form, limit=500)
+        entries = cor_local_lexicon_service.lookup_form(lookup_form_query, limit=500)
     except FileNotFoundError:
         return []
     if not entries:
         return []
+
+    if is_at_verb_search:
+        entries = [replace(entry, form=normalized_form) for entry in entries if entry.pos_tag == "VERB"]
+
     filtered = [
         entry
         for entry in entries
@@ -359,12 +394,30 @@ def cor_local_entries_for_surface_form(
     normalized_form = normalize_token(form)
     if not normalized_form:
         return []
+
+    is_at_verb_search = False
+    lookup_form_query = normalized_form
+    if normalized_form.startswith("at ") and len(normalized_form) > 3:
+        verb_candidate = normalized_form[3:].strip()
+        if " " not in verb_candidate:
+            try:
+                candidate_entries = cor_local_lexicon_service.lookup_form(verb_candidate, limit=500)
+                if any(e.pos_tag == "VERB" for e in candidate_entries if e.norm == "N"):
+                    is_at_verb_search = True
+                    lookup_form_query = verb_candidate
+            except Exception:
+                pass
+
     try:
-        entries = cor_local_lexicon_service.lookup_form(normalized_form, limit=500)
+        entries = cor_local_lexicon_service.lookup_form(lookup_form_query, limit=500)
     except FileNotFoundError:
         return []
     if not entries:
         return []
+
+    if is_at_verb_search:
+        entries = [replace(entry, form=normalized_form) for entry in entries if entry.pos_tag == "VERB"]
+
     filtered = [entry for entry in entries if entry.norm == "N"]
     if preferred_pos_tag:
         preferred = [entry for entry in filtered if entry.pos_tag == preferred_pos_tag]

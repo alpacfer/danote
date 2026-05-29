@@ -129,12 +129,35 @@ def resolve_query(
             en_pos_groups=en_query_response.en_pos_groups if en_query_response is not None else [],
         )
 
+    is_at_verb_search = False
+    classifier_query = normalized_query
+    if normalized_query.startswith("at ") and len(normalized_query) > 3:
+        verb_candidate = normalized_query[3:].strip()
+        if " " not in verb_candidate:
+            try:
+                candidate_entries = cor_entries_lookup(verb_candidate)
+                if any(getattr(e, "pos_tag", None) == "VERB" for e in candidate_entries):
+                    is_at_verb_search = True
+                    classifier_query = verb_candidate
+            except Exception:
+                pass
+
     classifier = LemmaAwareClassifier(
         db_path,
         nlp_adapter=None,
         owner_user_id=owner_user_id,
     )
-    token = classifier.classify(normalized_query)
+    token = classifier.classify(classifier_query)
+
+    if is_at_verb_search:
+        import dataclasses
+        token = dataclasses.replace(
+            token,
+            surface_token=query_without_comments,
+            normalized_token=normalized_query,
+            lemma_candidate=token.lemma_candidate or classifier_query,
+        )
+
     cor_add_options = build_cor_add_options(
         normalized_query,
         include_translations=include_translations,

@@ -153,8 +153,8 @@ export function SidebarSearchInput({
       </TooltipTrigger>
       <TooltipContent side="left" align="center" className="text-xs">
         {searchLanguageMode === "da"
-          ? "Searching in Danish. Click to switch to English."
-          : "Searching in English. Click to switch to Danish."}
+          ? "Danish search. Click to switch to English."
+          : "English search. Click to switch to Danish."}
       </TooltipContent>
     </Tooltip>
   )

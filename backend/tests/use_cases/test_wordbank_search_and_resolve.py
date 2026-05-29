@@ -814,3 +814,52 @@ def test_wordbank_action_payload_is_consistent_between_resolve_query_and_analyze
     assert [action.action_type for action in resolved.word_actions] == ["add_as_new"]
     assert resolved.word_actions[0].surface == "house"
     assert resolved.word_actions[0].lemma == "house"
+
+
+def test_wordbank_resolve_query_supports_at_verb_prefix(tmp_path: Path) -> None:
+    cor_service = FakeCORLexiconService(
+        {
+            "lave": [
+                COREntry(
+                    cor_id="COR.lave.verb",
+                    lemma="lave",
+                    full_form="lave",
+                    ordklasse="vb",
+                    grammatical_function="vb.inf.akt",
+                    glosse=None,
+                    norm_status="N",
+                    pos_tag="VERB",
+                    morphology="VerbForm=Inf|Voice=Act",
+                ),
+                COREntry(
+                    cor_id="COR.lave.noun",
+                    lemma="lave",
+                    full_form="lave",
+                    ordklasse="sb",
+                    grammatical_function="sb.fk.sg.ubest",
+                    glosse=None,
+                    norm_status="N",
+                    pos_tag="NOUN",
+                    morphology="Gender=Com|Number=Sing|Definite=Ind",
+                ),
+            ]
+        }
+    )
+    translation_service = FakeTranslationService({"at lave": "to make"})
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_lexicon_service=cor_service,
+        translation_service=translation_service,
+    )
+
+    resolved = use_case.resolve_query("at lave", include_language_detection=False)
+
+    assert resolved.classification == "new"
+    assert resolved.resolved_surface == "at lave"
+    assert resolved.resolved_lemma == "lave"
+    assert len(resolved.word_actions) == 1
+    assert resolved.word_actions[0].action_type == "add_as_new"
+    assert resolved.word_actions[0].surface == "at lave"
+    assert resolved.word_actions[0].lemma == "lave"
+    assert resolved.word_actions[0].pos_tag == "VERB"
+    assert resolved.word_actions[0].translation_label == "to make"

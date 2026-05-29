@@ -4,6 +4,7 @@ import {
   SEARCH_RESOLVE_DEBOUNCE_MS,
   isBlockedShortSearchWord,
   normalizeSearchWord,
+  isAtVerbCandidate,
   type CORSearchFormResponse,
   type ENSearchFormResponse,
   type SentenceSearchPreviewResponse,
@@ -67,7 +68,7 @@ export function useSidebarModeSuggestion({
     if (
       isNumberMode
       || !query
-      || (!isSentenceMode && (normalizedQuery.length < 2 || /\s/u.test(normalizedQuery) || isBlockedShortSearchWord(normalizedQuery)))
+      || (!isSentenceMode && (normalizedQuery.length < 2 || (/\s/u.test(normalizedQuery) && !isAtVerbCandidate(normalizedQuery)) || isBlockedShortSearchWord(normalizedQuery)))
     ) {
       const clearId = window.setTimeout(() => {
         if (!cancelled) {

@@ -5,6 +5,7 @@ import {
   SEARCH_RESOLVE_DEBOUNCE_MS,
   isBlockedShortSearchWord,
   normalizeSearchWord,
+  isAtVerbCandidate,
   type CORSearchFormBatchResponse,
   type CORSearchFormResponse,
   type ENSearchFormResponse,
@@ -70,7 +71,7 @@ export function useSidebarEnSearch({
       isSentenceMode
       || !normalizedQuery
       || normalizedQuery.length < 2
-      || /\s/u.test(normalizedQuery)
+      || (/\s/u.test(normalizedQuery) && !isAtVerbCandidate(normalizedQuery))
       || isBlockedShortSearchWord(normalizedQuery)
       || isEnglishQuestionWordQuery(normalizedQuery)
       || isEnglishPronounQuery(normalizedQuery)
