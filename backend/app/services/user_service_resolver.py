@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import threading
+from collections import OrderedDict
 from dataclasses import dataclass, field, replace
 
 from app.core.app_state import BackendServices
@@ -31,9 +32,10 @@ class UserServiceResolver:
     settings: Settings
     user_api_keys_repository: UserApiKeysRepository | None
     fallback_services: BackendServices
+    max_cached_users: int = 128
 
-    _cache: dict[int, BackendServices] = field(
-        default_factory=dict, init=False, compare=False, hash=False
+    _cache: OrderedDict[int, BackendServices] = field(
+        default_factory=OrderedDict, init=False, compare=False, hash=False
     )
     _lock: threading.Lock = field(
         default_factory=threading.Lock, init=False, compare=False, hash=False
@@ -43,6 +45,7 @@ class UserServiceResolver:
         with self._lock:
             cached = self._cache.get(user_id)
             if cached is not None:
+                self._cache.move_to_end(user_id)
                 return cached
 
         repo = self.user_api_keys_repository
@@ -63,9 +66,17 @@ class UserServiceResolver:
         with self._lock:
             old = self._cache.get(user_id)
             self._cache[user_id] = built
+            self._cache.move_to_end(user_id)
+            evicted: list[BackendServices] = []
+            while len(self._cache) > self.max_cached_users:
+                evicted_user_id, evicted_services = self._cache.popitem(last=False)
+                if evicted_user_id != user_id:
+                    evicted.append(evicted_services)
 
         if old is not None:
             self._close_user_services(old)
+        for services in evicted:
+            self._close_user_services(services)
 
         return built
 
@@ -75,12 +86,15 @@ class UserServiceResolver:
         if old is not None:
             self._close_user_services(old)
 
-    def close(self) -> None:
+    def clear_all_cached_user_services(self) -> None:
         with self._lock:
             cached_entries = list(self._cache.values())
             self._cache.clear()
         for services in cached_entries:
             self._close_user_services(services)
+
+    def close(self) -> None:
+        self.clear_all_cached_user_services()
 
     def _close_user_services(self, services: BackendServices) -> None:
         for field_name in (

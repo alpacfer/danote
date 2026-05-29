@@ -14,6 +14,7 @@ class GeminiResultCache:
         self._lock = threading.Lock()
         self._initialized = False
         self._local = threading.local()
+        self._connections: dict[int, sqlite3.Connection] = {}
 
     @property
     def path(self) -> Path:
@@ -22,13 +23,15 @@ class GeminiResultCache:
     def _get_conn(self) -> sqlite3.Connection:
         self._ensure_initialized()
         if not hasattr(self._local, "conn"):
-            conn = sqlite3.connect(self._path)
+            conn = sqlite3.connect(self._path, check_same_thread=False)
             try:
                 conn.execute("PRAGMA journal_mode = WAL")
                 conn.execute("PRAGMA synchronous = NORMAL")
             except sqlite3.DatabaseError:
                 pass
             self._local.conn = conn
+            with self._lock:
+                self._connections[threading.get_ident()] = conn
         return self._local.conn
 
     def get(self, key: str) -> str | None:
@@ -64,6 +67,18 @@ class GeminiResultCache:
         with self._lock:
             conn.execute("DELETE FROM gemini_cache")
             conn.commit()
+
+    def close(self) -> None:
+        with self._lock:
+            connections = list(self._connections.values())
+            self._connections.clear()
+        for conn in connections:
+            try:
+                conn.close()
+            except sqlite3.DatabaseError:
+                pass
+        if hasattr(self._local, "conn"):
+            delattr(self._local, "conn")
 
     def _ensure_initialized(self) -> None:
         if self._initialized:

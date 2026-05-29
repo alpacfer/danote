@@ -131,9 +131,18 @@ def clear_search_cache(request: Request) -> dict[str, str]:
     runtime = get_runtime_state(request)
     if not runtime.settings.search_admin_enabled:
         raise HTTPException(status_code=404, detail="Not found")
-    service = runtime.services.en_gemini_translation_service
-    cache = getattr(service, "cache", None)
-    clear = getattr(cache, "clear", None)
-    if callable(clear):
-        clear()
-    return {"status": "cleared"}
+    cleared = 0
+    for service in (
+        runtime.services.en_gemini_translation_service,
+        runtime.services.gemini_word_translation_service,
+    ):
+        cache = getattr(service, "cache", None)
+        clear = getattr(cache, "clear", None)
+        if callable(clear):
+            clear()
+            cleared += 1
+    resolver = runtime.user_service_resolver
+    clear_all = getattr(resolver, "clear_all_cached_user_services", None)
+    if callable(clear_all):
+        clear_all()
+    return {"status": "cleared", "caches": str(cleared)}

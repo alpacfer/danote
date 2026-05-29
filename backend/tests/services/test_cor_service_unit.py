@@ -58,3 +58,22 @@ def test_cor_service_returns_empty_for_invalid_payload_shape() -> None:
     service = _service_with_payload({"status": "ok", "svar": "unexpected"})
 
     assert service.lookup_full_form("gift") == []
+
+
+def test_cor_service_evicts_old_lookup_cache_entries() -> None:
+    requests: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(str(request.url))
+        return httpx.Response(status_code=200, json={"status": "ok", "svar": []})
+
+    service = CORLexiconService(timeout_seconds=1.0, max_cache_entries=2)
+    service._client = httpx.Client(base_url="https://ordregister.dk", transport=httpx.MockTransport(handler), timeout=1.0)
+
+    assert service.lookup_full_form("en") == []
+    assert service.lookup_full_form("to") == []
+    assert service.lookup_full_form("tre") == []
+    assert service.lookup_full_form("en") == []
+
+    assert len(service._cache) == 2
+    assert len(requests) == 4

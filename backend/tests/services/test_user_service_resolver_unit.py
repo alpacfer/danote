@@ -203,6 +203,48 @@ def test_resolve_caches_services_across_requests() -> None:
     assert len(repo.calls) == 1
 
 
+def test_resolve_evicts_oldest_cached_user_services(monkeypatch) -> None:
+    settings = _settings()
+    fallback = _host_services()
+    repo = _FakeRepo({
+        1: {"gemini": "user-gemini-one"},
+        2: {"gemini": "user-gemini-two"},
+    })
+    built_services: list[Any] = []
+
+    class _ClosableFakeService:
+        def __init__(self, *, api_key: str):
+            self.api_key = api_key
+            self.closed = False
+
+        def close(self):
+            self.closed = True
+
+    from app.services import user_service_builders
+
+    def build_word_service(**kwargs):
+        service = _ClosableFakeService(api_key=kwargs["api_key"])
+        built_services.append(service)
+        return service
+
+    monkeypatch.setattr(user_service_builders, "build_gemini_word_translation_service", build_word_service)
+
+    resolver = UserServiceResolver(
+        settings=settings,
+        user_api_keys_repository=repo,
+        fallback_services=fallback,
+        max_cached_users=1,
+    )
+
+    first = resolver.resolve(user_id=1).gemini_word_translation_service
+    second = resolver.resolve(user_id=2).gemini_word_translation_service
+
+    assert first is built_services[0]
+    assert second is built_services[1]
+    assert first.closed
+    assert not second.closed
+
+
 def test_clear_cache_for_user_invalidates_and_closes(monkeypatch) -> None:
     settings = _settings()
     fallback = _host_services()
@@ -236,7 +278,7 @@ def test_clear_cache_for_user_invalidates_and_closes(monkeypatch) -> None:
     assert dummy_service.closed
 
     # Next resolve should fetch from repo again
-    result3 = resolver.resolve(user_id=7)
+    resolver.resolve(user_id=7)
     assert len(repo.calls) == 2
 
 

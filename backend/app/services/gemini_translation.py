@@ -125,6 +125,8 @@ class GeminiFlashLiteWordTranslationService:
         return self._client
 
     def close(self) -> None:
+        if self.cache is not None:
+            self.cache.close()
         self._client = None
 
     def discover_senses(self, payload: SenseDiscoveryInput) -> DiscoveredSenseSet | None:

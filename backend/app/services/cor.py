@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import OrderedDict
 from dataclasses import dataclass, field
 from urllib.parse import quote
 
@@ -76,9 +77,12 @@ class CORLexiconService:
     base_url: str = "https://ordregister.dk"
     register: str = "COR"
     timeout_seconds: float = 4.0
+    max_cache_entries: int = 2048
     provider: str = field(default="cor", init=False)
     _client: httpx.Client | None = field(default=None, init=False, repr=False, compare=False)
-    _cache: dict[tuple[str, str], tuple[COREntry, ...]] = field(default_factory=dict, init=False, repr=False, compare=False)
+    _cache: OrderedDict[tuple[str, str], tuple[COREntry, ...]] = field(
+        default_factory=OrderedDict, init=False, repr=False, compare=False
+    )
 
     def _ensure_client(self) -> httpx.Client:
         if self._client is None:
@@ -104,6 +108,7 @@ class CORLexiconService:
         cache_key = (column, normalized_value)
         cached = self._cache.get(cache_key)
         if cached is not None:
+            self._cache.move_to_end(cache_key)
             return cached
 
         encoded_value = quote(normalized_value, safe="")
@@ -113,12 +118,12 @@ class CORLexiconService:
             response.raise_for_status()
             payload = response.json()
         except Exception:
-            self._cache[cache_key] = ()
+            self._remember(cache_key, ())
             return ()
 
         rows = payload.get("svar") if isinstance(payload, dict) else None
         if not isinstance(rows, list):
-            self._cache[cache_key] = ()
+            self._remember(cache_key, ())
             return ()
 
         parsed: list[COREntry] = []
@@ -151,8 +156,14 @@ class CORLexiconService:
             )
 
         result = tuple(parsed)
-        self._cache[cache_key] = result
+        self._remember(cache_key, result)
         return result
+
+    def _remember(self, key: tuple[str, str], value: tuple[COREntry, ...]) -> None:
+        self._cache[key] = value
+        self._cache.move_to_end(key)
+        while len(self._cache) > self.max_cache_entries:
+            self._cache.popitem(last=False)
 
 
 def _to_ud_pos(ordklasse: str | None, grammatical_function: str | None) -> str | None:

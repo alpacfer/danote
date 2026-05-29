@@ -64,6 +64,8 @@ class ENGeminiTranslationService:
         self.model = model
 
     def close(self) -> None:
+        if self.cache is not None:
+            self.cache.close()
         self._client = None
 
     def translate_english_lemma(
@@ -423,4 +425,3 @@ class ENGeminiTranslationService:
                 "google-genai package is required for Gemini EN→DA translation."
             ) from exc
         return genai_types
-
