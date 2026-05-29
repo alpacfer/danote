@@ -16,10 +16,6 @@ export default defineConfig({
     globals: true,
     setupFiles: './src/test/setup.ts',
     testTimeout: 60000,
-    poolOptions: {
-      threads: {
-        singleThread: true,
-      },
-    },
+    maxWorkers: 1,
   },
 })

@@ -1,4 +1,4 @@
-const isTest = typeof process !== "undefined" && (process.env.NODE_ENV === "test" || import.meta.env.MODE === "test")
+const isTest = import.meta.env.MODE === "test"
 
 export const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? "http://127.0.0.1:8000"
 export const CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
@@ -14,5 +14,3 @@ export const POPOVER_ESTIMATED_HEIGHT_PX = 280
 export const PHRASE_POPOVER_MAX_TEXT_WIDTH_CLASS = "max-w-[42ch]"
 export const SAVED_NOTES_STORAGE_KEY = "danote.saved-notes.v1"
 export const NOTE_AUTOSAVE_DEBOUNCE_MS = 900
-
-
