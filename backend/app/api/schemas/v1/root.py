@@ -19,3 +19,4 @@ class HealthResponse(BaseModel):
     nlp_error: str | None = None
     translation_error: str | None = None
     tts_error: str | None = None
+    memory_usage_kb: int | None = None

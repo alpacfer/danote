@@ -1,7 +1,24 @@
-from __future__ import annotations
-
+import resource
+import sys
 from app.api.schemas.v1 import ApiStatusEntry, HealthResponse
 from app.core.app_state import BackendRuntimeState
+
+
+def get_memory_usage_kb() -> int:
+    try:
+        with open("/proc/self/status") as f:
+            for line in f:
+                if line.startswith("VmRSS:"):
+                    return int(line.split()[1])
+    except Exception:
+        pass
+    try:
+        usage = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        if sys.platform == "darwin":  # macOS ru_maxrss is in bytes
+            return usage // 1024
+        return usage  # Linux ru_maxrss is in kilobytes
+    except Exception:
+        return 0
 
 
 def build_health_status(runtime: BackendRuntimeState) -> HealthResponse:
@@ -81,6 +98,7 @@ def build_health_status(runtime: BackendRuntimeState) -> HealthResponse:
         nlp_error=str(runtime.nlp_error) if runtime.nlp_error else None,
         translation_error=str(runtime.translation_error) if runtime.translation_error else None,
         tts_error=str(runtime.tts_error) if runtime.tts_error else None,
+        memory_usage_kb=get_memory_usage_kb(),
     )
     return payload
 

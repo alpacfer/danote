@@ -1,4 +1,3 @@
-import { Eye, type LucideIcon } from "lucide-react"
 
 import {
   CommandEmpty,
@@ -7,8 +6,6 @@ import {
   CommandList,
   CommandSeparator,
 } from "@/components/ui/command"
-import { Kbd, KbdGroup } from "@/components/ui/kbd"
-import { Skeleton } from "@/components/ui/skeleton"
 import {
   normalizeSearchWord,
   type CORSearchGroup,
@@ -24,18 +21,12 @@ import {
 import { SidebarCorResults } from "@/app/chrome/sidebar/sidebar-cor-results"
 import { SidebarEnResults } from "@/app/chrome/sidebar/sidebar-en-results"
 import { SidebarSentenceResult } from "@/app/chrome/sidebar/sidebar-sentence-result"
-import { SidebarSearchPendingSkeleton } from "@/app/chrome/sidebar/sidebar-search-skeletons"
+import { SidebarSearchPendingSkeleton, SidebarSearchEnSkeletons } from "@/app/chrome/sidebar/sidebar-search-skeletons"
 import { SidebarWordbankResults } from "@/app/chrome/sidebar/sidebar-wordbank-results"
 import { SavedSentencesGroup } from "@/app/chrome/sidebar/sidebar-saved-sentences"
+import { SidebarPagesResults } from "@/app/chrome/sidebar/sidebar-pages-results"
+import type { SidebarPageItem } from "@/app/chrome/sidebar/sidebar-page-items"
 import type { SearchLanguageMode, SearchModeSwitchSuggestion } from "@/app/chrome/sidebar/sidebar-search-types"
-
-type PageItem = {
-  key: string
-  label: string
-  shortcut: string
-  icon: LucideIcon
-  onSelect: () => void
-}
 
 export type SidebarSearchResultsState = {
   normalizedQuery: string
@@ -64,7 +55,7 @@ export type SidebarSearchResultsData = {
   variationCandidateCorIdSet: Set<string>
   translatedEnCorSearchGroups: CORSearchGroup[]
   translatedEnCorVariantsToRender: Array<{ group: CORSearchGroup; variant: CORSearchVariant }>
-  matchingPageItems: PageItem[]
+  matchingPageItems: SidebarPageItem[]
   isWordbankSearchLoading: boolean
   isCorLookupLoading: boolean
   isCorTranslationsLoading: boolean
@@ -105,15 +96,7 @@ type SidebarSearchResultsProps = {
   actions: SidebarSearchResultsActions
 }
 
-function renderShortcut(shortcut: string) {
-  const keys = shortcut.split("+")
-  if (keys.length === 1) return <Kbd>{shortcut}</Kbd>
-  return (
-    <KbdGroup>
-      {keys.map((k) => <Kbd key={k}>{k}</Kbd>)}
-    </KbdGroup>
-  )
-}
+
 
 function isSelfTranslatedCorVariant(variant: CORSearchVariant, normalizedQuery: string) {
   const translation = normalizeSearchWord(variant.saveable_translation ?? variant.lemma_translation ?? "")
@@ -411,24 +394,7 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
               />
             ) : null}
             {showEnSkeletonResults ? (
-              Array.from({ length: data.enTranslatedCorSkeletonCount }, (_, i) => (
-                <CommandItem
-                  key={`en-skeleton-${i}`}
-                  disabled
-                  aria-hidden="true"
-                  data-testid="search-en-skeleton"
-                  className="flex items-start justify-between gap-3"
-                >
-                  <div className="flex min-w-0 flex-col items-start gap-0.5">
-                    <Skeleton className="h-3.5 w-24" />
-                    <Skeleton className="h-3 w-36" />
-                    <div className="mt-1 flex flex-wrap gap-1.5">
-                      <Skeleton className="h-5 w-10 rounded-full" />
-                    </div>
-                  </div>
-                  <Eye className="text-muted-foreground size-4 shrink-0 opacity-0" aria-hidden />
-                </CommandItem>
-              ))
+              <SidebarSearchEnSkeletons count={data.enTranslatedCorSkeletonCount} />
             ) : (
               <SidebarEnResults
                 enPosGroups={data.enPosGroups}
@@ -443,26 +409,10 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
 
       {(hasWordbankSection || hasEnResults || isAnyEnLoading || state.hasWordbankActions) && state.hasPageResults ? <CommandSeparator /> : null}
       {state.hasPageResults ? (
-        <CommandGroup heading="Pages">
-          {data.matchingPageItems.map((item) => {
-            const Icon = item.icon
-            return (
-              <CommandItem
-                key={item.key}
-                value={item.key}
-                className="max-md:h-12 max-md:text-base max-md:[&_svg:not([class*='size-'])]:size-5"
-                onSelect={() => {
-                  item.onSelect()
-                  actions.onCloseSearch()
-                }}
-              >
-                <Icon />
-                <span>{item.label}</span>
-                <span className="ml-auto hidden md:inline-flex">{renderShortcut(item.shortcut)}</span>
-              </CommandItem>
-            )
-          })}
-        </CommandGroup>
+        <SidebarPagesResults
+          matchingPageItems={data.matchingPageItems}
+          onCloseSearch={actions.onCloseSearch}
+        />
       ) : null}
 
       {data.matchedSavedSentences.length > 0 ? (

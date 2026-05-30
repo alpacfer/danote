@@ -1,6 +1,14 @@
 from __future__ import annotations
 
 import sqlite3
+
+
+class SafeConnection(sqlite3.Connection):
+    def __exit__(self, exc_type, exc_val, exc_tb) -> bool | None:  # type: ignore[override]
+        try:
+            return super().__exit__(exc_type, exc_val, exc_tb)
+        finally:
+            self.close()
 import threading
 import time
 from pathlib import Path
@@ -87,14 +95,14 @@ class GeminiResultCache:
             if self._initialized:
                 return
             self._path.parent.mkdir(parents=True, exist_ok=True)
-            with sqlite3.connect(self._path) as conn:
+            with sqlite3.connect(self._path, factory=SafeConnection) as conn:
                 conn.execute(
                     """
                     CREATE TABLE IF NOT EXISTS gemini_cache (
                         key TEXT PRIMARY KEY,
                         value TEXT NOT NULL,
                         created_at INTEGER NOT NULL
-                    )
+                     )
                     """
                 )
                 conn.commit()

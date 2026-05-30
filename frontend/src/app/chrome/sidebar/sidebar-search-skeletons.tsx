@@ -23,3 +23,29 @@ export function SidebarSearchPendingSkeleton() {
     </CommandItem>
   )
 }
+
+export function SidebarSearchEnSkeletons({ count }: { count: number }) {
+  return (
+    <>
+      {Array.from({ length: count }, (_, i) => (
+        <CommandItem
+          key={`en-skeleton-${i}`}
+          disabled
+          aria-hidden="true"
+          data-testid="search-en-skeleton"
+          className="flex items-start justify-between gap-3"
+        >
+          <div className="flex min-w-0 flex-col items-start gap-0.5">
+            <Skeleton className="h-3.5 w-24" />
+            <Skeleton className="h-3 w-36" />
+            <div className="mt-1 flex flex-wrap gap-1.5">
+              <Skeleton className="h-5 w-10 rounded-full" />
+            </div>
+          </div>
+          <Eye className="text-muted-foreground size-4 shrink-0 opacity-0" aria-hidden />
+        </CommandItem>
+      ))}
+    </>
+  )
+}
+

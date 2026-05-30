@@ -2,6 +2,14 @@ from __future__ import annotations
 
 import json
 import sqlite3
+
+
+class SafeConnection(sqlite3.Connection):
+    def __exit__(self, exc_type, exc_val, exc_tb) -> bool | None:  # type: ignore[override]
+        try:
+            return super().__exit__(exc_type, exc_val, exc_tb)
+        finally:
+            self.close()
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -145,6 +153,6 @@ class ENLocalLexiconService:
                 raise
 
     def _connect_read_only(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(f"file:{self.db_path}?mode=ro", uri=True)
+        conn = sqlite3.connect(f"file:{self.db_path}?mode=ro", uri=True, factory=SafeConnection)
         conn.row_factory = sqlite3.Row
         return conn

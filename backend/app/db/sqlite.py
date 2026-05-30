@@ -10,11 +10,19 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 
+class SafeConnection(sqlite3.Connection):
+    def __exit__(self, exc_type, exc_val, exc_tb) -> bool | None:  # type: ignore[override]
+        try:
+            return super().__exit__(exc_type, exc_val, exc_tb)
+        finally:
+            self.close()
+
+
 def get_connection(db_path: Path, *, read_only: bool = False) -> sqlite3.Connection:
     if read_only:
-        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, factory=SafeConnection)
     else:
-        conn = sqlite3.connect(db_path)
+        conn = sqlite3.connect(db_path, factory=SafeConnection)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     conn.execute("PRAGMA busy_timeout = 5000")

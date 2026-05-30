@@ -5,6 +5,14 @@ from pathlib import Path
 import sqlite3
 
 
+class SafeConnection(sqlite3.Connection):
+    def __exit__(self, exc_type, exc_val, exc_tb) -> bool | None:  # type: ignore[override]
+        try:
+            return super().__exit__(exc_type, exc_val, exc_tb)
+        finally:
+            self.close()
+
+
 def _normalize_space(value: str | None) -> str:
     if not isinstance(value, str):
         return ""
@@ -238,7 +246,7 @@ class CORLocalLexiconService:
             return conn.execute(sql, params).fetchall()
 
     def _connect_read_only(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(f"file:{self.db_path}?mode=ro", uri=True)
+        conn = sqlite3.connect(f"file:{self.db_path}?mode=ro", uri=True, factory=SafeConnection)
         conn.row_factory = sqlite3.Row
         return conn
 
