@@ -895,4 +895,135 @@ describe("App shell and search", () => {
       expect(within(commandDialog).queryByText(/Search in English instead/i)).not.toBeInTheDocument()
     })
   })
+
+  it("shows Did you mean suggestion and corrected results for English typo search", async () => {
+    mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      enSearchFormResponse: {
+        form: "windox",
+        did_you_mean: "window",
+        groups: [
+          {
+            lemma: "window",
+            pos_ud: "NOUN",
+            pos_raw: "noun",
+            danish_translation: "vindue",
+            senses: [
+              {
+                pos_ud: "NOUN",
+                sense_idx: 0,
+                gloss: "opening in a wall",
+                danish_translation: "vindue",
+                examples: [],
+              },
+            ],
+          },
+        ],
+      },
+      corSearchFormHandler: async (input) => {
+        const form = new URL(String(input), "http://localhost").searchParams.get("form") ?? ""
+        if (form === "vindue") {
+          return responseOf({
+            form,
+            groups: [
+              {
+                lemma: "vindue",
+                gloss: "window",
+                pos_tag: "NOUN",
+                variants: [
+                  {
+                    cor_id: "COR.WINDOW.1",
+                    form: "vindue",
+                    lemma: "vindue",
+                    gloss: "window",
+                    lemma_translation: "window",
+                    saveable_translation: "window",
+                    gram_raw: "sb.itk.sg.ubest",
+                    norm: "N",
+                    lemma_idx: 1201,
+                    gram_code: 110,
+                    variation: 1,
+                    pos_tag: "NOUN",
+                    morphology: "Gender=Neut|Number=Sing|Definite=Ind",
+                    features: { Gender: "Neut", Number: "Sing", Definite: "Ind" },
+                    extra_tags: [],
+                  },
+                ],
+              },
+            ],
+          })
+        }
+        return responseOf({ form, groups: [] })
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    const commandDialog = await screen.findByRole("dialog")
+    fireEvent.click(within(commandDialog).getByRole("radio", { name: /^English$/i }))
+    const searchInput = within(commandDialog).getByRole("textbox", { name: /command search/i })
+    fireEvent.change(searchInput, { target: { value: "windox" } })
+
+    // Verify "Did you mean 'window'?" is shown
+    expect(await within(commandDialog).findByText(/did you mean "window"\?/i)).toBeInTheDocument()
+
+    // Verify corrected results for "vindue" are rendered
+    expect(await within(commandDialog).findByText(/^vindue$/i, { selector: "strong" })).toBeInTheDocument()
+  })
+
+  it("renders a wavy underline for English typo and allows clicking it to open suggestions drawer", async () => {
+    mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      enSearchFormResponse: {
+        form: "windox",
+        did_you_mean: "window",
+        groups: [
+          {
+            lemma: "window",
+            pos_ud: "NOUN",
+            pos_raw: "noun",
+            danish_translation: "vindue",
+            senses: [
+              {
+                pos_ud: "NOUN",
+                sense_idx: 0,
+                gloss: "opening in a wall",
+                danish_translation: "vindue",
+                examples: [],
+              },
+            ],
+          },
+        ],
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }))
+    const commandDialog = await screen.findByRole("dialog")
+    fireEvent.click(within(commandDialog).getByRole("radio", { name: /^English$/i }))
+    const searchInput = within(commandDialog).getByRole("textbox", { name: /command search/i })
+    fireEvent.change(searchInput, { target: { value: "windox" } })
+
+    // Find the overlay token with the wavy underline
+    const overlayToken = await screen.findByText("windox", { selector: "span" })
+    expect(overlayToken).toHaveClass("underline", "decoration-wavy", "pointer-events-auto")
+
+    // Click the wavy-underlined word to trigger the suggestions drawer
+    fireEvent.click(overlayToken)
+
+    // Suggestion drawer should appear with "window" button
+    const suggestionBtn = await screen.findByRole("button", { name: /^window$/i })
+    expect(suggestionBtn).toBeInTheDocument()
+
+    // Click suggestion to update input
+    fireEvent.click(suggestionBtn)
+    await waitFor(() => {
+      expect(searchInput).toHaveValue("window")
+    })
+  })
 })
+

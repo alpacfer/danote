@@ -215,6 +215,7 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
   const hasDirectWordbank = data.orderedWordbankResults.length > 0
     && (!state.wordbankDidYouMean || data.exactSavedVariationKeySet.size > 0)
   const hasEnResults = data.translatedEnCorVariantsToRender.length > 0 || data.enPosGroups.length > 0
+  const hasDirectEnResults = hasEnResults && !state.enDidYouMean
   const isAnyEnLoading = data.isEnResolveLoading || data.isEnTranslatedCorLoading
   const shouldResolveEnglishAmbiguity = hasEnResults || isAnyEnLoading
   const translatedEnCorIds = new Set(
@@ -240,8 +241,8 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
   const showEnSkeletonResults = data.isEnTranslatedCorLoading && data.enTranslatedCorSkeletonCount > 0
   const hasTranslatedEnSection = hasTranslatedEnCorResults || showEnSkeletonResults || showEnFallbackResults
 
-  // Suppress DYM when COR has a direct match, EN has results, or EN is loading — the query is valid in some language.
-  const dymSuggestion = (hasDirectCor || hasEnResults || isAnyEnLoading) ? null : (state.wordbankDidYouMean ?? state.corDidYouMean ?? state.enDidYouMean)
+  // Suppress DYM when COR has a direct match, EN has direct results, or EN is loading — the query is valid in some language.
+  const dymSuggestion = (hasDirectCor || hasDirectEnResults || isAnyEnLoading) ? null : (state.wordbankDidYouMean ?? state.corDidYouMean ?? state.enDidYouMean)
   const hasDirectResults = hasDirectWordbank || hasDirectCor
   const hasModeSwitchSuggestion = Boolean(state.modeSwitchSuggestion)
 

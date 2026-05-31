@@ -345,6 +345,7 @@ def build_sentence_search_preview(
             SentenceVerificationErrorItem(start=error.start, end=error.end, message=error.message)
             for error in initial_verification.errors
         ],
+        corrected_text=initial_verification.corrected_text,
         message=None,
         is_multi_word_expression=initial_verification.is_multi_word_expression,
         mwe_lemma=initial_verification.mwe_lemma,
@@ -418,6 +419,7 @@ def _english_sentence_preview(
             SentenceVerificationErrorItem(start=error.start, end=error.end, message=error.message)
             for error in danish_verification.errors
         ],
+        corrected_text=corrected_text,
         message=None,
         is_multi_word_expression=danish_verification.is_multi_word_expression,
         mwe_lemma=danish_verification.mwe_lemma,

@@ -116,6 +116,7 @@ class SentenceSearchPreviewResponse(BaseModel):
     english_translation: str | None = None
     is_valid: bool
     errors: list[SentenceVerificationErrorItem] = Field(default_factory=list)
+    corrected_text: str | None = None
     message: str | None = None
     is_multi_word_expression: bool = False
     mwe_lemma: str | None = None

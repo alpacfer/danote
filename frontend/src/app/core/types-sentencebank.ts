@@ -20,6 +20,7 @@ export type SentenceSearchPreviewResponse = {
   english_translation: string | null
   is_valid: boolean
   errors: SentenceVerificationErrorItem[]
+  corrected_text?: string | null
   message: string | null
   is_multi_word_expression?: boolean
   mwe_lemma?: string | null

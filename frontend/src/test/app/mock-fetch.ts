@@ -541,6 +541,7 @@ export function mockFetchImplementation(options?: {
   resolveQueryHandler?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
   enSearchFormResponse?: {
     form: string
+    did_you_mean?: string | null
     groups: Array<{
       lemma: string
       form?: string | null

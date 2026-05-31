@@ -142,8 +142,8 @@ export function SidebarSearchInput({
     }
     const correctedText = sentenceSearchPreview?.corrected_text
     if (!correctedText) return []
-    const origWords = value.toLowerCase().match(/[\p{L}\p{N}'’-]+/gu) || []
-    const corrWords = correctedText.toLowerCase().match(/[\p{L}\p{N}'’-]+/gu) || []
+    const origWords: string[] = value.toLowerCase().match(/[\p{L}\p{N}'’-]+/gu) || []
+    const corrWords: string[] = correctedText.toLowerCase().match(/[\p{L}\p{N}'’-]+/gu) || []
     const origIndex = origWords.indexOf(activeTypoSegment.text.toLowerCase())
     if (origIndex !== -1 && corrWords[origIndex]) {
       const matchWord = correctedText.match(/[\p{L}\p{N}'’-]+/gu)?.[origIndex]
@@ -158,7 +158,7 @@ export function SidebarSearchInput({
         segment.message ? (
           <span
             key={`${segment.text}-${index}`}
-            className="underline decoration-[var(--danote-typo-underline)] decoration-[1.5px] decoration-wavy underline-offset-[3px] cursor-pointer hover:opacity-80 transition-all"
+            className="underline decoration-[var(--danote-typo-underline)] decoration-[1.5px] decoration-wavy underline-offset-[3px] cursor-pointer hover:opacity-80 transition-all pointer-events-auto"
             style={{ textDecorationStyle: "wavy" }}
             title={segment.message}
             onClick={(e) => {

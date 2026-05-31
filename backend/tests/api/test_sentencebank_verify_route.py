@@ -130,6 +130,7 @@ def test_sentence_search_preview_returns_danish_preview(tmp_path, stub_nlp_adapt
     assert data["source_text"] == "jeg er glad"
     assert data["english_translation"] == "I am happy"
     assert data["is_valid"] is False
+    assert data["corrected_text"] == "jeg er glad"
     assert data["errors"] == [{"start": 7, "end": 11, "message": "typo"}]
     assert data["message"] is None
 

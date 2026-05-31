@@ -55,6 +55,7 @@ The language toggle gates lookup sources:
 - The row still appears when the current mode has valid results. In that case it
   renders after direct current-mode results; otherwise it becomes the first
   actionable row. Typo `Did you mean?` rows remain separate and lower priority.
+  The `Did you mean?` banner is suppressed when there is an exact/direct Danish COR match, a direct (non-typo-corrected) English search result, or when English results are still loading.
 - Single-word Danish-mode hint probes check English saved search plus
   `/api/wordbank/search/en-form?include_translations=false`.
 - Single-word English-mode hint probes check Danish saved search plus lightweight
