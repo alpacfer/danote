@@ -13,7 +13,7 @@ export function PinnedWordGrid({
 }: PinnedWordGridProps) {
   const dedupedEntries = dedupePinnedEntries(entries)
   return (
-    <div className="grid items-start gap-3 sm:grid-cols-2 xl:grid-cols-3">
+    <div className="grid min-w-0 items-start gap-3 sm:grid-cols-2 xl:grid-cols-3">
       {dedupedEntries.map((entry, index) => (
         <PinnedWordCard
           key={`${entry.lemma}-${index}`}

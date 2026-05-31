@@ -1,5 +1,6 @@
 export * from "@/app/sections/wordbank/_shared/pinned-pages-registry"
 export { PinnedPageLayout } from "@/app/sections/wordbank/_shared/pinned-page-layout"
+export { PinnedTabsList } from "@/app/sections/wordbank/_shared/pinned-tabs-list"
 export { PinnedWordCard, type PinnedWordEntry } from "@/app/sections/wordbank/_shared/pinned-word-card"
 export { PinnedWordGrid } from "@/app/sections/wordbank/_shared/pinned-word-grid"
 export { hiddenBadgesForPinnedTab } from "@/app/sections/wordbank/_shared/pinned-tab-hidden-badges"

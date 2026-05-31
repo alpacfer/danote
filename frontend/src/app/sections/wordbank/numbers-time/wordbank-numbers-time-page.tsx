@@ -1,4 +1,4 @@
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsContent, TabsTrigger } from "@/components/ui/tabs"
 import {
   DAYS_OF_WEEK,
   MONTHS,
@@ -11,6 +11,7 @@ import {
 } from "@/app/sections/wordbank/numbers/numbers-data"
 import {
   PinnedPageLayout,
+  PinnedTabsList,
   PinnedWordGrid,
   type PinnedPageTabId,
   type PinnedWordEntry,
@@ -27,14 +28,14 @@ type Props = {
 export function WordbankNumbersTimePage({ defaultTab, onOpenWord, onOpenTab }: Props) {
   return (
     <PinnedPageLayout title="Numbers & Time">
-      <Tabs value={defaultTab} onValueChange={(value) => onOpenTab(sentinelForPinnedPageTab("numbers_time", value as PinnedPageTabId))}>
-        <div className="flex flex-col gap-4">
-          <TabsList>
+      <Tabs className="min-w-0" value={defaultTab} onValueChange={(value) => onOpenTab(sentinelForPinnedPageTab("numbers_time", value as PinnedPageTabId))}>
+        <div className="flex min-w-0 flex-col gap-4">
+          <PinnedTabsList activeTab={defaultTab} ariaLabel="Numbers and time categories">
             <TabsTrigger value="cardinal_numbers">Cardinal Numbers</TabsTrigger>
             <TabsTrigger value="ordinal_numbers">Ordinal Numbers</TabsTrigger>
             <TabsTrigger value="days">Days</TabsTrigger>
             <TabsTrigger value="months">Months</TabsTrigger>
-          </TabsList>
+          </PinnedTabsList>
           <PinnedTab value="cardinal_numbers" entries={cardinalEntries()} onOpenWord={onOpenWord} />
           <PinnedTab value="ordinal_numbers" entries={ordinalEntries()} onOpenWord={onOpenWord} />
           <PinnedTab value="days" entries={calendarEntries(DAYS_OF_WEEK)} onOpenWord={onOpenWord} />

@@ -57,13 +57,13 @@ export function PinnedWordCard({
       aria-label={`Open ${entry.lemma} in wordbank`}
       onClick={openWord}
       onKeyDown={handleKeyDown}
-      className="cursor-pointer transition-colors hover:bg-accent/50 focus-visible:ring-ring/50 focus-visible:ring-2"
+      className="min-w-0 cursor-pointer overflow-hidden transition-colors hover:bg-accent/50 focus-visible:ring-ring/50 focus-visible:ring-2"
     >
-      <CardHeader className="gap-2">
-        <div className="flex flex-col md:grid md:grid-cols-[auto_1fr] gap-x-2 gap-y-1">
-          <CardTitle className="shrink-0 text-lg font-semibold md:col-start-1 md:row-start-1">{entry.lemma}</CardTitle>
+      <CardHeader className="min-w-0 gap-2 px-4 sm:px-6">
+        <div className="flex min-w-0 flex-col gap-x-2 gap-y-1 md:grid md:grid-cols-[auto_1fr]">
+          <CardTitle className="break-words text-lg font-semibold md:col-start-1 md:row-start-1">{entry.lemma}</CardTitle>
           {badges.length > 0 ? (
-            <ScrollableBadgeRow className="flex-1 w-full md:w-auto order-3 md:order-none md:col-start-2 md:row-start-1" fadeFromClass="from-card">
+            <ScrollableBadgeRow className="order-3 w-full min-w-0 flex-1 md:order-none md:col-start-2 md:row-start-1 md:w-auto" fadeFromClass="from-card">
               {badges.map((badge) => (
                 <Badge
                   key={`pinned-word-${entry.lemma}-${badge.label}`}
@@ -75,7 +75,7 @@ export function PinnedWordCard({
               ))}
             </ScrollableBadgeRow>
           ) : null}
-          <p className="text-muted-foreground text-sm order-2 md:order-none md:col-span-2 md:row-start-2">{entry.translation}</p>
+          <p className="text-muted-foreground order-2 break-words text-sm md:order-none md:col-span-2 md:row-start-2">{entry.translation}</p>
         </div>
       </CardHeader>
     </Card>

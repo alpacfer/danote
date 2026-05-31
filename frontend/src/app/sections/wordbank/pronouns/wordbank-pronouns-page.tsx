@@ -1,4 +1,4 @@
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsContent, TabsTrigger } from "@/components/ui/tabs"
 import {
   DEMONSTRATIVE_ROWS,
   INDEFINITE_PRONOUN_ROWS,
@@ -9,6 +9,7 @@ import {
 } from "@/app/sections/wordbank/pronouns/pronouns-data"
 import {
   PinnedPageLayout,
+  PinnedTabsList,
   PinnedWordGrid,
   type PinnedPageTabId,
   type PinnedWordEntry,
@@ -25,15 +26,15 @@ type Props = {
 export function WordbankPronounsPage({ defaultTab, onOpenWord, onOpenTab }: Props) {
   return (
     <PinnedPageLayout title="Pronouns">
-      <Tabs value={defaultTab} onValueChange={(value) => onOpenTab(sentinelForPinnedPageTab("pronouns", value as PinnedPageTabId))}>
-        <div className="flex flex-col gap-4">
-          <TabsList>
+      <Tabs className="min-w-0" value={defaultTab} onValueChange={(value) => onOpenTab(sentinelForPinnedPageTab("pronouns", value as PinnedPageTabId))}>
+        <div className="flex min-w-0 flex-col gap-4">
+          <PinnedTabsList activeTab={defaultTab} ariaLabel="Pronoun categories">
             <TabsTrigger value="personal">Personal</TabsTrigger>
             <TabsTrigger value="possessive">Possessive</TabsTrigger>
             <TabsTrigger value="demonstrative">Demonstrative</TabsTrigger>
             <TabsTrigger value="relative">Relative</TabsTrigger>
             <TabsTrigger value="indefinite">Indefinite</TabsTrigger>
-          </TabsList>
+          </PinnedTabsList>
           <PinnedTab value="personal" entries={personalEntries()} onOpenWord={onOpenWord} />
           <PinnedTab value="possessive" entries={possessiveEntries()} onOpenWord={onOpenWord} />
           <PinnedTab value="demonstrative" entries={demonstrativeEntries()} onOpenWord={onOpenWord} />
