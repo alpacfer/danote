@@ -123,7 +123,8 @@ and do not require API-key storage.
 | `DANOTE_SEARCH_PARALLEL` | `1` | Boolean-like (`1/0`, `true/false`, `yes/no`) | Enables thread-pool fan-out for independent English POS translations and batch COR filters. |
 | `DANOTE_SEARCH_COR_BATCH` | `1` | Boolean-like (`1/0`, `true/false`, `yes/no`) | Enables the sidebar's single-request COR batch flow. The backend endpoint remains available for compatibility. |
 | `DANOTE_SEARCH_BATCHED_GEMINI` | `1` | Boolean-like (`1/0`, `true/false`, `yes/no`) | Enables prompt batching for English translation and COR sense filtering. Set to `0` to compare against the legacy per-choice Gemini calls. |
-| `DANOTE_SEARCH_ADMIN_ENABLED` | `0` | Boolean-like (`1/0`, `true/false`, `yes/no`) | Enables `POST /api/admin/clear-search-cache` for benchmark cold-cache runs; the endpoint clears host search Gemini caches and evicts per-user service bundles. |
+| `DANOTE_SEARCH_ADMIN_ENABLED` | `0` | Boolean-like (`1/0`, `true/false`, `yes/no`) | Enables `POST /api/admin/clear-search-cache` for benchmark cold-cache runs; the endpoint clears host translation-provider and search Gemini caches and evicts per-user service bundles. |
+| `DANOTE_SEARCH_WARMUP` | `1` | Boolean-like (`1/0`, `true/false`, `yes/no`) | Primes the host translation provider at startup with one small deterministic DA-to-EN batch, then initializes local Gemini client/cache resources. This opens slow local/provider paths without Gemini generation calls or model-token spend. |
 
 ## Trial and guest quota
 

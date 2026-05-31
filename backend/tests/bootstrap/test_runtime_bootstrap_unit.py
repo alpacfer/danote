@@ -6,6 +6,7 @@ from fastapi import FastAPI
 
 from app.bootstrap.runtime import build_startup_steps
 from app.bootstrap.runtime_gemini_word_translation import initialize_gemini_word_translation
+from app.bootstrap.runtime_search_warmup import SEARCH_WARMUP_TEXTS, initialize_search_warmup
 from app.bootstrap.runtime_translation import initialize_translation
 from app.bootstrap.runtime_tts import initialize_tts
 from app.bootstrap.runtime_word_verification import initialize_word_verification
@@ -38,11 +39,89 @@ def test_build_startup_steps_registers_expected_sequence(stub_nlp_adapter_factor
         "translation",
         "gemini_word_translation",
         "en_gemini_translation",
+        "search_warmup",
         "related_words",
         "word_verification",
         "sentence_verification",
         "tts",
     ]
+
+
+def test_initialize_search_warmup_batches_translation_frames_without_gemini(tmp_path: Path) -> None:
+    app = FastAPI()
+    settings = _settings(tmp_path)
+    runtime = init_app_state(app, settings)
+
+    class StubTranslationService:
+        provider = "stub"
+
+        def __init__(self) -> None:
+            self.batches: list[list[str]] = []
+
+        def translate_da_to_en_batch(self, texts: list[str]) -> list[str | None]:
+            self.batches.append(texts)
+            return ["translated"] * len(texts)
+
+    translation = StubTranslationService()
+    runtime.services.translation_service = translation
+
+    class StubGeminiService:
+        def __init__(self) -> None:
+            self.warmup_calls = 0
+
+        def warmup(self) -> None:
+            self.warmup_calls += 1
+
+    gemini = StubGeminiService()
+    runtime.services.gemini_word_translation_service = gemini
+
+    initialize_search_warmup(app, settings)
+
+    assert translation.batches == [list(SEARCH_WARMUP_TEXTS)]
+    assert gemini.warmup_calls == 1
+    assert runtime.search_warmup_completed is True
+    assert runtime.search_warmup_error is None
+
+
+def test_initialize_search_warmup_can_be_disabled(tmp_path: Path) -> None:
+    app = FastAPI()
+    settings = _settings(tmp_path, search_warmup_enabled=False)
+    runtime = init_app_state(app, settings)
+
+    class StubTranslationService:
+        def translate_da_to_en_batch(self, texts: list[str]) -> list[str | None]:
+            raise AssertionError("disabled warmup should not call the provider")
+
+    runtime.services.translation_service = StubTranslationService()
+
+    initialize_search_warmup(app, settings)
+
+    assert runtime.search_warmup_completed is False
+    assert runtime.search_warmup_error is None
+
+
+def test_initialize_search_warmup_failure_keeps_translation_service(caplog, tmp_path: Path) -> None:
+    app = FastAPI()
+    settings = _settings(tmp_path)
+    runtime = init_app_state(app, settings)
+
+    class FailingTranslationService:
+        provider = "stub"
+
+        def translate_da_to_en_batch(self, texts: list[str]) -> list[str | None]:
+            raise TranslationError("provider unavailable")
+
+    translation = FailingTranslationService()
+    runtime.services.translation_service = translation
+
+    with caplog.at_level("WARNING"):
+        initialize_search_warmup(app, settings)
+
+    assert runtime.services.translation_service is translation
+    assert runtime.search_warmup_completed is False
+    assert runtime.search_warmup_error == "Failed to warm the translation provider."
+    record = next(r for r in caplog.records if r.message == "backend_search_warmup_failed")
+    assert record.operation == "startup.search_warmup"
 
 
 def test_initialize_translation_uses_runtime_overrides(monkeypatch, tmp_path: Path) -> None:

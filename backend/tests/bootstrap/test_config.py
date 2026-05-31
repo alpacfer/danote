@@ -36,6 +36,7 @@ def test_load_settings_defaults_to_deepl_provider(monkeypatch, tmp_path: Path) -
     monkeypatch.delenv("DANOTE_TTS_AZURE_VOICE_NAME", raising=False)
     monkeypatch.delenv("DANOTE_WORD_VERIFICATION_ENABLED", raising=False)
     monkeypatch.delenv("DANOTE_GEMINI_MODEL", raising=False)
+    monkeypatch.delenv("DANOTE_SEARCH_WARMUP", raising=False)
 
     settings = load_settings(env_file=tmp_path / "missing.env")
 
@@ -47,6 +48,15 @@ def test_load_settings_defaults_to_deepl_provider(monkeypatch, tmp_path: Path) -
     assert settings.tts_provider == "azure"
     assert settings.tts_azure_voice_name == "da-DK-ChristelNeural"
     assert settings.word_verification_enabled is True
+    assert settings.search_warmup_enabled is True
+
+
+def test_load_settings_can_disable_search_warmup(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("DANOTE_SEARCH_WARMUP", "0")
+
+    settings = load_settings(env_file=tmp_path / "missing.env")
+
+    assert settings.search_warmup_enabled is False
 
 
 def test_load_settings_does_not_ship_default_api_keys(monkeypatch, tmp_path: Path) -> None:

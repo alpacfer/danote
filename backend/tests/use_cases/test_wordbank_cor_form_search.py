@@ -616,6 +616,18 @@ def test_wordbank_search_cor_form_skips_non_cor_generation_for_fast_lookup(tmp_p
     assert response.groups == []
     assert gemini.non_cor_generation_calls == []
 
+
+def test_wordbank_search_cor_form_skips_fuzzy_suggestion_for_multi_word_miss(tmp_path: Path) -> None:
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_local_lexicon_service=FakeCORLocalLexiconService(unique_lemmas=frozenset({"tage på"})),
+    )
+
+    response = use_case.search_cor_form("tage po", limit=100, include_translations=False)
+
+    assert response.groups == []
+    assert response.did_you_mean is None
+
 class _StubENGeminiForMatchFilter:
     def __init__(self, decisions: dict[str, bool]) -> None:
         self._decisions = decisions

@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 import httpx
 
 from app.services.translation import TranslationError
+from app.services.translation_result_cache import TranslationResultCache
 
 
 @dataclass
@@ -20,9 +21,11 @@ class DeepLTranslationService:
     backoff_seconds: float = 0.5
     max_backoff_seconds: float = 8.0
     min_request_interval_seconds: float = 0.35
+    max_cache_entries: int = 2048
     provider: str = field(default="deepl_translator", init=False)
     _client: httpx.Client | None = field(default=None, init=False, repr=False, compare=False)
     _next_allowed_request_at: float = field(default=0.0, init=False, repr=False, compare=False)
+    _cache: TranslationResultCache = field(init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         normalized_key = self.api_key.strip()
@@ -30,6 +33,7 @@ class DeepLTranslationService:
             raise TranslationError("DeepL API key is required for translation.")
         self.api_key = normalized_key
         self.endpoint = self._normalize_endpoint(self.endpoint, api_key=normalized_key)
+        self._cache = TranslationResultCache(self.max_cache_entries)
 
     def _ensure_client(self) -> httpx.Client:
         if self._client is None:
@@ -40,6 +44,9 @@ class DeepLTranslationService:
         if self._client is not None:
             self._client.close()
             self._client = None
+
+    def clear_cache(self) -> None:
+        self._cache.clear()
 
     def translate_da_to_en(self, text: str) -> str | None:
         normalized = text.strip()
@@ -99,9 +106,17 @@ class DeepLTranslationService:
         source_lang: str | None,
         target_lang: str,
     ) -> list[str | None]:
+        direction = f"{source_lang or 'auto'}:{target_lang}"
+        results = [self._cache.get(direction, text) for text in texts]
+        missing = list(dict.fromkeys(
+            text for text, result in zip(texts, results, strict=False)
+            if text and result is None
+        ))
+        if not missing:
+            return results
         response = self._post_with_retry(
             payload={
-                "text": texts,
+                "text": missing,
                 "target_lang": target_lang,
                 "source_lang": source_lang,
             }
@@ -112,15 +127,18 @@ class DeepLTranslationService:
             raise TranslationError("DeepL translation response was not valid JSON.") from exc
         translations = body.get("translations") if isinstance(body, dict) else None
         if not isinstance(translations, list):
-            return [None] * len(texts)
-        results: list[str | None] = []
-        for item in translations:
+            return results
+        translated_by_text: dict[str, str | None] = {}
+        for text, item in zip(missing, translations, strict=False):
             translated = item.get("text") if isinstance(item, dict) else None
             cleaned = translated.strip() if isinstance(translated, str) else ""
-            results.append(cleaned.lower() if cleaned else None)
-        while len(results) < len(texts):
-            results.append(None)
-        return results
+            value = cleaned.lower() if cleaned else None
+            translated_by_text[text] = value
+            self._cache.put(direction, text, value)
+        return [
+            result if result is not None else translated_by_text.get(text)
+            for text, result in zip(texts, results, strict=False)
+        ]
 
     def _post_with_retry(
         self,

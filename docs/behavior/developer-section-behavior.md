@@ -101,7 +101,10 @@ to "DTC" mean this script.
 Search-specific DTC commands:
 - `scripts/dev-app.py search profile <query>` mirrors the single-word sidebar
   search waterfall and reports flow decisions, per-phase timings, result counts,
-  translation keys, and whether direct translated COR was skipped.
+  translation keys, and whether direct translated COR was skipped. Its request
+  timings separate backend processing from client overhead when the backend
+  timing header is available. `--cold-cache` requires
+  `DANOTE_SEARCH_ADMIN_ENABLED=1` on the backend.
 - `scripts/dev-app.py search trace <english-query>` traces EN → DA → filtered
   COR decisions for an English query.
 - `scripts/dev-app.py search all <query>` reads saved, direct COR, EN, and

@@ -75,12 +75,12 @@ class ApiClient:
                 raw = response.read()
                 payload = _decode_json(raw)
                 elapsed_ms = (time.perf_counter() - start) * 1000
-                self.timings.append(_timing(spec, elapsed_ms, status=response.status))
+                self.timings.append(_timing(spec, elapsed_ms, status=response.status, headers=response.headers))
                 return payload
         except urllib.error.HTTPError as exc:
             elapsed_ms = (time.perf_counter() - start) * 1000
             body = exc.read().decode("utf-8", errors="replace")
-            self.timings.append(_timing(spec, elapsed_ms, status=exc.code))
+            self.timings.append(_timing(spec, elapsed_ms, status=exc.code, headers=exc.headers))
             raise DevAppError(
                 f"HTTP {exc.code}: {exc.reason}",
                 status=exc.code,
@@ -1388,8 +1388,13 @@ def is_short_letter_word(value: str) -> bool:
 def clear_search_cache(client: ApiClient) -> None:
     try:
         client.request(RequestSpec("POST", "/api/admin/clear-search-cache", body={}))
-    except DevAppError:
-        return
+    except DevAppError as exc:
+        raise DevAppError(
+            "Cold-cache profiling requires DANOTE_SEARCH_ADMIN_ENABLED=1 on the backend.",
+            status=exc.status,
+            body=exc.body,
+            request=exc.request,
+        ) from exc
 
 
 UD_POS_PRIMARY_LABELS = {
@@ -2195,12 +2200,26 @@ def request_payload(spec: RequestSpec) -> dict[str, Any]:
     return payload
 
 
-def _timing(spec: RequestSpec, elapsed_ms: float, *, status: int | None) -> dict[str, Any]:
-    return {
+def _timing(
+    spec: RequestSpec,
+    elapsed_ms: float,
+    *,
+    status: int | None,
+    headers: Any | None = None,
+) -> dict[str, Any]:
+    timing = {
         "request": request_payload(spec),
         "status": status,
         "elapsed_ms": round(elapsed_ms, 3),
     }
+    process_time = headers.get("X-Process-Time-Ms") if headers is not None else None
+    try:
+        process_ms = round(float(process_time), 3)
+    except (TypeError, ValueError):
+        return timing
+    timing["backend_process_ms"] = process_ms
+    timing["client_overhead_ms"] = round(max(0.0, elapsed_ms - process_ms), 3)
+    return timing
 
 
 def _query_string(params: dict[str, Any]) -> str:

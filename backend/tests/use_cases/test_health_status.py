@@ -40,6 +40,20 @@ def test_build_health_status_marks_disabled_components() -> None:
     assert payload.apis["azure_speech"].status == "disabled"
 
 
+def test_build_health_status_reports_search_warmup_state() -> None:
+    runtime = BackendRuntimeState(
+        settings=_settings(),
+        db_ready=True,
+        nlp_ready=True,
+        search_warmup_completed=True,
+    )
+    runtime.services.translation_service = object()
+
+    payload = build_health_status(runtime)
+
+    assert payload.components["search_warmup"] == "ok"
+
+
 def test_build_health_status_marks_missing_keys_for_selected_providers() -> None:
     runtime = BackendRuntimeState(settings=_settings(), db_ready=True, nlp_ready=True)
 

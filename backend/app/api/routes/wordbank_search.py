@@ -133,9 +133,14 @@ def clear_search_cache(request: Request) -> dict[str, str]:
         raise HTTPException(status_code=404, detail="Not found")
     cleared = 0
     for service in (
+        runtime.services.translation_service,
         runtime.services.en_gemini_translation_service,
         runtime.services.gemini_word_translation_service,
     ):
+        clear_cache = getattr(service, "clear_cache", None)
+        if callable(clear_cache):
+            clear_cache()
+            cleared += 1
         cache = getattr(service, "cache", None)
         clear = getattr(cache, "clear", None)
         if callable(clear):

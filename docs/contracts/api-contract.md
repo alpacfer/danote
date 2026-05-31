@@ -16,7 +16,7 @@ Routes: `backend/app/api/routes/`. DTOs: `backend/app/api/schemas/v1/`.
 ### GET `/api/health`
 - **Request model:** none.
 - **Response model:** `HealthResponse` (`backend/app/api/schemas/v1/root.py`).
-- **Notable status/error behavior:** `200` with `status: "ok"` or `"degraded"` per DB/NLP readiness. Includes `memory_usage_kb` for runtime diagnostics.
+- **Notable status/error behavior:** `200` with `status: "ok"` or `"degraded"` per DB/NLP readiness. Includes `memory_usage_kb` for runtime diagnostics and `components.search_warmup` (`ok`, `disabled`, `skipped`, or `degraded`) for the bounded translation-provider startup warmup.
 
 ### GET `/api/me`
 - **Request model:** none.

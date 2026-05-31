@@ -4,10 +4,11 @@ Domain services and external adapters. Flat layout (no subdirs). Each file is a 
 
 ## What goes here
 
-- **External adapters**: `gemini_translation*.py`, `deepl_translation.py`, `tts.py` — talk to third-party APIs.
+- **External adapters**: `gemini_translation*.py`, `deepl_translation.py`, `tts.py` — talk to third-party APIs. Successful deterministic Gemini contextual translations are persisted by `gemini_contextual_translation_cache.py`.
 - **Local lexicon adapters**: `cor.py`, `cor_local*.py`, `en_local*.py` — read bundled dictionary assets.
 - **Domain primitives**: `verification*.py`, `token_classifier.py`, `text_preprocessing.py`, `fuzzy_search.py`, `related_words.py`, `sentence_verification.py`.
-- **Generic translation entry**: `translation.py`.
+- **Generic translation adapters**: `translation.py`, `deepl_translation.py`, and
+  their bounded successful-result cache in `translation_result_cache.py`.
 
 ## What does NOT go here
 

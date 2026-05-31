@@ -1,5 +1,6 @@
 import resource
 import sys
+
 from app.api.schemas.v1 import ApiStatusEntry, HealthResponse
 from app.core.app_state import BackendRuntimeState
 
@@ -32,8 +33,6 @@ def build_health_status(runtime: BackendRuntimeState) -> HealthResponse:
 
     translation_service = services.translation_service
     tts_service = services.tts_service
-    gemini_word_translation_service = services.gemini_word_translation_service
-    gemini_verification_service = services.word_verification_service
 
     status = "ok" if runtime.db_ready and ((not nlp_enabled) or runtime.nlp_ready) else "degraded"
 
@@ -52,6 +51,7 @@ def build_health_status(runtime: BackendRuntimeState) -> HealthResponse:
             "database": "ok" if runtime.db_ready else "degraded",
             "nlp": "disabled" if not nlp_enabled else ("ok" if runtime.nlp_ready else "degraded"),
             "translation": "disabled" if not translation_enabled else ("ok" if translation_service else "degraded"),
+            "search_warmup": _search_warmup_status(runtime, translation_service),
             "tts": "disabled" if not tts_enabled else ("ok" if tts_service else "degraded"),
         },
         apis={
@@ -101,6 +101,18 @@ def build_health_status(runtime: BackendRuntimeState) -> HealthResponse:
         memory_usage_kb=get_memory_usage_kb(),
     )
     return payload
+
+
+def _search_warmup_status(runtime: BackendRuntimeState, translation_service: object | None) -> str:
+    if not runtime.settings.search_warmup_enabled:
+        return "disabled"
+    if runtime.search_warmup_completed:
+        return "ok"
+    if runtime.search_warmup_error:
+        return "degraded"
+    if translation_service is None:
+        return "skipped"
+    return "not_run"
 
 
 def _provider_status(

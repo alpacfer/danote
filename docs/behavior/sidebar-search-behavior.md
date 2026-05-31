@@ -146,6 +146,12 @@ Endpoints:
 - `en_query` narrows all returned COR groups through Gemini meaning-match selection. If Gemini returns no usable match or fails, all groups remain visible.
 - For English-translated COR lookup, deterministic filtering first prefers exact translated forms and POS-compatible groups. If Gemini returns no usable match or fails, the backend keeps the strongest deterministic candidate instead of re-exposing cross-POS spelling collisions.
 - Search collapses indistinguishable COR rows with the same normalized form, lemma, POS/morphology, and saveable English translation when no sense-level `meaning_key` or English gloss distinguishes them.
+- Exact multi-word COR lookups remain available, but multi-word misses skip
+  single-lemma fuzzy typo suggestions.
+- Backend startup sends one small deterministic DA-to-EN batch to the host
+  translation provider. This primes the provider connection and common COR
+  frames, then initializes local Gemini client/cache resources without invoking
+  model generation or spending Gemini tokens.
 
 ## English form API behavior
 

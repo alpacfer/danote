@@ -47,6 +47,7 @@ class Settings:
     search_batched_gemini_enabled: bool = True
     search_cor_batch_enabled: bool = True
     search_admin_enabled: bool = False
+    search_warmup_enabled: bool = True
     search_gemini_cache_path: Path = BASE_DIR / "resources" / "cache" / "en_gemini.sqlite"
     cor_lookup_enabled: bool = False
     cor_lookup_timeout_seconds: float = 4.0
@@ -152,6 +153,8 @@ def load_settings(*, env_file: Path | None = None) -> Settings:
         search_cor_batch_enabled=_required_env("DANOTE_SEARCH_COR_BATCH", env_values, "1").lower()
         not in {"0", "false", "no"},
         search_admin_enabled=_required_env("DANOTE_SEARCH_ADMIN_ENABLED", env_values, "0").lower()
+        not in {"0", "false", "no"},
+        search_warmup_enabled=_required_env("DANOTE_SEARCH_WARMUP", env_values, "1").lower()
         not in {"0", "false", "no"},
         search_gemini_cache_path=_path_env(
             "DANOTE_SEARCH_GEMINI_CACHE_PATH",

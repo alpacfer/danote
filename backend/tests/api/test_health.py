@@ -16,6 +16,7 @@ def test_health_route_returns_expected_shape(stub_nlp_adapter_factory) -> None:
     assert payload["components"]["database"] == "ok"
     assert payload["components"]["nlp"] == "disabled"
     assert payload["components"]["translation"] in {"degraded", "ok", "disabled"}
+    assert payload["components"]["search_warmup"] in {"ok", "skipped"}
     assert payload["components"]["tts"] in {"degraded", "ok", "disabled"}
     assert payload["apis"]["backend"]["status"] == "ok"
     assert "deepl_translator" in payload["apis"]

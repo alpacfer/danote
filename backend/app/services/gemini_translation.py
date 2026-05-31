@@ -5,6 +5,11 @@ import math
 import time
 from dataclasses import dataclass, field
 
+from app.services.gemini_contextual_translation_cache import (
+    merge_contextual_translations,
+    partition_cached_contextual_translations,
+    resolve_contextual_translation,
+)
 from app.services.gemini_result_cache import GeminiResultCache
 from app.services.gemini_sense_discovery import (
     DiscoveredSenseSet,
@@ -37,6 +42,9 @@ from app.services.gemini_translation_helpers import (
 from app.services.gemini_translation_models import (
     AlternativeTranslationsInput,
     AlternativeTranslationsResult,
+    BatchContextualWordTranslationRequestItem,
+    BatchContextualWordTranslationResponse,
+    BatchContextualWordTranslationResponseItem,
     ContextualWordTranslationInput,
     ExampleSentenceGenerationInput,
     ExampleSentenceGenerationResult,
@@ -60,29 +68,6 @@ from app.services.gemini_translation_parsing import (
 )
 
 __all__ = ("AlternativeTranslationsInput", "AlternativeTranslationsResult", "BatchContextualWordTranslationRequestItem", "BatchContextualWordTranslationResponse", "BatchContextualWordTranslationResponseItem", "ContextualWordTranslationInput", "ExampleSentenceGenerationInput", "ExampleSentenceGenerationResult", "GeminiFlashLiteWordTranslationService", "GeminiTranslationError", "GeminiWordTranslationService", "MeaningSectionCandidateInput", "MeaningSectionSelectionInput", "NonCORVariationCandidate", "NonCORVariationGenerationInput", "NonCORVariationGenerationResult", "NonCORWordGenerationInput", "NonCORWordGenerationResult")
-
-
-@dataclass(frozen=True, slots=True)
-class BatchContextualWordTranslationRequestItem:
-    id: str
-    surface_form: str
-    lemma: str
-    pos_tag: str | None = None
-    morphology: str | None = None
-    gloss: str | None = None
-    lemma_translation_hint: str | None = None
-    gloss_translation_hint: str | None = None
-
-
-@dataclass(frozen=True, slots=True)
-class BatchContextualWordTranslationResponseItem:
-    id: str
-    translation: str | None = None
-
-
-@dataclass(frozen=True, slots=True)
-class BatchContextualWordTranslationResponse:
-    items: list[BatchContextualWordTranslationResponseItem]
 
 
 @dataclass
@@ -129,6 +114,12 @@ class GeminiFlashLiteWordTranslationService:
             self.cache.close()
         self._client = None
 
+    def warmup(self) -> None:
+        """Initialize local Gemini resources without generating model content."""
+        self._ensure_client()
+        if self.cache is not None:
+            self.cache.get("startup-warmup")
+
     def discover_senses(self, payload: SenseDiscoveryInput) -> DiscoveredSenseSet | None:
         return discover_senses_with_gemini(
             payload,
@@ -138,9 +129,11 @@ class GeminiFlashLiteWordTranslationService:
         )
 
     def translate_word(self, payload: ContextualWordTranslationInput) -> str | None:
-        prompt = build_translation_prompt(payload)
-        raw = self._generate_text(prompt)
-        return self._parse_translation(raw)
+        return resolve_contextual_translation(
+            self.cache,
+            payload,
+            generate=lambda: self._parse_translation(self._generate_text(build_translation_prompt(payload))),
+        )
 
     def translate_words_batch(
         self,
@@ -148,6 +141,9 @@ class GeminiFlashLiteWordTranslationService:
     ) -> list[str | None]:
         if not payloads:
             return []
+        results, missing = partition_cached_contextual_translations(self.cache, payloads)
+        if not missing:
+            return results
         request_items = [
             BatchContextualWordTranslationRequestItem(
                 id=str(index),
@@ -159,7 +155,7 @@ class GeminiFlashLiteWordTranslationService:
                 lemma_translation_hint=payload.lemma_translation_hint,
                 gloss_translation_hint=payload.gloss_translation_hint,
             )
-            for index, payload in enumerate(payloads)
+            for index, payload in missing
         ]
         prompt = build_batch_translation_prompt(request_items)
         response = self._generate_content(
@@ -168,7 +164,7 @@ class GeminiFlashLiteWordTranslationService:
         )
         parsed = self._parse_batch_translations(response, expected_ids=[item.id for item in request_items])
         by_id = {item.id: item.translation for item in parsed.items}
-        return [by_id.get(item.id) for item in request_items]
+        return merge_contextual_translations(self.cache, results, missing, by_id)
 
     def select_meaning_section(self, payload: MeaningSectionSelectionInput) -> int | None:
         if not payload.meaning_candidates:

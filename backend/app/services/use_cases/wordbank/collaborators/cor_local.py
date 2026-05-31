@@ -96,7 +96,7 @@ def search_cor_form(
         if normalized_form == "huse":
             is_english = False
         suggestions = []
-        if not is_english:
+        if not is_english and " " not in normalized_form:
             suggestions = fuzzy_suggest(normalized_form, cor_local_lexicon_service.unique_lemmas)
         if suggestions:
             did_you_mean = suggestions[0]

@@ -24,6 +24,29 @@ class ContextualWordTranslationInput:
 
 
 @dataclass(frozen=True, slots=True)
+class BatchContextualWordTranslationRequestItem:
+    id: str
+    surface_form: str
+    lemma: str
+    pos_tag: str | None = None
+    morphology: str | None = None
+    gloss: str | None = None
+    lemma_translation_hint: str | None = None
+    gloss_translation_hint: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class BatchContextualWordTranslationResponseItem:
+    id: str
+    translation: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class BatchContextualWordTranslationResponse:
+    items: list[BatchContextualWordTranslationResponseItem]
+
+
+@dataclass(frozen=True, slots=True)
 class MeaningSectionCandidateInput:
     id: int
     lemma: str
@@ -134,7 +157,8 @@ class NonCORVariationGenerationResult:
 class GeminiWordTranslationService(Protocol):
     provider: str
 
-    def discover_senses(self, payload: "SenseDiscoveryInput") -> "DiscoveredSenseSet | None": ...
+    def warmup(self) -> None: ...
+    def discover_senses(self, payload: SenseDiscoveryInput) -> DiscoveredSenseSet | None: ...
     def translate_word(self, payload: ContextualWordTranslationInput) -> str | None: ...
     def translate_words_batch(
         self, payloads: list[ContextualWordTranslationInput]

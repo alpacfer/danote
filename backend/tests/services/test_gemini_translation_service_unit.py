@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pytest
 
+from app.services.gemini_result_cache import GeminiResultCache
 from app.services.gemini_translation import (
     AlternativeTranslationsInput,
     ContextualWordTranslationInput,
@@ -169,6 +170,22 @@ def test_gemini_word_translation_service_parses_structured_batch_response(monkey
 
     assert translated == ["the book", "learns"]
     assert fake_client.models.calls[0]["config"] is not None
+
+
+def test_gemini_word_translation_service_reuses_persisted_batch_results(monkeypatch, tmp_path) -> None:
+    service = GeminiFlashLiteWordTranslationService(
+        api_key="test-key",
+        cache=GeminiResultCache(tmp_path / "gemini.sqlite"),
+    )
+    fake_client = _FakeClient(
+        [_FakeResponse(None, parsed={"items": [{"id": "0", "translation": "the book"}]})]
+    )
+    monkeypatch.setattr(service, "_ensure_client", lambda: fake_client)
+    payload = ContextualWordTranslationInput(surface_form="bogen", lemma="bog", gloss="book")
+
+    assert service.translate_words_batch([payload]) == ["the book"]
+    assert service.translate_words_batch([payload]) == ["the book"]
+    assert len(fake_client.models.calls) == 1
 
 
 def test_gemini_word_translation_service_batch_prompt_prioritizes_common_morphology_sense(monkeypatch) -> None:
@@ -453,6 +470,18 @@ def test_gemini_word_translation_service_sets_client_timeout(monkeypatch) -> Non
     assert translated == "book"
     assert captured["api_key"] == "test-key"
     assert timeout == 7500
+
+
+def test_gemini_word_translation_service_warmup_does_not_generate_content(monkeypatch, tmp_path) -> None:
+    cache = GeminiResultCache(tmp_path / "gemini.sqlite")
+    service = GeminiFlashLiteWordTranslationService(api_key="test-key", cache=cache)
+    fake_client = _FakeClient([])
+    monkeypatch.setattr(service, "_ensure_client", lambda: fake_client)
+
+    service.warmup()
+
+    assert fake_client.models.calls == []
+    assert cache.get("startup-warmup") is None
 
 
 def test_gemini_word_translation_service_finds_alternative_translations(monkeypatch) -> None:

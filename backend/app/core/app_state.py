@@ -47,6 +47,8 @@ class BackendRuntimeState:
     en_gemini_translation_error: str | None = None
     translation_error: str | None = None
     gemini_word_translation_error: str | None = None
+    search_warmup_completed: bool = False
+    search_warmup_error: str | None = None
     related_words_error: str | None = None
     word_verification_error: str | None = None
     sentence_verification_error: str | None = None

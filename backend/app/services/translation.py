@@ -1,11 +1,13 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import json
 import time
+from dataclasses import dataclass, field
 from typing import Protocol
 
 import httpx
+
+from app.services.translation_result_cache import TranslationResultCache
 
 
 class TranslationError(RuntimeError):
@@ -34,9 +36,11 @@ class AzureTranslationService:
     backoff_seconds: float = 0.5
     max_backoff_seconds: float = 8.0
     min_request_interval_seconds: float = 0.35
+    max_cache_entries: int = 2048
     provider: str = field(default="azure_translator", init=False)
     _client: httpx.Client | None = field(default=None, init=False, repr=False, compare=False)
     _next_allowed_request_at: float = field(default=0.0, init=False, repr=False, compare=False)
+    _cache: TranslationResultCache = field(init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         normalized_key = self.api_key.strip()
@@ -52,6 +56,7 @@ class AzureTranslationService:
         self.region = normalized_region
         self.api_version = normalized_version
         self.endpoint = self._normalize_endpoint(self.endpoint)
+        self._cache = TranslationResultCache(self.max_cache_entries)
 
     def _ensure_client(self) -> httpx.Client:
         if self._client is None:
@@ -63,6 +68,9 @@ class AzureTranslationService:
             self._client.close()
             self._client = None
 
+    def clear_cache(self) -> None:
+        self._cache.clear()
+
     def translate_da_to_en(self, text: str) -> str | None:
         normalized = text.strip()
         if not normalized:
@@ -73,6 +81,13 @@ class AzureTranslationService:
         normalized = [t.strip() for t in texts]
         if not normalized or all(not t for t in normalized):
             return [None] * len(texts)
+        results = [self._cache.get("da:en", text) if text else None for text in normalized]
+        missing = list(dict.fromkeys(
+            text for text, result in zip(normalized, results, strict=False)
+            if text and result is None
+        ))
+        if not missing:
+            return results
         response = self._post_with_retry(
             path="/translate",
             params={
@@ -80,27 +95,30 @@ class AzureTranslationService:
                 "from": "da",
                 "to": "en",
             },
-            payload=[{"Text": t or ""} for t in normalized],
+            payload=[{"Text": text} for text in missing],
         )
         try:
             body = response.json()
         except ValueError as exc:
             raise TranslationError("Azure batch translation response was not valid JSON.") from exc
         if not isinstance(body, list):
-            return [None] * len(texts)
-        results: list[str | None] = []
-        for item in body:
+            return results
+        translated_by_text: dict[str, str | None] = {}
+        for text, item in zip(missing, body, strict=False):
             translations = item.get("translations") if isinstance(item, dict) else None
             if not isinstance(translations, list) or not translations:
-                results.append(None)
+                translated_by_text[text] = None
                 continue
             candidate = translations[0]
             translated = candidate.get("text") if isinstance(candidate, dict) else None
             cleaned = translated.strip() if isinstance(translated, str) else ""
-            results.append(cleaned.lower() if cleaned else None)
-        while len(results) < len(texts):
-            results.append(None)
-        return results
+            translated = cleaned.lower() if cleaned else None
+            translated_by_text[text] = translated
+            self._cache.put("da:en", text, translated)
+        return [
+            result if result is not None else translated_by_text.get(text)
+            for text, result in zip(normalized, results, strict=False)
+        ]
 
     def translate_en_to_da(self, text: str) -> str | None:
         normalized = text.strip()
@@ -130,6 +148,10 @@ class AzureTranslationService:
         return cleaned or None
 
     def _translate_text(self, *, text: str, source_code: str, target_code: str) -> str | None:
+        direction = f"{source_code}:{target_code}"
+        cached = self._cache.get(direction, text)
+        if cached is not None:
+            return cached
         response = self._post_with_retry(
             path="/translate",
             params={
@@ -155,7 +177,9 @@ class AzureTranslationService:
         cleaned = translated.strip() if isinstance(translated, str) else ""
         if not cleaned:
             return None
-        return cleaned.lower()
+        translated = cleaned.lower()
+        self._cache.put(direction, text, translated)
+        return translated
 
     def _post_with_retry(
         self,

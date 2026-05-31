@@ -154,6 +154,21 @@ class DevAppHelpersTest(unittest.TestCase):
         self.assertEqual(envelope["response"], {"status": "ok"})
         self.assertEqual(envelope["timings_ms"][0]["status"], 200)
 
+    def test_timing_reports_backend_processing_and_client_overhead(self) -> None:
+        timing = dev_app._timing(
+            dev_app.RequestSpec("GET", "/api/health"),
+            12.5,
+            status=200,
+            headers={"X-Process-Time-Ms": "10.25"},
+        )
+
+        self.assertEqual(timing["backend_process_ms"], 10.25)
+        self.assertEqual(timing["client_overhead_ms"], 2.25)
+
+    def test_cold_cache_requires_enabled_admin_endpoint(self) -> None:
+        with self.assertRaisesRegex(dev_app.DevAppError, "DANOTE_SEARCH_ADMIN_ENABLED=1"):
+            dev_app.clear_search_cache(FakeDisabledSearchAdminClient())
+
     def test_search_profile_decision_marks_sentence_and_short_words(self) -> None:
         self.assertEqual(dev_app.search_flow_decision("jeg er glad")["skip_reason"], "sentence_mode")
         self.assertEqual(dev_app.search_flow_decision("i")["skip_reason"], "too_short")
@@ -391,6 +406,16 @@ class FakeProfileClient:
             return self.responses[key]
         except KeyError as exc:
             raise AssertionError(f"Unexpected request: {key}") from exc
+
+
+class FakeDisabledSearchAdminClient:
+    def request(self, spec):
+        raise dev_app.DevAppError(
+            "HTTP 404: Not Found",
+            status=404,
+            body='{"detail":"Not found"}',
+            request=dev_app.request_payload(spec),
+        )
 
 
 class FakeDetailsClient:

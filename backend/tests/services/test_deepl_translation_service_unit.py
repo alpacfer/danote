@@ -82,6 +82,30 @@ def test_deepl_translation_service_normalizes_response_to_lowercase(monkeypatch)
     assert service.translate_da_to_en("bog") == "the book"
 
 
+def test_deepl_translation_service_caches_successful_results_until_cleared(monkeypatch) -> None:
+    service = DeepLTranslationService(api_key="test-key")
+    fake_client = _FakeClient(_FakeResponse())
+    monkeypatch.setattr(service, "_ensure_client", lambda: fake_client)
+
+    assert service.translate_da_to_en("bog") == "book"
+    assert service.translate_da_to_en("bog") == "book"
+    assert fake_client.calls == 1
+
+    service.clear_cache()
+    assert service.translate_da_to_en("bog") == "book"
+    assert fake_client.calls == 2
+
+
+def test_deepl_translation_service_reuses_cached_results_in_batches(monkeypatch) -> None:
+    service = DeepLTranslationService(api_key="test-key")
+    fake_client = _FakeClient(_FakeResponse())
+    monkeypatch.setattr(service, "_ensure_client", lambda: fake_client)
+
+    assert service.translate_da_to_en_batch(["bog", "bog"]) == ["book", "book"]
+    assert service.translate_da_to_en_batch(["bog"]) == ["book"]
+    assert fake_client.calls == 1
+
+
 def test_deepl_translation_service_detects_source_language(monkeypatch) -> None:
     service = DeepLTranslationService(api_key="test-key")
     fake_client = _FakeClient(
