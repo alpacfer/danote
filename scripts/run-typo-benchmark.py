@@ -71,7 +71,7 @@ def _compute_confusion_and_macro_f1(observations: list[tuple[str, str]]) -> tupl
     macro_f1 = sum(f1_scores) / len(f1_scores) if f1_scores else 0.0
     return matrix, macro_f1
 
-def _seed_lemmas(db_path: Path, lemmas: list[str]) -> None:
+def _seed_lemmas(db_path: Path, lemmas: list[str], typo_engine = None) -> None:
     with get_connection(db_path) as conn:
         conn.execute("DELETE FROM surface_forms")
         conn.execute("DELETE FROM lexemes")
@@ -80,6 +80,9 @@ def _seed_lemmas(db_path: Path, lemmas: list[str]) -> None:
                 "INSERT OR IGNORE INTO lexemes (lemma, source) VALUES (?, 'manual')",
                 (normalize_token(lemma),),
             )
+    if typo_engine is not None:
+        typo_engine.candidates.refresh_user_lexicon()
+        typo_engine.invalidate_cache()
 
 
 def main(
@@ -110,7 +113,7 @@ def main(
         status_observations: list[tuple[str, str]] = []
 
         for case in token_cases:
-            _seed_lemmas(db_path, case["db_seed_lexemes"])
+            _seed_lemmas(db_path, case["db_seed_lexemes"], typo_engine)
             result = classifier.classify(case["input_token"])
             total += 1
             expected_binary = _to_binary_status(case["expected_status"])
@@ -135,7 +138,7 @@ def main(
                 top1_passed += 1
 
         for case in context_cases:
-            _seed_lemmas(db_path, case["db_seed_lexemes"])
+            _seed_lemmas(db_path, case["db_seed_lexemes"], typo_engine)
             result = classifier.classify(case["target_token"])
             total += 1
             expected_binary = _to_binary_status(case["expected_status"])
@@ -156,7 +159,7 @@ def main(
                 )
 
         for case in class_cases + edge_cases:
-            _seed_lemmas(db_path, case["db_seed_lexemes"])
+            _seed_lemmas(db_path, case["db_seed_lexemes"], typo_engine)
             result = classifier.classify(case["surface"])
             total += 1
             expected_binary = _to_binary_status(case["expected_status"])
@@ -181,7 +184,7 @@ def main(
         for case in robustness_cases:
             if case.get("mode") != "single_token":
                 continue
-            _seed_lemmas(db_path, case["db_seed_lexemes"])
+            _seed_lemmas(db_path, case["db_seed_lexemes"], typo_engine)
             result = classifier.classify(case["input_token"])
             robustness_total += 1
             expected_binary = _to_binary_status(case["expected_status"])

@@ -126,15 +126,32 @@ def search_en_form(
         return static_presaved_word_en_search_response(normalized_form, static_presaved_word)
     if en_local_lexicon_service is None or not normalized_form:
         return ENSearchFormResponse(form=normalized_form, groups=[])
+    groups = build_en_pos_groups(
+        normalized_query=normalized_form,
+        en_local_lexicon_service=en_local_lexicon_service,
+        en_gemini_translation_service=en_gemini_translation_service,
+        translation_service=translation_service,
+        include_translations=include_translations,
+    )
+
+    did_you_mean: str | None = None
+    if not groups and " " not in normalized_form:
+        from app.services.fuzzy_search import fuzzy_suggest
+        suggestions = fuzzy_suggest(normalized_form, en_local_lexicon_service.unique_forms)
+        if suggestions:
+            did_you_mean = suggestions[0]
+            groups = build_en_pos_groups(
+                normalized_query=did_you_mean,
+                en_local_lexicon_service=en_local_lexicon_service,
+                en_gemini_translation_service=en_gemini_translation_service,
+                translation_service=translation_service,
+                include_translations=include_translations,
+            )
+
     return ENSearchFormResponse(
         form=normalized_form,
-        groups=build_en_pos_groups(
-            normalized_query=normalized_form,
-            en_local_lexicon_service=en_local_lexicon_service,
-            en_gemini_translation_service=en_gemini_translation_service,
-            translation_service=translation_service,
-            include_translations=include_translations,
-        ),
+        groups=groups,
+        did_you_mean=did_you_mean,
     )
 
 

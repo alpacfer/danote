@@ -78,12 +78,44 @@ def _error_likelihood(observed: str, candidate: str) -> float:
 
 
 _DANISH_SUBSTITUTION_COSTS: dict[tuple[str, str], float] = {
-    ("a", "å"): 0.35,
-    ("å", "a"): 0.35,
-    ("o", "ø"): 0.35,
-    ("ø", "o"): 0.35,
-    ("e", "æ"): 0.45,
-    ("æ", "e"): 0.45,
+    ("a", "å"): 0.30,
+    ("å", "a"): 0.30,
+    ("o", "ø"): 0.30,
+    ("ø", "o"): 0.30,
+    ("e", "æ"): 0.35,
+    ("æ", "e"): 0.35,
+}
+
+_KEYBOARD_NEIGHBORS: dict[str, str] = {
+    "q": "wa",
+    "w": "qeasd",
+    "e": "wsdrf",
+    "r": "edfgt",
+    "t": "rfghy",
+    "y": "tghuj",
+    "u": "yhjik",
+    "i": "ujkol",
+    "o": "iklpøæ",
+    "p": "oløå",
+    "a": "qwsz",
+    "s": "weazxd",
+    "d": "ersxcf",
+    "f": "rtcdgv",
+    "g": "tyfvbh",
+    "h": "yugbnj",
+    "j": "uihmnk",
+    "k": "ijml,",
+    "l": "ok,.",
+    "z": "asx",
+    "x": "zsdc",
+    "c": "xdfv",
+    "v": "cfgb",
+    "b": "vghn",
+    "n": "bhjm",
+    "m": "njk,",
+    "æ": "løø",
+    "ø": "lækæ",
+    "å": "p",
 }
 
 
@@ -117,6 +149,11 @@ def _weighted_edit_cost(observed: str, candidate: str) -> float:
 
 
 def _substitution_cost(source: str, target: str) -> float:
-    if (source, target) in _DANISH_SUBSTITUTION_COSTS:
-        return _DANISH_SUBSTITUTION_COSTS[(source, target)]
+    pair = (source, target)
+    if pair in _DANISH_SUBSTITUTION_COSTS:
+        return _DANISH_SUBSTITUTION_COSTS[pair]
+    s = source.lower()
+    t = target.lower()
+    if s in _KEYBOARD_NEIGHBORS and t in _KEYBOARD_NEIGHBORS[s]:
+        return 0.65  # lower penalty for key-adjacent substitutions
     return 1.0

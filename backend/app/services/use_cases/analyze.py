@@ -11,10 +11,11 @@ from app.services.use_cases.wordbank import build_word_action_suggestions
 
 
 class AnalyzeNoteUseCase:
-    def __init__(self, db_path, nlp_adapter: NLPAdapter, *, owner_user_id: int = 1):
+    def __init__(self, db_path, nlp_adapter: NLPAdapter, *, owner_user_id: int = 1, typo_engine=None):
         self._db_path = db_path
         self._nlp_adapter = nlp_adapter
         self._owner_user_id = owner_user_id
+        self._typo_engine = typo_engine
 
     def execute(self, text: str) -> list[AnalyzedToken]:
         text_without_comments = strip_inline_comments(text)
@@ -22,6 +23,7 @@ class AnalyzeNoteUseCase:
             self._db_path,
             nlp_adapter=self._nlp_adapter,
             owner_user_id=self._owner_user_id,
+            typo_engine=self._typo_engine,
         )
 
         token_metadata: list[tuple[str, str | None, str | None]] = []
@@ -57,7 +59,14 @@ class AnalyzeNoteUseCase:
                         match_source=result.match_source,
                         matched_lemma=result.matched_lemma,
                         matched_surface_form=result.matched_surface_form,
-                        suggestions=[],
+                        suggestions=[
+                            {
+                                "value": sug.value,
+                                "score": sug.score,
+                                "source_flags": list(sug.source_flags),
+                            }
+                            for sug in result.suggestions
+                        ],
                         confidence=result.confidence,
                         reason_tags=list(result.reason_tags),
                         word_actions=build_word_action_suggestions(

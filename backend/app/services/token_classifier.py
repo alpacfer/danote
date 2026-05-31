@@ -10,6 +10,7 @@ from app.nlp.lemma_candidate_ranker import (
     normalize_candidate,
     pick_best_candidate_in_lexicon,
 )
+from app.services.typo.typo_engine import TypoEngine, TypoSuggestion
 
 Classification = Literal["known", "variation", "typo_likely", "uncertain", "new"]
 MatchSource = Literal["exact", "lemma", "none"]
@@ -27,6 +28,7 @@ class TokenClassification:
     matched_surface_form: str | None = None
     confidence: float = 0.0
     reason_tags: tuple[str, ...] = ()
+    suggestions: tuple[TypoSuggestion, ...] = ()
 
 
 class _NullNLPAdapter:
@@ -54,10 +56,12 @@ class LemmaAwareClassifier:
         db_path: Path,
         nlp_adapter: NLPAdapter | None = None,
         owner_user_id: int = 1,
+        typo_engine: TypoEngine | None = None,
     ):
         self.db_path = db_path
         self.nlp_adapter = nlp_adapter or _NullNLPAdapter()
         self.owner_user_id = owner_user_id
+        self.typo_engine = typo_engine
 
     def classify(self, token: str) -> TokenClassification:
         with get_connection(self.db_path) as conn:
@@ -259,12 +263,10 @@ class LemmaAwareClassifier:
             else self._lemma_candidates_for_token(normalized)
         )
         if not lemma_candidates:
-            return TokenClassification(
-                surface_token=token,
-                normalized_token=normalized,
-                lemma_candidate=None,
-                classification="new",
-                match_source="none",
+            return self._new_with_typo_fallback(
+                token=token,
+                normalized=normalized,
+                sentence_start=sentence_start,
             )
 
         if prefetched_lemma_candidates is not None:
@@ -297,13 +299,25 @@ class LemmaAwareClassifier:
         lemma_candidate = lemma_candidates[0]
 
         if matched_lemma is None:
-            return TokenClassification(
-                surface_token=token,
-                normalized_token=normalized,
-                lemma_candidate=lemma_candidate,
-                classification="new",
-                match_source="none",
+            result = self._new_with_typo_fallback(
+                token=token,
+                normalized=normalized,
+                sentence_start=sentence_start,
             )
+            if result.lemma_candidate is None:
+                return TokenClassification(
+                    surface_token=result.surface_token,
+                    normalized_token=result.normalized_token,
+                    lemma_candidate=lemma_candidate,
+                    classification=result.classification,
+                    match_source=result.match_source,
+                    matched_lemma=result.matched_lemma,
+                    matched_surface_form=result.matched_surface_form,
+                    suggestions=result.suggestions,
+                    confidence=result.confidence,
+                    reason_tags=result.reason_tags,
+                )
+            return result
 
         return TokenClassification(
             surface_token=token,
@@ -359,6 +373,38 @@ class LemmaAwareClassifier:
             if normalize_candidate(lemma) == matched_lemma:
                 return (lemma, form)
         return exact_matches[0]
+
+    def _new_with_typo_fallback(
+        self,
+        *,
+        token: str,
+        normalized: str,
+        sentence_start: bool = False,
+    ) -> TokenClassification:
+        if self.typo_engine is None:
+            return TokenClassification(
+                surface_token=token,
+                normalized_token=normalized,
+                lemma_candidate=None,
+                classification="new",
+                match_source="none",
+            )
+        typo_result = self.typo_engine.classify_unknown(
+            token=token,
+            sentence_start=sentence_start,
+        )
+        return TokenClassification(
+            surface_token=token,
+            normalized_token=typo_result.normalized or normalized,
+            lemma_candidate=typo_result.suggestions[0].value if typo_result.suggestions else None,
+            classification=typo_result.status,
+            match_source="none",
+            matched_lemma=None,
+            matched_surface_form=None,
+            suggestions=typo_result.suggestions,
+            confidence=typo_result.confidence,
+            reason_tags=typo_result.reason_tags,
+        )
 
 
 # Backward-compatible alias for prior checkpoints.

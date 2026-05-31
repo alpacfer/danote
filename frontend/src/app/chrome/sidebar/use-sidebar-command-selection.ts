@@ -57,6 +57,7 @@ export function useSidebarCommandSelection({
   setCommandSelectionOverride,
   modeSwitchSuggestion,
   wordbankDidYouMean,
+  enDidYouMean,
 }: {
   activeEnTranslatedCorResults: EnTranslatedCorResults
   commandSelectionOverride: string
@@ -71,6 +72,7 @@ export function useSidebarCommandSelection({
   setCommandSelectionOverride: (value: string) => void
   modeSwitchSuggestion: SearchModeSwitchSuggestion | null
   wordbankDidYouMean: string | null
+  enDidYouMean: string | null
 }) {
   const orderedCorVariantsToRender = useMemo(() => {
     return orderedCorVariants(orderedCorSearchGroups, corSearchVariantsToRender)
@@ -112,7 +114,7 @@ export function useSidebarCommandSelection({
     if (modeSwitchSuggestion) {
       values.push(modeSwitchSuggestion.value)
     }
-    if (wordbankDidYouMean || corDidYouMean) {
+    if (wordbankDidYouMean || corDidYouMean || enDidYouMean) {
       values.push("did-you-mean-suggestion")
     }
     if (wordbankDidYouMean) {
@@ -150,6 +152,7 @@ export function useSidebarCommandSelection({
     orderedWordbankResults,
     sentenceSearchPreview,
     wordbankDidYouMean,
+    enDidYouMean,
   ])
 
   const commandSelectionValue = useMemo(() => {

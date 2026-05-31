@@ -259,4 +259,5 @@ export type CORSearchFormBatchResponse = {
 export type ENSearchFormResponse = {
   form: string
   groups: ENPosGroup[]
+  did_you_mean?: string | null
 }

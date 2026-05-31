@@ -21,6 +21,10 @@ class _StubENLocalLexiconService:
         self.lookup_form_calls: list[str] = []
         self.lookup_lemma_senses_calls: list[tuple[str, str | None]] = []
 
+    @property
+    def unique_forms(self) -> frozenset[str]:
+        return frozenset(match.form.lower() for match in self._matches)
+
     def lookup_form(self, value: str) -> list[ENLocalFormMatch]:
         self.lookup_form_calls.append(value)
         return list(self._matches)

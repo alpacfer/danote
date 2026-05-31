@@ -34,14 +34,27 @@ def fuzzy_suggest(
     - Pre-filters by length diff to keep scans fast over large vocabularies.
     """
     query_lower = query.lower()
-    scored: list[tuple[int, str]] = []
+    scored: list[tuple[float, str]] = []
+    
+    try:
+        from app.services.typo.ranking import _weighted_edit_cost
+        use_weighted = True
+    except Exception:
+        use_weighted = False
+
     for candidate in candidates:
         candidate_lower = candidate.lower()
         if abs(len(query_lower) - len(candidate_lower)) > max_distance:
             continue
-        dist = levenshtein(query_lower, candidate_lower)
-        if 0 < dist <= max_distance:
-            scored.append((dist, candidate_lower))
+        if use_weighted:
+            cost = _weighted_edit_cost(query_lower, candidate_lower)
+            if 0 < cost <= float(max_distance):
+                scored.append((cost, candidate_lower))
+        else:
+            dist = levenshtein(query_lower, candidate_lower)
+            if 0 < dist <= max_distance:
+                scored.append((float(dist), candidate_lower))
+                
     scored.sort(key=lambda x: (x[0], x[1]))
     seen: set[str] = set()
     result: list[str] = []

@@ -52,6 +52,7 @@ export function useSidebarEnSearch({
   } | null>(null)
   const [isEnTranslatedCorLoading, setIsEnTranslatedCorLoading] = useState(false)
   const [enTranslatedCorSkeletonCount, setEnTranslatedCorSkeletonCount] = useState(0)
+  const [enDidYouMean, setEnDidYouMean] = useState<string | null>(null)
 
   useEffect(() => {
     enResolveCacheRef.current.clear()
@@ -62,6 +63,7 @@ export function useSidebarEnSearch({
       setIsEnResolveLoading(false)
       setIsEnTranslatedCorLoading(false)
       setEnTranslatedCorSkeletonCount(0)
+      setEnDidYouMean(null)
     }, 0)
     return () => window.clearTimeout(clearId)
   }, [resetVersion])
@@ -79,6 +81,7 @@ export function useSidebarEnSearch({
     ) {
       setEnResolveResult(null)
       setIsEnResolveLoading(false)
+      setEnDidYouMean(null)
       return
     }
 
@@ -107,6 +110,7 @@ export function useSidebarEnSearch({
           }
           enResolveCacheRef.current.set(normalizedQuery, nextResult)
           setEnResolveResult(nextResult)
+          setEnDidYouMean(payload.did_you_mean ?? null)
         } finally {
           if (!cancelled) setIsEnResolveLoading(false)
         }
@@ -256,5 +260,6 @@ export function useSidebarEnSearch({
     activeEnTranslatedCorResults,
     isEnTranslatedCorLoading,
     enTranslatedCorSkeletonCount,
+    enDidYouMean,
   }
 }

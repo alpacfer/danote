@@ -31,6 +31,10 @@ class StubENLocalLexiconService:
         self._matches = matches
         self._senses_by_key = senses_by_key
 
+    @property
+    def unique_forms(self) -> frozenset[str]:
+        return frozenset(match.form.lower() for match in self._matches)
+
     def lookup_form(self, value: str) -> list[ENLocalFormMatch]:
         normalized = " ".join(value.strip().lower().split())
         return [match for match in self._matches if match.form.lower() == normalized]
@@ -267,7 +271,7 @@ def test_search_en_form_returns_empty_when_local_dictionary_misses(tmp_path, stu
         response = client.get("/api/wordbank/search/en-form", params={"form": "notebook"})
 
     assert response.status_code == 200
-    assert response.json() == {"form": "notebook", "groups": []}
+    assert response.json() == {"form": "notebook", "groups": [], "did_you_mean": None}
 
 
 def test_search_en_form_returns_grouped_translated_senses(tmp_path, stub_nlp_adapter_factory) -> None:
@@ -292,6 +296,7 @@ def test_search_en_form_returns_grouped_translated_senses(tmp_path, stub_nlp_ada
     assert response.status_code == 200
     assert response.json() == {
         "form": "books",
+        "did_you_mean": None,
         "groups": [
             {
                 "lemma": "book",

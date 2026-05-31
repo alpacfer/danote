@@ -98,6 +98,7 @@ export function useSidebarSearch({
     activeEnTranslatedCorResults,
     isEnTranslatedCorLoading,
     enTranslatedCorSkeletonCount,
+    enDidYouMean,
   } = useSidebarEnSearch({
     apiClient,
     isEnglishSingleWordQuery: searchLanguageMode === "en" && isEnglishSingleWordQuery,
@@ -159,5 +160,6 @@ export function useSidebarSearch({
     activeEnTranslatedCorResults,
     isEnTranslatedCorLoading,
     enTranslatedCorSkeletonCount,
+    enDidYouMean,
   }
 }

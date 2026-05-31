@@ -84,6 +84,7 @@ export function AppSidebar({
     activeEnTranslatedCorResults,
     isEnTranslatedCorLoading,
     enTranslatedCorSkeletonCount,
+    enDidYouMean,
   } = useSidebarSearch({
     wordbankCacheVersion,
     searchTranslationConfigVersion,
@@ -211,6 +212,7 @@ export function AppSidebar({
     setCommandSelectionOverride,
     modeSwitchSuggestion,
     wordbankDidYouMean,
+    enDidYouMean,
   })
 
   const closeSearch = () => {
@@ -239,6 +241,7 @@ export function AppSidebar({
     hasPageResults,
     wordbankDidYouMean,
     corDidYouMean,
+    enDidYouMean,
   }
 
   const searchResultData: SidebarSearchResultsData = {

@@ -109,6 +109,7 @@ class ENPosGroup(BaseModel):
 class ENSearchFormResponse(BaseModel):
     form: str
     groups: list[ENPosGroup] = Field(default_factory=list)
+    did_you_mean: str | None = None
 
 
 class ResolveQueryResponse(BaseModel):

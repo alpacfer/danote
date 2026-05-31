@@ -66,8 +66,10 @@ class TypoEngine:
         db_path: Path,
         dictionary_path: Path | None = None,
         dictionary_paths: tuple[Path, ...] | None = None,
+        owner_user_id: int = 1,
     ):
         self.db_path = db_path
+        self.owner_user_id = owner_user_id
         self.candidates = CandidateProvider(
             db_path=db_path,
             dictionary_path=dictionary_path,
@@ -185,12 +187,12 @@ class TypoEngine:
         with get_connection(self.db_path) as conn:
             conn.execute(
                 """
-                INSERT INTO ignored_tokens (token, scope, expires_at)
-                VALUES (?, ?, ?)
-                ON CONFLICT(token, scope)
+                INSERT INTO ignored_tokens (owner_user_id, token, scope, expires_at)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(owner_user_id, token, scope)
                 DO UPDATE SET expires_at = excluded.expires_at
                 """,
-                (normalized, scope, expires_at),
+                (self.owner_user_id, normalized, scope, expires_at),
             )
         if self._ignored_tokens_cache is not None:
             self._ignored_tokens_cache.add(normalized)
@@ -209,10 +211,10 @@ class TypoEngine:
             conn.execute(
                 """
                 INSERT INTO typo_feedback
-                (raw_token, predicted_status, suggestions_shown, user_action, chosen_value)
-                VALUES (?, ?, ?, ?, ?)
+                (owner_user_id, raw_token, predicted_status, suggestions_shown, user_action, chosen_value)
+                VALUES (?, ?, ?, ?, ?, ?)
                 """,
-                (raw_token, predicted_status, json.dumps(suggestions_shown), user_action, chosen_value),
+                (self.owner_user_id, raw_token, predicted_status, json.dumps(suggestions_shown), user_action, chosen_value),
             )
 
     def _is_ignored(self, normalized: str) -> bool:
@@ -226,14 +228,15 @@ class TypoEngine:
                 """
                 SELECT token
                 FROM ignored_tokens
-                WHERE expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP
-                """
+                WHERE owner_user_id = ? AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
+                """,
+                (self.owner_user_id,),
             ).fetchall()
         return {str(row["token"]) for row in rows}
 
     def _known_lemmas(self) -> set[str]:
         with get_connection(self.db_path) as conn:
-            rows = conn.execute("SELECT lemma FROM lexemes").fetchall()
+            rows = conn.execute("SELECT lemma FROM lexemes WHERE owner_user_id = ?", (self.owner_user_id,)).fetchall()
         return {str(row["lemma"]) for row in rows}
 
     def _log_event(self, *, token: str, result: TypoResult) -> None:
@@ -242,10 +245,11 @@ class TypoEngine:
             conn.execute(
                 """
                 INSERT INTO token_events
-                (raw_token, normalized_token, final_status, top_suggestion, confidence, latency_ms)
-                VALUES (?, ?, ?, ?, ?, ?)
+                (owner_user_id, raw_token, normalized_token, final_status, top_suggestion, confidence, latency_ms)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
+                    self.owner_user_id,
                     token,
                     result.normalized,
                     result.status,

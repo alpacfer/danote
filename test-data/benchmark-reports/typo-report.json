@@ -5404,7 +5404,846 @@
           "predicted_binary": "not_typo"
         }
       ]
+    },
+    {
+      "timestamp": "2026-05-31T18:13:01.684471+00:00",
+      "dictionary_mode": "combined",
+      "dictionary_paths": [
+        "backend/resources/dictionaries/da_words.txt",
+        "backend/resources/dictionaries/dsdo.txt"
+      ],
+      "summary": {
+        "status_accuracy": {
+          "passed": 421,
+          "total": 519,
+          "accuracy": 81.12
+        },
+        "top1_token_accuracy": {
+          "passed": 35,
+          "total": 500,
+          "accuracy": 7.0
+        },
+        "robustness_single_token_accuracy": {
+          "passed": 1,
+          "total": 3,
+          "accuracy": 33.33
+        },
+        "macro_f1_binary": 50.96,
+        "elapsed_ms": 1778.31,
+        "status_confusion_matrix": {
+          "likely_typo": {
+            "likely_typo": 414,
+            "not_typo": 93
+          },
+          "not_typo": {
+            "likely_typo": 5,
+            "not_typo": 7
+          }
+        },
+        "status_labels": [
+          "likely_typo",
+          "not_typo"
+        ],
+        "case_counts": {
+          "token": 500,
+          "context": 6,
+          "classification": 8,
+          "edge": 5
+        }
+      },
+      "adapter_warning": "DaCy NLP is retired; using identity fallback.",
+      "top_failures": [
+        {
+          "id": "typo_tok_002",
+          "category": "single_edit",
+          "expected": "typo_likely",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_004",
+          "category": "single_edit",
+          "expected": "typo_likely",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_005",
+          "category": "danish_diacritic",
+          "expected": "uncertain",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_006",
+          "category": "danish_diacritic",
+          "expected": "uncertain",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_010",
+          "category": "new_word_vs_typo",
+          "expected": "new",
+          "predicted": "typo_likely",
+          "expected_binary": "not_typo",
+          "predicted_binary": "likely_typo"
+        },
+        {
+          "id": "typo_tok_ext_003",
+          "category": "single_edit_noun_regular",
+          "expected": "uncertain",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_ext_005",
+          "category": "danish_diacritic_noun_regular",
+          "expected": "uncertain",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_ext_010",
+          "category": "danish_diacritic_noun_regular",
+          "expected": "uncertain",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_ext_011",
+          "category": "single_edit_noun_regular",
+          "expected": "typo_likely",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_ext_014",
+          "category": "single_edit_noun_regular",
+          "expected": "typo_likely",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_ext_023",
+          "category": "single_edit_noun_irregular",
+          "expected": "uncertain",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_ext_025",
+          "category": "danish_diacritic_noun_irregular",
+          "expected": "uncertain",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_ext_045",
+          "category": "danish_diacritic_adjective_basic",
+          "expected": "uncertain",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_ext_048",
+          "category": "single_edit_adjective_basic",
+          "expected": "uncertain",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_ext_050",
+          "category": "danish_diacritic_adjective_basic",
+          "expected": "uncertain",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_ext_055",
+          "category": "danish_diacritic_verb_regular",
+          "expected": "uncertain",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_ext_060",
+          "category": "danish_diacritic_verb_regular",
+          "expected": "uncertain",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_ext_061",
+          "category": "single_edit_verb_regular",
+          "expected": "typo_likely",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_ext_065",
+          "category": "danish_diacritic_verb_regular",
+          "expected": "uncertain",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_ext_073",
+          "category": "single_edit_verb_irregular_modal",
+          "expected": "uncertain",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-05-31T18:16:17.942805+00:00",
+      "dictionary_mode": "combined",
+      "dictionary_paths": [
+        "backend/resources/dictionaries/da_words.txt",
+        "backend/resources/dictionaries/dsdo.txt"
+      ],
+      "summary": {
+        "status_accuracy": {
+          "passed": 421,
+          "total": 519,
+          "accuracy": 81.12
+        },
+        "top1_token_accuracy": {
+          "passed": 409,
+          "total": 500,
+          "accuracy": 81.8
+        },
+        "robustness_single_token_accuracy": {
+          "passed": 1,
+          "total": 3,
+          "accuracy": 33.33
+        },
+        "macro_f1_binary": 50.96,
+        "elapsed_ms": 169164.8,
+        "status_confusion_matrix": {
+          "likely_typo": {
+            "likely_typo": 414,
+            "not_typo": 93
+          },
+          "not_typo": {
+            "likely_typo": 5,
+            "not_typo": 7
+          }
+        },
+        "status_labels": [
+          "likely_typo",
+          "not_typo"
+        ],
+        "case_counts": {
+          "token": 500,
+          "context": 6,
+          "classification": 8,
+          "edge": 5
+        }
+      },
+      "adapter_warning": "DaCy NLP is retired; using identity fallback.",
+      "top_failures": [
+        {
+          "id": "typo_tok_002",
+          "category": "single_edit",
+          "expected": "typo_likely",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_004",
+          "category": "single_edit",
+          "expected": "typo_likely",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_005",
+          "category": "danish_diacritic",
+          "expected": "uncertain",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_006",
+          "category": "danish_diacritic",
+          "expected": "uncertain",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_010",
+          "category": "new_word_vs_typo",
+          "expected": "new",
+          "predicted": "typo_likely",
+          "expected_binary": "not_typo",
+          "predicted_binary": "likely_typo"
+        },
+        {
+          "id": "typo_tok_ext_003",
+          "category": "single_edit_noun_regular",
+          "expected": "uncertain",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_ext_005",
+          "category": "danish_diacritic_noun_regular",
+          "expected": "uncertain",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_ext_010",
+          "category": "danish_diacritic_noun_regular",
+          "expected": "uncertain",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_ext_011",
+          "category": "single_edit_noun_regular",
+          "expected": "typo_likely",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_ext_014",
+          "category": "single_edit_noun_regular",
+          "expected": "typo_likely",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_ext_023",
+          "category": "single_edit_noun_irregular",
+          "expected": "uncertain",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_ext_025",
+          "category": "danish_diacritic_noun_irregular",
+          "expected": "uncertain",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_ext_045",
+          "category": "danish_diacritic_adjective_basic",
+          "expected": "uncertain",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_ext_048",
+          "category": "single_edit_adjective_basic",
+          "expected": "uncertain",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_ext_050",
+          "category": "danish_diacritic_adjective_basic",
+          "expected": "uncertain",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_ext_055",
+          "category": "danish_diacritic_verb_regular",
+          "expected": "uncertain",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_ext_060",
+          "category": "danish_diacritic_verb_regular",
+          "expected": "uncertain",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_ext_061",
+          "category": "single_edit_verb_regular",
+          "expected": "typo_likely",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_ext_065",
+          "category": "danish_diacritic_verb_regular",
+          "expected": "uncertain",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_ext_073",
+          "category": "single_edit_verb_irregular_modal",
+          "expected": "uncertain",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-05-31T18:19:20.789885+00:00",
+      "dictionary_mode": "combined",
+      "dictionary_paths": [
+        "backend/resources/dictionaries/da_words.txt",
+        "backend/resources/dictionaries/dsdo.txt"
+      ],
+      "summary": {
+        "status_accuracy": {
+          "passed": 421,
+          "total": 519,
+          "accuracy": 81.12
+        },
+        "top1_token_accuracy": {
+          "passed": 409,
+          "total": 500,
+          "accuracy": 81.8
+        },
+        "robustness_single_token_accuracy": {
+          "passed": 1,
+          "total": 3,
+          "accuracy": 33.33
+        },
+        "macro_f1_binary": 50.96,
+        "elapsed_ms": 169980.77,
+        "status_confusion_matrix": {
+          "likely_typo": {
+            "likely_typo": 414,
+            "not_typo": 93
+          },
+          "not_typo": {
+            "likely_typo": 5,
+            "not_typo": 7
+          }
+        },
+        "status_labels": [
+          "likely_typo",
+          "not_typo"
+        ],
+        "case_counts": {
+          "token": 500,
+          "context": 6,
+          "classification": 8,
+          "edge": 5
+        }
+      },
+      "adapter_warning": "DaCy NLP is retired; using identity fallback.",
+      "top_failures": [
+        {
+          "id": "typo_tok_002",
+          "category": "single_edit",
+          "expected": "typo_likely",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_004",
+          "category": "single_edit",
+          "expected": "typo_likely",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_005",
+          "category": "danish_diacritic",
+          "expected": "uncertain",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_006",
+          "category": "danish_diacritic",
+          "expected": "uncertain",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_010",
+          "category": "new_word_vs_typo",
+          "expected": "new",
+          "predicted": "typo_likely",
+          "expected_binary": "not_typo",
+          "predicted_binary": "likely_typo"
+        },
+        {
+          "id": "typo_tok_ext_003",
+          "category": "single_edit_noun_regular",
+          "expected": "uncertain",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_ext_005",
+          "category": "danish_diacritic_noun_regular",
+          "expected": "uncertain",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_ext_010",
+          "category": "danish_diacritic_noun_regular",
+          "expected": "uncertain",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_ext_011",
+          "category": "single_edit_noun_regular",
+          "expected": "typo_likely",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_ext_014",
+          "category": "single_edit_noun_regular",
+          "expected": "typo_likely",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_ext_023",
+          "category": "single_edit_noun_irregular",
+          "expected": "uncertain",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_ext_025",
+          "category": "danish_diacritic_noun_irregular",
+          "expected": "uncertain",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_ext_045",
+          "category": "danish_diacritic_adjective_basic",
+          "expected": "uncertain",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_ext_048",
+          "category": "single_edit_adjective_basic",
+          "expected": "uncertain",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_ext_050",
+          "category": "danish_diacritic_adjective_basic",
+          "expected": "uncertain",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_ext_055",
+          "category": "danish_diacritic_verb_regular",
+          "expected": "uncertain",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_ext_060",
+          "category": "danish_diacritic_verb_regular",
+          "expected": "uncertain",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_ext_061",
+          "category": "single_edit_verb_regular",
+          "expected": "typo_likely",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_ext_065",
+          "category": "danish_diacritic_verb_regular",
+          "expected": "uncertain",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_ext_073",
+          "category": "single_edit_verb_irregular_modal",
+          "expected": "uncertain",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-05-31T18:19:25.738146+00:00",
+      "dictionary_mode": "base",
+      "dictionary_paths": [
+        "backend/resources/dictionaries/da_words.txt"
+      ],
+      "summary": {
+        "status_accuracy": {
+          "passed": 499,
+          "total": 519,
+          "accuracy": 96.15
+        },
+        "top1_token_accuracy": {
+          "passed": 486,
+          "total": 500,
+          "accuracy": 97.2
+        },
+        "robustness_single_token_accuracy": {
+          "passed": 1,
+          "total": 3,
+          "accuracy": 33.33
+        },
+        "macro_f1_binary": 69.59,
+        "elapsed_ms": 2023.6,
+        "status_confusion_matrix": {
+          "likely_typo": {
+            "likely_typo": 492,
+            "not_typo": 15
+          },
+          "not_typo": {
+            "likely_typo": 5,
+            "not_typo": 7
+          }
+        },
+        "status_labels": [
+          "likely_typo",
+          "not_typo"
+        ],
+        "case_counts": {
+          "token": 500,
+          "context": 6,
+          "classification": 8,
+          "edge": 5
+        }
+      },
+      "adapter_warning": "DaCy NLP is retired; using identity fallback.",
+      "top_failures": [
+        {
+          "id": "typo_tok_005",
+          "category": "danish_diacritic",
+          "expected": "uncertain",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_006",
+          "category": "danish_diacritic",
+          "expected": "uncertain",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_010",
+          "category": "new_word_vs_typo",
+          "expected": "new",
+          "predicted": "typo_likely",
+          "expected_binary": "not_typo",
+          "predicted_binary": "likely_typo"
+        },
+        {
+          "id": "typo_tok_ext_050",
+          "category": "danish_diacritic_adjective_basic",
+          "expected": "uncertain",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_ext_073",
+          "category": "single_edit_verb_irregular_modal",
+          "expected": "uncertain",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_ext_113",
+          "category": "single_edit_diacritics_focus",
+          "expected": "uncertain",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_ext_185",
+          "category": "danish_diacritic_verb_regular",
+          "expected": "uncertain",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_ext_257",
+          "category": "single_edit_noun_regular",
+          "expected": "uncertain",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_ext_322",
+          "category": "single_edit_verb_irregular_modal",
+          "expected": "uncertain",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_ext_324",
+          "category": "danish_diacritic_verb_irregular_modal",
+          "expected": "uncertain",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_ext_327",
+          "category": "single_edit_verb_irregular_modal",
+          "expected": "uncertain",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_ext_342",
+          "category": "single_edit_adverb_particle",
+          "expected": "uncertain",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_ext_427",
+          "category": "single_edit_adjective_basic",
+          "expected": "uncertain",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_tok_ext_428",
+          "category": "danish_diacritic_adjective_basic",
+          "expected": "uncertain",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_ctx_004",
+          "category": "diacritic_context",
+          "expected": "uncertain",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_ctx_005",
+          "category": "new_term_context",
+          "expected": "new",
+          "predicted": "typo_likely",
+          "expected_binary": "not_typo",
+          "predicted_binary": "likely_typo"
+        },
+        {
+          "id": "typo_cls_004",
+          "category": "ambiguous_candidate",
+          "expected": "uncertain",
+          "predicted": "new",
+          "expected_binary": "likely_typo",
+          "predicted_binary": "not_typo"
+        },
+        {
+          "id": "typo_cls_005",
+          "category": "new_domain_word",
+          "expected": "new",
+          "predicted": "typo_likely",
+          "expected_binary": "not_typo",
+          "predicted_binary": "likely_typo"
+        },
+        {
+          "id": "typo_edge_002",
+          "category": "technical_compound",
+          "expected": "new",
+          "predicted": "typo_likely",
+          "expected_binary": "not_typo",
+          "predicted_binary": "likely_typo"
+        },
+        {
+          "id": "typo_edge_003",
+          "category": "mixed_language",
+          "expected": "new",
+          "predicted": "typo_likely",
+          "expected_binary": "not_typo",
+          "predicted_binary": "likely_typo"
+        }
+      ]
     }
   ],
-  "updated_at": "2026-02-25T20:13:46.889996+00:00"
+  "updated_at": "2026-05-31T18:19:25.738146+00:00"
 }

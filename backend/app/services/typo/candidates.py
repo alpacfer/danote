@@ -65,6 +65,18 @@ class CandidateProvider:
             unique_paths.append(path)
         return tuple(unique_paths)
 
+    def _resolve_english_wiki_path(self) -> Path | None:
+        curr = Path(self.db_path).resolve()
+        for _ in range(5):
+            candidate = curr / "backend" / "resources" / "dictionaries" / "english_wiki.sqlite"
+            if candidate.exists():
+                return candidate
+            candidate = curr / "resources" / "dictionaries" / "english_wiki.sqlite"
+            if candidate.exists():
+                return candidate
+            curr = curr.parent
+        return None
+
     def _load(self) -> None:
         self._general_words = set()
         self._suggestion_words = set()
@@ -79,6 +91,21 @@ class CandidateProvider:
             self._general_words.update(words)
             if not _is_membership_only_dictionary(dictionary_path):
                 self._suggestion_words.update(words)
+
+        # Load English forms from english_wiki.sqlite
+        english_wiki_path = self._resolve_english_wiki_path()
+        if english_wiki_path and english_wiki_path.exists():
+            try:
+                import sqlite3
+                with sqlite3.connect(english_wiki_path) as conn:
+                    conn.row_factory = sqlite3.Row
+                    rows = conn.execute("SELECT form_lower FROM en_forms").fetchall()
+                    en_words = {str(row["form_lower"]).strip().lower() for row in rows if row["form_lower"]}
+                    self._general_words.update(en_words)
+                    self._suggestion_words.update(en_words)
+            except Exception:
+                pass
+
         self.general_word_count = len(self._general_words)
         if SymSpell is not None:
             self._symspell = SymSpell(

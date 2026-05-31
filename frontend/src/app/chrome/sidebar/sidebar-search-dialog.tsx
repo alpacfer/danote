@@ -76,6 +76,10 @@ export function SidebarSearchDialog({
         }}
         sentenceSearchPreview={sentenceSearchPreview}
         onCloseSearch={onCloseSearch}
+        wordbankDidYouMean={searchResultState.wordbankDidYouMean}
+        corDidYouMean={searchResultState.corDidYouMean}
+        enDidYouMean={searchResultState.enDidYouMean}
+        isSentenceMode={isSentenceMode}
         onKeyDown={(event) => {
           if (
             event.key !== "Enter"

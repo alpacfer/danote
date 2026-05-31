@@ -39,6 +39,7 @@ export type SidebarSearchResultsState = {
   hasPageResults: boolean
   wordbankDidYouMean: string | null
   corDidYouMean: string | null
+  enDidYouMean: string | null
   modeSwitchSuggestion: SearchModeSwitchSuggestion | null
 }
 
@@ -240,7 +241,7 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
   const hasTranslatedEnSection = hasTranslatedEnCorResults || showEnSkeletonResults || showEnFallbackResults
 
   // Suppress DYM when COR has a direct match, EN has results, or EN is loading — the query is valid in some language.
-  const dymSuggestion = (hasDirectCor || hasEnResults || isAnyEnLoading) ? null : (state.wordbankDidYouMean ?? state.corDidYouMean)
+  const dymSuggestion = (hasDirectCor || hasEnResults || isAnyEnLoading) ? null : (state.wordbankDidYouMean ?? state.corDidYouMean ?? state.enDidYouMean)
   const hasDirectResults = hasDirectWordbank || hasDirectCor
   const hasModeSwitchSuggestion = Boolean(state.modeSwitchSuggestion)
 

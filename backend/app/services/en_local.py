@@ -10,7 +10,7 @@ class SafeConnection(sqlite3.Connection):
             return super().__exit__(exc_type, exc_val, exc_tb)
         finally:
             self.close()
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 
@@ -44,6 +44,17 @@ class ENLocalFormMatch:
 class ENLocalLexiconService:
     db_path: Path
     provider: str = "en_local"
+    _unique_forms: frozenset[str] | None = field(default=None, init=False, repr=False)
+
+    @property
+    def unique_forms(self) -> frozenset[str]:
+        if self._unique_forms is None:
+            rows = self._query_rows(
+                "SELECT DISTINCT form_lower FROM en_forms",
+                (),
+            )
+            self._unique_forms = frozenset(str(row["form_lower"]).strip().lower() for row in rows if row["form_lower"])
+        return self._unique_forms
 
     def has_form(self, value: str) -> bool:
         normalized = _normalize_space(value).lower()
