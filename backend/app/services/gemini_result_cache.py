@@ -21,7 +21,6 @@ class GeminiResultCache:
         self._path = path
         self._lock = threading.Lock()
         self._initialized = False
-        self._local = threading.local()
         self._connections: dict[int, sqlite3.Connection] = {}
 
     @property
@@ -30,17 +29,19 @@ class GeminiResultCache:
 
     def _get_conn(self) -> sqlite3.Connection:
         self._ensure_initialized()
-        if not hasattr(self._local, "conn"):
+        ident = threading.get_ident()
+        with self._lock:
+            conn = self._connections.get(ident)
+        if conn is None:
             conn = sqlite3.connect(self._path, check_same_thread=False)
             try:
                 conn.execute("PRAGMA journal_mode = WAL")
                 conn.execute("PRAGMA synchronous = NORMAL")
             except sqlite3.DatabaseError:
                 pass
-            self._local.conn = conn
             with self._lock:
-                self._connections[threading.get_ident()] = conn
-        return self._local.conn
+                self._connections[ident] = conn
+        return conn
 
     def get(self, key: str) -> str | None:
         conn = self._get_conn()
@@ -63,8 +64,8 @@ class GeminiResultCache:
                 INSERT INTO gemini_cache (key, value, created_at)
                 VALUES (?, ?, ?)
                 ON CONFLICT(key) DO UPDATE SET
-                    value = excluded.value,
-                    created_at = excluded.created_at
+                     value = excluded.value,
+                     created_at = excluded.created_at
                 """,
                 (key, value, created_at),
             )
@@ -85,8 +86,6 @@ class GeminiResultCache:
                 conn.close()
             except sqlite3.DatabaseError:
                 pass
-        if hasattr(self._local, "conn"):
-            delattr(self._local, "conn")
 
     def _ensure_initialized(self) -> None:
         if self._initialized:
