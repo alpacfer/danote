@@ -51,7 +51,6 @@ export function SidebarSearchInput({
   const phrases = searchLanguageMode === "en" ? ENGLISH_SEARCH_PHRASES : DANISH_SEARCH_PHRASES
   const shuffledPhrases = useMemo(() => shuffleArray(phrases), [phrases])
 
-  const [activeTypoSegment, setActiveTypoSegment] = useState<{ text: string; start: number; end: number; message: string | null } | null>(null)
   const [phraseIndex, setPhraseIndex] = useState(0)
   const [displayText, setDisplayText] = useState("")
   const [isDeleting, setIsDeleting] = useState(false)
@@ -59,7 +58,6 @@ export function SidebarSearchInput({
   const [prevValue, setPrevValue] = useState(value)
   if (value !== prevValue) {
     setPrevValue(value)
-    setActiveTypoSegment(null)
     if (value === "") {
       setPhraseIndex(0)
       setDisplayText("")
@@ -134,24 +132,6 @@ export function SidebarSearchInput({
     })
   }, [segments])
 
-  const suggestions = useMemo(() => {
-    if (!activeTypoSegment) return []
-    const dym = wordbankDidYouMean || corDidYouMean || enDidYouMean
-    if (dym) {
-      return [dym]
-    }
-    const correctedText = sentenceSearchPreview?.corrected_text
-    if (!correctedText) return []
-    const origWords: string[] = value.toLowerCase().match(/[\p{L}\p{N}'’-]+/gu) || []
-    const corrWords: string[] = correctedText.toLowerCase().match(/[\p{L}\p{N}'’-]+/gu) || []
-    const origIndex = origWords.indexOf(activeTypoSegment.text.toLowerCase())
-    if (origIndex !== -1 && corrWords[origIndex]) {
-      const matchWord = correctedText.match(/[\p{L}\p{N}'’-]+/gu)?.[origIndex]
-      return matchWord ? [matchWord] : []
-    }
-    return []
-  }, [activeTypoSegment, wordbankDidYouMean, corDidYouMean, enDidYouMean, sentenceSearchPreview, value])
-
   const overlay = rawErrors.length > 0 ? (
     <div data-testid="sentence-search-input-overlay">
       {segmentsWithRanges.map((segment, index) => (
@@ -164,7 +144,25 @@ export function SidebarSearchInput({
             onClick={(e) => {
               e.preventDefault()
               e.stopPropagation()
-              setActiveTypoSegment(segment)
+              const dym = wordbankDidYouMean || corDidYouMean || enDidYouMean
+              if (dym) {
+                onValueChange(dym)
+                return
+              }
+              const correctedText = sentenceSearchPreview?.corrected_text
+              if (correctedText) {
+                const origWords: string[] = value.toLowerCase().match(/[\p{L}\p{N}'’-]+/gu) || []
+                const corrWords: string[] = correctedText.toLowerCase().match(/[\p{L}\p{N}'’-]+/gu) || []
+                const origIndex = origWords.indexOf(segment.text.toLowerCase())
+                if (origIndex !== -1 && corrWords[origIndex]) {
+                  const matchWord = correctedText.match(/[\p{L}\p{N}'’-]+/gu)?.[origIndex]
+                  if (matchWord) {
+                    const before = value.substring(0, segment.start)
+                    const after = value.substring(segment.end)
+                    onValueChange(`${before}${matchWord}${after}`)
+                  }
+                }
+              }
             }}
           >
             {segment.text}
@@ -295,29 +293,6 @@ export function SidebarSearchInput({
         </button>
       </div>
 
-      {/* Slide-in Pill Suggestions Drawer */}
-      {activeTypoSegment && suggestions.length > 0 ? (
-        <div className="mx-4 my-1.5 flex flex-wrap items-center gap-1.5 animate-in slide-in-from-top-1 duration-150 py-1 border-t border-border/20">
-          <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground mr-1">Suggestions:</span>
-          {suggestions.map((s) => (
-            <Button
-              key={s}
-              type="button"
-              variant="secondary"
-              size="sm"
-              className="h-6 px-2.5 text-xs rounded-full bg-accent/60 hover:bg-accent text-accent-foreground border border-accent-foreground/10 transition-all cursor-pointer font-medium"
-              onClick={() => {
-                const before = value.substring(0, activeTypoSegment.start)
-                const after = value.substring(activeTypoSegment.end)
-                onValueChange(`${before}${s}${after}`)
-                setActiveTypoSegment(null)
-              }}
-            >
-              {s}
-            </Button>
-          ))}
-        </div>
-      ) : null}
     </div>
   )
 }

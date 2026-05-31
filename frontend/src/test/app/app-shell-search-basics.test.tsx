@@ -973,7 +973,7 @@ describe("App shell and search", () => {
     expect(await within(commandDialog).findByText(/^vindue$/i, { selector: "strong" })).toBeInTheDocument()
   })
 
-  it("renders a wavy underline for English typo and allows clicking it to open suggestions drawer", async () => {
+  it("renders a wavy underline for English typo and allows clicking it to directly apply correction", async () => {
     mockFetchImplementation({
       lemmasResponse: { items: [] },
       enSearchFormResponse: {
@@ -1012,15 +1012,9 @@ describe("App shell and search", () => {
     const overlayToken = await screen.findByText("windox", { selector: "span" })
     expect(overlayToken).toHaveClass("underline", "decoration-wavy", "pointer-events-auto")
 
-    // Click the wavy-underlined word to trigger the suggestions drawer
+    // Click the wavy-underlined word to directly apply the correction
     fireEvent.click(overlayToken)
 
-    // Suggestion drawer should appear with "window" button
-    const suggestionBtn = await screen.findByRole("button", { name: /^window$/i })
-    expect(suggestionBtn).toBeInTheDocument()
-
-    // Click suggestion to update input
-    fireEvent.click(suggestionBtn)
     await waitFor(() => {
       expect(searchInput).toHaveValue("window")
     })

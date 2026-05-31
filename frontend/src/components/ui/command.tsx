@@ -125,7 +125,7 @@ function CommandInput({
             <div
               aria-hidden="true"
               data-slot="command-input-overlay"
-              className="text-foreground pointer-events-none absolute inset-0 overflow-hidden py-2 text-sm leading-5 whitespace-pre-wrap max-md:py-2.5 max-md:leading-6"
+              className="text-foreground pointer-events-none absolute inset-0 z-20 overflow-hidden py-2 text-sm leading-5 whitespace-pre-wrap max-md:py-2.5 max-md:leading-6"
             >
               {overlay}
             </div>
@@ -189,7 +189,7 @@ function CommandInput({
           <div
             aria-hidden="true"
             data-slot="command-input-overlay"
-            className="text-foreground pointer-events-none absolute inset-0 flex items-center overflow-hidden py-2 text-sm leading-5 whitespace-pre"
+            className="text-foreground pointer-events-none absolute inset-0 z-20 flex items-center overflow-hidden py-2 text-sm leading-5 whitespace-pre"
           >
             {overlay}
           </div>
