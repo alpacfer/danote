@@ -132,13 +132,13 @@
     --danote-paper-grain:
       radial-gradient(
         ellipse at 2px 3px,
-        oklch(0.235 0.026 235 / 0.05) 0.35px,
-        transparent 0.75px
+        oklch(0.235 0.026 235 / 0.075) 0.45px,
+        transparent 0.85px
       ),
       radial-gradient(
         ellipse at 8px 9px,
-        oklch(0.55 0.12 40 / 0.025) 0.3px,
-        transparent 0.7px
+        oklch(0.55 0.12 40 / 0.035) 0.35px,
+        transparent 0.75px
       );
     --danote-notebook-ruling: repeating-linear-gradient(
       to bottom,
@@ -217,13 +217,13 @@
     --danote-paper-grain:
       radial-gradient(
         ellipse at 2px 3px,
-        oklch(0.935 0.014 85 / 0.035) 0.35px,
-        transparent 0.75px
+        oklch(0.935 0.014 85 / 0.05) 0.45px,
+        transparent 0.85px
       ),
       radial-gradient(
         ellipse at 8px 9px,
-        oklch(0.72 0.11 45 / 0.018) 0.3px,
-        transparent 0.7px
+        oklch(0.72 0.11 45 / 0.026) 0.35px,
+        transparent 0.75px
       );
     --danote-notebook-ruling: repeating-linear-gradient(
       to bottom,
@@ -326,6 +326,7 @@
 [data-material="reference"] {
   --material-surface: var(--material-reference);
   --material-underlay: var(--brand-sky);
+  box-shadow: var(--danote-shadow-card);
 }
 
 [data-material="meaning"] {
@@ -439,16 +440,6 @@
 ::view-transition-old(root),
 ::view-transition-new(root) {
   animation-duration: 180ms;
-}
-
-[data-morphology-journey] table {
-  background:
-    linear-gradient(
-      to right,
-      transparent,
-      color-mix(in oklch, var(--material-grammar) 42%, transparent),
-      transparent
-    );
 }
 
 [data-morphology-journey] tbody tr {

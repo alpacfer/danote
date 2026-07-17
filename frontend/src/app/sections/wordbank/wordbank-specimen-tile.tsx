@@ -1,4 +1,4 @@
-import { BookOpenText, Link2, Sparkle, Sparkles, Trash2, Zap } from "lucide-react"
+import { Trash2 } from "lucide-react"
 
 import {
   isMultiWordLemma,
@@ -60,7 +60,6 @@ export function WordbankSpecimenTile({
               style={{ viewTransitionName: wordViewTransitionName(lemma.lemma) }}
               onClick={() => runWordViewTransition(onSelect)}
             >
-              <PosStamp posTags={posTags} />
               <span>{displayWord}</span>
               {lemma.variation_count > 1 ? (
                 <span aria-hidden="true" className="text-muted-foreground text-xs">
@@ -68,7 +67,11 @@ export function WordbankSpecimenTile({
                 </span>
               ) : null}
               {isRecent ? (
-                <Sparkle data-icon="inline-end" aria-label={`Recently enriched ${displayWord}`} />
+                <span
+                  aria-label={`Recently enriched ${displayWord}`}
+                  className="bg-primary/65 inline-flex size-1.5 rounded-full"
+                  data-recent-marker
+                />
               ) : null}
               <UnreadMarker count={unreadCount} displayWord={displayWord} />
             </Button>
@@ -91,20 +94,6 @@ export function WordbankSpecimenTile({
       </ContextMenu>
     </Tooltip>
   )
-}
-
-function PosStamp({ posTags }: { posTags: string[] }) {
-  const primary = posTags[0] ?? ""
-  if (primary === "VERB" || primary === "AUX") {
-    return <Zap data-icon="inline-start" aria-hidden="true" />
-  }
-  if (primary === "ADJ" || primary === "ADV") {
-    return <Sparkles data-icon="inline-start" aria-hidden="true" />
-  }
-  if (primary === "ADP" || primary === "CCONJ" || primary === "SCONJ") {
-    return <Link2 data-icon="inline-start" aria-hidden="true" />
-  }
-  return <BookOpenText data-icon="inline-start" aria-hidden="true" />
 }
 
 function wasActiveRecently(timestamp: string | null | undefined): boolean {

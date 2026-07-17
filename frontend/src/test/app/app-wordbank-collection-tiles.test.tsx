@@ -29,7 +29,7 @@ describe("App wordbank collection tiles", () => {
 
     const bogTile = await screen.findByRole("button", { name: "bog" })
     expect(bogTile).toHaveTextContent("bog· 3")
-    expect(bogTile.querySelector("svg")).toBeInTheDocument()
+    expect(bogTile.querySelector("svg")).not.toBeInTheDocument()
     expect(bogTile).toHaveAttribute("data-material", "word")
     expect(bogTile).toHaveAttribute("data-grid-anchor", "unit")
 

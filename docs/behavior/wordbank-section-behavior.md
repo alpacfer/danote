@@ -72,10 +72,10 @@ Per-specimen tile:
 - Hover or keyboard focus opens a tooltip with the summary translation when
   present and readable POS labels. Pronunciation is assumed and no
   availability status is exposed on collection tiles.
-- One category-derived material wash and a POS stamp identify the tile without
-  a colored edge. Multi-word expressions use a restrained joined-label
-  silhouette. Activity within seven days adds a small sparkle cue derived from
-  `last_enriched_at`.
+- One category-derived material wash identifies the tile without a colored
+  edge or leading icon; POS remains available in the tooltip. Multi-word
+  expressions use a restrained joined-label silhouette. Activity within seven
+  days adds a small ink-dot cue derived from `last_enriched_at`.
 - Unread verification markers:
   - queued/in-progress → no marker
   - unread `1` → dot indicator

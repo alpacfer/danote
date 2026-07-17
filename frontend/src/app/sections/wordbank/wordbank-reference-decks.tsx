@@ -57,7 +57,7 @@ export function WordbankReferenceDecks({
       >
         Reference collections
       </h2>
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(11rem,1fr))] gap-4 pb-2" data-grid-anchor="unit">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(11rem,1fr))] gap-4" data-grid-anchor="unit">
         {pages.map((page) => (
           <ReferenceDeck key={page.sentinel} page={page} onClick={() => onSelectLemma(page.sentinel)} />
         ))}
