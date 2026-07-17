@@ -8,8 +8,8 @@ const cardVariants = cva(
   {
     variants: {
       variant: {
-        default: "gap-6 py-6 shadow-sm",
-        subtle: "gap-0 py-0 shadow-none",
+        default: "gap-6 py-6 shadow-card",
+        subtle: "bg-surface-sunken gap-0 border-border/70 py-0 shadow-none",
       },
     },
     defaultVariants: {

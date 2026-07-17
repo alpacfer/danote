@@ -1,7 +1,9 @@
 import { BookOpen, ScrollText, Search, Settings } from "lucide-react"
 
 import type { AppSection } from "@/app/core"
-import { cn } from "@/lib/utils"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { ButtonGroup } from "@/components/ui/button-group"
 
 type MobileBottomNavProps = {
   activeSection: AppSection
@@ -25,76 +27,61 @@ export function MobileBottomNav({
       data-slot="mobile-bottom-nav"
       className="fixed bottom-[calc(1.5rem+env(safe-area-inset-bottom))] left-1/2 z-50 flex w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 items-center justify-between gap-3 md:hidden"
     >
-      {/* Settings Pill */}
-      <button
+      <Button
         type="button"
         aria-label="Settings"
         onClick={onSelectAccount}
-        className={cn(
-          "flex size-11 shrink-0 items-center justify-center rounded-full border border-border bg-background shadow-lg text-muted-foreground transition-all duration-200 active:scale-90 md:hover:text-foreground",
-          activeSection === "account"
-            ? "bg-primary text-primary-foreground border-primary shadow-sm"
-            : "md:hover:bg-muted/60"
-        )}
+        variant={activeSection === "account" ? "default" : "outline"}
+        size="icon-lg"
+        className="size-11 rounded-full shadow-floating"
       >
-        <Settings className="size-5" />
-      </button>
+        <Settings />
+      </Button>
 
-      {/* Main Tabs Pill */}
-      <div className="flex h-11 flex-1 items-center justify-between rounded-full border border-border bg-background p-1 shadow-lg">
-        {/* Wordbank Tab */}
-        <button
+      <ButtonGroup className="bg-surface-raised h-11 flex-1 items-center rounded-full border p-1 shadow-floating [&>*]:rounded-full!">
+        <Button
           type="button"
           aria-label="Wordbank"
           onClick={onSelectWordbank}
-          className={cn(
-            "relative flex h-9 flex-1 items-center justify-center gap-1.5 rounded-full px-2 text-sm font-semibold transition-all duration-200 active:scale-95 text-muted-foreground md:hover:text-foreground",
-            activeSection === "wordbank"
-              ? "bg-primary text-primary-foreground shadow-sm"
-              : "md:hover:bg-muted/60"
-          )}
+          variant={activeSection === "wordbank" ? "default" : "ghost"}
+          size="sm"
+          className="relative h-9 flex-1"
         >
-          <BookOpen className="size-5" />
+          <BookOpen data-icon="inline-start" />
           <span>Words</span>
           {unreadWordbankNotificationCount > 0 && (
-            <span
-              className={cn(
-                "absolute -top-1 -right-1 flex min-w-5 h-5 items-center justify-center rounded-full px-1.5 text-[9px] font-bold leading-none shadow-sm",
-                activeSection === "wordbank"
-                  ? "bg-destructive text-destructive-foreground"
-                  : "bg-primary text-primary-foreground"
-              )}
+            <Badge
+              variant={activeSection === "wordbank" ? "destructive" : "default"}
+              className="absolute -top-1 -right-1 h-5 min-w-5 px-1 text-[9px] leading-none shadow-xs"
             >
               {unreadWordbankNotificationCount}
-            </span>
+            </Badge>
           )}
-        </button>
+        </Button>
 
-        {/* Sentencebank Tab */}
-        <button
+        <Button
           type="button"
+          aria-label="Sentences"
           onClick={onSelectSentencebank}
-          className={cn(
-            "flex h-9 flex-1 items-center justify-center gap-1.5 rounded-full px-2 text-sm font-semibold transition-all duration-200 active:scale-95 text-muted-foreground md:hover:text-foreground",
-            activeSection === "sentencebank"
-              ? "bg-primary text-primary-foreground shadow-sm"
-              : "md:hover:bg-muted/60"
-          )}
+          variant={activeSection === "sentencebank" ? "default" : "ghost"}
+          size="sm"
+          className="h-9 flex-1"
         >
-          <ScrollText className="size-5" />
+          <ScrollText data-icon="inline-start" />
           <span>Sentences</span>
-        </button>
-      </div>
+        </Button>
+      </ButtonGroup>
 
-      {/* Search Pill */}
-      <button
+      <Button
         type="button"
         aria-label="Open search"
         onClick={onOpenSearch}
-        className="flex size-11 shrink-0 items-center justify-center rounded-full border border-border bg-background shadow-lg text-muted-foreground transition-all duration-200 active:scale-90 md:hover:bg-muted/60 md:hover:text-foreground"
+        variant="outline"
+        size="icon-lg"
+        className="size-11 rounded-full shadow-floating"
       >
-        <Search className="size-5" />
-      </button>
+        <Search />
+      </Button>
     </div>
   )
 }

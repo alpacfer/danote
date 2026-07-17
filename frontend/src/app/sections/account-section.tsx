@@ -54,7 +54,7 @@ export function AccountSection({ onFreshStart }: { onFreshStart?: () => void }) 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-6 md:px-8 md:py-8">
       <header className="flex flex-col gap-2">
-        <h1 className="text-2xl font-semibold">Account</h1>
+        <h1 className="font-section-title text-2xl leading-none font-semibold">Account</h1>
         <p className="max-w-2xl text-sm text-muted-foreground">
           Manage your profile and the language-service keys danote uses for translations,
           verification, and pronunciation.

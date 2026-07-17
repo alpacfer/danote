@@ -9,6 +9,8 @@ import {
 } from "@/app/chrome/sidebar/sidebar-search-results"
 import type { SearchLanguageMode } from "@/app/chrome/sidebar/sidebar-search-types"
 import { type SentenceSearchPreviewResponse } from "@/app/core"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Button } from "@/components/ui/button"
 import { CommandDialog } from "@/components/ui/command"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 
@@ -127,20 +129,24 @@ export function SidebarSearchDialog({
         </ToggleGroup>
       </div>
       {isTrialLimitReached ? (
-        <div className="mx-3 my-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
-          You&apos;ve used today&apos;s free-trial searches.{" "}
-          <button
-            type="button"
-            className="font-medium underline underline-offset-2"
-            onClick={() => {
-              onCloseSearch()
-              onSelectAccount()
-            }}
-          >
-            Add your API keys
-          </button>{" "}
-          in Account for unlimited access. Resets tomorrow.
-        </div>
+        <Alert className="mx-3 my-2 w-auto bg-accent/45">
+          <AlertDescription className="block text-xs text-accent-foreground">
+            You&apos;ve used today&apos;s free-trial searches.{" "}
+            <Button
+              type="button"
+              variant="link"
+              size="xs"
+              className="h-auto p-0 text-xs"
+              onClick={() => {
+                onCloseSearch()
+                onSelectAccount()
+              }}
+            >
+              Add your API keys
+            </Button>{" "}
+            in Account for unlimited access. Resets tomorrow.
+          </AlertDescription>
+        </Alert>
       ) : null}
       <SidebarSearchResults
         state={searchResultState}

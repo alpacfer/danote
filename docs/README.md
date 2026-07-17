@@ -7,6 +7,7 @@ Canonical docs are grouped by purpose under `docs/`. Durable references stay her
 - [`contracts/`](./contracts/api-contract.md): API-facing contracts, schema notes, and content policies
 - [`behavior/`](./behavior/app-shell-behavior.md): product and section behavior docs
 - [`architecture/`](./architecture/engineering-boundaries.md): engineering rules, dependency policy, and ADRs
+- [`design/`](./design/visual-system.md): visual language, semantic tokens, typography, and surface hierarchy
 - [`testing/`](./testing/test-plan.md): test strategy, CI coverage, and release checklists
 - [`reference/`](./reference/configuration-reference.md): configuration, environment versions, and operational guidance
 - [`deployment/`](./deployment/vps-private-beta.md): hosted deployment runbooks
@@ -33,6 +34,7 @@ Canonical docs are grouped by purpose under `docs/`. Durable references stay her
 
 - [Engineering boundaries](./architecture/engineering-boundaries.md)
 - [Maintainability budgets](./architecture/maintainability-budgets.md)
+- [Visual system](./design/visual-system.md)
 - [Backend dependency locking](./architecture/backend-dependency-locking.md)
 - [Configuration reference](./reference/configuration-reference.md)
 - [Versions and environment locking](./reference/versions.md)
@@ -56,7 +58,7 @@ Use this table to find the current source of truth quickly when behavior changes
 
 | Document | Audience | Primary source modules | Last verification checkpoint | Owner |
 | --- | --- | --- | --- | --- |
-| [App shell behavior](./behavior/app-shell-behavior.md) | Frontend engineers, maintainers | `frontend/src/App.tsx`, `frontend/src/app/layout/section-content.tsx`, `frontend/src/app/chrome/*`, `frontend/src/app/auth/*` | Mobile search Back closes search; Clerk sign-in returns to app root after confirmation (2026-05-21) | Frontend |
+| [App shell behavior](./behavior/app-shell-behavior.md) | Frontend engineers, maintainers | `frontend/src/App.tsx`, `frontend/src/app/layout/section-content.tsx`, `frontend/src/app/chrome/*`, `frontend/src/app/auth/*` | Nordic field-notebook tokens, material shell, and shadcn mobile navigation (2026-07-17) | Frontend |
 | [Notes section behavior](./behavior/notes-section-behavior.md) | Frontend engineers, QA | Retired/hidden UI reference | Notes section hidden from shell navigation and command pages (2026-05-02) | Frontend |
 | [Playground section behavior](./behavior/playground-section-behavior.md) | Frontend engineers, QA | Retired/inaccessible UI reference | DaCy retirement and Playground hide update (2026-05-01) | Frontend |
 | [Sidebar search behavior](./behavior/sidebar-search-behavior.md) | Frontend engineers, product QA | `frontend/src/app/chrome/sidebar/*`, `frontend/src/app/hooks/sidebar/*`, `backend/app/services/use_cases/wordbank/collaborators/*`, `backend/app/bootstrap/runtime_search_warmup.py` | Startup primes one DA-to-EN batch and initializes local Gemini resources without model generation (2026-05-31) | Shared |

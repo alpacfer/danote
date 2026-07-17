@@ -12,7 +12,7 @@ export function PinnedPageLayout({ title, description, children }: PinnedPageLay
       <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">
         <div className="flex w-full min-w-0 max-w-full flex-col gap-6 pr-2">
           <header className="flex min-w-0 flex-col gap-1">
-            <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
+            <h1 className="font-section-title text-xl leading-tight font-semibold">{title}</h1>
             {description ? (
               <p className="text-muted-foreground text-sm">{description}</p>
             ) : null}

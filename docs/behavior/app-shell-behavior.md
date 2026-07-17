@@ -44,6 +44,18 @@ Pure render switch; no app-shell side effects.
 
 ### Chrome ownership (`frontend/src/app/chrome/*`)
 
+#### Visual foundation
+
+- Light mode defaults to a warm paper canvas with muted blue ink, forest
+  primary actions, sea-glass supportive surfaces, and oat accents.
+- Dark mode uses an inky canvas with the same semantic botanical hierarchy.
+- Source Sans 3 remains the UI face, Playwrite GB J is reserved for the brand
+  wordmark, and Fraunces Variable is used for primary section headings.
+- The shell, cards, and floating surfaces use separate semantic depth tokens.
+- Decorative paper grain is CSS-only and removed for `prefers-contrast: more`.
+- The mobile bottom navigation composes shadcn Button, ButtonGroup, and Badge
+  primitives while preserving the existing safe-area placement and actions.
+
 #### Sidebar (`frontend/src/app/chrome/sidebar/app-sidebar.tsx`)
 
 - Header title: `danote`, clicking it opens the Wordbank root

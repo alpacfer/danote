@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@clerk/react": "^6.6.2",
-    "@fontsource/comic-neue": "^5.2.7",
+    "@fontsource-variable/fraunces": "^5.2.9",
     "@fontsource/playwrite-gb-j": "^5.2.7",
     "@fontsource/source-sans-3": "^5.2.9",
     "@radix-ui/react-popover": "^1.1.15",

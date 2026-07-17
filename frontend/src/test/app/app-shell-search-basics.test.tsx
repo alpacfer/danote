@@ -107,6 +107,37 @@ describe("App shell and search", () => {
     expect(screen.queryByRole("textbox", { name: /lesson notes/i })).not.toBeInTheDocument()
   }, 60_000)
 
+  it("announces the free-trial search limit as an alert", async () => {
+    mockFetchImplementation({
+      corSearchFormHandler: async (input) => {
+        const url = String(input)
+        if (url.includes("include_translations=false")) {
+          return responseOf({ form: "grænse", groups: [] })
+        }
+        return new Response(JSON.stringify({ detail: "Daily trial limit reached." }), {
+          status: 429,
+          headers: { "Content-Type": "application/json" },
+        })
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    fireEvent.click(screen.getByRole("button", { name: /^search$/i }))
+    const commandDialog = await screen.findByRole("dialog")
+    fireEvent.change(within(commandDialog).getByRole("textbox", { name: /command search/i }), {
+      target: { value: "grænse" },
+    })
+
+    const alert = await within(commandDialog).findByRole("alert")
+    expect(alert).toHaveTextContent(/used today's free-trial searches/i)
+    fireEvent.click(within(alert).getByRole("button", { name: /add your api keys/i }))
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    })
+  })
+
   it("closes the search page on browser back without moving app sections", async () => {
     mockFetchImplementation()
 
@@ -1020,4 +1051,3 @@ describe("App shell and search", () => {
     })
   })
 })
-
