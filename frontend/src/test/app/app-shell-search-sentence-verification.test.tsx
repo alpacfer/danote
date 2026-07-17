@@ -925,4 +925,93 @@ it("underlines the typo in the input and shows only the correction plus correcte
       ).toBe(true)
     })
   })
+
+  it("renders wavy underline for Danish sentence typos and allows clicking it to apply correction inline without using dym", async () => {
+    mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      sentenceSearchPreviewHandler: async () => {
+        return responseOf({
+          status: "ready",
+          query_language: "da",
+          source_text: "hej spisr",
+          corrected_text: "hej spiser",
+          english_translation: "hello eats",
+          is_valid: false,
+          errors: [
+            {
+              start: 4,
+              end: 9,
+              message: "Unknown word: 'spisr'",
+            },
+          ],
+          message: "Typos detected",
+        })
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    const dialog = await openSearch()
+    typeInSearch(dialog, "hej spisr")
+
+    // Find the overlay token with the wavy underline
+    const overlayToken = await screen.findByText("spisr", { selector: "span" })
+    expect(overlayToken).toHaveClass("underline", "decoration-wavy", "pointer-events-auto")
+
+    // Click the wavy-underlined word to apply the inline correction
+    fireEvent.click(overlayToken)
+
+    const searchInput = within(dialog).getByRole("textbox", { name: /command search/i })
+    await waitFor(() => {
+      expect(searchInput).toHaveValue("hej spiser")
+    })
+  })
+
+  it("resolves duplicate words correctly during inline typo correction in sentence mode", async () => {
+    mockFetchImplementation({
+      lemmasResponse: { items: [] },
+      sentenceSearchPreviewHandler: async () => {
+        return responseOf({
+          status: "ready",
+          query_language: "da",
+          source_text: "spisr og spisr",
+          corrected_text: "spiser og spiste",
+          english_translation: "eats and ate",
+          is_valid: false,
+          errors: [
+            {
+              start: 0,
+              end: 5,
+              message: "Unknown word: 'spisr'",
+            },
+            {
+              start: 9,
+              end: 14,
+              message: "Unknown word: 'spisr'",
+            },
+          ],
+          message: "Typos detected",
+        })
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    const dialog = await openSearch()
+    typeInSearch(dialog, "spisr og spisr")
+
+    // Find the overlay tokens
+    const overlayTokens = await screen.findAllByText("spisr", { selector: "span" })
+    expect(overlayTokens).toHaveLength(2)
+
+    // Click the second one
+    fireEvent.click(overlayTokens[1])
+
+    const searchInput = within(dialog).getByRole("textbox", { name: /command search/i })
+    await waitFor(() => {
+      expect(searchInput).toHaveValue("spisr og spiste")
+    })
+  })
 })

@@ -17,5 +17,7 @@ export default defineConfig({
     setupFiles: './src/test/setup.ts',
     testTimeout: 60000,
     maxWorkers: 1,
+    fileParallelism: false,
+    pool: 'threads',
   },
 })

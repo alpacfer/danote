@@ -144,23 +144,23 @@ export function SidebarSearchInput({
             onClick={(e) => {
               e.preventDefault()
               e.stopPropagation()
-              const dym = wordbankDidYouMean || corDidYouMean || enDidYouMean
-              if (dym) {
-                onValueChange(dym)
-                return
+              if (!isSentenceMode) {
+                const dym = wordbankDidYouMean || corDidYouMean || enDidYouMean
+                if (dym) {
+                  onValueChange(dym)
+                  return
+                }
               }
               const correctedText = sentenceSearchPreview?.corrected_text
               if (correctedText) {
-                const origWords: string[] = value.toLowerCase().match(/[\p{L}\p{N}'’-]+/gu) || []
-                const corrWords: string[] = correctedText.toLowerCase().match(/[\p{L}\p{N}'’-]+/gu) || []
-                const origIndex = origWords.indexOf(segment.text.toLowerCase())
-                if (origIndex !== -1 && corrWords[origIndex]) {
-                  const matchWord = correctedText.match(/[\p{L}\p{N}'’-]+/gu)?.[origIndex]
-                  if (matchWord) {
-                    const before = value.substring(0, segment.start)
-                    const after = value.substring(segment.end)
-                    onValueChange(`${before}${matchWord}${after}`)
-                  }
+                const wordsBefore = value.substring(0, segment.start).match(/[\p{L}\p{N}'’-]+/gu) || []
+                const origIndex = wordsBefore.length
+                const corrWords = correctedText.match(/[\p{L}\p{N}'’-]+/gu) || []
+                const matchWord = corrWords[origIndex]
+                if (matchWord) {
+                  const before = value.substring(0, segment.start)
+                  const after = value.substring(segment.end)
+                  onValueChange(`${before}${matchWord}${after}`)
                 }
               }
             }}

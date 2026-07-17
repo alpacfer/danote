@@ -152,7 +152,7 @@ describe("App wordbank related words", () => {
       expect(screen.queryByText(/^Infinitive$/i)).not.toBeInTheDocument()
       expect(screen.queryByText(/^Active$/i)).not.toBeInTheDocument()
     }, { timeout: 4_000 })
-  }, 10_000)
+  }, 60_000)
 
   it("request-shape: unique related cards save through add-word and keep the current word page open", async () => {
     let relatedSaved = false

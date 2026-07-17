@@ -71,3 +71,40 @@ def test_typo_engine_updates_in_memory_ignored_cache_on_add(tmp_path) -> None:
 
     assert result.status == "new"
     assert "gating_skip_ignored" in result.reason_tags
+
+
+def test_typo_engine_user_isolation(tmp_path) -> None:
+    db_path = tmp_path / "danote.sqlite3"
+    apply_migrations(db_path)
+    
+    # Seed custom lemma 'spiser' for User 1
+    with get_connection(db_path) as conn:
+        conn.execute(
+            "INSERT OR IGNORE INTO lexemes (owner_user_id, lemma, source) VALUES (1, 'spiser', 'manual')"
+        )
+        # Seed custom lemma 'spise' for User 2
+        conn.execute("INSERT OR IGNORE INTO app_users (id, auth_provider, auth_subject) VALUES (2, 'local', 'user-2')")
+        conn.execute(
+            "INSERT OR IGNORE INTO lexemes (owner_user_id, lemma, source) VALUES (2, 'spise', 'manual')"
+        )
+
+    # Empty dictionary so suggestions only come from user lemmas
+    dictionary_path = tmp_path / "da_words.txt"
+    dictionary_path.write_text("", encoding="utf-8")
+
+    # Engine for User 1
+    engine_u1 = TypoEngine(db_path=db_path, owner_user_id=1, dictionary_path=dictionary_path)
+    # Engine for User 2
+    engine_u2 = TypoEngine(db_path=db_path, owner_user_id=2, dictionary_path=dictionary_path)
+
+    result_u1 = engine_u1.classify_unknown(token="spisr")
+    result_u2 = engine_u2.classify_unknown(token="spisr")
+
+    # User 1 should get 'spiser' suggestion, not 'spise'
+    assert result_u1.suggestions
+    assert result_u1.suggestions[0].value == "spiser"
+
+    # User 2 should get 'spise' suggestion, not 'spiser'
+    assert result_u2.suggestions
+    assert result_u2.suggestions[0].value == "spise"
+

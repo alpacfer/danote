@@ -72,6 +72,7 @@ class TypoEngine:
         self.owner_user_id = owner_user_id
         self.candidates = CandidateProvider(
             db_path=db_path,
+            owner_user_id=owner_user_id,
             dictionary_path=dictionary_path,
             dictionary_paths=dictionary_paths,
         )
@@ -270,8 +271,8 @@ class TypoEngine:
             if status == "uncertain":
                 return "new", ("uncertain_resolved_dictionary_hit",)
             return status, ()
-        if status in {"new", "uncertain"}:
-            return "typo_likely", ("dictionary_miss_forced_typo",)
+        # Respect the calibrated decision status for dictionary misses,
+        # which avoids overriding proper_noun_bias or weak candidate signals to typo_likely.
         return status, ()
 
 

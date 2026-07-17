@@ -156,13 +156,18 @@ def test_sentencebank_save_resolves_translation_and_tokens_concurrently(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     sleep_seconds = 0.2
+    t_events = {}
 
     def slow_translation(**_kwargs) -> str:
+        t_events["translation_start"] = time.perf_counter()
         time.sleep(sleep_seconds)
+        t_events["translation_end"] = time.perf_counter()
         return "hello world"
 
     def slow_token_resolution(*_args, **_kwargs) -> tuple[list, list[dict[str, object]]]:
+        t_events["tokens_start"] = time.perf_counter()
         time.sleep(sleep_seconds)
+        t_events["tokens_end"] = time.perf_counter()
         return [], []
 
     monkeypatch.setattr(
@@ -175,13 +180,15 @@ def test_sentencebank_save_resolves_translation_and_tokens_concurrently(
     )
     use_case = SentencebankUseCase(_db_path(tmp_path))
 
-    started = time.perf_counter()
     inserted = use_case.add_sentence("Hej verden")
-    elapsed = time.perf_counter() - started
 
     assert inserted.status == "inserted"
     assert inserted.english_translation == "hello world"
-    assert elapsed < sleep_seconds * 1.75
+    
+    # Assert execution periods overlapped, indicating concurrency
+    overlap_start = max(t_events["translation_start"], t_events["tokens_start"])
+    overlap_end = min(t_events["translation_end"], t_events["tokens_end"])
+    assert overlap_start < overlap_end
 
 
 def test_sentencebank_save_reuses_cached_phrase_translation(tmp_path: Path) -> None:

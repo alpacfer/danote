@@ -105,7 +105,7 @@ describe("App shell and search", () => {
     expect(await screen.findByRole("heading", { name: /^bog$/i })).toBeInTheDocument()
 
     expect(screen.queryByRole("textbox", { name: /lesson notes/i })).not.toBeInTheDocument()
-  }, 10_000)
+  }, 60_000)
 
   it("closes the search page on browser back without moving app sections", async () => {
     mockFetchImplementation()

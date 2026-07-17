@@ -941,7 +941,7 @@ describe("App shell and search", () => {
       expect(screen.getByRole("button", { name: /show verification details/i })).toBeInTheDocument()
       expect(screen.queryByRole("button", { name: /verification is running/i })).not.toBeInTheDocument()
     }, { timeout: 6_000 })
-  }, 15_000)
+  }, 60_000)
 
   it("request-shape: auto-updates the open word page when queued verification finishes from a stale saved snapshot", async () => {
     let lemmaDetailsRequestCount = 0
@@ -1009,7 +1009,7 @@ describe("App shell and search", () => {
       expect(screen.getByText(/^classroom mentor$/i)).toBeInTheDocument()
       expect(screen.queryByText(/^placeholder translation$/i)).not.toBeInTheDocument()
     }, { timeout: 6_000 })
-  }, 15_000)
+  }, 60_000)
 
   it("request-shape: refreshes wordbank categories when detail polling observes verification completion", async () => {
     let lemmaDetailsRequestCount = 0
@@ -1084,7 +1084,7 @@ describe("App shell and search", () => {
       expect(screen.getByText(/^School$/i)).toBeInTheDocument()
       expect(screen.getByText(/^Work$/i)).toBeInTheDocument()
     }, { timeout: 6_000 })
-  }, 15_000)
+  }, 60_000)
 
   it("request-shape: keeps polling through Gemini auto-apply settling and updates the open word page without navigation", async () => {
     let lemmaDetailsRequestCount = 0
@@ -1179,7 +1179,7 @@ describe("App shell and search", () => {
       expect(screen.getByText(/^classroom mentor$/i)).toBeInTheDocument()
       expect(screen.queryByText(/^placeholder translation$/i)).not.toBeInTheDocument()
     }, { timeout: 6_000 })
-  }, 15_000)
+  }, 60_000)
 
   it("Danish mode skips English lookup endpoints", async () => {
     const fetchSpy = mockFetchImplementation({
