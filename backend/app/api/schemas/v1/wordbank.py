@@ -368,6 +368,8 @@ class RevertVerificationChangeResponse(BaseModel):
 class LemmaSummary(BaseModel):
     lemma: str
     display_lemma: str
+    created_at: str
+    last_enriched_at: str
     english_translation: str | None
     pos_tags: list[str] = Field(default_factory=list)
     categories: list[str] = Field(default_factory=list)

@@ -27,12 +27,14 @@ export function WordbankListResults({
   const hasActiveFilters = filters.posTags.length > 0 || filters.categories.length > 0
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-6" data-grid-anchor="unit">
       {hasActiveFilters && filteredGroups.length === 0 ? <WordbankListEmpty onClearFilters={onClearFilters} /> : null}
 
       {filteredGroups.map((group) => (
-        <section key={group.letter} className="flex flex-col gap-2">
-          <h3 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">{group.letter}</h3>
+        <section key={group.letter} className="flex flex-col gap-2" data-grid-anchor="unit">
+          <h3 className="text-muted-foreground flex h-8 items-center text-xs font-semibold tracking-wide uppercase">
+            {group.letter}
+          </h3>
           <div className="flex flex-wrap gap-2">
             {group.items.map((lemma) => {
               const displayWord = lemma.display_lemma?.trim() || lemma.lemma

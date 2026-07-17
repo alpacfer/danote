@@ -52,9 +52,9 @@ export function AccountSection({ onFreshStart }: { onFreshStart?: () => void }) 
   const isGuest = account?.auth_provider === "guest"
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-6 md:px-8 md:py-8">
-      <header className="flex flex-col gap-2">
-        <h1 className="font-section-title text-2xl leading-none font-semibold">Account</h1>
+    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6" data-grid-page="account">
+      <header className="flex flex-col gap-2" data-grid-anchor="rule">
+        <h1 className="font-section-title flex h-8 items-center text-2xl leading-none font-semibold">Account</h1>
         <p className="max-w-2xl text-sm text-muted-foreground">
           Manage your profile and the language-service keys danote uses for translations,
           verification, and pronunciation.

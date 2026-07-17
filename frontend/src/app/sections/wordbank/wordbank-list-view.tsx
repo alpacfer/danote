@@ -6,7 +6,6 @@ import { WordbankListFilters, type WordbankFilterState } from "@/app/sections/wo
 import { WordbankListResults } from "@/app/sections/wordbank/wordbank-list-results"
 import { WordbankReferenceDecks } from "@/app/sections/wordbank/wordbank-reference-decks"
 import type { WordbankSectionProps } from "@/app/sections/wordbank/wordbank-section-types"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 
 type WordbankListViewProps = Pick<
@@ -31,8 +30,13 @@ export function WordbankListView({
   const [lemmaToDelete, setLemmaToDelete] = useState<{ lemma: string; displayWord: string } | null>(null)
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4">
-      <h1 className="font-section-title text-2xl leading-none font-normal tracking-normal">Words</h1>
+    <div className="flex min-h-0 flex-1 flex-col gap-4" data-grid-page="wordbank-list">
+      <h1
+        className="font-section-title flex h-8 items-center text-2xl leading-none font-normal tracking-normal"
+        data-grid-anchor="rule"
+      >
+        Words
+      </h1>
       {wordbankError ? (
         <p className="text-destructive text-sm" role="alert">
           {wordbankError}
@@ -71,16 +75,14 @@ export function WordbankListView({
         <>
           <WordbankReferenceDecks pages={PINNED_PAGES} onSelectLemma={onSelectLemma} />
           <WordbankListFilters lemmas={lemmas} filters={filters} onFiltersChange={onFiltersChange} />
-          <ScrollArea className="min-h-0 flex-1">
-            <WordbankListResults
-              lemmas={lemmas}
-              filters={filters}
-              unreadWordbankLemmaCounts={unreadWordbankLemmaCounts}
-              onSelectLemma={onSelectLemma}
-              onRequestDelete={setLemmaToDelete}
-              onClearFilters={() => onFiltersChange({ posTags: [], categories: [] })}
-            />
-          </ScrollArea>
+          <WordbankListResults
+            lemmas={lemmas}
+            filters={filters}
+            unreadWordbankLemmaCounts={unreadWordbankLemmaCounts}
+            onSelectLemma={onSelectLemma}
+            onRequestDelete={setLemmaToDelete}
+            onClearFilters={() => onFiltersChange({ posTags: [], categories: [] })}
+          />
         </>
       )}
       <LemmaDeletionDialog

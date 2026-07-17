@@ -93,9 +93,31 @@ class WordbankReadRepository:
                         ORDER BY wc.normalized_label COLLATE NOCASE
                     )
                     GROUP BY lexeme_id
+                ),
+                meaning_activity AS (
+                    SELECT lexeme_id, MAX(updated_at) AS latest_at
+                    FROM lexeme_meanings
+                    GROUP BY lexeme_id
+                ),
+                surface_activity AS (
+                    SELECT lexeme_id, MAX(created_at) AS latest_at
+                    FROM surface_forms
+                    GROUP BY lexeme_id
+                ),
+                category_activity AS (
+                    SELECT lexeme_id, MAX(updated_at) AS latest_at
+                    FROM wordbank_category_assignments
+                    GROUP BY lexeme_id
                 )
                 SELECT
                     l.lemma,
+                    l.created_at,
+                    MAX(
+                        l.updated_at,
+                        COALESCE(ma.latest_at, l.created_at),
+                        COALESCE(sa.latest_at, l.created_at),
+                        COALESCE(ca.latest_at, l.created_at)
+                    ) AS last_enriched_at,
                     CASE
                         WHEN COALESCE(mc.meaning_count, 0) = 0 THEN l.english_translation
                         WHEN mc.meaning_count = 1 THEN COALESCE(sm.english_translation, l.english_translation)
@@ -115,6 +137,9 @@ class WordbankReadRepository:
                 LEFT JOIN surface_counts sc ON sc.lexeme_id = l.id
                 LEFT JOIN pos_tag_rollups ptr ON ptr.lexeme_id = l.id
                 LEFT JOIN category_rollups cr ON cr.lexeme_id = l.id
+                LEFT JOIN meaning_activity ma ON ma.lexeme_id = l.id
+                LEFT JOIN surface_activity sa ON sa.lexeme_id = l.id
+                LEFT JOIN category_activity ca ON ca.lexeme_id = l.id
                 WHERE l.owner_user_id = ?
                 ORDER BY l.lemma COLLATE NOCASE
                 """,
@@ -124,6 +149,8 @@ class WordbankReadRepository:
         return [
             LemmaListRow(
                 lemma=str(row["lemma"]),
+                created_at=str(row["created_at"]),
+                last_enriched_at=str(row["last_enriched_at"]),
                 english_translation=row["english_translation"],
                 pos_tag=row["pos_tag"],
                 pos_tags=tuple(_split_list_field(row["pos_tags"], ",")),

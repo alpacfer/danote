@@ -57,6 +57,8 @@ make setup
 make lint
 make maintainability-check
 make test
+make setup-frontend-browser
+make test-frontend-browser
 ```
 
 For ongoing documentation/workflow verification:
@@ -97,6 +99,8 @@ smallest relevant verification set first:
 
 - docs/workflow-only changes: `make docs-smoke`
 - frontend-only changes: run the nearest affected Vitest file(s)
+- notebook layout changes: `make test-frontend-browser` (after the one-time
+  `make setup-frontend-browser`)
 - backend-only changes: run the nearest affected pytest module(s)
 
 Reserve `make lint`, `make test`, and `make docs-smoke` together for broad or

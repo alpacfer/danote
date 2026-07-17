@@ -8,6 +8,7 @@ import { AppSidebar } from "@/app/chrome"
 import { setAuthTokenProvider } from "@/app/core"
 import { useAppController } from "@/app/hooks/app/use-app-controller"
 import { SectionContent } from "@/app/layout/section-content"
+import { NotebookPage } from "@/app/layout/notebook-page"
 import { GeneratedExampleDialog } from "@/app/sections/sentencebank/generated-example-dialog"
 import { Button } from "@/components/ui/button"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
@@ -327,9 +328,9 @@ function AppShell() {
         onAddWordFromSearch={addWordFromSearch}
       />
       <SidebarInset>
-        <main className="flex min-h-0 w-full flex-1 flex-col px-[var(--danote-shell-gutter-x)] pt-[var(--danote-shell-gutter-y)] pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-[var(--danote-shell-gutter-y-compact)]">
+        <main className="flex min-h-0 w-full flex-1 flex-col">
           <span className="sr-only" aria-label="backend-connection-status">{status}</span>
-          <div className="mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col">
+          <NotebookPage>
             <SectionContent
               activeSection={activeSection}
               wordbankProps={sectionProps.wordbankSectionProps}
@@ -349,7 +350,7 @@ function AppShell() {
               }}
               onDiscard={discardGeneratedExample}
             />
-          </div>
+          </NotebookPage>
         </main>
       </SidebarInset>
     </SidebarProvider>

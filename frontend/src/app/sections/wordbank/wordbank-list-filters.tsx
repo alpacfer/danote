@@ -61,7 +61,7 @@ export function WordbankListFilters({ lemmas, filters, onFiltersChange }: Wordba
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2.5 w-full mt-6">
+    <div className="flex w-full flex-wrap items-center gap-2">
       {activeCount > 0 ? (
         <Tooltip>
           <TooltipTrigger asChild>
@@ -69,7 +69,7 @@ export function WordbankListFilters({ lemmas, filters, onFiltersChange }: Wordba
               type="button"
               variant="ghost"
               size="icon"
-              className="size-9 rounded-md hover:bg-destructive/10 hover:text-destructive text-muted-foreground shrink-0"
+              className="text-muted-foreground size-8 shrink-0 rounded-md hover:bg-destructive/10 hover:text-destructive"
               onClick={() => onFiltersChange({ posTags: [], categories: [] })}
               aria-label="Clear filters"
             >
@@ -81,7 +81,7 @@ export function WordbankListFilters({ lemmas, filters, onFiltersChange }: Wordba
           </TooltipContent>
         </Tooltip>
       ) : (
-        <div className="size-9 flex items-center justify-center shrink-0">
+        <div className="flex size-8 shrink-0 items-center justify-center">
           <Filter className="size-4 text-muted-foreground" />
         </div>
       )}
@@ -135,7 +135,7 @@ function FilterMenu({
           type="button"
           variant="outline"
           size="sm"
-          className="min-h-9 h-auto py-1 px-3 justify-between border-dashed bg-transparent hover:bg-accent/50 text-sm max-w-full"
+          className="h-8 max-w-full justify-between border-dashed bg-transparent px-3 py-1 text-sm hover:bg-accent/50"
         >
           <div className="flex flex-wrap items-center gap-1.5 min-w-0">
             <span className="font-medium text-foreground shrink-0">{label}</span>

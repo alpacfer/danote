@@ -2,7 +2,6 @@ import { useState } from "react"
 
 import { formatSentenceTranslation, type SentencebankSentence, type SentenceTokenCard } from "@/app/core"
 import { SentenceHighlightedText } from "@/app/components/sentence-highlighted-text"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import { SentencebankTokenButton } from "@/app/sections/sentencebank/sentencebank-token-button"
 import { WordbankPronunciationWord } from "@/app/sections/wordbank/wordbank-pronunciation-word"
@@ -99,9 +98,8 @@ export function SentencebankSentencePage({
   ] : []
 
   return (
-    <ScrollArea className="min-h-0 flex-1">
-      <div className="space-y-4 pr-1">
-        <div className="space-y-1">
+    <div className="flex min-h-0 flex-1 flex-col gap-4" data-grid-page="sentencebank-detail">
+        <div className="flex flex-col gap-1" data-grid-anchor="rule">
           <WordbankPronunciationWord
             form={sentence.source_text}
             hasPronunciation={sentence.has_pronunciation ?? false}
@@ -146,7 +144,6 @@ export function SentencebankSentencePage({
             ))}
           </div>
         ) : null}
-      </div>
-    </ScrollArea>
+    </div>
   )
 }

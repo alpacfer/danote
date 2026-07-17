@@ -94,16 +94,15 @@ def test_wordbank_repository_lists_and_searches_lemmas(tmp_path) -> None:
     details = repository.get_lexeme("bog")
     surface_forms = repository.list_surface_forms(lexeme_id)
 
-    assert lemmas == [
-        type(lemmas[0])(
-            lemma="bog",
-            english_translation="book",
-            pos_tag="NOUN",
-            pos_tags=("NOUN",),
-            categories=(),
-            variation_count=1,
-        )
-    ]
+    assert len(lemmas) == 1
+    assert lemmas[0].lemma == "bog"
+    assert lemmas[0].english_translation == "book"
+    assert lemmas[0].pos_tag == "NOUN"
+    assert lemmas[0].pos_tags == ("NOUN",)
+    assert lemmas[0].categories == ()
+    assert lemmas[0].variation_count == 1
+    assert lemmas[0].created_at
+    assert lemmas[0].last_enriched_at >= lemmas[0].created_at
     assert [item.lemma for item in matches] == ["bog"]
     assert matches[0].meaning_id == meaning_id
     assert matches[0].meaning_key == "book"

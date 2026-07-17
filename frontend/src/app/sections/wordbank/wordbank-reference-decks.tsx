@@ -16,23 +16,29 @@ import { Card, CardContent } from "@/components/ui/card"
 
 type ReferenceDeckVisual = {
   description: string
+  tone: "sky" | "sea" | "butter" | "plum" | "clay"
 }
 
 const REFERENCE_DECK_VISUALS: Record<PinnedPageId, ReferenceDeckVisual> = {
   pronouns: {
     description: "People and pointing words",
+    tone: "plum",
   },
   hv_questions: {
     description: "Danish question words",
+    tone: "butter",
   },
   prepositions: {
     description: "Place and relation words",
+    tone: "sky",
   },
   conjunctions: {
     description: "Connecting words",
+    tone: "sea",
   },
   numbers_time: {
     description: "Counting and calendar words",
+    tone: "clay",
   },
 }
 
@@ -47,11 +53,11 @@ export function WordbankReferenceDecks({
     <section className="flex flex-col gap-2" aria-labelledby="wordbank-reference-heading">
       <h2
         id="wordbank-reference-heading"
-        className="text-muted-foreground text-xs font-semibold tracking-wide uppercase"
+        className="text-muted-foreground flex h-8 items-center text-xs font-semibold tracking-wide uppercase"
       >
         Reference collections
       </h2>
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-3 pb-1 pr-1">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(11rem,1fr))] gap-4 pb-2" data-grid-anchor="unit">
         {pages.map((page) => (
           <ReferenceDeck key={page.sentinel} page={page} onClick={() => onSelectLemma(page.sentinel)} />
         ))}
@@ -64,12 +70,18 @@ function ReferenceDeck({ page, onClick }: { page: PinnedPageMeta; onClick: () =>
   const visual = REFERENCE_DECK_VISUALS[page.id]
 
   return (
-    <Card className="gap-0 overflow-hidden py-0">
+    <Card
+      className="h-24 gap-0 overflow-hidden py-0"
+      data-material="reference"
+      data-material-tone={visual.tone}
+      data-grid-anchor="unit"
+      data-grid-height="unit"
+    >
       <CardContent className="p-0">
         <Button
           type="button"
           variant="ghost"
-          className="h-auto min-h-20 w-full justify-start rounded-none px-4 py-3 text-left whitespace-normal"
+          className="h-full w-full justify-start rounded-none px-4 py-4 text-left whitespace-normal"
           aria-label={`Open ${page.title} reference`}
           onClick={onClick}
         >

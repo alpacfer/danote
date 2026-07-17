@@ -7,7 +7,9 @@ import { WordbankLinkedSentences } from "@/app/sections/wordbank/wordbank-linked
 import { WordbankMeaningSections } from "@/app/sections/wordbank/wordbank-meaning-sections"
 import { WordbankRelatedWords } from "@/app/sections/wordbank/wordbank-related-words"
 import { MeaningDeletionDialog, type MeaningDeleteTarget } from "@/app/sections/wordbank/wordbank-deletion-dialogs"
-import { ScrollArea } from "@/components/ui/scroll-area"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { MessageSquareQuote } from "lucide-react"
 
 type WordbankWordPageProps = Pick<
   WordbankSectionProps,
@@ -30,6 +32,8 @@ type WordbankWordPageProps = Pick<
   | "onDeleteMeaning"
   | "generatingExampleByMeaningId"
   | "onGenerateExample"
+  | "generatingStaticExampleByLemma"
+  | "onGenerateStaticExample"
   | "verificationOverview"
   | "verificationChanges"
   | "isLoadingVerificationChanges"
@@ -70,6 +74,8 @@ export function WordbankWordPage({
   onDeleteMeaning,
   generatingExampleByMeaningId,
   onGenerateExample,
+  generatingStaticExampleByLemma,
+  onGenerateStaticExample,
   verificationOverview,
   verificationChanges,
   isLoadingVerificationChanges,
@@ -117,6 +123,9 @@ export function WordbankWordPage({
       surface_forms: variationForms,
     },
   ] : []
+  const exampleMeaningId = selectedMeaningId
+    ?? meaningSections.find((section) => section.id > 0)?.id
+    ?? null
 
   useEffect(() => {
     if (!selectedMeaningId || !activeLemmaDetails || !isSectioned) {
@@ -162,21 +171,19 @@ export function WordbankWordPage({
       onApplyVerificationAction={onApplyVerificationAction}
       onRetryVerificationTarget={onRetryVerificationTarget}
       onRevertVerificationChange={onRevertVerificationChange}
-      showSupplementaryMetadata={false}
       onOpenPinnedTab={onOpenPinnedTab}
       onApplyFilterAndNavigateBack={onApplyFilterAndNavigateBack}
     />
   )
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4">
+    <div className="flex min-h-0 flex-1 flex-col gap-4" data-grid-page="wordbank-detail">
       {lemmaDetailsError ? (
         <p className="text-destructive text-sm" role="alert">
           {lemmaDetailsError}
         </p>
       ) : null}
-      <ScrollArea className="min-h-0 flex-1">
-        <div className="flex flex-col gap-3 pr-1">
+        <div className="flex flex-col gap-4">
           {lemmaHeader}
           <WordbankMeaningSections
             lemma={activeLemmaDetails.lemma}
@@ -201,6 +208,42 @@ export function WordbankWordPage({
             onOpenPinnedTab={onOpenPinnedTab}
             onApplyFilterAndNavigateBack={onApplyFilterAndNavigateBack}
           />
+          {(activeLemmaDetails.linked_sentences?.length ?? 0) === 0 ? (
+            <Card
+              className="max-md:min-h-52"
+              data-material="sentence"
+              data-grid-anchor="unit"
+              data-grid-height="unit"
+            >
+              <CardHeader className="gap-2 px-4 md:px-6">
+                <CardTitle className="text-base">A sentence is waiting to be collected</CardTitle>
+              </CardHeader>
+              <CardContent className="flex min-h-14 flex-wrap items-center justify-between gap-4 px-4 md:px-6">
+                <p className="text-muted-foreground max-w-xl text-sm leading-6">
+                  Generate an example, review it, and save it as the first clipping for this word.
+                </p>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={
+                    exampleMeaningId !== null
+                      ? Boolean(generatingExampleByMeaningId[exampleMeaningId])
+                      : Boolean(generatingStaticExampleByLemma[activeLemmaDetails.lemma])
+                  }
+                  onClick={() => {
+                    if (exampleMeaningId !== null) {
+                      onGenerateExample(exampleMeaningId)
+                    } else {
+                      onGenerateStaticExample(activeLemmaDetails.lemma)
+                    }
+                  }}
+                >
+                  <MessageSquareQuote data-icon="inline-start" />
+                  Generate example
+                </Button>
+              </CardContent>
+            </Card>
+          ) : null}
           <WordbankRelatedWords
             relatedWords={activeLemmaDetails.related_words}
             onSaveRelatedWordFromSearchSeed={onSaveRelatedWordFromSearchSeed}
@@ -211,7 +254,6 @@ export function WordbankWordPage({
             onOpenSentence={onOpenSentence}
           />
         </div>
-      </ScrollArea>
       <MeaningDeletionDialog
         meaning={meaningToDelete}
         onOpenChange={(open) => {

@@ -1,4 +1,4 @@
-.PHONY: help setup-backend setup-backend-search setup-frontend setup lint lint-backend maintainability-check hygiene hosting-check test pytest-backend test-backend-fast test-backend-unit test-backend-api test-backend-medium test-backend-slow test-backend-perf test-frontend docs-smoke agent-verify dev seed-numbers-audio
+.PHONY: help setup-backend setup-backend-search setup-frontend setup-frontend-browser setup lint lint-backend maintainability-check hygiene hosting-check test pytest-backend test-backend-fast test-backend-unit test-backend-api test-backend-medium test-backend-slow test-backend-perf test-frontend test-frontend-browser docs-smoke agent-verify dev seed-numbers-audio
 
 BACKEND_DIR := backend
 FRONTEND_DIR := frontend
@@ -16,6 +16,7 @@ help:
 	@echo "  setup-backend       Create backend venv and install requirements.lock.txt"
 	@echo "  setup-backend-search Create backend venv and install search-only requirements (no DaCy)"
 	@echo "  setup-frontend      Install frontend dependencies"
+	@echo "  setup-frontend-browser Install Chromium for browser layout tests"
 	@echo "  setup               Run setup-backend and setup-frontend"
 	@echo "  lint                Run frontend lint and backend lint checks"
 	@echo "  maintainability-check Run file size budget guardrails"
@@ -29,6 +30,7 @@ help:
 	@echo "  test-backend-slow   Run backend slow regression fixture tests"
 	@echo "  test-backend-perf   Run backend performance smoke checks"
 	@echo "  test-frontend       Run frontend tests"
+	@echo "  test-frontend-browser Run notebook layout checks in headless Chromium"
 	@echo "  test                Run backend + frontend tests"
 	@echo "  docs-smoke          Run command smoke checks used by documentation"
 	@echo "  agent-verify        Run full agent self-verification pipeline"
@@ -47,6 +49,9 @@ setup-backend-search:
 
 setup-frontend:
 	cd $(FRONTEND_DIR) && npm ci
+
+setup-frontend-browser: setup-frontend
+	cd $(FRONTEND_DIR) && npx playwright install chromium
 
 setup: setup-backend setup-frontend
 
@@ -91,6 +96,9 @@ test-backend-perf:
 
 test-frontend:
 	cd $(FRONTEND_DIR) && npm test -- --run
+
+test-frontend-browser:
+	cd $(FRONTEND_DIR) && npm run test:browser-layout
 
 test: test-backend-fast test-frontend
 

@@ -26,11 +26,11 @@ export function WordbankParadigmTable({
   const hideSingleFormColumnHeader = paradigm.columns.length === 1 && paradigm.columns[0] === "Form"
 
   return (
-    <div className="space-y-3">
-      <Table>
+    <div className="flex flex-col gap-4" data-morphology-journey>
+      <Table className="overflow-hidden rounded-lg">
         {!hideSingleFormColumnHeader && (
           <TableHeader>
-            <TableRow className="hover:bg-transparent">
+            <TableRow className="h-8 hover:bg-transparent">
               <TableHead className="text-muted-foreground w-24 text-[11px] font-semibold uppercase tracking-wide" />
               {paradigm.columns.map((column) => (
                 <TableHead
@@ -45,7 +45,7 @@ export function WordbankParadigmTable({
         )}
         <TableBody>
           {paradigm.rows.map((row) => (
-            <TableRow key={row} className="hover:bg-transparent">
+            <TableRow key={row} className="h-10 hover:bg-transparent">
               <TableCell className="text-muted-foreground whitespace-nowrap pr-4 text-sm font-medium">
                 {row}
               </TableCell>
@@ -79,7 +79,7 @@ export function WordbankParadigmTable({
         </TableBody>
       </Table>
       {paradigm.supplementaryGroups.map((group) => (
-        <div key={group.label} className="space-y-1.5">
+        <div key={group.label} className="flex flex-col gap-2">
           <p className="text-muted-foreground text-[11px] font-semibold uppercase tracking-wide">{group.label}</p>
           <div className="flex flex-wrap gap-x-4 gap-y-1">
             {group.forms.map((form) => (
@@ -168,10 +168,10 @@ function ParadigmCellForm({
   const normalizedForm = normalizeSearchWord(form.form)
   const isRegenerating = Boolean(regeneratingPronunciationByForm[normalizedForm])
   if (nonInteractiveForms?.has(normalizedForm)) {
-    return <span className="text-sm font-semibold">{form.form}</span>
+    return <span className="danote-variation-arrival text-sm font-semibold">{form.form}</span>
   }
   return (
-    <span>
+    <span className="danote-variation-arrival">
       <WordbankPronunciationWord
         form={form.form}
         hasPronunciation={form.has_pronunciation ?? false}

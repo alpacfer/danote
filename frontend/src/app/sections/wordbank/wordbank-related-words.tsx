@@ -54,14 +54,18 @@ export function WordbankRelatedWords({
   }
 
   return (
-    <section className="space-y-4 pt-2" aria-labelledby="wordbank-composition-heading">
+    <section
+      className="flex flex-col gap-4 pt-2"
+      aria-labelledby="wordbank-composition-heading"
+      data-grid-anchor="unit"
+    >
       <h2
         id="wordbank-composition-heading"
-        className="text-muted-foreground text-[11px] font-semibold uppercase tracking-wide"
+        className="text-muted-foreground flex h-8 items-center text-[11px] font-semibold uppercase tracking-wide"
       >
         Composition
       </h2>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="danote-composition-shelf grid gap-4 sm:grid-cols-2">
         {compositionItems.map((item) => {
           const uniqueVariant = item.display_variant ?? null
           const candidateVariants = item.candidate_variants ?? []
@@ -78,7 +82,7 @@ export function WordbankRelatedWords({
                 setOpenCardIds((current) => ({ ...current, [item.id]: open }))
               }}
             >
-              <Card className="overflow-hidden py-0 gap-0">
+              <Card className="gap-0 overflow-hidden py-0" data-material="related" data-grid-anchor="unit">
                 <CardContent className="space-y-3 p-0">
                   {isAmbiguous ? (
                     <CollapsibleTrigger asChild>

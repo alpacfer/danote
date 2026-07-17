@@ -35,6 +35,8 @@ Tracks baseline dev env and dependency locking for reproducibility.
   - `lucide-react 0.575.0`
   - `@clerk/react 6.6.2` (hosted auth)
   - `vitest 4.0.18`
+  - `@vitest/browser-playwright 4.0.18` (headless Chromium layout project)
+  - `playwright 1.61.1` (transitive browser provider runtime)
   - `@testing-library/react 16.3.2`
 
 ## Backend

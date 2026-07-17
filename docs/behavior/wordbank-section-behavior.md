@@ -33,6 +33,10 @@ Switch: `selectedLemma` absent => `WordbankListView`, present => `WordbankWordPa
 - Failure → set `wordbankError`, clear list
 - List items include aggregate `pos_tags` and `categories` arrays used only for
   local filtering. A multi-meaning lemma remains represented once in the list.
+- `created_at` is the lexeme creation time. `last_enriched_at` is the newest
+  lexeme update, meaning update, surface-form creation, or category-assignment
+  update. Both are informational owner-scoped timestamps; no migration or
+  learning status is created.
 
 ## Lemma details loading (`/api/wordbank/lemmas/{lemma}`)
 
@@ -66,7 +70,12 @@ Per-specimen tile:
 - Label: `display_lemma` fallback `lemma`
 - Variation count suffix (`· N`) only when `variation_count > 1`
 - Hover or keyboard focus opens a tooltip with the summary translation when
-  present and readable POS labels. Pronunciation remains a word-page detail.
+  present and readable POS labels. Pronunciation is assumed and no
+  availability status is exposed on collection tiles.
+- One category-derived material wash and a POS stamp identify the tile without
+  a colored edge. Multi-word expressions use a restrained joined-label
+  silhouette. Activity within seven days adds a small sparkle cue derived from
+  `last_enriched_at`.
 - Unread verification markers:
   - queued/in-progress → no marker
   - unread `1` → dot indicator
@@ -80,7 +89,8 @@ Five built-in reference decks are pinned at the top of the Wordbank list and
 shown even when there are no saved lemmas: **Pronouns**, **HV Questions**,
 **Prepositions**, **Conjunctions**, and **Numbers & Time**. The responsive
 deck shelf uses a distinct icon and short collection description for each page
-while the whole visible card remains one accessible button. Each page is
+plus its own restrained material tint while dimensions and behavior remain
+identical. The whole visible card remains one accessible button. Each page is
 identified by its canonical sentinel lemma. Legacy
 sentinels such as `__pronouns_personal`, `__question_words`, and `__numbers`
 still route through
@@ -255,7 +265,9 @@ flow as for any other verb.
 
 - No meaning sections → `No saved meanings for this lemma.`
 - Each section card:
-  - left border color from POS class; no selected-state border/ring (`selectedMeaningId` for scroll/header only)
+  - layered dictionary-slip material with a neutral hairline; never a colored
+    rail. The selected sense moves forward through tint, shadow, and a small
+    positional transition.
   - left metadata: lemma label + inline translation + section POS/morphology badges
   - verb cards: lemma in infinitive form `at <lemma>`
   - section `gram_raw` → badge set from COR grammar (e.g. invariant `orange` keeps merged badges)
@@ -269,6 +281,8 @@ flow as for any other verb.
   - pronunciation resolved by normalized form across section rows + hidden top-level lemma rows
   - noun/adj meanings → 2x2 paradigm table when >=1 slot derivable
   - verb meanings → fixed rows: `Infinitive`, `Present`, `Past`, `Imperative`, `Past participle` (no visible `Form` header)
+  - paradigm markup remains a semantic table but is presented as a connected
+    morphology journey with named slots and a stacked narrow-screen layout
   - initial saved form shown in table immediately
   - adj tables: number × definiteness; singular-indefinite has separate `n-word`/`t-word` lines; partial generated non-COR morphology is still slotted when gender/number is enough; equivalent forms in one slot are separated with `/`; same-form entries (e.g. `store`, invariant `orange`) may render into multiple cells
   - verb same-form entries may render into multiple rows
@@ -292,7 +306,8 @@ flow as for any other verb.
 - Saved targets → eye button, opens saved lemma/meaning
 - Unsaved unique → plus button, saves through add-word flow
 - Different valid translation for saved target → backend persists into `additional_translations` immediately
-  - optional `from <lemma>` line + merged lemma translation+gloss; POS-colored left border
+  - optional `from <lemma>` line + merged lemma translation+gloss in the shared
+    related-word material treatment
 
 ## Related words section (`WordbankRelatedWords`)
 
@@ -313,6 +328,20 @@ flow as for any other verb.
   - ambiguous unsaved → `Plus`, expands inline candidates first
 - Ambiguous inline chooser: shadcn `Collapsible` per card (per-card, inline, no grouped semantics); `Dialog` rejected (interrupts flow); `Accordion` rejected (unnecessary grouped structure)
 - Save result: keeps word page open; toast feedback; refreshes lemma details + wordbank list; card flips `Plus`→`Eye` on refresh
+
+## Signature word-page composition
+
+- A specimen hero combines lemma, English translation, audio, identity badges,
+  verification, and existing reference bookmarks.
+- Existing word- and meaning-level reference links render as bookmark controls.
+- The newest linked sentence is promoted to a paper clipping; the complete
+  collection remains below it. If no sentence exists, the existing Generate
+  Example action is exposed without synthetic content.
+- Compound components and related words share a compact connected composition
+  shelf. This is intentionally not the later semantic-map feature.
+- Audio rings, sense-depth transitions, example unfolding, variation arrival,
+  and tile-to-page View Transitions are disabled or made immediate for reduced
+  motion.
 
 ## Pronunciation workflow behavior
 

@@ -1,12 +1,7 @@
 import { fireEvent, mockFetchImplementation, renderApp, responseOf, screen, within } from "@/test/app-test-helpers"
 import userEvent from "@testing-library/user-event"
 
-// Locks in the visual contract for the shared word page: every word page (whether
-// the lemma is user-saved or a built-in/presaved one) must render the same chrome
-// at the top (lemma title + pronunciation + verification trigger) and the same
-// structural layout inside the synthetic root card (lemma word + translation +
-// POS badges). Saved and built-in pages must be 1:1 — the only difference is the
-// verification overview state (built-ins read "Verified" by construction).
+// Locks in the shared specimen contract for saved and built-in word pages.
 describe("App wordbank word-page parity", () => {
   function savedBogResponse() {
     return {
@@ -79,19 +74,18 @@ describe("App wordbank word-page parity", () => {
 
   function describeWordPageLayout(lemma: string) {
     const heading = screen.getByRole("heading", { level: 2, name: new RegExp(`^${lemma}$`, "i") })
-    const headingInsideCard = Boolean(heading.closest('[data-testid="wordbank-lemma-scope-card"]'))
+    const specimenHero = heading.closest("#wordbank-lemma-header")
     const scopeCard = screen.getByTestId("wordbank-lemma-scope-card")
-    const cardLemma = within(scopeCard).getByTestId("wordbank-lemma-card-lemma").textContent?.trim() ?? null
-    const cardBadges = within(scopeCard).queryByTestId("wordbank-lemma-header-badges")
+    const heroBadges = specimenHero?.querySelector('[data-testid="wordbank-lemma-header-badges"]') ?? null
     const cardPinnedHome = within(scopeCard).queryByTestId("wordbank-pinned-home-card")
     const verificationButton = screen.getByRole("button", { name: /verification/i })
     const audioButton = screen.queryByRole("button", { name: new RegExp(`listen to ${lemma}`, "i") })
 
     return {
-      hasTopHeading: Boolean(heading) && !headingInsideCard,
+      hasSpecimenHero: Boolean(specimenHero),
       hasScopeCard: Boolean(scopeCard),
-      cardLemma,
-      hasCardBadges: Boolean(cardBadges),
+      scopeRepeatsLemma: Boolean(within(scopeCard).queryByTestId("wordbank-lemma-card-lemma")),
+      hasHeroBadges: Boolean(heroBadges),
       hasPinnedHomeChip: Boolean(cardPinnedHome),
       hasVerificationTrigger: Boolean(verificationButton),
       hasAudioButton: Boolean(audioButton),
@@ -102,10 +96,10 @@ describe("App wordbank word-page parity", () => {
     await openSavedBogPage()
     const saved = describeWordPageLayout("bog")
     expect(saved).toEqual({
-      hasTopHeading: true,
+      hasSpecimenHero: true,
       hasScopeCard: true,
-      cardLemma: "bog",
-      hasCardBadges: true,
+      scopeRepeatsLemma: false,
+      hasHeroBadges: true,
       hasPinnedHomeChip: false,
       hasVerificationTrigger: true,
       hasAudioButton: true,
@@ -116,30 +110,30 @@ describe("App wordbank word-page parity", () => {
     await openBuiltInHvorPage()
     const builtIn = describeWordPageLayout("hvor")
     expect(builtIn).toEqual({
-      hasTopHeading: true,
+      hasSpecimenHero: true,
       hasScopeCard: true,
-      cardLemma: "hvor",
-      hasCardBadges: true,
+      scopeRepeatsLemma: false,
+      hasHeroBadges: true,
       hasPinnedHomeChip: false,
       hasVerificationTrigger: true,
       hasAudioButton: true,
     })
   })
 
-  it("renders the Danish lemma inside the synthetic root card AND at the top heading for saved words", async () => {
+  it("renders the Danish lemma once in the specimen hero for saved words", async () => {
     await openSavedBogPage()
     const heading = screen.getByRole("heading", { level: 2, name: /^bog$/i })
-    expect(heading.closest('[data-testid="wordbank-lemma-scope-card"]')).toBeNull()
+    expect(heading.closest("#wordbank-lemma-header")).toBeInTheDocument()
     const scopeCard = screen.getByTestId("wordbank-lemma-scope-card")
-    expect(within(scopeCard).getByTestId("wordbank-lemma-card-lemma")).toHaveTextContent(/^bog$/)
+    expect(within(scopeCard).queryByTestId("wordbank-lemma-card-lemma")).not.toBeInTheDocument()
   })
 
-  it("renders the Danish lemma inside the synthetic root card AND at the top heading for built-in words", async () => {
+  it("renders the Danish lemma once in the specimen hero for built-in words", async () => {
     await openBuiltInHvorPage()
     const heading = screen.getByRole("heading", { level: 2, name: /^hvor$/i })
-    expect(heading.closest('[data-testid="wordbank-lemma-scope-card"]')).toBeNull()
+    expect(heading.closest("#wordbank-lemma-header")).toBeInTheDocument()
     const scopeCard = screen.getByTestId("wordbank-lemma-scope-card")
-    expect(within(scopeCard).getByTestId("wordbank-lemma-card-lemma")).toHaveTextContent(/^hvor$/)
+    expect(within(scopeCard).queryByTestId("wordbank-lemma-card-lemma")).not.toBeInTheDocument()
   })
 
   it("no longer renders pinned-home chips for built-in words — the POS badge handles that navigation", async () => {

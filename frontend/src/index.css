@@ -28,6 +28,13 @@
     --color-secondary-foreground: var(--secondary-foreground);
     --color-surface-raised: var(--surface-raised);
     --color-surface-sunken: var(--surface-sunken);
+    --color-material-word: var(--material-word);
+    --color-material-reference: var(--material-reference);
+    --color-material-meaning: var(--material-meaning);
+    --color-material-grammar: var(--material-grammar);
+    --color-material-discovery: var(--material-discovery);
+    --color-material-sentence: var(--material-sentence);
+    --color-material-related: var(--material-related);
     --color-brand-clay: var(--brand-clay);
     --color-brand-butter: var(--brand-butter);
     --color-brand-sky: var(--brand-sky);
@@ -56,13 +63,15 @@
     --shadow-card: var(--danote-shadow-card);
     --shadow-shell: var(--danote-shadow-shell);
     --shadow-floating: var(--danote-shadow-floating);
+    --shadow-paper: var(--danote-shadow-paper);
 }
 
 :root {
     --radius: 0.875rem;
-    --danote-shell-gutter-x: 1.25rem;
+    --danote-grid-unit: 0.5rem;
+    --danote-grid-rule: 2rem;
+    --danote-shell-gutter-x: 1rem;
     --danote-shell-gutter-y: 1rem;
-    --danote-shell-gutter-y-compact: 0.75rem;
     --danote-shell-stack-gap: 1.5rem;
     --background: oklch(0.975 0.012 85);
     --foreground: oklch(0.235 0.026 235);
@@ -76,6 +85,13 @@
     --secondary-foreground: oklch(0.26 0.045 165);
     --surface-raised: oklch(0.995 0.006 85);
     --surface-sunken: oklch(0.955 0.02 88);
+    --material-word: oklch(0.975 0.025 88);
+    --material-reference: oklch(0.965 0.035 155);
+    --material-meaning: oklch(0.99 0.016 82);
+    --material-grammar: oklch(0.95 0.038 315);
+    --material-discovery: oklch(0.94 0.075 88);
+    --material-sentence: oklch(0.98 0.024 72);
+    --material-related: oklch(0.955 0.04 225);
     --brand-clay: oklch(0.52 0.12 40);
     --brand-butter: oklch(0.86 0.095 85);
     --brand-sky: oklch(0.68 0.09 235);
@@ -110,6 +126,9 @@
     --danote-shadow-floating:
       0 4px 8px oklch(0.235 0.026 235 / 0.11),
       0 24px 48px -24px oklch(0.235 0.026 235 / 0.42);
+    --danote-shadow-paper:
+      0 2px 1px -1px color-mix(in oklch, var(--material-underlay, var(--secondary)) 55%, transparent),
+      0 8px 18px -14px oklch(0.235 0.026 235 / 0.42);
     --danote-paper-grain:
       radial-gradient(
         ellipse at 2px 3px,
@@ -134,7 +153,6 @@
   :root {
     --danote-shell-gutter-x: 2rem;
     --danote-shell-gutter-y: 2rem;
-    --danote-shell-gutter-y-compact: 1.25rem;
     --danote-shell-stack-gap: 2rem;
   }
 }
@@ -152,6 +170,13 @@
     --secondary-foreground: oklch(0.92 0.015 85);
     --surface-raised: oklch(0.235 0.028 220);
     --surface-sunken: oklch(0.205 0.026 225);
+    --material-word: oklch(0.25 0.032 82);
+    --material-reference: oklch(0.27 0.043 160);
+    --material-meaning: oklch(0.255 0.031 70);
+    --material-grammar: oklch(0.28 0.045 315);
+    --material-discovery: oklch(0.31 0.052 82);
+    --material-sentence: oklch(0.265 0.035 65);
+    --material-related: oklch(0.27 0.045 230);
     --brand-clay: oklch(0.72 0.11 45);
     --brand-butter: oklch(0.74 0.09 85);
     --brand-sky: oklch(0.72 0.08 235);
@@ -186,6 +211,9 @@
     --danote-shadow-floating:
       0 5px 10px oklch(0.08 0.018 225 / 0.48),
       0 26px 54px -24px oklch(0.08 0.018 225 / 0.9);
+    --danote-shadow-paper:
+      0 2px 1px -1px color-mix(in oklch, var(--material-underlay, var(--secondary)) 42%, transparent),
+      0 10px 22px -14px oklch(0.08 0.018 225 / 0.72);
     --danote-paper-grain:
       radial-gradient(
         ellipse at 2px 3px,
@@ -252,12 +280,209 @@
 }
 
 [data-slot="sidebar-inset"] {
+  background-color: var(--background);
+  box-shadow: var(--danote-shadow-shell);
+}
+
+.danote-notebook-sheet {
   background-image:
     var(--danote-paper-grain),
     var(--danote-notebook-ruling);
-  background-position: 0 0, 3px 5px, 0 12px;
-  background-size: 9px 11px, 13px 17px, 100% 32px;
-  box-shadow: var(--danote-shadow-shell);
+  background-position: 0 0, 0 var(--danote-shell-gutter-y);
+  background-size: 9px 11px, 100% var(--danote-grid-rule);
+  padding:
+    var(--danote-shell-gutter-y)
+    var(--danote-shell-gutter-x)
+    calc(6rem + env(safe-area-inset-bottom));
+}
+
+.danote-notebook-sheet > * {
+  min-height: 0;
+}
+
+[data-grid-anchor="unit"] {
+  scroll-margin-top: var(--danote-grid-unit);
+}
+
+[data-grid-anchor="rule"] {
+  scroll-margin-top: var(--danote-grid-rule);
+}
+
+[data-material] {
+  --material-underlay: var(--secondary);
+  background-color: var(--material-surface, var(--surface-raised));
+  border-width: 0;
+  outline: 1px solid color-mix(in oklch, var(--foreground) 13%, transparent);
+  outline-offset: -1px;
+  box-shadow: var(--danote-shadow-paper);
+  transition: background-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+[data-material="word"] {
+  --material-surface: var(--material-word);
+  --material-underlay: var(--material-discovery);
+}
+
+[data-material="reference"] {
+  --material-surface: var(--material-reference);
+  --material-underlay: var(--brand-sky);
+}
+
+[data-material="meaning"] {
+  --material-surface: var(--material-meaning);
+  --material-underlay: var(--material-grammar);
+}
+
+[data-material="meaning"][data-selected="true"] {
+  --material-surface: color-mix(in oklch, var(--material-meaning) 78%, var(--material-discovery));
+  transform: translateY(-0.5rem);
+  box-shadow:
+    0 4px 0 -2px color-mix(in oklch, var(--material-grammar) 45%, transparent),
+    0 18px 30px -22px oklch(0.235 0.026 235 / 0.5);
+}
+
+[data-material="sentence"] {
+  --material-surface: var(--material-sentence);
+  --material-underlay: var(--brand-butter);
+}
+
+[data-material="related"] {
+  --material-surface: var(--material-related);
+  --material-underlay: var(--brand-sky);
+}
+
+[data-material-tone="sky"] {
+  --material-surface: color-mix(in oklch, var(--material-reference) 78%, var(--brand-sky));
+  --material-underlay: var(--brand-sky);
+}
+
+[data-material-tone="sea"] {
+  --material-surface: color-mix(in oklch, var(--material-word) 75%, var(--secondary));
+  --material-underlay: var(--secondary);
+}
+
+[data-material-tone="butter"] {
+  --material-surface: color-mix(in oklch, var(--material-word) 80%, var(--brand-butter));
+  --material-underlay: var(--brand-butter);
+}
+
+[data-material-tone="plum"] {
+  --material-surface: color-mix(in oklch, var(--material-word) 82%, var(--material-grammar));
+  --material-underlay: var(--material-grammar);
+}
+
+[data-material-tone="clay"] {
+  --material-surface: color-mix(in oklch, var(--material-word) 84%, var(--brand-clay));
+  --material-underlay: var(--brand-clay);
+}
+
+[data-material="word"][data-mwe="true"] {
+  border-radius: 0.75rem 0.4rem 0.75rem 0.4rem;
+}
+
+.danote-audio-trigger::after {
+  position: absolute;
+  inset: -0.25rem;
+  border: 1px solid color-mix(in oklch, var(--primary) 62%, transparent);
+  border-radius: 0.75rem;
+  content: "";
+  opacity: 0;
+  pointer-events: none;
+}
+
+.danote-audio-trigger[data-audio-pulse="true"]::after {
+  animation: danote-sound-ring 520ms ease-out;
+}
+
+@keyframes danote-sound-ring {
+  from {
+    opacity: 0.58;
+    transform: scale(0.86);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.18);
+  }
+}
+
+.danote-example-clipping {
+  animation: danote-clipping-unfold 240ms ease-out;
+  transform-origin: top center;
+}
+
+@keyframes danote-clipping-unfold {
+  from {
+    opacity: 0;
+    transform: translateY(-0.5rem) scaleY(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scaleY(1);
+  }
+}
+
+.danote-variation-arrival {
+  animation: danote-variation-arrival 220ms ease-out;
+}
+
+@keyframes danote-variation-arrival {
+  from {
+    opacity: 0;
+    transform: translateY(0.25rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 180ms;
+}
+
+[data-morphology-journey] table {
+  background:
+    linear-gradient(
+      to right,
+      transparent,
+      color-mix(in oklch, var(--material-grammar) 42%, transparent),
+      transparent
+    );
+}
+
+[data-morphology-journey] tbody tr {
+  background-color: color-mix(in oklch, var(--material-meaning) 90%, transparent);
+}
+
+[data-morphology-journey] tbody tr + tr {
+  border-top-color: color-mix(in oklch, var(--material-grammar) 26%, transparent);
+}
+
+.danote-composition-shelf {
+  position: relative;
+}
+
+@media (min-width: 40rem) {
+  .danote-composition-shelf::before {
+    position: absolute;
+    top: 50%;
+    left: 25%;
+    width: 50%;
+    border-top: 1px dashed color-mix(in oklch, var(--brand-sky) 48%, transparent);
+    content: "";
+    pointer-events: none;
+  }
+
+  .danote-composition-shelf > * {
+    position: relative;
+  }
+}
+
+@media (min-width: 48rem) {
+  .danote-notebook-sheet {
+    padding-bottom: var(--danote-shell-gutter-y);
+  }
 }
 
 @media (prefers-contrast: more) {
@@ -265,8 +490,19 @@
     background-image: none;
   }
 
-  [data-slot="sidebar-inset"] {
+  .danote-notebook-sheet {
     background-image: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
 

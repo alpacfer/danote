@@ -1,4 +1,4 @@
-import { Fragment, type ReactNode } from "react"
+import { Fragment, type ReactNode, useEffect, useRef, useState } from "react"
 import { normalizeSearchWord } from "@/app/core"
 import {
   ContextMenu,
@@ -47,18 +47,37 @@ export function WordbankPronunciationWord({
   const isLoading = Boolean(pronunciationLoadingByForm[normalizeSearchWord(effectivePlayForm)])
   const isDisabled = isLoading
   const hasContextMenu = Boolean(contextMenuItems && contextMenuItems.length > 0)
+  const [isPulsing, setIsPulsing] = useState(false)
+  const pulseTimeoutRef = useRef<number | null>(null)
+
+  useEffect(() => () => {
+    if (pulseTimeoutRef.current !== null) {
+      window.clearTimeout(pulseTimeoutRef.current)
+    }
+  }, [])
+
+  const play = () => {
+    setIsPulsing(false)
+    window.requestAnimationFrame(() => setIsPulsing(true))
+    if (pulseTimeoutRef.current !== null) {
+      window.clearTimeout(pulseTimeoutRef.current)
+    }
+    pulseTimeoutRef.current = window.setTimeout(() => setIsPulsing(false), 520)
+    onPlayPronunciation(effectivePlayForm)
+  }
 
   const button = (
     <button
       type="button"
       aria-label={`Listen to ${form}`}
       disabled={isDisabled}
-      onClick={() => onPlayPronunciation(effectivePlayForm)}
+      onClick={play}
+      data-audio-pulse={isPulsing ? "true" : "false"}
       onContextMenu={hasContextMenu ? (event) => {
         event.stopPropagation()
       } : undefined}
       className={cn(
-        "inline-flex cursor-pointer items-center gap-1.5 rounded-md px-1 -ml-1 outline-none transition-colors",
+        "danote-audio-trigger relative inline-flex cursor-pointer items-center gap-1.5 rounded-md px-1 -ml-1 outline-none transition-colors",
         "hover:bg-accent/60 focus-visible:ring-ring/50 focus-visible:ring-2",
         "disabled:pointer-events-none disabled:opacity-70",
       )}
@@ -98,7 +117,7 @@ export function WordbankPronunciationWord({
   )
 
   if (Wrapper) {
-    return <Wrapper className="inline">{interactiveButton}</Wrapper>
+    return <Wrapper className="inline-flex min-h-8 items-center">{interactiveButton}</Wrapper>
   }
 
   return interactiveButton

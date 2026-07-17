@@ -167,6 +167,8 @@ export type RevertVerificationChangeResponse = {
 export type WordbankLemma = {
   lemma: string
   display_lemma?: string | null
+  created_at?: string | null
+  last_enriched_at?: string | null
   english_translation: string | null
   pos_tags?: string[]
   categories?: string[]

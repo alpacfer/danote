@@ -360,10 +360,15 @@ or `Authorization: Bearer <guest-token>` header. Local dev
 - **Response model:** `LemmaListResponse`.
 - **Notable status/error behavior:** `503` DB unavailable/locked. `503` runtime errors.
 - **Field invariants:** each item includes `pos_tags: string[]` and
-  `categories: string[]` for list-level filtering. The metadata remains
-  owner-scoped. POS/category arrays aggregate lexeme, meaning, surface-form,
-  root-category, and meaning-category metadata for the whole lemma; they do
-  not change the existing single summary translation/display behavior.
+  `categories: string[]` for list-level filtering, plus `created_at` and
+  `last_enriched_at` timestamp strings. The metadata remains owner-scoped.
+  `created_at` is the lexeme creation timestamp. `last_enriched_at` is the
+  maximum of the lexeme update, meaning updates, surface-form creations, and
+  category-assignment updates, with lexeme creation as fallback; it is derived
+  at read time and requires no migration. POS/category arrays aggregate lexeme,
+  meaning, surface-form, root-category, and meaning-category metadata for the
+  whole lemma. These fields do not change ordering or the existing single
+  summary translation/display behavior.
 
 ### GET `/api/wordbank/search`
 - **Request model:** none (`query`, `limit`, `language: "da" | "en" = "da"` query params).

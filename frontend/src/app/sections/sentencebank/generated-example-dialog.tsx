@@ -1,6 +1,7 @@
 import { RotateCcw, Save } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
 import {
   Dialog,
   DialogContent,
@@ -51,23 +52,25 @@ export function GeneratedExampleDialog({
           <DialogDescription>Review this example before saving it to sentencebank.</DialogDescription>
         </DialogHeader>
         {preview ? (
-          <div className="space-y-2">
+          <Card className="danote-example-clipping py-4" data-material="sentence">
+            <CardContent className="flex flex-col gap-2 px-4">
             <p className="text-base font-medium leading-relaxed break-words">{preview.source_text}</p>
             <p className="text-muted-foreground text-sm leading-relaxed break-words">
               {preview.english_translation}
             </p>
-          </div>
+            </CardContent>
+          </Card>
         ) : null}
         <DialogFooter>
           <Button type="button" variant="ghost" onClick={onDiscard} disabled={isBusy}>
             Discard
           </Button>
           <Button type="button" variant="outline" onClick={onRegenerate} disabled={isBusy}>
-            <RotateCcw className={`size-4 ${isRegenerating ? "animate-spin" : ""}`.trim()} />
+            <RotateCcw data-icon="inline-start" className={isRegenerating ? "animate-spin" : undefined} />
             {isRegenerating ? "Regenerating..." : "Regenerate"}
           </Button>
           <Button type="button" onClick={onSave} disabled={isBusy}>
-            <Save className="size-4" />
+            <Save data-icon="inline-start" />
             {isSaving ? "Saving..." : "Save"}
           </Button>
         </DialogFooter>

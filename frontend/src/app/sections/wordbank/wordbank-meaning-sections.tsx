@@ -26,8 +26,10 @@ import {
   buildVerbParadigm,
 } from "@/app/sections/wordbank/wordbank-paradigm-utils"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { ScrollableBadgeRow } from "@/components/ui/scrollable-badge-row"
+import { Bookmark } from "lucide-react"
 
 type WordbankMeaningSectionsProps = {
   lemma: string
@@ -81,7 +83,7 @@ export function WordbankMeaningSections({
   }
 
   return (
-    <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+    <div className="grid grid-cols-1 gap-4 xl:grid-cols-2" data-grid-anchor="unit">
       {meaningSections.map((section) => {
         const sectionBadges = applyPrimaryBadgeLabelOverride(
           wordPageBadgesForSavedForm({
@@ -184,17 +186,21 @@ export function WordbankMeaningSections({
               data-testid={section.id === 0 ? "wordbank-lemma-scope-card" : `wordbank-meaning-card-${section.id}`}
               data-meaning-id={section.id}
               data-selected={selectedMeaningId === section.id ? "true" : "false"}
-              className="py-5"
+              data-material="meaning"
+              data-grid-anchor="unit"
+              data-grid-height="unit"
+              className="py-4"
             >
-              <CardContent className="flex flex-col gap-3">
+              <CardContent className="flex flex-col gap-4 px-4 md:px-6">
                 {/* Row 1: Lemma + inline badges. Badges scroll horizontally when
                     they overflow the available width. Right padding reserves
                     space for the meatball menu (always visible on mobile, on
                     hover on desktop). */}
-                <div className="flex flex-col md:grid md:grid-cols-[auto_1fr] gap-x-2 gap-y-1.5 pr-9">
+                {!isRootSection ? (
+                <div className="flex flex-col gap-x-2 gap-y-2 pr-9 md:grid md:grid-cols-[auto_1fr]">
                   <span
                     data-testid={isRootSection ? "wordbank-lemma-card-lemma" : `wordbank-meaning-card-lemma-${section.id}`}
-                    className="shrink-0 text-lg leading-tight font-bold md:col-start-1 md:row-start-1"
+                    className="shrink-0 text-lg leading-6 font-bold md:col-start-1 md:row-start-1"
                   >
                     {meaningLemma}
                   </span>
@@ -251,15 +257,33 @@ export function WordbankMeaningSections({
                   ) : null}
                   {/* Row 2: Translation directly below the lemma */}
                   {sectionTranslation ? (
-                    <span className="text-muted-foreground text-sm italic order-2 md:order-none md:col-span-2 md:row-start-2">
+                    <span className="text-muted-foreground order-2 min-h-6 text-sm leading-6 italic md:order-none md:col-span-2 md:row-start-2">
                       {sectionTranslation}
                     </span>
                   ) : null}
                 </div>
+                ) : null}
+
+                {section.reference_links?.length ? (
+                  <div className="flex flex-wrap gap-2" aria-label={`Reference bookmarks for ${meaningLemma}`}>
+                    {section.reference_links.map((link) => (
+                      <Button
+                        key={`${section.id}-${link.page_id}-${link.tab_id}`}
+                        type="button"
+                        variant="secondary"
+                        size="xs"
+                        onClick={() => onOpenPinnedTab?.(link.sentinel)}
+                      >
+                        <Bookmark data-icon="inline-start" />
+                        {link.page_title}
+                      </Button>
+                    ))}
+                  </div>
+                ) : null}
 
                 {/* Forms section */}
                 {hasRenderableForms ? (
-                  <div className="mt-2">
+                  <div>
                     {nounParadigm || adjectiveParadigm || verbParadigm ? (
                       <WordbankParadigmTable
                         paradigm={nounParadigm ?? adjectiveParadigm ?? verbParadigm!}

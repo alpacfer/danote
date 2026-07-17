@@ -50,6 +50,8 @@ def list_lemmas(runtime: WordbankRuntime) -> LemmaListResponse:
             LemmaSummary(
                 lemma=row.lemma,
                 display_lemma=_display_lemma_for_list(runtime, row.lemma, row.pos_tag),
+                created_at=row.created_at,
+                last_enriched_at=row.last_enriched_at,
                 english_translation=row.english_translation,
                 pos_tags=list(row.pos_tags),
                 categories=list(row.categories),

@@ -283,6 +283,8 @@ export function mockFetchImplementation(options?: {
       english_translation?: string | null
       pos_tags?: string[]
       categories?: string[]
+      created_at?: string | null
+      last_enriched_at?: string | null
     }>
   }
   searchWordbankResponse?: {

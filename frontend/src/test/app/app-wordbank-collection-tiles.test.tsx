@@ -1,4 +1,5 @@
 import { fireEvent, mockFetchImplementation, renderApp, screen, waitFor, within } from "@/test/app-test-helpers"
+import { vi } from "vitest"
 
 describe("App wordbank collection tiles", () => {
   it("renders compact specimen labels and exposes metadata on keyboard focus", async () => {
@@ -28,7 +29,9 @@ describe("App wordbank collection tiles", () => {
 
     const bogTile = await screen.findByRole("button", { name: "bog" })
     expect(bogTile).toHaveTextContent("bog· 3")
-    expect(bogTile.querySelector("svg")).not.toBeInTheDocument()
+    expect(bogTile.querySelector("svg")).toBeInTheDocument()
+    expect(bogTile).toHaveAttribute("data-material", "word")
+    expect(bogTile).toHaveAttribute("data-grid-anchor", "unit")
 
     fireEvent.focus(bogTile)
     const tooltip = await screen.findByRole("tooltip")
@@ -37,7 +40,7 @@ describe("App wordbank collection tiles", () => {
     expect(within(tooltip).queryByText("Pronunciation available")).not.toBeInTheDocument()
 
     const mweTile = screen.getByRole("button", { name: "passe på" })
-    expect(mweTile.querySelector("svg")).not.toBeInTheDocument()
+    expect(mweTile).toHaveAttribute("data-mwe", "true")
   })
 
   it("keeps whole-lemma deletion on the specimen context menu", async () => {
@@ -61,6 +64,38 @@ describe("App wordbank collection tiles", () => {
     expect(await screen.findByRole("menuitem", { name: /delete whole lemma/i })).toBeInTheDocument()
   })
 
+  it("marks only activity from the last seven days as recent", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    vi.setSystemTime(new Date("2026-07-17T12:00:00Z"))
+    mockFetchImplementation({
+      lemmasResponse: {
+        items: [
+          {
+            lemma: "bog",
+            variation_count: 1,
+            pos_tags: ["NOUN"],
+            categories: ["School"],
+            created_at: "2026-06-01 08:00:00",
+            last_enriched_at: "2026-07-14T08:00:00+00:00",
+          },
+          {
+            lemma: "gammel",
+            variation_count: 1,
+            pos_tags: ["ADJ"],
+            categories: [],
+            created_at: "2026-05-01 08:00:00",
+            last_enriched_at: "2026-07-01 08:00:00",
+          },
+        ],
+      },
+    })
+
+    renderApp()
+    expect(await screen.findByLabelText("Recently enriched bog")).toBeInTheDocument()
+    expect(screen.queryByLabelText("Recently enriched gammel")).not.toBeInTheDocument()
+    vi.useRealTimers()
+  })
+
   it("renders all five references as a distinct deck shelf", async () => {
     mockFetchImplementation({ lemmasResponse: { items: [] } })
 
@@ -69,9 +104,14 @@ describe("App wordbank collection tiles", () => {
 
     expect(await screen.findByRole("heading", { name: "Reference collections" })).toBeInTheDocument()
     const labels = ["Pronouns", "HV Questions", "Prepositions", "Conjunctions", "Numbers & Time"]
+    const tones = new Set<string>()
     for (const label of labels) {
-      expect(screen.getByRole("button", { name: `Open ${label} reference` })).toBeInTheDocument()
+      const deck = screen.getByRole("button", { name: `Open ${label} reference` })
+      const material = deck.closest<HTMLElement>("[data-material='reference']")
+      expect(material).toBeInTheDocument()
+      tones.add(material?.dataset.materialTone ?? "")
     }
+    expect(tones.size).toBe(5)
 
     fireEvent.click(screen.getByRole("button", { name: "Open Numbers & Time reference" }))
     await waitFor(() => {

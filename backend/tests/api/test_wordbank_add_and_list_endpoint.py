@@ -841,7 +841,17 @@ def test_list_lemmas_returns_sorted_lemmas_with_variation_counts(tmp_path, stub_
         response = client.get("/api/wordbank/lemmas")
 
     assert response.status_code == 200
-    assert response.json()["items"] == [
+    items = response.json()["items"]
+    assert all(item["created_at"] for item in items)
+    assert all(item["last_enriched_at"] >= item["created_at"] for item in items)
+    assert [
+        {
+            key: value
+            for key, value in item.items()
+            if key not in {"created_at", "last_enriched_at"}
+        }
+        for item in items
+    ] == [
         {
             "lemma": "bog",
             "display_lemma": "bog",

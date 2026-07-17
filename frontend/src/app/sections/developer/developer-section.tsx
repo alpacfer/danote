@@ -53,7 +53,7 @@ export type DeveloperSectionProps = {
 
 export function DeveloperSection(props: DeveloperSectionProps) {
   return (
-    <Tabs defaultValue="status">
+    <Tabs defaultValue="status" data-grid-page="developer">
       <div className="flex flex-col gap-4">
         <TabsList>
           <TabsTrigger value="status">Status</TabsTrigger>

@@ -32,13 +32,36 @@ receive their own redesign.
 ## Surfaces and depth
 
 - The outer canvas uses a visible but low-contrast two-tone CSS paper grain.
-  The inset application canvas adds 32px blue-gray notebook ruling beneath
-  that grain. Both layers must disappear when the user requests increased
-  contrast.
+  The canonical scrolling notebook sheet adds blue-gray ruling beneath that
+  grain. Both layers must disappear when the user requests increased contrast.
+- The layout lattice starts at the notebook sheet's content-box origin. Its
+  base unit is 8px; every fourth unit is a visible 32px rule. Headings and
+  major section starts use `data-grid-anchor="rule"`. Cards, decks, filters,
+  empty states, and exposed rows use `data-grid-anchor="unit"` where browser
+  tests need to enforce alignment.
+- Padding, gaps, line heights, bounded rows, and responsive dimensions use 8px
+  multiples. The 32px ruling is a baseline rhythm, not a requirement to leave
+  32px between every element.
+- Feature materials use semantic roles (`word`, `reference`, `meaning`,
+  `grammar`, `discovery`, `sentence`, and `related`) through `data-material`.
+  They combine a restrained full-surface tint, an organic paper shadow, and a
+  stamped icon or mark. Containment may use a neutral inset hairline.
+- Do not use colored top/left rails, thick edges, or asymmetric accent borders.
+  Reference decks vary by restrained material tone and stamp while preserving
+  one shared size and interaction model.
 - Standard cards use `shadow-card`; the application inset uses `shadow-shell`;
   dialogs, popovers, and the mobile navigation use `shadow-floating`.
 - Texture and shadow support hierarchy. They must not compete with word forms,
   translations, or verification states.
+
+## Motion
+
+- Motion explains state: audio uses a sound ring, sense selection changes
+  paper depth, generated examples unfold, new variations settle into place,
+  and a supported View Transition connects a collection tile to its word page.
+- Unsupported View Transitions fall back immediately. Under
+  `prefers-reduced-motion: reduce`, nonessential animation and smooth scrolling
+  are disabled.
 
 ## Accessibility
 

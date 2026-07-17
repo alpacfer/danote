@@ -58,6 +58,8 @@ export function PinnedWordCard({
       onClick={openWord}
       onKeyDown={handleKeyDown}
       className="min-w-0 cursor-pointer overflow-hidden transition-colors hover:bg-accent/50 focus-visible:ring-ring/50 focus-visible:ring-2"
+      data-material="reference"
+      data-grid-anchor="unit"
     >
       <CardHeader className="min-w-0 gap-2 px-4 sm:px-6">
         <div className="flex min-w-0 flex-col gap-x-2 gap-y-1 md:grid md:grid-cols-[auto_1fr]">

@@ -9,6 +9,8 @@ _QUERY_COR_IDS_SEPARATOR = "\x1f"
 @dataclass(frozen=True, slots=True)
 class LemmaListRow:
     lemma: str
+    created_at: str
+    last_enriched_at: str
     english_translation: str | None
     pos_tag: str | None
     pos_tags: tuple[str, ...]

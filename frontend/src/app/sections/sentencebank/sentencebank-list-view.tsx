@@ -9,7 +9,6 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { Trash2 } from "lucide-react"
@@ -31,11 +30,15 @@ export function SentencebankListView({
 }: SentencebankListViewProps) {
   const [sentenceToDelete, setSentenceToDelete] = useState<SentencebankSentence | null>(null)
 
-  const title = <h1 className="font-section-title text-2xl leading-none font-normal tracking-normal">Sentences</h1>
+  const title = (
+    <h1 className="font-section-title flex h-8 items-center text-2xl leading-none font-normal tracking-normal" data-grid-anchor="rule">
+      Sentences
+    </h1>
+  )
 
   if (sentencebankError) {
     return (
-      <div className="flex min-h-0 flex-1 flex-col gap-4">
+      <div className="flex min-h-0 flex-1 flex-col gap-4" data-grid-page="sentencebank-list">
         {title}
         <p className="text-destructive text-sm" role="alert">
           {sentencebankError}
@@ -46,7 +49,7 @@ export function SentencebankListView({
 
   if (isSentencebankLoading && sentences.length === 0) {
     return (
-      <div className="flex min-h-0 flex-1 flex-col gap-4">
+      <div className="flex min-h-0 flex-1 flex-col gap-4" data-grid-page="sentencebank-list">
         {title}
         <div className="space-y-3">
           <Card>
@@ -68,7 +71,7 @@ export function SentencebankListView({
 
   if (sentences.length === 0) {
     return (
-      <div className="flex min-h-0 flex-1 flex-col gap-4">
+      <div className="flex min-h-0 flex-1 flex-col gap-4" data-grid-page="sentencebank-list">
         {title}
         <p className="text-muted-foreground text-sm">No saved sentences yet.</p>
       </div>
@@ -76,10 +79,9 @@ export function SentencebankListView({
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4">
+    <div className="flex min-h-0 flex-1 flex-col gap-4" data-grid-page="sentencebank-list">
       {title}
-      <ScrollArea className="min-h-0 flex-1">
-      <div className="flex flex-wrap gap-3 items-start pr-1">
+      <div className="flex flex-wrap items-start gap-4" data-grid-anchor="unit">
         {sentences.map((sentence) => (
           <SentenceCard
             key={sentence.id}
@@ -100,7 +102,6 @@ export function SentencebankListView({
           setSentenceToDelete(null)
         }}
       />
-      </ScrollArea>
     </div>
   )
 }
@@ -145,7 +146,11 @@ function SentenceCard({ sentence, onOpen, onRequestDelete }: SentenceCardProps) 
                 className="text-left"
                 onClick={onOpen}
               >
-                <Card className="hover:bg-accent/40 transition-colors cursor-pointer max-w-sm">
+                <Card
+                  className="hover:bg-accent/40 max-w-sm cursor-pointer transition-colors"
+                  data-material="sentence"
+                  data-grid-anchor="unit"
+                >
                   <CardContent className="space-y-1.5">
                     <p ref={sourceRef} className="text-base font-medium leading-snug truncate">{sentence.source_text}</p>
                     <p ref={translationRef} className="text-muted-foreground text-sm truncate">{translation}</p>

@@ -28,3 +28,12 @@ function semanticCategoryPaletteIndex(label: string, paletteLength: number): num
 export function semanticCategoryBadgeClass(label: string): string {
   return CATEGORY_BADGE_PALETTE[semanticCategoryPaletteIndex(label, CATEGORY_BADGE_PALETTE.length)]
 }
+
+const MATERIAL_TONES = ["sky", "sea", "butter", "plum", "clay"] as const
+
+export type SemanticMaterialTone = (typeof MATERIAL_TONES)[number]
+
+export function semanticCategoryMaterialTone(label: string | null | undefined): SemanticMaterialTone {
+  if (!label?.trim()) return "sea"
+  return MATERIAL_TONES[semanticCategoryPaletteIndex(label, MATERIAL_TONES.length)]
+}

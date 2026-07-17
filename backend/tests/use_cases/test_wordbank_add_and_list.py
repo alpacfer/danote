@@ -440,6 +440,37 @@ def test_wordbank_use_case_round_trip(tmp_path: Path) -> None:
     assert listing.items[0].english_translation is None
 
 
+def test_wordbank_list_reports_creation_and_latest_enrichment_time(tmp_path: Path) -> None:
+    db_path = _db_path(tmp_path)
+    use_case = WordbankUseCase(db_path)
+    use_case.add_word("bogen", "bog")
+
+    with get_connection(db_path) as conn:
+        conn.execute(
+            "UPDATE lexemes SET created_at = ?, updated_at = ? WHERE lemma = ?",
+            ("2026-01-01 08:00:00", "2026-01-02 08:00:00", "bog"),
+        )
+        conn.execute(
+            "UPDATE lexeme_meanings SET updated_at = ? WHERE lexeme_id = "
+            "(SELECT id FROM lexemes WHERE lemma = ?)",
+            ("2026-01-05 12:00:00", "bog"),
+        )
+        conn.execute(
+            "UPDATE surface_forms SET created_at = ? WHERE lexeme_id = "
+            "(SELECT id FROM lexemes WHERE lemma = ?)",
+            ("2026-01-03 08:00:00", "bog"),
+        )
+        conn.execute(
+            "UPDATE wordbank_category_assignments SET updated_at = ? WHERE lexeme_id = "
+            "(SELECT id FROM lexemes WHERE lemma = ?)",
+            ("2026-01-04 08:00:00", "bog"),
+        )
+
+    summary = use_case.list_lemmas().items[0]
+    assert summary.created_at == "2026-01-01 08:00:00"
+    assert summary.last_enriched_at == "2026-01-05 12:00:00"
+
+
 def test_wordbank_add_word_uses_static_pronoun_metadata(tmp_path: Path) -> None:
     translation_service = FakeTranslationService({"du": "provider should not be used"})
     use_case = WordbankUseCase(

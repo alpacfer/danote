@@ -13,6 +13,8 @@ App-shell composition contract: section ownership, navigation state, sidebar/bre
 - `SidebarProvider` + `SidebarInset` wrapper
 - Chrome: `AppSidebar`, mobile `SidebarTrigger`, `AppBreadcrumb`
 - Delegates section body to `SectionContent` with typed prop bundles
+- Wraps the active section in the single canonical `NotebookPage` vertical
+  scroll container
 
 Stays orchestration layer: state/side-effects in hooks, not component body.
 
@@ -53,6 +55,13 @@ Pure render switch; no app-shell side effects.
   wordmark, and Fraunces Variable is used for primary section headings.
 - The shell, cards, and floating surfaces use separate semantic depth tokens.
 - Decorative paper grain is CSS-only and removed for `prefers-contrast: more`.
+- Notebook ruling belongs to the scrolling sheet, not `SidebarInset`, so the
+  8px content lattice and its visible 32px rules move together. Navigable
+  sections do not introduce nested vertical scroll areas; bounded badge/table
+  regions may still scroll horizontally.
+- The sheet content-box origin is the grid origin. `unit` anchors resolve to
+  8px boundaries and `rule` anchors to 32px boundaries at mobile, tablet, and
+  desktop widths.
 - The mobile bottom navigation composes shadcn Button, ButtonGroup, and Badge
   primitives while preserving the existing safe-area placement and actions.
 
@@ -64,7 +73,7 @@ Pure render switch; no app-shell side effects.
 - Command search dialog state + query state
 - Search aggregation/ranking: `useSidebarSearch` + `useSidebarSearchRanking`
 - Search result actions: `onOpenWordbankLemma`, `onOpenWordbankMeaning`, `onAddWordFromSearch`
-- Keyboard shortcuts: `useSidebarHotkeys` (`Alt+W/S/D`, search toggle)
+- Keyboard shortcuts: `useSidebarHotkeys` (`Alt+W/S/A`, search toggle)
 
 #### Breadcrumb (`frontend/src/app/chrome/app-breadcrumb.tsx`)
 

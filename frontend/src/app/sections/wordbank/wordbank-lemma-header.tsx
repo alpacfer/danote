@@ -1,16 +1,24 @@
 import type { LemmaDetailsResponse, VerificationChangeEntry, VerificationOverview } from "@/app/core"
-import { additionalTranslationsDisplay, corSecondaryBadgeClass, isMultiWordLemma, normalizeSearchWord, posBadgeClass } from "@/app/core"
+import {
+  additionalTranslationsDisplay,
+  corSecondaryBadgeClass,
+  isMultiWordLemma,
+  normalizeSearchWord,
+  posBadgeClass,
+  semanticCategoryBadgeClass,
+} from "@/app/core"
 import { pinnedHomesForLemma } from "@/app/sections/wordbank/_shared/pinned-word-index"
 import { wordPageBadgesForSavedForm } from "@/app/sections/wordbank/wordbank-card-badges"
 import { applyPrimaryBadgeLabelOverride, primaryPosBadgeOverride } from "@/app/sections/wordbank/wordbank-primary-pos-badge"
 import { WordbankPronunciationWord } from "@/app/sections/wordbank/wordbank-pronunciation-word"
 import { WordbankVerificationPopover } from "@/app/sections/wordbank/wordbank-verification-popover"
+import { wordViewTransitionName } from "@/app/sections/wordbank/wordbank-view-transition"
 import { Badge } from "@/components/ui/badge"
-import { Card, CardContent } from "@/components/ui/card"
-import { ScrollArea } from "@/components/ui/scroll-area"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { ScrollableBadgeRow } from "@/components/ui/scrollable-badge-row"
 import { Skeleton } from "@/components/ui/skeleton"
-import { AudioLines, Languages, Loader2, Sparkles } from "lucide-react"
+import { AudioLines, Bookmark, Languages, Loader2, Sparkles } from "lucide-react"
 
 type WordbankLemmaHeaderProps = {
   selectedLemma: string
@@ -34,7 +42,6 @@ type WordbankLemmaHeaderProps = {
   onApplyVerificationAction: (targetKey: string, actionIndex: number) => void
   onRetryVerificationTarget: (targetKey: string) => void
   onRevertVerificationChange: (changeId: number) => void
-  showSupplementaryMetadata: boolean
   onOpenPinnedTab: (sentinel: string) => void
   onApplyFilterAndNavigateBack?: (type: "pos" | "category", value: string) => void
 }
@@ -61,7 +68,6 @@ export function WordbankLemmaHeader({
   onApplyVerificationAction,
   onRetryVerificationTarget,
   onRevertVerificationChange,
-  showSupplementaryMetadata,
   onOpenPinnedTab,
   onApplyFilterAndNavigateBack,
 }: WordbankLemmaHeaderProps) {
@@ -85,18 +91,19 @@ export function WordbankLemmaHeader({
   ) ?? null
   const headerTranslation = lemmaDetails.is_sectioned
     ? null
-    : (selectedMeaningSection?.english_translation ?? lemmaDetails.english_translation)
+    : lemmaDetails.english_translation
   const headerAdditionalTranslations = lemmaDetails.is_sectioned
     ? []
-    : (selectedMeaningSection?.additional_translations ?? lemmaDetails.additional_translations ?? [])
+    : lemmaDetails.additional_translations ?? []
   const headerTranslationLine = additionalTranslationsDisplay(
     headerTranslation,
     headerAdditionalTranslations,
   )
   const headerPosTag = selectedMeaningSection?.pos_tag ?? lemmaDetails.pos_tag
   const headerMorphology = selectedMeaningSection?.morphology ?? lemmaDetails.morphology
-  const headerBadges = showSupplementaryMetadata
-    ? applyPrimaryBadgeLabelOverride(
+  const headerBadges = lemmaDetails.is_sectioned
+    ? []
+    : applyPrimaryBadgeLabelOverride(
         wordPageBadgesForSavedForm({
           pos_tag: headerPosTag ?? null,
           morphology: headerMorphology ?? null,
@@ -107,7 +114,8 @@ export function WordbankLemmaHeader({
         }),
         { posTag: headerPosTag ?? null, morphology: headerMorphology ?? null, lemma: lemmaDetails.lemma },
       )
-    : []
+  const headerCategories = lemmaDetails.is_sectioned ? [] : lemmaDetails.categories ?? []
+  const referenceLinks = lemmaDetails.reference_links ?? []
   const headerPosBadgeOverride = primaryPosBadgeOverride({
     posTag: headerPosTag ?? null,
     morphology: headerMorphology ?? null,
@@ -163,11 +171,16 @@ export function WordbankLemmaHeader({
   )
 
   return (
-    <div id="wordbank-lemma-header" className="flex flex-col">
-      {/* Lemma word + verification button. Categories, POS badges, translation,
-          and pinned-home chips live inside the meaning section card(s) below so
-          every word page (saved or built-in) shares the same chrome. */}
-      <div className="flex items-start justify-between gap-3">
+    <Card
+      id="wordbank-lemma-header"
+      className="gap-4 py-4"
+      data-material="meaning"
+      data-grid-anchor="rule"
+      data-grid-height="unit"
+      style={{ viewTransitionName: wordViewTransitionName(lemmaDetails.lemma) }}
+    >
+      <CardHeader className="grid-rows-1 gap-2 px-4 md:px-6">
+      <div className="flex min-h-8 items-start justify-between gap-3">
         <WordbankPronunciationWord
           form={lemmaDetails.lemma}
           playForm={lemmaPronunciationForm ?? undefined}
@@ -175,7 +188,7 @@ export function WordbankLemmaHeader({
           pronunciationLoadingByForm={pronunciationLoadingByForm}
           onPlayPronunciation={onPlayPronunciation}
           contextMenuItems={lemmaContextMenuItems}
-          className="text-3xl font-bold tracking-tight leading-tight"
+          className="font-section-title text-3xl leading-8 font-semibold tracking-tight"
           iconClassName="size-4"
           as="h2"
         />
@@ -183,10 +196,10 @@ export function WordbankLemmaHeader({
       </div>
 
       {/* POS + morphology badges */}
-      {headerBadges.length > 0 ? (
+      {headerBadges.length > 0 || headerCategories.length > 0 ? (
         <ScrollableBadgeRow
-          className="mt-1.5 order-2 md:order-none"
-          fadeFromClass="from-background"
+          className="order-2 md:order-none"
+          fadeFromClass="from-material-meaning"
           testId="wordbank-lemma-header-badges"
         >
           {headerBadges.map((badge) => {
@@ -212,14 +225,47 @@ export function WordbankLemmaHeader({
               </Badge>
             )
           })}
+          {headerCategories.map((category) => (
+            <Badge
+              key={`lemma-category-${category}`}
+              variant="outline"
+              className={`shrink-0 text-xs ${semanticCategoryBadgeClass(category)}`}
+              onClick={
+                onApplyFilterAndNavigateBack
+                  ? () => onApplyFilterAndNavigateBack("category", category)
+                  : undefined
+              }
+            >
+              {category}
+            </Badge>
+          ))}
         </ScrollableBadgeRow>
       ) : null}
 
       {/* Translation */}
-      {headerTranslationLine && (showSupplementaryMetadata || selectedMeaningSection) ? (
-        <p className="text-muted-foreground mt-2 text-base italic order-1 md:order-none">{headerTranslationLine}</p>
+      {headerTranslationLine ? (
+        <p className="text-muted-foreground order-1 min-h-6 text-base leading-6 italic md:order-none">
+          {headerTranslationLine}
+        </p>
       ) : null}
-    </div>
+      {referenceLinks.length > 0 ? (
+        <div className="flex flex-wrap gap-2" aria-label="Reference bookmarks">
+          {referenceLinks.map((link) => (
+            <Button
+              key={`${link.page_id}-${link.tab_id}`}
+              type="button"
+              variant="secondary"
+              size="xs"
+              onClick={() => onOpenPinnedTab(link.sentinel)}
+            >
+              <Bookmark data-icon="inline-start" />
+              {link.page_title}
+            </Button>
+          ))}
+        </div>
+      ) : null}
+      </CardHeader>
+    </Card>
   )
 }
 
@@ -232,8 +278,7 @@ export function WordbankDetailsLoadingSkeleton({ layout = "root" }: WordbankDeta
 
   return (
     <div data-testid="wordbank-details-loading-skeleton" className="flex min-h-0 flex-1 flex-col gap-4">
-      <ScrollArea className="min-h-0 flex-1">
-        <div className="space-y-3 pr-1">
+        <div className="flex flex-col gap-4">
           {layout === "sectioned" ? (
             <>
               {header}
@@ -252,7 +297,6 @@ export function WordbankDetailsLoadingSkeleton({ layout = "root" }: WordbankDeta
             </Card>
           )}
         </div>
-      </ScrollArea>
     </div>
   )
 }
