@@ -3,7 +3,8 @@ import { useState } from "react"
 import { LemmaDeletionDialog } from "@/app/sections/wordbank/wordbank-deletion-dialogs"
 import { PINNED_PAGES } from "@/app/sections/wordbank/_shared/pinned-pages-registry"
 import { WordbankListFilters, type WordbankFilterState } from "@/app/sections/wordbank/wordbank-list-filters"
-import { WordbankListResults, PinnedGroupSection } from "@/app/sections/wordbank/wordbank-list-results"
+import { WordbankListResults } from "@/app/sections/wordbank/wordbank-list-results"
+import { WordbankReferenceDecks } from "@/app/sections/wordbank/wordbank-reference-decks"
 import type { WordbankSectionProps } from "@/app/sections/wordbank/wordbank-section-types"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -68,7 +69,7 @@ export function WordbankListView({
         </div>
       ) : (
         <>
-          <PinnedGroupSection pages={PINNED_PAGES} onSelectLemma={onSelectLemma} />
+          <WordbankReferenceDecks pages={PINNED_PAGES} onSelectLemma={onSelectLemma} />
           <WordbankListFilters lemmas={lemmas} filters={filters} onFiltersChange={onFiltersChange} />
           <ScrollArea className="min-h-0 flex-1">
             <WordbankListResults

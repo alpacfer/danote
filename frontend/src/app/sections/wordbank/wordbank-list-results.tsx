@@ -1,16 +1,9 @@
-import { ChevronRight, FilterX, Trash2 } from "lucide-react"
+import { FilterX } from "lucide-react"
 
 import { isMultiWordLemma, type WordbankLemma } from "@/app/core"
-import type { PinnedPageMeta } from "@/app/sections/wordbank/_shared/pinned-pages-registry"
 import type { WordbankFilterState } from "@/app/sections/wordbank/wordbank-list-filters"
+import { WordbankSpecimenTile } from "@/app/sections/wordbank/wordbank-specimen-tile"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuTrigger,
-} from "@/components/ui/context-menu"
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 
 type WordbankListResultsProps = {
@@ -45,29 +38,13 @@ export function WordbankListResults({
               const displayWord = lemma.display_lemma?.trim() || lemma.lemma
               const unreadCount = unreadWordbankLemmaCounts.get(lemma.lemma) ?? 0
               return (
-                <ContextMenu key={lemma.lemma}>
-                  <ContextMenuTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="relative w-auto pr-3"
-                      onClick={() => onSelectLemma(lemma.lemma)}
-                    >
-                      {displayWord}
-                      <UnreadMarker count={unreadCount} displayWord={displayWord} />
-                    </Button>
-                  </ContextMenuTrigger>
-                  <ContextMenuContent>
-                    <ContextMenuItem
-                      variant="destructive"
-                      onSelect={() => onRequestDelete({ lemma: lemma.lemma, displayWord })}
-                    >
-                      <Trash2 />
-                      Delete whole lemma
-                    </ContextMenuItem>
-                  </ContextMenuContent>
-                </ContextMenu>
+                <WordbankSpecimenTile
+                  key={lemma.lemma}
+                  lemma={lemma}
+                  unreadCount={unreadCount}
+                  onSelect={() => onSelectLemma(lemma.lemma)}
+                  onRequestDelete={() => onRequestDelete({ lemma: lemma.lemma, displayWord })}
+                />
               )
             })}
           </div>
@@ -75,18 +52,6 @@ export function WordbankListResults({
       ))}
     </div>
   )
-}
-
-function UnreadMarker({ count, displayWord }: { count: number; displayWord: string }) {
-  if (count <= 0) return null
-  if (count > 1) {
-    return (
-      <span className="bg-primary text-primary-foreground ml-2 inline-flex min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] leading-5">
-        {count}
-      </span>
-    )
-  }
-  return <span aria-label={`Pending verification for ${displayWord}`} className="bg-primary ml-2 inline-flex size-2.5 rounded-full" />
 }
 
 function WordbankListEmpty({ onClearFilters }: { onClearFilters: () => void }) {
@@ -139,54 +104,4 @@ function groupWordbankLemmas(lemmas: WordbankLemma[]) {
   return Array.from(groups.entries())
     .sort(([left], [right]) => collator.compare(left, right))
     .map(([letter, items]) => ({ letter, items }))
-}
-
-export function PinnedGroupSection({
-  pages,
-  onSelectLemma,
-}: {
-  pages: PinnedPageMeta[]
-  onSelectLemma: (lemma: string) => void
-}) {
-  return (
-    <section className="flex flex-col gap-2">
-      <div className="flex flex-wrap gap-2">
-        {pages.map((page) => (
-          <BuiltInReferenceCard
-            key={page.sentinel}
-            label={page.title}
-            ariaLabel={`Open ${page.title} reference`}
-            onClick={() => onSelectLemma(page.sentinel)}
-          />
-        ))}
-      </div>
-    </section>
-  )
-}
-
-function BuiltInReferenceCard({
-  label,
-  ariaLabel,
-  onClick,
-}: {
-  label: string
-  ariaLabel: string
-  onClick: () => void
-}) {
-  return (
-    <Card className="overflow-hidden py-0 gap-0">
-      <CardContent className="p-0">
-        <Button
-          type="button"
-          variant="ghost"
-          className="hover:bg-accent/60 h-auto w-auto items-center justify-between gap-3 rounded-none px-4 py-3 text-left"
-          onClick={onClick}
-          aria-label={ariaLabel}
-        >
-          <span className="text-sm font-semibold">{label}</span>
-          <ChevronRight className="text-muted-foreground size-4 shrink-0" />
-        </Button>
-      </CardContent>
-    </Card>
-  )
 }

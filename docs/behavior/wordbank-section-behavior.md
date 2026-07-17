@@ -49,8 +49,8 @@ Switch: `selectedLemma` absent => `WordbankListView`, present => `WordbankWordPa
 Priority:
 1. `wordbankError` → error alert
 2. Loading + `lemmas.length === 0` → grouped skeleton
-3. No active filter matches → pinned cards plus an empty state
-4. Otherwise → pinned cards plus grouped lemma chips with letter headings
+3. No active filter matches → reference decks plus an empty state
+4. Otherwise → reference decks plus grouped specimen tiles with letter headings
 
 Filters:
 - Filter bar sits below the heading and auto-applies local filters.
@@ -59,12 +59,14 @@ Filters:
 - Category filter is a searchable multi-select popover; a lemma matches only
   when all selected categories appear somewhere under that lemma.
 - Word type and category filters combine with AND.
-- Clear filters resets both dimensions. Pinned reference cards stay visible
+- Clear filters resets both dimensions. Reference decks stay visible
   regardless of saved-lemma filters.
 
-Per-chip:
+Per-specimen tile:
 - Label: `display_lemma` fallback `lemma`
 - Variation count suffix (`· N`) only when `variation_count > 1`
+- Hover or keyboard focus opens a tooltip with the summary translation when
+  present and readable POS labels. Pronunciation remains a word-page detail.
 - Unread verification markers:
   - queued/in-progress → no marker
   - unread `1` → dot indicator
@@ -74,20 +76,22 @@ Per-chip:
   dialog explains that all meanings under the lemma are removed and linked
   sentence tokens become unsaved instead of disappearing.
 
-Three built-in reference cards are pinned at the top of the wordbank list and
-shown even when there are no saved lemmas: **Pronouns**, **Function Words**,
-and **Numbers & Time**. Each grouped page is identified by a sentinel lemma
-(`__pinned_pronouns`, `__pinned_function_words`, `__pinned_numbers_time`).
-Legacy sentinels such as `__pronouns_personal`, `__question_words`, and
-`__numbers` still route through
+Five built-in reference decks are pinned at the top of the Wordbank list and
+shown even when there are no saved lemmas: **Pronouns**, **HV Questions**,
+**Prepositions**, **Conjunctions**, and **Numbers & Time**. The responsive
+deck shelf uses a distinct icon and short collection description for each page
+while the whole visible card remains one accessible button. Each page is
+identified by its canonical sentinel lemma. Legacy
+sentinels such as `__pronouns_personal`, `__question_words`, and `__numbers`
+still route through
 `frontend/src/app/sections/wordbank/_shared/pinned-pages-registry.ts`; they
 open the owning grouped page and select the matching default tab.
 
 Grouped pinned pages render through `PinnedPageLayout` and shadcn/Radix
-`Tabs` (except HV Questions, which presents all words together in a single grid). Pronouns includes Personal, Possessive, Demonstrative, Relative,
-Indefinite, and Question Words. Function Words includes Articles,
-Prepositions, and Conjunctions. Numbers & Time includes Cardinal Numbers,
-Ordinal Numbers, Days, Months, Seasons, and Time Words. The pages intentionally
+`Tabs` (except HV Questions, Prepositions, and Conjunctions, which each present
+their words together in a single grid). Pronouns includes Personal, Possessive,
+Demonstrative, Relative, and Indefinite tabs. Numbers & Time includes Cardinal
+Numbers, Ordinal Numbers, Days, and Months. The pages intentionally
 avoid instructional descriptions, note sections, generated examples, and
 textbook-style rules; they are word collections only.
 

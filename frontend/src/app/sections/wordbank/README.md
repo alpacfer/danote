@@ -6,6 +6,7 @@ Wordbank section views and small render helpers.
 
 - `wordbank-word-page.tsx` composes the selected lemma page.
 - `wordbank-lemma-header.tsx`, `wordbank-meaning-sections.tsx`, and related files render word detail regions.
+- `wordbank-list-results.tsx`, `wordbank-specimen-tile.tsx`, and `wordbank-reference-decks.tsx` render the saved collection list.
 - `wordbank-paradigm-utils.ts` builds noun/adjective/verb table data from saved surface forms.
 - `wordbank-pronunciation-word.tsx` is the shared clickable pronunciation trigger.
 - Pinned reference pages live in domain subfolders such as `numbers/`, `pronouns/`, and `time-expressions/`.

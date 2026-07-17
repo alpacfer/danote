@@ -360,10 +360,10 @@ or `Authorization: Bearer <guest-token>` header. Local dev
 - **Response model:** `LemmaListResponse`.
 - **Notable status/error behavior:** `503` DB unavailable/locked. `503` runtime errors.
 - **Field invariants:** each item includes `pos_tags: string[]` and
-  `categories: string[]` for list-level filtering. These arrays aggregate
-  lexeme, meaning, surface-form, root-category, and meaning-category metadata
-  for the whole lemma; they do not change the existing single summary
-  translation/display behavior.
+  `categories: string[]` for list-level filtering. The metadata remains
+  owner-scoped. POS/category arrays aggregate lexeme, meaning, surface-form,
+  root-category, and meaning-category metadata for the whole lemma; they do
+  not change the existing single summary translation/display behavior.
 
 ### GET `/api/wordbank/search`
 - **Request model:** none (`query`, `limit`, `language: "da" | "en" = "da"` query params).
