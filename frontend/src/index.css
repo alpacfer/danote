@@ -110,10 +110,23 @@
     --danote-shadow-floating:
       0 4px 8px oklch(0.235 0.026 235 / 0.11),
       0 24px 48px -24px oklch(0.235 0.026 235 / 0.42);
-    --danote-paper-grain: radial-gradient(
-      circle at 2px 3px,
-      oklch(0.235 0.026 235 / 0.014) 0.3px,
-      transparent 0.5px
+    --danote-paper-grain:
+      radial-gradient(
+        ellipse at 2px 3px,
+        oklch(0.235 0.026 235 / 0.05) 0.35px,
+        transparent 0.75px
+      ),
+      radial-gradient(
+        ellipse at 8px 9px,
+        oklch(0.55 0.12 40 / 0.025) 0.3px,
+        transparent 0.7px
+      );
+    --danote-notebook-ruling: repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent 31px,
+      color-mix(in oklch, var(--brand-sky) 12%, transparent) 31px,
+      color-mix(in oklch, var(--brand-sky) 12%, transparent) 32px
     );
 }
 
@@ -173,10 +186,23 @@
     --danote-shadow-floating:
       0 5px 10px oklch(0.08 0.018 225 / 0.48),
       0 26px 54px -24px oklch(0.08 0.018 225 / 0.9);
-    --danote-paper-grain: radial-gradient(
-      circle at 2px 3px,
-      oklch(0.935 0.014 85 / 0.008) 0.3px,
-      transparent 0.5px
+    --danote-paper-grain:
+      radial-gradient(
+        ellipse at 2px 3px,
+        oklch(0.935 0.014 85 / 0.035) 0.35px,
+        transparent 0.75px
+      ),
+      radial-gradient(
+        ellipse at 8px 9px,
+        oklch(0.72 0.11 45 / 0.018) 0.3px,
+        transparent 0.7px
+      );
+    --danote-notebook-ruling: repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent 31px,
+      color-mix(in oklch, var(--brand-sky) 9%, transparent) 31px,
+      color-mix(in oklch, var(--brand-sky) 9%, transparent) 32px
     );
 }
 
@@ -194,7 +220,8 @@
   body {
     @apply bg-background text-foreground text-base;
     background-image: var(--danote-paper-grain);
-    background-size: 7px 7px;
+    background-position: 0 0, 3px 5px;
+    background-size: 9px 11px, 13px 17px;
     margin: 0;
     min-height: 100vh;
     font-family: var(--font-sans);
@@ -225,13 +252,12 @@
 }
 
 [data-slot="sidebar-inset"] {
-  background-image: var(--danote-paper-grain);
-  background-size: 7px 7px;
+  background-image:
+    var(--danote-paper-grain),
+    var(--danote-notebook-ruling);
+  background-position: 0 0, 3px 5px, 0 12px;
+  background-size: 9px 11px, 13px 17px, 100% 32px;
   box-shadow: var(--danote-shadow-shell);
-}
-
-[data-slot="sidebar-menu-button"][data-active="true"] {
-  box-shadow: inset 3px 0 0 var(--sidebar-primary);
 }
 
 @media (prefers-contrast: more) {
@@ -241,10 +267,6 @@
 
   [data-slot="sidebar-inset"] {
     background-image: none;
-  }
-
-  [data-slot="sidebar-menu-button"][data-active="true"] {
-    box-shadow: inset 4px 0 0 var(--sidebar-primary);
   }
 }
 

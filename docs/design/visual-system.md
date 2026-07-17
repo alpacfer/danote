@@ -31,8 +31,10 @@ receive their own redesign.
 
 ## Surfaces and depth
 
-- The canvas uses a subtle CSS paper grain. It must disappear when the user
-  requests increased contrast.
+- The outer canvas uses a visible but low-contrast two-tone CSS paper grain.
+  The inset application canvas adds 32px blue-gray notebook ruling beneath
+  that grain. Both layers must disappear when the user requests increased
+  contrast.
 - Standard cards use `shadow-card`; the application inset uses `shadow-shell`;
   dialogs, popovers, and the mobile navigation use `shadow-floating`.
 - Texture and shadow support hierarchy. They must not compete with word forms,
