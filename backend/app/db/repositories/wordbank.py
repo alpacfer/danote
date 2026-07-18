@@ -6,6 +6,7 @@ from app.db.repositories.wordbank_category_mutations import WordbankCategoryMuta
 from app.db.repositories.wordbank_category_reads import WordbankCategoryReadRepository
 from app.db.repositories.wordbank_change_log import WordbankChangeLogRepository
 from app.db.repositories.wordbank_delete_mutations import WordbankDeleteRepository
+from app.db.repositories.wordbank_lemma_list_reads import WordbankLemmaListReadRepository
 from app.db.repositories.wordbank_models import (
     AdditionalTranslationRecord,
     LemmaListRow,
@@ -31,6 +32,7 @@ class WordbankRepository(
     WordbankChangeLogRepository,
     WordbankCategoryReadRepository,
     WordbankCategoryMutationRepository,
+    WordbankLemmaListReadRepository,
     WordbankReadRepository,
     WordbankMutationRepository,
     WordbankDeleteRepository,

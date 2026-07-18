@@ -859,6 +859,7 @@ def test_list_lemmas_returns_sorted_lemmas_with_variation_counts(tmp_path, stub_
             "pos_tags": [],
             "categories": [],
             "variation_count": 2,
+            "translation_groups": [],
         },
         {
             "lemma": "hus",
@@ -867,6 +868,7 @@ def test_list_lemmas_returns_sorted_lemmas_with_variation_counts(tmp_path, stub_
             "pos_tags": [],
             "categories": [],
             "variation_count": 1,
+            "translation_groups": [],
         },
     ]
 

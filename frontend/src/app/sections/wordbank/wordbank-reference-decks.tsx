@@ -50,13 +50,7 @@ export function WordbankReferenceDecks({
   onSelectLemma: (lemma: string) => void
 }) {
   return (
-    <section className="flex flex-col gap-2" aria-labelledby="wordbank-reference-heading">
-      <h2
-        id="wordbank-reference-heading"
-        className="text-muted-foreground flex h-8 items-center text-xs font-semibold tracking-wide uppercase"
-      >
-        Reference collections
-      </h2>
+    <section aria-label="Reference collections">
       <div className="grid grid-cols-2 gap-2 md:grid-cols-5" data-grid-anchor="unit" data-reference-drawer>
         {pages.map((page) => (
           <ReferenceDeck key={page.sentinel} page={page} onClick={() => onSelectLemma(page.sentinel)} />
@@ -103,7 +97,7 @@ function ReferenceDeckIcon({ pageId }: { pageId: PinnedPageId }) {
   const props = {
     "data-icon": "inline-start" as const,
     "aria-hidden": true,
-    className: "text-muted-foreground",
+    className: "text-muted-foreground mt-1.5 self-start",
   }
   if (pageId === "pronouns") return <Users {...props} />
   if (pageId === "hv_questions") return <CircleHelp {...props} />

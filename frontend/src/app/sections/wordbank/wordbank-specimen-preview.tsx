@@ -1,0 +1,56 @@
+import type { SpecimenTranslationGroup } from "@/app/sections/wordbank/wordbank-specimen-preview-data"
+import { Badge } from "@/components/ui/badge"
+import { Separator } from "@/components/ui/separator"
+
+export function WordbankSpecimenPreview({
+  displayWord,
+  posLabels,
+  translationGroups,
+}: {
+  displayWord: string
+  posLabels: string[]
+  translationGroups: SpecimenTranslationGroup[]
+}) {
+  return (
+    <div className="flex flex-col gap-3 p-4" data-wordbank-specimen-preview>
+      <div className="flex items-start justify-between gap-3">
+        <p className="font-section-title text-lg leading-6">{displayWord}</p>
+        {posLabels.length > 0 ? (
+          <div className="flex flex-wrap justify-end gap-1">
+            {posLabels.map((label) => (
+              <Badge key={label} variant="secondary">
+                {label}
+              </Badge>
+            ))}
+          </div>
+        ) : null}
+      </div>
+      {translationGroups.length > 0 ? (
+        <div className="flex flex-col">
+          {translationGroups.map((group, index) => (
+            <div key={`${group.englishTranslation ?? "additional"}-${index}`}>
+              {index > 0 ? <Separator className="my-3" /> : null}
+              <TranslationGroup group={group} />
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function TranslationGroup({ group }: { group: SpecimenTranslationGroup }) {
+  if (!group.englishTranslation) {
+    return <p className="text-sm font-medium">{group.additionalTranslations.join(" · ")}</p>
+  }
+  return (
+    <div className="flex flex-col gap-1">
+      <p className="text-sm font-medium">{group.englishTranslation}</p>
+      {group.additionalTranslations.length > 0 ? (
+        <p className="text-muted-foreground text-sm italic">
+          {group.additionalTranslations.join(" · ")}
+        </p>
+      ) : null}
+    </div>
+  )
+}

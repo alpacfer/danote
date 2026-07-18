@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 
 from app.api.auth import CurrentUser
 from app.api.routes import _use_case_factories, sentencebank, wordbank_audio, wordbank_search
-from app.db.migrations import apply_migrations
+from app.db.migrations import apply_migrations, get_connection
 from app.db.repositories import WordbankRepository
 from app.db.repositories.sentencebank import SentencebankRepository, SentenceTokenWriteRecord
 from app.db.repositories.users import AppUserRepository
@@ -100,6 +100,15 @@ def test_wordbank_endpoints_scope_duplicate_lemmas_by_current_user(
         meaning_b = word_b["meaning"]["id"]
 
         assert meaning_a != meaning_b
+        with get_connection(db_path) as conn:
+            conn.execute(
+                "UPDATE lexeme_meanings SET english_translation = 'book-a' WHERE id = ?",
+                (meaning_a,),
+            )
+            conn.execute(
+                "UPDATE lexeme_meanings SET english_translation = 'book-b' WHERE id = ?",
+                (meaning_b,),
+            )
 
         switcher.current = user_a
         list_a = client.get("/api/wordbank/lemmas")
@@ -115,6 +124,8 @@ def test_wordbank_endpoints_scope_duplicate_lemmas_by_current_user(
         assert list_b.status_code == 200
         assert [item["lemma"] for item in list_a.json()["items"]] == ["bog"]
         assert [item["lemma"] for item in list_b.json()["items"]] == ["bog"]
+        assert list_a.json()["items"][0]["translation_groups"][0]["english_translation"] == "book-a"
+        assert list_b.json()["items"][0]["translation_groups"][0]["english_translation"] == "book-b"
 
         assert detail_a.status_code == 200
         assert detail_b.status_code == 200

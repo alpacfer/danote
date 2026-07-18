@@ -66,6 +66,10 @@ receive their own redesign.
   represented in the current filtered result, keeping the page quieter.
 - Its reference drawer, filters, and catalogue use one shared left anchor and
   32px block spacing so the tactile details do not compromise visual rhythm.
+- Saved-word hover previews resemble restrained herbarium labels: warm
+  semantic word material, an editorial lemma heading, compact POS badges, and
+  lightly ruled translation groups. Their field-book character comes from
+  real hierarchy and paper treatment, never fabricated catalogue metadata.
 
 ## Motion
 

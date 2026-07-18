@@ -9,6 +9,16 @@ describe("App wordbank collection tiles", () => {
           {
             lemma: "bog",
             english_translation: "book",
+            translation_groups: [
+              {
+                english_translation: "book",
+                additional_translations: ["volume", "Book"],
+              },
+              {
+                english_translation: "beech tree",
+                additional_translations: [],
+              },
+            ],
             variation_count: 3,
             pos_tags: ["NOUN"],
             categories: ["School"],
@@ -28,19 +38,126 @@ describe("App wordbank collection tiles", () => {
     await screen.findByLabelText("backend-connection-status")
 
     const bogTile = await screen.findByRole("button", { name: "bog" })
-    expect(bogTile).toHaveTextContent("bog· 3")
+    expect(bogTile).toHaveTextContent(/^bog$/)
     expect(bogTile.querySelector("svg")).not.toBeInTheDocument()
     expect(bogTile).toHaveAttribute("data-material", "word")
     expect(bogTile).toHaveAttribute("data-grid-anchor", "unit")
 
     fireEvent.focus(bogTile)
-    const tooltip = await screen.findByRole("tooltip")
-    expect(within(tooltip).getByText("book")).toBeInTheDocument()
-    expect(within(tooltip).getByText("Noun")).toBeInTheDocument()
-    expect(within(tooltip).queryByText("Pronunciation available")).not.toBeInTheDocument()
+    await waitFor(() => {
+      expect(document.querySelector("[data-wordbank-specimen-preview]")).toBeInTheDocument()
+    })
+    const preview = document.querySelector<HTMLElement>("[data-wordbank-specimen-preview]")
+    expect(within(preview!).getByText("bog")).toBeInTheDocument()
+    expect(within(preview!).getByText("book")).toBeInTheDocument()
+    expect(within(preview!).getByText("volume")).toBeInTheDocument()
+    expect(within(preview!).getByText("beech tree")).toBeInTheDocument()
+    expect(within(preview!).getByText("Noun")).toBeInTheDocument()
+    expect(within(preview!).queryByText("Book")).not.toBeInTheDocument()
+    expect(within(preview!).queryByText(/specimen|pronunciation|school|forms/i)).not.toBeInTheDocument()
+
+    expect(bogTile).toHaveAttribute("aria-description", "Noun. book. volume. beech tree")
 
     const mweTile = screen.getByRole("button", { name: "passe på" })
     expect(mweTile).toHaveAttribute("data-mwe", "true")
+  })
+
+  it("keeps POS-only previews and omits empty previews", async () => {
+    mockFetchImplementation({
+      lemmasResponse: {
+        items: [
+          {
+            lemma: "gammel",
+            variation_count: 1,
+            pos_tags: ["ADJ"],
+            categories: [],
+          },
+          {
+            lemma: "ukendt",
+            variation_count: 1,
+            pos_tags: [],
+            categories: [],
+          },
+        ],
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    const adjectiveTile = await screen.findByRole("button", { name: "gammel" })
+    fireEvent.focus(adjectiveTile)
+    await waitFor(() => {
+      expect(document.querySelector("[data-wordbank-specimen-preview]")).toBeInTheDocument()
+    })
+    expect(document.querySelector("[data-wordbank-specimen-preview]")).toHaveTextContent("gammelAdjective")
+
+    fireEvent.blur(adjectiveTile)
+    fireEvent.focus(screen.getByRole("button", { name: "ukendt" }))
+    await waitFor(() => {
+      expect(document.querySelector("[data-wordbank-specimen-preview]")).not.toBeInTheDocument()
+    })
+    expect(screen.getByRole("button", { name: "ukendt" })).not.toHaveAttribute("aria-description")
+  })
+
+  it("dismisses the preview with Escape without changing the selected word", async () => {
+    mockFetchImplementation({
+      lemmasResponse: {
+        items: [
+          {
+            lemma: "bog",
+            english_translation: "book",
+            variation_count: 1,
+            pos_tags: ["NOUN"],
+            categories: [],
+          },
+        ],
+      },
+    })
+
+    renderApp()
+    const tile = await screen.findByRole("button", { name: "bog" })
+    tile.focus()
+    await waitFor(() => {
+      expect(document.querySelector("[data-wordbank-specimen-preview]")).toBeInTheDocument()
+    })
+
+    fireEvent.keyDown(document, { key: "Escape" })
+    await waitFor(() => {
+      expect(document.querySelector("[data-wordbank-specimen-preview]")).not.toBeInTheDocument()
+    })
+    expect(tile).toHaveFocus()
+    expect(screen.queryByRole("heading", { name: "bog" })).not.toBeInTheDocument()
+  })
+
+  it("keeps touch interaction as one-tap word-page navigation", async () => {
+    mockFetchImplementation({
+      lemmasResponse: {
+        items: [
+          {
+            lemma: "bog",
+            english_translation: "book",
+            variation_count: 1,
+            pos_tags: ["NOUN"],
+            categories: [],
+          },
+        ],
+      },
+      lemmaDetailsResponse: {
+        lemma: "bog",
+        english_translation: "book",
+        is_sectioned: false,
+        pos_tag: "NOUN",
+        surface_forms: [],
+      },
+    })
+
+    renderApp()
+    const tile = await screen.findByRole("button", { name: "bog" })
+    fireEvent.pointerDown(tile, { pointerType: "touch" })
+    fireEvent.click(tile)
+
+    expect(await screen.findByRole("heading", { name: /^bog$/i })).toBeInTheDocument()
   })
 
   it("keeps whole-lemma deletion on the specimen context menu", async () => {
@@ -64,9 +181,7 @@ describe("App wordbank collection tiles", () => {
     expect(await screen.findByRole("menuitem", { name: /delete whole lemma/i })).toBeInTheDocument()
   })
 
-  it("marks only activity from the last seven days as recent", async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true })
-    vi.setSystemTime(new Date("2026-07-17T12:00:00Z"))
+  it("keeps recency metadata off specimen tiles", async () => {
     mockFetchImplementation({
       lemmasResponse: {
         items: [
@@ -91,9 +206,9 @@ describe("App wordbank collection tiles", () => {
     })
 
     renderApp()
-    expect(await screen.findByLabelText("Recently enriched bog")).toBeInTheDocument()
+    expect(await screen.findByRole("button", { name: "bog" })).toHaveTextContent(/^bog$/)
+    expect(screen.queryByLabelText("Recently enriched bog")).not.toBeInTheDocument()
     expect(screen.queryByLabelText("Recently enriched gammel")).not.toBeInTheDocument()
-    vi.useRealTimers()
   })
 
   it("renders all five references as a distinct deck shelf", async () => {
@@ -102,8 +217,9 @@ describe("App wordbank collection tiles", () => {
     renderApp()
     await screen.findByLabelText("backend-connection-status")
 
-    expect(await screen.findByRole("heading", { name: "Reference collections" })).toBeInTheDocument()
+    const referenceShelf = await screen.findByRole("region", { name: "Reference collections" })
     expect(document.querySelector("[data-reference-drawer]")).toHaveClass("grid-cols-2", "md:grid-cols-5")
+    expect(within(referenceShelf).queryByRole("heading")).not.toBeInTheDocument()
     const labels = ["Pronouns", "HV Questions", "Prepositions", "Conjunctions", "Numbers & Time"]
     const tones = new Set<string>()
     for (const label of labels) {
@@ -111,6 +227,7 @@ describe("App wordbank collection tiles", () => {
       const material = deck.closest<HTMLElement>("[data-material='reference']")
       expect(material).toBeInTheDocument()
       expect(deck.parentElement).toHaveClass("h-full")
+      expect(deck.querySelector("svg[data-icon='inline-start']")).toHaveClass("mt-1.5", "self-start")
       tones.add(material?.dataset.materialTone ?? "")
     }
     expect(tones.size).toBe(5)
@@ -143,6 +260,8 @@ describe("App wordbank collection tiles", () => {
     expect(screen.queryByRole("button", { name: "Jump to A" })).not.toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Jump to Æ" })).toBeEnabled()
     expect(screen.getByRole("button", { name: "Jump to F" })).toHaveAttribute("aria-current", "true")
+    expect(screen.getByRole("navigation", { name: "Word catalogue alphabet" }).firstElementChild)
+      .toHaveClass("md:grid-cols-1")
     const fGroup = document.querySelector<HTMLElement>("[data-wordbank-letter='F']")
     expect(within(fGroup!).getByRole("heading", { name: "F" })).toHaveTextContent(/^F$/)
 

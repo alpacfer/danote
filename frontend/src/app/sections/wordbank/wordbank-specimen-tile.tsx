@@ -10,6 +10,11 @@ import {
   runWordViewTransition,
   wordViewTransitionName,
 } from "@/app/sections/wordbank/wordbank-view-transition"
+import {
+  wordbankSpecimenDescription,
+  wordbankSpecimenTranslationGroups,
+} from "@/app/sections/wordbank/wordbank-specimen-preview-data"
+import { WordbankSpecimenPreview } from "@/app/sections/wordbank/wordbank-specimen-preview"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -19,7 +24,11 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card"
 
 type WordbankSpecimenTileProps = {
   lemma: WordbankLemma
@@ -36,14 +45,16 @@ export function WordbankSpecimenTile({
 }: WordbankSpecimenTileProps) {
   const displayWord = lemma.display_lemma?.trim() || lemma.lemma
   const posTags = normalizedPosTags(lemma)
-  const tooltipPos = posTags.map((posTag) => primaryPosLabel(posTag) ?? posTag).join(" · ")
-  const isRecent = wasActiveRecently(lemma.last_enriched_at)
+  const posLabels = posTags.map((posTag) => primaryPosLabel(posTag) ?? posTag)
+  const translationGroups = wordbankSpecimenTranslationGroups(lemma)
+  const previewDescription = wordbankSpecimenDescription(posLabels, translationGroups)
+  const hasPreview = Boolean(previewDescription)
   const materialTone = semanticCategoryMaterialTone(lemma.categories?.[0])
 
   return (
-    <Tooltip>
+    <HoverCard open={hasPreview ? undefined : false} openDelay={300} closeDelay={200}>
       <ContextMenu>
-        <TooltipTrigger asChild>
+        <HoverCardTrigger asChild>
           <ContextMenuTrigger asChild>
             <Button
               type="button"
@@ -51,6 +62,7 @@ export function WordbankSpecimenTile({
               size="sm"
               className="w-full min-w-0 justify-start"
               aria-label={displayWord}
+              aria-description={hasPreview ? previewDescription : undefined}
               data-testid={`wordbank-specimen-${lemma.lemma}`}
               data-material="word"
               data-material-tone={materialTone}
@@ -61,28 +73,27 @@ export function WordbankSpecimenTile({
               onClick={() => runWordViewTransition(onSelect)}
             >
               <span className="truncate">{displayWord}</span>
-              {lemma.variation_count > 1 ? (
-                <span aria-hidden="true" className="text-muted-foreground text-xs">
-                  · {lemma.variation_count}
-                </span>
-              ) : null}
-              {isRecent ? (
-                <span
-                  aria-label={`Recently enriched ${displayWord}`}
-                  className="bg-primary/65 inline-flex size-1.5 rounded-full"
-                  data-recent-marker
-                />
-              ) : null}
               <UnreadMarker count={unreadCount} displayWord={displayWord} />
             </Button>
           </ContextMenuTrigger>
-        </TooltipTrigger>
-        <TooltipContent sideOffset={6}>
-          <div className="flex max-w-64 flex-col gap-1">
-            {lemma.english_translation ? <span className="font-medium">{lemma.english_translation}</span> : null}
-            <span>{tooltipPos || "Word"}</span>
-          </div>
-        </TooltipContent>
+        </HoverCardTrigger>
+        {hasPreview ? (
+          <HoverCardContent
+            align="start"
+            side="top"
+            sideOffset={8}
+            collisionPadding={16}
+            className="w-80 max-w-[calc(100vw-2rem)] p-0"
+            data-material="word"
+            data-material-tone={materialTone}
+          >
+            <WordbankSpecimenPreview
+              displayWord={displayWord}
+              posLabels={posLabels}
+              translationGroups={translationGroups}
+            />
+          </HoverCardContent>
+        ) : null}
         <ContextMenuContent>
           <ContextMenuGroup>
             <ContextMenuItem variant="destructive" onSelect={onRequestDelete}>
@@ -92,18 +103,8 @@ export function WordbankSpecimenTile({
           </ContextMenuGroup>
         </ContextMenuContent>
       </ContextMenu>
-    </Tooltip>
+    </HoverCard>
   )
-}
-
-function wasActiveRecently(timestamp: string | null | undefined): boolean {
-  if (!timestamp) return false
-  const hasTimezone = /(?:Z|[+-]\d{2}:\d{2})$/i.test(timestamp)
-  const normalizedTimestamp = timestamp.replace(" ", "T")
-  const activeAt = Date.parse(hasTimezone ? normalizedTimestamp : `${normalizedTimestamp}Z`)
-  if (!Number.isFinite(activeAt)) return false
-  const age = Date.now() - activeAt
-  return age >= 0 && age <= 7 * 24 * 60 * 60 * 1000
 }
 
 function UnreadMarker({ count, displayWord }: { count: number; displayWord: string }) {

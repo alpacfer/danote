@@ -367,8 +367,15 @@ or `Authorization: Bearer <guest-token>` header. Local dev
   category-assignment updates, with lexeme creation as fallback; it is derived
   at read time and requires no migration. POS/category arrays aggregate lexeme,
   meaning, surface-form, root-category, and meaning-category metadata for the
-  whole lemma. These fields do not change ordering or the existing single
-  summary translation/display behavior.
+  whole lemma. `translation_groups[]` provides compact, display-only saved
+  translation data for collection previews. Each group contains nullable
+  `english_translation` and ordered `additional_translations[]`; sectioned
+  lemmas return one non-empty group per saved meaning in meaning-id order,
+  while non-sectioned lemmas return at most one root group. Values are trimmed
+  and case-insensitive duplicates of the primary or earlier additional values
+  are omitted. The endpoint loads these groups in one owner-scoped batch and
+  does not hydrate full lemma details. These fields do not change ordering or
+  the existing single summary translation/display behavior.
 
 ### GET `/api/wordbank/search`
 - **Request model:** none (`query`, `limit`, `language: "da" | "en" = "da"` query params).

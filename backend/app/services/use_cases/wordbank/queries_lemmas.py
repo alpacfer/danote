@@ -56,6 +56,13 @@ def list_lemmas(runtime: WordbankRuntime) -> LemmaListResponse:
                 pos_tags=list(row.pos_tags),
                 categories=list(row.categories),
                 variation_count=row.variation_count,
+                translation_groups=[
+                    LemmaSummary.TranslationGroup(
+                        english_translation=group.english_translation,
+                        additional_translations=list(group.additional_translations),
+                    )
+                    for group in row.translation_groups
+                ],
             )
             for row in rows
         ]

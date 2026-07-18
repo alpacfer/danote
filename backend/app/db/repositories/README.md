@@ -7,6 +7,7 @@ SQLite data access. One file per table or domain area, split by read/write where
 | File | Role |
 |---|---|
 | `wordbank.py` | Top-level wordbank entry; small adapters / shared helpers. |
+| `wordbank_lemma_list_reads.py` | Owner-scoped saved-lemma list summaries and batched preview translations. |
 | `wordbank_reads.py` | Query-only operations on wordbank tables. |
 | `wordbank_mutations.py` | Insert / update / delete on wordbank tables. |
 | `wordbank_search.py` | Search-specific queries (fuzzy, surface form). |

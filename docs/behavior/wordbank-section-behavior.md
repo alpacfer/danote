@@ -71,7 +71,7 @@ Collection composition:
   `IntersectionObserver`.
 - Each group pairs a plain sticky Fraunces margin letter with a responsive grid
   of compact word slips. Counts are omitted and word metadata remains in the
-  existing tooltip rather than expanding the collection tiles.
+  specimen preview rather than expanding the collection tiles.
 
 Filters:
 - Filter bar sits below the reference drawer and auto-applies local filters.
@@ -85,19 +85,26 @@ Filters:
 
 Per-specimen tile:
 - Label: `display_lemma` fallback `lemma`
-- Variation count suffix (`· N`) only when `variation_count > 1`
-- Hover or keyboard focus opens a tooltip with the summary translation when
-  present and readable POS labels. Pronunciation is assumed and no
-  availability status is exposed on collection tiles.
+- Hover or keyboard focus opens a non-interactive specimen preview when saved
+  translations or readable POS labels exist. It shows the display lemma,
+  aggregate POS labels, and every saved primary/additional translation grouped
+  by meaning. Case-insensitive duplicate translations are omitted.
+- The preview uses real saved linguistic data only: no specimen identifiers,
+  inferred definitions, glosses, categories, dates, variation counts, or
+  pronunciation status.
+- The preview opens after 300ms, remains open while hovered, closes after
+  200ms, and dismisses on Escape. The same plain-text metadata is exposed as
+  the word trigger's accessible description.
 - One category-derived material wash identifies the tile without a colored
-  edge or leading icon; POS remains available in the tooltip. Multi-word
-  expressions use a restrained joined-label silhouette. Activity within seven
-  days adds a small ink-dot cue derived from `last_enriched_at`.
+  edge or leading icon; POS remains available in the preview. Multi-word
+  expressions use a restrained joined-label silhouette.
 - Unread verification markers:
   - queued/in-progress → no marker
   - unread `1` → dot indicator
   - unread `>1` → numeric badge pill
 - Click → `onSelectLemma(lemma)` → opens word page
+- Touch tap follows the same one-step word-page navigation and does not insert
+  a preview-first interaction.
 - Right-click → destructive `Delete whole lemma` action. The confirmation
   dialog explains that all meanings under the lemma are removed and linked
   sentence tokens become unsaved instead of disappearing.

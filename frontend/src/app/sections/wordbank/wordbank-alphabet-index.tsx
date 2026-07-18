@@ -49,7 +49,7 @@ export function WordbankAlphabetIndex({
       aria-label="Word catalogue alphabet"
       data-grid-anchor="unit"
     >
-      <div className="ml-auto flex w-max md:grid md:grid-cols-2">
+      <div className="ml-auto flex w-max md:grid md:grid-cols-1">
         {DANISH_ALPHABET.filter((letter) => availableLetters.has(letter)).map((letter) => {
           const isActive = activeLetter === letter
           return (

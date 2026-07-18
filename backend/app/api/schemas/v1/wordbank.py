@@ -366,6 +366,10 @@ class RevertVerificationChangeResponse(BaseModel):
 
 
 class LemmaSummary(BaseModel):
+    class TranslationGroup(BaseModel):
+        english_translation: str | None
+        additional_translations: list[str] = Field(default_factory=list)
+
     lemma: str
     display_lemma: str
     created_at: str
@@ -374,6 +378,7 @@ class LemmaSummary(BaseModel):
     pos_tags: list[str] = Field(default_factory=list)
     categories: list[str] = Field(default_factory=list)
     variation_count: int
+    translation_groups: list[TranslationGroup] = Field(default_factory=list)
 
 
 class LemmaListResponse(BaseModel):

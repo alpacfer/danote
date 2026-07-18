@@ -281,6 +281,10 @@ export function mockFetchImplementation(options?: {
       lemma: string
       variation_count: number
       english_translation?: string | null
+      translation_groups?: Array<{
+        english_translation: string | null
+        additional_translations: string[]
+      }>
       pos_tags?: string[]
       categories?: string[]
       created_at?: string | null

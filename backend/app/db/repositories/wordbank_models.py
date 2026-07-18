@@ -7,6 +7,12 @@ _QUERY_COR_IDS_SEPARATOR = "\x1f"
 
 
 @dataclass(frozen=True, slots=True)
+class LemmaTranslationGroupRow:
+    english_translation: str | None
+    additional_translations: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
 class LemmaListRow:
     lemma: str
     created_at: str
@@ -16,6 +22,7 @@ class LemmaListRow:
     pos_tags: tuple[str, ...]
     categories: tuple[str, ...]
     variation_count: int
+    translation_groups: tuple[LemmaTranslationGroupRow, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -316,6 +323,7 @@ __all__ = [
     "AdditionalTranslationRecord",
     "additional_translation_from_row",
     "LemmaListRow",
+    "LemmaTranslationGroupRow",
     "LexemeMeaningRecord",
     "lexeme_meaning_from_row",
     "LexemeRecord",
