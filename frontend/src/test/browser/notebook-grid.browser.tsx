@@ -33,10 +33,12 @@ function distanceToGrid(value: number, step: number): number {
 async function expectNotebookAlignment() {
   await settleLayout()
   const sheet = document.querySelector<HTMLElement>("[data-notebook-sheet]")
+  const content = document.querySelector<HTMLElement>("[data-notebook-content]")
   expect(sheet).not.toBeNull()
-  const sheetRect = sheet!.getBoundingClientRect()
-  const paddingTop = Number.parseFloat(window.getComputedStyle(sheet!).paddingTop)
-  const origin = sheetRect.top + paddingTop
+  expect(content).not.toBeNull()
+  const contentRect = content!.getBoundingClientRect()
+  const paddingTop = Number.parseFloat(window.getComputedStyle(content!).paddingTop)
+  const origin = contentRect.top + paddingTop
 
   for (const anchor of document.querySelectorAll<HTMLElement>("[data-grid-anchor]")) {
     const step = anchor.dataset.gridAnchor === "rule" ? 32 : 8
@@ -57,6 +59,48 @@ async function expectNotebookAlignment() {
   for (const block of document.querySelectorAll<HTMLElement>("[data-grid-height='unit']")) {
     const distance = distanceToGrid(block.getBoundingClientRect().height, 8)
     expect(distance, `${block.tagName} height`).toBeLessThanOrEqual(1)
+  }
+
+  const wordbankList = document.querySelector("[data-grid-page='wordbank-list']")
+  if (wordbankList) {
+    const sheetStyle = window.getComputedStyle(sheet!)
+    expect(sheetStyle.backgroundImage).toContain("radial-gradient")
+    expect(sheetStyle.backgroundImage.match(/radial-gradient/g) ?? []).toHaveLength(1)
+    expect(sheetStyle.backgroundImage).toContain("data:image/svg+xml")
+    expect(sheetStyle.backgroundImage.match(/repeating-linear-gradient/g) ?? []).toHaveLength(0)
+    expect(sheetStyle.backgroundSize).toContain("8px 8px")
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth + 1)
+
+    const alphabet = document.querySelector<HTMLElement>("[aria-label='Word catalogue alphabet']")
+    const referenceDrawer = document.querySelector<HTMLElement>("[data-reference-drawer]")
+    const filters = document.querySelector<HTMLElement>("[data-wordbank-filters]")
+    const catalogue = document.querySelector<HTMLElement>("[data-wordbank-catalogue]")
+    const bottomNav = document.querySelector<HTMLElement>("[data-slot='mobile-bottom-nav']")
+    if (alphabet && bottomNav && window.getComputedStyle(bottomNav).display !== "none") {
+      expect(alphabet.getBoundingClientRect().bottom).toBeLessThan(bottomNav.getBoundingClientRect().top)
+    }
+
+    const firstLetterGroup = document.querySelector<HTMLElement>("[data-wordbank-letter]")
+    const letterHeading = firstLetterGroup?.querySelector<HTMLElement>("h3")
+    const pageLeft = wordbankList.getBoundingClientRect().left
+    for (const section of [referenceDrawer, filters, catalogue, letterHeading]) {
+      if (section) {
+        expect(Math.abs(section.getBoundingClientRect().left - pageLeft)).toBeLessThanOrEqual(1)
+      }
+    }
+    if (referenceDrawer && filters && catalogue) {
+      expect(filters.getBoundingClientRect().top - referenceDrawer.getBoundingClientRect().bottom).toBeGreaterThanOrEqual(31)
+      expect(catalogue.getBoundingClientRect().top - filters.getBoundingClientRect().bottom).toBeGreaterThanOrEqual(31)
+    }
+    if (letterHeading) {
+      const letterStyle = window.getComputedStyle(letterHeading)
+      expect(letterStyle.backgroundImage).toBe("none")
+      expect(letterStyle.boxShadow).toBe("none")
+    }
+    if (alphabet && firstLetterGroup && window.innerWidth >= 768) {
+      expect(alphabet.getBoundingClientRect().left).toBeGreaterThan(firstLetterGroup.getBoundingClientRect().left)
+      expect(Math.abs(alphabet.getBoundingClientRect().right - wordbankList.getBoundingClientRect().right)).toBeLessThanOrEqual(1)
+    }
   }
 }
 
@@ -86,12 +130,24 @@ it.each([
   [390, 844],
   [768, 1024],
   [1280, 800],
+  [1728, 900],
 ])("keeps the Wordbank sheet on the 8/32 grid at %ipx", async (width, height) => {
   await page.viewport(width, height)
   mockNotebookPages()
   renderApp()
   await screen.findByRole("heading", { name: "Words" })
   await expectNotebookAlignment()
+
+  if (width === 1728) {
+    const viewport = document.querySelector<HTMLElement>(".danote-notebook-viewport")
+    const sheet = document.querySelector<HTMLElement>("[data-notebook-sheet]")
+    const content = document.querySelector<HTMLElement>("[data-notebook-content]")
+    expect(viewport).not.toBeNull()
+    expect(sheet).not.toBeNull()
+    expect(content).not.toBeNull()
+    expect(Math.abs(sheet!.getBoundingClientRect().width - viewport!.clientWidth)).toBeLessThanOrEqual(1)
+    expect(content!.getBoundingClientRect().width).toBeLessThanOrEqual(1280)
+  }
 })
 
 it("keeps every reachable page inside the canonical notebook sheet", async () => {

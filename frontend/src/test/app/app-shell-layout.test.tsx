@@ -33,6 +33,7 @@ describe("App shell layout normalization", () => {
     expect(sheet).toBeInTheDocument()
     expect(sheet).toHaveClass("danote-notebook-sheet")
     expect(sheet?.parentElement).toHaveClass("danote-notebook-viewport")
+    expect(sheet?.querySelector("[data-notebook-content]")).toHaveClass("max-w-7xl")
     expect(main?.querySelectorAll("[data-notebook-sheet]")).toHaveLength(1)
   })
 

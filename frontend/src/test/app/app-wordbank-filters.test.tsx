@@ -19,6 +19,9 @@ describe("App wordbank filters", () => {
 
     expect(screen.getByRole("button", { name: /^lege/i })).toBeInTheDocument()
     expect(screen.queryByRole("button", { name: /^bog/i })).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Jump to L" })).toBeEnabled()
+    expect(screen.queryByRole("button", { name: "Jump to B" })).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Jump to L" })).toHaveAttribute("aria-current", "true")
   })
 
   it("requires all selected categories and combines them with selected word type", async () => {
@@ -206,4 +209,3 @@ describe("App wordbank filters", () => {
     expect(within(activeWordTypes).getByText(/^Phrasal verb$/i)).toBeInTheDocument()
   })
 })
-

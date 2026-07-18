@@ -1,4 +1,4 @@
-import { fireEvent, mockFetchImplementation, renderApp, screen, waitFor, within } from "@/test/app-test-helpers"
+import { act, fireEvent, mockFetchImplementation, renderApp, screen, waitFor, within } from "@/test/app-test-helpers"
 import { vi } from "vitest"
 
 describe("App wordbank collection tiles", () => {
@@ -103,12 +103,14 @@ describe("App wordbank collection tiles", () => {
     await screen.findByLabelText("backend-connection-status")
 
     expect(await screen.findByRole("heading", { name: "Reference collections" })).toBeInTheDocument()
+    expect(document.querySelector("[data-reference-drawer]")).toHaveClass("grid-cols-2", "md:grid-cols-5")
     const labels = ["Pronouns", "HV Questions", "Prepositions", "Conjunctions", "Numbers & Time"]
     const tones = new Set<string>()
     for (const label of labels) {
       const deck = screen.getByRole("button", { name: `Open ${label} reference` })
       const material = deck.closest<HTMLElement>("[data-material='reference']")
       expect(material).toBeInTheDocument()
+      expect(deck.parentElement).toHaveClass("h-full")
       tones.add(material?.dataset.materialTone ?? "")
     }
     expect(tones.size).toBe(5)
@@ -117,5 +119,88 @@ describe("App wordbank collection tiles", () => {
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: "Numbers & Time" })).toBeInTheDocument()
     })
+  })
+
+  it("orders Danish catalogue groups and renders a reduced alphabet index", async () => {
+    const scrollSpy = vi.spyOn(HTMLElement.prototype, "scrollIntoView")
+    mockFetchImplementation({
+      lemmasResponse: {
+        items: ["ål", "ørn", "æble", "fisk"].map((lemma) => ({
+          lemma,
+          variation_count: 1,
+          pos_tags: ["NOUN"],
+          categories: [],
+        })),
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+
+    const groupLetters = Array.from(document.querySelectorAll<HTMLElement>("[data-wordbank-letter]"))
+      .map((group) => group.dataset.wordbankLetter)
+    expect(groupLetters).toEqual(["F", "Æ", "Ø", "Å"])
+    expect(screen.queryByRole("button", { name: "Jump to A" })).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Jump to Æ" })).toBeEnabled()
+    expect(screen.getByRole("button", { name: "Jump to F" })).toHaveAttribute("aria-current", "true")
+    const fGroup = document.querySelector<HTMLElement>("[data-wordbank-letter='F']")
+    expect(within(fGroup!).getByRole("heading", { name: "F" })).toHaveTextContent(/^F$/)
+
+    fireEvent.click(screen.getByRole("button", { name: "Jump to Å" }))
+    expect(scrollSpy).toHaveBeenCalledWith({ behavior: "smooth", block: "start" })
+    expect(screen.getByRole("button", { name: "Jump to Å" })).toHaveAttribute("aria-current", "true")
+    scrollSpy.mockRestore()
+  })
+
+  it("tracks the visible catalogue group through IntersectionObserver", async () => {
+    let observerCallback: IntersectionObserverCallback | null = null
+    const observe = vi.fn()
+    const disconnect = vi.fn()
+    class IntersectionObserverMock {
+      constructor(callback: IntersectionObserverCallback) {
+        observerCallback = callback
+      }
+      observe = observe
+      disconnect = disconnect
+      unobserve = vi.fn()
+      takeRecords = () => []
+      root = null
+      rootMargin = ""
+      thresholds = []
+    }
+    vi.stubGlobal("IntersectionObserver", IntersectionObserverMock)
+    mockFetchImplementation({
+      lemmasResponse: {
+        items: ["fisk", "ørn"].map((lemma) => ({
+          lemma,
+          variation_count: 1,
+          pos_tags: ["NOUN"],
+          categories: [],
+        })),
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+    const group = document.querySelector<HTMLElement>("[data-wordbank-letter='Ø']")
+    expect(group).not.toBeNull()
+    expect(observe).toHaveBeenCalled()
+
+    act(() => {
+      observerCallback?.(
+        [{
+          isIntersecting: true,
+          intersectionRatio: 1,
+          intersectionRect: { top: 48 } as DOMRectReadOnly,
+          boundingClientRect: { top: 48 } as DOMRectReadOnly,
+          rootBounds: null,
+          target: group!,
+          time: 0,
+        } as IntersectionObserverEntry],
+        {} as IntersectionObserver,
+      )
+    })
+    expect(screen.getByRole("button", { name: "Jump to Ø" })).toHaveAttribute("aria-current", "true")
+    vi.unstubAllGlobals()
   })
 })

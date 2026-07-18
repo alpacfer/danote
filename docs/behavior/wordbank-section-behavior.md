@@ -56,8 +56,25 @@ Priority:
 3. No active filter matches → reference decks plus an empty state
 4. Otherwise → reference decks plus grouped specimen tiles with letter headings
 
+Collection composition:
+- The collection alone uses the notebook's 8px dot-grid surface; word details,
+  pinned reference interiors, and other sections retain normal 32px ruling.
+- Reference pages render as a five-compartment catalogue drawer: one row on
+  desktop and two columns on mobile, with descriptions hidden at the narrowest
+  breakpoint.
+- The reference drawer, filter row, and catalogue share the notebook content
+  edge and use a 32px vertical interval between blocks. Plain group letters
+  align to that same left edge.
+- Saved lemmas use Danish collation and group in `A–Z, Æ, Ø, Å` order. A sticky,
+  right-edge alphabet index exposes only letters present in the current filtered
+  result, scrolls them into view, and tracks the visible group with
+  `IntersectionObserver`.
+- Each group pairs a plain sticky Fraunces margin letter with a responsive grid
+  of compact word slips. Counts are omitted and word metadata remains in the
+  existing tooltip rather than expanding the collection tiles.
+
 Filters:
-- Filter bar sits below the heading and auto-applies local filters.
+- Filter bar sits below the reference drawer and auto-applies local filters.
 - Word type filter is a multi-select popover; a lemma matches if any selected
   POS appears anywhere under that lemma.
 - Category filter is a searchable multi-select popover; a lemma matches only
@@ -85,8 +102,8 @@ Per-specimen tile:
   dialog explains that all meanings under the lemma are removed and linked
   sentence tokens become unsaved instead of disappearing.
 
-Five built-in reference decks are pinned at the top of the Wordbank list and
-shown even when there are no saved lemmas: **Pronouns**, **HV Questions**,
+Five built-in reference decks are pinned in the compact drawer at the top of
+the Wordbank list and shown even when there are no saved lemmas: **Pronouns**, **HV Questions**,
 **Prepositions**, **Conjunctions**, and **Numbers & Time**. The responsive
 deck shelf uses a distinct icon and short collection description for each page
 plus its own restrained material tint while dimensions and behavior remain

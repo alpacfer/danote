@@ -1,6 +1,12 @@
+import { useRef } from "react"
 import { FilterX } from "lucide-react"
 
 import { isMultiWordLemma, type WordbankLemma } from "@/app/core"
+import {
+  catalogueGroupId,
+  useActiveCatalogueLetter,
+} from "@/app/sections/wordbank/wordbank-alphabet"
+import { WordbankAlphabetIndex } from "@/app/sections/wordbank/wordbank-alphabet-index"
 import type { WordbankFilterState } from "@/app/sections/wordbank/wordbank-list-filters"
 import { WordbankSpecimenTile } from "@/app/sections/wordbank/wordbank-specimen-tile"
 import { Button } from "@/components/ui/button"
@@ -24,34 +30,74 @@ export function WordbankListResults({
   onClearFilters,
 }: WordbankListResultsProps) {
   const filteredGroups = groupWordbankLemmas(filterLemmas(lemmas, filters))
+  const catalogueRef = useRef<HTMLDivElement>(null)
+  const letters = filteredGroups.map((group) => group.letter)
+  const availableLetters = new Set(letters)
+  const [activeLetter, setActiveLetter] = useActiveCatalogueLetter(catalogueRef, letters)
   const hasActiveFilters = filters.posTags.length > 0 || filters.categories.length > 0
 
-  return (
-    <div className="flex flex-col gap-6" data-grid-anchor="unit">
-      {hasActiveFilters && filteredGroups.length === 0 ? <WordbankListEmpty onClearFilters={onClearFilters} /> : null}
+  function scrollToLetter(letter: string) {
+    const group = document.getElementById(catalogueGroupId(letter))
+    if (!group) return
+    setActiveLetter(letter)
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    if (typeof group.scrollIntoView === "function") {
+      group.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" })
+    }
+  }
 
-      {filteredGroups.map((group) => (
-        <section key={group.letter} className="flex flex-col gap-2" data-grid-anchor="unit">
-          <h3 className="text-muted-foreground flex h-8 items-center text-xs font-semibold tracking-wide uppercase">
-            {group.letter}
-          </h3>
-          <div className="flex flex-wrap gap-2">
-            {group.items.map((lemma) => {
-              const displayWord = lemma.display_lemma?.trim() || lemma.lemma
-              const unreadCount = unreadWordbankLemmaCounts.get(lemma.lemma) ?? 0
-              return (
-                <WordbankSpecimenTile
-                  key={lemma.lemma}
-                  lemma={lemma}
-                  unreadCount={unreadCount}
-                  onSelect={() => onSelectLemma(lemma.lemma)}
-                  onRequestDelete={() => onRequestDelete({ lemma: lemma.lemma, displayWord })}
-                />
-              )
-            })}
+  return (
+    <div
+      ref={catalogueRef}
+      className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_4rem]"
+      data-grid-anchor="unit"
+      data-wordbank-catalogue
+    >
+      {hasActiveFilters && filteredGroups.length === 0 ? (
+        <div className="md:col-span-2">
+          <WordbankListEmpty onClearFilters={onClearFilters} />
+        </div>
+      ) : null}
+
+      {filteredGroups.length > 0 ? (
+        <>
+          <WordbankAlphabetIndex
+            activeLetter={activeLetter}
+            availableLetters={availableLetters}
+            onSelectLetter={scrollToLetter}
+          />
+          <div className="flex min-w-0 flex-col gap-8 md:order-1">
+            {filteredGroups.map((group) => (
+              <section
+                key={group.letter}
+                id={catalogueGroupId(group.letter)}
+                className="grid min-w-0 grid-cols-[2rem_minmax(0,1fr)] gap-2 sm:grid-cols-[3rem_minmax(0,1fr)] sm:gap-4"
+                data-grid-anchor="unit"
+                data-wordbank-letter={group.letter}
+              >
+                <h3 className="text-muted-foreground sticky top-12 flex h-8 items-center justify-start self-start md:top-4">
+                  <span className="font-section-title text-2xl leading-none">{group.letter}</span>
+                </h3>
+                <div className="grid min-w-0 grid-cols-1 gap-2 min-[30rem]:grid-cols-2 lg:grid-cols-[repeat(auto-fill,minmax(10rem,1fr))]">
+                  {group.items.map((lemma) => {
+                    const displayWord = lemma.display_lemma?.trim() || lemma.lemma
+                    const unreadCount = unreadWordbankLemmaCounts.get(lemma.lemma) ?? 0
+                    return (
+                      <WordbankSpecimenTile
+                        key={lemma.lemma}
+                        lemma={lemma}
+                        unreadCount={unreadCount}
+                        onSelect={() => onSelectLemma(lemma.lemma)}
+                        onRequestDelete={() => onRequestDelete({ lemma: lemma.lemma, displayWord })}
+                      />
+                    )
+                  })}
+                </div>
+              </section>
+            ))}
           </div>
-        </section>
-      ))}
+        </>
+      ) : null}
     </div>
   )
 }

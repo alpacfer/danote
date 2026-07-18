@@ -61,7 +61,7 @@ export function WordbankListFilters({ lemmas, filters, onFiltersChange }: Wordba
   }
 
   return (
-    <div className="flex w-full flex-wrap items-center gap-2">
+    <div className="flex w-full flex-wrap items-center gap-2" data-wordbank-filters>
       {activeCount > 0 ? (
         <Tooltip>
           <TooltipTrigger asChild>

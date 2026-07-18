@@ -56,9 +56,16 @@ Pure render switch; no app-shell side effects.
 - The shell, cards, and floating surfaces use separate semantic depth tokens.
 - Decorative paper grain is CSS-only and removed for `prefers-contrast: more`.
 - Notebook ruling belongs to the scrolling sheet, not `SidebarInset`, so the
-  8px content lattice and its visible 32px rules move together. Navigable
-  sections do not introduce nested vertical scroll areas; bounded badge/table
-  regions may still scroll horizontally.
+  8px content lattice and its visible 32px rules move together. The Wordbank
+  collection identifies itself with `data-notebook-surface="dot-grid"` and
+  swaps only that screen to a single dot layer aligned with the same sheet
+  content origin; a separate low-opacity paper-noise layer provides texture
+  without duplicating the dot pattern.
+- The notebook surface paints edge to edge across the main viewport at
+  ultrawide sizes. Foreground content remains centered and capped at 1280px,
+  with the visible pattern origin adjusted to the inner content padding.
+  Navigable sections do not introduce nested vertical scroll areas; bounded
+  badge/table/index regions may still scroll horizontally.
 - The sheet content-box origin is the grid origin. `unit` anchors resolve to
   8px boundaries and `rule` anchors to 32px boundaries at mobile, tablet, and
   desktop widths.

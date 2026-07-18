@@ -32,13 +32,20 @@ receive their own redesign.
 ## Surfaces and depth
 
 - The outer canvas uses a visible but low-contrast two-tone CSS paper grain.
-  The canonical scrolling notebook sheet adds blue-gray ruling beneath that
-  grain. Both layers must disappear when the user requests increased contrast.
+  The canonical scrolling notebook sheet normally adds blue-gray ruling beneath
+  that grain. The Wordbank collection switches that layer to a real 8px dot
+  field aligned with its foreground catalogue lattice. A low-opacity,
+  anisotropic SVG noise layer adds paper fibers without introducing a second
+  dot frequency. All
+  decorative treatments disappear when the user requests increased contrast.
 - The layout lattice starts at the notebook sheet's content-box origin. Its
   base unit is 8px; every fourth unit is a visible 32px rule. Headings and
   major section starts use `data-grid-anchor="rule"`. Cards, decks, filters,
   empty states, and exposed rows use `data-grid-anchor="unit"` where browser
   tests need to enforce alignment.
+- The sheet texture and grid are full-bleed within the main viewport, while the
+  foreground notebook content remains centered at a 1280px maximum width. The
+  dot origin follows the capped content edge on wider screens.
 - Padding, gaps, line heights, bounded rows, and responsive dimensions use 8px
   multiples. The 32px ruling is a baseline rhythm, not a requirement to leave
   32px between every element.
@@ -53,6 +60,12 @@ receive their own redesign.
   dialogs, popovers, and the mobile navigation use `shadow-floating`.
 - Texture and shadow support hierarchy. They must not compete with word forms,
   translations, or verification states.
+- The Wordbank collection uses a compact card-catalogue composition: a reference
+  drawer, a reduced sticky Danish index on the right edge, plain editorial
+  margin letters, and responsive word-slip columns. The index shows only letters
+  represented in the current filtered result, keeping the page quieter.
+- Its reference drawer, filters, and catalogue use one shared left anchor and
+  32px block spacing so the tactile details do not compromise visual rhythm.
 
 ## Motion
 

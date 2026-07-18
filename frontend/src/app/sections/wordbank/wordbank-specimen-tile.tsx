@@ -49,7 +49,7 @@ export function WordbankSpecimenTile({
               type="button"
               variant="outline"
               size="sm"
-              className="w-auto"
+              className="w-full min-w-0 justify-start"
               aria-label={displayWord}
               data-testid={`wordbank-specimen-${lemma.lemma}`}
               data-material="word"
@@ -60,7 +60,7 @@ export function WordbankSpecimenTile({
               style={{ viewTransitionName: wordViewTransitionName(lemma.lemma) }}
               onClick={() => runWordViewTransition(onSelect)}
             >
-              <span>{displayWord}</span>
+              <span className="truncate">{displayWord}</span>
               {lemma.variation_count > 1 ? (
                 <span aria-hidden="true" className="text-muted-foreground text-xs">
                   · {lemma.variation_count}

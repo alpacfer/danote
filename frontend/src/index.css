@@ -147,6 +147,12 @@
       color-mix(in oklch, var(--brand-sky) 12%, transparent) 31px,
       color-mix(in oklch, var(--brand-sky) 12%, transparent) 32px
     );
+    --danote-notebook-dots: radial-gradient(
+      circle at 0 0,
+      color-mix(in oklch, var(--foreground) 18%, transparent) 0 0.7px,
+      transparent 0.85px
+    );
+    --danote-paper-fibers: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='192' height='192' viewBox='0 0 192 192'%3E%3Cfilter id='fiber'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.018 .48' numOctaves='2' seed='8'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='table' tableValues='0 .04'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='192' height='192' filter='url(%23fiber)' opacity='.42'/%3E%3C/svg%3E");
 }
 
 @media (min-width: 48rem) {
@@ -232,6 +238,12 @@
       color-mix(in oklch, var(--brand-sky) 9%, transparent) 31px,
       color-mix(in oklch, var(--brand-sky) 9%, transparent) 32px
     );
+    --danote-notebook-dots: radial-gradient(
+      circle at 0 0,
+      color-mix(in oklch, var(--foreground) 15%, transparent) 0 0.7px,
+      transparent 0.85px
+    );
+    --danote-paper-fibers: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='192' height='192' viewBox='0 0 192 192'%3E%3Cfilter id='fiber'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.018 .48' numOctaves='2' seed='8'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='table' tableValues='0 .035'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='192' height='192' filter='url(%23fiber)' opacity='.36'/%3E%3C/svg%3E");
 }
 
 @layer base {
@@ -290,14 +302,43 @@
     var(--danote-notebook-ruling);
   background-position: 0 0, 0 var(--danote-shell-gutter-y);
   background-size: 9px 11px, 100% var(--danote-grid-rule);
+}
+
+.danote-notebook-content {
   padding:
     var(--danote-shell-gutter-y)
     var(--danote-shell-gutter-x)
     calc(6rem + env(safe-area-inset-bottom));
 }
 
-.danote-notebook-sheet > * {
+.danote-notebook-sheet:has([data-notebook-surface="dot-grid"]) {
+  background-image:
+    var(--danote-paper-fibers),
+    var(--danote-notebook-dots);
+  background-position:
+    0 0,
+    max(
+      var(--danote-shell-gutter-x),
+      calc(50% - 40rem + var(--danote-shell-gutter-x))
+    ) var(--danote-shell-gutter-y);
+  background-size:
+    12rem 12rem,
+    var(--danote-grid-unit) var(--danote-grid-unit);
+}
+
+.danote-notebook-content > * {
   min-height: 0;
+}
+
+.danote-alphabet-index {
+  background-color: color-mix(in oklch, var(--background) 90%, transparent);
+  box-shadow: 0 0.5rem 1rem -1rem color-mix(in oklch, var(--foreground) 42%, transparent);
+  backdrop-filter: blur(6px);
+  scrollbar-width: none;
+}
+
+.danote-alphabet-index::-webkit-scrollbar {
+  display: none;
 }
 
 [data-grid-anchor="unit"] {
@@ -321,6 +362,15 @@
 [data-material="word"] {
   --material-surface: var(--material-word);
   --material-underlay: var(--material-discovery);
+}
+
+[data-wordbank-catalogue] [data-material="word"]:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--danote-shadow-card);
+}
+
+[data-wordbank-catalogue] [data-material="word"]:active {
+  transform: translateY(0);
 }
 
 [data-material="reference"] {
@@ -483,6 +533,14 @@
 
   .danote-notebook-sheet {
     background-image: none;
+  }
+
+  .danote-notebook-sheet:has([data-notebook-surface="dot-grid"]) {
+    background-image: none;
+  }
+
+  .danote-alphabet-index {
+    backdrop-filter: none;
   }
 }
 

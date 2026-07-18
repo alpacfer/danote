@@ -57,7 +57,7 @@ export function WordbankReferenceDecks({
       >
         Reference collections
       </h2>
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(11rem,1fr))] gap-4" data-grid-anchor="unit">
+      <div className="grid grid-cols-2 gap-2 md:grid-cols-5" data-grid-anchor="unit" data-reference-drawer>
         {pages.map((page) => (
           <ReferenceDeck key={page.sentinel} page={page} onClick={() => onSelectLemma(page.sentinel)} />
         ))}
@@ -71,24 +71,26 @@ function ReferenceDeck({ page, onClick }: { page: PinnedPageMeta; onClick: () =>
 
   return (
     <Card
-      className="h-24 gap-0 overflow-hidden py-0"
+      className="h-16 gap-0 overflow-hidden py-0 last:col-span-2 md:last:col-span-1"
       data-material="reference"
       data-material-tone={visual.tone}
       data-grid-anchor="unit"
       data-grid-height="unit"
     >
-      <CardContent className="p-0">
+      <CardContent className="h-full p-0">
         <Button
           type="button"
           variant="ghost"
-          className="h-full w-full justify-start rounded-none px-4 py-4 text-left whitespace-normal"
+          className="h-full w-full justify-start rounded-none px-3 py-2 text-left whitespace-normal"
           aria-label={`Open ${page.title} reference`}
           onClick={onClick}
         >
           <ReferenceDeckIcon pageId={page.id} />
           <span className="flex min-w-0 flex-1 flex-col items-start gap-1">
-            <span className="font-semibold">{page.title}</span>
-            <span className="text-muted-foreground text-xs leading-tight">{visual.description}</span>
+            <span className="truncate font-semibold">{page.title}</span>
+            <span className="text-muted-foreground hidden truncate text-xs leading-tight sm:block">
+              {visual.description}
+            </span>
           </span>
           <ChevronRight data-icon="inline-end" aria-hidden="true" className="text-muted-foreground" />
         </Button>

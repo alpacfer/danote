@@ -30,7 +30,11 @@ export function WordbankListView({
   const [lemmaToDelete, setLemmaToDelete] = useState<{ lemma: string; displayWord: string } | null>(null)
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4" data-grid-page="wordbank-list">
+    <div
+      className="flex min-h-0 flex-1 flex-col gap-4"
+      data-grid-page="wordbank-list"
+      data-notebook-surface="dot-grid"
+    >
       <h1
         className="font-section-title flex h-8 items-center text-2xl leading-none font-normal tracking-normal"
         data-grid-anchor="rule"
@@ -72,7 +76,7 @@ export function WordbankListView({
           </div>
         </div>
       ) : (
-        <>
+        <div className="flex min-w-0 flex-col gap-8" data-wordbank-list-sections>
           <WordbankReferenceDecks pages={PINNED_PAGES} onSelectLemma={onSelectLemma} />
           <WordbankListFilters lemmas={lemmas} filters={filters} onFiltersChange={onFiltersChange} />
           <WordbankListResults
@@ -83,7 +87,7 @@ export function WordbankListView({
             onRequestDelete={setLemmaToDelete}
             onClearFilters={() => onFiltersChange({ posTags: [], categories: [] })}
           />
-        </>
+        </div>
       )}
       <LemmaDeletionDialog
         lemma={lemmaToDelete}
