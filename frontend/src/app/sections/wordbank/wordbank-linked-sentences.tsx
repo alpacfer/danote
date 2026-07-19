@@ -41,7 +41,7 @@ export function WordbankLinkedSentences({
               data-grid-anchor="unit"
             >
               <CardContent className="flex flex-col gap-2 px-4 md:px-6">
-                <p className="text-base font-medium leading-relaxed break-words">
+                <p className="font-lexical text-lg leading-relaxed font-semibold tracking-[-0.01em] break-words">
                   <SentenceHighlightedText
                     sourceText={sentence.source_text}
                     tokens={sentence.tokens}
@@ -97,7 +97,7 @@ function LinkedSentenceCard({
   const card = (
     <Card data-material="sentence" data-grid-anchor="unit">
       <CardContent className="flex flex-col gap-2 px-4 md:px-6">
-        <p className="font-medium leading-6 break-words">
+        <p className="font-lexical text-lg leading-6 font-semibold tracking-[-0.01em] break-words">
           <SentenceHighlightedText
             sourceText={sentence.source_text}
             tokens={sentence.tokens}

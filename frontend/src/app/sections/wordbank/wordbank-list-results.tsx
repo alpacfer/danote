@@ -1,4 +1,4 @@
-import { useRef } from "react"
+import { useRef, useState } from "react"
 import { FilterX } from "lucide-react"
 
 import { isMultiWordLemma, type WordbankLemma } from "@/app/core"
@@ -31,6 +31,7 @@ export function WordbankListResults({
 }: WordbankListResultsProps) {
   const filteredGroups = groupWordbankLemmas(filterLemmas(lemmas, filters))
   const catalogueRef = useRef<HTMLDivElement>(null)
+  const [expandedLemma, setExpandedLemma] = useState<string | null>(null)
   const letters = filteredGroups.map((group) => group.letter)
   const availableLetters = new Set(letters)
   const [activeLetter, setActiveLetter] = useActiveCatalogueLetter(catalogueRef, letters)
@@ -87,6 +88,13 @@ export function WordbankListResults({
                         key={lemma.lemma}
                         lemma={lemma}
                         unreadCount={unreadCount}
+                        expanded={expandedLemma === lemma.lemma}
+                        onExpandedChange={(open) => {
+                          setExpandedLemma((current) => {
+                            if (open) return lemma.lemma
+                            return current === lemma.lemma ? null : current
+                          })
+                        }}
                         onSelect={() => onSelectLemma(lemma.lemma)}
                         onRequestDelete={() => onRequestDelete({ lemma: lemma.lemma, displayWord })}
                       />

@@ -45,6 +45,7 @@ describe("App wordbank pinned pages", () => {
     expect(within(hvorCard).queryByText(/^where$/i)).not.toBeInTheDocument()
     expect(hvorCard).toHaveAttribute("aria-description", "where")
     expect(hvorCard).toHaveAttribute("data-index-stock")
+    expect(hvorCard).toHaveAttribute("data-paper-stock")
     expect(within(hvorCard).getByText(/^HV Word$/)).toBeInTheDocument()
     expect(within(hvorCard).queryByText(/^Adverb$/i)).not.toBeInTheDocument()
     expect(within(hvorCard).queryByText(/^Interrogative$/i)).not.toBeInTheDocument()
@@ -59,6 +60,10 @@ describe("App wordbank pinned pages", () => {
     expect(within(preview!).getByText("hvor")).toBeInTheDocument()
     expect(within(preview!).getByText("where")).toBeInTheDocument()
     expect(preview?.closest("[data-index-stock]")).toBeInTheDocument()
+    expect(preview?.closest("[data-paper-reveal]")).toBeInTheDocument()
+    expect(preview?.closest("[data-paper-reveal]")?.querySelector("[data-paper-bridge]"))
+      .not.toBeInTheDocument()
+    expect(hvorCard).toHaveAttribute("data-paper-trigger")
   })
 
   it("no longer renders a question_words tab on the Pronouns page", async () => {

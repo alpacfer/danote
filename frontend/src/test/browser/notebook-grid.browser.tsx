@@ -1,9 +1,11 @@
 import "@/index.css"
 
-import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react"
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { page } from "vitest/browser"
 import { afterEach, expect, it } from "vitest"
 
+import { PinnedWordCard } from "@/app/sections/wordbank/_shared/pinned-word-card"
+import { WordbankListResults } from "@/app/sections/wordbank/wordbank-list-results"
 import { mockFetchImplementation, renderApp } from "@/test/app-test-helpers"
 
 const LEMMA = {
@@ -70,13 +72,79 @@ async function expectNotebookAlignment() {
   if (wordbankList) {
     const sheetStyle = window.getComputedStyle(sheet!)
     const wordMaterial = document.querySelector<HTMLElement>("[data-material='word']")
-    expect(sheetStyle.backgroundImage.match(/data:image\/svg\+xml/g) ?? []).toHaveLength(2)
-    expect(sheetStyle.backgroundImage).toContain("radial-gradient")
-    expect(sheetStyle.backgroundImage.match(/radial-gradient/g) ?? []).toHaveLength(1)
+    expect(sheetStyle.backgroundImage).toBe("none")
+    expect(sheetStyle.backgroundImage.match(/radial-gradient/g) ?? []).toHaveLength(0)
     expect(sheetStyle.backgroundImage.match(/repeating-linear-gradient/g) ?? []).toHaveLength(0)
-    expect(sheetStyle.backgroundSize).toContain("8px 8px")
-    expect(window.getComputedStyle(wordMaterial!).backgroundImage).toContain("data:image/svg+xml")
+    expect(window.getComputedStyle(wordMaterial!).backgroundImage)
+      .toContain("/textures/wordbank-paper.webp")
+    expect(wordMaterial).toHaveAttribute("data-paper-stock")
+    const wordShadow = window.getComputedStyle(wordMaterial!).boxShadow
+    expect(wordShadow).toContain("inset")
+    expect(wordShadow).not.toMatch(/\b(?:2px|20px|40px|-28px)\b/)
+    for (const material of wordbankList.querySelectorAll<HTMLElement>(
+      "[data-material][data-paper-stock]",
+    )) {
+      const shadow = window.getComputedStyle(material).boxShadow
+      expect(shadow).toContain("inset")
+      expect(shadow).not.toMatch(/\b(?:2px|20px|40px|-28px)\b/)
+    }
+    const wordLabel = wordMaterial
+      ?.closest("[data-wordbank-expandable-card]")
+      ?.querySelector<HTMLElement>("[data-wordbank-expansion-title]")
+    expect(wordLabel).not.toBeNull()
+    expect(window.getComputedStyle(wordLabel!).fontFamily).toContain("Fraunces Variable")
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth + 1)
+
+    const wordTrigger = screen.getByRole("button", { name: "bog" })
+    const expandableCard = wordTrigger.closest<HTMLElement>("[data-wordbank-expandable-card]")!
+    const anchorBefore = expandableCard.getBoundingClientRect()
+    await act(async () => {
+      fireEvent.focus(wordTrigger)
+      await new Promise((resolve) => window.setTimeout(resolve, 220))
+    })
+    await waitFor(() => {
+      expect(expandableCard).toHaveAttribute("data-state", "open")
+    })
+    await settleLayout()
+    const reveal = expandableCard.querySelector<HTMLElement>("[data-wordbank-expansion-surface]")!
+    const triggerRect = wordTrigger.getBoundingClientRect()
+    const revealRect = reveal.getBoundingClientRect()
+    const anchorAfter = expandableCard.getBoundingClientRect()
+    const titleRect = wordLabel!.getBoundingClientRect()
+    expect(["up", "down"]).toContain(expandableCard.dataset.direction)
+    if (expandableCard.dataset.direction === "up") {
+      expect(Math.abs(revealRect.bottom - triggerRect.bottom)).toBeLessThanOrEqual(1)
+    } else {
+      expect(Math.abs(revealRect.top - triggerRect.top)).toBeLessThanOrEqual(1)
+    }
+    expect(Math.abs(anchorAfter.top - anchorBefore.top)).toBeLessThanOrEqual(1)
+    expect(Math.abs(anchorAfter.height - anchorBefore.height)).toBeLessThanOrEqual(1)
+    expect(window.getComputedStyle(wordLabel!).fontSize).toBe("20px")
+    expect(Math.abs(titleRect.left - revealRect.left - 16)).toBeLessThanOrEqual(1)
+    expect(Math.abs(titleRect.top - revealRect.top - 16)).toBeLessThanOrEqual(1)
+    expect(window.getComputedStyle(wordTrigger).backgroundImage).toBe("none")
+    expect(window.getComputedStyle(reveal).backgroundImage)
+      .toContain("/textures/wordbank-paper.webp")
+    expect(window.getComputedStyle(reveal).boxShadow).toContain("inset")
+    expect(window.getComputedStyle(reveal).boxShadow)
+      .not.toMatch(/\b(?:2px|20px|40px|-28px)\b/)
+    expect(reveal.querySelector("[data-wordbank-specimen-preview]")).not.toHaveTextContent("bog")
+    const revealBeforePreviewHover = reveal.getBoundingClientRect()
+    await page.getByText("book", { exact: true }).hover()
+    await settleLayout()
+    const revealAfterPreviewHover = reveal.getBoundingClientRect()
+    expect(window.getComputedStyle(reveal).transform).toBe("none")
+    expect(revealAfterPreviewHover.top).toBeCloseTo(revealBeforePreviewHover.top, 1)
+    expect(revealAfterPreviewHover.left).toBeCloseTo(revealBeforePreviewHover.left, 1)
+    expect(revealRect.left).toBeGreaterThanOrEqual(15)
+    expect(revealRect.right).toBeLessThanOrEqual(window.innerWidth - 15)
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth + 1)
+    await act(async () => {
+      fireEvent.keyDown(wordTrigger, { key: "Escape" })
+    })
+    await waitFor(() => {
+      expect(expandableCard).toHaveAttribute("data-state", "closed")
+    })
 
     const alphabet = document.querySelector<HTMLElement>("[aria-label='Word catalogue alphabet']")
     const referenceDrawer = document.querySelector<HTMLElement>("[data-reference-drawer]")
@@ -162,6 +230,78 @@ it.each([
     expect(Math.abs(sheet!.getBoundingClientRect().width - viewport!.clientWidth)).toBeLessThanOrEqual(1)
     expect(content!.getBoundingClientRect().width).toBeLessThanOrEqual(1280)
   }
+})
+
+it("keeps the paper hinge attached when collision places the preview below", async () => {
+  await page.viewport(390, 320)
+  render(
+    <div className="w-64">
+      <PinnedWordCard
+        entry={{ lemma: "plantebog", translation: "field notebook" }}
+        onOpenWord={() => undefined}
+      />
+    </div>,
+  )
+
+  const trigger = screen.getByRole("button", { name: /open plantebog in wordbank/i })
+  await act(async () => {
+    fireEvent.focus(trigger)
+    await new Promise((resolve) => window.setTimeout(resolve, 120))
+  })
+  await waitFor(() => {
+    expect(document.querySelector("[data-paper-reveal]")).toHaveAttribute("data-side", "bottom")
+  })
+  await settleLayout()
+
+  const reveal = document.querySelector<HTMLElement>("[data-paper-reveal]")!
+  expect(Math.abs(reveal.getBoundingClientRect().top - trigger.getBoundingClientRect().bottom))
+    .toBeLessThanOrEqual(1)
+  expect(Number.parseFloat(window.getComputedStyle(reveal, "::after").width))
+    .toBeCloseTo(trigger.getBoundingClientRect().width, 0)
+  expect(reveal.getBoundingClientRect().right).toBeLessThanOrEqual(window.innerWidth - 15)
+})
+
+it("expands a bottom-right specimen upward and left without moving its grid footprint", async () => {
+  await page.viewport(390, 320)
+  render(
+    <div className="fixed right-4 bottom-4 flex w-64 flex-col gap-2">
+      <div className="h-8" data-expansion-neighbor />
+      <WordbankListResults
+        lemmas={[LEMMA]}
+        filters={{ posTags: [], categories: [] }}
+        unreadWordbankLemmaCounts={new Map()}
+        onSelectLemma={() => undefined}
+        onRequestDelete={() => undefined}
+        onClearFilters={() => undefined}
+      />
+    </div>,
+  )
+
+  const trigger = screen.getByRole("button", { name: "bog" })
+  const card = trigger.closest<HTMLElement>("[data-wordbank-expandable-card]")!
+  const neighbor = document.querySelector<HTMLElement>("[data-expansion-neighbor]")!
+  const cardBefore = card.getBoundingClientRect()
+  const neighborBefore = neighbor.getBoundingClientRect()
+
+  await act(async () => {
+    fireEvent.focus(trigger)
+    await new Promise((resolve) => window.setTimeout(resolve, 220))
+  })
+  await waitFor(() => expect(card).toHaveAttribute("data-state", "open"))
+  await settleLayout()
+
+  const surface = card.querySelector<HTMLElement>("[data-wordbank-expansion-surface]")!
+  const cardAfter = card.getBoundingClientRect()
+  const surfaceRect = surface.getBoundingClientRect()
+  expect(card).toHaveAttribute("data-direction", "up")
+  expect(card).toHaveAttribute("data-align", "end")
+  expect(Math.abs(surfaceRect.bottom - cardAfter.bottom)).toBeLessThanOrEqual(1)
+  expect(Math.abs(surfaceRect.right - cardAfter.right)).toBeLessThanOrEqual(1)
+  expect(surfaceRect.left).toBeGreaterThanOrEqual(15)
+  expect(Math.abs(cardAfter.top - cardBefore.top)).toBeLessThanOrEqual(1)
+  expect(Math.abs(cardAfter.height - cardBefore.height)).toBeLessThanOrEqual(1)
+  expect(neighbor.getBoundingClientRect().top).toBeCloseTo(neighborBefore.top, 0)
+  expect(Number.parseInt(window.getComputedStyle(card).zIndex, 10)).toBeGreaterThan(0)
 })
 
 it("keeps every reachable page inside the canonical notebook sheet", async () => {

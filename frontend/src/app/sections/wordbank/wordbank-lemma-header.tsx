@@ -188,7 +188,7 @@ export function WordbankLemmaHeader({
           pronunciationLoadingByForm={pronunciationLoadingByForm}
           onPlayPronunciation={onPlayPronunciation}
           contextMenuItems={lemmaContextMenuItems}
-          className="font-section-title text-3xl leading-8 font-semibold tracking-tight"
+          className="font-lexical text-3xl leading-8 font-semibold tracking-tight"
           iconClassName="size-4"
           as="h2"
         />

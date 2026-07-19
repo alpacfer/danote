@@ -3,18 +3,16 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 
 export function WordbankSpecimenPreview({
-  displayWord,
   posLabels,
   translationGroups,
 }: {
-  displayWord: string
   posLabels: string[]
   translationGroups: SpecimenTranslationGroup[]
 }) {
   return (
     <div className="flex flex-col gap-3 p-4" data-wordbank-specimen-preview>
-      <div className="flex items-start justify-between gap-3">
-        <p className="font-section-title text-lg leading-6">{displayWord}</p>
+      <div className="flex min-h-6 items-start justify-between gap-3">
+        <span className="min-w-0 flex-1" data-wordbank-specimen-title-slot />
         {posLabels.length > 0 ? (
           <div className="flex flex-wrap justify-end gap-1">
             {posLabels.map((label) => (

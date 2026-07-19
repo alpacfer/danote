@@ -152,14 +152,16 @@ function SentenceCard({ sentence, onOpen, onRequestDelete }: SentenceCardProps) 
                   data-grid-anchor="unit"
                 >
                   <CardContent className="space-y-1.5">
-                    <p ref={sourceRef} className="text-base font-medium leading-snug truncate">{sentence.source_text}</p>
+                    <p ref={sourceRef} className="font-lexical truncate text-lg leading-snug font-semibold tracking-[-0.01em]">
+                      {sentence.source_text}
+                    </p>
                     <p ref={translationRef} className="text-muted-foreground text-sm truncate">{translation}</p>
                   </CardContent>
                 </Card>
               </button>
             </TooltipTrigger>
             <TooltipContent side="bottom" className="max-w-xs">
-              <p className="font-medium">{sentence.source_text}</p>
+              <p className="font-lexical text-base font-semibold tracking-[-0.01em]">{sentence.source_text}</p>
               <p className="text-muted-foreground mt-0.5">{translation}</p>
             </TooltipContent>
           </Tooltip>

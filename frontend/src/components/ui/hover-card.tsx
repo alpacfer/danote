@@ -39,4 +39,10 @@ function HoverCardContent({
   )
 }
 
-export { HoverCard, HoverCardTrigger, HoverCardContent }
+function HoverCardArrow({
+  ...props
+}: React.ComponentProps<typeof HoverCardPrimitive.Arrow>) {
+  return <HoverCardPrimitive.Arrow data-slot="hover-card-arrow" {...props} />
+}
+
+export { HoverCard, HoverCardTrigger, HoverCardContent, HoverCardArrow }

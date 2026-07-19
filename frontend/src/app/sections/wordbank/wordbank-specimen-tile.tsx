@@ -15,6 +15,7 @@ import {
   wordbankSpecimenTranslationGroups,
 } from "@/app/sections/wordbank/wordbank-specimen-preview-data"
 import { WordbankSpecimenPreview } from "@/app/sections/wordbank/wordbank-specimen-preview"
+import { useSpecimenCardExpansion } from "@/app/sections/wordbank/use-specimen-card-expansion"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -24,15 +25,12 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu"
-import {
-  HoverCard,
-  HoverCardContent,
-  HoverCardTrigger,
-} from "@/components/ui/hover-card"
 
 type WordbankSpecimenTileProps = {
   lemma: WordbankLemma
   unreadCount: number
+  expanded: boolean
+  onExpandedChange: (open: boolean) => void
   onSelect: () => void
   onRequestDelete: () => void
 }
@@ -40,6 +38,8 @@ type WordbankSpecimenTileProps = {
 export function WordbankSpecimenTile({
   lemma,
   unreadCount,
+  expanded,
+  onExpandedChange,
   onSelect,
   onRequestDelete,
 }: WordbankSpecimenTileProps) {
@@ -50,12 +50,62 @@ export function WordbankSpecimenTile({
   const previewDescription = wordbankSpecimenDescription(posLabels, translationGroups)
   const hasPreview = Boolean(previewDescription)
   const materialTone = semanticCategoryMaterialTone(lemma.categories?.[0])
+  const {
+    alignment,
+    anchorRef,
+    direction,
+    previewRef,
+    surfaceRef,
+    onBlur,
+    onFocus,
+    onKeyDown,
+    onPointerDown,
+    onPointerEnter,
+    onPointerLeave,
+  } = useSpecimenCardExpansion({
+    enabled: hasPreview,
+    open: expanded,
+    onOpenChange: onExpandedChange,
+  })
+  const openWord = () => runWordViewTransition(onSelect)
 
   return (
-    <HoverCard open={hasPreview ? undefined : false} openDelay={300} closeDelay={200}>
-      <ContextMenu>
-        <HoverCardTrigger asChild>
-          <ContextMenuTrigger asChild>
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <div
+          ref={anchorRef}
+          className="relative h-8 min-w-0"
+          data-wordbank-expandable-card
+          data-state={expanded ? "open" : "closed"}
+          data-direction={direction}
+          data-align={alignment}
+          data-grid-anchor="unit"
+          data-grid-height="unit"
+          onPointerDown={onPointerDown}
+          onPointerEnter={onPointerEnter}
+          onPointerLeave={onPointerLeave}
+        >
+          <div
+            ref={surfaceRef}
+            aria-hidden="true"
+            data-wordbank-expansion-surface
+            data-material="word"
+            data-material-tone={materialTone}
+            data-index-stock
+            data-paper-stock
+            data-mwe={isMultiWordLemma(lemma.lemma) ? "true" : "false"}
+            onClick={hasPreview ? openWord : undefined}
+          >
+            {hasPreview ? (
+              <div ref={previewRef} data-wordbank-expansion-preview>
+                <WordbankSpecimenPreview
+                  posLabels={posLabels}
+                  translationGroups={translationGroups}
+                />
+              </div>
+            ) : null}
+          </div>
+          <div className="relative">
             <Button
               type="button"
               variant="outline"
@@ -64,48 +114,34 @@ export function WordbankSpecimenTile({
               aria-label={displayWord}
               aria-description={hasPreview ? previewDescription : undefined}
               data-testid={`wordbank-specimen-${lemma.lemma}`}
-              data-material="word"
-              data-material-tone={materialTone}
-              data-index-stock
               data-mwe={isMultiWordLemma(lemma.lemma) ? "true" : "false"}
-              data-grid-anchor="unit"
-              data-grid-height="unit"
+              data-wordbank-expansion-trigger
               style={{ viewTransitionName: wordViewTransitionName(lemma.lemma) }}
-              onClick={() => runWordViewTransition(onSelect)}
+              onBlur={onBlur}
+              onClick={openWord}
+              onFocus={onFocus}
+              onKeyDown={onKeyDown}
             >
-              <span className="truncate">{displayWord}</span>
+              <span
+                className="font-lexical truncate font-semibold tracking-[-0.01em]"
+                data-wordbank-expansion-title
+              >
+                {displayWord}
+              </span>
               <UnreadMarker count={unreadCount} displayWord={displayWord} />
             </Button>
-          </ContextMenuTrigger>
-        </HoverCardTrigger>
-        {hasPreview ? (
-          <HoverCardContent
-            align="start"
-            side="top"
-            sideOffset={8}
-            collisionPadding={16}
-            className="w-80 max-w-[calc(100vw-2rem)] p-0"
-            data-material="word"
-            data-material-tone={materialTone}
-            data-index-stock
-          >
-            <WordbankSpecimenPreview
-              displayWord={displayWord}
-              posLabels={posLabels}
-              translationGroups={translationGroups}
-            />
-          </HoverCardContent>
-        ) : null}
-        <ContextMenuContent>
-          <ContextMenuGroup>
-            <ContextMenuItem variant="destructive" onSelect={onRequestDelete}>
-              <Trash2 />
-              Delete whole lemma
-            </ContextMenuItem>
-          </ContextMenuGroup>
-        </ContextMenuContent>
-      </ContextMenu>
-    </HoverCard>
+          </div>
+        </div>
+      </ContextMenuTrigger>
+      <ContextMenuContent>
+        <ContextMenuGroup>
+          <ContextMenuItem variant="destructive" onSelect={onRequestDelete}>
+            <Trash2 />
+            Delete whole lemma
+          </ContextMenuItem>
+        </ContextMenuGroup>
+      </ContextMenuContent>
+    </ContextMenu>
   )
 }
 
@@ -113,7 +149,11 @@ function UnreadMarker({ count, displayWord }: { count: number; displayWord: stri
   if (count <= 0) return null
   if (count > 1) {
     return (
-      <Badge aria-label={`${count} pending verifications for ${displayWord}`} className="ml-0.5 min-w-5 px-1.5">
+      <Badge
+        aria-label={`${count} pending verifications for ${displayWord}`}
+        className="ml-0.5 min-w-5 px-1.5"
+        data-wordbank-unread-marker
+      >
         {count}
       </Badge>
     )
@@ -122,6 +162,7 @@ function UnreadMarker({ count, displayWord }: { count: number; displayWord: stri
     <span
       aria-label={`Pending verification for ${displayWord}`}
       className="bg-primary inline-flex size-2.5 rounded-full"
+      data-wordbank-unread-marker
     />
   )
 }

@@ -69,6 +69,7 @@ function ReferenceDeck({ page, onClick }: { page: PinnedPageMeta; onClick: () =>
       data-material="reference"
       data-material-tone={visual.tone}
       data-index-stock
+      data-paper-stock
       data-grid-anchor="unit"
       data-grid-height="unit"
     >
@@ -82,7 +83,9 @@ function ReferenceDeck({ page, onClick }: { page: PinnedPageMeta; onClick: () =>
         >
           <ReferenceDeckIcon pageId={page.id} />
           <span className="flex min-w-0 flex-1 flex-col items-start gap-1">
-            <span className="truncate font-semibold">{page.title}</span>
+            <span className="font-lexical truncate text-[0.9375rem] font-semibold tracking-[-0.01em]">
+              {page.title}
+            </span>
             <span className="text-muted-foreground hidden truncate text-xs leading-tight sm:block">
               {visual.description}
             </span>

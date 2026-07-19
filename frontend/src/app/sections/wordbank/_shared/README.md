@@ -9,6 +9,7 @@ Shared render helpers for Wordbank built-in pinned pages.
 - `pinned-tabs-list.tsx` keeps multi-tab reference pages horizontally accessible on narrow screens.
 - `pinned-word-card.tsx` renders the simplified clickable built-in word card.
 - `pinned-word-grid.tsx` lays out consistent card grids for every pinned tab.
+- `paper-reveal.tsx` composes the shared, collision-aware hinged translation preview.
 
 ## What Does Not Live Here
 
@@ -20,6 +21,8 @@ Shared render helpers for Wordbank built-in pinned pages.
 
 - Add new grouped pinned-page routing metadata to the registry.
 - Put reusable pinned-card visual changes in `pinned-word-card.tsx`.
+- Keep pinned preview geometry in `paper-reveal.tsx`; catalogue expansion stays
+  in the parent wordbank folder.
 - Use `pinned-tabs-list.tsx` for multi-tab pinned pages so mobile tab access stays consistent.
 - Put page-specific tab composition in the owning domain page.
 - Keep these helpers focused on shared pinned-page rendering.

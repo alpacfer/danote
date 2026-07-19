@@ -57,8 +57,10 @@ Priority:
 4. Otherwise → reference decks plus grouped specimen tiles with letter headings
 
 Collection composition:
-- The collection alone uses the notebook's 8px dot-grid surface; word details,
-  pinned reference interiors, and other sections retain normal 32px ruling.
+- The collection alone uses a plain, texture-free canvas without a visible
+  grid; word details, pinned reference interiors, and other sections retain
+  normal 32px ruling. Natural uncoated-paper texture is reserved for the
+  collection's word and reference cards.
 - Reference pages render as a five-compartment catalogue drawer: one row when
   the notebook content is wide enough and two columns when the sidebar or
   viewport constrains it, with descriptions hidden at the narrowest breakpoint.
@@ -90,16 +92,21 @@ Filters:
 
 Per-specimen tile:
 - Label: `display_lemma` fallback `lemma`
-- Hover or keyboard focus opens a non-interactive specimen preview when saved
-  translations or readable POS labels exist. It shows the display lemma,
-  aggregate POS labels, and every saved primary/additional translation grouped
-  by meaning. Case-insensitive duplicate translations are omitted.
+- Hover or keyboard focus visually expands the card when saved translations or
+  readable POS labels exist. The Danish label grows and moves into the expanded
+  title position, while aggregate POS labels and every saved primary/additional
+  translation remain grouped by meaning. The lemma is never repeated.
+  Case-insensitive duplicate translations are omitted.
 - The preview uses real saved linguistic data only: no specimen identifiers,
   inferred definitions, glosses, categories, dates, variation counts, or
   pronunciation status.
-- The preview opens after 300ms, remains open while hovered, closes after
-  200ms, and dismisses on Escape. The same plain-text metadata is exposed as
-  the word trigger's accessible description.
+- The card opens after a brief 70ms hover-intent delay, remains open while
+  hovered, closes after 120ms, and dismisses on Escape. The same plain-text
+  metadata is exposed as the word trigger's accessible description.
+- Expansion is visual only: the 32px catalogue footprint never changes. One
+  continuously textured paper surface grows over neighboring rows, unfolding
+  downward and reversing upward near the viewport edge. It grows left near the
+  right viewport edge and stays inside a 16px margin.
 - One category-derived material wash identifies the tile without a colored
   edge or leading icon; POS remains available in the preview. Multi-word
   expressions use a restrained joined-label silhouette.
@@ -119,7 +126,9 @@ the Wordbank list and shown even when there are no saved lemmas: **Pronouns**, *
 **Prepositions**, **Conjunctions**, and **Numbers & Time**. The responsive
 deck shelf uses a distinct icon and short collection description for each page
 plus its own restrained material tint while dimensions and behavior remain
-identical. The whole visible card remains one accessible button. Each page is
+identical. Decks use the same flat, fiber-textured paper stock as word cards
+without blurred elevation shadows. The whole visible card remains one
+accessible button. Each page is
 identified by its canonical sentinel lemma. Legacy
 sentinels such as `__pronouns_personal`, `__question_words`, and `__numbers`
 still route through
@@ -134,15 +143,18 @@ Numbers, Ordinal Numbers, Days, and Months. The pages intentionally
 avoid instructional descriptions, note sections, generated examples, and
 textbook-style rules; they are word collections only.
 
-Every pinned tab uses the same simplified `PinnedWordCard` grid. Cards show the
-Danish word, pronunciation control, English translation, and only a short
-disambiguation label when needed. Cards also show compact POS/morphology badges
-when useful, reusing the normal word-page/search badge pipeline
+Every pinned tab uses the same simplified `PinnedWordCard` grid. Card faces
+show the Danish word and compact POS/morphology badges when useful, reusing the
+normal word-page/search badge pipeline
 (`n-word`/`t-word`, person/number, interrogative, possessive, etc.). Cards do
 not show add buttons, eye icons, generated-example context menus, or
 saved-sentence example dialogs. Clicking the card opens
 `/api/wordbank/lemmas/{lemma}` through a raw lemma navigation path. Sentence
 token navigation also uses raw lemma/meaning navigation.
+
+Hover or keyboard focus opens the English translation in the same zero-gap
+hinged paper panel used by saved catalogue words. Touch remains one-step
+navigation rather than preview-first.
 
 Pinned tab changes are navigation entries: changing tabs writes the tab-specific
 sentinel, so browser Back/Forward restores the previous pinned tab state.

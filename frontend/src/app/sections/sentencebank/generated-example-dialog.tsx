@@ -54,7 +54,9 @@ export function GeneratedExampleDialog({
         {preview ? (
           <Card className="danote-example-clipping py-4" data-material="sentence">
             <CardContent className="flex flex-col gap-2 px-4">
-            <p className="text-base font-medium leading-relaxed break-words">{preview.source_text}</p>
+            <p className="font-lexical text-lg leading-relaxed font-semibold tracking-[-0.01em] break-words">
+              {preview.source_text}
+            </p>
             <p className="text-muted-foreground text-sm leading-relaxed break-words">
               {preview.english_translation}
             </p>

@@ -7,11 +7,18 @@ density or clarity of linguistic information.
 
 ## Typography
 
-- Source Sans 3 is the UI, body, control, table, and metadata face.
+- Source Sans 3 is the UI, body, control, translation, table, and metadata face.
+  It carries dense information and every interactive label where quick scanning
+  matters more than atmosphere.
 - Playwrite GB J is reserved for the `danote` wordmark.
-- Fraunces Variable is the section-title face. Use weight `600` with
-  `SOFT=70`, `WONK=1`, and `opsz=48`.
-- Do not use the display faces for long text, badges, or linguistic detail.
+- Fraunces Variable has two semantic voices. Section titles use `SOFT=70`,
+  `WONK=1`, and `opsz=48`; lexical text uses `SOFT=55`, `WONK=1`, and
+  `opsz=24` for Danish lemmas, saved-word slips, sentence sources, and their
+  previews. Both normally use weight `600`.
+- Card, dialog, sheet, and empty-state titles inherit the section-title voice.
+  English translations, badges, filters, timestamps, and long explanatory text
+  remain Source Sans so the serif never compromises reading or navigation.
+- Do not use the display faces for long prose, controls, badges, or metadata.
 
 ## Color roles
 
@@ -41,19 +48,17 @@ receive their own redesign.
 - The outer canvas, application inset, and semantic material surfaces share a
   visible but low-contrast irregular SVG grain. The canonical scrolling
   notebook sheet adds longer directional fibers and normally places blue-gray
-  ruling above them. The Wordbank collection switches that final layer to a
-  real 8px dot field aligned with its foreground catalogue lattice. Grain,
-  fibers, and dots use separate frequencies so the surface reads as physical
-  paper rather than a repeated digital pattern. All decorative treatments
-  disappear when the user requests increased contrast.
+  ruling above them. The Wordbank collection canvas is deliberately plain, with
+  no ruling, grid, or texture; its word and reference cards carry the natural
+  uncoated-paper texture instead. All decorative treatments disappear when the
+  user requests increased contrast.
 - The layout lattice starts at the notebook sheet's content-box origin. Its
   base unit is 8px; every fourth unit is a visible 32px rule. Headings and
   major section starts use `data-grid-anchor="rule"`. Cards, decks, filters,
   empty states, and exposed rows use `data-grid-anchor="unit"` where browser
   tests need to enforce alignment.
-- The sheet texture and grid are full-bleed within the main viewport, while the
-  foreground notebook content remains centered at a 1280px maximum width. The
-  dot origin follows the capped content edge on wider screens.
+- The notebook sheet is full-bleed within the main viewport, while the
+  foreground notebook content remains centered at a 1280px maximum width.
 - Padding, gaps, line heights, bounded rows, and responsive dimensions use 8px
   multiples. The 32px ruling is a baseline rhythm, not a requirement to leave
   32px between every element.
@@ -61,9 +66,10 @@ receive their own redesign.
   `grammar`, `discovery`, `sentence`, and `related`) through `data-material`.
   They combine a restrained full-surface tint, an organic paper shadow, and a
   stamped icon or mark. Containment may use a neutral inset hairline.
-- Word and reference catalogue materials use layered index-stock depth: two
-  offset semantic paper edges sit beneath the textured face without moving the
-  8px layout anchor. Reference stock also carries a quiet file-tab strip.
+- Wordbank collection cards and reference decks use flat index stock: grain and
+  directional fibers sit above their semantic tint, while the outline and
+  inset highlight preserve the paper edge without an external drop shadow.
+  Reference stock also carries a quiet file-tab strip.
 - Do not use colored top/left rails, thick edges, or asymmetric accent borders.
   Reference decks vary by restrained material tone and stamp while preserving
   one shared size and interaction model.
@@ -80,17 +86,21 @@ receive their own redesign.
 - The reference drawer responds to notebook-content width, not viewport width:
   it keeps two columns while the sidebar constrains the sheet and expands to a
   five-compartment row only when every card fits without clipping.
-- Saved and pinned word faces remain Danish-only. Their keyboard-accessible
-  hover previews use the same layered stock, an editorial lemma heading,
-  compact POS badges where relevant, and lightly ruled translation groups.
-  Their field-book character comes from real hierarchy and paper treatment,
-  never fabricated catalogue metadata.
+- Saved and pinned word faces remain Danish-only. Saved catalogue cards
+  visually expand without reflow: one continuous textured surface grows around
+  the original label as it moves and scales into the editorial heading.
+  Compact POS badges and lightly ruled translation groups appear around that
+  single title. Pinned cards retain their attached hover preview. Their
+  field-book character comes from real hierarchy and paper treatment, never
+  fabricated catalogue metadata.
 
 ## Motion
 
 - Motion explains state: audio uses a sound ring, sense selection changes
   paper depth, generated examples unfold, new variations settle into place,
-  and a supported View Transition connects a collection tile to its word page.
+  saved cards unfold around their title, pinned translations hinge from their
+  attached edge, and a supported View Transition connects a collection tile to
+  its word page.
 - Unsupported View Transitions fall back immediately. Under
   `prefers-reduced-motion: reduce`, nonessential animation and smooth scrolling
   are disabled.

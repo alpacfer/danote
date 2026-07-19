@@ -9,6 +9,8 @@
     --font-brand: "Playwrite GB J", var(--font-sans);
     --font-section-title: "Fraunces Variable", Georgia, serif;
     --font-section-title--font-variation-settings: "SOFT" 70, "WONK" 1, "opsz" 48;
+    --font-lexical: "Fraunces Variable", Georgia, serif;
+    --font-lexical--font-variation-settings: "SOFT" 55, "WONK" 1, "opsz" 24;
     --radius-sm: calc(var(--radius) - 4px);
     --radius-md: calc(var(--radius) - 2px);
     --radius-lg: var(--radius);
@@ -137,11 +139,6 @@
       color-mix(in oklch, var(--brand-sky) 12%, transparent) 31px,
       color-mix(in oklch, var(--brand-sky) 12%, transparent) 32px
     );
-    --danote-notebook-dots: radial-gradient(
-      circle at 0 0,
-      color-mix(in oklch, var(--foreground) 18%, transparent) 0 0.7px,
-      transparent 0.85px
-    );
     --danote-paper-fibers: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='192' height='192' viewBox='0 0 192 192'%3E%3Cfilter id='fiber'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.018 .48' numOctaves='2' seed='8'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='table' tableValues='0 .16'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='192' height='192' filter='url(%23fiber)' opacity='.82'/%3E%3C/svg%3E");
 }
 
@@ -218,11 +215,6 @@
       color-mix(in oklch, var(--brand-sky) 9%, transparent) 31px,
       color-mix(in oklch, var(--brand-sky) 9%, transparent) 32px
     );
-    --danote-notebook-dots: radial-gradient(
-      circle at 0 0,
-      color-mix(in oklch, var(--foreground) 15%, transparent) 0 0.7px,
-      transparent 0.85px
-    );
     --danote-paper-fibers: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='192' height='192' viewBox='0 0 192 192'%3E%3Cfilter id='fiber'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.018 .48' numOctaves='2' seed='8'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='table' tableValues='0 .10'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='192' height='192' filter='url(%23fiber)' opacity='.72'/%3E%3C/svg%3E");
 }
 
@@ -256,6 +248,14 @@
   textarea,
   select {
     font-family: inherit;
+  }
+  [data-slot="card-title"],
+  [data-slot="dialog-title"],
+  [data-slot="sheet-title"],
+  [data-slot="empty-title"] {
+    font-family: var(--font-section-title);
+    font-variation-settings: var(--font-section-title--font-variation-settings);
+    letter-spacing: -0.012em;
   }
   input,
   textarea,
@@ -294,22 +294,9 @@
     calc(6rem + env(safe-area-inset-bottom));
 }
 
-.danote-notebook-sheet:has([data-notebook-surface="dot-grid"]) {
-  background-image:
-    var(--danote-paper-grain),
-    var(--danote-paper-fibers),
-    var(--danote-notebook-dots);
-  background-position:
-    0 0,
-    0 0,
-    max(
-      var(--danote-shell-gutter-x),
-      calc(50% - 40rem + var(--danote-shell-gutter-x))
-    ) var(--danote-shell-gutter-y);
-  background-size:
-    8rem 8rem,
-    12rem 12rem,
-    var(--danote-grid-unit) var(--danote-grid-unit);
+.danote-notebook-sheet:has([data-notebook-surface="plain"]) {
+  background-color: var(--background);
+  background-image: none;
 }
 
 .danote-notebook-content > * {
@@ -402,6 +389,266 @@
     2px 2px 0 var(--index-stock-sheet-one),
     4px 4px 0 var(--index-stock-sheet-two),
     var(--danote-shadow-card);
+}
+
+[data-paper-stock] {
+  background-image: url("/textures/wordbank-paper.webp");
+  background-position: center;
+  background-repeat: repeat;
+  background-size: 48rem 32rem;
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklch, var(--popover) 34%, transparent),
+    0 2px 0 var(--index-stock-sheet-one);
+  transition: background-color 160ms ease;
+}
+
+[data-paper-stock][data-material="reference"] {
+  background-image:
+    linear-gradient(
+      to right,
+      transparent 0 10%,
+      color-mix(in oklch, var(--material-underlay) 30%, transparent) 10% 34%,
+      transparent 34%
+    ),
+    url("/textures/wordbank-paper.webp");
+  background-position: 0 0, center;
+  background-repeat: no-repeat, repeat;
+  background-size: 100% 0.3rem, 48rem 32rem;
+}
+
+[data-wordbank-expandable-card] {
+  isolation: isolate;
+}
+
+[data-wordbank-expandable-card][data-state="open"] {
+  z-index: 20;
+}
+
+[data-wordbank-expansion-surface] {
+  --wordbank-card-expanded-height: 2rem;
+  --wordbank-card-expanded-width: 100%;
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  display: flex;
+  width: 100%;
+  height: 2rem;
+  flex-direction: column;
+  overflow: clip;
+  border-radius: var(--radius-sm);
+  opacity: 1;
+  pointer-events: none;
+  cursor: pointer;
+  transition:
+    width 180ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    height 180ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    box-shadow 180ms ease;
+  will-change: width, height;
+}
+
+[data-wordbank-expandable-card][data-state="open"] [data-wordbank-expansion-surface] {
+  width: var(--wordbank-card-expanded-width);
+  height: var(--wordbank-card-expanded-height);
+  opacity: 1;
+  pointer-events: auto;
+  box-shadow: inset 0 1px 0 color-mix(in oklch, var(--popover) 34%, transparent);
+}
+
+[data-grid-page="wordbank-list"] [data-material][data-paper-stock] {
+  box-shadow: inset 0 1px 0 color-mix(in oklch, var(--popover) 34%, transparent);
+}
+
+[data-wordbank-catalogue] [data-wordbank-expansion-surface]:hover,
+[data-wordbank-catalogue] [data-wordbank-expansion-surface]:active {
+  transform: none;
+}
+
+[data-wordbank-expandable-card][data-direction="up"] [data-wordbank-expansion-surface] {
+  inset-block-start: auto;
+  inset-block-end: 0;
+  flex-direction: column-reverse;
+}
+
+[data-wordbank-expandable-card][data-align="end"] [data-wordbank-expansion-surface] {
+  inset-inline-start: auto;
+  inset-inline-end: 0;
+}
+
+[data-wordbank-expansion-preview] {
+  flex: none;
+  width: var(--wordbank-card-expanded-width);
+  opacity: 0;
+  transform: translateY(-0.375rem);
+  transition:
+    opacity 120ms ease 30ms,
+    transform 160ms cubic-bezier(0.2, 0.8, 0.2, 1) 20ms;
+}
+
+[data-wordbank-expandable-card][data-direction="up"] [data-wordbank-expansion-preview] {
+  transform: translateY(0.375rem);
+}
+
+[data-wordbank-expandable-card][data-state="open"] [data-wordbank-expansion-preview] {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+[data-wordbank-expansion-title] {
+  font-size: 0.9375rem;
+  line-height: 1.25rem;
+  transform-origin: left center;
+  transition:
+    color 180ms ease,
+    font-size 180ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    line-height 180ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  will-change: transform;
+}
+
+[data-wordbank-expandable-card][data-state="open"] [data-wordbank-expansion-title] {
+  font-size: 1.25rem;
+  line-height: 1.5rem;
+  transform: translate(
+    calc(var(--wordbank-card-inline-shift) + 0.25rem),
+    0.75rem
+  );
+}
+
+[data-wordbank-expandable-card][data-state="open"][data-direction="up"]
+  [data-wordbank-expansion-title] {
+  transform: translate(
+    calc(var(--wordbank-card-inline-shift) + 0.25rem),
+    calc(2.75rem - var(--wordbank-card-expanded-height))
+  );
+}
+
+[data-wordbank-unread-marker] {
+  transition: opacity 100ms ease;
+}
+
+[data-wordbank-expandable-card][data-state="open"] [data-wordbank-unread-marker] {
+  opacity: 0;
+}
+
+[data-wordbank-expansion-trigger],
+[data-wordbank-expansion-trigger]:hover {
+  border-color: transparent;
+  background-color: transparent;
+  background-image: none;
+  outline-color: transparent;
+  box-shadow: none;
+}
+
+[data-wordbank-expandable-card]:has([data-wordbank-expansion-trigger]:focus-visible)
+  [data-wordbank-expansion-surface] {
+  outline: 3px solid color-mix(in oklch, var(--ring) 50%, transparent);
+  outline-offset: 2px;
+}
+
+[data-paper-reveal] {
+  border-radius: var(--radius);
+  box-shadow: inset 0 1px 0 color-mix(in oklch, white 34%, transparent);
+  overflow: visible;
+}
+
+[data-paper-reveal]::after {
+  position: absolute;
+  left: 0;
+  z-index: 1;
+  width: min(100%, var(--radix-hover-card-trigger-width));
+  height: 2px;
+  background: var(--material-surface, var(--surface-raised));
+  content: "";
+  pointer-events: none;
+}
+
+[data-paper-reveal][data-side="top"] {
+  border-end-start-radius: var(--radius-sm);
+  transform-origin: bottom left;
+}
+
+[data-paper-reveal][data-side="bottom"] {
+  border-start-start-radius: var(--radius-sm);
+  transform-origin: top left;
+}
+
+[data-paper-reveal][data-side="top"]::after {
+  bottom: -1px;
+}
+
+[data-paper-reveal][data-side="bottom"]::after {
+  top: -1px;
+}
+
+[data-paper-trigger][data-state="open"] {
+  background-color: color-mix(
+    in oklch,
+    var(--material-surface, var(--surface-raised)) 92%,
+    var(--material-underlay, var(--secondary))
+  );
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklch, var(--popover) 34%, transparent),
+    0 1px 0 var(--index-stock-sheet-one);
+}
+
+[data-paper-reveal][data-side="top"][data-state="open"] {
+  animation: danote-paper-reveal-from-bottom 120ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+[data-paper-reveal][data-side="top"][data-state="closed"] {
+  animation: danote-paper-conceal-to-bottom 90ms ease-in;
+}
+
+[data-paper-reveal][data-side="bottom"][data-state="open"] {
+  animation: danote-paper-reveal-from-top 120ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+[data-paper-reveal][data-side="bottom"][data-state="closed"] {
+  animation: danote-paper-conceal-to-top 90ms ease-in;
+}
+
+@keyframes danote-paper-reveal-from-bottom {
+  from {
+    clip-path: inset(70% 0 0 0 round var(--radius));
+    transform: scaleY(0.94);
+  }
+  to {
+    clip-path: inset(0 0 0 0 round var(--radius));
+    transform: scaleY(1);
+  }
+}
+
+@keyframes danote-paper-conceal-to-bottom {
+  from {
+    clip-path: inset(0 0 0 0 round var(--radius));
+    transform: scaleY(1);
+  }
+  to {
+    clip-path: inset(70% 0 0 0 round var(--radius));
+    transform: scaleY(0.94);
+  }
+}
+
+@keyframes danote-paper-reveal-from-top {
+  from {
+    clip-path: inset(0 0 70% 0 round var(--radius));
+    transform: scaleY(0.94);
+  }
+  to {
+    clip-path: inset(0 0 0 0 round var(--radius));
+    transform: scaleY(1);
+  }
+}
+
+@keyframes danote-paper-conceal-to-top {
+  from {
+    clip-path: inset(0 0 0 0 round var(--radius));
+    transform: scaleY(1);
+  }
+  to {
+    clip-path: inset(0 0 70% 0 round var(--radius));
+    transform: scaleY(0.94);
+  }
 }
 
 [data-material="meaning"] {
@@ -560,7 +807,7 @@
     background-image: none;
   }
 
-  .danote-notebook-sheet:has([data-notebook-surface="dot-grid"]) {
+  .danote-notebook-sheet:has([data-notebook-surface="plain"]) {
     background-image: none;
   }
 

@@ -106,7 +106,7 @@ export function SentencebankSentencePage({
             pronunciationLoadingByForm={pronunciationLoadingBySentenceId}
             onPlayPronunciation={() => onPlayPronunciation(sentenceId)}
             contextMenuItems={pronunciationContextMenuItems}
-            className="text-base font-medium leading-relaxed max-w-[70ch] break-words text-left whitespace-normal"
+            className="font-lexical max-w-[70ch] text-left text-lg leading-relaxed font-semibold tracking-[-0.01em] break-words whitespace-normal"
             iconClassName="size-4"
             as="span"
           >

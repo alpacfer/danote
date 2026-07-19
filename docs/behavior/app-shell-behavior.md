@@ -51,22 +51,21 @@ Pure render switch; no app-shell side effects.
 - Light mode defaults to a warm paper canvas with muted blue ink, forest
   primary actions, sea-glass supportive surfaces, and oat accents.
 - Dark mode uses an inky canvas with the same semantic botanical hierarchy.
-- Source Sans 3 remains the UI face, Playwrite GB J is reserved for the brand
-  wordmark, and Fraunces Variable is used for primary section headings.
+- Source Sans 3 remains the UI and translation face, Playwrite GB J is reserved
+  for the brand wordmark, and Fraunces Variable provides coordinated section
+  and lexical voices for headings, Danish words, and Danish sentence sources.
 - The shell, cards, and floating surfaces use separate semantic depth tokens.
 - `SidebarInset` keeps rounded corners at every viewport and clips the scrolling
   notebook sheet to that radius so its full-bleed texture cannot square off the
   main content surface.
-- Decorative paper grain is CSS-only and removed for `prefers-contrast: more`.
+- Decorative paper texture is removed for `prefers-contrast: more`.
 - Notebook ruling belongs to the scrolling sheet, not `SidebarInset`, so the
   8px content lattice and its visible 32px rules move together. The Wordbank
-  collection identifies itself with `data-notebook-surface="dot-grid"` and
-  swaps only that screen to a single dot layer aligned with the same sheet
-  content origin; a separate low-opacity paper-noise layer provides texture
-  without duplicating the dot pattern.
+  collection identifies itself with `data-notebook-surface="plain"` and swaps
+  only that screen to an undecorated background without ruling, dots, or grain.
 - The notebook surface paints edge to edge across the main viewport at
   ultrawide sizes. Foreground content remains centered and capped at 1280px,
-  with the visible pattern origin adjusted to the inner content padding.
+  against the plain collection surface.
   Navigable sections do not introduce nested vertical scroll areas; bounded
   badge/table/index regions may still scroll horizontally.
 - The sheet content-box origin is the grid origin. `unit` anchors resolve to

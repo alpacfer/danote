@@ -40,17 +40,24 @@ describe("App wordbank collection tiles", () => {
     const bogTile = await screen.findByRole("button", { name: "bog" })
     expect(bogTile).toHaveTextContent(/^bog$/)
     expect(bogTile.querySelector("svg")).not.toBeInTheDocument()
-    expect(bogTile).toHaveAttribute("data-material", "word")
-    expect(bogTile).toHaveAttribute("data-index-stock")
-    expect(bogTile).toHaveAttribute("data-grid-anchor", "unit")
+    const bogCard = bogTile.closest<HTMLElement>("[data-wordbank-expandable-card]")
+    const bogSurface = bogCard?.querySelector("[data-wordbank-expansion-surface]")
+    expect(bogSurface).toHaveAttribute("data-material", "word")
+    expect(bogSurface).toHaveAttribute("data-index-stock")
+    expect(bogSurface).toHaveAttribute("data-paper-stock")
+    expect(bogCard).toHaveAttribute("data-grid-anchor", "unit")
+    expect(bogCard).toHaveAttribute("data-state", "closed")
 
     fireEvent.focus(bogTile)
     await waitFor(() => {
-      expect(document.querySelector("[data-wordbank-specimen-preview]")).toBeInTheDocument()
+      expect(bogCard).toHaveAttribute("data-state", "open")
     })
-    const preview = document.querySelector<HTMLElement>("[data-wordbank-specimen-preview]")
+    const preview = bogCard?.querySelector<HTMLElement>("[data-wordbank-specimen-preview]")
     expect(preview?.closest("[data-index-stock]")).toBeInTheDocument()
-    expect(within(preview!).getByText("bog")).toBeInTheDocument()
+    expect(preview?.closest("[data-wordbank-expansion-surface]")).toBeInTheDocument()
+    expect(preview?.closest("[data-paper-reveal]")).not.toBeInTheDocument()
+    expect(within(preview!).queryByText("bog")).not.toBeInTheDocument()
+    expect(within(bogCard!).getByText("bog")).toBeInTheDocument()
     expect(within(preview!).getByText("book")).toBeInTheDocument()
     expect(within(preview!).getByText("volume")).toBeInTheDocument()
     expect(within(preview!).getByText("beech tree")).toBeInTheDocument()
@@ -62,6 +69,40 @@ describe("App wordbank collection tiles", () => {
 
     const mweTile = screen.getByRole("button", { name: "passe på" })
     expect(mweTile).toHaveAttribute("data-mwe", "true")
+  })
+
+  it("uses brief hover intent without changing the card footprint", async () => {
+    mockFetchImplementation({
+      lemmasResponse: {
+        items: [
+          {
+            lemma: "bog",
+            english_translation: "book",
+            variation_count: 1,
+            pos_tags: ["NOUN"],
+            categories: [],
+          },
+        ],
+      },
+    })
+
+    renderApp()
+    const tile = await screen.findByRole("button", { name: "bog" })
+    const card = tile.closest<HTMLElement>("[data-wordbank-expandable-card]")!
+
+    fireEvent.pointerEnter(card, { pointerType: "mouse" })
+    expect(card).toHaveAttribute("data-state", "closed")
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 85))
+    })
+    expect(card).toHaveAttribute("data-state", "open")
+
+    fireEvent.pointerLeave(card, { pointerType: "mouse" })
+    expect(card).toHaveAttribute("data-state", "open")
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 135))
+    })
+    expect(card).toHaveAttribute("data-state", "closed")
   })
 
   it("keeps POS-only previews and omits empty previews", async () => {
@@ -88,18 +129,24 @@ describe("App wordbank collection tiles", () => {
     await screen.findByLabelText("backend-connection-status")
 
     const adjectiveTile = await screen.findByRole("button", { name: "gammel" })
+    const adjectiveCard = adjectiveTile.closest<HTMLElement>("[data-wordbank-expandable-card]")
     fireEvent.focus(adjectiveTile)
     await waitFor(() => {
-      expect(document.querySelector("[data-wordbank-specimen-preview]")).toBeInTheDocument()
+      expect(adjectiveCard).toHaveAttribute("data-state", "open")
     })
-    expect(document.querySelector("[data-wordbank-specimen-preview]")).toHaveTextContent("gammelAdjective")
+    expect(adjectiveCard?.querySelector("[data-wordbank-specimen-preview]"))
+      .toHaveTextContent("Adjective")
 
     fireEvent.blur(adjectiveTile)
-    fireEvent.focus(screen.getByRole("button", { name: "ukendt" }))
+    const unknownTile = screen.getByRole("button", { name: "ukendt" })
+    const unknownCard = unknownTile.closest<HTMLElement>("[data-wordbank-expandable-card]")
+    fireEvent.focus(unknownTile)
     await waitFor(() => {
-      expect(document.querySelector("[data-wordbank-specimen-preview]")).not.toBeInTheDocument()
+      expect(adjectiveCard).toHaveAttribute("data-state", "closed")
     })
-    expect(screen.getByRole("button", { name: "ukendt" })).not.toHaveAttribute("aria-description")
+    expect(unknownCard?.querySelector("[data-wordbank-specimen-preview]")).not.toBeInTheDocument()
+    expect(unknownCard).toHaveAttribute("data-state", "closed")
+    expect(unknownTile).not.toHaveAttribute("aria-description")
   })
 
   it("dismisses the preview with Escape without changing the selected word", async () => {
@@ -119,14 +166,19 @@ describe("App wordbank collection tiles", () => {
 
     renderApp()
     const tile = await screen.findByRole("button", { name: "bog" })
-    tile.focus()
+    const card = tile.closest<HTMLElement>("[data-wordbank-expandable-card]")
+    await act(async () => {
+      tile.focus()
+    })
     await waitFor(() => {
-      expect(document.querySelector("[data-wordbank-specimen-preview]")).toBeInTheDocument()
+      expect(card).toHaveAttribute("data-state", "open")
     })
 
-    fireEvent.keyDown(document, { key: "Escape" })
+    await act(async () => {
+      fireEvent.keyDown(tile, { key: "Escape" })
+    })
     await waitFor(() => {
-      expect(document.querySelector("[data-wordbank-specimen-preview]")).not.toBeInTheDocument()
+      expect(card).toHaveAttribute("data-state", "closed")
     })
     expect(tile).toHaveFocus()
     expect(screen.queryByRole("heading", { name: "bog" })).not.toBeInTheDocument()
@@ -157,7 +209,43 @@ describe("App wordbank collection tiles", () => {
     renderApp()
     const tile = await screen.findByRole("button", { name: "bog" })
     fireEvent.pointerDown(tile, { pointerType: "touch" })
+    expect(tile.closest("[data-wordbank-expandable-card]")).toHaveAttribute("data-state", "closed")
     fireEvent.click(tile)
+
+    expect(await screen.findByRole("heading", { name: /^bog$/i })).toBeInTheDocument()
+  })
+
+  it("opens the word page from the expanded paper surface", async () => {
+    mockFetchImplementation({
+      lemmasResponse: {
+        items: [
+          {
+            lemma: "bog",
+            english_translation: "book",
+            variation_count: 1,
+            pos_tags: ["NOUN"],
+            categories: [],
+          },
+        ],
+      },
+      lemmaDetailsResponse: {
+        lemma: "bog",
+        english_translation: "book",
+        is_sectioned: false,
+        pos_tag: "NOUN",
+        surface_forms: [],
+      },
+    })
+
+    renderApp()
+    const tile = await screen.findByRole("button", { name: "bog" })
+    await act(async () => {
+      tile.focus()
+    })
+    const surface = tile
+      .closest<HTMLElement>("[data-wordbank-expandable-card]")
+      ?.querySelector<HTMLElement>("[data-wordbank-expansion-surface]")
+    fireEvent.click(surface!)
 
     expect(await screen.findByRole("heading", { name: /^bog$/i })).toBeInTheDocument()
   })
@@ -209,6 +297,7 @@ describe("App wordbank collection tiles", () => {
 
     renderApp()
     expect(await screen.findByRole("button", { name: "bog" })).toHaveTextContent(/^bog$/)
+    expect(screen.getByRole("button", { name: "bog" }).querySelector(".font-lexical")).toBeInTheDocument()
     expect(screen.queryByLabelText("Recently enriched bog")).not.toBeInTheDocument()
     expect(screen.queryByLabelText("Recently enriched gammel")).not.toBeInTheDocument()
   })
@@ -228,6 +317,8 @@ describe("App wordbank collection tiles", () => {
       const deck = screen.getByRole("button", { name: `Open ${label} reference` })
       const material = deck.closest<HTMLElement>("[data-material='reference']")
       expect(material).toBeInTheDocument()
+      expect(material).toHaveAttribute("data-paper-stock")
+      expect(material).not.toHaveAttribute("data-paper-reveal")
       expect(deck.parentElement).toHaveClass("h-full")
       expect(deck.querySelector("svg[data-icon='inline-start']")).toHaveClass("mt-1.5", "self-start")
       tones.add(material?.dataset.materialTone ?? "")

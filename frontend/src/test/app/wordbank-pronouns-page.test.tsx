@@ -18,7 +18,7 @@ describe("WordbankPronounsPage", () => {
     expect(screen.getAllByRole("button", { name: /^open det in wordbank$/i })).toHaveLength(1)
   })
 
-  it("keeps pinned translations in the layered hover preview", async () => {
+  it("keeps pinned translations in the attached paper preview", async () => {
     render(<WordbankPronounsPage defaultTab="personal" onOpenWord={vi.fn()} onOpenTab={vi.fn()} />)
 
     const denCard = screen.getByRole("button", { name: /^open den in wordbank$/i })
@@ -26,6 +26,7 @@ describe("WordbankPronounsPage", () => {
     expect(denCard).not.toHaveTextContent("it / that")
     expect(denCard).toHaveAttribute("aria-description", "it / that")
     expect(denCard).toHaveAttribute("data-index-stock")
+    expect(denCard).toHaveAttribute("data-paper-stock")
 
     fireEvent.focus(denCard)
     await waitFor(() => {
@@ -35,5 +36,15 @@ describe("WordbankPronounsPage", () => {
     expect(within(preview!).getByText("den")).toBeInTheDocument()
     expect(within(preview!).getByText("it / that")).toBeInTheDocument()
     expect(preview?.closest("[data-index-stock]")).toBeInTheDocument()
+    expect(preview?.closest("[data-paper-reveal]")).toBeInTheDocument()
+    expect(preview?.closest("[data-paper-reveal]")?.querySelector("[data-paper-bridge]"))
+      .not.toBeInTheDocument()
+    expect(denCard).toHaveAttribute("data-paper-trigger")
+
+    fireEvent.keyDown(document, { key: "Escape" })
+    await waitFor(() => {
+      expect(document.querySelector("[data-pinned-word-preview]")).not.toBeInTheDocument()
+    })
+    expect(denCard).toHaveFocus()
   })
 })

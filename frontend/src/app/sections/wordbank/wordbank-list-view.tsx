@@ -33,7 +33,7 @@ export function WordbankListView({
     <div
       className="flex min-h-0 flex-1 flex-col gap-4"
       data-grid-page="wordbank-list"
-      data-notebook-surface="dot-grid"
+      data-notebook-surface="plain"
     >
       <h1
         className="font-section-title flex h-8 items-center text-2xl leading-none font-normal tracking-normal"
