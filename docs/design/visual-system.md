@@ -31,13 +31,14 @@ receive their own redesign.
 
 ## Surfaces and depth
 
-- The outer canvas uses a visible but low-contrast two-tone CSS paper grain.
-  The canonical scrolling notebook sheet normally adds blue-gray ruling beneath
-  that grain. The Wordbank collection switches that layer to a real 8px dot
-  field aligned with its foreground catalogue lattice. A low-opacity,
-  anisotropic SVG noise layer adds paper fibers without introducing a second
-  dot frequency. All
-  decorative treatments disappear when the user requests increased contrast.
+- The outer canvas, application inset, and semantic material surfaces share a
+  visible but low-contrast irregular SVG grain. The canonical scrolling
+  notebook sheet adds longer directional fibers and normally places blue-gray
+  ruling above them. The Wordbank collection switches that final layer to a
+  real 8px dot field aligned with its foreground catalogue lattice. Grain,
+  fibers, and dots use separate frequencies so the surface reads as physical
+  paper rather than a repeated digital pattern. All decorative treatments
+  disappear when the user requests increased contrast.
 - The layout lattice starts at the notebook sheet's content-box origin. Its
   base unit is 8px; every fourth unit is a visible 32px rule. Headings and
   major section starts use `data-grid-anchor="rule"`. Cards, decks, filters,

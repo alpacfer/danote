@@ -129,17 +129,7 @@
     --danote-shadow-paper:
       0 2px 1px -1px color-mix(in oklch, var(--material-underlay, var(--secondary)) 55%, transparent),
       0 8px 18px -14px oklch(0.235 0.026 235 / 0.42);
-    --danote-paper-grain:
-      radial-gradient(
-        ellipse at 2px 3px,
-        oklch(0.235 0.026 235 / 0.075) 0.45px,
-        transparent 0.85px
-      ),
-      radial-gradient(
-        ellipse at 8px 9px,
-        oklch(0.55 0.12 40 / 0.035) 0.35px,
-        transparent 0.75px
-      );
+    --danote-paper-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='128' height='128' viewBox='0 0 128 128'%3E%3Cfilter id='grain'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.74' numOctaves='3' seed='19'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='table' tableValues='0 .065'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='128' height='128' filter='url(%23grain)' opacity='.8'/%3E%3C/svg%3E");
     --danote-notebook-ruling: repeating-linear-gradient(
       to bottom,
       transparent 0,
@@ -152,7 +142,7 @@
       color-mix(in oklch, var(--foreground) 18%, transparent) 0 0.7px,
       transparent 0.85px
     );
-    --danote-paper-fibers: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='192' height='192' viewBox='0 0 192 192'%3E%3Cfilter id='fiber'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.018 .48' numOctaves='2' seed='8'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='table' tableValues='0 .04'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='192' height='192' filter='url(%23fiber)' opacity='.42'/%3E%3C/svg%3E");
+    --danote-paper-fibers: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='192' height='192' viewBox='0 0 192 192'%3E%3Cfilter id='fiber'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.018 .48' numOctaves='2' seed='8'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='table' tableValues='0 .085'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='192' height='192' filter='url(%23fiber)' opacity='.68'/%3E%3C/svg%3E");
 }
 
 @media (min-width: 48rem) {
@@ -220,17 +210,7 @@
     --danote-shadow-paper:
       0 2px 1px -1px color-mix(in oklch, var(--material-underlay, var(--secondary)) 42%, transparent),
       0 10px 22px -14px oklch(0.08 0.018 225 / 0.72);
-    --danote-paper-grain:
-      radial-gradient(
-        ellipse at 2px 3px,
-        oklch(0.935 0.014 85 / 0.05) 0.45px,
-        transparent 0.85px
-      ),
-      radial-gradient(
-        ellipse at 8px 9px,
-        oklch(0.72 0.11 45 / 0.026) 0.35px,
-        transparent 0.75px
-      );
+    --danote-paper-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='128' height='128' viewBox='0 0 128 128'%3E%3Cfilter id='grain'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.74' numOctaves='3' seed='19'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='table' tableValues='0 .05'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='128' height='128' filter='url(%23grain)' opacity='.7'/%3E%3C/svg%3E");
     --danote-notebook-ruling: repeating-linear-gradient(
       to bottom,
       transparent 0,
@@ -243,7 +223,7 @@
       color-mix(in oklch, var(--foreground) 15%, transparent) 0 0.7px,
       transparent 0.85px
     );
-    --danote-paper-fibers: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='192' height='192' viewBox='0 0 192 192'%3E%3Cfilter id='fiber'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.018 .48' numOctaves='2' seed='8'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='table' tableValues='0 .035'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='192' height='192' filter='url(%23fiber)' opacity='.36'/%3E%3C/svg%3E");
+    --danote-paper-fibers: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='192' height='192' viewBox='0 0 192 192'%3E%3Cfilter id='fiber'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.018 .48' numOctaves='2' seed='8'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='table' tableValues='0 .065'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='192' height='192' filter='url(%23fiber)' opacity='.58'/%3E%3C/svg%3E");
 }
 
 @layer base {
@@ -260,8 +240,8 @@
   body {
     @apply bg-background text-foreground text-base;
     background-image: var(--danote-paper-grain);
-    background-position: 0 0, 3px 5px;
-    background-size: 9px 11px, 13px 17px;
+    background-position: 0 0;
+    background-size: 8rem 8rem;
     margin: 0;
     min-height: 100vh;
     font-family: var(--font-sans);
@@ -293,15 +273,18 @@
 
 [data-slot="sidebar-inset"] {
   background-color: var(--background);
+  background-image: var(--danote-paper-grain);
+  background-size: 8rem 8rem;
   box-shadow: var(--danote-shadow-shell);
 }
 
 .danote-notebook-sheet {
   background-image:
     var(--danote-paper-grain),
+    var(--danote-paper-fibers),
     var(--danote-notebook-ruling);
-  background-position: 0 0, 0 var(--danote-shell-gutter-y);
-  background-size: 9px 11px, 100% var(--danote-grid-rule);
+  background-position: 0 0, 0 0, 0 var(--danote-shell-gutter-y);
+  background-size: 8rem 8rem, 12rem 12rem, 100% var(--danote-grid-rule);
 }
 
 .danote-notebook-content {
@@ -313,15 +296,18 @@
 
 .danote-notebook-sheet:has([data-notebook-surface="dot-grid"]) {
   background-image:
+    var(--danote-paper-grain),
     var(--danote-paper-fibers),
     var(--danote-notebook-dots);
   background-position:
+    0 0,
     0 0,
     max(
       var(--danote-shell-gutter-x),
       calc(50% - 40rem + var(--danote-shell-gutter-x))
     ) var(--danote-shell-gutter-y);
   background-size:
+    8rem 8rem,
     12rem 12rem,
     var(--danote-grid-unit) var(--danote-grid-unit);
 }
@@ -352,6 +338,8 @@
 [data-material] {
   --material-underlay: var(--secondary);
   background-color: var(--material-surface, var(--surface-raised));
+  background-image: var(--danote-paper-grain);
+  background-size: 8rem 8rem;
   border-width: 0;
   outline: 1px solid color-mix(in oklch, var(--foreground) 13%, transparent);
   outline-offset: -1px;
@@ -536,6 +524,11 @@
   }
 
   .danote-notebook-sheet:has([data-notebook-surface="dot-grid"]) {
+    background-image: none;
+  }
+
+  [data-slot="sidebar-inset"],
+  [data-material] {
     background-image: none;
   }
 

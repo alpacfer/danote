@@ -64,11 +64,13 @@ async function expectNotebookAlignment() {
   const wordbankList = document.querySelector("[data-grid-page='wordbank-list']")
   if (wordbankList) {
     const sheetStyle = window.getComputedStyle(sheet!)
+    const wordMaterial = document.querySelector<HTMLElement>("[data-material='word']")
+    expect(sheetStyle.backgroundImage.match(/data:image\/svg\+xml/g) ?? []).toHaveLength(2)
     expect(sheetStyle.backgroundImage).toContain("radial-gradient")
     expect(sheetStyle.backgroundImage.match(/radial-gradient/g) ?? []).toHaveLength(1)
-    expect(sheetStyle.backgroundImage).toContain("data:image/svg+xml")
     expect(sheetStyle.backgroundImage.match(/repeating-linear-gradient/g) ?? []).toHaveLength(0)
     expect(sheetStyle.backgroundSize).toContain("8px 8px")
+    expect(window.getComputedStyle(wordMaterial!).backgroundImage).toContain("data:image/svg+xml")
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth + 1)
 
     const alphabet = document.querySelector<HTMLElement>("[aria-label='Word catalogue alphabet']")
