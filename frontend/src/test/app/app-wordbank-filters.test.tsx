@@ -15,7 +15,7 @@ describe("App wordbank filters", () => {
     await screen.findByLabelText("backend-connection-status")
 
     fireEvent.click(await screen.findByRole("button", { name: /^word type/i }))
-    fireEvent.click(await screen.findByText("Verb"))
+    fireEvent.click(await screen.findByRole("option", { name: "Verb" }))
 
     expect(screen.getByRole("button", { name: /^lege/i })).toBeInTheDocument()
     expect(screen.queryByRole("button", { name: /^bog/i })).not.toBeInTheDocument()
@@ -47,7 +47,7 @@ describe("App wordbank filters", () => {
     expect(screen.queryByRole("button", { name: /^kontor/i })).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole("button", { name: /^word type/i }))
-    fireEvent.click(await screen.findByText("Verb"))
+    fireEvent.click(await screen.findByRole("option", { name: "Verb" }))
 
     expect(screen.getByRole("button", { name: /^lære/i })).toBeInTheDocument()
     expect(screen.queryByRole("button", { name: /^klasse/i })).not.toBeInTheDocument()

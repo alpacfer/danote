@@ -1,5 +1,6 @@
 import { type ComponentProps } from "react"
 
+import type { CompleteVariationsResponse } from "@/app/core"
 import { WordbankSection } from "@/app/sections/wordbank-section"
 
 export type WordbankSectionAdapterArgs = {
@@ -29,7 +30,7 @@ export type WordbankSectionAdapterArgs = {
   isRethinkingCategories: boolean
   rethinkCategories: (meaningId: number | null) => Promise<void>
   isCompletingMeaningVariations: boolean
-  completeMeaningVariations: (meaningId: number | null) => Promise<void>
+  completeMeaningVariations: (meaningId: number | null) => Promise<CompleteVariationsResponse | null>
   deleteMeaning: (meaningId: number) => Promise<void>
   deleteLemma: (lemma: string) => Promise<void>
   generatingExampleByMeaningId: Record<number, boolean>
@@ -101,9 +102,7 @@ export function buildWordbankSectionProps(
       void args.rethinkCategories(meaningId)
     },
     isCompletingMeaningVariations: args.isCompletingMeaningVariations,
-    onCompleteMeaningVariations: (meaningId: number | null) => {
-      void args.completeMeaningVariations(meaningId)
-    },
+    onCompleteMeaningVariations: args.completeMeaningVariations,
     onDeleteMeaning: (meaningId: number) => {
       void args.deleteMeaning(meaningId)
     },

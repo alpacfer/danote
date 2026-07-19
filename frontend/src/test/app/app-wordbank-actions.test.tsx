@@ -970,6 +970,100 @@ describe("App wordbank", () => {
     expect(screen.getByText(/^bøger$/i)).toBeInTheDocument()
   })
 
+  it("request-shape: root noun cells complete the sole meaning and focus the clicked square", async () => {
+    let lemmaDetails: LemmaDetailsResponse = {
+      lemma: "bog",
+      english_translation: "book",
+      pos_tag: "NOUN",
+      morphology: "Gender=Com|Number=Sing|Definite=Ind",
+      is_sectioned: false,
+      verification: {
+        status: "verified",
+        composed_word_count: null,
+        provider: "gemini",
+        reviewer_role: "Professional Danish Language Expert",
+        message: "Verified.",
+        requested_at: "2026-03-15T10:00:00Z",
+        completed_at: "2026-03-15T10:00:05Z",
+      },
+      surface_forms: [
+        {
+          form: "bog",
+          pos_tag: "NOUN",
+          morphology: "Gender=Com|Number=Sing|Definite=Ind",
+          has_pronunciation: false,
+        },
+      ],
+    }
+    const fetchSpy = mockFetchImplementation({
+      lemmasResponse: {
+        items: [{ lemma: "bog", variation_count: 0 }],
+      },
+      lemmaDetailsHandler: async () => responseOf(lemmaDetails),
+      completeVariationsHandler: async (_input, init) => {
+        const body = JSON.parse(String(init?.body ?? "{}")) as {
+          stored_lemma?: string
+          meaning_id?: number | null
+        }
+        if (body.stored_lemma !== "bog" || body.meaning_id !== null) {
+          throw new Error("Unexpected root complete-variations payload.")
+        }
+        lemmaDetails = {
+          ...lemmaDetails,
+          surface_forms: [
+            ...lemmaDetails.surface_forms,
+            { form: "bogen", pos_tag: "NOUN", morphology: "Gender=Com|Number=Sing|Definite=Def", has_pronunciation: false },
+            { form: "bøger", pos_tag: "NOUN", morphology: "Gender=Com|Number=Plur|Definite=Ind", has_pronunciation: false },
+            { form: "bøgerne", pos_tag: "NOUN", morphology: "Gender=Com|Number=Plur|Definite=Def", has_pronunciation: false },
+          ],
+        }
+        return responseOf({
+          status: "updated",
+          stored_lemma: "bog",
+          meaning_id: 1,
+          added_surface_forms: ["bogen", "bøger", "bøgerne"],
+          queued_pronunciation_forms: ["bogen", "bøger", "bøgerne"],
+          queued_verification_targets: [],
+          message: "Completed noun variations for 'bog'.",
+        })
+      },
+    })
+
+    renderApp()
+    await screen.findByLabelText("backend-connection-status")
+    fireEvent.click(screen.getByRole("button", { name: /wordbank/i }))
+    fireEvent.click(await screen.findByRole("button", { name: /bog/i }))
+
+    const table = await screen.findByRole("table")
+    const revealCell = within(table).getByRole("button", {
+      name: /^reveal missing forms — focus: singular, definite$/i,
+    })
+    expect(revealCell.querySelector('[data-paradigm-reveal-icon="eye"]')).toBeInTheDocument()
+    fireEvent.mouseOver(revealCell)
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument()
+    fireEvent.click(revealCell)
+
+    await waitFor(() => {
+      expect(
+        fetchSpy.mock.calls.some(([input, init]) => (
+          String(input).endsWith("/api/wordbank/lexemes/complete-variations")
+          && String(init?.body ?? "") === JSON.stringify({
+            stored_lemma: "bog",
+            meaning_id: null,
+          })
+        )),
+      ).toBe(true)
+    })
+    expect(await screen.findByText(/^bogen$/i)).toBeInTheDocument()
+    const revealedCell = screen.getByText(/^bogen$/i).closest("[data-paradigm-cell]")
+    expect(revealedCell).toHaveAttribute("data-reveal-origin", "true")
+    expect(revealedCell).toHaveAttribute("data-newly-revealed", "true")
+    expect(screen.getByText(/^bøgerne$/i).closest("[data-paradigm-cell]")).toHaveAttribute(
+      "data-newly-revealed",
+      "true",
+    )
+  })
+
   it("request-shape: adjective meaning cards can complete variations and render the agreement table with shared plural cells", async () => {
     let lemmaDetails: LemmaDetailsResponse = {
       lemma: "stor",

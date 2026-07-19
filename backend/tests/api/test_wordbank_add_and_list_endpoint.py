@@ -4,6 +4,7 @@ import json
 import sqlite3
 import time
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.core.app_state import set_service_field
@@ -331,7 +332,12 @@ def test_find_alternative_translations_updates_meaning_translation_and_additiona
     assert details.json()["meaning_sections"][0]["additional_translations"] == ["spot", "seat"]
 
 
-def test_complete_variations_endpoint_adds_missing_forms_and_enqueues_jobs(tmp_path, stub_nlp_adapter_factory) -> None:
+@pytest.mark.parametrize("use_root_scope", [False, True])
+def test_complete_variations_endpoint_adds_missing_forms_and_enqueues_jobs(
+    tmp_path,
+    stub_nlp_adapter_factory,
+    use_root_scope: bool,
+) -> None:
     db_path = tmp_path / "danote.sqlite3"
     cor_db_path = tmp_path / "cor.sqlite"
     apply_migrations(db_path)
@@ -422,7 +428,7 @@ def test_complete_variations_endpoint_adds_missing_forms_and_enqueues_jobs(tmp_p
             "/api/wordbank/lexemes/complete-variations",
             json={
                 "stored_lemma": "bog",
-                "meaning_id": meaning_id,
+                "meaning_id": None if use_root_scope else meaning_id,
             },
         )
         details = client.get("/api/wordbank/lemmas/bog")
@@ -430,6 +436,7 @@ def test_complete_variations_endpoint_adds_missing_forms_and_enqueues_jobs(tmp_p
     assert response.status_code == 200
     payload = response.json()
     assert payload["status"] == "updated"
+    assert payload["meaning_id"] == meaning_id
     assert payload["added_surface_forms"] == ["bogen", "bøgerne"]
     assert payload["queued_pronunciation_forms"] == ["bog", "bogen", "bøgerne"]
     assert [item["form"] for item in details.json()["meaning_sections"][0]["surface_forms"]] == ["bogen", "bøger", "bøgerne"]
@@ -554,9 +561,18 @@ def test_complete_variations_endpoint_scopes_to_selected_homograph_meaning(tmp_p
                 "meaning_id": meaning_id,
             },
         )
+        ambiguous_root = client.post(
+            "/api/wordbank/lexemes/complete-variations",
+            json={
+                "stored_lemma": "bog",
+                "meaning_id": None,
+            },
+        )
         details = client.get("/api/wordbank/lemmas/bog")
 
     assert response.status_code == 200
+    assert ambiguous_root.status_code == 400
+    assert "does not have exactly one saved meaning" in ambiguous_root.json()["detail"]
     sections = details.json()["meaning_sections"]
     assert [item["form"] for item in sections[0]["surface_forms"]] == ["bogen", "bøger", "bøgerne"]
     assert [item["form"] for item in sections[1]["surface_forms"]] == ["bogen"]

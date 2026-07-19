@@ -188,7 +188,7 @@ class WordbankUseCase:
         self,
         stored_lemma: str,
         *,
-        meaning_id: int,
+        meaning_id: int | None,
     ) -> CompleteVariationsResponse:
         try:
             return complete_meaning_variations(

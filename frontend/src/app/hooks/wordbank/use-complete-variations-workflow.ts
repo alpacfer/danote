@@ -31,8 +31,8 @@ export function useCompleteVariationsWorkflow({
 
   const completeMeaningVariations = useCallback(async (meaningId: number | null) => {
     const lemma = normalizeSearchWord(selectedLemma ?? "")
-    if (!lemma || meaningId === null) {
-      return
+    if (!lemma) {
+      return null
     }
 
     setIsCompletingMeaningVariations(true)
@@ -47,15 +47,17 @@ export function useCompleteVariationsWorkflow({
       )
       if (payload.status === "skipped") {
         toast.info(payload.message)
-        return
+        return payload
       }
       trackQueuedPronunciationForms(lemma, payload.queued_pronunciation_forms ?? [])
       trackQueuedVerificationTargets(lemma, payload.queued_verification_targets ?? [])
       toast.success(payload.message)
       setWordbankRefreshTick((current) => current + 1)
+      return payload
     } catch (error) {
       const message = error instanceof Error ? error.message : "Could not complete variations."
       toast.error(message)
+      return null
     } finally {
       setIsCompletingMeaningVariations(false)
     }

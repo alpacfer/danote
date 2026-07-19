@@ -510,6 +510,10 @@ The previous token-popover add path from Playground is retired while Playground 
 ## Complete variations follow-up
 
 - `POST /api/wordbank/lexemes/complete-variations`
+- Noun/adjective tables use `Number` as their row-axis header; verb tables use `Tense`. All paradigms retain a fixed grammar-label column, equal form columns, ruled field-note separators, and lexical typography for Danish forms.
+- Eligible empty cells expose an eye action on hover/focus (and a faint touch affordance). Clicking one completes the whole paradigm, focuses the selected square with an ink pulse, and staggers newly returned cells into view.
+- Verification-locked cells remain keyboard-focusable with `aria-disabled`, show a lock affordance, and explain the gate reason without starting verification.
+- Sectioned cards submit their meaning id. Non-sectioned/root cards submit `meaning_id: null`, which the backend resolves only when the lexeme has exactly one saved meaning.
 - Success: Gemini-resolved missing paradigm members inserted; same-spelling forms are kept when they represent distinct morphology (for example verb past matching the lemma); pronunciation queueing merged via one lemma-scoped background job (`stored_lemma`); `queued_pronunciation_forms` = forms still missing audio (may include lemma itself); word page polls bounded window until `has_pronunciation=true` or timeout
 
 ## Behavioral test coverage map

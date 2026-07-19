@@ -27,6 +27,7 @@ export type ParadigmSupplementaryGroup = {
 }
 
 export type ParadigmTableData = {
+  axisLabel: string
   rows: string[]
   columns: string[]
   cells: ParadigmCell[]
@@ -67,6 +68,7 @@ export function buildNounParadigm(surfaceForms: SurfaceForm[]): ParadigmTableDat
   }
 
   return {
+    axisLabel: "Number",
     rows: [...PARADIGM_ROWS],
     columns: [...PARADIGM_COLUMNS],
     cells,
@@ -111,6 +113,7 @@ export function buildAdjectiveParadigm(surfaceForms: SurfaceForm[]): ParadigmTab
   }
 
   return {
+    axisLabel: "Number",
     rows: [...PARADIGM_ROWS],
     columns: [...PARADIGM_COLUMNS],
     cells,
@@ -138,6 +141,7 @@ export function buildVerbParadigm(surfaceForms: SurfaceForm[]): ParadigmTableDat
   }
 
   return {
+    axisLabel: "Tense",
     rows: [...VERB_PARADIGM_ROWS],
     columns: [...VERB_PARADIGM_COLUMNS],
     cells,

@@ -21,12 +21,12 @@ def complete_meaning_variations(
     runtime: WordbankRuntime,
     *,
     stored_lemma: str,
-    meaning_id: int,
+    meaning_id: int | None,
 ) -> CompleteVariationsResponse:
     normalized_lemma = normalize_token(stored_lemma)
     if not normalized_lemma:
         raise ValueError("stored_lemma is required")
-    if meaning_id < 1:
+    if meaning_id is not None and meaning_id < 1:
         raise ValueError("meaning_id must be >= 1")
 
     lexeme, meaning = _load_lexeme_and_meaning(runtime, stored_lemma=normalized_lemma, meaning_id=meaning_id)
@@ -57,15 +57,19 @@ def _load_lexeme_and_meaning(
     runtime: WordbankRuntime,
     *,
     stored_lemma: str,
-    meaning_id: int,
+    meaning_id: int | None,
 ):
     lexeme = runtime.repository.get_lexeme(stored_lemma)
     if lexeme is None:
         raise LookupError(f"Lemma '{stored_lemma}' was not found")
-    meaning = next(
-        (item for item in runtime.repository.list_lexeme_meanings(lexeme.id) if item.id == meaning_id),
-        None,
-    )
+    meanings = runtime.repository.list_lexeme_meanings(lexeme.id)
+    if meaning_id is None:
+        if len(meanings) != 1:
+            raise ValueError(
+                f"meaning_id is required when lemma '{stored_lemma}' does not have exactly one saved meaning"
+            )
+        return lexeme, meanings[0]
+    meaning = next((item for item in meanings if item.id == meaning_id), None)
     if meaning is None:
         raise LookupError(f"Meaning '{meaning_id}' was not found for lemma '{stored_lemma}'")
     return lexeme, meaning

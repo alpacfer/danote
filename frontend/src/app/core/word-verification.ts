@@ -291,10 +291,13 @@ export function getMeaningVerificationGate(
   lemmaDetails: LemmaDetailsResponse | null,
   meaningId: number | null,
 ): MeaningVerificationGate {
-  if (!lemmaDetails || meaningId === null) {
+  if (!lemmaDetails) {
     return { isLocked: true, label: "Complete variations unavailable" }
   }
-  const section = (lemmaDetails.meaning_sections ?? []).find((item) => item.id === meaningId) ?? null
+  const sections = lemmaDetails.meaning_sections ?? []
+  const section = meaningId === null
+    ? (sections.length === 1 ? sections[0] : null)
+    : sections.find((item) => item.id === meaningId) ?? null
   if (!section) {
     return { isLocked: true, label: "Complete variations unavailable" }
   }

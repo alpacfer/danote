@@ -1,4 +1,4 @@
-import type { LemmaDetailsResponse } from "@/app/core"
+import type { CompleteVariationsResponse, LemmaDetailsResponse } from "@/app/core"
 import {
   additionalTranslationsDisplay,
   corSecondaryBadgeClass,
@@ -45,7 +45,7 @@ type WordbankMeaningSectionsProps = {
   isRethinkingCategories: boolean
   onRethinkCategories: (meaningId: number | null) => void
   isCompletingMeaningVariations: boolean
-  onCompleteMeaningVariations: (meaningId: number | null) => void
+  onCompleteMeaningVariations: (meaningId: number | null) => Promise<CompleteVariationsResponse | null>
   onRequestDeleteMeaning: (meaning: { id: number; label: string; translation: string | null }) => void
   generatingExampleByMeaningId: Record<number, boolean>
   onGenerateExample: (meaningId: number, tense?: import("@/app/core/morphology").VerbFormLabel) => void
@@ -174,7 +174,9 @@ export function WordbankMeaningSections({
             canCompleteVariations={canCompleteParadigm && !completionGate.isLocked}
             completeVariationsLabel={completionGate.label}
             isCompletingVariations={isCompletingMeaningVariations}
-            onCompleteVariations={canCompleteParadigm ? () => onCompleteMeaningVariations(actionMeaningId) : undefined}
+            onCompleteVariations={canCompleteParadigm ? () => {
+              void onCompleteMeaningVariations(actionMeaningId)
+            } : undefined}
             onDeleteMeaning={actionMeaningId === null ? undefined : () => onRequestDeleteMeaning({
               id: actionMeaningId,
               label: meaningLemma,
@@ -289,6 +291,12 @@ export function WordbankMeaningSections({
                     {nounParadigm || adjectiveParadigm || verbParadigm ? (
                       <WordbankParadigmTable
                         paradigm={nounParadigm ?? adjectiveParadigm ?? verbParadigm!}
+                        isCompletionAvailable={canCompleteParadigm && !completionGate.isLocked}
+                        completionUnavailableReason={completionGate.label}
+                        isCompletingVariations={isCompletingMeaningVariations}
+                        onCompleteVariations={canCompleteParadigm
+                          ? () => onCompleteMeaningVariations(actionMeaningId)
+                          : undefined}
                         pronunciationLoadingByForm={pronunciationLoadingByForm}
                         regeneratingPronunciationByForm={regeneratingPronunciationByForm}
                         onPlayPronunciation={onPlayPronunciation}

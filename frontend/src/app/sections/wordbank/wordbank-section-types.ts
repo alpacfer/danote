@@ -1,4 +1,5 @@
 import type {
+  CompleteVariationsResponse,
   LemmaDetailsResponse,
   SearchSaveSeed,
   SentencebankSentence,
@@ -34,7 +35,7 @@ export type WordbankSectionProps = {
   isRethinkingCategories: boolean
   onRethinkCategories: (meaningId: number | null) => void
   isCompletingMeaningVariations: boolean
-  onCompleteMeaningVariations: (meaningId: number | null) => void
+  onCompleteMeaningVariations: (meaningId: number | null) => Promise<CompleteVariationsResponse | null>
   onDeleteMeaning: (meaningId: number) => void
   onDeleteLemma: (lemma: string) => void
   generatingExampleByMeaningId: Record<number, boolean>

@@ -834,6 +834,51 @@ def test_complete_meaning_variations_backfills_missing_noun_slots_for_search_see
     }
 
 
+def test_complete_meaning_variations_resolves_the_only_meaning_for_root_scope(tmp_path: Path) -> None:
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_local_lexicon_service=_bog_complete_paradigm_cor_local(),
+        gemini_word_translation_service=_variation_gemini("bog", "NOUN", "book", _BOG_BOOK_FORMS),
+        verification_service=FakeVerificationService(),
+        tts_service=FakeTTSService({}),
+    )
+    added = use_case.add_word(
+        "bøger",
+        "bog",
+        search_seed={
+            "lemma": "bog",
+            "surface": "bøger",
+            "cor_id": "COR.BOG.BOOK.PL",
+            "cor_lemma_idx": 123,
+            "meaning_key": "book",
+            "gloss": "book",
+            "english_translation": "book",
+            "pos_tag": "NOUN",
+            "morphology": "Gender=Com|Number=Plur|Definite=Ind",
+        },
+    )
+    assert added.meaning is not None
+    _verify_meaning_targets(use_case, lemma="bog", meaning_id=added.meaning.id, surfaces=["bøger"])
+
+    response = use_case.complete_meaning_variations("bog", meaning_id=None)
+
+    assert response.status == "updated"
+    assert response.meaning_id == added.meaning.id
+    assert response.added_surface_forms == ["bogen", "bøgerne"]
+
+
+def test_complete_meaning_variations_rejects_ambiguous_root_scope(tmp_path: Path) -> None:
+    use_case = WordbankUseCase(
+        _db_path(tmp_path),
+        cor_local_lexicon_service=_bog_homograph_cor_local(),
+    )
+    use_case.add_word("Bogen", "bog", cor_id="COR.BOG.BOOK.DEF")
+    use_case.add_word("Moser", "bog", cor_id="COR.BOG.SWAMP.PL")
+
+    with pytest.raises(ValueError, match="does not have exactly one saved meaning"):
+        use_case.complete_meaning_variations("bog", meaning_id=None)
+
+
 def test_complete_meaning_variations_uses_selected_homograph_meaning_only(tmp_path: Path) -> None:
     use_case = WordbankUseCase(
         _db_path(tmp_path),

@@ -1078,12 +1078,194 @@
   animation-duration: 180ms;
 }
 
-[data-morphology-journey] tbody tr {
+[data-morphology-journey] [data-slot="table"] {
+  border-collapse: collapse;
+}
+
+[data-morphology-journey] [data-slot="table-row"] {
+  min-height: 2.5rem;
+  border-color: color-mix(in oklch, var(--brand-sky) 22%, transparent);
   background-color: transparent;
 }
 
-[data-morphology-journey] tbody tr + tr {
-  border-top-color: color-mix(in oklch, var(--material-grammar) 26%, transparent);
+[data-morphology-journey] [data-slot="table-row"]:hover {
+  background-color: transparent;
+}
+
+[data-morphology-journey] [data-slot="table-header"] [data-slot="table-row"] {
+  border-bottom-color: color-mix(in oklch, var(--brand-sky) 34%, var(--border));
+}
+
+[data-morphology-journey] [data-slot="table-head"] {
+  height: 2.5rem;
+  padding: 0.5rem;
+  color: var(--muted-foreground);
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  font-weight: 650;
+  letter-spacing: 0.075em;
+  line-height: 1rem;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
+[data-morphology-journey] [data-slot="table-body"] [data-slot="table-head"] {
+  color: color-mix(in oklch, var(--foreground) 76%, var(--muted-foreground));
+  font-size: 0.8125rem;
+  font-weight: 550;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+[data-morphology-journey] [data-slot="table-head"]:first-child {
+  border-right: 1px solid color-mix(in oklch, var(--brand-sky) 32%, transparent);
+}
+
+[data-morphology-journey] [data-paradigm-cell] {
+  position: relative;
+  height: 2.5rem;
+  padding: 0.5rem;
+  vertical-align: middle;
+}
+
+[data-morphology-journey] [data-paradigm-cell][data-empty-cell="true"] {
+  padding: 0.125rem 0.5rem;
+}
+
+[data-morphology-journey] [data-paradigm-form],
+[data-morphology-journey] [data-paradigm-cell] [data-paradigm-form] {
+  color: var(--foreground);
+  font-family: var(--font-lexical);
+  font-size: 0.9375rem;
+  font-variation-settings: var(--font-lexical--font-variation-settings);
+  font-weight: 600;
+  line-height: 1.25rem;
+}
+
+[data-morphology-journey] [data-paradigm-form-label] {
+  color: var(--muted-foreground);
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-weight: 550;
+}
+
+[data-morphology-journey] [data-paradigm-form-separator] {
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+}
+
+[data-morphology-journey] [data-paradigm-reveal] {
+  position: relative;
+  min-height: 2.25rem;
+  color: color-mix(in oklch, var(--muted-foreground) 48%, transparent);
+}
+
+[data-morphology-journey] [data-paradigm-reveal][aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
+[data-morphology-journey] [data-paradigm-reveal-dash] {
+  transition: opacity 150ms ease, transform 150ms ease;
+}
+
+[data-morphology-journey] [data-paradigm-reveal-icon] {
+  position: absolute;
+  right: 0.5rem;
+  opacity: 0.38;
+  transform: scale(0.88) translateY(1px);
+  transition: opacity 150ms ease, right 150ms ease, transform 150ms ease;
+}
+
+[data-morphology-journey] [data-paradigm-reveal-icon="eye"] {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+[data-morphology-journey] [data-paradigm-reveal][data-state="disabled"] [data-paradigm-reveal-icon] {
+  opacity: 0;
+}
+
+[data-morphology-journey] [data-paradigm-reveal]:focus-visible [data-paradigm-reveal-dash] {
+  opacity: 0;
+  transform: scale(0.8);
+}
+
+[data-morphology-journey] [data-paradigm-reveal]:focus-visible [data-paradigm-reveal-icon] {
+  right: 50%;
+  opacity: 1;
+  transform: translateX(50%) scale(1);
+}
+
+@media (hover: hover) {
+  [data-morphology-journey] [data-paradigm-reveal-icon] {
+    right: 50%;
+    opacity: 0;
+    transform: translateX(50%) scale(0.75) translateY(1px);
+  }
+
+  [data-morphology-journey] [data-paradigm-reveal]:hover [data-paradigm-reveal-dash] {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+
+  [data-morphology-journey] [data-paradigm-reveal]:hover [data-paradigm-reveal-icon] {
+    opacity: 1;
+    transform: translateX(50%) scale(1);
+  }
+}
+
+[data-morphology-journey] [data-paradigm-cell][data-reveal-origin="true"] {
+  animation: danote-paradigm-ink-ring 420ms ease-out;
+}
+
+[data-morphology-journey] [data-paradigm-cell][data-newly-revealed="true"] > * {
+  animation: danote-paradigm-write-in 260ms ease-out both;
+  animation-delay: calc(var(--danote-reveal-index, 0) * 50ms);
+}
+
+[data-morphology-journey] [data-paradigm-supplement] {
+  padding-top: 0.5rem;
+  background-image: linear-gradient(
+    to right,
+    color-mix(in oklch, var(--brand-sky) 26%, transparent),
+    transparent 72%
+  );
+  background-position: top left;
+  background-repeat: no-repeat;
+  background-size: 100% 1px;
+}
+
+[data-morphology-journey] [data-paradigm-supplement] > p {
+  color: var(--muted-foreground);
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  font-weight: 650;
+  letter-spacing: 0.075em;
+  line-height: 1rem;
+  text-transform: uppercase;
+}
+
+@keyframes danote-paradigm-ink-ring {
+  0% {
+    box-shadow: inset 0 0 0 0 color-mix(in oklch, var(--brand-sky) 0%, transparent);
+  }
+  42% {
+    box-shadow: inset 0 0 0 2px color-mix(in oklch, var(--brand-sky) 44%, transparent);
+  }
+  100% {
+    box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--brand-sky) 0%, transparent);
+  }
+}
+
+@keyframes danote-paradigm-write-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.2rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @media (min-width: 48rem) {

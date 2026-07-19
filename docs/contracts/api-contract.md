@@ -253,11 +253,12 @@ or `Authorization: Bearer <guest-token>` header. Local dev
   - `primary_translation`: final persisted primary after update. `added_additional_translations`: only new alternates from this request.
 
 ### POST `/api/wordbank/lexemes/complete-variations`
-- **Request model:** `CompleteVariationsRequest`.
+- **Request model:** `CompleteVariationsRequest` (`stored_lemma`, nullable `meaning_id`).
 - **Response model:** `CompleteVariationsResponse`.
 - **Notable status/error behavior:** `503` DB unavailable/locked. `404` target not found. `400` invalid inputs. body `status`: `updated` or `skipped`.
 - **Field invariants:**
-  - v1 is meaning-scoped for noun, adjective, verb meanings; other POS returns `skipped`.
+  - Completion is meaning-scoped for noun, adjective, and verb meanings; other POS returns `skipped`.
+  - A positive `meaning_id` targets that saved meaning. Explicit `null` resolves the lexeme's sole saved meaning for a non-sectioned/root word page; zero or multiple saved meanings return `400`. The response always carries the resolved positive meaning id.
   - Requires Gemini and uses one Gemini variation-resolution call for COR, generated non-COR, and unknown meanings.
   - Gated by verification state: returns `skipped` until meaning target + all saved variations are `verified`. `queued`/`error`/`flagged` states return explicit skip messages.
   - The Gemini response is the authoritative variation set; backend persists returned missing forms directly after normalization/dedupe and does not run a follow-up completion verification review. Same-spelling forms are allowed when Gemini returns them for distinct morphology, including forms that match the lemma.

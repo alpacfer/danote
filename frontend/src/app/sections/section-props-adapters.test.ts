@@ -76,7 +76,7 @@ describe("section prop adapters", () => {
     const regenerate = vi.fn(async () => undefined)
     const findAlternativeTranslations = vi.fn(async () => undefined)
     const rethinkCategories = vi.fn(async () => undefined)
-    const completeMeaningVariations = vi.fn(async () => undefined)
+    const completeMeaningVariations = vi.fn(async () => null)
     const generateExampleForMeaning = vi.fn(async () => undefined)
     const generateStaticExampleForLemma = vi.fn(async () => undefined)
     const apply = vi.fn(async () => undefined)

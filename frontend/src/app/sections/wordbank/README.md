@@ -11,6 +11,7 @@ Wordbank section views and small render helpers.
   expansion timing and viewport-aware placement.
 - `wordbank-alphabet-index.tsx` renders Danish A–Å navigation; `wordbank-alphabet.ts` tracks the visible group.
 - `wordbank-paradigm-utils.ts` builds noun/adjective/verb table data from saved surface forms.
+- `wordbank-paradigm-table.tsx` owns the shared ruled table geometry; `wordbank-paradigm-forms.tsx` renders saved forms and `wordbank-paradigm-reveal.tsx` owns empty-cell actions.
 - `wordbank-pronunciation-word.tsx` is the shared clickable pronunciation trigger.
 - Pinned reference pages live in domain subfolders such as `numbers/`, `pronouns/`, and `time-expressions/`.
 
@@ -23,6 +24,6 @@ Wordbank section views and small render helpers.
 ## Choosing A File
 
 - Put render-only word-page changes next to the visible region they affect.
-- Put shared table classification in `wordbank-paradigm-utils.ts`.
+- Put shared table classification in `wordbank-paradigm-utils.ts`; keep form rendering and reveal interaction in their dedicated paradigm siblings.
 - Put reusable wordbank-only visual helpers here or in `_shared/`.
 - Avoid adding workflow state to these components; pass callbacks from hooks.

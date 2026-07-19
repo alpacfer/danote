@@ -755,9 +755,10 @@ describe("App wordbank", () => {
     expect(within(headerBadges).queryByText(/^Infinitive$/i)).not.toBeInTheDocument()
     expect(within(headerBadges).queryByText(/^Active$/i)).not.toBeInTheDocument()
     const table = screen.getByRole("table")
+    expect(within(table).getByRole("columnheader", { name: /^tense$/i })).toBeInTheDocument()
+    expect(within(table).getByRole("columnheader", { name: /^form$/i })).toBeInTheDocument()
     expect(within(table).getByText(/^infinitive$/i)).toBeInTheDocument()
     expect(within(table).getByText(/^present$/i)).toBeInTheDocument()
-    expect(within(table).queryByText(/^form$/i)).not.toBeInTheDocument()
     expect(screen.getByText(/^lærer$/i)).toBeInTheDocument()
     expect(screen.queryByText(/^learns$/i)).not.toBeInTheDocument()
   })
@@ -807,9 +808,10 @@ describe("App wordbank", () => {
     expect(within(meaningBadges).queryByText(/^Infinitive$/i)).not.toBeInTheDocument()
     expect(within(meaningBadges).queryByText(/^Active$/i)).not.toBeInTheDocument()
     const table = within(meaningCard).getByRole("table")
+    expect(within(table).getByRole("columnheader", { name: /^tense$/i })).toBeInTheDocument()
+    expect(within(table).getByRole("columnheader", { name: /^form$/i })).toBeInTheDocument()
     expect(within(table).getByText(/^past$/i)).toBeInTheDocument()
     expect(within(table).getByText(/^imperative$/i)).toBeInTheDocument()
-    expect(within(table).queryByText(/^form$/i)).not.toBeInTheDocument()
     expect(within(meaningCard).getAllByText(/^kom$/i).length).toBeGreaterThanOrEqual(2)
   })
 
@@ -958,9 +960,14 @@ describe("App wordbank", () => {
     expect(within(headerBadges).getByText(/^n-word$/i)).toBeInTheDocument()
     expect(within(headerBadges).queryByText(/^Singular$/i)).not.toBeInTheDocument()
     expect(within(headerBadges).queryByText(/^Indefinite$/i)).not.toBeInTheDocument()
+    expect(within(table).getByRole("columnheader", { name: /^number$/i })).toBeInTheDocument()
     expect(within(table).getByText(/^singular$/i)).toBeInTheDocument()
     expect(within(table).getByText(/^plural$/i)).toBeInTheDocument()
     expect(within(table).getByText(/^definite$/i)).toBeInTheDocument()
+    const lockedCell = within(table).getByRole("button", {
+      name: /^complete variations unavailable: singular, definite$/i,
+    })
+    expect(lockedCell).toHaveAttribute("aria-disabled", "true")
   })
 
   it("renderer-only: non-COR adjective forms with partial morphology stay in the paradigm table", async () => {

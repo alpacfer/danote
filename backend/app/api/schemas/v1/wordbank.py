@@ -295,7 +295,7 @@ class FindAlternativeTranslationsResponse(BaseModel):
 
 class CompleteVariationsRequest(BaseModel):
     stored_lemma: str = Field(..., min_length=1)
-    meaning_id: int = Field(..., ge=1)
+    meaning_id: int | None = Field(..., ge=1)
 
 
 class CompleteVariationsResponse(BaseModel):
