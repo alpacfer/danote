@@ -2,6 +2,7 @@ import {
   POPOVER_ESTIMATED_HEIGHT_PX,
   POPOVER_VIEWPORT_MARGIN_PX,
 } from "@/app/core/constants"
+import type { SemanticMaterialTone } from "@/app/core/semantic-categories"
 
 export function preferredPopoverSide(lineTop: number, lineBottom: number): "top" | "bottom" {
   const viewportHeight = typeof window === "undefined" ? 800 : window.innerHeight
@@ -147,6 +148,15 @@ export function posBadgeClass(posTag: string | null): string {
   }
   const colorClass = colorByPos[upperTag] ?? colorByPos[posTag] ?? "bg-material-word text-foreground border-border/80"
   return `${baseClass} ${colorClass}`
+}
+
+export function posMaterialTone(posTag: string | null): SemanticMaterialTone {
+  const upperTag = posTag?.toUpperCase() ?? ""
+  if (["NOUN", "PROPN", "PRON", "DET"].includes(upperTag)) return "sky"
+  if (["VERB", "AUX", "PHRASAL_VERB", "IDIOM"].includes(upperTag)) return "plum"
+  if (["ADJ", "ADV", "HV_WORD"].includes(upperTag)) return "sea"
+  if (["NUM", "INTJ"].includes(upperTag)) return "butter"
+  return "clay"
 }
 
 export function secondaryTagsForPos(posTag: string | null, morphology: string | null): string[] {

@@ -304,12 +304,12 @@ describe("App shell and search", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
-    fireEvent.click(within(commandDialog).getByRole("radio", { name: /^English$/i }))
-    expect(within(commandDialog).getByRole("radio", { name: /^English$/i })).toHaveAttribute("data-state", "on")
+    fireEvent.click(within(commandDialog).getByRole("radio", { name: /^Search in English$/i }))
+    expect(within(commandDialog).getByRole("radio", { name: /^Search in English$/i })).toHaveAttribute("data-state", "on")
     const searchInput = within(commandDialog).getByRole("textbox", { name: /command search/i })
     fireEvent.change(searchInput, { target: { value: "notebook" } })
 
-    expect(await within(commandDialog).findByText(/^Dictionary$/i)).toBeInTheDocument()
+    expect(await within(commandDialog).findByText(/^From the dictionary$/i)).toBeInTheDocument()
     await waitFor(() => {
       const translatedRow = within(commandDialog).getByText(/^notesbog$/i, { selector: "strong" })
       expect(translatedRow).toBeInTheDocument()
@@ -442,7 +442,7 @@ describe("App shell and search", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
-    fireEvent.click(within(commandDialog).getByRole("radio", { name: /^English$/i }))
+    fireEvent.click(within(commandDialog).getByRole("radio", { name: /^Search in English$/i }))
     const searchInput = within(commandDialog).getByRole("textbox", { name: /command search/i })
     fireEvent.change(searchInput, { target: { value: "notebook" } })
 
@@ -515,7 +515,7 @@ describe("App shell and search", () => {
     fireEvent.change(searchInput, { target: { value: "kat" } })
 
     expect(await within(commandDialog).findByText(/^kat$/i, { selector: "strong" })).toBeInTheDocument()
-    expect(within(commandDialog).queryByText(/^Saved$/i)).not.toBeInTheDocument()
+    expect(within(commandDialog).queryByText(/^In your notebook$/i)).not.toBeInTheDocument()
 
     await waitFor(() => {
       expect(
@@ -607,8 +607,7 @@ describe("App shell and search", () => {
     fireEvent.change(input, { target: { value: "huse" } })
 
     await waitFor(() => {
-      expect(screen.getByText(/did you mean/i)).toBeInTheDocument()
-      expect(screen.getByText(/"hus"/i)).toBeInTheDocument()
+      expect(screen.getByText(/did you mean.*hus/i)).toBeInTheDocument()
     })
   })
 
@@ -717,19 +716,19 @@ describe("App shell and search", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     let commandDialog = await screen.findByRole("dialog")
-    expect(within(commandDialog).getByRole("radio", { name: /^Danish$/i })).toHaveAttribute("data-state", "on")
+    expect(within(commandDialog).getByRole("radio", { name: /^Search in Danish$/i })).toHaveAttribute("data-state", "on")
 
-    fireEvent.click(within(commandDialog).getByRole("radio", { name: /^English$/i }))
-    expect(within(commandDialog).getByRole("radio", { name: /^English$/i })).toHaveAttribute("data-state", "on")
+    fireEvent.click(within(commandDialog).getByRole("radio", { name: /^Search in English$/i }))
+    expect(within(commandDialog).getByRole("radio", { name: /^Search in English$/i })).toHaveAttribute("data-state", "on")
 
     fireEvent.keyDown(commandDialog, { key: "Escape" })
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument())
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     commandDialog = await screen.findByRole("dialog")
-    expect(within(commandDialog).getByRole("radio", { name: /^English$/i })).toHaveAttribute("data-state", "on")
+    expect(within(commandDialog).getByRole("radio", { name: /^Search in English$/i })).toHaveAttribute("data-state", "on")
 
-    fireEvent.click(within(commandDialog).getByRole("radio", { name: /^Danish$/i }))
+    fireEvent.click(within(commandDialog).getByRole("radio", { name: /^Search in Danish$/i }))
   })
 
   it("suggests switching to English when Danish mode has an English word match", async () => {
@@ -749,11 +748,11 @@ describe("App shell and search", () => {
     const input = within(commandDialog).getByRole("textbox", { name: /command search/i })
     fireEvent.change(input, { target: { value: "book" } })
 
-    expect(await within(commandDialog).findByText("Search in English instead?")).toBeInTheDocument()
+    expect(await within(commandDialog).findByText("Try English instead")).toBeInTheDocument()
     fireEvent.keyDown(input, { key: "Enter" })
 
     await waitFor(() => {
-      expect(within(commandDialog).getByRole("radio", { name: /^English$/i })).toHaveAttribute("data-state", "on")
+      expect(within(commandDialog).getByRole("radio", { name: /^Search in English$/i })).toHaveAttribute("data-state", "on")
     })
   })
 
@@ -811,7 +810,7 @@ describe("App shell and search", () => {
     fireEvent.change(within(commandDialog).getByRole("textbox", { name: /command search/i }), { target: { value: "lave" } })
 
     await waitFor(() => {
-      expect(within(commandDialog).queryByText("Search in English instead?")).not.toBeInTheDocument()
+      expect(within(commandDialog).queryByText("Try English instead")).not.toBeInTheDocument()
     })
   })
 
@@ -851,15 +850,15 @@ describe("App shell and search", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
-    fireEvent.click(within(commandDialog).getByRole("radio", { name: /^English$/i }))
+    fireEvent.click(within(commandDialog).getByRole("radio", { name: /^Search in English$/i }))
     const input = within(commandDialog).getByRole("textbox", { name: /command search/i })
     fireEvent.change(input, { target: { value: "bog" } })
 
-    const suggestion = await within(commandDialog).findByText("Search in Danish instead?")
+    const suggestion = await within(commandDialog).findByText("Try Danish instead")
     fireEvent.click(suggestion)
 
     await waitFor(() => {
-      expect(within(commandDialog).getByRole("radio", { name: /^Danish$/i })).toHaveAttribute("data-state", "on")
+      expect(within(commandDialog).getByRole("radio", { name: /^Search in Danish$/i })).toHaveAttribute("data-state", "on")
     })
   })
 
@@ -891,7 +890,7 @@ describe("App shell and search", () => {
     fireEvent.change(within(commandDialog).getByRole("textbox", { name: /command search/i }), { target: { value: "gift" } })
 
     const currentResult = await within(commandDialog).findByText(/^gift$/i, { selector: "strong" })
-    const suggestion = await within(commandDialog).findByText("Search in English instead?")
+    const suggestion = await within(commandDialog).findByText("Try English instead")
     expect(currentResult.compareDocumentPosition(suggestion) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
@@ -923,7 +922,7 @@ describe("App shell and search", () => {
 
     expect(await within(commandDialog).findByText(/^bog$/i, { selector: "strong" })).toBeInTheDocument()
     await waitFor(() => {
-      expect(within(commandDialog).queryByText(/Search in English instead/i)).not.toBeInTheDocument()
+      expect(within(commandDialog).queryByText(/Try English instead/i)).not.toBeInTheDocument()
     })
   })
 
@@ -993,12 +992,12 @@ describe("App shell and search", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
-    fireEvent.click(within(commandDialog).getByRole("radio", { name: /^English$/i }))
+    fireEvent.click(within(commandDialog).getByRole("radio", { name: /^Search in English$/i }))
     const searchInput = within(commandDialog).getByRole("textbox", { name: /command search/i })
     fireEvent.change(searchInput, { target: { value: "windox" } })
 
     // Verify "Did you mean 'window'?" is shown
-    expect(await within(commandDialog).findByText(/did you mean "window"\?/i)).toBeInTheDocument()
+    expect(await within(commandDialog).findByText(/did you mean.*window/i)).toBeInTheDocument()
 
     // Verify corrected results for "vindue" are rendered
     expect(await within(commandDialog).findByText(/^vindue$/i, { selector: "strong" })).toBeInTheDocument()
@@ -1035,7 +1034,7 @@ describe("App shell and search", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
-    fireEvent.click(within(commandDialog).getByRole("radio", { name: /^English$/i }))
+    fireEvent.click(within(commandDialog).getByRole("radio", { name: /^Search in English$/i }))
     const searchInput = within(commandDialog).getByRole("textbox", { name: /command search/i })
     fireEvent.change(searchInput, { target: { value: "windox" } })
 

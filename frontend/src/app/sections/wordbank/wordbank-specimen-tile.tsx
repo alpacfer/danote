@@ -2,8 +2,8 @@ import { Trash2 } from "lucide-react"
 
 import {
   isMultiWordLemma,
+  posMaterialTone,
   primaryPosLabel,
-  semanticCategoryMaterialTone,
   type WordbankLemma,
 } from "@/app/core"
 import {
@@ -49,7 +49,7 @@ export function WordbankSpecimenTile({
   const translationGroups = wordbankSpecimenTranslationGroups(lemma)
   const previewDescription = wordbankSpecimenDescription(posLabels, translationGroups)
   const hasPreview = Boolean(previewDescription)
-  const materialTone = semanticCategoryMaterialTone(lemma.categories?.[0])
+  const materialTone = posMaterialTone(posTags[0] ?? null)
   const {
     alignment,
     anchorRef,

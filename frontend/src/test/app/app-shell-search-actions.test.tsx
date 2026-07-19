@@ -421,10 +421,10 @@ describe("App shell and search", () => {
 
     expect(searchInput.value).toBe("jeg elsker dansk")
     expect(await within(commandDialog).findByText(/^i love danish$/i)).toBeInTheDocument()
-    expect(within(commandDialog).getByText(/^Sentence$/i)).toBeInTheDocument()
+    expect(within(commandDialog).getByText(/^Sentence to save$/i)).toBeInTheDocument()
     expect(within(commandDialog).queryByText(/^Words$/i)).not.toBeInTheDocument()
     expect(within(commandDialog).queryByText(/^Notes$/i)).not.toBeInTheDocument()
-    expect(within(commandDialog).queryByText(/^Pages$/i)).not.toBeInTheDocument()
+    expect(within(commandDialog).queryByText(/^Go to$/i)).not.toBeInTheDocument()
 
     await waitFor(() => {
       expect(within(commandDialog).getByRole("option")).not.toHaveAttribute("aria-disabled", "true")
@@ -1249,7 +1249,7 @@ describe("App shell and search", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
-    fireEvent.click(within(commandDialog).getByRole("radio", { name: /^English$/i }))
+    fireEvent.click(within(commandDialog).getByRole("radio", { name: /^Search in English$/i }))
     fireEvent.change(within(commandDialog).getByRole("textbox", { name: /command search/i }), { target: { value: "cat" } })
 
     expect(await within(commandDialog).findByText(/^kat$/i, { selector: "strong" })).toBeInTheDocument()
@@ -1259,7 +1259,7 @@ describe("App shell and search", () => {
     expect(
       urls.some((url) => url.includes("/api/wordbank/search/cor-form?form=cat") && !url.includes("include_translations=false")),
     ).toBe(false)
-    fireEvent.click(within(commandDialog).getByRole("radio", { name: /^Danish$/i }))
+    fireEvent.click(within(commandDialog).getByRole("radio", { name: /^Search in Danish$/i }))
   })
 
   it("reuses cached mode-specific results when toggling back without changing the query", async () => {
@@ -1305,8 +1305,8 @@ describe("App shell and search", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
-    const englishToggle = within(commandDialog).getByRole("radio", { name: /^English$/i })
-    const danishToggle = within(commandDialog).getByRole("radio", { name: /^Danish$/i })
+    const englishToggle = within(commandDialog).getByRole("radio", { name: /^Search in English$/i })
+    const danishToggle = within(commandDialog).getByRole("radio", { name: /^Search in Danish$/i })
 
     fireEvent.click(englishToggle)
     fireEvent.change(within(commandDialog).getByRole("textbox", { name: /command search/i }), { target: { value: "cat" } })

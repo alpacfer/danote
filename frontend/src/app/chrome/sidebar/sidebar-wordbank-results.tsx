@@ -1,5 +1,4 @@
-import { Eye, Plus } from "lucide-react"
-
+import { SearchResultAction } from "@/app/chrome/sidebar/sidebar-search-presentation"
 import { Badge } from "@/components/ui/badge"
 import { CommandItem } from "@/components/ui/command"
 import {
@@ -11,6 +10,7 @@ import {
   lemmaTranslationForVariant,
   lemmaTranslationWithGloss,
   normalizeSearchWord,
+  posMaterialTone,
   posBadgeClass,
   saveableTranslationForVariant,
   type SearchSaveSeed,
@@ -62,10 +62,14 @@ export function SidebarWordbankResults({
     <>
       {orderedWordbankResults.map((result) => {
         const resultKey = savedWordbankResultKey(result)
+        const displayVariant = displayVariantBySavedResult.get(resultKey)?.variant ?? null
         return (
           <CommandItem
             key={`search-lemma-${resultKey}`}
             value={wordbankItemValue(result)}
+            data-search-slip
+            data-material="word"
+            data-material-tone={posMaterialTone(displayVariant?.pos_tag ?? result.pos_tag ?? null)}
             onSelect={() => {
               const addVariation = addVariationBySavedResult.get(resultKey)
               const isExactSavedVariation = exactSavedVariationKeySet.has(resultKey)
@@ -119,7 +123,6 @@ export function SidebarWordbankResults({
           >
             <div className="flex min-w-0 flex-col items-start gap-0.5">
               {(() => {
-                const displayVariant = displayVariantBySavedResult.get(resultKey)?.variant ?? null
                 const lemmaKey = normalizeSearchWord(result.lemma)
                 const matchedSurface = result.match_surface?.trim() || ""
                 const matchedSurfaceKey = normalizeSearchWord(matchedSurface)
@@ -185,7 +188,7 @@ export function SidebarWordbankResults({
                 return (
                   <>
                     <span>
-                      <strong className="font-semibold">{displayTitle}</strong>
+                      <strong data-search-lexical className="font-semibold">{displayTitle}</strong>
                       {linkedLemmaDisplay ? (
                         <span className="text-muted-foreground text-xs">
                           {" "}from <em>{linkedLemmaDisplay}</em>
@@ -228,13 +231,16 @@ export function SidebarWordbankResults({
               )
               if (linkedVariation && !isExactSavedVariation && !isVariationAddBlocked) {
                 return (
-                  <span className="text-muted-foreground flex items-center gap-1 text-xs font-semibold">
-                    <span data-testid="search-add-variation-label">variation</span>
-                    <Plus data-testid="search-add-icon" className="size-4 shrink-0" />
+                  <span data-testid="search-add-variation-label">
+                    <SearchResultAction kind="add-form" iconTestId="search-add-icon" />
                   </span>
                 )
               }
-              return <Eye data-testid="search-open-icon" className="text-muted-foreground size-4 shrink-0" />
+              return (
+                <span data-testid="search-open-icon">
+                  <SearchResultAction kind="open" />
+                </span>
+              )
             })()}
           </CommandItem>
         )

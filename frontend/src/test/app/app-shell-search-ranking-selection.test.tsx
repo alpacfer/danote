@@ -247,7 +247,7 @@ describe("App shell and search", () => {
     await waitFor(() => {
       expect(within(commandDialog).queryByTestId("search-open-icon")).not.toBeInTheDocument()
     })
-    expect(await within(commandDialog).findByText(/no results found\./i)).toBeInTheDocument()
+    expect(await within(commandDialog).findByText(/nothing found for “ulykk”\./i)).toBeInTheDocument()
     expect(within(commandDialog).queryByTestId("search-add-icon")).not.toBeInTheDocument()
     expect(within(commandDialog).queryByText(/^ulykke$/i, { selector: "strong" })).not.toBeInTheDocument()
 

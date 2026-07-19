@@ -95,6 +95,19 @@ receive their own redesign.
   single title. Pinned cards retain their attached hover preview. Their
   field-book character comes from real hierarchy and paper treatment, never
   fabricated catalogue metadata.
+- Global search is a compact field-note folio rather than a generic command
+  palette. Its clean, untextured surface stays visually continuous across its
+  controls and results: there is no visible title block or dividing rule. The
+  language toggle sits beside the Fraunces query in a compact control row, while
+  translations, metadata, and controls remain Source Sans. Paper grain is
+  reserved for compact material result slips whose tones follow part of speech
+  and match the Wordbank catalogue. Natural notebook language names the groups;
+  keyboard selection lifts a slip by one pixel and adds an ochre underlay
+  without changing result density.
+- On mobile, the folio remains a bottom sheet: results scroll above a fixed
+  composer containing the full `Dansk | English` toggle, close control, and
+  encapsulated search field. The toggle and action labels replace detached
+  language and icon-only controls.
 
 ## Motion
 

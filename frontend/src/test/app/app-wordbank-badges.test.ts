@@ -1,4 +1,4 @@
-import { badgesForSavedForm, posBadgeClass } from "@/app/core"
+import { badgesForSavedForm, posBadgeClass, posMaterialTone } from "@/app/core"
 
 describe("Wordbank saved badges", () => {
   it("gives word types a lexical label treatment", () => {
@@ -6,6 +6,14 @@ describe("Wordbank saved badges", () => {
     expect(posBadgeClass("VERB")).toContain("rounded-sm")
     expect(posBadgeClass("VERB")).toContain("bg-material-grammar")
     expect(posBadgeClass("NOUN")).toContain("bg-material-reference")
+  })
+
+  it("maps parts of speech to stable material tones", () => {
+    expect(posMaterialTone("NOUN")).toBe("sky")
+    expect(posMaterialTone("VERB")).toBe("plum")
+    expect(posMaterialTone("ADJ")).toBe("sea")
+    expect(posMaterialTone("NUM")).toBe("butter")
+    expect(posMaterialTone("ADP")).toBe("clay")
   })
 
   it("maps adjective agreement to n-word labels instead of Common", () => {

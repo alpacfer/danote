@@ -9,6 +9,8 @@ export function SidebarSearchPendingSkeleton() {
       disabled
       aria-hidden="true"
       data-testid="search-pending-skeleton"
+      data-search-slip
+      data-material="discovery"
       className="flex items-start justify-between gap-3"
     >
       <div className="flex min-w-0 flex-col items-start gap-1">
@@ -33,6 +35,8 @@ export function SidebarSearchEnSkeletons({ count }: { count: number }) {
           disabled
           aria-hidden="true"
           data-testid="search-en-skeleton"
+          data-search-slip
+          data-material="discovery"
           className="flex items-start justify-between gap-3"
         >
           <div className="flex min-w-0 flex-col items-start gap-0.5">
@@ -48,4 +52,3 @@ export function SidebarSearchEnSkeletons({ count }: { count: number }) {
     </>
   )
 }
-

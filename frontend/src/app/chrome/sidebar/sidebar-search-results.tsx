@@ -25,6 +25,7 @@ import { SidebarSearchPendingSkeleton, SidebarSearchEnSkeletons } from "@/app/ch
 import { SidebarWordbankResults } from "@/app/chrome/sidebar/sidebar-wordbank-results"
 import { SavedSentencesGroup } from "@/app/chrome/sidebar/sidebar-saved-sentences"
 import { SidebarPagesResults } from "@/app/chrome/sidebar/sidebar-pages-results"
+import { SearchSection } from "@/app/chrome/sidebar/sidebar-search-presentation"
 import type { SidebarPageItem } from "@/app/chrome/sidebar/sidebar-page-items"
 import type { SearchLanguageMode, SearchModeSwitchSuggestion } from "@/app/chrome/sidebar/sidebar-search-types"
 
@@ -106,16 +107,20 @@ function isSelfTranslatedCorVariant(variant: CORSearchVariant, normalizedQuery: 
 
 export function SidebarSearchResults({ state, data, actions }: SidebarSearchResultsProps) {
   const modeSwitchEntry = state.modeSwitchSuggestion ? (
-    <CommandItem
-      value={state.modeSwitchSuggestion.value}
-      onSelect={() => actions.onSwitchSearchMode(state.modeSwitchSuggestion!.targetMode)}
-      className="mx-2"
-    >
-      <span>{state.modeSwitchSuggestion.label}</span>
-      <span className="ml-auto hidden text-xs text-muted-foreground md:inline">
-        {state.modeSwitchSuggestion.evidenceLabel}
-      </span>
-    </CommandItem>
+    <CommandGroup data-search-note-group>
+      <CommandItem
+        value={state.modeSwitchSuggestion.value}
+        onSelect={() => actions.onSwitchSearchMode(state.modeSwitchSuggestion!.targetMode)}
+        data-search-note
+      >
+        <span>
+          Try {state.modeSwitchSuggestion.targetMode === "en" ? "English" : "Danish"} instead
+        </span>
+        <span className="ml-auto hidden text-xs text-muted-foreground md:inline">
+          {state.modeSwitchSuggestion.evidenceLabel}
+        </span>
+      </CommandItem>
+    </CommandGroup>
   ) : null
 
   if (state.isSentenceMode) {
@@ -149,7 +154,7 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
 
       return (
         <CommandList>
-          <CommandGroup heading="Dictionary">
+          <SearchSection heading="From the dictionary" material="discovery">
             <SidebarCorResults
               orderedCorSearchGroups={[mweGroup]}
               corSearchVariantsToRender={mweVariantsToRender}
@@ -161,7 +166,7 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
               onOpenWordbankMeaning={actions.onOpenWordbankMeaning}
               onCloseSearch={actions.onCloseSearch}
             />
-          </CommandGroup>
+          </SearchSection>
           {modeSwitchEntry ? (
             <>
               <CommandSeparator />
@@ -266,19 +271,25 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
 
   return (
     <CommandList>
-      {state.normalizedQuery && !state.hasAnyResults && !isInitialSearchLoading ? <CommandEmpty>No results found.</CommandEmpty> : null}
+      {state.normalizedQuery && !state.hasAnyResults && !isInitialSearchLoading ? (
+        <CommandEmpty>Nothing found for “{state.normalizedQuery}”.</CommandEmpty>
+      ) : null}
 
       {isInitialSearchLoading ? (
-        <CommandGroup heading="Searching" className="animate-in fade-in-0 duration-150">
+        <SearchSection
+          heading="Looking it up"
+          material="discovery"
+          className="animate-in fade-in-0 duration-150"
+        >
           <SidebarSearchPendingSkeleton />
-        </CommandGroup>
+        </SearchSection>
       ) : null}
 
       {/* Direct results — exact query match */}
       {hasDirectResults ? (
         <>
           {hasDirectWordbank ? (
-            <CommandGroup heading="Saved">
+            <SearchSection heading="In your notebook" material="word">
               <SidebarWordbankResults
                 orderedWordbankResults={data.orderedWordbankResults}
                 displayVariantBySavedResult={data.displayVariantBySavedResult}
@@ -292,11 +303,11 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
                 onOpenWordbankMeaning={actions.onOpenWordbankMeaning}
                 onCloseSearch={actions.onCloseSearch}
               />
-            </CommandGroup>
+            </SearchSection>
           ) : null}
           {hasDirectWordbank && hasDirectCor ? <CommandSeparator /> : null}
           {hasDirectCor ? (
-            <CommandGroup heading="Dictionary">
+            <SearchSection heading="From the dictionary" material="discovery">
               <SidebarCorResults
                 orderedCorSearchGroups={directCorSearchGroups}
                 corSearchVariantsToRender={directCorSearchVariantsToRender}
@@ -308,7 +319,7 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
                 onOpenWordbankMeaning={actions.onOpenWordbankMeaning}
                 onCloseSearch={actions.onCloseSearch}
               />
-            </CommandGroup>
+            </SearchSection>
           ) : null}
         </>
       ) : null}
@@ -327,13 +338,15 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
       {dymSuggestion ? (
         <>
           {hasDirectResults && !hasModeSwitchSuggestion ? <CommandSeparator /> : null}
-          <CommandItem
-            value="did-you-mean-suggestion"
-            onSelect={() => actions.onSetSearchQuery(dymSuggestion)}
-            className="mx-2"
-          >
-            Did you mean &quot;{dymSuggestion}&quot;?
-          </CommandItem>
+          <CommandGroup data-search-note-group>
+            <CommandItem
+              value="did-you-mean-suggestion"
+              onSelect={() => actions.onSetSearchQuery(dymSuggestion)}
+              data-search-note
+            >
+              Did you mean “{dymSuggestion}”?
+            </CommandItem>
+          </CommandGroup>
           {hasCorrectedResults ? <CommandSeparator /> : null}
         </>
       ) : null}
@@ -342,7 +355,7 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
       {hasCorrectedResults ? (
         <>
           {hasCorrectedCor ? (
-            <CommandGroup heading="Dictionary">
+            <SearchSection heading="From the dictionary" material="discovery">
               <SidebarCorResults
                 orderedCorSearchGroups={data.orderedCorSearchGroups}
                 corSearchVariantsToRender={data.corSearchVariantsToRender}
@@ -354,11 +367,11 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
                 onOpenWordbankMeaning={actions.onOpenWordbankMeaning}
                 onCloseSearch={actions.onCloseSearch}
               />
-            </CommandGroup>
+            </SearchSection>
           ) : null}
           {hasCorrectedCor && hasCorrectedWordbank ? <CommandSeparator /> : null}
           {hasCorrectedWordbank ? (
-            <CommandGroup heading="Saved">
+            <SearchSection heading="In your notebook" material="word">
               <SidebarWordbankResults
                 orderedWordbankResults={data.orderedWordbankResults}
                 displayVariantBySavedResult={data.displayVariantBySavedResult}
@@ -372,7 +385,7 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
                 onOpenWordbankMeaning={actions.onOpenWordbankMeaning}
                 onCloseSearch={actions.onCloseSearch}
               />
-            </CommandGroup>
+            </SearchSection>
           ) : null}
         </>
       ) : null}
@@ -380,7 +393,11 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
       {hasTranslatedEnSection ? (
         <>
           {hasWordbankSection ? <CommandSeparator /> : null}
-          <CommandGroup heading="Dictionary" className="animate-in fade-in-0 duration-150">
+          <SearchSection
+            heading="From the dictionary"
+            material="discovery"
+            className="animate-in fade-in-0 duration-150"
+          >
             {hasTranslatedEnCorResults ? (
               <SidebarCorResults
                 orderedCorSearchGroups={data.translatedEnCorSearchGroups}
@@ -405,7 +422,7 @@ export function SidebarSearchResults({ state, data, actions }: SidebarSearchResu
                 onCloseSearch={actions.onCloseSearch}
               />
             )}
-          </CommandGroup>
+          </SearchSection>
         </>
       ) : null}
 

@@ -1,6 +1,7 @@
-import { X, ChevronDown } from "lucide-react"
+import { Search, X } from "lucide-react"
 import { useMemo, useState, useEffect, type KeyboardEventHandler } from "react"
 
+import { SearchFolioControls } from "@/app/chrome/sidebar/sidebar-search-presentation"
 import {
   SENTENCE_VERIFY_MAX_CHARS,
   type SentenceSearchPreviewResponse,
@@ -8,7 +9,6 @@ import {
 import type { SearchLanguageMode } from "@/app/chrome/sidebar/sidebar-search-types"
 import { Button } from "@/components/ui/button"
 import { CommandInput } from "@/components/ui/command"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 
 import {
@@ -175,124 +175,51 @@ export function SidebarSearchInput({
   ) : null
 
   const hasValue = value.length > 0
-  const toggleLanguage = () => {
-    setPhraseIndex(0)
-    setDisplayText("")
-    setIsDeleting(false)
-    onLanguageModeChange(searchLanguageMode === "da" ? "en" : "da")
-  }
-
-  const desktopLanguageButton = (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          className="h-7 w-7 rounded-sm text-[10px] font-bold tracking-wider transition-all duration-200 select-none shadow-none border-border bg-background hover:bg-accent hover:text-accent-foreground text-foreground shrink-0 p-0 flex items-center justify-center self-center"
-          onClick={toggleLanguage}
-          onMouseDown={(e) => {
-            e.preventDefault()
-          }}
-          onPointerDown={(e) => {
-            e.preventDefault()
-          }}
-          aria-label={
-            searchLanguageMode === "da"
-              ? "Switch to English search"
-              : "Switch to Danish search"
-          }
-        >
-          {searchLanguageMode === "da" ? "DA" : "EN"}
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent side="left" align="center" className="text-xs">
-        {searchLanguageMode === "da"
-          ? "Danish search. Click to switch to English."
-          : "English search. Click to switch to Danish."}
-      </TooltipContent>
-    </Tooltip>
-  )
-
-  const responsiveLanguageButton = (
-    <>
-      <div className="max-md:hidden flex items-center justify-center self-center shrink-0">
-        {desktopLanguageButton}
-      </div>
-    </>
-  )
 
   return (
-    <div className="flex flex-col w-full">
-      <div
-        data-slot="sidebar-search-input-row"
-        className="flex items-center [&_[data-slot=command-input-wrapper]]:flex-1 max-md:w-full max-md:gap-3 max-md:px-4 max-md:py-3 max-md:pb-[calc(0.75rem+env(safe-area-inset-bottom))] max-md:bg-popover max-md:[&_[data-slot=command-input-wrapper]]:m-0 max-md:[&_[data-slot=command-input-wrapper]]:h-11 max-md:[&_[data-slot=command-input-wrapper]]:min-h-11 max-md:[&_[data-slot=command-input-wrapper]]:rounded-2xl max-md:[&_[data-slot=command-input-wrapper]]:bg-background max-md:[&_[data-slot=command-input-wrapper]]:border-border max-md:[&_[data-slot=command-input-wrapper]]:shadow-lg max-md:[&_[data-slot=command-input-wrapper]]:pr-3 max-md:[&_[data-slot=command-input-wrapper]]:pl-3 max-md:[&_[data-slot=command-input-wrapper]_textarea]:py-2.5 max-md:[&_[data-slot=command-input-wrapper]_textarea]:text-base max-md:[&_[data-slot=command-input-overlay]]:py-2.5 max-md:[&_[data-slot=command-input-overlay]]:text-base"
+    <div data-search-composer className="flex w-full flex-col">
+      <SearchFolioControls
+        searchLanguageMode={searchLanguageMode}
+        onLanguageModeChange={(mode) => {
+          setPhraseIndex(0)
+          setDisplayText("")
+          setIsDeleting(false)
+          onLanguageModeChange(mode)
+        }}
+        onCloseSearch={onCloseSearch}
       >
-        {/* Mobile Language Toggle Button (Visible only on mobile) */}
-        <button
-          type="button"
-          className="flex size-11 shrink-0 items-center justify-center rounded-full border border-border bg-background shadow-lg text-foreground font-semibold text-sm transition-all duration-200 active:scale-90 md:hidden"
-          onClick={toggleLanguage}
-          onMouseDown={(e) => {
-            e.preventDefault()
-          }}
-          onPointerDown={(e) => {
-            e.preventDefault()
-          }}
-          aria-label={
-            searchLanguageMode === "da"
-              ? "Switch to English search"
-              : "Switch to Danish search"
-          }
-        >
-          {searchLanguageMode === "da" ? "DA" : "EN"}
-        </button>
-
-        {/* Main Pill Search Input */}
-        <div className="min-w-0 flex-1 md:contents">
-          <CommandInput
-            placeholder={isTest ? phrases[0] : displayText}
-            value={value}
-            onValueChange={onValueChange}
-            onKeyDown={onKeyDown as KeyboardEventHandler<HTMLInputElement>}
-            aria-label="command search"
-            overlay={overlay}
-            concealValue={Boolean(overlay)}
-            icon={responsiveLanguageButton}
-            suffix={(
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                aria-label="Clear search"
-                className={cn("rounded-full", hasValue ? "" : "invisible pointer-events-none")}
-                onClick={() => onValueChange("")}
-                onMouseDown={(e) => {
-                  e.preventDefault()
-                }}
-                onPointerDown={(e) => {
-                  e.preventDefault()
-                }}
-              >
-                <X />
-              </Button>
-            )}
-            multiline
-            autoFocus
-            maxLength={SENTENCE_VERIFY_MAX_CHARS}
-          />
-        </div>
-
-        {/* Mobile Close Button (Visible only on mobile) */}
-        <button
-          type="button"
-          aria-label="Close search"
-          className="flex size-11 shrink-0 items-center justify-center rounded-full border border-border bg-background shadow-lg text-muted-foreground transition-all duration-200 active:scale-90 md:hidden"
-          onClick={onCloseSearch}
-        >
-          <ChevronDown className="size-5" />
-        </button>
-      </div>
-
+        <CommandInput
+          placeholder={isTest ? phrases[0] : displayText}
+          value={value}
+          onValueChange={onValueChange}
+          onKeyDown={onKeyDown as KeyboardEventHandler<HTMLInputElement>}
+          aria-label="command search"
+          icon={<Search aria-hidden data-search-input-icon />}
+          overlay={overlay}
+          concealValue={Boolean(overlay)}
+          suffix={(
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Clear search"
+              className={cn("rounded-full", hasValue ? "" : "invisible pointer-events-none")}
+              onClick={() => onValueChange("")}
+              onMouseDown={(e) => {
+                e.preventDefault()
+              }}
+              onPointerDown={(e) => {
+                e.preventDefault()
+              }}
+            >
+              <X />
+            </Button>
+          )}
+          multiline
+          autoFocus
+          maxLength={SENTENCE_VERIFY_MAX_CHARS}
+        />
+      </SearchFolioControls>
     </div>
   )
 }

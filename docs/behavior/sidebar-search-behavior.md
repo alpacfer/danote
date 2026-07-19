@@ -15,11 +15,20 @@ Exact behavior of sidebar command search ("Search words...").
 - Close → clears `searchQuery` + command selection override.
 - Input keeps the raw typed value so spaces survive while composing a sentence query. Normalization happens downstream in `useSidebarSearch`.
 - Placeholder: `Search words...`
-- A compact `Danish | English` toggle sits directly below the input. It is a
-  single-select shadcn/Radix toggle group; clicking the selected language does
-  not clear the mode. The selected mode is stored in browser `sessionStorage`
-  as `danote.search.languageMode` and defaults to Danish when storage is empty
-  or unavailable.
+- The field-note folio shows a compact `Dansk | English` language selector to
+  the right of its encapsulated search field on desktop. On mobile the selector
+  and close control occupy a small row above the field. It is a single-select
+  shadcn/Radix toggle group with accessible
+  `Search in Danish` / `Search in English` names; clicking the selected language
+  does not clear the mode. The selected mode is stored in browser
+  `sessionStorage` as `danote.search.languageMode` and defaults to Danish when
+  storage is empty or unavailable.
+- Desktop search uses one uninterrupted warm-paper folio without a visible
+  title, helper, or boundary between the controls and results. The folio itself
+  is a clean, untextured surface; paper grain is reserved for result slips.
+  Mobile keeps
+  results scrolling above a bottom-anchored composer; the full language toggle
+  and close control live in that composer instead of detached circular buttons.
 - Placeholder examples are mode-specific: Danish mode rotates Danish examples,
   English mode rotates English examples.
 - Single-word queries render a generic `Searching` skeleton group as soon as wordbank/COR/English lookup starts, including during debounce. Once the flow shape is known, those generic rows give way to source-specific results or source-specific skeleton rows.
@@ -49,7 +58,7 @@ The language toggle gates lookup sources:
 ## Wrong-mode suggestion
 
 - When the opposite language mode has credible evidence, the result list shows a
-  normal command row: `Search in English instead?` or `Search in Danish instead?`.
+  keyboard-selectable note strip: `Try English instead` or `Try Danish instead`.
   Selecting it by click or Enter switches the language mode and keeps the typed
   query in place.
 - The row still appears when the current mode has valid results. In that case it
@@ -314,8 +323,19 @@ Sorted by best variant score per group:
 
 ## Empty state and sections
 
-- "No results found." only when: query non-empty, no wordbank/page results, and no search lookup is still loading.
-- Section order: `Saved` for stored wordbank hits, `Dictionary` for COR/local English lookup rows, then `Pages`. Separators appear between present sections.
+- `Nothing found for “<query>”.` appears only when the query is non-empty, no
+  wordbank/page results exist, and no search lookup is still loading.
+- Source boundaries and ordering remain unchanged, but their visible notebook
+  labels are `In your notebook` (saved words), `From the dictionary` (COR/local
+  English), `Sentence to save`, `In your sentences`, and `Go to` (pages).
+  Initial loading uses `Looking it up`.
+- Result rows are compact semantic paper slips. Danish word and sentence source
+  text uses lexical Fraunces; translations and metadata remain Source Sans.
+  Word slips use the same part-of-speech material tones as the Wordbank
+  catalogue (noun/pronoun sky, verb plum, adjective/adverb sea, number butter,
+  and function-word clay).
+  Right-side actions use `Open`, `Add`, or `Add form` labels with their icons.
+  All senses stay visible and retain the existing ranking.
 
 ## Test coverage map
 

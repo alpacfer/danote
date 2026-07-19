@@ -1,4 +1,5 @@
-import { CommandGroup, CommandItem } from "@/components/ui/command"
+import { SearchSection } from "@/app/chrome/sidebar/sidebar-search-presentation"
+import { CommandItem } from "@/components/ui/command"
 import { Kbd, KbdGroup } from "@/components/ui/kbd"
 import type { SidebarPageItem } from "@/app/chrome/sidebar/sidebar-page-items"
 
@@ -23,13 +24,15 @@ export function SidebarPagesResults({ matchingPageItems, onCloseSearch }: Sideba
   if (matchingPageItems.length === 0) return null
 
   return (
-    <CommandGroup heading="Pages">
+    <SearchSection heading="Go to" material="reference">
       {matchingPageItems.map((item) => {
         const Icon = item.icon
         return (
           <CommandItem
             key={item.key}
             value={item.key}
+            data-search-slip
+            data-material="reference"
             className="max-md:h-12 max-md:text-base max-md:[&_svg:not([class*='size-'])]:size-5"
             onSelect={() => {
               item.onSelect()
@@ -42,6 +45,6 @@ export function SidebarPagesResults({ matchingPageItems, onCloseSearch }: Sideba
           </CommandItem>
         )
       })}
-    </CommandGroup>
+    </SearchSection>
   )
 }

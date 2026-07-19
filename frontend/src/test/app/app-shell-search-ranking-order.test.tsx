@@ -469,14 +469,14 @@ describe("App shell and search", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
-    fireEvent.click(within(commandDialog).getByRole("radio", { name: /^English$/i }))
+    fireEvent.click(within(commandDialog).getByRole("radio", { name: /^Search in English$/i }))
     const searchInput = within(commandDialog).getByRole("textbox", { name: /command search/i })
     fireEvent.change(searchInput, { target: { value: "candle" } })
 
     expect(await within(commandDialog).findByText(/^lys$/i, { selector: "strong" })).toBeInTheDocument()
     expect(await within(commandDialog).findByText(/^genlyse$/i, { selector: "strong" })).toBeInTheDocument()
     await waitFor(() => {
-      expect(within(commandDialog).getAllByText(/^Dictionary$/i)).toHaveLength(1)
+      expect(within(commandDialog).getAllByText(/^From the dictionary$/i)).toHaveLength(1)
     })
     expect(within(commandDialog).queryByText(/To watch the growth/i)).not.toBeInTheDocument()
     expect(within(commandDialog).queryByText(/\+1 more sense/i)).not.toBeInTheDocument()
@@ -553,7 +553,7 @@ describe("App shell and search", () => {
     expect(await within(commandDialog).findByText(/^bog$/i, { selector: "strong" })).toBeInTheDocument()
     expect(await within(commandDialog).findByText(/^book \(for reading\)$/i)).toBeInTheDocument()
     expect(within(commandDialog).queryByText(/^mose$/i, { selector: "strong" })).not.toBeInTheDocument()
-    expect(within(commandDialog).queryByText(/^Saved$/i)).not.toBeInTheDocument()
+    expect(within(commandDialog).queryByText(/^In your notebook$/i)).not.toBeInTheDocument()
   })
 
   it("renders English surface-form translations through matching Danish COR forms", async () => {
@@ -628,7 +628,7 @@ describe("App shell and search", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
-    fireEvent.click(within(commandDialog).getByRole("radio", { name: /^English$/i }))
+    fireEvent.click(within(commandDialog).getByRole("radio", { name: /^Search in English$/i }))
     const searchInput = within(commandDialog).getByRole("textbox", { name: /command search/i })
     fireEvent.change(searchInput, { target: { value: "dogs" } })
 
@@ -760,7 +760,7 @@ describe("App shell and search", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
-    fireEvent.click(within(commandDialog).getByRole("radio", { name: /^English$/i }))
+    fireEvent.click(within(commandDialog).getByRole("radio", { name: /^Search in English$/i }))
     fireEvent.change(within(commandDialog).getByRole("textbox", { name: /command search/i }), { target: { value: "fish" } })
 
     expect(await within(commandDialog).findByText(/^fisk$/i, { selector: "strong" })).toBeInTheDocument()
@@ -827,7 +827,7 @@ describe("App shell and search", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /search/i }))
     const commandDialog = await screen.findByRole("dialog")
-    fireEvent.click(within(commandDialog).getByRole("radio", { name: /^English$/i }))
+    fireEvent.click(within(commandDialog).getByRole("radio", { name: /^Search in English$/i }))
     fireEvent.change(within(commandDialog).getByRole("textbox", { name: /command search/i }), { target: { value: "run" } })
 
     expect(await within(commandDialog).findAllByTestId("search-pending-skeleton")).toHaveLength(1)
@@ -851,7 +851,7 @@ describe("App shell and search", () => {
     fireEvent.change(within(commandDialog).getByRole("textbox", { name: /command search/i }), { target: { value: "zztest" } })
 
     expect(await within(commandDialog).findAllByTestId("search-pending-skeleton")).toHaveLength(1)
-    expect(within(commandDialog).queryByText(/^No results found\.$/i)).not.toBeInTheDocument()
+    expect(within(commandDialog).queryByText(/^Nothing found for/i)).not.toBeInTheDocument()
   })
 
   it("does not guess translated English skeletons while English lookup is still resolving", async () => {

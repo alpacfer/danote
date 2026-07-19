@@ -1,6 +1,6 @@
 import "@/index.css"
 
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import { page } from "vitest/browser"
 import { afterEach, expect, it } from "vitest"
 
@@ -331,7 +331,7 @@ it("keeps every reachable page inside the canonical notebook sheet", async () =>
   await screen.findByRole("heading", { name: "Account" })
   expect(document.querySelector("[data-grid-page='account']")).toBeInTheDocument()
 
-  fireEvent.click(screen.getByRole("button", { name: "Search" }))
+    fireEvent.click(screen.getByRole("button", { name: "Search" }))
   fireEvent.change(await screen.findByRole("textbox", { name: "command search" }), {
     target: { value: "chochito" },
   })
@@ -339,4 +339,81 @@ it("keeps every reachable page inside the canonical notebook sheet", async () =>
   expect(await screen.findByText("Status")).toBeInTheDocument()
   expect(document.querySelector("[data-grid-page='developer']")).toBeInTheDocument()
   expect(document.querySelectorAll("[data-notebook-sheet]")).toHaveLength(1)
+})
+
+it.each([
+  [390, 844],
+  [1280, 800],
+])("keeps the search folio tactile and contained at %ipx", async (width, height) => {
+  await page.viewport(width, height)
+  mockFetchImplementation({
+    lemmasResponse: { items: [LEMMA] },
+    searchWordbankResponse: {
+      items: [{
+        ...LEMMA,
+        match_surface: "bog",
+        query_cor_ids: [],
+      }],
+    },
+  })
+  renderApp()
+  await screen.findByRole("heading", { name: "Words" })
+
+    fireEvent.click(screen.getByRole("button", {
+      name: width < 768 ? "Open search" : "Search",
+    }))
+  const dialog = await screen.findByRole("dialog", { name: "Find a word or sentence" })
+  fireEvent.change(within(dialog).getByRole("textbox", { name: "command search" }), {
+    target: { value: "bog" },
+  })
+  await within(dialog).findByText("In your notebook")
+
+  const folio = dialog.querySelector<HTMLElement>("[data-search-folio]")!
+  const composer = folio.querySelector<HTMLElement>("[data-search-composer]")!
+  const list = folio.querySelector<HTMLElement>("[data-slot='command-list']")!
+  const lexical = folio.querySelector<HTMLElement>("[data-search-lexical]")!
+  const wordSlip = folio.querySelector<HTMLElement>("[data-search-slip][data-material='word']")!
+  const toggle = folio.querySelector<HTMLElement>("[data-search-language-toggle]")!
+  const controls = folio.querySelector<HTMLElement>("[data-search-folio-controls]")!
+  const inputWrapper = folio.querySelector<HTMLElement>("[data-slot='command-input-wrapper']")!
+  const searchIcon = folio.querySelector<HTMLElement>("[data-search-input-icon]")!
+  const composerStyle = window.getComputedStyle(composer)
+  const listStyle = window.getComputedStyle(list)
+  const inputStyle = window.getComputedStyle(inputWrapper)
+  const folioStyle = window.getComputedStyle(folio)
+  expect(folio.scrollWidth).toBeLessThanOrEqual(folio.clientWidth + 1)
+  expect(dialog.getBoundingClientRect().left).toBeGreaterThanOrEqual(-1)
+  expect(dialog.getBoundingClientRect().right).toBeLessThanOrEqual(window.innerWidth + 1)
+  expect(window.getComputedStyle(lexical).fontFamily).toContain("Fraunces Variable")
+  expect(window.getComputedStyle(within(dialog).getByText("book")).fontFamily)
+    .toContain("Source Sans 3")
+  expect(wordSlip).toHaveAttribute("data-material", "word")
+  expect(toggle.getBoundingClientRect().width).toBeGreaterThan(0)
+  expect(controls).not.toHaveTextContent("Find a word or sentence")
+  expect(controls.querySelector("#search-language-label")).toBeNull()
+  expect(toggle.getBoundingClientRect().right).toBeGreaterThanOrEqual(controls.getBoundingClientRect().right - 24)
+  expect(inputStyle.borderTopWidth).not.toBe("0px")
+  expect(inputStyle.borderRadius).not.toBe("0px")
+  expect(inputWrapper.getBoundingClientRect().height).toBeLessThanOrEqual(40)
+  expect(Math.abs(
+    searchIcon.getBoundingClientRect().top + searchIcon.getBoundingClientRect().height / 2
+      - (inputWrapper.getBoundingClientRect().top + inputWrapper.getBoundingClientRect().height / 2),
+  )).toBeLessThanOrEqual(1)
+  expect(composerStyle.borderBottomWidth).toBe("0px")
+  expect(listStyle.backgroundColor).toBe("rgba(0, 0, 0, 0)")
+  expect(folioStyle.backgroundImage).toBe("none")
+  expect(wordSlip).toHaveAttribute("data-material-tone")
+
+  if (width < 768) {
+    expect(list.getBoundingClientRect().bottom).toBeLessThanOrEqual(composer.getBoundingClientRect().top + 1)
+    expect(composer.getBoundingClientRect().bottom).toBeLessThanOrEqual(window.innerHeight + 1)
+  } else {
+    expect(list.getBoundingClientRect().top).toBeGreaterThanOrEqual(composer.getBoundingClientRect().bottom - 1)
+    expect(Math.abs(
+      toggle.getBoundingClientRect().top + toggle.getBoundingClientRect().height / 2
+        - (inputWrapper.getBoundingClientRect().top + inputWrapper.getBoundingClientRect().height / 2),
+    )).toBeLessThanOrEqual(1)
+    expect(inputWrapper.getBoundingClientRect().height).toBeCloseTo(toggle.getBoundingClientRect().height, 0)
+    expect(dialog.getBoundingClientRect().width).toBeGreaterThanOrEqual(630)
+  }
 })

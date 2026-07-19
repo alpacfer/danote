@@ -1,7 +1,11 @@
-import { Loader2, Plus } from "lucide-react"
+import { Loader2 } from "lucide-react"
 
+import {
+  SearchResultAction,
+  SearchSection,
+} from "@/app/chrome/sidebar/sidebar-search-presentation"
 import { formatSentenceTranslation, type SentenceSearchPreviewResponse } from "@/app/core"
-import { CommandGroup, CommandItem } from "@/components/ui/command"
+import { CommandItem } from "@/components/ui/command"
 import { Skeleton } from "@/components/ui/skeleton"
 
 type SidebarSentenceResultProps = {
@@ -27,10 +31,12 @@ export function SidebarSentenceResult({
     : (displayTranslation ?? null)
 
   return (
-    <CommandGroup heading="Sentence">
+    <SearchSection heading="Sentence to save" material="sentence">
       <CommandItem
         value="sentence-translation-result"
         disabled={isSaveDisabled}
+        data-search-slip
+        data-material="sentence"
         onSelect={() => {
           const preview = sentenceSearchPreview
           if (isSaveDisabled || preview === null || preview.source_text === null) return
@@ -41,7 +47,9 @@ export function SidebarSentenceResult({
         <div className="flex min-w-0 flex-1 flex-col items-start gap-0.5">
           {displayText ? (
             <span className="flex items-center gap-1">
-              <p className="line-clamp-2 text-sm font-semibold break-words">{displayText}</p>
+              <p data-search-lexical className="line-clamp-2 font-semibold break-words">
+                {displayText}
+              </p>
             </span>
           ) : isSentenceSearchPreviewLoading ? (
             <Skeleton
@@ -61,17 +69,14 @@ export function SidebarSentenceResult({
           ) : null}
         </div>
         {isSentenceSearchPreviewLoading ? (
-          <Loader2 className="text-muted-foreground size-4 shrink-0 animate-spin" />
+          <span data-search-result-action className="text-muted-foreground">
+            <span>Checking</span>
+            <Loader2 className="animate-spin" aria-hidden />
+          </span>
         ) : (
-          <Plus
-            className={
-              isSaveDisabled
-                ? "text-muted-foreground/40 size-4 shrink-0"
-                : "text-muted-foreground size-4 shrink-0"
-            }
-          />
+          <SearchResultAction kind="add" muted={isSaveDisabled} />
         )}
       </CommandItem>
-    </CommandGroup>
+    </SearchSection>
   )
 }

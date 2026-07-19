@@ -1,5 +1,4 @@
-import { Eye, Plus } from "lucide-react"
-
+import { SearchResultAction } from "@/app/chrome/sidebar/sidebar-search-presentation"
 import { Badge } from "@/components/ui/badge"
 import { CommandItem } from "@/components/ui/command"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -13,6 +12,7 @@ import {
   lemmaDisplayForVariant,
   lemmaTranslationForVariant,
   lemmaTranslationWithGloss,
+  posMaterialTone,
   saveableTranslationForVariant,
   posBadgeClass,
   primaryPosLabelForLemma,
@@ -126,6 +126,9 @@ export function SidebarCorResults({
                 <CommandItem
                   key={itemValue}
                   value={itemValue}
+                  data-search-slip
+                  data-material="word"
+                  data-material-tone={posMaterialTone(variant.pos_tag ?? group.pos_tag ?? null)}
                   disabled={isSaveBlocked}
                   onSelect={() => {
                     if (isSaved && variant.saved_meaning_id != null) {
@@ -179,7 +182,7 @@ export function SidebarCorResults({
                 >
                   <div className="flex min-w-0 flex-col items-start gap-0.5">
                     <span>
-                      <strong className="font-semibold">{variant.form}</strong>
+                      <strong data-search-lexical className="font-semibold">{variant.form}</strong>
                       {shouldShowSource ? (
                         <span className="text-muted-foreground text-xs">
                           {" "}from <em>{sourceDisplay}</em>
@@ -220,16 +223,19 @@ export function SidebarCorResults({
                     ) : null}
                   </div>
                   {isSaved ? (
-                    <span className="text-muted-foreground flex items-center text-xs font-semibold">
-                      <Eye data-testid="search-saved-icon" className="size-4 shrink-0" />
+                    <span data-testid="search-saved-icon">
+                      <SearchResultAction kind="open" />
                     </span>
                   ) : isVariationAdd ? (
-                    <span className="text-muted-foreground flex items-center gap-1 text-xs font-semibold">
-                      <span data-testid="search-add-variation-label">variation</span>
-                      <Plus data-testid="search-add-icon" className="size-4 shrink-0" />
+                    <span data-testid="search-add-variation-label">
+                      <SearchResultAction kind="add-form" iconTestId="search-add-icon" />
                     </span>
                   ) : (
-                    <Plus data-testid="search-add-icon" className="text-muted-foreground size-4 shrink-0" />
+                    <SearchResultAction
+                      kind="add"
+                      muted={isSaveBlocked}
+                      iconTestId="search-add-icon"
+                    />
                   )}
                 </CommandItem>
               )

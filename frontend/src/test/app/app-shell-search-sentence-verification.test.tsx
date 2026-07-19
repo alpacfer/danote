@@ -71,7 +71,7 @@ describe("Sentence verification in search", () => {
     await screen.findByLabelText("backend-connection-status")
 
     const dialog = await openSearch()
-    fireEvent.click(within(dialog).getByRole("radio", { name: /^English$/i }))
+    fireEvent.click(within(dialog).getByRole("radio", { name: /^Search in English$/i }))
     typeInSearch(dialog, "I love Danish")
 
     await waitFor(() => {
@@ -79,7 +79,7 @@ describe("Sentence verification in search", () => {
       expect(previewBodies.some((body) => body.fast === false && body.language_mode === "en")).toBe(true)
     }, { timeout: 5000 })
 
-    fireEvent.click(within(dialog).getByRole("radio", { name: /^Danish$/i }))
+    fireEvent.click(within(dialog).getByRole("radio", { name: /^Search in Danish$/i }))
   })
 
   it("suggests switching mode for sentences when neutral preview detects the other language", async () => {
@@ -107,7 +107,7 @@ describe("Sentence verification in search", () => {
     const dialog = await openSearch()
     typeInSearch(dialog, "I am happy")
 
-    expect(await within(dialog).findByText("Search in English instead?")).toBeInTheDocument()
+    expect(await within(dialog).findByText("Try English instead")).toBeInTheDocument()
     await waitFor(() => {
       expect(previewBodies.some((body) => body.fast === true && body.language_mode === null)).toBe(true)
     })
@@ -141,7 +141,7 @@ describe("Sentence verification in search", () => {
     expect(await within(dialog).findByText(/^hunden sover$/i)).toBeInTheDocument()
     await waitFor(() => {
       expect(previewBodies.some((body) => body.fast === true && body.language_mode === null)).toBe(true)
-      expect(within(dialog).queryByText("Search in English instead?")).not.toBeInTheDocument()
+      expect(within(dialog).queryByText("Try English instead")).not.toBeInTheDocument()
     })
   })
 
@@ -157,11 +157,11 @@ describe("Sentence verification in search", () => {
     const dialog = await openSearch()
     typeInSearch(dialog, "jeg er glad")
 
-    expect(within(dialog).queryByText(/^No results found\.$/i)).not.toBeInTheDocument()
+    expect(within(dialog).queryByText(/^Nothing found for/i)).not.toBeInTheDocument()
     await act(async () => {
       await new Promise((resolve) => window.setTimeout(resolve, 50))
     })
-    expect(within(dialog).queryByText(/^No results found\.$/i)).not.toBeInTheDocument()
+    expect(within(dialog).queryByText(/^Nothing found for/i)).not.toBeInTheDocument()
   })
 
   it("shows verification loading UI while verifying a sentence", async () => {
@@ -321,7 +321,7 @@ describe("Sentence verification in search", () => {
       "et meget langt eksempel på en sætning med mange ord her som fortsætter langt ud over den nye grænse for søgning og stadig fortsætter videre end det nu nu",
     )
 
-    expect(within(dialog).queryByText(/^Sentence$/i)).not.toBeInTheDocument()
+    expect(within(dialog).queryByText(/^Sentence to save$/i)).not.toBeInTheDocument()
     expect(within(dialog).queryByTestId("sentence-search-translation-skeleton")).not.toBeInTheDocument()
     expect(within(dialog).queryByTestId("sentence-verification-skeleton")).not.toBeInTheDocument()
   })

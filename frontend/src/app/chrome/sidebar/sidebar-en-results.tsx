@@ -1,9 +1,9 @@
-import { Plus } from "lucide-react"
-
+import { SearchResultAction } from "@/app/chrome/sidebar/sidebar-search-presentation"
 import { Badge } from "@/components/ui/badge"
 import { CommandItem } from "@/components/ui/command"
 import {
   normalizeSearchWord,
+  posMaterialTone,
   primaryPosLabel,
   posBadgeClass,
   type ENPosGroup,
@@ -46,6 +46,9 @@ export function SidebarEnResults({
           <CommandItem
             key={`search-en-${key}`}
             value={`en-${key}`}
+            data-search-slip
+            data-material="word"
+            data-material-tone={posMaterialTone(group.pos_ud)}
             disabled={isSaveBlocked}
             onSelect={() => {
               if (isSaveBlocked) {
@@ -85,7 +88,7 @@ export function SidebarEnResults({
           >
             <div className="flex min-w-0 flex-col items-start gap-0.5">
               <span>
-                <strong className="font-semibold">{displayWord}</strong>
+                <strong data-search-lexical className="font-semibold">{displayWord}</strong>
               </span>
               {isSaveBlocked ? (
                 <span className="text-muted-foreground text-xs leading-4">Translation required before saving.</span>
@@ -104,7 +107,7 @@ export function SidebarEnResults({
                 </Badge>
               </div>
             </div>
-            <Plus className={isSaveBlocked ? "text-muted-foreground/40 size-4 shrink-0" : "text-muted-foreground size-4 shrink-0"} />
+            <SearchResultAction kind="add" muted={isSaveBlocked} />
           </CommandItem>
         )
       })}
