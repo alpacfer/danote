@@ -64,6 +64,8 @@ Collection composition:
 - Reference pages render as a five-compartment catalogue drawer: one row when
   the notebook content is wide enough and two columns when the sidebar or
   viewport constrains it, with descriptions hidden at the narrowest breakpoint.
+  Their material tone and paper texture remain uninterrupted by decorative
+  top-edge accent strips.
 - Reference decks, pinned word cards, and saved-word slips use layered
   index-stock depth without changing their grid geometry. Pinned and saved word
   faces show the Danish lemma only; English translations move into the matching

@@ -12,7 +12,9 @@ export function GuestEntryScreen({ error, isStartingGuest, onStartGuest }: Guest
   return (
     <main className="flex min-h-screen items-center justify-center px-6">
       <div className="flex w-full max-w-sm flex-col items-center gap-4 text-center">
-        <h1 className="text-2xl font-semibold tracking-normal">danote</h1>
+        <h1 className="font-brand text-brand-clay text-4xl leading-none font-medium tracking-[-0.035em]">
+          danote
+        </h1>
         <p className="text-sm text-muted-foreground">Sign in to use your Danish notes workspace.</p>
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
         <div className="flex flex-wrap justify-center gap-2">

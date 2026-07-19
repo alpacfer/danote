@@ -51,9 +51,9 @@ Pure render switch; no app-shell side effects.
 - Light mode defaults to a warm paper canvas with muted blue ink, forest
   primary actions, sea-glass supportive surfaces, and oat accents.
 - Dark mode uses an inky canvas with the same semantic botanical hierarchy.
-- Source Sans 3 remains the UI and translation face, Playwrite GB J is reserved
-  for the brand wordmark, and Fraunces Variable provides coordinated section
-  and lexical voices for headings, Danish words, and Danish sentence sources.
+- Source Sans 3 remains the UI and translation face. Fraunces Variable provides
+  coordinated brand, section, and lexical voices for the `danote` wordmark,
+  headings, Danish words, and Danish sentence sources.
 - The shell, cards, and floating surfaces use separate semantic depth tokens.
 - `SidebarInset` keeps rounded corners at every viewport and clips the scrolling
   notebook sheet to that radius so its full-bleed texture cannot square off the

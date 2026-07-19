@@ -10,11 +10,12 @@ density or clarity of linguistic information.
 - Source Sans 3 is the UI, body, control, translation, table, and metadata face.
   It carries dense information and every interactive label where quick scanning
   matters more than atmosphere.
-- Playwrite GB J is reserved for the `danote` wordmark.
-- Fraunces Variable has two semantic voices. Section titles use `SOFT=70`,
+- Fraunces Variable has three coordinated semantic voices. The `danote`
+  wordmark uses weight `500`, tight optical spacing, `SOFT=80`, `WONK=1`, and
+  `opsz=48` for a quiet editorial character. Section titles use `SOFT=70`,
   `WONK=1`, and `opsz=48`; lexical text uses `SOFT=55`, `WONK=1`, and
   `opsz=24` for Danish lemmas, saved-word slips, sentence sources, and their
-  previews. Both normally use weight `600`.
+  previews. The section and lexical voices normally use weight `600`.
 - Card, dialog, sheet, and empty-state titles inherit the section-title voice.
   English translations, badges, filters, timestamps, and long explanatory text
   remain Source Sans so the serif never compromises reading or navigation.
@@ -69,7 +70,8 @@ receive their own redesign.
 - Wordbank collection cards and reference decks use flat index stock: grain and
   directional fibers sit above their semantic tint, while the outline and
   inset highlight preserve the paper edge without an external drop shadow.
-  Reference stock also carries a quiet file-tab strip.
+  Reference stock in the Wordbank list keeps its material tone and paper
+  texture without an additional file-tab accent strip.
 - Do not use colored top/left rails, thick edges, or asymmetric accent borders.
   Reference decks vary by restrained material tone and stamp while preserving
   one shared size and interaction model.

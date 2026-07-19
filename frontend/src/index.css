@@ -6,7 +6,8 @@
 
 @theme inline {
     --font-sans: "Source Sans 3", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    --font-brand: "Playwrite GB J", var(--font-sans);
+    --font-brand: "Fraunces Variable", Georgia, serif;
+    --font-brand--font-variation-settings: "SOFT" 80, "WONK" 1, "opsz" 48;
     --font-section-title: "Fraunces Variable", Georgia, serif;
     --font-section-title--font-variation-settings: "SOFT" 70, "WONK" 1, "opsz" 48;
     --font-lexical: "Fraunces Variable", Georgia, serif;
@@ -414,6 +415,13 @@
   background-position: 0 0, center;
   background-repeat: no-repeat, repeat;
   background-size: 100% 0.3rem, 48rem 32rem;
+}
+
+[data-reference-drawer] [data-paper-stock][data-material="reference"] {
+  background-image: url("/textures/wordbank-paper.webp");
+  background-position: center;
+  background-repeat: repeat;
+  background-size: 48rem 32rem;
 }
 
 [data-wordbank-expandable-card] {
