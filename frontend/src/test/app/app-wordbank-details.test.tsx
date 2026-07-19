@@ -55,6 +55,18 @@ describe("App wordbank", () => {
     expect((await screen.findAllByText(/^book$/i)).length).toBeGreaterThan(0)
     expect(screen.getByText(/^bogens$/i)).toBeInTheDocument()
     expect(screen.queryByText(/^book's$/i)).not.toBeInTheDocument()
+
+    const detailPage = document.querySelector<HTMLElement>("[data-grid-page='wordbank-detail']")
+    expect(detailPage).toHaveAttribute("data-notebook-surface", "plain")
+    const detailCards = [...(detailPage?.querySelectorAll<HTMLElement>("[data-material]") ?? [])]
+    expect(detailCards.length).toBeGreaterThan(0)
+    expect(detailCards.every((card) => card.hasAttribute("data-paper-stock"))).toBe(true)
+
+    expect(screen.queryByRole("button", { name: /^generate example$/i })).not.toBeInTheDocument()
+    expect(screen.queryByText(/sentence is waiting to be collected/i)).not.toBeInTheDocument()
+
+    fireEvent.contextMenu(screen.getByTestId("wordbank-meaning-card-1"))
+    expect(await screen.findByRole("menuitem", { name: /^generate example$/i })).toBeInTheDocument()
   }, 30_000)
 
   it("renderer-only: non-verb word pages render meaning sections and remove duplicated top metadata", async () => {
@@ -89,7 +101,10 @@ describe("App wordbank", () => {
     expect((await screen.findAllByText(/^bog$/i)).length).toBeGreaterThan(0)
     expect(screen.getAllByText(/^book$/i)).toHaveLength(1)
     const meaningBadges = screen.getByTestId("wordbank-meaning-badges-1")
-    expect(within(meaningBadges).getByText(/^Noun$/i)).toBeInTheDocument()
+    const nounBadge = within(meaningBadges).getByText(/^Noun$/i)
+    expect(nounBadge).toBeInTheDocument()
+    expect(nounBadge).not.toHaveAttribute("title")
+    expect(meaningBadges.firstElementChild).toHaveClass("px-1")
     expect(within(meaningBadges).getByText(/^n-word$/i)).toBeInTheDocument()
     expect(within(meaningBadges).queryByText(/^Singular$/i)).not.toBeInTheDocument()
     expect(within(meaningBadges).queryByText(/^Indefinite$/i)).not.toBeInTheDocument()

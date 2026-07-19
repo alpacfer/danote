@@ -86,7 +86,7 @@ export function ScrollableBadgeRow({
     <div className={cn("relative min-h-6 min-w-0", className)} data-testid={testId}>
       <div
         ref={scrollerRef}
-        className="flex min-h-6 flex-nowrap items-center gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="flex min-h-6 flex-nowrap items-center gap-1.5 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {children}
       </div>

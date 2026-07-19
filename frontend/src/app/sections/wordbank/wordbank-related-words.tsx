@@ -61,11 +61,11 @@ export function WordbankRelatedWords({
     >
       <h2
         id="wordbank-composition-heading"
-        className="text-muted-foreground flex h-8 items-center text-[11px] font-semibold uppercase tracking-wide"
+        className="font-section-title flex h-8 items-center text-xl leading-none font-normal tracking-normal"
       >
         Composition
       </h2>
-      <div className="danote-composition-shelf grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2">
         {compositionItems.map((item) => {
           const uniqueVariant = item.display_variant ?? null
           const candidateVariants = item.candidate_variants ?? []
@@ -82,7 +82,12 @@ export function WordbankRelatedWords({
                 setOpenCardIds((current) => ({ ...current, [item.id]: open }))
               }}
             >
-              <Card className="gap-0 overflow-hidden py-0" data-material="related" data-grid-anchor="unit">
+              <Card
+                className="gap-0 overflow-hidden py-0"
+                data-material="related"
+                data-paper-stock
+                data-grid-anchor="unit"
+              >
                 <CardContent className="space-y-3 p-0">
                   {isAmbiguous ? (
                     <CollapsibleTrigger asChild>

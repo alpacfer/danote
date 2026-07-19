@@ -21,7 +21,6 @@ export function WordbankSpecimenPreview({
                 key={posTag}
                 variant="default"
                 className={posBadgeClass(posTag)}
-                title={primaryPosLabel(posTag) ?? posTag}
                 aria-label={primaryPosLabel(posTag) ?? posTag}
               >
                 {primaryPosLabel(posTag) ?? posTag}

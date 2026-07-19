@@ -1079,31 +1079,11 @@
 }
 
 [data-morphology-journey] tbody tr {
-  background-color: color-mix(in oklch, var(--material-meaning) 90%, transparent);
+  background-color: transparent;
 }
 
 [data-morphology-journey] tbody tr + tr {
   border-top-color: color-mix(in oklch, var(--material-grammar) 26%, transparent);
-}
-
-.danote-composition-shelf {
-  position: relative;
-}
-
-@media (min-width: 40rem) {
-  .danote-composition-shelf::before {
-    position: absolute;
-    top: 50%;
-    left: 25%;
-    width: 50%;
-    border-top: 1px dashed color-mix(in oklch, var(--brand-sky) 48%, transparent);
-    content: "";
-    pointer-events: none;
-  }
-
-  .danote-composition-shelf > * {
-    position: relative;
-  }
 }
 
 @media (min-width: 48rem) {

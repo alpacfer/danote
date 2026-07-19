@@ -175,6 +175,7 @@ export function WordbankLemmaHeader({
       id="wordbank-lemma-header"
       className="gap-4 py-4"
       data-material="meaning"
+      data-paper-stock
       data-grid-anchor="rule"
       data-grid-height="unit"
       style={{ viewTransitionName: wordViewTransitionName(lemmaDetails.lemma) }}
@@ -220,7 +221,6 @@ export function WordbankLemmaHeader({
                   isClickable ? "cursor-pointer hover:scale-105 transition-transform" : ""
                 }`.trim()}
                 onClick={handleClick}
-                title={badge.tone === "primary" ? badge.label : undefined}
                 aria-label={badge.tone === "primary" ? badge.label : undefined}
               >
                 {badge.label}

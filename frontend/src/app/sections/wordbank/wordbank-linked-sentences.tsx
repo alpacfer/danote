@@ -26,7 +26,7 @@ export function WordbankLinkedSentences({
     <section className="flex flex-col gap-4 pt-2" aria-labelledby="wordbank-linked-sentences-heading" data-grid-anchor="unit">
       <h2
         id="wordbank-linked-sentences-heading"
-        className="text-muted-foreground flex h-8 items-center text-[11px] font-semibold uppercase tracking-wide"
+        className="font-section-title flex h-8 items-center text-xl leading-none font-normal tracking-normal"
       >
         Sentences
       </h2>
@@ -37,6 +37,7 @@ export function WordbankLinkedSentences({
               key={`linked-sentence-${sentence.id}`}
               className={onOpenSentence ? "hover:bg-accent/40 transition-colors cursor-pointer" : undefined}
               data-material="sentence"
+              data-paper-stock
               data-featured="true"
               data-grid-anchor="unit"
             >
@@ -73,7 +74,7 @@ export function WordbankLinkedSentences({
       </div>
       {remainingSentences.length > 0 ? (
         <>
-          <h3 className="text-muted-foreground flex h-8 items-center text-[11px] font-semibold uppercase tracking-wide">
+          <h3 className="font-section-title flex h-8 items-center text-xl leading-none font-normal tracking-normal">
             More sentences
           </h3>
           <div className="grid gap-4 md:grid-cols-2">
@@ -95,7 +96,7 @@ function LinkedSentenceCard({
   onOpenSentence?: (id: number) => void
 }) {
   const card = (
-    <Card data-material="sentence" data-grid-anchor="unit">
+    <Card data-material="sentence" data-paper-stock data-grid-anchor="unit">
       <CardContent className="flex flex-col gap-2 px-4 md:px-6">
         <p className="font-lexical text-lg leading-6 font-semibold tracking-[-0.01em] break-words">
           <SentenceHighlightedText

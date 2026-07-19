@@ -61,7 +61,9 @@ describe("App wordbank collection tiles", () => {
     expect(within(preview!).getByText("book")).toBeInTheDocument()
     expect(within(preview!).getByText("volume")).toBeInTheDocument()
     expect(within(preview!).getByText("beech tree")).toBeInTheDocument()
-    expect(within(preview!).getByText("Noun")).toBeInTheDocument()
+    const nounBadge = within(preview!).getByText("Noun")
+    expect(nounBadge).toBeInTheDocument()
+    expect(nounBadge).not.toHaveAttribute("title")
     expect(within(preview!).queryByText("Book")).not.toBeInTheDocument()
     expect(within(preview!).queryByText(/specimen|pronunciation|school|forms/i)).not.toBeInTheDocument()
 

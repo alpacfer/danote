@@ -187,6 +187,7 @@ export function WordbankMeaningSections({
               data-meaning-id={section.id}
               data-selected={selectedMeaningId === section.id ? "true" : "false"}
               data-material="meaning"
+              data-paper-stock
               data-grid-anchor="unit"
               data-grid-height="unit"
               className="py-4"
@@ -229,7 +230,6 @@ export function WordbankMeaningSections({
                               isClickable ? "cursor-pointer hover:scale-105 transition-transform" : ""
                             }`.trim()}
                             onClick={handleClick}
-                            title={badge.tone === "primary" ? badge.label : undefined}
                             aria-label={badge.tone === "primary" ? badge.label : undefined}
                           >
                             {badge.label}
