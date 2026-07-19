@@ -81,9 +81,6 @@ export function WordbankSpecimenTile({
           data-align={alignment}
           data-grid-anchor="unit"
           data-grid-height="unit"
-          onPointerDown={onPointerDown}
-          onPointerEnter={onPointerEnter}
-          onPointerLeave={onPointerLeave}
         >
           <div
             ref={surfaceRef}
@@ -121,6 +118,9 @@ export function WordbankSpecimenTile({
               onClick={openWord}
               onFocus={onFocus}
               onKeyDown={onKeyDown}
+              onPointerDown={onPointerDown}
+              onPointerEnter={onPointerEnter}
+              onPointerLeave={onPointerLeave}
             >
               <span
                 className="font-lexical truncate font-semibold tracking-[-0.01em]"

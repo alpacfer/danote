@@ -90,14 +90,16 @@ describe("App wordbank collection tiles", () => {
     const tile = await screen.findByRole("button", { name: "bog" })
     const card = tile.closest<HTMLElement>("[data-wordbank-expandable-card]")!
 
-    fireEvent.pointerEnter(card, { pointerType: "mouse" })
+    fireEvent.pointerEnter(tile, { pointerType: "mouse" })
     expect(card).toHaveAttribute("data-state", "closed")
     await act(async () => {
       await new Promise((resolve) => window.setTimeout(resolve, 85))
     })
     expect(card).toHaveAttribute("data-state", "open")
 
-    fireEvent.pointerLeave(card, { pointerType: "mouse" })
+    const preview = card.querySelector<HTMLElement>("[data-wordbank-expansion-preview]")!
+    fireEvent.pointerLeave(tile, { pointerType: "mouse", relatedTarget: preview })
+    fireEvent.pointerEnter(preview, { pointerType: "mouse", relatedTarget: tile })
     expect(card).toHaveAttribute("data-state", "open")
     await act(async () => {
       await new Promise((resolve) => window.setTimeout(resolve, 135))

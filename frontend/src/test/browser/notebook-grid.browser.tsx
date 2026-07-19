@@ -98,12 +98,12 @@ async function expectNotebookAlignment() {
     const wordTrigger = screen.getByRole("button", { name: "bog" })
     const expandableCard = wordTrigger.closest<HTMLElement>("[data-wordbank-expandable-card]")!
     const anchorBefore = expandableCard.getBoundingClientRect()
-    await act(async () => {
-      fireEvent.focus(wordTrigger)
-      await new Promise((resolve) => window.setTimeout(resolve, 220))
-    })
+    await page.getByRole("button", { name: "bog" }).hover()
     await waitFor(() => {
       expect(expandableCard).toHaveAttribute("data-state", "open")
+    })
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 220))
     })
     await settleLayout()
     const reveal = expandableCard.querySelector<HTMLElement>("[data-wordbank-expansion-surface]")!
@@ -140,7 +140,7 @@ async function expectNotebookAlignment() {
     expect(revealRect.right).toBeLessThanOrEqual(window.innerWidth - 15)
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth + 1)
     await act(async () => {
-      fireEvent.keyDown(wordTrigger, { key: "Escape" })
+      await new Promise((resolve) => window.setTimeout(resolve, 135))
     })
     await waitFor(() => {
       expect(expandableCard).toHaveAttribute("data-state", "closed")

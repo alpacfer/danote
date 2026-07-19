@@ -151,11 +151,11 @@ export function useSpecimenCardExpansion({
       event.stopPropagation()
       dismiss()
     },
-    onPointerDown(event: PointerEvent<HTMLDivElement>) {
+    onPointerDown(event: PointerEvent<HTMLButtonElement>) {
       if (event.pointerType !== "touch") return
       dismiss()
     },
-    onPointerEnter(event: PointerEvent<HTMLDivElement>) {
+    onPointerEnter(event: PointerEvent<HTMLButtonElement>) {
       if (event.pointerType === "touch") return
       if (closeTimerRef.current !== null) {
         window.clearTimeout(closeTimerRef.current)
@@ -163,7 +163,7 @@ export function useSpecimenCardExpansion({
       }
       scheduleOpen()
     },
-    onPointerLeave(event: PointerEvent<HTMLDivElement>) {
+    onPointerLeave(event: PointerEvent<HTMLButtonElement>) {
       if (event.pointerType === "touch") return
       scheduleClose()
     },

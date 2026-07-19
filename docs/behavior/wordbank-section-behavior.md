@@ -102,9 +102,11 @@ Per-specimen tile:
 - The preview uses real saved linguistic data only: no specimen identifiers,
   inferred definitions, glosses, categories, dates, variation counts, or
   pronunciation status.
-- The card opens after a brief 70ms hover-intent delay, remains open while
-  hovered, closes after 120ms, and dismisses on Escape. The same plain-text
-  metadata is exposed as the word trigger's accessible description.
+- The card opens after a brief 70ms hover-intent delay and remains open only
+  while the compact word trigger is hovered. Moving from that trigger onto the
+  expanded preview starts the 120ms close delay; hovering the preview itself
+  does not keep it open. Escape also dismisses it. The same plain-text metadata
+  is exposed as the word trigger's accessible description.
 - Expansion is visual only: the 32px catalogue footprint never changes. One
   continuously textured paper surface grows over neighboring rows, unfolding
   downward and reversing upward near the viewport edge. It grows left near the

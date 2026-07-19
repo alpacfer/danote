@@ -1,4 +1,4 @@
-import { ChevronDown, Eye, Plus } from "lucide-react"
+import { BookPlus, ChevronDown, Eye } from "lucide-react"
 import type { ReactNode } from "react"
 
 import type { SearchLanguageMode } from "@/app/chrome/sidebar/sidebar-search-types"
@@ -49,7 +49,7 @@ export function SearchFolioControls({
   return (
     <div
       data-search-folio-controls
-      className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-4 pt-3 pb-[calc(1rem+env(safe-area-inset-bottom))] md:grid-cols-[minmax(0,1fr)_auto] md:px-5 md:pt-4 md:pb-2"
+      className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-2 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:grid-cols-[minmax(0,1fr)_auto] md:px-3 md:pt-5 md:pb-2"
     >
       <Button
         type="button"
@@ -104,15 +104,17 @@ export function SearchResultAction({
   muted = false,
   iconTestId,
 }: SearchResultActionProps) {
-  const label = kind === "open" ? "Open" : kind === "add-form" ? "Add form" : "Add"
-  const Icon = kind === "open" ? Eye : Plus
+  const isAddAction = kind !== "open"
+  const label = kind === "open" ? "Open" : kind === "add-form" ? "Add form to words" : "Add to words"
+  const Icon = kind === "open" ? Eye : BookPlus
 
   return (
     <span
       data-search-result-action
+      data-search-action-kind={kind}
       className={muted ? "text-muted-foreground/45" : "text-muted-foreground"}
     >
-      <span>{label}</span>
+      <span className={isAddAction ? "sr-only" : undefined}>{label}</span>
       <Icon aria-hidden data-testid={iconTestId} />
     </span>
   )

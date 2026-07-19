@@ -472,13 +472,6 @@
   transition: border-color 150ms ease, box-shadow 150ms ease;
 }
 
-[data-search-folio] [data-slot="command-input-wrapper"]:focus-within {
-  border-color: color-mix(in oklch, var(--ring) 72%, var(--border));
-  box-shadow:
-    inset 0 1px 0 color-mix(in oklch, var(--popover) 52%, transparent),
-    0 0 0 3px color-mix(in oklch, var(--ring) 18%, transparent);
-}
-
 [data-search-folio] [data-slot="command-input"],
 [data-search-folio] [data-slot="command-input-overlay"] {
   min-height: 2.375rem;
@@ -507,7 +500,7 @@
 [data-search-folio] [data-slot="command-list"] {
   min-height: 0;
   max-height: min(58vh, 34rem);
-  padding: 0 0.75rem 0.75rem;
+  padding: 0 0.75rem 0.5rem;
   background-color: transparent;
   scroll-padding-block: 0.75rem;
 }
@@ -529,7 +522,7 @@
 [data-search-slip] {
   min-height: 3.5rem;
   margin-block: 0.25rem;
-  padding: 0.75rem;
+  padding: 0.625rem 0.75rem;
   border-radius: var(--radius-md);
   background-image: url("/textures/wordbank-paper.webp");
   background-position: center;
@@ -543,8 +536,13 @@
   transition:
     background-color 160ms ease,
     box-shadow 160ms ease,
-    outline-color 160ms ease,
-    transform 160ms ease;
+    outline-color 160ms ease;
+}
+
+[data-search-section][data-search-material="reference"] [data-search-slip] {
+  min-height: 2.75rem;
+  margin-block: 0.125rem;
+  padding-block: 0.5rem;
 }
 
 [data-search-slip][data-selected="true"] {
@@ -555,7 +553,6 @@
   box-shadow:
     inset 0 1px 0 color-mix(in oklch, var(--popover) 42%, transparent),
     var(--danote-shadow-card);
-  transform: translateY(-1px);
 }
 
 [data-search-slip][data-disabled="true"],
@@ -584,6 +581,88 @@
 [data-search-result-action] svg {
   width: 1rem;
   height: 1rem;
+}
+
+[data-search-result-action][data-search-action-kind="add"],
+[data-search-result-action][data-search-action-kind="add-form"] {
+  position: relative;
+  display: inline-grid;
+  width: 1.75rem;
+  height: 1.75rem;
+  flex: none;
+  place-items: center;
+  border-radius: 9999px;
+}
+
+[data-search-result-action][data-search-action-kind="add"] svg,
+[data-search-result-action][data-search-action-kind="add-form"] svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+[data-search-result-action][data-search-action-kind="add"]::before,
+[data-search-result-action][data-search-action-kind="add-form"]::before {
+  position: absolute;
+  inset: 0.1875rem;
+  border: 1px solid color-mix(in oklch, var(--primary) 26%, transparent);
+  border-radius: inherit;
+  background-color: color-mix(in oklch, var(--accent) 62%, transparent);
+  content: "";
+  opacity: 0;
+  transform: scale(0.5);
+}
+
+[data-search-slip][data-selected="true"]
+  [data-search-result-action][data-search-action-kind="add"]::before,
+[data-search-slip][data-selected="true"]
+  [data-search-result-action][data-search-action-kind="add-form"]::before {
+  animation: danote-search-save-ink 480ms ease-out;
+}
+
+[data-search-slip][data-selected="true"]
+  [data-search-result-action][data-search-action-kind="add"] svg,
+[data-search-slip][data-selected="true"]
+  [data-search-result-action][data-search-action-kind="add-form"] svg {
+  color: var(--foreground);
+  animation: danote-search-save-book 440ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes danote-search-save-book {
+  0% {
+    transform: translateY(0) rotate(0deg) scale(1);
+  }
+
+  36% {
+    transform: translateY(-0.125rem) rotate(-7deg) scale(1.1);
+  }
+
+  64% {
+    transform: translateY(0.0625rem) rotate(2deg) scale(0.96);
+  }
+
+  82% {
+    transform: translateY(-0.03125rem) rotate(-1deg) scale(1.03);
+  }
+
+  100% {
+    transform: translateY(0) rotate(0deg) scale(1);
+  }
+}
+
+@keyframes danote-search-save-ink {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+
+  34% {
+    opacity: 0.7;
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1.65);
+  }
 }
 
 [data-search-note-group] {
@@ -636,11 +715,11 @@
   [data-search-folio] [data-slot="command-list"] {
     flex: 1 1 auto;
     max-height: calc(100dvh - 7.75rem);
-    padding: 0.75rem 0.5rem 0.5rem;
+    padding: 0.5rem;
   }
 
   [data-search-slip] {
-    padding: 0.75rem;
+    padding: 0.625rem 0.75rem;
   }
 }
 
@@ -1068,9 +1147,6 @@
     transition-duration: 0.01ms !important;
   }
 
-  [data-search-slip][data-selected="true"] {
-    transform: none;
-  }
 }
 
 :root {
