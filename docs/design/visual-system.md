@@ -15,14 +15,21 @@ density or clarity of linguistic information.
 
 ## Color roles
 
-- `background` / `foreground`: warm paper and muted blue ink.
-- `primary`: forest green for active navigation and primary actions.
-- `secondary`: sea-glass for supportive states and quiet grouping.
-- `accent`: oat for hover, selection, and low-priority emphasis.
+- `background` / `foreground`: unbleached herbarium paper and green-black ink.
+- `primary`: deep bottle green for active navigation and primary actions.
+- `secondary`: pressed sage for supportive states and quiet grouping.
+- `accent`: dried ochre for hover, selection, and low-priority emphasis.
 - `brand-clay`: decorative brand moments only; never errors or destructive actions.
 - `brand-butter` and `brand-sky`: optional illustration and visualization accents.
 - `surface-raised` / `surface-sunken`: material hierarchy, not status.
 - `destructive`: remains separate from the botanical brand palette.
+
+The light theme is **Herbarium Paper**: warm mounting stock, bottle-green ink,
+pressed sage, ochre labels, clay stamps, and a restrained lichen-blue rule. The
+dark theme is **Peat & Lantern**: peat-green canvas, moss-raised surfaces,
+moonlit linen text, fern actions, and brass-like ochre accents. Dark mode is a
+material counterpart with its own green-black foundation, not a dimmed or
+inverted version of the light palette.
 
 Feature code should use semantic Tailwind utilities such as `bg-primary`,
 `text-muted-foreground`, and `bg-surface-raised`. Raw palette utilities belong
@@ -54,6 +61,9 @@ receive their own redesign.
   `grammar`, `discovery`, `sentence`, and `related`) through `data-material`.
   They combine a restrained full-surface tint, an organic paper shadow, and a
   stamped icon or mark. Containment may use a neutral inset hairline.
+- Word and reference catalogue materials use layered index-stock depth: two
+  offset semantic paper edges sit beneath the textured face without moving the
+  8px layout anchor. Reference stock also carries a quiet file-tab strip.
 - Do not use colored top/left rails, thick edges, or asymmetric accent borders.
   Reference decks vary by restrained material tone and stamp while preserving
   one shared size and interaction model.
@@ -67,10 +77,14 @@ receive their own redesign.
   represented in the current filtered result, keeping the page quieter.
 - Its reference drawer, filters, and catalogue use one shared left anchor and
   32px block spacing so the tactile details do not compromise visual rhythm.
-- Saved-word hover previews resemble restrained herbarium labels: warm
-  semantic word material, an editorial lemma heading, compact POS badges, and
-  lightly ruled translation groups. Their field-book character comes from
-  real hierarchy and paper treatment, never fabricated catalogue metadata.
+- The reference drawer responds to notebook-content width, not viewport width:
+  it keeps two columns while the sidebar constrains the sheet and expands to a
+  five-compartment row only when every card fits without clipping.
+- Saved and pinned word faces remain Danish-only. Their keyboard-accessible
+  hover previews use the same layered stock, an editorial lemma heading,
+  compact POS badges where relevant, and lightly ruled translation groups.
+  Their field-book character comes from real hierarchy and paper treatment,
+  never fabricated catalogue metadata.
 
 ## Motion
 
@@ -93,6 +107,9 @@ receive their own redesign.
 
 ## References
 
+- [Kew Illustrations and Artefacts Collection](https://www.kew.org/science/collections-and-resources/collections/illustrations-and-artefacts-collection)
+- [Biodiversity Heritage Library: Finding Life in Dead Plants](https://blog.biodiversitylibrary.org/2020/01/finding-life-in-dead-plant)
+- [Smithsonian Institution Archives: Flattened Between the Pages](https://siarchives.si.edu/blog/flattened-between-pages)
 - [Material 3 Expressive research](https://design.google/library/expressive-material-design-google-research)
 - [Daylight](https://daylightcomputer.com/)
 - [Headspace design](https://developer.apple.com/news/?id=fkfnhq8u)

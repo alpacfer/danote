@@ -41,6 +41,7 @@ describe("App wordbank collection tiles", () => {
     expect(bogTile).toHaveTextContent(/^bog$/)
     expect(bogTile.querySelector("svg")).not.toBeInTheDocument()
     expect(bogTile).toHaveAttribute("data-material", "word")
+    expect(bogTile).toHaveAttribute("data-index-stock")
     expect(bogTile).toHaveAttribute("data-grid-anchor", "unit")
 
     fireEvent.focus(bogTile)
@@ -48,6 +49,7 @@ describe("App wordbank collection tiles", () => {
       expect(document.querySelector("[data-wordbank-specimen-preview]")).toBeInTheDocument()
     })
     const preview = document.querySelector<HTMLElement>("[data-wordbank-specimen-preview]")
+    expect(preview?.closest("[data-index-stock]")).toBeInTheDocument()
     expect(within(preview!).getByText("bog")).toBeInTheDocument()
     expect(within(preview!).getByText("book")).toBeInTheDocument()
     expect(within(preview!).getByText("volume")).toBeInTheDocument()
@@ -218,7 +220,7 @@ describe("App wordbank collection tiles", () => {
     await screen.findByLabelText("backend-connection-status")
 
     const referenceShelf = await screen.findByRole("region", { name: "Reference collections" })
-    expect(document.querySelector("[data-reference-drawer]")).toHaveClass("grid-cols-2", "md:grid-cols-5")
+    expect(document.querySelector("[data-reference-drawer]")).toHaveClass("grid-cols-2", "@4xl:grid-cols-5")
     expect(within(referenceShelf).queryByRole("heading")).not.toBeInTheDocument()
     const labels = ["Pronouns", "HV Questions", "Prepositions", "Conjunctions", "Numbers & Time"]
     const tones = new Set<string>()

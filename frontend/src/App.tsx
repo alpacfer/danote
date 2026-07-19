@@ -327,7 +327,7 @@ function AppShell() {
         onAddSentenceToSentencebank={addSentenceToSentencebank}
         onAddWordFromSearch={addWordFromSearch}
       />
-      <SidebarInset>
+      <SidebarInset className="overflow-hidden rounded-xl">
         <main className="flex min-h-0 w-full flex-1 flex-col">
           <span className="sr-only" aria-label="backend-connection-status">{status}</span>
           <NotebookPage>

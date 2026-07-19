@@ -50,8 +50,8 @@ export function WordbankReferenceDecks({
   onSelectLemma: (lemma: string) => void
 }) {
   return (
-    <section aria-label="Reference collections">
-      <div className="grid grid-cols-2 gap-2 md:grid-cols-5" data-grid-anchor="unit" data-reference-drawer>
+    <section className="@container min-w-0" aria-label="Reference collections">
+      <div className="grid grid-cols-2 gap-2 @4xl:grid-cols-5" data-grid-anchor="unit" data-reference-drawer>
         {pages.map((page) => (
           <ReferenceDeck key={page.sentinel} page={page} onClick={() => onSelectLemma(page.sentinel)} />
         ))}
@@ -65,9 +65,10 @@ function ReferenceDeck({ page, onClick }: { page: PinnedPageMeta; onClick: () =>
 
   return (
     <Card
-      className="h-16 gap-0 overflow-hidden py-0 last:col-span-2 md:last:col-span-1"
+      className="h-16 gap-0 overflow-hidden py-0 last:col-span-2 @4xl:last:col-span-1"
       data-material="reference"
       data-material-tone={visual.tone}
+      data-index-stock
       data-grid-anchor="unit"
       data-grid-height="unit"
     >

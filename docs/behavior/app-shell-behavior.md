@@ -54,6 +54,9 @@ Pure render switch; no app-shell side effects.
 - Source Sans 3 remains the UI face, Playwrite GB J is reserved for the brand
   wordmark, and Fraunces Variable is used for primary section headings.
 - The shell, cards, and floating surfaces use separate semantic depth tokens.
+- `SidebarInset` keeps rounded corners at every viewport and clips the scrolling
+  notebook sheet to that radius so its full-bleed texture cannot square off the
+  main content surface.
 - Decorative paper grain is CSS-only and removed for `prefers-contrast: more`.
 - Notebook ruling belongs to the scrolling sheet, not `SidebarInset`, so the
   8px content lattice and its visible 32px rules move together. The Wordbank

@@ -59,9 +59,14 @@ Priority:
 Collection composition:
 - The collection alone uses the notebook's 8px dot-grid surface; word details,
   pinned reference interiors, and other sections retain normal 32px ruling.
-- Reference pages render as a five-compartment catalogue drawer: one row on
-  desktop and two columns on mobile, with descriptions hidden at the narrowest
-  breakpoint.
+- Reference pages render as a five-compartment catalogue drawer: one row when
+  the notebook content is wide enough and two columns when the sidebar or
+  viewport constrains it, with descriptions hidden at the narrowest breakpoint.
+- Reference decks, pinned word cards, and saved-word slips use layered
+  index-stock depth without changing their grid geometry. Pinned and saved word
+  faces show the Danish lemma only; English translations move into the matching
+  keyboard-accessible hover preview and remain available as an accessible
+  description on the trigger.
 - The reference drawer, filter row, and catalogue share the notebook content
   edge and use a 32px vertical interval between blocks. Plain group letters
   align to that same left edge.

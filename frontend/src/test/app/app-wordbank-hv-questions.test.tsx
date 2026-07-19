@@ -42,12 +42,23 @@ describe("App wordbank pinned pages", () => {
 
     const hvorCard = await screen.findByRole("button", { name: /open hvor in wordbank/i })
     expect(within(hvorCard).queryByRole("button", { name: /listen to hvor/i })).not.toBeInTheDocument()
-    expect(within(hvorCard).getByText(/^where$/i)).toBeInTheDocument()
+    expect(within(hvorCard).queryByText(/^where$/i)).not.toBeInTheDocument()
+    expect(hvorCard).toHaveAttribute("aria-description", "where")
+    expect(hvorCard).toHaveAttribute("data-index-stock")
     expect(within(hvorCard).getByText(/^HV Word$/)).toBeInTheDocument()
     expect(within(hvorCard).queryByText(/^Adverb$/i)).not.toBeInTheDocument()
     expect(within(hvorCard).queryByText(/^Interrogative$/i)).not.toBeInTheDocument()
     expect(screen.queryByRole("button", { name: /generate example/i })).not.toBeInTheDocument()
     expect(screen.queryByRole("button", { name: /see examples/i })).not.toBeInTheDocument()
+
+    fireEvent.focus(hvorCard)
+    await waitFor(() => {
+      expect(document.querySelector("[data-pinned-word-preview]")).toBeInTheDocument()
+    })
+    const preview = document.querySelector<HTMLElement>("[data-pinned-word-preview]")
+    expect(within(preview!).getByText("hvor")).toBeInTheDocument()
+    expect(within(preview!).getByText("where")).toBeInTheDocument()
+    expect(preview?.closest("[data-index-stock]")).toBeInTheDocument()
   })
 
   it("no longer renders a question_words tab on the Pronouns page", async () => {

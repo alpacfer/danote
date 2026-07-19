@@ -73,63 +73,63 @@
     --danote-shell-gutter-x: 1rem;
     --danote-shell-gutter-y: 1rem;
     --danote-shell-stack-gap: 1.5rem;
-    --background: oklch(0.975 0.012 85);
-    --foreground: oklch(0.235 0.026 235);
-    --card: oklch(0.995 0.006 85);
-    --card-foreground: oklch(0.235 0.026 235);
-    --popover: oklch(0.995 0.006 85);
-    --popover-foreground: oklch(0.235 0.026 235);
-    --primary: oklch(0.43 0.105 165);
-    --primary-foreground: oklch(0.985 0.008 90);
-    --secondary: oklch(0.92 0.045 155);
-    --secondary-foreground: oklch(0.26 0.045 165);
-    --surface-raised: oklch(0.995 0.006 85);
-    --surface-sunken: oklch(0.955 0.02 88);
-    --material-word: oklch(0.975 0.025 88);
-    --material-reference: oklch(0.965 0.035 155);
-    --material-meaning: oklch(0.99 0.016 82);
-    --material-grammar: oklch(0.95 0.038 315);
-    --material-discovery: oklch(0.94 0.075 88);
-    --material-sentence: oklch(0.98 0.024 72);
-    --material-related: oklch(0.955 0.04 225);
-    --brand-clay: oklch(0.52 0.12 40);
-    --brand-butter: oklch(0.86 0.095 85);
-    --brand-sky: oklch(0.68 0.09 235);
-    --muted: oklch(0.945 0.018 85);
-    --muted-foreground: oklch(0.46 0.025 235);
-    --accent: oklch(0.89 0.06 75);
-    --accent-foreground: oklch(0.27 0.035 55);
-    --destructive: oklch(0.577 0.245 27.325);
-    --destructive-foreground: oklch(0.985 0.008 90);
-    --border: oklch(0.86 0.025 85);
-    --input: oklch(0.88 0.025 85);
-    --ring: oklch(0.55 0.105 165);
-    --chart-1: oklch(0.43 0.105 165);
-    --chart-2: oklch(0.55 0.12 40);
-    --chart-3: oklch(0.68 0.09 235);
-    --chart-4: oklch(0.86 0.095 85);
-    --chart-5: oklch(0.56 0.1 320);
-    --sidebar: oklch(0.955 0.023 95);
-    --sidebar-foreground: oklch(0.235 0.026 235);
-    --sidebar-primary: oklch(0.43 0.105 165);
-    --sidebar-primary-foreground: oklch(0.985 0.008 90);
-    --sidebar-accent: oklch(0.9 0.04 150);
-    --sidebar-accent-foreground: oklch(0.26 0.045 165);
-    --sidebar-border: oklch(0.84 0.03 95);
-    --sidebar-ring: oklch(0.55 0.105 165);
+    --background: oklch(0.96 0.022 92);
+    --foreground: oklch(0.245 0.035 145);
+    --card: oklch(0.982 0.014 88);
+    --card-foreground: oklch(0.245 0.035 145);
+    --popover: oklch(0.985 0.014 88);
+    --popover-foreground: oklch(0.245 0.035 145);
+    --primary: oklch(0.36 0.09 145);
+    --primary-foreground: oklch(0.975 0.018 92);
+    --secondary: oklch(0.885 0.052 135);
+    --secondary-foreground: oklch(0.27 0.055 145);
+    --surface-raised: oklch(0.985 0.014 88);
+    --surface-sunken: oklch(0.925 0.03 90);
+    --material-word: oklch(0.958 0.032 82);
+    --material-reference: oklch(0.925 0.055 140);
+    --material-meaning: oklch(0.97 0.03 76);
+    --material-grammar: oklch(0.925 0.045 38);
+    --material-discovery: oklch(0.9 0.075 84);
+    --material-sentence: oklch(0.95 0.045 62);
+    --material-related: oklch(0.915 0.045 175);
+    --brand-clay: oklch(0.5 0.105 42);
+    --brand-butter: oklch(0.81 0.095 82);
+    --brand-sky: oklch(0.62 0.065 195);
+    --muted: oklch(0.91 0.025 90);
+    --muted-foreground: oklch(0.44 0.032 145);
+    --accent: oklch(0.84 0.07 80);
+    --accent-foreground: oklch(0.27 0.045 70);
+    --destructive: oklch(0.54 0.19 28);
+    --destructive-foreground: oklch(0.975 0.018 92);
+    --border: oklch(0.8 0.038 90);
+    --input: oklch(0.83 0.035 90);
+    --ring: oklch(0.47 0.095 145);
+    --chart-1: oklch(0.36 0.09 145);
+    --chart-2: oklch(0.5 0.105 42);
+    --chart-3: oklch(0.52 0.075 175);
+    --chart-4: oklch(0.7 0.105 82);
+    --chart-5: oklch(0.48 0.09 20);
+    --sidebar: oklch(0.91 0.038 94);
+    --sidebar-foreground: oklch(0.245 0.035 145);
+    --sidebar-primary: oklch(0.36 0.09 145);
+    --sidebar-primary-foreground: oklch(0.975 0.018 92);
+    --sidebar-accent: oklch(0.84 0.06 135);
+    --sidebar-accent-foreground: oklch(0.25 0.055 145);
+    --sidebar-border: oklch(0.78 0.04 92);
+    --sidebar-ring: oklch(0.47 0.095 145);
     --danote-shadow-card:
-      0 1px 1px oklch(0.235 0.026 235 / 0.07),
-      0 12px 30px -24px oklch(0.235 0.026 235 / 0.34);
+      0 1px 1px oklch(0.22 0.035 145 / 0.08),
+      0 12px 30px -24px oklch(0.22 0.035 145 / 0.36);
     --danote-shadow-shell:
-      0 2px 3px oklch(0.235 0.026 235 / 0.08),
-      0 22px 52px -34px oklch(0.235 0.026 235 / 0.38);
+      0 2px 3px oklch(0.22 0.035 145 / 0.09),
+      0 22px 52px -34px oklch(0.22 0.035 145 / 0.4);
     --danote-shadow-floating:
-      0 4px 8px oklch(0.235 0.026 235 / 0.11),
-      0 24px 48px -24px oklch(0.235 0.026 235 / 0.42);
+      0 4px 8px oklch(0.22 0.035 145 / 0.12),
+      0 24px 48px -24px oklch(0.22 0.035 145 / 0.44);
     --danote-shadow-paper:
       0 2px 1px -1px color-mix(in oklch, var(--material-underlay, var(--secondary)) 55%, transparent),
-      0 8px 18px -14px oklch(0.235 0.026 235 / 0.42);
-    --danote-paper-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='128' height='128' viewBox='0 0 128 128'%3E%3Cfilter id='grain'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.74' numOctaves='3' seed='19'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='table' tableValues='0 .065'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='128' height='128' filter='url(%23grain)' opacity='.8'/%3E%3C/svg%3E");
+      0 8px 18px -14px oklch(0.22 0.035 145 / 0.44);
+    --danote-paper-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='128' height='128' viewBox='0 0 128 128'%3E%3Cfilter id='grain'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.74' numOctaves='3' seed='19'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='table' tableValues='0 .12'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='128' height='128' filter='url(%23grain)' opacity='.9'/%3E%3C/svg%3E");
     --danote-notebook-ruling: repeating-linear-gradient(
       to bottom,
       transparent 0,
@@ -142,7 +142,7 @@
       color-mix(in oklch, var(--foreground) 18%, transparent) 0 0.7px,
       transparent 0.85px
     );
-    --danote-paper-fibers: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='192' height='192' viewBox='0 0 192 192'%3E%3Cfilter id='fiber'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.018 .48' numOctaves='2' seed='8'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='table' tableValues='0 .085'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='192' height='192' filter='url(%23fiber)' opacity='.68'/%3E%3C/svg%3E");
+    --danote-paper-fibers: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='192' height='192' viewBox='0 0 192 192'%3E%3Cfilter id='fiber'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.018 .48' numOctaves='2' seed='8'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='table' tableValues='0 .16'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='192' height='192' filter='url(%23fiber)' opacity='.82'/%3E%3C/svg%3E");
 }
 
 @media (min-width: 48rem) {
@@ -154,63 +154,63 @@
 }
 
 .dark {
-    --background: oklch(0.19 0.025 225);
-    --foreground: oklch(0.935 0.014 85);
-    --card: oklch(0.235 0.028 220);
-    --card-foreground: oklch(0.935 0.014 85);
-    --popover: oklch(0.245 0.028 220);
-    --popover-foreground: oklch(0.935 0.014 85);
-    --primary: oklch(0.73 0.1 160);
-    --primary-foreground: oklch(0.19 0.03 165);
-    --secondary: oklch(0.31 0.045 165);
-    --secondary-foreground: oklch(0.92 0.015 85);
-    --surface-raised: oklch(0.235 0.028 220);
-    --surface-sunken: oklch(0.205 0.026 225);
-    --material-word: oklch(0.25 0.032 82);
-    --material-reference: oklch(0.27 0.043 160);
-    --material-meaning: oklch(0.255 0.031 70);
-    --material-grammar: oklch(0.28 0.045 315);
-    --material-discovery: oklch(0.31 0.052 82);
-    --material-sentence: oklch(0.265 0.035 65);
-    --material-related: oklch(0.27 0.045 230);
-    --brand-clay: oklch(0.72 0.11 45);
-    --brand-butter: oklch(0.74 0.09 85);
-    --brand-sky: oklch(0.72 0.08 235);
-    --muted: oklch(0.28 0.025 220);
-    --muted-foreground: oklch(0.73 0.02 85);
-    --accent: oklch(0.36 0.055 75);
-    --accent-foreground: oklch(0.93 0.015 85);
-    --destructive: oklch(0.704 0.191 22.216);
-    --destructive-foreground: oklch(0.19 0.025 225);
-    --border: oklch(0.4 0.025 220 / 55%);
-    --input: oklch(0.38 0.03 220 / 70%);
-    --ring: oklch(0.67 0.1 160);
-    --chart-1: oklch(0.73 0.1 160);
-    --chart-2: oklch(0.72 0.11 45);
-    --chart-3: oklch(0.72 0.08 235);
-    --chart-4: oklch(0.74 0.09 85);
-    --chart-5: oklch(0.7 0.1 320);
-    --sidebar: oklch(0.205 0.03 225);
-    --sidebar-foreground: oklch(0.935 0.014 85);
-    --sidebar-primary: oklch(0.73 0.1 160);
-    --sidebar-primary-foreground: oklch(0.19 0.03 165);
-    --sidebar-accent: oklch(0.29 0.04 165);
-    --sidebar-accent-foreground: oklch(0.92 0.015 85);
-    --sidebar-border: oklch(0.38 0.03 220 / 55%);
-    --sidebar-ring: oklch(0.67 0.1 160);
+    --background: oklch(0.155 0.025 145);
+    --foreground: oklch(0.91 0.025 90);
+    --card: oklch(0.205 0.032 140);
+    --card-foreground: oklch(0.91 0.025 90);
+    --popover: oklch(0.22 0.034 140);
+    --popover-foreground: oklch(0.91 0.025 90);
+    --primary: oklch(0.68 0.11 140);
+    --primary-foreground: oklch(0.15 0.032 145);
+    --secondary: oklch(0.29 0.06 135);
+    --secondary-foreground: oklch(0.9 0.025 90);
+    --surface-raised: oklch(0.21 0.032 140);
+    --surface-sunken: oklch(0.175 0.026 145);
+    --material-word: oklch(0.23 0.038 80);
+    --material-reference: oklch(0.25 0.055 140);
+    --material-meaning: oklch(0.235 0.038 65);
+    --material-grammar: oklch(0.255 0.05 38);
+    --material-discovery: oklch(0.29 0.065 80);
+    --material-sentence: oklch(0.245 0.045 55);
+    --material-related: oklch(0.25 0.05 175);
+    --brand-clay: oklch(0.68 0.11 42);
+    --brand-butter: oklch(0.72 0.1 82);
+    --brand-sky: oklch(0.65 0.07 195);
+    --muted: oklch(0.25 0.028 140);
+    --muted-foreground: oklch(0.7 0.028 92);
+    --accent: oklch(0.34 0.07 78);
+    --accent-foreground: oklch(0.92 0.025 90);
+    --destructive: oklch(0.68 0.17 28);
+    --destructive-foreground: oklch(0.16 0.025 145);
+    --border: oklch(0.36 0.035 130 / 65%);
+    --input: oklch(0.34 0.04 130 / 78%);
+    --ring: oklch(0.62 0.11 140);
+    --chart-1: oklch(0.68 0.11 140);
+    --chart-2: oklch(0.68 0.11 42);
+    --chart-3: oklch(0.64 0.08 175);
+    --chart-4: oklch(0.72 0.1 82);
+    --chart-5: oklch(0.65 0.1 20);
+    --sidebar: oklch(0.18 0.03 145);
+    --sidebar-foreground: oklch(0.91 0.025 90);
+    --sidebar-primary: oklch(0.68 0.11 140);
+    --sidebar-primary-foreground: oklch(0.15 0.032 145);
+    --sidebar-accent: oklch(0.27 0.055 135);
+    --sidebar-accent-foreground: oklch(0.9 0.025 90);
+    --sidebar-border: oklch(0.34 0.04 130 / 65%);
+    --sidebar-ring: oklch(0.62 0.11 140);
     --danote-shadow-card:
-      0 1px 1px oklch(0.08 0.018 225 / 0.42),
-      0 14px 34px -24px oklch(0.08 0.018 225 / 0.78);
+      0 1px 1px oklch(0.06 0.02 145 / 0.42),
+      0 14px 34px -24px oklch(0.06 0.02 145 / 0.78);
     --danote-shadow-shell:
-      0 2px 3px oklch(0.08 0.018 225 / 0.45),
-      0 24px 56px -34px oklch(0.08 0.018 225 / 0.82);
+      0 2px 3px oklch(0.06 0.02 145 / 0.45),
+      0 24px 56px -34px oklch(0.06 0.02 145 / 0.82);
     --danote-shadow-floating:
-      0 5px 10px oklch(0.08 0.018 225 / 0.48),
-      0 26px 54px -24px oklch(0.08 0.018 225 / 0.9);
+      0 5px 10px oklch(0.06 0.02 145 / 0.48),
+      0 26px 54px -24px oklch(0.06 0.02 145 / 0.9);
     --danote-shadow-paper:
       0 2px 1px -1px color-mix(in oklch, var(--material-underlay, var(--secondary)) 42%, transparent),
-      0 10px 22px -14px oklch(0.08 0.018 225 / 0.72);
-    --danote-paper-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='128' height='128' viewBox='0 0 128 128'%3E%3Cfilter id='grain'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.74' numOctaves='3' seed='19'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='table' tableValues='0 .05'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='128' height='128' filter='url(%23grain)' opacity='.7'/%3E%3C/svg%3E");
+      0 10px 22px -14px oklch(0.06 0.02 145 / 0.72);
+    --danote-paper-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='128' height='128' viewBox='0 0 128 128'%3E%3Cfilter id='grain'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.74' numOctaves='3' seed='19'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='table' tableValues='0 .09'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='128' height='128' filter='url(%23grain)' opacity='.8'/%3E%3C/svg%3E");
     --danote-notebook-ruling: repeating-linear-gradient(
       to bottom,
       transparent 0,
@@ -223,7 +223,7 @@
       color-mix(in oklch, var(--foreground) 15%, transparent) 0 0.7px,
       transparent 0.85px
     );
-    --danote-paper-fibers: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='192' height='192' viewBox='0 0 192 192'%3E%3Cfilter id='fiber'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.018 .48' numOctaves='2' seed='8'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='table' tableValues='0 .065'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='192' height='192' filter='url(%23fiber)' opacity='.58'/%3E%3C/svg%3E");
+    --danote-paper-fibers: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='192' height='192' viewBox='0 0 192 192'%3E%3Cfilter id='fiber'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.018 .48' numOctaves='2' seed='8'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='table' tableValues='0 .10'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='192' height='192' filter='url(%23fiber)' opacity='.72'/%3E%3C/svg%3E");
 }
 
 @layer base {
@@ -347,6 +347,23 @@
   transition: background-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
 }
 
+[data-index-stock] {
+  --index-stock-sheet-one: color-mix(
+    in oklch,
+    var(--material-surface, var(--surface-raised)) 82%,
+    var(--material-underlay, var(--secondary))
+  );
+  --index-stock-sheet-two: color-mix(
+    in oklch,
+    var(--material-surface, var(--surface-raised)) 68%,
+    var(--material-underlay, var(--secondary))
+  );
+  box-shadow:
+    2px 2px 0 var(--index-stock-sheet-one),
+    4px 4px 0 var(--index-stock-sheet-two),
+    var(--danote-shadow-paper);
+}
+
 [data-material="word"] {
   --material-surface: var(--material-word);
   --material-underlay: var(--material-discovery);
@@ -354,7 +371,10 @@
 
 [data-wordbank-catalogue] [data-material="word"]:hover {
   transform: translateY(-1px);
-  box-shadow: var(--danote-shadow-card);
+  box-shadow:
+    2px 3px 0 var(--index-stock-sheet-one),
+    4px 5px 0 var(--index-stock-sheet-two),
+    var(--danote-shadow-card);
 }
 
 [data-wordbank-catalogue] [data-material="word"]:active {
@@ -364,7 +384,24 @@
 [data-material="reference"] {
   --material-surface: var(--material-reference);
   --material-underlay: var(--brand-sky);
-  box-shadow: var(--danote-shadow-card);
+}
+
+[data-index-stock][data-material="reference"] {
+  background-image:
+    linear-gradient(
+      to right,
+      transparent 0 10%,
+      color-mix(in oklch, var(--material-underlay) 30%, transparent) 10% 34%,
+      transparent 34%
+    ),
+    var(--danote-paper-grain);
+  background-position: 0 0, 0 0;
+  background-repeat: no-repeat, repeat;
+  background-size: 100% 0.3rem, 8rem 8rem;
+  box-shadow:
+    2px 2px 0 var(--index-stock-sheet-one),
+    4px 4px 0 var(--index-stock-sheet-two),
+    var(--danote-shadow-card);
 }
 
 [data-material="meaning"] {

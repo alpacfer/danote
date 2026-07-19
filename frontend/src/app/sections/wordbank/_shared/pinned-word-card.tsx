@@ -6,6 +6,11 @@ import { wordPageBadgesForSavedForm } from "@/app/sections/wordbank/wordbank-car
 import { applyPrimaryBadgeLabelOverride } from "@/app/sections/wordbank/wordbank-primary-pos-badge"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card"
 import { ScrollableBadgeRow } from "@/components/ui/scrollable-badge-row"
 
 export type PinnedWordEntry = {
@@ -43,6 +48,7 @@ export function PinnedWordCard({
   })
   const hiddenSet = hiddenBadges && hiddenBadges.length > 0 ? new Set(hiddenBadges) : null
   const badges = hiddenSet ? allBadges.filter((badge) => !hiddenSet.has(badge.label)) : allBadges
+  const translation = entry.translation.trim()
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key !== "Enter" && event.key !== " ") return
@@ -51,35 +57,56 @@ export function PinnedWordCard({
   }
 
   return (
-    <Card
-      role="button"
-      tabIndex={0}
-      aria-label={`Open ${entry.lemma} in wordbank`}
-      onClick={openWord}
-      onKeyDown={handleKeyDown}
-      className="min-w-0 cursor-pointer overflow-hidden transition-colors hover:bg-accent/50 focus-visible:ring-ring/50 focus-visible:ring-2"
-      data-material="reference"
-      data-grid-anchor="unit"
-    >
-      <CardHeader className="min-w-0 gap-2 px-4 sm:px-6">
-        <div className="flex min-w-0 flex-col gap-x-2 gap-y-1 md:grid md:grid-cols-[auto_1fr]">
-          <CardTitle className="break-words text-lg font-semibold md:col-start-1 md:row-start-1">{entry.lemma}</CardTitle>
-          {badges.length > 0 ? (
-            <ScrollableBadgeRow className="order-3 w-full min-w-0 flex-1 md:order-none md:col-start-2 md:row-start-1 md:w-auto" fadeFromClass="from-card">
-              {badges.map((badge) => (
-                <Badge
-                  key={`pinned-word-${entry.lemma}-${badge.label}`}
-                  variant={badge.tone === "primary" ? "default" : "secondary"}
-                  className={`shrink-0 text-xs ${badge.tone === "primary" ? `border ${posBadgeClass(badge.label === "HV Word" ? "HV_WORD" : posTag)}` : `border ${corSecondaryBadgeClass(badge.label)}`}`.trim()}
-                >
-                  {badge.label}
-                </Badge>
-              ))}
-            </ScrollableBadgeRow>
-          ) : null}
-          <p className="text-muted-foreground order-2 break-words text-sm md:order-none md:col-span-2 md:row-start-2">{entry.translation}</p>
-        </div>
-      </CardHeader>
-    </Card>
+    <HoverCard open={translation ? undefined : false} openDelay={300} closeDelay={200}>
+      <HoverCardTrigger asChild>
+        <Card
+          role="button"
+          tabIndex={0}
+          aria-label={`Open ${entry.lemma} in wordbank`}
+          aria-description={translation || undefined}
+          onClick={openWord}
+          onKeyDown={handleKeyDown}
+          className="min-w-0 cursor-pointer overflow-hidden transition-colors hover:bg-accent/50 focus-visible:ring-ring/50 focus-visible:ring-2"
+          data-material="reference"
+          data-index-stock
+          data-grid-anchor="unit"
+        >
+          <CardHeader className="min-w-0 px-4 sm:px-6">
+            <div className="flex min-w-0 items-start justify-between gap-2">
+              <CardTitle className="min-w-0 break-words text-lg font-semibold">{entry.lemma}</CardTitle>
+              {badges.length > 0 ? (
+                <ScrollableBadgeRow className="min-w-0 flex-1 justify-end" fadeFromClass="from-card">
+                  {badges.map((badge) => (
+                    <Badge
+                      key={`pinned-word-${entry.lemma}-${badge.label}`}
+                      variant={badge.tone === "primary" ? "default" : "secondary"}
+                      className={`shrink-0 text-xs ${badge.tone === "primary" ? `border ${posBadgeClass(badge.label === "HV Word" ? "HV_WORD" : posTag)}` : `border ${corSecondaryBadgeClass(badge.label)}`}`.trim()}
+                    >
+                      {badge.label}
+                    </Badge>
+                  ))}
+                </ScrollableBadgeRow>
+              ) : null}
+            </div>
+          </CardHeader>
+        </Card>
+      </HoverCardTrigger>
+      {translation ? (
+        <HoverCardContent
+          align="start"
+          side="top"
+          sideOffset={8}
+          collisionPadding={16}
+          className="w-72 max-w-[calc(100vw-2rem)] p-0"
+          data-material="reference"
+          data-index-stock
+        >
+          <div className="flex flex-col gap-2 p-4" data-pinned-word-preview>
+            <p className="font-section-title text-lg leading-6">{entry.lemma}</p>
+            <p className="text-sm font-medium">{translation}</p>
+          </div>
+        </HoverCardContent>
+      ) : null}
+    </HoverCard>
   )
 }

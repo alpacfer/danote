@@ -32,10 +32,15 @@ function distanceToGrid(value: number, step: number): number {
 
 async function expectNotebookAlignment() {
   await settleLayout()
+  const inset = document.querySelector<HTMLElement>("[data-slot='sidebar-inset']")
   const sheet = document.querySelector<HTMLElement>("[data-notebook-sheet]")
   const content = document.querySelector<HTMLElement>("[data-notebook-content]")
+  expect(inset).not.toBeNull()
   expect(sheet).not.toBeNull()
   expect(content).not.toBeNull()
+  const insetStyle = window.getComputedStyle(inset!)
+  expect(Number.parseFloat(insetStyle.borderTopLeftRadius)).toBeGreaterThan(0)
+  expect(insetStyle.overflow).toBe("hidden")
   const contentRect = content!.getBoundingClientRect()
   const paddingTop = Number.parseFloat(window.getComputedStyle(content!).paddingTop)
   const origin = contentRect.top + paddingTop
@@ -75,6 +80,7 @@ async function expectNotebookAlignment() {
 
     const alphabet = document.querySelector<HTMLElement>("[aria-label='Word catalogue alphabet']")
     const referenceDrawer = document.querySelector<HTMLElement>("[data-reference-drawer]")
+    const referenceShelf = document.querySelector<HTMLElement>("[aria-label='Reference collections']")
     const filters = document.querySelector<HTMLElement>("[data-wordbank-filters]")
     const catalogue = document.querySelector<HTMLElement>("[data-wordbank-catalogue]")
     const bottomNav = document.querySelector<HTMLElement>("[data-slot='mobile-bottom-nav']")
@@ -93,6 +99,12 @@ async function expectNotebookAlignment() {
     if (referenceDrawer && filters && catalogue) {
       expect(filters.getBoundingClientRect().top - referenceDrawer.getBoundingClientRect().bottom).toBeGreaterThanOrEqual(31)
       expect(catalogue.getBoundingClientRect().top - filters.getBoundingClientRect().bottom).toBeGreaterThanOrEqual(31)
+    }
+    if (referenceShelf) {
+      const shelfRight = referenceShelf.getBoundingClientRect().right
+      for (const card of referenceShelf.querySelectorAll<HTMLElement>("[data-material='reference']")) {
+        expect(card.getBoundingClientRect().right).toBeLessThanOrEqual(shelfRight + 1)
+      }
     }
     if (letterHeading) {
       const letterStyle = window.getComputedStyle(letterHeading)

@@ -66,6 +66,7 @@ export function WordbankSpecimenTile({
               data-testid={`wordbank-specimen-${lemma.lemma}`}
               data-material="word"
               data-material-tone={materialTone}
+              data-index-stock
               data-mwe={isMultiWordLemma(lemma.lemma) ? "true" : "false"}
               data-grid-anchor="unit"
               data-grid-height="unit"
@@ -86,6 +87,7 @@ export function WordbankSpecimenTile({
             className="w-80 max-w-[calc(100vw-2rem)] p-0"
             data-material="word"
             data-material-tone={materialTone}
+            data-index-stock
           >
             <WordbankSpecimenPreview
               displayWord={displayWord}
