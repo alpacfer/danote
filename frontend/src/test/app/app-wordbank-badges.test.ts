@@ -1,6 +1,13 @@
-import { badgesForSavedForm } from "@/app/core"
+import { badgesForSavedForm, posBadgeClass } from "@/app/core"
 
 describe("Wordbank saved badges", () => {
+  it("gives word types a lexical label treatment", () => {
+    expect(posBadgeClass("VERB")).toContain("font-lexical")
+    expect(posBadgeClass("VERB")).toContain("rounded-sm")
+    expect(posBadgeClass("VERB")).toContain("bg-material-grammar")
+    expect(posBadgeClass("NOUN")).toContain("bg-material-reference")
+  })
+
   it("maps adjective agreement to n-word labels instead of Common", () => {
     expect(
       badgesForSavedForm({

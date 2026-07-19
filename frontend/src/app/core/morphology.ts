@@ -120,31 +120,33 @@ export function reflexiveFromMorphology(morphology: string | null): ReflexiveLab
 }
 
 export function posBadgeClass(posTag: string | null): string {
-  if (!posTag) return ""
+  const baseClass = "rounded-sm border font-lexical font-semibold italic tracking-[0.025em]"
+  if (!posTag) return `${baseClass} bg-material-word text-foreground border-border/80`
   const upperTag = posTag.toUpperCase()
   const colorByPos: Record<string, string> = {
-    ADJ: "bg-pink-100 text-pink-800 dark:bg-pink-900/40 dark:text-pink-200 border-transparent",
-    ADP: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900/40 dark:text-cyan-200 border-transparent",
-    ADV: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-200 border-transparent",
-    AUX: "bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-200 border-transparent",
-    CCONJ: "bg-lime-100 text-lime-800 dark:bg-lime-900/40 dark:text-lime-200 border-transparent",
-    DET: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200 border-transparent",
-    INTJ: "bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-200 border-transparent",
-    NOUN: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200 border-transparent",
-    NUM: "bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-200 border-transparent",
-    PART: "bg-zinc-100 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200 border-transparent",
-    PRON: "bg-teal-100 text-teal-800 dark:bg-teal-900/40 dark:text-teal-200 border-transparent",
-    PROPN: "bg-fuchsia-100 text-fuchsia-800 dark:bg-fuchsia-900/40 dark:text-fuchsia-200 border-transparent",
-    PUNCT: "bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200 border-transparent",
-    SCONJ: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-200 border-transparent",
-    SYM: "bg-stone-100 text-stone-800 dark:bg-stone-800 dark:text-stone-200 border-transparent",
-    VERB: "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200 border-transparent",
-    X: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200 border-transparent",
-    PHRASAL_VERB: "bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-200 border-transparent",
-    IDIOM: "bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-200 border-transparent",
-    HV_WORD: "bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-200 border-transparent",
+    ADJ: "bg-material-related text-foreground border-brand-sky/55",
+    ADP: "bg-material-word text-foreground border-accent",
+    ADV: "bg-material-related text-foreground border-brand-sky/55",
+    AUX: "bg-material-grammar text-foreground border-brand-clay/50",
+    CCONJ: "bg-material-word text-foreground border-accent",
+    DET: "bg-material-reference text-foreground border-primary/40",
+    INTJ: "bg-material-discovery text-foreground border-brand-butter",
+    NOUN: "bg-material-reference text-foreground border-primary/40",
+    NUM: "bg-material-discovery text-foreground border-brand-butter",
+    PART: "bg-material-word text-foreground border-border/80",
+    PRON: "bg-material-reference text-foreground border-primary/40",
+    PROPN: "bg-material-reference text-foreground border-primary/40",
+    PUNCT: "bg-muted text-muted-foreground border-border/80",
+    SCONJ: "bg-material-word text-foreground border-accent",
+    SYM: "bg-muted text-muted-foreground border-border/80",
+    VERB: "bg-material-grammar text-foreground border-brand-clay/50",
+    X: "bg-muted text-muted-foreground border-border/80",
+    PHRASAL_VERB: "bg-material-grammar text-foreground border-brand-clay/50",
+    IDIOM: "bg-material-grammar text-foreground border-brand-clay/50",
+    HV_WORD: "bg-material-related text-foreground border-brand-sky/55",
   }
-  return colorByPos[upperTag] ?? colorByPos[posTag] ?? "bg-muted text-muted-foreground border-transparent"
+  const colorClass = colorByPos[upperTag] ?? colorByPos[posTag] ?? "bg-material-word text-foreground border-border/80"
+  return `${baseClass} ${colorClass}`
 }
 
 export function secondaryTagsForPos(posTag: string | null, morphology: string | null): string[] {

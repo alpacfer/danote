@@ -206,6 +206,8 @@ export function SidebarWordbankResults({
                             variant={badge.tone === "primary" ? "default" : "secondary"}
                             className={`text-xs ${badge.tone === "primary" ? `border ${posBadgeClass(displayVariant?.pos_tag ?? result.pos_tag ?? null)}` : `border ${corSecondaryBadgeClass(badge.label)}`}`.trim()}
                             data-testid="search-metadata-badge"
+                            title={badge.tone === "primary" ? badge.label : undefined}
+                            aria-label={badge.tone === "primary" ? badge.label : undefined}
                           >
                             {badge.label}
                           </Badge>

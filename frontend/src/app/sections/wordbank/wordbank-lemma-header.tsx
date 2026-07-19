@@ -220,6 +220,8 @@ export function WordbankLemmaHeader({
                   isClickable ? "cursor-pointer hover:scale-105 transition-transform" : ""
                 }`.trim()}
                 onClick={handleClick}
+                title={badge.tone === "primary" ? badge.label : undefined}
+                aria-label={badge.tone === "primary" ? badge.label : undefined}
               >
                 {badge.label}
               </Badge>

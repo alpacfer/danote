@@ -128,6 +128,8 @@ export function WordbankVariationGrid({
                   key={`${form.form}-${badge.label}`}
                   variant={badge.tone === "primary" ? "default" : "secondary"}
                   className={`text-[11px] ${badge.tone === "primary" ? `border ${posBadgeClass(form.pos_tag)}` : `border ${corSecondaryBadgeClass(badge.label)}`}`.trim()}
+                  title={badge.tone === "primary" ? badge.label : undefined}
+                  aria-label={badge.tone === "primary" ? badge.label : undefined}
                 >
                   {badge.label}
                 </Badge>

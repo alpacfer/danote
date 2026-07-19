@@ -97,6 +97,8 @@ export function SidebarEnResults({
                 <Badge
                   variant="default"
                   className={`text-xs border ${posBadgeClass(group.pos_ud)}`}
+                  title={primaryPosLabel(group.pos_ud) ?? group.pos_ud}
+                  aria-label={primaryPosLabel(group.pos_ud) ?? group.pos_ud}
                 >
                   {primaryPosLabel(group.pos_ud) ?? group.pos_ud}
                 </Badge>

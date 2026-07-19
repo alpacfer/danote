@@ -154,6 +154,8 @@ function FilterMenu({
                         key={item.value}
                         variant={isWordType ? "default" : "outline"}
                         className={badgeClasses.trim()}
+                        title={isWordType ? item.label : undefined}
+                        aria-label={isWordType ? item.label : undefined}
                       >
                         {item.label}
                       </Badge>
@@ -199,6 +201,8 @@ function FilterMenu({
                       <Badge
                         variant={isWordType ? "default" : "outline"}
                         className={badgeClasses.trim()}
+                        title={isWordType ? option.label : undefined}
+                        aria-label={isWordType ? option.label : undefined}
                       >
                         {option.label}
                       </Badge>

@@ -169,6 +169,8 @@ export function WordbankRelatedWords({
                                     key={`related-word-choice-${item.id}-${variant.cor_id}-${badge.label}`}
                                     variant={badge.tone === "primary" ? "outline" : "secondary"}
                                     className={`text-xs ${badge.tone === "primary" ? `border ${posBadgeClass(variant.pos_tag ?? item.pos_tag ?? null)}` : `border ${corSecondaryBadgeClass(badge.label)}`}`.trim()}
+                                    title={badge.tone === "primary" ? badge.label : undefined}
+                                    aria-label={badge.tone === "primary" ? badge.label : undefined}
                                   >
                                     {badge.label}
                                   </Badge>
@@ -219,6 +221,8 @@ function RelatedWordCardBody({
               key={`related-word-${item.id}-${uniqueVariant.cor_id}-${badge.label}`}
               variant={badge.tone === "primary" ? "outline" : "secondary"}
               className={`text-xs ${badge.tone === "primary" ? `border ${posBadgeClass(uniqueVariant.pos_tag ?? item.pos_tag ?? null)}` : `border ${corSecondaryBadgeClass(badge.label)}`}`.trim()}
+              title={badge.tone === "primary" ? badge.label : undefined}
+              aria-label={badge.tone === "primary" ? badge.label : undefined}
             >
               {badge.label}
             </Badge>
@@ -228,7 +232,12 @@ function RelatedWordCardBody({
         <p className="text-muted-foreground mt-2 text-xs">Multiple COR matches. Choose one to save.</p>
       ) : item.pos_tag ? (
         <div className="mt-2">
-          <Badge variant="outline" className={`text-xs ${posBadgeClass(item.pos_tag)}`.trim()}>
+          <Badge
+            variant="outline"
+            className={`text-xs ${posBadgeClass(item.pos_tag)}`.trim()}
+            title={primaryPosLabel(item.pos_tag) ?? item.pos_tag}
+            aria-label={primaryPosLabel(item.pos_tag) ?? item.pos_tag}
+          >
             {primaryPosLabel(item.pos_tag) ?? item.pos_tag}
           </Badge>
         </div>

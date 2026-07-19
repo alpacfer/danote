@@ -90,6 +90,8 @@ export function SentencebankTokenButton({
                     key={`sentence-token-${token.token_index}-${badge.label}`}
                     variant={badge.tone === "primary" ? "default" : "secondary"}
                     className={`text-xs ${badge.tone === "primary" ? `border ${posBadgeClass(token.pos_tag ?? null)}` : `border ${corSecondaryBadgeClass(badge.label)}`}`.trim()}
+                    title={badge.tone === "primary" ? badge.label : undefined}
+                    aria-label={badge.tone === "primary" ? badge.label : undefined}
                   >
                     {badge.label}
                   </Badge>

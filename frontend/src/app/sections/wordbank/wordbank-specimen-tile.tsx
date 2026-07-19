@@ -99,7 +99,7 @@ export function WordbankSpecimenTile({
             {hasPreview ? (
               <div ref={previewRef} data-wordbank-expansion-preview>
                 <WordbankSpecimenPreview
-                  posLabels={posLabels}
+                  posTags={posTags}
                   translationGroups={translationGroups}
                 />
               </div>
