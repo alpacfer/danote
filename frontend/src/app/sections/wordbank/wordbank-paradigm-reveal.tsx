@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
-import { Eye, LockKeyhole } from "lucide-react"
+import { CircleSlash2, Eye } from "lucide-react"
 
 export type ParadigmCellCoordinate = {
   row: string
@@ -54,7 +54,7 @@ export function ParadigmMissingCell({
         <>
           <span data-paradigm-reveal-dash aria-hidden="true">—</span>
           {isLocked ? (
-            <LockKeyhole data-paradigm-reveal-icon="lock" aria-hidden="true" />
+            <CircleSlash2 data-paradigm-reveal-icon="unavailable" aria-hidden="true" />
           ) : (
             <Eye data-paradigm-reveal-icon="eye" aria-hidden="true" />
           )}

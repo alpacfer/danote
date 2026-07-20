@@ -328,6 +328,9 @@ flow as for any other verb.
   - verb meanings → fixed rows: `Infinitive`, `Present`, `Past`, `Imperative`, `Past participle` (no visible `Form` header)
   - paradigm markup remains a semantic table but is presented as a connected
     morphology journey with named slots and a stacked narrow-screen layout
+  - selecting the first missing slot generates the complete paradigm in one
+    request but reveals only that slot; other generated slots remain concealed
+    until selected individually, while unavailable slots use a prohibited mark
   - initial saved form shown in table immediately
   - adj tables: number × definiteness; singular-indefinite has separate `n-word`/`t-word` lines; partial generated non-COR morphology is still slotted when gender/number is enough; equivalent forms in one slot are separated with `/`; same-form entries (e.g. `store`, invariant `orange`) may render into multiple cells
   - verb same-form entries may render into multiple rows
@@ -377,13 +380,15 @@ flow as for any other verb.
 ## Signature word-page composition
 
 - A specimen hero combines lemma, English translation, audio, identity badges,
-  verification, and existing reference bookmarks.
+  verification, and existing reference bookmarks on a white card.
 - Existing word- and meaning-level reference links render as bookmark controls.
 - The newest linked sentence is promoted to a paper clipping; the complete
   collection remains below it. If no sentence exists, the existing Generate
   Example action is exposed without synthetic content.
 - Compound components and related words share a compact connected composition
-  shelf. This is intentionally not the later semantic-map feature.
+  shelf. Meaning and composition cards use the material color assigned to each
+  word type, while linked sentence cards remain white. This is intentionally not
+  the later semantic-map feature.
 - Audio rings, sense-depth transitions, example unfolding, variation arrival,
   and tile-to-page View Transitions are disabled or made immediate for reduced
   motion.
@@ -511,8 +516,8 @@ The previous token-popover add path from Playground is retired while Playground 
 
 - `POST /api/wordbank/lexemes/complete-variations`
 - Noun/adjective tables use `Number` as their row-axis header; verb tables use `Tense`. All paradigms retain a fixed grammar-label column, equal form columns, ruled field-note separators, and lexical typography for Danish forms.
-- Eligible empty cells expose an eye action on hover/focus (and a faint touch affordance). Clicking one completes the whole paradigm, focuses the selected square with an ink pulse, and staggers newly returned cells into view.
-- Verification-locked cells remain keyboard-focusable with `aria-disabled`, show a lock affordance, and explain the gate reason without starting verification.
+- Eligible empty cells expose an eye action on hover/focus (and a faint touch affordance). The first click completes the whole paradigm but reveals only the selected square with an ink pulse; each other generated square keeps its eye action and reveals locally without another request.
+- Unavailable cells remain keyboard-focusable with `aria-disabled`, show a prohibited affordance, and explain the gate reason without starting verification.
 - Sectioned cards submit their meaning id. Non-sectioned/root cards submit `meaning_id: null`, which the backend resolves only when the lexeme has exactly one saved meaning.
 - Success: Gemini-resolved missing paradigm members inserted; same-spelling forms are kept when they represent distinct morphology (for example verb past matching the lemma); pronunciation queueing merged via one lemma-scoped background job (`stored_lemma`); `queued_pronunciation_forms` = forms still missing audio (may include lemma itself); word page polls bounded window until `has_pronunciation=true` or timeout
 

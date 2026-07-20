@@ -1056,12 +1056,17 @@ describe("App wordbank", () => {
     })
     expect(await screen.findByText(/^bogen$/i)).toBeInTheDocument()
     const revealedCell = screen.getByText(/^bogen$/i).closest("[data-paradigm-cell]")
-    expect(revealedCell).toHaveAttribute("data-reveal-origin", "true")
     expect(revealedCell).toHaveAttribute("data-newly-revealed", "true")
-    expect(screen.getByText(/^bøgerne$/i).closest("[data-paradigm-cell]")).toHaveAttribute(
-      "data-newly-revealed",
-      "true",
-    )
+    expect(screen.queryByText(/^bøgerne$/i)).not.toBeInTheDocument()
+
+    const pluralDefiniteReveal = within(table).getByRole("button", {
+      name: /^reveal missing forms — focus: plural, definite$/i,
+    })
+    fireEvent.click(pluralDefiniteReveal)
+    expect(await screen.findByText(/^bøgerne$/i)).toBeInTheDocument()
+    expect(fetchSpy.mock.calls.filter(([input]) => (
+      String(input).endsWith("/api/wordbank/lexemes/complete-variations")
+    ))).toHaveLength(1)
   })
 
   it("request-shape: adjective meaning cards can complete variations and render the agreement table with shared plural cells", async () => {

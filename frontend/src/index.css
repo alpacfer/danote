@@ -970,17 +970,17 @@
   --material-underlay: var(--material-grammar);
 }
 
+[data-material="lemma"],
+[data-material="sentence"] {
+  --material-surface: var(--card);
+  --material-underlay: var(--muted);
+}
+
 [data-material="meaning"][data-selected="true"] {
-  --material-surface: color-mix(in oklch, var(--material-meaning) 78%, var(--material-discovery));
   transform: translateY(-0.5rem);
   box-shadow:
     0 4px 0 -2px color-mix(in oklch, var(--material-grammar) 45%, transparent),
     0 18px 30px -22px oklch(0.235 0.026 235 / 0.5);
-}
-
-[data-material="sentence"] {
-  --material-surface: var(--material-sentence);
-  --material-underlay: var(--brand-butter);
 }
 
 [data-material="related"] {
@@ -1214,13 +1214,12 @@
   }
 }
 
-[data-morphology-journey] [data-paradigm-cell][data-reveal-origin="true"] {
+[data-morphology-journey] [data-paradigm-cell][data-newly-revealed="true"] {
   animation: danote-paradigm-ink-ring 420ms ease-out;
 }
 
 [data-morphology-journey] [data-paradigm-cell][data-newly-revealed="true"] > * {
   animation: danote-paradigm-write-in 260ms ease-out both;
-  animation-delay: calc(var(--danote-reveal-index, 0) * 50ms);
 }
 
 [data-morphology-journey] [data-paradigm-supplement] {

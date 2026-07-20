@@ -476,6 +476,7 @@ describe("App wordbank", () => {
       .getByText((_, element) => element?.textContent === "Læreren hjælper lærere")
       .closest("[data-slot='card']")
     expect(sentenceCard).toBeTruthy()
+    expect(sentenceCard).toHaveAttribute("data-material", "sentence")
     expect(
       Array.from((sentenceCard as HTMLElement).querySelectorAll("span.underline")).map((element) => element.textContent),
     ).toEqual(["Læreren", "lærere"])
@@ -955,6 +956,8 @@ describe("App wordbank", () => {
     fireEvent.click(await screen.findByRole("button", { name: /bog/i }))
 
     const table = await screen.findByRole("table")
+    expect(document.getElementById("wordbank-lemma-header")).toHaveAttribute("data-material", "lemma")
+    expect(screen.getByTestId("wordbank-lemma-scope-card")).toHaveAttribute("data-material-tone", "sky")
     const headerBadges = screen.getByTestId("wordbank-lemma-header-badges")
     expect(within(headerBadges).getByText(/^Noun$/i)).toBeInTheDocument()
     expect(within(headerBadges).getByText(/^n-word$/i)).toBeInTheDocument()
@@ -968,6 +971,7 @@ describe("App wordbank", () => {
       name: /^complete variations unavailable: singular, definite$/i,
     })
     expect(lockedCell).toHaveAttribute("aria-disabled", "true")
+    expect(lockedCell.querySelector('[data-paradigm-reveal-icon="unavailable"]')).toBeInTheDocument()
   })
 
   it("renderer-only: non-COR adjective forms with partial morphology stay in the paradigm table", async () => {

@@ -174,7 +174,7 @@ export function WordbankLemmaHeader({
     <Card
       id="wordbank-lemma-header"
       className="gap-4 py-4"
-      data-material="meaning"
+      data-material="lemma"
       data-paper-stock
       data-grid-anchor="rule"
       data-grid-height="unit"
@@ -200,7 +200,7 @@ export function WordbankLemmaHeader({
       {headerBadges.length > 0 || headerCategories.length > 0 ? (
         <ScrollableBadgeRow
           className="order-2 md:order-none"
-          fadeFromClass="from-material-meaning"
+          fadeFromClass="from-card"
           testId="wordbank-lemma-header-badges"
         >
           {headerBadges.map((badge) => {

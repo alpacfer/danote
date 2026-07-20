@@ -6,6 +6,7 @@ import {
   corSecondaryBadgeClass,
   normalizeSearchWord,
   posBadgeClass,
+  posMaterialTone,
   primaryPosLabel,
   type CORSearchVariant,
   type LemmaDetailsResponse,
@@ -85,6 +86,7 @@ export function WordbankRelatedWords({
               <Card
                 className="gap-0 overflow-hidden py-0"
                 data-material="related"
+                data-material-tone={posMaterialTone(uniqueVariant?.pos_tag ?? item.pos_tag ?? null)}
                 data-paper-stock
                 data-grid-anchor="unit"
               >

@@ -7,6 +7,7 @@ import {
   lemmaTranslationWithGloss,
   normalizeSearchWord,
   posBadgeClass,
+  posMaterialTone,
   semanticCategoryBadgeClass,
 } from "@/app/core"
 import { WordbankFormList } from "@/app/sections/wordbank/wordbank-form-list"
@@ -189,6 +190,7 @@ export function WordbankMeaningSections({
               data-meaning-id={section.id}
               data-selected={selectedMeaningId === section.id ? "true" : "false"}
               data-material="meaning"
+              data-material-tone={posMaterialTone(section.pos_tag ?? null)}
               data-paper-stock
               data-grid-anchor="unit"
               data-grid-height="unit"

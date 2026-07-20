@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react"
+import { useEffect, useMemo, useState } from "react"
 
 import { normalizeSearchWord, type CompleteVariationsResponse } from "@/app/core"
 import {
@@ -25,9 +25,10 @@ type WordbankParadigmTableProps = {
   onCompleteVariations?: () => Promise<CompleteVariationsResponse | null>
 }
 
-type RevealState = {
-  origin: ParadigmCellCoordinate
-  normalizedForms: Set<string>
+type CompletionRevealState = {
+  generatedForms: Set<string>
+  revealedCellKeys: Set<string>
+  lastRevealedCellKey: string | null
 }
 
 export function WordbankParadigmTable({
@@ -43,24 +44,29 @@ export function WordbankParadigmTable({
   onCompleteVariations,
 }: WordbankParadigmTableProps) {
   const [pendingCell, setPendingCell] = useState<ParadigmCellCoordinate | null>(null)
-  const [reveal, setReveal] = useState<RevealState | null>(null)
-  const revealedCellKeys = useMemo(
-    () => reveal
-      ? paradigm.cells
-        .filter((cell) => cell.entries.some((entry) => reveal.normalizedForms.has(normalizeSearchWord(entry.form.form))))
-        .map((cell) => cellKey(cell))
-      : [],
-    [paradigm.cells, reveal],
+  const [completionReveal, setCompletionReveal] = useState<CompletionRevealState | null>(null)
+  const generatedCellKeys = useMemo(
+    () => new Set(
+      completionReveal
+        ? paradigm.cells
+          .filter((cell) => cell.entries.some((entry) => completionReveal.generatedForms.has(normalizeSearchWord(entry.form.form))))
+          .map(cellKey)
+        : [],
+    ),
+    [completionReveal, paradigm.cells],
   )
-  const revealedCellsSignature = revealedCellKeys.join("|")
 
   useEffect(() => {
-    if (!reveal || !revealedCellsSignature) {
+    if (!completionReveal?.lastRevealedCellKey) {
       return
     }
-    const timeout = window.setTimeout(() => setReveal(null), 1200)
+    const timeout = window.setTimeout(() => {
+      setCompletionReveal((current) => current
+        ? { ...current, lastRevealedCellKey: null }
+        : null)
+    }, 1200)
     return () => window.clearTimeout(timeout)
-  }, [reveal, revealedCellsSignature])
+  }, [completionReveal?.lastRevealedCellKey])
 
   const pronunciationProps = {
     pronunciationLoadingByForm,
@@ -70,20 +76,32 @@ export function WordbankParadigmTable({
     nonInteractiveForms,
   }
 
-  const revealFromCell = async (origin: ParadigmCellCoordinate) => {
+  const generateFromCell = async (origin: ParadigmCellCoordinate) => {
     if (!onCompleteVariations || pendingCell || isCompletingVariations || !isCompletionAvailable) {
       return
     }
-    setReveal(null)
+    setCompletionReveal(null)
     setPendingCell(origin)
     const response = await onCompleteVariations()
     setPendingCell(null)
-    if (response?.status === "updated" && response.added_surface_forms.length > 0) {
-      setReveal({
-        origin,
-        normalizedForms: new Set(response.added_surface_forms.map(normalizeSearchWord)),
+    if (response) {
+      const originKey = coordinateKey(origin)
+      setCompletionReveal({
+        generatedForms: new Set(response.added_surface_forms.map(normalizeSearchWord)),
+        revealedCellKeys: new Set([originKey]),
+        lastRevealedCellKey: originKey,
       })
     }
+  }
+
+  const revealGeneratedCell = (key: string) => {
+    setCompletionReveal((current) => current
+      ? {
+          ...current,
+          revealedCellKeys: new Set([...current.revealedCellKeys, key]),
+          lastRevealedCellKey: key,
+        }
+      : null)
   }
 
   return (
@@ -108,32 +126,34 @@ export function WordbankParadigmTable({
               {paradigm.columns.map((column) => {
                 const cell = paradigm.cells.find((item) => item.row === row && item.column === column)
                 const coordinate = { row, column }
-                const key = cell ? cellKey(cell) : `${row}-${column}`
-                const revealIndex = revealedCellKeys.indexOf(key)
-                const isRevealOrigin = reveal?.origin.row === row && reveal.origin.column === column
+                const key = cell ? cellKey(cell) : coordinateKey(coordinate)
+                const isGeneratedCell = generatedCellKeys.has(key)
+                const isConcealedGeneratedCell = isGeneratedCell && !completionReveal?.revealedCellKeys.has(key)
+                const isNewlyRevealed = completionReveal?.lastRevealedCellKey === key
+                const isKnownUnavailable = Boolean(completionReveal) && !isGeneratedCell && (!cell || cell.entries.length === 0)
                 const isPending = pendingCell?.row === row && pendingCell.column === column
                 return (
                   <td
                     key={key}
                     data-paradigm-cell
-                    data-empty-cell={!cell || cell.entries.length === 0 ? "true" : undefined}
-                    data-reveal-origin={isRevealOrigin ? "true" : undefined}
-                    data-newly-revealed={revealIndex >= 0 ? "true" : undefined}
-                    style={revealIndex >= 0
-                      ? { "--danote-reveal-index": revealIndex } as CSSProperties
-                      : undefined}
+                    data-empty-cell={!cell || cell.entries.length === 0 || isConcealedGeneratedCell ? "true" : undefined}
+                    data-newly-revealed={isNewlyRevealed ? "true" : undefined}
                   >
-                    {cell && cell.entries.length > 0 ? (
+                    {cell && cell.entries.length > 0 && !isConcealedGeneratedCell ? (
                       <ParadigmCellEntries entries={cell.entries} {...pronunciationProps} />
                     ) : (
                       <ParadigmMissingCell
                         {...coordinate}
                         isLoading={isPending}
-                        isLocked={!isCompletionAvailable || !onCompleteVariations}
+                        isLocked={isKnownUnavailable || (!isConcealedGeneratedCell && (!isCompletionAvailable || !onCompleteVariations))}
                         isTemporarilyDisabled={Boolean(pendingCell) || isCompletingVariations}
-                        lockedReason={completionUnavailableReason}
+                        lockedReason={isKnownUnavailable ? "This form is unavailable" : completionUnavailableReason}
                         onReveal={() => {
-                          void revealFromCell(coordinate)
+                          if (isConcealedGeneratedCell) {
+                            revealGeneratedCell(key)
+                            return
+                          }
+                          void generateFromCell(coordinate)
                         }}
                       />
                     )}
@@ -159,5 +179,9 @@ export function WordbankParadigmTable({
 }
 
 function cellKey(cell: { row: string; column: string }): string {
-  return `${cell.row}-${cell.column}`
+  return coordinateKey(cell)
+}
+
+function coordinateKey(coordinate: ParadigmCellCoordinate): string {
+  return `${coordinate.row}-${coordinate.column}`
 }
